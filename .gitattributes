@@ -1,0 +1,4 @@
+#Treat Xcode files as binaries
+*.pbxproj -crlf -diff -merge
+*.nib -crlf -diff -merge
+*.xib -crlf -diff -merge
