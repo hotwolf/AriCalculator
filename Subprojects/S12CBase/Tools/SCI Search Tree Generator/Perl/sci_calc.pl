@@ -6,7 +6,7 @@
 ###############################################################################
 # Description:                                                                #
 #    This perl script generates the assembler source for two search trees,    #
-#    which are used by the OpenBDMs baud rate detection.                      #
+#    which are used by the S12CBase baud rate detection.                      #
 #    One is used to determine the set of baud rates that are valid for a      #
 #    certain high pulse.                                                      #
 #    The other one is used to determine the set of baud rates that are valid  #
@@ -93,23 +93,23 @@ foreach $table (@tables) {
 	#Print header
 	#------------ 
         printf FILEHANDLE ";###############################################################################\n"; 
-        printf FILEHANDLE ";# OpenBDM - BDM Pod Firmware: SCI - SCI Baud Detection Search Trees           #\n";
+        printf FILEHANDLE ";# S12CBase - SCI Baud Detection Search Trees                                  #\n";
         printf FILEHANDLE ";###############################################################################\n";
-        printf FILEHANDLE ";#    Copyright 2009 Dirk Heisswolf                                            #\n";
+        printf FILEHANDLE ";#    Copyright 2010 Dirk Heisswolf                                            #\n";
         printf FILEHANDLE ";#    This file is part of the OpenBDM BDM pod firmware.                       #\n";
         printf FILEHANDLE ";#                                                                             #\n";
-        printf FILEHANDLE ";#    OpenBDM is free software: you can redistribute it and/or modify          #\n";
+        printf FILEHANDLE ";#    S12CBase is free software: you can redistribute it and/or modify         #\n";
         printf FILEHANDLE ";#    it under the terms of the GNU General Public License as published by     #\n";
         printf FILEHANDLE ";#    the Free Software Foundation, either version 3 of the License, or        #\n";
         printf FILEHANDLE ";#    (at your option) any later version.                                      #\n";
         printf FILEHANDLE ";#                                                                             #\n";
-        printf FILEHANDLE ";#    OpenBDM is distributed in the hope that it will be useful,               #\n";
+        printf FILEHANDLE ";#    S12CBase is distributed in the hope that it will be useful,              #\n";
         printf FILEHANDLE ";#    but WITHOUT ANY WARRANTY; without even the implied warranty of           #\n";
         printf FILEHANDLE ";#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #\n";
         printf FILEHANDLE ";#    GNU General Public License for more details.                             #\n";
         printf FILEHANDLE ";#                                                                             #\n";
         printf FILEHANDLE ";#    You should have received a copy of the GNU General Public License        #\n";
-        printf FILEHANDLE ";#    along with OpenBDM.  If not, see <http://www.gnu.org/licenses/>.         #\n";
+        printf FILEHANDLE ";#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #\n";
         printf FILEHANDLE ";###############################################################################\n";
         printf FILEHANDLE ";# Description:                                                                #\n";
         printf FILEHANDLE ";#    This file contains the two search trees which are required for the SCI   #\n";
