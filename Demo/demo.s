@@ -26,7 +26,7 @@
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
 ;###############################################################################
-;# Global Defines:                                                              #
+;# Global Defines:                                                             #
 ;#    DEBUG - Turns off functionality tha hinders debugging.                   #
 ;###############################################################################
 
@@ -59,9 +59,9 @@
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	MAIN_CODE_START
+			ORG	BASE_APP_START
 ;			ORG	BASE_VARS_END
-;MAIN_CODE_START		EQU	*
+;BASE_APP_START		EQU	*
 
 			SCI_RX
 			LED_BUSY_ON		;signal activity
@@ -91,7 +91,7 @@
 			PRINT_STR
 			PRINT_BITS
 	
-			JOB	MAIN_CODE_START
+			JOB	BASE_APP_START
 	
 ;###############################################################################
 ;# Tables                                                                      #
@@ -108,4 +108,4 @@ MAIN_TABS_END		EQU	*
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ../Source/base.s         ;framework bunble
+#include ../Source/base.s         ;framework bundle
