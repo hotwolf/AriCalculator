@@ -48,6 +48,8 @@
 ;#    PRINT_WORD       - prints a 4-digit hexadecimal number                   #
 ;#    PRINT_BITS       - prints a 8-digit binary number                        #
 ;#    PRINT_CHAR       - prints a ASCII character                              #
+;#    PRINT_UPPER_B    - converts an ASCII character to upper case             #
+;#    PRINT_LOWER_B    - converts an ASCII character to lower case             #
 ;#                                                                             #
 ;#    Each of these functions has a coresponding macro definition              #
 ;###############################################################################
@@ -59,8 +61,10 @@
 ;#    - none                                                                   #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    Apr 4, 2010                                                              #
+;#    Apr  4, 2010                                                             #
 ;#      - Initial release                                                      #
+;#    Apr 29, 2010                                                             #
+;#      - Added macros "PRINT_UPPER_B" and "PRINT_LOWER_B"                     #
 ;###############################################################################
 	
 ;###############################################################################
@@ -360,6 +364,39 @@ PRINT_VARS_END		EQU	*
 		SCI_TX
 #emac
 
+;#Convert a lower case character to upper case
+; args:   B: ASCII character (w/ or w/out termination)
+; SSTACK: 8 bytes
+;         X, Y, and D are preserved 
+#macro	PRINT_UPPER_B, 0
+	CMPB	#$61		;"a"
+	BLO	DONE
+	CMPB	#$7A		;"z"
+	BLS	ADJUST
+	CMPB	#$EA		;"a"+$80
+	BLO	DONE
+	CMPB	#$FA		;"z"+$80
+	BHI	DONE
+ADJUST	SUBB	#$20		;"a"-"A"	
+DONE	EQU	*
+#emac
+
+;#Convert an upper case character to lower case
+; args:   B: ASCII character (w/ or w/out termination)
+; SSTACK: 8 bytes
+;         X, Y, and D are preserved 
+#macro	PRINT_LOWER_B, 0
+	CMPB	#$41		;"A"
+	BLO	DONE
+	CMPB	#$5A		;"Z"
+	BLS	ADJUST
+	CMPB	#$C1		;"A"+$80
+	BLO	DONE
+	CMPB	#$DA		;"Z"+$80
+	BHI	DONE
+ADJUST	ADDB	#$20		;"a"-"A"	
+DONE	EQU	*
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
