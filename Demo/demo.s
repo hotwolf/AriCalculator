@@ -43,44 +43,59 @@ DEBUG                  EQU     1 ;enable debug code
 ;  		 +-------------+ $0400
 ;  		 |/////////////|
 ;  		 +-------------+ $3000
+;  		 |  RAM Code   |
+;  		 +-------------+ 
 ;  		 |  Variables  |
 ;  		 +-------------+ $4000
 ;  		 |/////////////|
 ;  		 +-------------+ $C000
-;  		 |             |
 ;  		 |    Code     |
-;  		 |             |
-;  		 +-------------+ $E000 
+;  		 +-------------+ 
 ;  		 |   Tables    |
+;  		 +-------------+
+;  		 |   Words     |
 ;  		 +-------------+ $FF80
 ;  		 |  Vectors    |
 ;  		 +-------------+ 
 
+DEMO_RAM_CODE_START		EQU	$3000
+DEMO_VARS_START			EQU	DEMO_RAM_CODE_END
+FORTH_VARS_START		EQU	DEMO_VARS_END
+
+FORTH_CODE_START		EQU	$C000
+DEMO_TABS_START			EQU	DEMO_CODE_END
+FORTH_TABS_START		EQU	DEMO_TABS_END
+FORTH_WORDS_START		EQU	FORTH_TABS_END
+	
+;###############################################################################
+;# Constants                                                                   #
+;###############################################################################
+	
+;###############################################################################
+;# Variables                                                                   #
+;###############################################################################
+				ORG	DEMO_VARS_START
+DEMO_VARS_END			EQU	*
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-;			ORG	FORTH_APP_START
-			ORG	RAM_START
-FORTH_APP_START		EQU	*
-
-
-FORTH_VARS_START	EQU	*
-
+				ORG	DEMO_RAM_CODE_START
+				FILL	$800, $00
+DEMO_RAM_CODE_END		EQU	*
 	
+				ORG	FORTH_APP_START
+DEMO_CODE_START			EQU	*
+				JOB	DEMO_RAM_CODE_START
+DEMO_CODE_END			EQU	*
 	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			;ORG	BASE_TABS_END
-
-MAIN_STR_CHAR		FCS	"Char:"
-MAIN_STR_HEX		FCS	" Hex:"
-MAIN_STR_DEC		FCS	" Dec:"
-MAIN_STR_BIN		FCS	" Bits:"
-		
-MAIN_TABS_END		EQU	*
-   
+				ORG	DEMO_TABS_START
+DEMO_TABS_END			EQU	*
+	
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ../Source/forth.s         ;framework bundle
+#include ../Source/forth.s         ;S12CForth framework bundle

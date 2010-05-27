@@ -1,21 +1,22 @@
 ;###############################################################################
-;# OpenBDC - BDM Pod Firmware:    FMEM - Memory management for the Forth VM    #
+;# S12CForth- FMEM - Memory management for the Forth VM                        #
 ;###############################################################################
-;#    Copyright 2009 Dirk Heisswolf                                            #
-;#    This file is part of the OpenBDC BDM pod firmware.                       #
+;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
+;#    family.                                                                  #
 ;#                                                                             #
-;#    OpenBDC is free software: you can redistribute it and/or modify          #
+;#    S12CForth is free software: you can redistribute it and/or modify        #
 ;#    it under the terms of the GNU General Public License as published by     #
 ;#    the Free Software Foundation, either version 3 of the License, or        #
 ;#    (at your option) any later version.                                      #
 ;#                                                                             #
-;#    OpenBDC is distributed in the hope that it will be useful,               #
+;#    S12CForth is distributed in the hope that it will be useful,             #
 ;#    but WITHOUT ANY WARRANTY; without even the implied warranty of           #
 ;#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #
 ;#    GNU General Public License for more details.                             #
 ;#                                                                             #
 ;#    You should have received a copy of the GNU General Public License        #
-;#    along with OpenBDC.  If not, see <http://www.gnu.org/licenses/>.         #
+;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
 ;#    This module implements the parameter and the return stack, as well as    #
@@ -65,7 +66,7 @@
 ;      	                    +--------------+--------------+          
 ;                           |            TO_IN            |	     
 ;      	                    +--------------+--------------+	     
-;    	     UDICT_START -> |              |              | 	     
+;    	      DICT_START -> |              |              | 	     
 ;                           |       User Dictionary       |	     
 ;                           |              |              |	     
 ;                           |              v              |	     
@@ -103,25 +104,34 @@
 ;# Constants                                                                   #
 ;###############################################################################
 ;Stack and buffer sizes 
-;RS_SIZE	EQU	2*128
-;PAD_SIZE	EQU	68
-;TIB_SIZE	EQU	80
-RS_SIZE		EQU	2*16
-PAD_SIZE	EQU	8
-TIB_SIZE	EQU	16
+;RS_SIZE		EQU	2*128
+;PAD_SIZE		EQU	68
+;TIB_SIZE		EQU	80
+RS_SIZE			EQU	2*16
+PAD_SIZE		EQU	8
+TIB_SIZE		EQU	16
+
+;Standard error codes
+FMEM_EC_DICTOF		EQU	FEXCPT_EC_DICTOF	;dictionary overflow
+FMEM_EC_PSOF		EQU	FEXCPT_EC_PSOF		;stack overflow
+FMEM_EC_PSUF		EQU	FEXCPT_EC_PSUF		;stack underflow
+FMEM_EC_RSOF		EQU	FEXCPT_EC_RSOF		;return stack overflow
+FMEM_EC_RSUF		EQU	FEXCPT_EC_RSUF		;return stack underflow
+FMEM_EC_TIBOF		EQU	FEXCPT_EC_TIBOF		;parsed string overflow
+FMEM_EC_PADOF		EQU	FEXCPT_EC_PADOF		;pictured numeric output string overflow
 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 			ORG	FMEM_VARS_START
-HERE			DS	2 	;compile pointrer (next free space after the dictionary) 
+CP			DS	2 	;compile pointrer (next free space after the dictionary) 
 PSP			DS	2 	;parameter stack pointer (top of stack)
 RSP			DS	2 	;return stack pointer (top of stack)
 PAD                     DS	2	;end of the PAD buffer
 HLD			DS	2	;pointer for pictured numeric output
 NUMBER_TIB  		DS	2	;number of chars in the TIB
 TO_IN  			DS	2	;in pointer of the TIB (TIB_START+TO_IN points to the next character)
-UDICT_START		EQU	*
+DICT_START		EQU	*
 PS_EMPTY		EQU	FMEM_VARS_END-(TIB_SIZE+RS_SIZE+PAD_SIZE)
 PAD_START		EQU	FMEM_VARS_END-(TIB_SIZE+RS_SIZE+PAD_SIZE)
 PAD_END			EQU	FMEM_VARS_END-(TIB_SIZE+RS_SIZE)
@@ -134,11 +144,11 @@ RS_EMPTY		EQU	FMEM_VARS_END
 ;#Initialization
 #macro	FMEM_INIT, 0
 			;Initialize memory pointers
-			MOVW	#UDICT_START,	CP
+			MOVW	#DICT_START,	CP
 			PS_RESET
 			RS_RESET
-			MOVW	#(UDICT_START+PAD_SIZE), PAD
-			MOVW	#(UDICT_START+PAD_SIZE+1), HLD
+			MOVW	#(DICT_START+PAD_SIZE), PAD
+			MOVW	#(DICT_START+PAD_SIZE+1), HLD
 			MOVW	#$0000,   	NUMBER_TIB
 			MOVW	#(TIB_START-1),   TO_IN
 #emac
@@ -182,27 +192,27 @@ RS_EMPTY		EQU	FMEM_VARS_END
 	
 ;PS_PULL_X: pull one entry from the parameter stack into index Y (PSP -> Y)
 #macro	PS_PULL_X, 2	;1:expected entries before operation 2:underflow handler 
-		PS_CHECK_UF	\1, \2			;check for underflow	=> 6 cycles
-		LDX		2,Y+			;PS -> Y		=> 3 cycles 
-		STY		PSP			;			=> 3 cycles
+			PS_CHECK_UF	\1, \2		;check for underflow	=> 6 cycles
+			LDX		2,Y+		;PS -> Y		=> 3 cycles 
+			STY		PSP		;			=> 3 cycles
 							;                         ---------
 							;                         12 cycles
 #emac	
 	
 ;PS_PULL_D: pull one entry from the parameter stack into accu D (PSP -> Y)
 #macro	PS_PULL_D, 2	;1:expected entries before operation 2:underflow handler 
-		PS_CHECK_UF	\1, \2			;check for underflow	=> 6 cycles
-		LDD		2,Y+			;PS -> Y		=> 3 cycles 
-		STY		PSP			;			=> 3 cycles
+			PS_CHECK_UF	\1, \2		;check for underflow	=> 6 cycles
+			LDD		2,Y+		;PS -> Y		=> 3 cycles 
+			STY		PSP		;			=> 3 cycles
 							;                         ---------
 							;                         12 cycles
 #emac	
 
 ;PS_PUSH_D: Push one entry from accu D onto the return stack into index Y (PSP -> Y)
 #macro	PS_PUSH_D, 2	;1:required cells on the stack 2:overflow handler 
-		PS_CHECK_OF	\1, \2			;check for overflow	=> 9 cycles
-		STD		0,Y			;PS -> Y		=> 3 cycles 
-		STY		PSP			;			=> 3 cycles
+			PS_CHECK_OF	\1, \2		;check for overflow	=> 9 cycles
+			STD		0,Y		;PS -> Y		=> 3 cycles 
+			STY		PSP		;			=> 3 cycles
 							;                         ---------
 							;                         15 cycles
 #emac	
@@ -232,28 +242,37 @@ RS_EMPTY		EQU	FMEM_VARS_END
 							;   9 cycles/ 11 cycles
 #emac
 	
+;RS_PULL: pull one entry from the return stack  (RSP -> X)
+#macro	RS_PULL, 2	;1:variable 2:underflow handler  
+			RS_CHECK_UF	1, \2		;check for underflow	=> 6 cycles
+			MOVW		2,X+, \1	;RS -> X		=> 3 cycles 
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         12 cycles
+#emac	
+	
 ;RS_PULL_Y: pull one entry from the return stack into index Y (RSP -> X)
 #macro	RS_PULL_Y, 1	;1:underflow handler  
-		RS_CHECK_UF	1, \1			;check for underflow	=> 6 cycles
-		LDY		2,X+			;RS -> Y		=> 3 cycles 
-		STX		RSP			;			=> 3 cycles
+			RS_CHECK_UF	1, \1		;check for underflow	=> 6 cycles
+			LDY		2,X+		;RS -> X		=> 3 cycles 
+			STX		RSP		;			=> 3 cycles
 							;                         ---------
 							;                         12 cycles
 #emac	
 	
 ;RS_PUSH: push a variable onto the return stack (RSP -> X)
 #macro	RS_PUSH, 2	;1:variable 2:overflow handler  
-		RS_CHECK_OF	1, \2			;check for overflow	=> 9 cycles
-		LDX		RSP			;var -> RS		=> 3 cycles
-		MOVW		\1, 2,-X		;			=> 5 cycles
-		STX		RSP			;			=> 3 cycles
+			RS_CHECK_OF	1, \2		;check for overflow	=> 9 cycles
+			LDX		RSP		;var -> RS		=> 3 cycles
+			MOVW		\1, 2,-X	;			=> 5 cycles
+			STX		RSP		;			=> 3 cycles
 							;                         ---------
 							;                         20 cycles
 #emac	
 
-;#User dictionary (UDICT) 
-;UDICT_CHECK_OF: check if there is room in the UDICT space and deallocate the PAD (HERE+bytes -> X)
-#macro	UDICT_CHECK_OF, 2	;1:required space (in bytes) 2:overflow handler  
+;#User dictionary (DICT) 
+;DICT_CHECK_OF: check if there is room in the DICT space and deallocate the PAD (HERE+bytes -> X)
+#macro	DICT_CHECK_OF, 2	;1:required space (in bytes) 2:overflow handler  
 			LDX	HERE 			;=> 3 cycles
 			LEAX	\1,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
@@ -299,9 +318,8 @@ PAD_ALLOC_0		STD	PAD
 			LEAX	(TIB_START+\1-1),X	;=> 2 cycles
 			CPX	RSP			;=> 3 cycles
 			BHS	>\2			;=> 1 cycle / 3 cycles
-							;=> 3 cycles
 							;  -------------------
-							;   9 cycles/ 141cycles
+							;   9 cycles/12 cycles
 #emac
 	
 ;#Memory access
@@ -312,203 +330,57 @@ PAD_ALLOC_0		STD	PAD
 ;###############################################################################
 			ORG	FMEM_CODE_START
 
-;#Throw an UDICT overflow exception
-; args:   none
-FMEM_THROW_UDICTOF	EQU	*
-		FEXC_THROW	#FMEM_MSG_UDICTOF
-
 ;#Throw an RS overflow exception
 ; args:   none
 FMEM_THROW_RSOF		EQU	*
-		FEXC_THROW	#FMEM_MSG_RSOF
+			FECCPT_THROW	#FMEM_EC_RSOF
 	
 ;#Throw an RS underflow exception
 ; args:   none
 FMEM_THROW_RSUF		EQU	*
-		FEXC_THROW	#FMEM_MSG_RSUF
+			FEXCPT_THROW	#FMEM_EC_RSUF
 
 ;#Throw an PS overflow exception
 ; args:   none
 FMEM_THROW_PSOF		EQU	*
-		FEXC_THROW	#FMEM_MSG_PSOF
+			FEXCPT_THROW	#FMEM_EC_PSOF
 
 ;#Throw an PS underflow exception
 ; args:   none
 FMEM_THROW_PSUF		EQU	*
-		FEXC_THROW	#FMEM_MSG_PSUF
+			FEXCPT_THROW	#FMEM_EC_PSUF
 
 ;#Throw an PAD overflow exception
 ; args:   none
 FMEM_THROW_PSUF		EQU	*
-		FEXC_THROW	#FMEM_MSG_PADOF
+			FEXCPT_THROW	#FMEM_EC_PADOF
+
+;#Throw an DICT overflow exception
+; args:   none
+FMEM_THROW_DICTOF	EQU	*
+			FEXCPT_THROW	#FMEM_EC_DICTOF
+
+;#Throw an PAD overflow exception
+; args:   none
+FMEM_THROW_PADOF	EQU	*
+			FEXCPT_THROW	#FMEM_EC_PADOF
 
 ;#Throw a TIB pointer out of range exception exception
 ; args:   none
-FMEM_THROW_TIBOR	EQU	*
-		FEXC_THROW	#FMEM_MSG_TIBOR
-
-FMEM_CODE_END		EQU	*
+;FMEM_THROW_TIBOR	EQU	*
+;			FEXCPT_THROW	#FMEM_EC_TIBOF
+;
+;FMEM_CODE_END		EQU	*
 	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
 			ORG	FMEM_TABS_START
-
-;#Error Messages
-FMEM_MSG_UDICTOF	ERROR_MSG	ERROR_LEVEL_ERROR, "Dictionary space exceeded"
-	
-FMEM_MSG_RSOF		ERROR_MSG	ERROR_LEVEL_ERROR, "Return stack overflow"
-FMEM_MSG_RSUF		ERROR_MSG	ERROR_LEVEL_ERROR, "Return stack underflow"
-	
-FMEM_MSG_PSOF		ERROR_MSG	ERROR_LEVEL_ERROR, "Parameter stack overflow"
-FMEM_MSG_PSUF		ERROR_MSG	ERROR_LEVEL_ERROR, "Parameter stack underflow"
-
-FMEM_MSG_PADOF		ERROR_MSG	ERROR_LEVEL_ERROR, "PAD overflow"
-
-FMEM_MSG_TIBOR		ERROR_MSG	ERROR_LEVEL_ERROR, "TIB pointer out of range"
-	
 FMEM_TABS_END		EQU	*
 
 ;###############################################################################
 ;# Forth words                                                                 #
 ;###############################################################################
 			ORG	FMEM_WORDS_START
-
-;E#UDICTOF ( -- e# )
-;Returns the error code of a return stack overflow 
-NFA_EC_UDICTOF		FHEADER, "E#UDICTOF", FMEM_PREV_NFA, COMPILE
-CFA_EC_UDUCTOF		DW	CF_CONSTANT_RT
-			DW	FMEM_MSG_UDICTOF
-
-;E#RSOF ( -- e# )
-;Returns the error code of a return stack overflow 
-NFA_EC_RSOF		FHEADER, "E#RSOF", NFA_EC_UDICTOF, COMPILE
-CFA_EC_RSOF		DW	CF_CONSTANT_RT
-			DW	FMEM_MSG_RSOF
-
-;E#RSUF ( -- e# )
-;Returns the error code of an return stack underflow 
-NFA_EC_RSUF		FHEADER, "E#RSUF", NFA_EC_RSOF, COMPILE
-CFA_EC_RSUF		DW	CF_CONSTANT_RT
-			DW	FMEM_MSG_RSUF
-
-;E#PSOF ( -- e# )
-;Returns the error code of a parameter stack overflow 
-NFA_EC_PSOF		FHEADER, "E#PSOF", NFA_EC_RSUF, COMPILE
-CFA_EC_PSOF		DW	CF_CONSTANT_RT
-			DW	FMEM_MSG_PSOF
-
-;E#PSUF ( -- e# )
-;Returns the error code of a parameter stack underflow 
-NFA_EC_PSUF		FHEADER, "E#PSUF", NFA_EC_PSOF, COMPILE
-CFA_EC_PSUF		DW	CF_CONSTANT_RT
-			DW	FMEM_MSG_PSUF
-
-;E#PADOF ( -- e# )
-;Returns the error code of PAD underflow 
-NFA_EC_PADOF		FHEADER, "E#PADOF", NFA_EC_PSUF, COMPILE
-CFA_EC_PADOF		DW	CF_CONSTANT_RT
-			DW	FMEM_MSG_PADOF
-
 FMEM_WORDS_END		EQU	*
-FMEM_LAST_NFA		EQU	NFA_EC_PADOF
-
-;;# User dictionary words 
-;;  =====================
-;;CP ( -- addr) Compile pointer (points to the next free byte after the user dictionary)
-;NFA_CP			FHEADER, "CP", FMEM_PREV_WORD, COMPILE
-;CFA_CP			DW	FCONST
-;			DW	FCP
-;
-;;HERE ( -- addr) Return the address of the next free byte after the user dictionary
-;NFA_HERE		FHEADER, "HERE", NFA_CP, COMPILE
-;CFA_HERE		DW	FINNER
-;			DW	CFA_CP 		;CP
-;			DW	CFA_READ	;@
-;			DW	CFA_EXIT
-;
-;;ALLOT (#bytes -- ) Advances CP by a number of bytes
-;NFA_ALLOT		FHEADER, "ALLOT", NFA_HERE, COMPILE
-;CFA_ALLOT		DW	FINNER
-;			DW	CFA_HERE 	;HERE
-;			DW	CFA_PLUS	;+
-;			DW	CFA_CP 		;CP
-;			DW	CFA_STORE 	;!
-;			DW	CFA_EXIT
-;	
-;;, (word -- ) Appends one cell to the dictionary 
-;NFA_COMMA		FHEADER, ",", NFA_ALLOT, COMPILE
-;CFA_COMMA		DW	FINNER
-;			DW	CFA_HERE 	;HERE
-;			DW	CFA_STORE 	;!
-;			DW	CFA_CELL 	;CELL
-;			DW	CFA_ALLOT 	;ALLOT
-;			DW	CFA_EXIT
-;
-;;# PAD words 
-;;  =========
-;;PAD ( -- addr) Returns the start address of the PAD space
-;NFA_PAD			FHEADER, "PAD", NFA_COMMA, COMPILE
-;CFA_PAD			DW	FINNER
-;			DW	CFA_HERE 	;HERE
-;			DW	FCONST		;CONST
-;			DW	FPAD_OFFSET	;offset
-;			DW	CFA_PLUS	;+
-;			DW	CFA_EXIT
-;
-;;# Parameter stack words 
-;;  =====================
-;;SP ( -- addr) Parameter stack pointer
-;;NFA_SP			FHEADER, "SP", NFA_PAD, COMPILE
-;CFA_SP			DW	FCONST
-;			DW	FPSP
-;	
-;;SP@ ( -- addr) Returns the address of the TOS
-;NFA_SP_READ		FHEADER, "SP@", NFA_PAD, COMPILE
-;CFA_SP_READ		DW	FINNER
-;			DW	CFA_SP 		;SP
-;			DW	CFA_READ	;@
-;			DW	CFA_EXIT
-;			
-;;SP0 ( -- addr) Bottom of the parameter stack (below the first entry)
-;NFA_SP0			FHEADER, "SP0", NFA_SP_READ, COMPILE
-;CFA_SP0			DW	FCONST
-;			DW	FPS_BOTTOM
-;
-;;# Terminal input buffer words 
-;;  ===========================
-;;TIB ( -- addr) Returns the start address of the TIB
-;NFA_TIB			FHEADER, "TIB", NFA_SP0, COMPILE
-;CFA_TIB			DW	FCONST
-;			DW	FTIB_START
-;	
-;;#TIB ( -- addr) Variable which contains the buffer size
-;NFA_CNT_TIB		FHEADER, "#TIB", NFA_TIB, COMPILE
-;CFA_CNT_TIB		DW	FCONST
-;			DW	FTIBCNT
-;;>IN ( -- int) Returns the size of the TIB
-;NFA_IN			FHEADER, ">IN", NFA_CNT_TIB, COMPILE
-;CFA_IN			DW	FCONST
-;			DW	FTIBIN
-;	
-;;# Parameter stack words 
-;;  =====================
-;;RSP ( -- addr) Parameter stack pointer
-;;NFA_RSP		FHEADER, "RSP", NFA_IN, COMPILE
-;CFA_RSP			DW	FCONST
-;			DW	FRSP
-;	
-;;RSP@ ( -- addr) returns the address of the TOS
-;NFA_RSP_READ		FHEADER, "RSP@", NFA_IN, COMPILE
-;CFA_RSP_READ		DW	FINNER
-;			DW	CFA_RSP 	;RSP
-;			DW	CFA_READ	;@
-;			DW	CFA_EXIT
-;			
-;;RSP0 ( -- addr) Bottom of the parameter stack (below the first entry)
-;NFA_RSP0		FHEADER, "RSP0", NFA_RSP_READ, COMPILE
-;CFA_RSP0		DW	FCONST
-;			DW	FRS_BOTTOM
-;
-;FMEM_WORDS_END		EQU	*
-;FMEM_LAST_NFA		EQU	NFA_RSP0
+FMEM_LAST_NFA		EQU	FMEM_PREV_NFA
