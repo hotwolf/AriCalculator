@@ -83,7 +83,7 @@ FEXCPT_EC_0DIV			EQU	-10	;division by zero
 FEXCPT_EC_RESOR			EQU	-11	;result out of range
 ;FEXCPT_EC_12			EQU	-12	;argument type mismatch
 FEXCPT_EC_UDEFWORD		EQU	-13	;undefined word
-;FEXCPT_EC_14			EQU	-14	;interpreting a compile-only word
+FEXCPT_EC_COMPONLY		EQU	-14	;interpreting a compile-only word
 ;FEXCPT_EC_15			EQU	-15	;invalid FORGET
 ;FEXCPT_EC_16			EQU	-16	;attempt to use zero-length string as a name
 FEXCPT_EC_PADOF			EQU	-17	;pictured numeric output string overflow
@@ -264,7 +264,7 @@ FEXCPT_MSGTAB_START	EQU	*
 			DW	FEXCPT_MSG_PADOF	;-17 pictured numeric output string overflow
 			DW	FEXCPT_MSG_UNKNOWN	;-16 attempt to use zero-length string as a name
 			DW	FEXCPT_MSG_UNKNOWN	;-15 invalid FORGET
-			DW	FEXCPT_MSG_UNKNOWN	;-14 interpreting a compile-only word
+			DW	FEXCPT_MSG_COMPONLY	;-14 interpreting a compile-only word
 			DW	FEXCPT_MSG_UDEFWORD	;-13 undefined word
 			DW	FEXCPT_MSG_UNKNOWN	;-12 argument type mismatch
 			DW	FEXCPT_MSG_RESOR	;-11 result out of range
@@ -291,6 +291,7 @@ FEXCPT_MSG_DICTOF	ERROR_MSG	ERROR_LEVEL_ERROR, "Dictionary overflow"
 FEXCPT_MSG_0DIV		ERROR_MSG	ERROR_LEVEL_ERROR, "Division by zero"
 FEXCPT_MSG_RESOR	ERROR_MSG	ERROR_LEVEL_ERROR, "Result out of range"
 FEXCPT_MSG_UDEFWORD	ERROR_MSG	ERROR_LEVEL_ERROR, "Undefined word"
+FEXCPT_MSG_COMPONLY	ERROR_MSG	ERROR_LEVEL_ERROR, "Compile-only word"
 FEXCPT_MSG_TIBOF	ERROR_MSG	ERROR_LEVEL_ERROR, "TIB overflow"
 FEXCPT_MSG_PADOF	ERROR_MSG	ERROR_LEVEL_ERROR, "PAD overflow"
 FEXCPT_MSG_COMPNEST	ERROR_MSG	ERROR_LEVEL_ERROR, "Nested compilation"

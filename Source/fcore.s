@@ -224,6 +224,15 @@ IP_RESUME		DW	CFA_RESUME
 CFA_RESUME		DW	CF_RESUME
 CF_RESUME		RS_PULL	IP, \3 		;RS -> IP
 #emac
+
+;BASE_CHECK: Verify the content of the BASE variable (Cdirectly from assembler code (BASE -> D)
+#macro	BASE_CHECK, 1	;args: 1:error handler
+			LDD	BASE
+			CPD	#FCORE_BASE_MIN
+			BLO	>\1
+			CPD	#FCORE_BASE_MAX
+			BHI	>\1
+#emac
 		
 ;###############################################################################
 ;# Code                                                                        #
@@ -239,7 +248,7 @@ FCORE_THROW_PADOF	EQU	FMEM_THROW_PADOF		;pictured numeric output string overflow
 FCORE_THROW_TIBOF	EQU	FMEM_THROW_TIBOF		;text input buffer overflow
 FCORE_THROW_0DIV	FEXCPT_THROW	FCORE_EC_0DIV		;division by zero
 FCORE_THROW_RESOR	FEXCPT_THROW	FCORE_EC_RESOR		;result out of range
-FCORE_THROW_BASE	FEXCPT_THROW	FCORE_EC_INVALBASE	;invalid BASE
+FCORE_THROW_INVALBASE	FEXCPT_THROW	FCORE_EC_INVALBASE	;invalid BASE
 	
 ;CF_INNER   ( -- )
 			;Execute the first execution token after the CFA (CFA in X)
@@ -320,12 +329,9 @@ CF_STORE_PSUF		JOB	FCORE_THROW_PSUF
 NFA_NUMBER_SIGN		FHEADER, "#", NFA_STORE, COMPILE
 CFA_NUMBER_SIGN		DW	CF_NUMBER_SIGN
 CF_NUMBER_SIGN		PS_CHECK_UF 2, CF_NUMBER_SIGN_PSUF 	;check for underflow  (PSP -> Y)
-			;Perform division (PSP -> Y)
-			LDX	BASE				;prepare 1st division
-			CPX	FCORE_BASE_MIN			;verify BASE
-			BLO	CF_NUMBER_SIGN_BASE
-			CPX	FCORE_BASE_MAX
-			BHI	CF_NUMBER_SIGN_BASE
+			BASE_CHECK	CF_NUMBER_SIGN_INVALBASE	;check BASE value (BASE -> D)
+			;Perform division (PSP in Y, BASE in D)
+			TFR	D,X				;prepare 1st division
 			LDD	0,Y				; (ud1>>16)/BASE
 			IDIV					;D/X=>X; remainder=D
 			STX	0,Y				;return upper word of the result
@@ -344,9 +350,9 @@ CF_NUMBER_SIGN		PS_CHECK_UF 2, CF_NUMBER_SIGN_PSUF 	;check for underflow  (PSP -
 			STX	HLD
 			NEXT
 	
-CF_NUMBER_SIGN_PSUF	JOB	FCORE_THROW_PSUF
-CF_NUMBER_SIGN_PADOF	JOB	FCORE_THROW_PADOF
-CF_NUMBER_SIGN_BASE	JOB	FCORE_THROW_BASE
+CF_NUMBER_SIGN_PSUF		JOB	FCORE_THROW_PSUF
+CF_NUMBER_SIGN_PADOF		JOB	FCORE_THROW_PADOF
+CF_NUMBER_SIGN_INVALBASE	JOB	FCORE_THROW_INVALBASE
 	
 ;#> ( xd -- c-addr u )
 ;Drop xd. Make the pictured numeric output string available as a character
@@ -375,7 +381,7 @@ CF_NUMBER_SIGN_GREATER		PS_CHECK_UFOF	1, CF_NUMBER_SIGN_GREATER_PSUF, 1, CF_NUMB
 				NEXT
 
 CF_NUMBER_SIGN_GREATER_PSUF	JOB	FCORE_THROW_PSUF
-CF_NUMBER_SIGN_GREATER_PSOF	JOB	FCORE_THROW_BASE
+CF_NUMBER_SIGN_GREATER_PSOF	JOB	FCORE_THROW_PSOF
 	
 ;#S ( ud1 -- ud2 )
 ;Convert one digit of ud1 according to the rule for #. Continue conversion
@@ -385,8 +391,6 @@ CF_NUMBER_SIGN_GREATER_PSOF	JOB	FCORE_THROW_BASE
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;"PAD buffer overflow"
-;"Invalid BASE value"
 ;
 NFA_NUMBER_SIGN_S	FHEADER, "#S", NFA_NUMBER_SIGN_GREATER, COMPILE
 CFA_NUMBER_SIGN_S	DW	CF_INNER
@@ -613,16 +617,18 @@ CF_MINUS_PSUF	JOB	FCORE_THROW_PSUF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
+;"Invalid BASE"
 ;
 NFA_DOT			FHEADER, ".", NFA_MINUS, COMPILE
 CFA_DOT			DW	CF_DOT
 CF_DOT			PS_PULL_X	1, CF_DOT_PSUF 	;pull cell from PS
+			BASE_CHECK	CF_DOT_INVALBASE	;check BASE value
 			PRINT_SPC			;print a space character
-			LDD	BASE			;print cell as unsigned integer
-			PRINT_SINT
+			PRINT_SINT			;print cell as signed integer
 			NEXT
 
 CF_DOT_PSUF		JOB	FCORE_THROW_PSUF
+CF_DOT_INVALBASE		JOB	FCORE_THROW_INVALBASE
 	
 ;." 			;"
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1301,12 +1307,9 @@ CFA_CREATE		DW	CF_DUMMY
 ;DECIMAL ( -- )
 ;Set the numeric conversion radix to ten (decimal).
 NFA_DECIMAL		FHEADER, "DECIMAL", NFA_CREATE, COMPILE
-CFA_DECIMAL		DW	CF_INNER
-			DW	CFA_LITERAL 	;10
-			DW	10
-			DW	CFA_BASE 	;BASE
-			DW	CFA_STORE	;!
-			DW	CFA_EXIT
+CFA_DECIMAL		DW	CF_DECIMAL
+CF_DECIMAL		MOVW	#10, BASE
+			NEXT
 
 ;DEPTH ( -- +n )
 ;+n is the number of single-cell values contained in the data stack before +n
@@ -1690,8 +1693,8 @@ CFA_LITERAL		DW	CF_DUMMY
 ;LITERAL run-time semantics
 CFA_LITERAL_RT		DW	CF_LITERAL_RT
 CF_LITERAL_RT		PS_CHECK_OF	1, CF_LITERAL_PSOF 	;check for PS overflow (PSP-new cells -> Y)
-			LDX	IP			;push the value at IP onto the PS
-			MOVW	2,X+ 0,Y		; and increment the IP
+			LDX	IP				;push the value at IP onto the PS
+			MOVW	2,X+ 0,Y			; and increment the IP
 			STX	IP
 			STY	PSP
 			NEXT
@@ -2029,14 +2032,14 @@ CF_QUIT_3		STY	PSP 		;update PSP
 			DBNE	D, CF_QUIT_4	;double cell immediate value
 			;Single cell immediate value (PS: x 1, PSP+2 in Y)
 			LDX	CP
-			MOVW	#CF_CONSTANT_RT, 2,X+
+			MOVW	#CF_LITERAL_RT, 2,X+
 			MOVW	2,Y+, 2,X+
 			STX	CP
 			STY	PSP
 			JOB	CF_QUIT_2 	;parse next word			
 			;Double cell immediate value (PS: xd 2, PSP+2 in Y)
 CF_QUIT_4		LDX	CP
-			MOVW	#CF_TWO_CONSTANT_RT, 2,X+
+			MOVW	#CF_TWO_LITERAL_RT, 2,X+
 			MOVW	2,Y+, 2,X+
 			MOVW	2,Y+, 2,X+
 			STX	CP
@@ -2704,8 +2707,9 @@ CFA_FALSE		DW	CF_CONSTANT_RT
 ;HEX ( -- )
 ;Set contents of BASE to sixteen.
 NFA_HEX			FHEADER, "HEX", NFA_FALSE, COMPILE
-CFA_HEX			DW	CF_DUMMY
-			DW	CFA_EXIT
+CFA_HEX			DW	CF_HEX
+CF_HEX			MOVW	#16, BASE
+			NEXT
 
 ;MARKER ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -2734,10 +2738,12 @@ CFA_NIP			DW	CF_DUMMY
 ;Throws:
 ;"Parameter stack underflow"
 ;"Parameter stack overflow"
+;"Invalid BASE value"
 ;
 NFA_NUMBER		FHEADER, "NUMBER", NFA_NIP, COMPILE
 CFA_NUMBER		DW	CF_NUMBER
 CF_NUMBER		PS_CHECK_UFOF	1, CF_NUMBER_PSUF, 1, CF_NUMBER_PSOF ;check for under and overflow (PSP-2 -> Y)
+			BASE_CHECK	CF_NUMBER_INVALBASE	;check BASE value (BASE -> D) 
 			;Allocate temporay memory 
 			;+--------+--------+
 			;|   Result MSW    | <-SSTACK_SP (in X)
@@ -2814,7 +2820,7 @@ CF_NUMBER_6		CMPB	#"_"
 			BEQ	CF_NUMBER_8 		;ignore character
 			JOB	CF_NUMBER_9		;not a number	
 			;Check digit (digit in D, SP in X, string pointer in Y)
-CF_NUMBER_7		CPD	BASE 			;check if figit < BASE
+CF_NUMBER_7		CPD	BASE 			;check if digit < BASE
 			BHS	CF_NUMBER_9		;not a number
 			STD	CF_NUMBER_DIGIT,X 	;store digit
 			STY	CF_NUMBER_STRPTR,X	;store string pointer
@@ -2897,7 +2903,9 @@ CF_NUMBER_14		PS_CHECK_OF	2, CF_NUMBER_PSOF ;check for overflow (PSP-4 -> Y)
 	
 CF_NUMBER_PSUF		JOB	FCORE_THROW_PSUF
 CF_NUMBER_PSOF		JOB	FCORE_THROW_PSOF
-	
+CF_NUMBER_INVALBASE	JOB	FCORE_THROW_INVALBASE
+
+		
 ;OF 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: -- of-sys )

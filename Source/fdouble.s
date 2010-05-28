@@ -57,6 +57,11 @@ FDOUBLE_VARS_END		EQU	*
 ;# Code                                                                        #
 ;###############################################################################
 			ORG	FDOUBLE_CODE_START
+;Exceptions
+FDOUBLE_THROW_PSOF	EQU	FMEM_THROW_PSOF			;stack overflow
+FDOUBLE_THROW_PSUF	EQU	FMEM_THROW_PSUF			;stack underflow
+FDOUBLE_THROW_INVALBASE	EQU	FCORE_THROW_INVALBASE		;invalid BASE value
+
 FDOUBLE_CODE_END		EQU	*
 	
 ;###############################################################################
@@ -79,7 +84,22 @@ FDOUBLE_TABS_END		EQU	*
 NFA_TWO_CONSTANT	FHEADER, "2CONSTANT", FDOUBLE_PREV_NFA, COMPILE
 CFA_TWO_CONSTANT	DW	CF_TWO_CONSTANT
 CF_TWO_CONSTANT		NEXT
-CF_TWO_CONSTANT_RT	EQU	CF_TWO_CONSTANT ;TBD ASAP!!!
+
+;2CONSTANT run-time semantics
+;Push the contents of the first cell after the CFA onto the parameter stack
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+;CF_TWO_CONSTANT_RT	PS_CHECK_OF	2, CF_TWO_CONSTANT_PSOF	;overflow check	=> 9 cycles
+			MOVW		4,X, 2,Y		;[CFA+4] -> PS	=> 5 cycles
+			MOVW		2,X, 0,Y		;[CFA+2] -> PS	=> 5 cycles
+			STY		PSP			;		=> 3 cycles
+			NEXT					;NEXT		=>15 cycles
+								; 		  ---------
+								;		  37 cycles
+CF_TWO_CONSTANT_PSOF	JOB	FCORE_THROW_PSOF
 	
 ;2LITERAL 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -91,6 +111,21 @@ NFA_TWO_LITERAL		FHEADER, "2LITERAL", NFA_TWO_CONSTANT, COMPILE
 CFA_TWO_LITERAL		DW	CF_TWO_LITERAL
 CF_TWO_LITERAL		NEXT
 
+;2LITERAL run-time semantics
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+CFA_TWO_LITERAL_RT	DW	CF_LITERAL_RT
+CF_TWO_LITERAL_RT	PS_CHECK_OF	2, CF_LITERAL_PSOF 	;check for PS overflow (PSP-new cells -> Y)
+			LDX	IP				;push the value at IP onto the PS
+			MOVW	2,X+, 0,Y			; and increment the IP
+			MOVW	2,X+, 2,Y			; and increment the IP
+			STX	IP
+			STY	PSP
+			NEXT
+			
 ;2VARIABLE ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below. Reserve two
@@ -104,33 +139,109 @@ NFA_TWO_VARIABLE	FHEADER, "2VARIABLE", NFA_TWO_LITERAL, COMPILE
 CFA_TWO_VARIABLE	DW	CF_TWO_VARIABLE
 CF_TWO_VARIABLE		NEXT
 
+;Run-time of VARIABLE
+CFA_TWO_VARIABLE_RT	EQU	CFA_VARIABLE_RT		
+	
 ;D+ ( d1|ud1 d2|ud2 -- d3|ud3 )
 ;Add d2|ud2 to d1|ud1, giving the sum d3|ud3.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
 NFA_D_PLUS		FHEADER, "D+", NFA_TWO_VARIABLE, COMPILE
 CFA_D_PLUS		DW	CF_D_PLUS
-CF_D_PLUS		NEXT
+CF_D_PLUS		PS_CHECK_UF 4, CF_D_PLUS_PSUF 	;check for underflow  (PSP -> Y)
+			LDD	3,Y
+			ADDD	1,Y
+			STD	3,Y
+			LDD	2,Y
+			ADCB	1,Y
+			ADCA	0,Y
+			STD	2,+Y	
+			STY	PSP
+			NEXT
 	
+CF_D_PLUS_PSUF		JOB	FDOUBLE_THROW_PSUF
+			
 ;D- ( d1|ud1 d2|ud2 -- d3|ud3 )
 ;Subtract d2|ud2 from d1|ud1, giving the difference d3|ud3.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
 NFA_D_MINUS		FHEADER, "D-", NFA_D_PLUS, COMPILE
 CFA_D_MINUS		DW	CF_D_MINUS
-CF_D_MINUS		NEXT
+CF_D_MINUS		PS_CHECK_UF 4, CF_D_MINUS_PSUF 	;check for underflow  (PSP -> Y)
+			LDD	3,Y
+			SUBD	1,Y
+			STD	3,Y			
+			LDD	2,Y
+			SBCB	1,Y
+			SBCA	0,Y
+			STD	2,+Y	
+			STY	PSP
+			NEXT
+		
+			NEXT
+	
+CF_D_MINUS_PSUF		JOB	FDOUBLE_THROW_PSUF
 	
 ;D. ( d -- )
 ;Display d in free field format.
 ;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
 NFA_D_DOT		FHEADER, "D.", NFA_D_MINUS, COMPILE
 CFA_D_DOT		DW	CF_D_DOT
-CF_D_DOT		NEXT
-	
+CF_D_DOT		PS_CHECK_UF 2, CF_D_DOT_PSUF 	;check for underflow (PSP -> Y)
+			BASE_CHECK CF_D_DOT_INVALBASE	;check BASE value (BASE -> D) 
+			LEAY	4,Y
+			STY	PSP
+			LDX	-2,Y
+			LDY	-4,Y
+			LDD	BASE
+			PRINT_SDBL			;print cells as signed double integer
+			NEXT
+			
+CF_D_DOT_PSUF		JOB	FDOUBLE_THROW_PSUF
+CF_D_DOT_INVALBASE	JOB	FDOUBLE_THROW_INVALBASE
+		
 ;D.R ( d n -- )
 ;Display d right aligned in a field n characters wide. If the number of
 ;characters required to display d is greater than n, all digits are displayed
 ;with no leading spaces in a field as wide as necessary.
+;
+;S12CForth implementation details:
+; n must be lower than 256 ($100) otherwise it will be saturated at 255 ($FF)
+;Throws:
+;"Parameter stack underflow"
+;"Invalid BASE value"
+;
 NFA_D_DOT_R		FHEADER, "D.", NFA_D_DOT, COMPILE
 CFA_D_DOT_R		DW	CF_D_DOT_R
-CF_D_DOT_R		NEXT
-
+CF_D_DOT_R		PS_CHECK_UF 3, CF_D_DOT_R_PSUF 	;check for underflow  (PSP -> Y)
+			BASE_CHECK CF_D_DOT_R_INVALBASE	;check BASE value (BASE -> D) 
+			TST	1,Y+			;check if n>255 
+			BNE	CF_D_DOT_R_2		;saturate n 
+			LDAA	5,Y+
+CF_D_DOT_R_1		STY	PSP
+			LDX	-2,Y
+			LDY	-4,Y
+			PRINT_SPC			;print a space character
+			PRINT_SDBL			;print cells as signed double integer
+			NEXT
+			;Saturate n
+CF_D_DOT_R_2		LDAA	$FF
+			LEAY	5,Y
+			JOB	CF_D_DOT_R_1
+				
+CF_D_DOT_R_PSUF		JOB	FDOUBLE_THROW_PSUF
+CF_D_DOT_R_INVALBASE	JOB	FDOUBLE_THROW_INVALBASE
+	
 ;D0< ( d -- flag )
 ;flag is true if and only if d is less than zero.
 NFA_D_ZERO_LESS		FHEADER, "D0<", NFA_D_DOT_R, COMPILE

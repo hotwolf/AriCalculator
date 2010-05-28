@@ -364,9 +364,7 @@ CF_FORGET
 ;STATE ( -- a-addr )
 ;Extend the semantics of 6.1.2250 STATE to allow ;CODE to change the value in
 ;STATE. A program shall not directly alter the contents of STATE.
-NFA_STATE		FHEADER, "STATE", NFA_FORGET, COMPILE 
-CFA_STATE		DW	CF_CONSTANT_RT
-			DW	STATE
+NFA_STATE_TOOLS		EQU	NFA_FORGET
 
 ;[ELSE] 
 ;Compilation: Perform the execution semantics given below.
@@ -376,7 +374,7 @@ CFA_STATE		DW	CF_CONSTANT_RT
 ;[IF] ... [ELSE] ... [THEN], until the word [THEN] has been parsed and
 ;discarded. If the parse area becomes exhausted, it is refilled as with REFILL.
 ;[ELSE] is an immediate word.
-NFA_BRACKET_ELSE	FHEADER, "[ELSE]", NFA_STATE, COMPILE 
+NFA_BRACKET_ELSE	FHEADER, "[ELSE]", NFA_STATE_TOOLS, COMPILE 
 CFA_BRACKET_ELSE	DW	CF_BRACKET_ELSE
 CF_BRACKET_ELSE		NEXT
 

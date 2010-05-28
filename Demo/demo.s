@@ -82,6 +82,9 @@ DEMO_VARS_END			EQU	*
 ;###############################################################################
 				ORG	DEMO_RAM_CODE_START
 				FILL	$800, $00
+				ORG	DEMO_RAM_CODE_START
+				JOB	CF_QUIT
+	
 DEMO_RAM_CODE_END		EQU	*
 	
 				ORG	FORTH_APP_START
