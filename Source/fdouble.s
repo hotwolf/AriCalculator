@@ -49,6 +49,13 @@ FDOUBLE_VARS_END		EQU	*
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Initialization
+#macro	FDOUBLE_INIT, 0
+#emac
+	
+;###############################################################################
+;# Code                                                                        #
+;###############################################################################
 			ORG	FDOUBLE_CODE_START
 FDOUBLE_CODE_END		EQU	*
 	
@@ -72,7 +79,8 @@ FDOUBLE_TABS_END		EQU	*
 NFA_TWO_CONSTANT	FHEADER, "2CONSTANT", FDOUBLE_PREV_NFA, COMPILE
 CFA_TWO_CONSTANT	DW	CF_TWO_CONSTANT
 CF_TWO_CONSTANT		NEXT
-
+CF_TWO_CONSTANT_RT	EQU	CF_TWO_CONSTANT ;TBD ASAP!!!
+	
 ;2LITERAL 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( x1 x2 -- )
@@ -165,31 +173,31 @@ CF_D_EQUALS		NEXT
 ;D>S  d -- n )
 ;n is the equivalent of d. An ambiguous condition exists if d lies outside the
 ;range of a signed single-cell number.
-NFA_D_TO_S		EQU	HEADER, "D>S", NFA_D_EQUALS, COMPILE
+NFA_D_TO_S		FHEADER, "D>S", NFA_D_EQUALS, COMPILE
 CFA_D_TO_S		DW	CF_D_TO_S
 CF_D_TO_S		NEXT
 
 ;DABS ( d -- ud )
 ;ud is the absolute value of d.
-NFA_D_ABS		EQU	HEADER, "DABS", NFA_D_TO_S, COMPILE
+NFA_D_ABS		FHEADER, "DABS", NFA_D_TO_S, COMPILE
 CFA_D_ABS		DW	CF_D_ABS
 CF_D_ABS		NEXT
 
 ;DMAX ( d1 d2 -- d3 )
 ;d3 is the greater of d1 and d2.
-NFA_D_MAX		EQU	HEADER, "DMAX", NFA_D_ABS, COMPILE
+NFA_D_MAX		FHEADER, "DMAX", NFA_D_ABS, COMPILE
 CFA_D_MAX		DW	CF_D_MAX
 CF_D_MAX		NEXT
 
 ;DMIN ( d1 d2 -- d3 )
 ;d3 is the lesser of d1 and d2.
-NFA_D_MIN		EQU	HEADER, "DMIN", NFA_D_MAX, COMPILE
+NFA_D_MIN		FHEADER, "DMIN", NFA_D_MAX, COMPILE
 CFA_D_MIN		DW	CF_D_MIN
 CF_D_MIN		NEXT
 
 ;DNEGATE ( d1 -- d2 )
 ;d2 is the negation of d1.
-NFA_D_NEGATE		EQU	HEADER, "DNEGATE", NFA_D_MIN, COMPILE
+NFA_D_NEGATE		FHEADER, "DNEGATE", NFA_D_MIN, COMPILE
 CFA_D_NEGATE		DW	CF_D_NEGATE
 CF_D_NEGATE		NEXT
 
@@ -199,7 +207,7 @@ CF_D_NEGATE		NEXT
 ;+n2 giving the double-cell quotient d2. An ambiguous condition exists if +n2 is
 ;zero or negative, or the quotient lies outside of the range of a
 ;double-precision signed integer.
-NFA_M_STAR_SLASH	EQU	HEADER, "M*/", NFA_D_NEGATE, COMPILE
+NFA_M_STAR_SLASH	FHEADER, "M*/", NFA_D_NEGATE, COMPILE
 CFA_M_STAR_SLASH	DW	CF_M_STAR_SLASH
 CF_M_STAR_SLASH		NEXT
 
@@ -207,20 +215,20 @@ CF_M_STAR_SLASH		NEXT
 ;m-plus DOUBLE 
 ;	( d1|ud1 n -- d2|ud2 )
 ;Add n to d1|ud1, giving the sum d2|ud2.
-NFA_M_PLUS		EQU	HEADER, "M+", NFA_M_STAR_SLASH, COMPILE
+NFA_M_PLUS		FHEADER, "M+", NFA_M_STAR_SLASH, COMPILE
 CFA_M_PLUS		DW	CF_M_PLUS
 CF_M_PLUS		NEXT
 
 ;2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 )
 ;Rotate the top three cell pairs on the stack bringing cell pair x1 x2 to the
 ;top of the stack.
-NFA_TWO_ROT		EQU	HEADER, "2ROT", NFA_M_PLUS, COMPILE
+NFA_TWO_ROT		FHEADER, "2ROT", NFA_M_PLUS, COMPILE
 CFA_TWO_ROT		DW	CF_TWO_ROT
 CF_TWO_ROT		NEXT
 
 ;DU< ( ud1 ud2 -- flag )
 ;flag is true if and only if ud1 is less than ud2.
-NFA_D_U_LESS		EQU	HEADER, "DU<", NFA_TWO_ROT, COMPILE
+NFA_D_U_LESS		FHEADER, "DU<", NFA_TWO_ROT, COMPILE
 CFA_D_U_LESS		DW	CF_D_U_LESS
 CF_D_U_LESS		NEXT
 	

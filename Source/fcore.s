@@ -205,24 +205,24 @@ JUMP_NEXT		LDY	[IP]			;[IP] -> Y	        => 6 cycles
 #emac
 
 ;EXEC_CFA: Execute a Forth word (CFA) directly from assembler code 
-#macro	EXEC_CFA, 2	;args: 1:CFA 2:RS overflow handler, 2:RS underflow handler
-			RS_PUSH		IP, \2		;IP -> RS			
+#macro	EXEC_CFA, 3	;args: 1:CFA 2:RS overflow handler, 3:RS underflow handler
+			RS_PUSH	IP, \2			;IP -> RS			
 			MOVW	#IP_RESUME, IP 		;set next IP
 			LDX	#\1			;set W
 			JMP	[\1]			;execute CF
 IP_RESUME		DW	CFA_RESUME
 CFA_RESUME		DW	CF_RESUME
-CF_RESUME		RS_PULL		IP, \3 		;RS -> IP
+CF_RESUME		RS_PULL	IP, \3 			;RS -> IP
 #emac
 	
 ;EXEC_CF: Execute a Forth word's code field (CF) directly from assembler code (w/out setting the W register)
-#macro	EXEC_CF, 1	;args: 1:CF
-			RS_PUSH		IP, \2		;IP -> RS			
+#macro	EXEC_CF, 3	;args: 1:CF 2:RS overflow handler, 3:RS underflow handler
+			RS_PUSH	IP, \2		;IP -> RS			
 			MOVW	#IP_RESUME, IP 		;set next IP
 			JOB	\1
 IP_RESUME		DW	CFA_RESUME
 CFA_RESUME		DW	CF_RESUME
-CF_RESUME		RS_PULL		IP, \3 		;RS -> IP
+CF_RESUME		RS_PULL	IP, \3 		;RS -> IP
 #emac
 		
 ;###############################################################################
@@ -232,10 +232,11 @@ CF_RESUME		RS_PULL		IP, \3 		;RS -> IP
 ;Exceptions
 FCORE_THROW_PSOF	EQU	FMEM_THROW_PSOF			;stack overflow
 FCORE_THROW_PSUF	EQU	FMEM_THROW_PSUF			;stack underflow
-FCORE_THROW_PSOF	EQU	FMEM_THROW_PSOF			;return stack overflow
+FCORE_THROW_RSOF	EQU	FMEM_THROW_PSOF			;return stack overflow
 FCORE_THROW_RSUF	EQU	FMEM_THROW_RSUF 		;return stack underflow
 FCORE_THROW_DICTOF	EQU	FMEM_THROW_DICTOF		;dictionary overflow
 FCORE_THROW_PADOF	EQU	FMEM_THROW_PADOF		;pictured numeric output string overflow
+FCORE_THROW_TIBOF	EQU	FMEM_THROW_TIBOF		;text input buffer overflow
 FCORE_THROW_0DIV	FEXCPT_THROW	FCORE_EC_0DIV		;division by zero
 FCORE_THROW_RESOR	FEXCPT_THROW	FCORE_EC_RESOR		;result out of range
 FCORE_THROW_BASE	FEXCPT_THROW	FCORE_EC_INVALBASE	;invalid BASE
@@ -251,6 +252,15 @@ CF_INNER		EQU		*
 								;                         ---------
 								;                         34 cycles
 CF_INNER_RSOF		JOB	FCORE_THROW_RSOF
+	
+;;CF_EXIT   ( -- )
+;			;End compiled word
+;CF_EXIT			EQU		*	
+;			RS_PULL		IP, CF_EXIT_RSUF
+;			NEXT
+;
+;CF_EXIT_RSUF		JOB	FCORE_THROW_RSUF
+
 	
 ;CF_DUMMY   ( -- )
 			;Code field for unimplemented words
@@ -274,26 +284,6 @@ FCORE_TABS_END		EQU	*
 ;###############################################################################
 			ORG	FCORE_WORDS_START ;(previous NFA: FCORE_PREV_NFA)
 
-;#Error codes: 
-; ============ 
-	
-;E#0DIV ( -- e# )
-;Returns the error code of a division by zero
-NFA_EC_0DIV		FHEADER, "E#0DIV", FCORE_PREV_NFA, COMPILE
-CFA_EC_0DIV		DW	CF_CONSTANT_RT
-			DW	FCORE_MSG_0DIV
-
-;E#QOR ( -- e# )
-;Returns the error code of a quotient out of range exception
-NFA_EC_QOR		FHEADER, "E#QOR", NFA_EC_0DIV, COMPILE
-CFA_EC_QOR		DW	CF_CONSTANT_RT
-			DW	FCORE_MSG_QOR
-;E#BASE ( -- e# )
-;Returns the error code  of an invalid BASE exception
-NFA_EC_BASE		FHEADER, "E#BASE", NFA_EC_QOR, COMPILE
-CFA_EC_BASE		DW	CF_CONSTANT_RT
-			DW	FCORE_MSG_BASE
-	
 ;#Core words:
 ; ===========
 	
@@ -302,9 +292,9 @@ CFA_EC_BASE		DW	CF_CONSTANT_RT
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
-NFA_STORE		FHEADER, "!", NFA_EC_BASE, COMPILE
+NFA_STORE		FHEADER, "!", FCORE_PREV_NFA, COMPILE
 CFA_STORE		DW	CF_STORE
 CF_STORE		PS_CHECK_UF 2, CF_STORE_PSUF 	;check for underflow  (PSP -> Y)
 			LDX	2,Y-			;x -> a-addr	
@@ -323,9 +313,9 @@ CF_STORE_PSUF		JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
-;"Error! PAD buffer overflow"
-;"Error! Invalid BASE value"
+;"Parameter stack underflow"
+;"PAD buffer overflow"
+;"Invalid BASE value"
 ;
 NFA_NUMBER_SIGN		FHEADER, "#", NFA_STORE, COMPILE
 CFA_NUMBER_SIGN		DW	CF_NUMBER_SIGN
@@ -365,8 +355,8 @@ CF_NUMBER_SIGN_BASE	JOB	FCORE_THROW_BASE
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack overflow"
-;"Error! Parameter stack underflow"
+;"Parameter stack overflow"
+;"Parameter stack underflow"
 ;
 NFA_NUMBER_SIGN_GREATER		FHEADER, "#>", NFA_NUMBER_SIGN, COMPILE
 CFA_NUMBER_SIGN_GREATER		DW	CF_NUMBER_SIGN_GREATER
@@ -394,9 +384,9 @@ CF_NUMBER_SIGN_GREATER_PSOF	JOB	FCORE_THROW_BASE
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
-;"Error! PAD buffer overflow"
-;"Error! Invalid BASE value"
+;"Parameter stack underflow"
+;"PAD buffer overflow"
+;"Invalid BASE value"
 ;
 NFA_NUMBER_SIGN_S	FHEADER, "#S", NFA_NUMBER_SIGN_GREATER, COMPILE
 CFA_NUMBER_SIGN_S	DW	CF_INNER
@@ -412,7 +402,7 @@ CFA_NUMBER_SIGN_S	DW	CF_INNER
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_TICK		EQU	NFA_NUMBER_SIGN_S	
 ;NFA_TICK		FHEADER, "'", NFA_NUMBER_SIGN_S, COMPILE
@@ -436,7 +426,7 @@ CFA_PAREN		DW	CF_INNER
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_STAR		FHEADER, "*", NFA_PAREN, COMPILE
 CFA_STAR		DW	CF_STAR
@@ -461,9 +451,9 @@ CF_STAR_PSUF		JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
-;"Error! Divide by zero"
-;"Error! Quotient out of range"
+;"Parameter stack underflow"
+;"Divide by zero"
+;"Quotient out of range"
 ;
 NFA_STAR_SLASH		FHEADER, "*/", NFA_STAR, COMPILE
 CFA_STAR_SLASH		DW	CF_STAR_SLASH
@@ -475,7 +465,7 @@ CF_STAR_SLASH		PS_CHECK_UF	3, CF_STAR_SLASH_PSUF ;check for underflow  (PSP -> Y
 			LDX	0,X			;n3    -> X 
 			EDIVS				;Y:D/X -> Y
 			BCS	CF_STAR_SLASH_0DIV	;division by zero
-			BVS	CF_STAR_SLASH_QOR	;quotient out of range
+			BVS	CF_STAR_SLASH_RESOR	;quotient out of range
 			LDX	PSP
 			STY	4,+X
 			STX	PSP
@@ -483,7 +473,7 @@ CF_STAR_SLASH		PS_CHECK_UF	3, CF_STAR_SLASH_PSUF ;check for underflow  (PSP -> Y
 		
 CF_STAR_SLASH_PSUF	JOB	FCORE_THROW_PSUF
 CF_STAR_SLASH_0DIV	JOB	FCORE_THROW_0DIV
-CF_STAR_SLASH_QOR	JOB	FCORE_THROW_QOR
+CF_STAR_SLASH_RESOR	JOB	FCORE_THROW_RESOR
 	
 ;*/MOD ( n1 n2 n3 -- n4 n5 )
 ;Multiply n1 by n2 producing the intermediate double-cell result d. Divide d by
@@ -495,9 +485,9 @@ CF_STAR_SLASH_QOR	JOB	FCORE_THROW_QOR
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
-;"Error! Divide by zero"
-;"Error! Quotient out of range"
+;"Parameter stack underflow"
+;"Divide by zero"
+;"Quotient out of range"
 ;
 NFA_STAR_SLASH_MOD	FHEADER, "*/MOD", NFA_STAR_SLASH, COMPILE
 CFA_STAR_SLASH_MOD	DW	CF_STAR_SLASH
@@ -509,7 +499,7 @@ CF_STAR_SLASH_MOD	PS_CHECK_UF	3, CF_STAR_SLASH_MOD_PSUF ;check for underflow  (P
 			LDX	0,X			;n3    -> X 
 			EDIVS				;Y:D/X -> Y, remainer -> D
 			BCS	CF_STAR_SLASH_MOD_0DIV	;division by zero
-			BVS	CF_STAR_SLASH_MOD_QOR	;quotient out of range
+			BVS	CF_STAR_SLASH_MOD_RESOR	;quotient out of range
 			LDX	PSP
 			STD	2,+X
 			STY	2,+X
@@ -518,14 +508,14 @@ CF_STAR_SLASH_MOD	PS_CHECK_UF	3, CF_STAR_SLASH_MOD_PSUF ;check for underflow  (P
 		
 CF_STAR_SLASH_MOD_PSUF	JOB	FCORE_THROW_PSUF
 CF_STAR_SLASH_MOD_0DIV	JOB	FCORE_THROW_0DIV
-CF_STAR_SLASH_MOD_QOR	JOB	FCORE_THROW_QOR
+CF_STAR_SLASH_MOD_RESOR	JOB	FCORE_THROW_RESOR
 
 ;+ ( n1|u1 n2|u2 -- n3|u3 )
 ;Add n2|u2 to n1|u1, giving the sum n3|u3.
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_PLUS		FHEADER, "+", NFA_STAR_SLASH_MOD, COMPILE
 CFA_PLUS		DW	CF_PLUS
@@ -543,7 +533,7 @@ CF_PLUS_PSUF	JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_PLUS_STORE		FHEADER, "+!", NFA_PLUS, COMPILE
 CFA_PLUS_STORE		DW	CF_PLUS_STORE
@@ -572,7 +562,6 @@ CF_PLUS_STORE_PSUF	JOB	FCORE_THROW_PSUF
 ;execution immediately following the loop.
 NFA_PLUS_LOOP		FHEADER, "+LOOP", NFA_PLUS_STORE, IMMEDIATE
 CFA_PLUS_LOOP		DW	CF_DUMMY
-			DW	CFA_EXIT
 
 ;Run-time of +LOOP
 
@@ -585,27 +574,27 @@ CFA_PLUS_LOOP		DW	CF_DUMMY
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
-;"Error! Dictionary space exceeded"
+;"Parameter stack underflow"
+;"Dictionary space exceeded"
 ;
 NFA_COMMA		FHEADER, ",", NFA_PLUS_LOOP, COMPILE
 CFA_COMMA		DW	CF_COMMA
 CF_COMMA		PS_CHECK_UF	1, CF_COMMA_PSUF 	;check for PS underflow   (PSP -> Y)
-			UDICT_CHECK_OF	2, CF_COMMA_UDICTOF	;check for UDICT overflow (HERE+bytes -> X)
+			DICT_CHECK_OF	2, CF_COMMA_DICTOF	;check for DICT overflow (CP+bytes -> X)
 			MOVW	2,Y+, -2,X
 			STY	PSP
-			STX	HERE
+			STX	CP
 			NEXT
 
 CF_COMMA_PSUF		JOB	FCORE_THROW_PSUF
-CF_COMMA_UDICTOF	JOB	FCORE_THROW_UDICTOF
+CF_COMMA_DICTOF		JOB	FCORE_THROW_DICTOF
 	
 ;- ( n1|u1 n2|u2 -- n3|u3 )
 ;Subtract n2|u2n from n1|u1, giving the difference n3|u3.
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_MINUS		FHEADER, "-", NFA_COMMA, COMPILE
 CFA_MINUS		DW	CF_MINUS
@@ -623,7 +612,7 @@ CF_MINUS_PSUF	JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_DOT			FHEADER, ".", NFA_MINUS, COMPILE
 CFA_DOT			DW	CF_DOT
@@ -647,19 +636,19 @@ CF_DOT_PSUF		JOB	FCORE_THROW_PSUF
 ;Interpretation semantics:
 ;Print string to the terminal
 ;Throws:
-;"Error! Dictionary space exceeded"
+;"Dictionary space exceeded"
 ;
 NFA_DOT_QUOTE		FHEADER, '."', NFA_DOT, IMMEDIATE ;"
 CFA_DOT_QUOTE		DW	CF_DOT_QUOTE 		;immediate or compile mode?
 CF_DOT_QUOTE		LDD	STATE			
 			BEQ	CF_DOT_QUOTE_1 		;immediate mode
-			;Compile mode: Chrck if string is empty
+			;Compile mode: Check if string is empty
 		        
 				
 
 
 	
-			UDICT_CHECK_OF	4, CFA_DOT_QUOTE_UDICTOF ;check dictonary space (HERE+bytes -> X)
+			DICT_CHECK_OF	4, CFA_DOT_QUOTE_DICTOF ;check dictonary space (CP+bytes -> X)
 			MOVW	#CFA_DOT_QUOTE_RT, -4,X
 
 
@@ -667,14 +656,8 @@ CF_DOT_QUOTE		LDD	STATE
 
 		;Loop though quoted string
 CF_DOT_QUOTE_1			
-	
 
-;UDICT_CHECK_OF: check if there is room in the UDICT space and deallocate the PAD (HERE+bytes -> X)
-#macro	UDICT_CHECK_OF, 2	;1:required space (in bytes) 2:overflow handler  
-
-	
-
-CFA_DOT_QUOTE_UDICTOF	JOB	FMEM_MSG_UDICTOF
+CFA_DOT_QUOTE_DICTOF	JOB	FMEM_THROW_DICTOF
 	
 ;Run-time of ." 
 CFA_DOT_QUOTE_RT	DW	CF_DOT_QUOTE_RT
@@ -694,7 +677,7 @@ CF_DOT_QUOTE_RT		LDX	IP			;print string at IP
 ;>R S>D R> FM/MOD SWAP DROP or the phrase >R S>D R> SM/REM SWAP DROP .
 ;
 ;S12CForth implementation details:
-; - Throws an "Error! Divide by zero" exception
+; - Throws an "Divide by zero" exception
 NFA_SLASH		FHEADER, "/", NFA_DOT_QUOTE, COMPILE
 CFA_SLASH		DW	CF_SLASH
 CF_SLASH		PS_CHECK_UF	2, CF_SLASH_PSUF ;check for underflow  (PSP -> Y)
@@ -716,7 +699,7 @@ CF_SLASH_0DIV		JOB	FCORE_THROW_0DIV
 ;returned by either the phrase >R S>D R> FM/MOD or the phrase >R S>D R> SM/REM . 
 ;
 ;S12CForth implementation details:
-; - Throws an "Error! Divide by zero" exception
+; - Throws an "Divide by zero" exception
 NFA_SLASH_MOD		FHEADER, "/MOD", NFA_SLASH, COMPILE
 CFA_SLASH_MOD		DW	CF_SLASH_MOD
 CF_SLASH_MOD		PS_CHECK_UF	2, CF_SLASH_MOD_PSUF	;check for underflow  (PSP -> Y)
@@ -1442,7 +1425,7 @@ CF_EMIT_PSUF		JOB	FCORE_THROW_PSUF
 NFA_EMPTY		FHEADER, "EMPTY", NFA_EMIT, COMPILE
 CFA_EMPTY		DW	CF_EMPTY
 CF_EMPTY		MOVW	#FCORE_LAST_NFA, LAST_NFA 	;set last NFA
-			MOVW	#UDICT_START,	 CP		;set compile pointer	
+			MOVW	#DICT_START,	 CP		;set compile pointer	
 			NEXT
 	
 ;ENVIRONMENT? ( c-addr u -- false | i*x true )
@@ -1514,8 +1497,8 @@ CFA_FILL		DW	CF_DUMMY
 ;S12CForth implementation details:
 ;The search is case insensitive	
 ;Throws:
-;"Error! Parameter stack overflow"
-;"Error! Parameter stack underflow"
+;"Parameter stack overflow"
+;"Parameter stack underflow"
 ;
 NFA_FIND	 	FHEADER, "FIND", NFA_FILL, COMPILE
 CFA_FIND	 	DW	CF_FIND
@@ -1536,7 +1519,7 @@ CF_FIND_2		LDX	0,X 						;check next NFA
 			;Search was unsuccessfull (current NFA in X)
 CF_FIND_3		LDY	PSP 						;push 0 onto PS
 			MOVW	#$0000, 2,-Y
-			STP	PSP
+			STY	PSP
 			NEXT
 			;First 2 characters match (current NFA in X, start of word in Y)
 CF_FIND_4		BITB	#$80 						;check if search is over
@@ -1554,20 +1537,20 @@ CF_FIND_5		LEAX	3,X 						;set X to start of name
 			;Name is too long -> search unsuccessful 
 			JOB	CF_FIND_3
 			;Search single character word (current NFA in X, first character in A)
-CF_FIND_6		CPAA	3,X 						;compare first character
+CF_FIND_6		CMPA	3,X 						;compare first character
 			BNE	CF_FIND_2 					;parse next NFA
 			;Search was successful(current NFA in X)
 CF_FIND_7		LDY	PSP						;put CFA onto PS
 			LDAA	2,X 						
 			TAB
-			ANDA	$#7F
+			ANDA	#$7F
 			LEAX	A,X
 			STX	0,Y
 			LDX	#$FFFF						;check immediate bit
 			BITB	#$80	
 			BEQ	CF_FIND_8 					;compile word
 			LEAX	2,X 						;immediate word
-CF_FIND_8		STX	2, -Y 						;push flag onto PS
+CF_FIND_8		STX	2,-Y 						;push flag onto PS
 			STY	PSP
 			NEXT
 		 	
@@ -1587,7 +1570,7 @@ CFA_F_M_SLASH_MOD	DW	CF_DUMMY
 ;HERE ( -- addr )
 ;addr is the data-space pointer.
 ;Throws:
-;"Error! Parameter stack overflow"
+;"Parameter stack overflow"
 ;
 NFA_HERE		FHEADER, "HERE", NFA_F_M_SLASH_MOD, COMPILE
 CFA_HERE		DW	CF_CONSTANT_RT
@@ -1738,7 +1721,7 @@ CFA_LOOP		DW	CF_DUMMY
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_L_SHIFT		FHEADER, "LSHIFT", NFA_LOOP, COMPILE
 CFA_L_SHIFT		DW	CF_L_SHIFT
@@ -1763,7 +1746,7 @@ CF_L_SHIFT_PSUF		JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_M_STAR		FHEADER, "M*", NFA_L_SHIFT, COMPILE
 CFA_M_STAR		DW	CF_M_STAR
@@ -1783,7 +1766,7 @@ CF_M_STAR_PSUF		JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_MAX			FHEADER, "MAX", NFA_M_STAR, COMPILE
 CFA_MAX			DW	CF_MAX
@@ -1802,7 +1785,7 @@ CF_MAX_PSUF		JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_MIN			FHEADER, "MIN", NFA_MAX, COMPILE
 CFA_MIN			DW	CF_MIN
@@ -1824,14 +1807,14 @@ CF_MIN_PSUF		JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
-;"Error! Division by zero"
+;"Parameter stack underflow"
+;"Division by zero"
 ;
 NFA_MOD			FHEADER, "MOD", NFA_MIN, COMPILE
 CFA_MOD			DW	CF_MOD
 CF_MOD			PS_CHECK_UF	2, CF_MOD_PSUF ;check for underflow  (PSP -> Y)
 			LDX	2,Y+
-			BEQ	CF_MOD_DIV0
+			BEQ	CF_MOD_0DIV
 			LDD	0,Y
 			IDIVS	;D/X=>X, D%X=>D
 			STD	0,Y
@@ -1839,7 +1822,7 @@ CF_MOD			PS_CHECK_UF	2, CF_MOD_PSUF ;check for underflow  (PSP -> Y)
 			NEXT
 
 CF_MOD_PSUF		JOB	FCORE_THROW_PSUF		
-CF_MOD_DIV0		JOB	FCORE_THROW_DIV0
+CF_MOD_0DIV		JOB	FCORE_THROW_0DIV
 	
 ;MOVE ( addr1 addr2 u -- )
 ;If u is grater than zero, copy the contents of u consecutive address units at
@@ -1849,7 +1832,7 @@ CF_MOD_DIV0		JOB	FCORE_THROW_DIV0
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_MOVE		FHEADER, "MOVE", NFA_MOD, COMPILE
 CFA_MOVE		DW	CF_MOVE
@@ -1861,7 +1844,7 @@ CF_MOVE			PS_CHECK_UF	3, CF_MOVE_PSUF ;check for underflow  (PSP -> Y)
 			LDY	-2,Y
 			;Copy loop
 CF_MOVE_1		MOVW	2,Y+, 2,X+
-			DBNE	CF_MOVE_1
+			DBNE	D, CF_MOVE_1
 CF_MOVE_2		NEXT
 			;u is zero 
 CF_MOVE_3		LEAY	4,Y			
@@ -1910,7 +1893,7 @@ CF_NAME_3		STAA	TIB_START,X
 			CPX	NUMBER_TIB		;check for the end of the input buffer
 			BLS	CF_NAME_2		;check next character
 			;Terminate string (last character in A, pointer to last character in X)
-CF_NAME_4		ORA	$80			;add termination bit to last character
+CF_NAME_4		ORAA	$80			;add termination bit to last character
 			STAA	 TIB_START-1,X
 			;Adjust >IN pointer
 			STX	TO_IN
@@ -1928,7 +1911,7 @@ CF_NAME_PSOF		JOB	FCORE_THROW_PSOF
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_NEGATE		FHEADER, "NEGATE", NFA_NAME, COMPILE
 CFA_NEGATE		DW	CF_NEGATE
@@ -1947,7 +1930,7 @@ CF_NEGATE_PSUF		JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
+;"Parameter stack underflow"
 ;
 NFA_OR			FHEADER, "OR", NFA_NEGATE, COMPILE
 CFA_OR			DW	CF_OR
@@ -1965,8 +1948,8 @@ CF_OR_PSUF		JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
-;"Error! Parameter stack overflow"
+;"Parameter stack underflow"
+;"Parameter stack overflow"
 ;
 NFA_OVER		FHEADER, "OVER", NFA_OR, COMPILE
 CFA_OVER		DW	CF_OVER
@@ -1996,6 +1979,12 @@ CFA_POSTPONE		DW	CF_DUMMY
 ;interpret.
 ;Display the implementation-defined system prompt if in interpretation state,
 ;all processing has been completed, and no ambiguous condition exists.
+;
+;S12CForth implementation details:
+;Throws:
+;"Return stack underflow"
+;"Return stack overflow"
+;
 NFA_QUIT		FHEADER, "QUIT", NFA_POSTPONE, COMPILE
 CFA_QUIT		DW	CF_QUIT
 			;Empty RS and go into interpretation state 
@@ -2006,11 +1995,11 @@ CF_QUIT_1		PRINT_LINE_BREAK	;send input prompt
 			LDX	#FCORE_INPUT_PROMPT
 			PRINT_STR
 			;Query comand line
-			LED_IDLE		
-			EXEC_CF	CF_QUERY 	;get command line
-			LED_BUSY
+			LED_BUSY_OFF
+			EXEC_CF	CF_QUERY, CF_QUIT_RSOF, CF_QUIT_RSUF	;get command line
+			LED_BUSY_ON
 			;Parse next word of the command line
-CF_QUIT_2		EXEC_CF	CF_WORD 	;parse next word
+CF_QUIT_2		EXEC_CF	CF_WORD, CF_QUIT_RSOF, CF_QUIT_RSUF	;parse next word
 			LDD	[PSP]		;check if there is a word left
 			BEQ	CF_QUIT_9 	;no words left
 			;Check STATE 
@@ -2018,12 +2007,12 @@ CF_QUIT_2		EXEC_CF	CF_WORD 	;parse next word
 			BEQ	CF_QUIT_5 	;interpretation state
 			;Compile state
 			;=============
-			EXEC_CF	CF_FIND 	;search for word in dictionary
+			EXEC_CF	CF_FIND, CF_QUIT_RSOF, CF_QUIT_RSUF 	;search for word in dictionary
 			;Check return value (PS: c-addr 0 | xt 1 | xt -1) 
 			LDY 	PSP
 			LDD	2,Y+
 			BEQ	CF_QUIT_3 	;word not in dictionary	
-			DBEQ	CF_QUIT_6	;immediate word
+			DBEQ	D, CF_QUIT_6	;immediate word
 			;Compile word (PS: xt -1, PSP+2 in Y)
 			LDX	CP		;CP -> X
 			MOVW	2,Y+, 2,X+	;compile
@@ -2032,12 +2021,12 @@ CF_QUIT_2		EXEC_CF	CF_WORD 	;parse next word
 			JOB	CF_QUIT_2 	;parse next word			
 			;Check if word is an immediate value (PS: c-addr 0, PSP+2 in Y)
 CF_QUIT_3		STY	PSP 		;update PSP
-			EXEC_CF	CF_NUMBER
+			EXEC_CF	CF_NUMBER, CF_QUIT_RSOF, CF_QUIT_RSUF
 			;Check return value (PS: c-addr 0 | x 1 | xd 2)
 			LDY 	PSP
 			LDD	2,Y+
 			BEQ	CF_QUIT_8 	;undefined word
-			DBNE	CF_QUIT_4	;double cell immediate value
+			DBNE	D, CF_QUIT_4	;double cell immediate value
 			;Single cell immediate value (PS: x 1, PSP+2 in Y)
 			LDX	CP
 			MOVW	#CF_CONSTANT_RT, 2,X+
@@ -2055,18 +2044,18 @@ CF_QUIT_4		LDX	CP
 			JOB	CF_QUIT_2 	;parse next word
 			;Interpretation state
 			;====================
-CF_QUIT_5		EXEC_CF	CF_FIND 	;search for word in dictionary
+CF_QUIT_5		EXEC_CF	CF_FIND, CF_QUIT_RSOF, CF_QUIT_RSUF	;search for word in dictionary
 			;Check return value (PS: c-addr 0 | xt 1 | xt -1) 
 			LDY 	PSP
 			LDD	2,Y+
 			BEQ	CF_QUIT_7 	;word not in dictionary	
 			;Execute word (PS: xt -1, PSP+2 in Y)
 CF_QUIT_6		STY	PSP	
-			EXECUTE_CF CF_EXECUTE
+			EXEC_CF CF_EXECUTE, CF_QUIT_RSOF, CF_QUIT_RSUF
 			JOB	CF_QUIT_2 	;parse next word
 			;Check if word is an immediate value (PS: c-addr 0, PSP+2 in Y)
 CF_QUIT_7		STY	PSP 		;update PSP
-			EXEC_CF	CF_NUMBER
+			EXEC_CF	CF_NUMBER, CF_QUIT_RSOF, CF_QUIT_RSUF
 			;Check return value (PS: c-addr 0 | x 1 | xd 2)
 			LDY 	PSP
 			LDD	2,Y+
@@ -2084,6 +2073,9 @@ CF_QUIT_9		LDD	STATE	  	;check state
 			PRINT_STR
 			JOB CF_QUIT
 
+CF_QUIT_RSUF		EQU	FCORE_THROW_RSUF
+CF_QUIT_RSOF		EQU	FCORE_THROW_RSOF
+	
 ;R> 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- x ) ( R:  x -- )
@@ -2091,8 +2083,8 @@ CF_QUIT_9		LDD	STATE	  	;check state
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Return stack underflow"
-;"Error! Parameter stack overflow"
+;"Return stack underflow"
+;"Parameter stack overflow"
 ;
 NFA_R_FROM		FHEADER, "R>", NFA_QUIT, COMPILE
 CFA_R_FROM		DW	CF_R_FROM
@@ -2121,8 +2113,8 @@ CF_R_FETCH		RS_CHECK_UF 	1, CF_R_FETCH_RSUF	;check for RS underflow
 			STY	PSP
 			NEXT
 	
-CF_R_FROM_RSUF		JOB	FCORE_FETCH_RSUF
-CF_R_FROM_PSOF		JOB	FCORE_FETCH_PSOF
+CF_R_FETCH_RSUF		JOB	FCORE_THROW_RSUF
+CF_R_FETCH_PSOF		JOB	FCORE_THROW_PSOF
 
 ;RECURSE 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2170,7 +2162,7 @@ CF_R_SHIFT_1		LSRD		;shift loop
 CF_R_SHIFT_2		STY	PSP	
 			NEXT
 			
-CF_R_SHIFT_PSUF		JOB	FCORE_THRROW_PSUF		
+CF_R_SHIFT_PSUF		JOB	FCORE_THROW_PSUF		
 	
 ;S" 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2390,13 +2382,13 @@ CFA_WHILE_RT		EQU	CFA_UNTIL_RT 	;same as UNTIL run-time semantics
 ;of the last character is set). A resulting string of zero length will return
 ;the address $0000.
 ;Throws:
-;"Error! Parameter stack underflow"
-;"Error! TIB pointer out of range"
+;"Parameter stack underflow"
+;"TIB pointer out of range"
 
 NFA_WORD		FHEADER, "WORD", NFA_WHILE, COMPILE
 CFA_WORD		DW	CF_WORD
-CF_WORD			PS_CHECK_OF	1, CF_WORD_PSOF 	;(PSP -> Y)
-			TIB_CHECK_RANGE	   CF_WORD_TIBOR	;
+CF_WORD			PS_CHECK_OF	1, CF_WORD_PSOF ;(PSP -> Y)
+			TIB_CHECK_OF	0, CF_WORD_TIBOF
 			
 			;Skip leading delimeters
 			LDX	TO_IN			;current >IN -> X	
@@ -2428,9 +2420,9 @@ CF_WORD_4		STX	TO_IN			;update >IN pointer
 			MOVW	#$0000 0,Y		;push $0000 onto the stack
 			NEXT
 			
-CF_WORD_PSUF		JOB	FCORE_THROW_PSUF
-	
-	
+CF_WORD_PSOF		JOB	FCORE_THROW_PSOF
+CF_WORD_TIBOF		JOB	FCORE_THROW_TIBOF
+		
 ;XOR ( x1 x2 -- x3 )
 ;x3 is the bit-by-bit exclusive-or of x1 with x2.
 NFA_XOR			FHEADER, "XOR", NFA_WORD, COMPILE
@@ -2740,8 +2732,8 @@ CFA_NIP			DW	CF_DUMMY
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Error! Parameter stack underflow"
-;"Error! Parameter stack overflow"
+;"Parameter stack underflow"
+;"Parameter stack overflow"
 ;
 NFA_NUMBER		FHEADER, "NUMBER", NFA_NIP, COMPILE
 CFA_NUMBER		DW	CF_NUMBER
@@ -2802,14 +2794,14 @@ CF_NUMBER_3		CMPB	#"A"
 			BLO	CF_NUMBER_9 		;not a number
 			CMPB	#"Z"
 			BHI	CF_NUMBER_4		;[a-z]
-			SUBB	#"A"-10			;subtract offset
+			SUBB	#("A"-10)		;subtract offset
 			JOB	CF_NUMBER_7 		;check digit
 			;[a-z] 
 CF_NUMBER_4		CMPB	#"a"			
 			BLO	CF_NUMBER_6 		;[_]
 			CMPB	#"z"
 			BHI	CF_NUMBER_9		;not a number
-			SUBB	#"A"-10			;subtract offset
+			SUBB	#("A"-10)		;subtract offset
 			JOB	CF_NUMBER_7 		;check digit
 			;[,.]
 CF_NUMBER_5		CMPB	#","
@@ -2823,7 +2815,7 @@ CF_NUMBER_6		CMPB	#"_"
 			JOB	CF_NUMBER_9		;not a number	
 			;Check digit (digit in D, SP in X, string pointer in Y)
 CF_NUMBER_7		CPD	BASE 			;check if figit < BASE
-			BHS	CF_NUMBER_		;not a number
+			BHS	CF_NUMBER_9		;not a number
 			STD	CF_NUMBER_DIGIT,X 	;store digit
 			STY	CF_NUMBER_STRPTR,X	;store string pointer
 			;Multiply result by base (SP in X)
@@ -2897,7 +2889,7 @@ CF_NUMBER_13		LDY	PSP
 			;Store double value (SP in X)
 CF_NUMBER_14		PS_CHECK_OF	2, CF_NUMBER_PSOF ;check for overflow (PSP-4 -> Y)
 			MOVW	CF_NUMBER_RESHI,X, 2,Y
-			MOVW	CF_NUMBER_RES,X,   4,Y
+			MOVW	CF_NUMBER_RESLO,X, 4,Y
 			MOVW	#$0002, 	   0,Y
 			STY	PSP
 			SSTACK_DEALLOC	9 		;free 9 bytes

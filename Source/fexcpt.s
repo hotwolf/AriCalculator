@@ -69,59 +69,6 @@
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Exceptions
-FEXCPT_THROW_PSOF	EQU	FMEM_THROW_PSOF		;"Error! Parameter stack overflow"
-FEXCPT_THROW_PSUF	EQU	FMEM_THROW_PSUF		;"Error! Parameter stack underflow"
-FEXCPT_THROW_PSOF	EQU	FMEM_THROW_PSOF		;"Error! Parameter stack overflow"
-FEXCPT_THROW_RSUF	EQU	FMEM_THROW_RSUF 	;"Error! Return stack underflow"
-				
-;#Throw an exception
-; args:   D: error code
-FEXCPT_THROW	EQU	*
-		;Check STATE variable 
-		LDX	STATE	     					;exceptions in compilation state are uncaught
-		BNE	FEXC_THROW_2 					;compilation state
-	
-		;Restore RSP
-FEXCPT_THROW_1	LDX	HANDLER						;check if an exception handler excists
-		BEQ	FEXC_THROW_2					;no exception handler
-		STX	RSP						;restore RS
-	
-		;Check if RSP is valid
-		RS_CHECK_UF	3, FEXCPT_THROW_CESF			;three entries must be on the RS  
-		RS_CHECK_OF	0, FEXCPT_THROW_CESF			;check for RS overflow
-
-		;Caught exception (RSP in X)
- 		;Restore stacks
-		MOVW	2,X+, HANDLER					;pull previous HANDLER (RSP -> X)
-		MOVW	2,X+, PSP					;pull previous PSP (RSP -> X)		
-		MOVW	2,X+, IP					;pull next IP (RSP -> X)		
-
-		;Check if PSP is valid
-		PS_CHECK_UFOF 0,FEXCPT_THROW_CESF,1,FEXCPT_THROW_CESF	;check PSP (PSP -> Y)
-		STD	0,Y						;push error code onto PS
-		STX	RSP						;set RSP
-		STY	PSP						;set PSP
-		NEXT
-
-		;Uncaught exception
-FEXCPT_THROW_2	TFR	D, Y
-FEXCPT_THROW_3	ERROR_PRINT						;print error message
-		JOB	CF_ABORT 					;execute abort
-		
-;#Handle a corrupt exception stack frame
-; args:   none
-FEXCPT_CESF	EQU	*
-		LDY	#FEXCPT_MSG_CESF				;set error message
-		JOB	FEXCPT_THROW_3
-	
-FEXCPT_CODE_END		EQU	*
-	
-;###############################################################################
-;# Tables                                                                      #
-;###############################################################################
-			ORG	FEXCPT_TABS_START
-
 ;Standard error codes (ANS Forth)
 FEXCPT_EC_ABORT			EQU	-1 	;ABORT
 FEXCPT_EC_ABORTQ		EQU	-2 	;ABORT"
@@ -175,7 +122,7 @@ FEXCPT_EC_INVALBASE		EQU	-40	;invalid BASE for floating point conversion
 ;FEXCPT_EC_50			EQU	-50	;search-order underflow
 ;FEXCPT_EC_51			EQU	-51	;compilation word list changed
 ;FEXCPT_EC_52			EQU	-52	;control-flow stack overflow
-;FEXCPT_EC_53			EQU	-53	;exception stack overflow
+FEXCPT_EC_CESF			EQU	-53	;exception stack overflow
 ;FEXCPT_EC_54			EQU	-54	;floating-point underflow
 ;FEXCPT_EC_55			EQU	-55	;floating-point unidentified fault
 FEXCPT_EC_QUIT			EQU	-56	;QUIT
@@ -183,7 +130,7 @@ FEXCPT_EC_QUIT			EQU	-56	;QUIT
 ;FEXCPT_EC_58			EQU	-58	;[IF], [ELSE], or [THEN] exception
 	
 ;Additional error codes 
-FEXCPT_EC_CESF			EQU	FEXCPT_MSG_CESF	
+;FEXCPT_EC_CESF			EQU	FEXCPT_MSG_CESF
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -212,20 +159,21 @@ FEXCPT_VARS_END		EQU	*
 ;###############################################################################
 			ORG	FEXCPT_CODE_START
 ;Exceptions
-FEXCPT_THROW_PSOF	EQU	FMEM_THROW_PSOF		;"Error! Parameter stack overflow"
-FEXCPT_THROW_PSUF	EQU	FMEM_THROW_PSUF		;"Error! Parameter stack underflow"
-FEXCPT_THROW_PSOF	EQU	FMEM_THROW_PSOF		;"Error! Parameter stack overflow"
-FEXCPT_THROW_RSUF	EQU	FMEM_THROW_RSUF 	;"Error! Return stack underflow"
+FEXCPT_THROW_PSOF	EQU	FMEM_THROW_PSOF		;"Parameter stack overflow"
+FEXCPT_THROW_PSUF	EQU	FMEM_THROW_PSUF		;"Parameter stack underflow"
+FEXCPT_THROW_RSOF	EQU	FMEM_THROW_RSOF		;"Parameter stack overflow"
+FEXCPT_THROW_RSUF	EQU	FMEM_THROW_RSUF 	;"Return stack underflow"
+FEXCPT_THROW_CESF	FEXCPT_THROW	 FEXCPT_EC_CESF	;"Corrupt exception stack frame"
 				
 ;#Throw an exception
 ; args:   D: error code
 FEXCPT_THROW	EQU	*
 		;Check STATE variable 
 		LDX	STATE	     					;exceptions in compilation state are uncaught
-		BNE	FEXC_THROW_2 					;compilation state	
+		BNE	FEXCPT_THROW_2 					;compilation state	
 		;Restore RSP
 FEXCPT_THROW_1	LDX	HANDLER						;check if an exception handler excists
-		BEQ	FEXC_THROW_2					;no exception handler
+		BEQ	FEXCPT_THROW_2					;no exception handler
 		STX	RSP						;restore RS	
 		;Check if RSP is valid
 		RS_CHECK_UF	3, FEXCPT_THROW_CESF			;three entries must be on the RS  
@@ -278,18 +226,18 @@ FEXCPT_MSGTAB_START	EQU	*
 			;DW	FEXCPT_MSG_UNKNOWN	;-55 floating-point unidentified fault
 			;DW	FEXCPT_MSG_UNKNOWN	;-54 floating-point underflow
 			;DW	FEXCPT_MSG_UNKNOWN	;-53 exception stack overflow
-			;DW	FEXCPT_MSG_UNKNOWN	;-52 control-flow stack overflow
-			;DW	FEXCPT_MSG_UNKNOWN	;-51 compilation word list changed
-			;DW	FEXCPT_MSG_UNKNOWN	;-50 search-order underflow
-			;DW	FEXCPT_MSG_UNKNOWN	;-49 search-order overflow
-			;DW	FEXCPT_MSG_UNKNOWN	;-48 invalid POSTPONE
-			;DW	FEXCPT_MSG_UNKNOWN	;-47 compilation word list deleted
-			;DW	FEXCPT_MSG_UNKNOWN	;-46 floating-point invalid argument
-			;DW	FEXCPT_MSG_UNKNOWN	;-45 floating-point stack underflow
-			;DW	FEXCPT_MSG_UNKNOWN	;-44 floating-point stack overflow
-			;DW	FEXCPT_MSG_UNKNOWN	;-43 floating-point result out of range
-			;DW	FEXCPT_MSG_UNKNOWN	;-42 floating-point divide by zero
-			;DW	FEXCPT_MSG_UNKNOWN	;-41 loss of precision
+			DW	FEXCPT_MSG_CESF		;-52 control-flow stack overflow
+			DW	FEXCPT_MSG_UNKNOWN	;-51 compilation word list changed
+			DW	FEXCPT_MSG_UNKNOWN	;-50 search-order underflow
+			DW	FEXCPT_MSG_UNKNOWN	;-49 search-order overflow
+			DW	FEXCPT_MSG_UNKNOWN	;-48 invalid POSTPONE
+			DW	FEXCPT_MSG_UNKNOWN	;-47 compilation word list deleted
+			DW	FEXCPT_MSG_UNKNOWN	;-46 floating-point invalid argument
+			DW	FEXCPT_MSG_UNKNOWN	;-45 floating-point stack underflow
+			DW	FEXCPT_MSG_UNKNOWN	;-44 floating-point stack overflow
+			DW	FEXCPT_MSG_UNKNOWN	;-43 floating-point result out of range
+			DW	FEXCPT_MSG_UNKNOWN	;-42 floating-point divide by zero
+			DW	FEXCPT_MSG_UNKNOWN	;-41 loss of precision
 			DW	FEXCPT_MSG_INVALBASE	;-40 invalid BASE for floating point conversion
 			DW	FEXCPT_MSG_UNKNOWN	;-39 unexpected end of file
 			DW	FEXCPT_MSG_UNKNOWN	;-38 non-existent file
@@ -340,18 +288,19 @@ FEXCPT_MSG_RSOF		ERROR_MSG	ERROR_LEVEL_ERROR, "Return stack overflow"
 FEXCPT_MSG_RSUF		ERROR_MSG	ERROR_LEVEL_ERROR, "Return stack underflow"
 FEXCPT_MSG_DICTOF	ERROR_MSG	ERROR_LEVEL_ERROR, "Dictionary overflow"
 ;FEXCPT_MSG_INVALADR	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid memory address"
-FEXCPT_MSG_0DIV		ERROR_MSG	ERROR_LEVEL_ERROR, ""Division by zero
+FEXCPT_MSG_0DIV		ERROR_MSG	ERROR_LEVEL_ERROR, "Division by zero"
 FEXCPT_MSG_RESOR	ERROR_MSG	ERROR_LEVEL_ERROR, "Result out of range"
 FEXCPT_MSG_UDEFWORD	ERROR_MSG	ERROR_LEVEL_ERROR, "Undefined word"
-;FEXCPT_MSG_TIBOF	ERROR_MSG	ERROR_LEVEL_ERROR, "TIB overflow"
+FEXCPT_MSG_TIBOF	ERROR_MSG	ERROR_LEVEL_ERROR, "TIB overflow"
 FEXCPT_MSG_PADOF	ERROR_MSG	ERROR_LEVEL_ERROR, "PAD overflow"
 FEXCPT_MSG_COMPNEST	ERROR_MSG	ERROR_LEVEL_ERROR, "Nested compilation"
 FEXCPT_MSG_INVALBASE	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid BASE"
-
-;Additional error messages 
 FEXCPT_MSG_CESF		ERROR_MSG	ERROR_LEVEL_ERROR, "Corrupt exception stack frame"
 
-EXCPT_TABS_END		EQU	*
+;Additional error messages 
+;FEXCPT_MSG_CESF		ERROR_MSG	ERROR_LEVEL_ERROR, "Corrupt exception stack frame"
+
+FEXCPT_TABS_END		EQU	*
 
 ;###############################################################################
 ;# Forth words                                                                 #
@@ -367,7 +316,7 @@ EXCPT_TABS_END		EQU	*
 ;return zero on top of the data stack, above whatever stack items would have
 ;been returned by xt EXECUTE. Otherwise, the remainder of the execution
 ;semantics are given by THROW.
-NFA_CATCH		FHEADER, "CATCH", FEXC_PREV_NFA, COMPILE
+NFA_CATCH		FHEADER, "CATCH", FEXCPT_PREV_NFA, COMPILE
 CFA_CATCH		DW	CF_CATCH			;
 CF_CATCH		PS_CHECK_UF	1, CF_CATCH_PSUF 	;check PS requirements (PSP -> Y)
 			RS_CHECK_OF	3, CF_CATCH_RSOF	;check RS requirements 
@@ -423,18 +372,18 @@ CF_CATCH_CESF		JOB	FEXCPT_CESF			;corrupt exception stack frame
 ;information about the condition associated with the THROW code n. Subsequently,
 ;the system shall perform the function of ABORT (the version of ABORT
 ;in the Core word set).
-NFA_THROW	FHEADER, "THROW", NFA_CATCH, COMPILE
-CFA_THROW	DW	CF_THROW
-CF_THROW	PS_CHECK_UF	1, CF_THROW_PSUF	;PS for underflow (RSP -> Y)
-		LDD	2,Y+				;check if TOS is 0
-		BEQ	CF_THROW_1			;NEXT
-	        STX	PSP
-		JOB	FEXCPT_THROW
-CF_THROW_1	STX	PSP
-		NEXT
+NFA_THROW		FHEADER, "THROW", NFA_CATCH, COMPILE
+CFA_THROW		DW	CF_THROW
+CF_THROW		PS_CHECK_UF	1, CF_THROW_PSUF	;PS for underflow (RSP -> Y)
+			LDD	2,Y+				;check if TOS is 0
+			BEQ	CF_THROW_1			;NEXT
+			STX	PSP
+			JOB	FEXCPT_THROW
+CF_THROW_1		STX	PSP
+			NEXT
 
 CF_THROW_PSUF		JOB	FEXCPT_THROW_PSUF			
 	
 	
-FEXCPT_WORDS_END		EQU	*
-FEXCPT_LAST_WORD		EQU	NFA_THROW
+FEXCPT_WORDS_END	EQU	*
+FEXCPT_LAST_NFA		EQU	NFA_THROW

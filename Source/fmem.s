@@ -52,7 +52,7 @@
 ;###############################################################################
 ;        
 ;      	                    +--------------+--------------+
-;        FMEM_VARS_START -> |            HERE             |
+;        FMEM_VARS_START -> |             CP              |
 ;      	                    +--------------+--------------+
 ;                           |             PSP             |
 ;      	                    +--------------+--------------+
@@ -71,7 +71,7 @@
 ;                           |              |              |	     
 ;                           |              v              |	     
 ;                           | --- --- --- --- --- --- --- |	     
-;                           |                             | <- [HERE], CP  
+;                           |                             | <- [CP]  
 ;                           | --- --- --- --- --- --- --- |          
 ;                           |              ^              | <- [HLD]	     
 ;                           |             PAD             |	     
@@ -271,9 +271,9 @@ RS_EMPTY		EQU	FMEM_VARS_END
 #emac	
 
 ;#User dictionary (DICT) 
-;DICT_CHECK_OF: check if there is room in the DICT space and deallocate the PAD (HERE+bytes -> X)
+;DICT_CHECK_OF: check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
 #macro	DICT_CHECK_OF, 2	;1:required space (in bytes) 2:overflow handler  
-			LDX	HERE 			;=> 3 cycles
+			LDX	CP 			;=> 3 cycles
 			LEAX	\1,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
 			BHI	>\2			;=> 1 cycle / 3 cycles
@@ -287,7 +287,7 @@ RS_EMPTY		EQU	FMEM_VARS_END
 ;PAD_CHECK_OF: check if there is room for one more character on the PAD (HLD -> )X
 #macro	PAD_CHECK_OF, 1	;1:overflow handler  
 			LDX	HLD 			;=> 3 cycles
-			CPX	HERE			;=> 3 cycles
+			CPX	CP			;=> 3 cycles
 			BLS	>\1			;=> 1 cycle / 3 cycles
 							;  -------------------
 							;   7 cycles/ 9 cycles
@@ -295,7 +295,7 @@ RS_EMPTY		EQU	FMEM_VARS_END
 	
 ;PAD_ALLOC: allocate the PAD buffer (PAD_SIZE bytes if possible) (PAD -> D)
 #macro	PAD_ALLOC, 0 
-			LDD	HERE
+			LDD	CP
 			ADDD	#PAD_SIZE
 			CPD	PSP
 			BLS	PAD_ALLOC_0
@@ -306,7 +306,7 @@ PAD_ALLOC_0		STD	PAD
 	
 ;PAD_ALLOC: deallocate the PAD buffer  (PAD -> D)
 #macro	PAD_DEALLOC, 0 
-			LDD	HERE
+			LDD	CP
 			STD	PAD
 			STD	HLD
 #emac			
@@ -321,7 +321,7 @@ PAD_ALLOC_0		STD	PAD
 							;  -------------------
 							;   9 cycles/12 cycles
 #emac
-	
+		
 ;#Memory access
 
 
@@ -333,44 +333,39 @@ PAD_ALLOC_0		STD	PAD
 ;#Throw an RS overflow exception
 ; args:   none
 FMEM_THROW_RSOF		EQU	*
-			FECCPT_THROW	#FMEM_EC_RSOF
+			FEXCPT_THROW	FMEM_EC_RSOF
 	
 ;#Throw an RS underflow exception
 ; args:   none
 FMEM_THROW_RSUF		EQU	*
-			FEXCPT_THROW	#FMEM_EC_RSUF
+			FEXCPT_THROW	FMEM_EC_RSUF
 
 ;#Throw an PS overflow exception
 ; args:   none
 FMEM_THROW_PSOF		EQU	*
-			FEXCPT_THROW	#FMEM_EC_PSOF
+			FEXCPT_THROW	FMEM_EC_PSOF
 
 ;#Throw an PS underflow exception
 ; args:   none
 FMEM_THROW_PSUF		EQU	*
-			FEXCPT_THROW	#FMEM_EC_PSUF
-
-;#Throw an PAD overflow exception
-; args:   none
-FMEM_THROW_PSUF		EQU	*
-			FEXCPT_THROW	#FMEM_EC_PADOF
+			FEXCPT_THROW	FMEM_EC_PSUF
 
 ;#Throw an DICT overflow exception
 ; args:   none
 FMEM_THROW_DICTOF	EQU	*
-			FEXCPT_THROW	#FMEM_EC_DICTOF
+			FEXCPT_THROW	FMEM_EC_DICTOF
 
 ;#Throw an PAD overflow exception
 ; args:   none
 FMEM_THROW_PADOF	EQU	*
-			FEXCPT_THROW	#FMEM_EC_PADOF
+			FEXCPT_THROW	FMEM_EC_PADOF
 
 ;#Throw a TIB pointer out of range exception exception
 ; args:   none
-;FMEM_THROW_TIBOR	EQU	*
-;			FEXCPT_THROW	#FMEM_EC_TIBOF
-;
-;FMEM_CODE_END		EQU	*
+FMEM_THROW_TIBOF	EQU	*
+			FEXCPT_THROW	FMEM_EC_TIBOF
+
+FMEM_CODE_END		EQU	*
 	
 ;###############################################################################
 ;# Tables                                                                      #

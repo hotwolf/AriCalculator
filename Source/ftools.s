@@ -49,18 +49,19 @@ FTOOLS_VARS_END		EQU	*
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-			ORG	FTOOLS_CODE_START
-FTOOLS_CODE_END		EQU	*
+;#Initialization
+#macro	FTOOLS_INIT, 0
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
 			ORG	FTOOLS_CODE_START
 ;Exceptions
-FTOOLS_THROW_PSOF	EQU	FMEM_THROW_PSOF			;"Error! Parameter stack overflow"
-FTOOLS_THROW_PSUF	EQU	FMEM_THROW_PSUF			;"Error! Parameter stack underflow"
-FTOOLS_THROW_PSOF	EQU	FMEM_THROW_PSOF			;"Error! Parameter stack overflow"
-FTOOLS_THROW_RSUF	EQU	FMEM_THROW_RSUF 		;"Error! Return stack underflow"
+FTOOLS_THROW_PSOF	EQU	FMEM_THROW_PSOF			;"Parameter stack overflow"
+FTOOLS_THROW_PSUF	EQU	FMEM_THROW_PSUF			;"Parameter stack underflow"
+FTOOLS_THROW_PSOF	EQU	FMEM_THROW_PSOF			;"Parameter stack overflow"
+FTOOLS_THROW_RSUF	EQU	FMEM_THROW_RSUF 		;"Return stack underflow"
 
 FTOOLS_CODE_END		EQU	*
 
@@ -113,7 +114,7 @@ CF_DOT_S_1		PRINT_LINE_BREAK		;(SSTACK: 11 bytes)
 			EXG	X, D
 			LSLD			
 			EXG	X, D
-			LDX	#PS_EMPTY, X
+			LDX	PS_EMPTY,X
 			PRINT_RUINT			;args: X:integer, A:width, B:base (SSTACK: 24 bytes)
 			;Prepare next iteration (current index in Y)
 			DBEQ	Y, CF_DOT_S_3 		;done
@@ -331,7 +332,7 @@ NFA_C_S_PICK		EQU	NFA_CODE
 ;the control-flow stack before CS-ROLL is executed.
 ;If the control-flow stack is implemented using the data stack, u shall be the
 ;topmost item on the data stack.
-NFA_C_S_ROLL		EQU	NFA_CS_PICK
+NFA_C_S_ROLL		EQU	NFA_C_S_PICK
 
 ;EDITOR ( -- )
 ;Replace the first word list in the search order with the EDITOR word list.
