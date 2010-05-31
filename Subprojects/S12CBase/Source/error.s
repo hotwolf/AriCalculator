@@ -35,6 +35,8 @@
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
+;#    May 32, 2010                                                             #
+;#      - Changed "Initialization failure" error to "Unknown cause" error      #
 ;###############################################################################
 
 ;###############################################################################
@@ -85,7 +87,7 @@ ERROR_VARS_END		EQU	*
 			DECB
 			BEQ	ERROR_INIT_CM
 			;Illegal entry code
-			ERROR_RESTART	ERROR_MSG_INITFAIL ;throw fatal error
+			ERROR_RESTART	ERROR_MSG_UNKNOWN ;throw fatal error
 
 			;Clock monitor reset
 ERROR_INIT_CM		LDY	#ERROR_MSG_CM 
@@ -237,7 +239,7 @@ ERROR_MSG_SOFT		ERROR_MSG	ERROR_LEVEL_INFO,  "Software reset"
 ERROR_MSG_COP		ERROR_MSG	ERROR_LEVEL_FATAL, "Watchdog timeout"
 ERROR_MSG_CM		ERROR_MSG	ERROR_LEVEL_FATAL, "Clock failure"
 ERROR_MSG_LV		ERROR_MSG	ERROR_LEVEL_FATAL, "Power failure"
-ERROR_MSG_INITFAIL	ERROR_MSG	ERROR_LEVEL_FATAL, "Initialization failure"
+ERROR_MSG_UNKNOWN	ERROR_MSG	ERROR_LEVEL_FATAL, "Unknown cause"
 ERROR_MSG_UEXPIRQ	ERROR_MSG	ERROR_LEVEL_FATAL, "Unexpected interrupt"
 ERROR_MSG_UKNERR	ERROR_MSG	ERROR_LEVEL_FATAL, "Unknown error"
 ERROR_MSG_EXT		ERROR_MSG	ERROR_LEVEL_INFO,  "External reset"

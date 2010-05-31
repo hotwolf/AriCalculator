@@ -92,6 +92,8 @@ DEBUG                  EQU     1 ;enable debug code
 			PRINT_BITS
 	
 			JOB	BASE_APP_START
+
+BASE_APP_END		EQU	*
 	
 ;###############################################################################
 ;# Tables                                                                      #

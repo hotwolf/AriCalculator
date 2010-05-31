@@ -44,8 +44,11 @@
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
+;#    May 31, 2010                                                             #
+;#      - Call MMAP_INIT right at the reset entry point                        #
+;#      - Changed definittion of BASE_CODE_END                                 #
 ;###############################################################################
-;# Global Defines:                                                              #
+;# Global Defines:                                                             #
 ;#    DEBUG - Turns off functionality tha hinders debugging.                   #
 ;###############################################################################
 
@@ -77,8 +80,8 @@ BASE_VARS_END		EQU	BDM_VARS_END
 ;#Initialization
 #macro	BASE_INIT, 0
 	GPIO_INIT		
-	MMAP_INIT		
-	ISTACK_INIT	
+	;MMAP_INIT	;must be done at reset entry
+	ISTACK_INIT 	
 	CLOCK_INIT	
 	COP_INIT		
 	RTI_INIT		
@@ -111,15 +114,18 @@ BDM_CODE_START		EQU	ERROR_CODE_END
 			ORG	BDM_CODE_END
 
 			;COP reset entry
-BASE_ENTRY_COP		ERROR_ENTRY_COP
+BASE_ENTRY_COP		MMAP_INIT
+			ERROR_ENTRY_COP
 			JOB	BASE_INIT
 	
 			;CM reset entry
-BASE_ENTRY_CM		ERROR_ENTRY_CM
+BASE_ENTRY_CM		MMAP_INIT
+			ERROR_ENTRY_CM
 			JOB	BASE_INIT
 	
 			;External reset entry
-BASE_ENTRY_EXT		ERROR_ENTRY_EXT
+BASE_ENTRY_EXT		MMAP_INIT
+			ERROR_ENTRY_EXT
 	
 			;Initialize system			
 BASE_INIT		BASE_INIT
@@ -127,11 +133,11 @@ BASE_INIT		BASE_INIT
 			;Jump to application code 
 #ifdef BASE_APP_START
 			JOB	BASE_APP_START
+BASE_CODE_END		EQU	*
 #else
 BASE_APP_START		EQU	*
+BASE_CODE_END		EQU	BASE_APP_END
 #endif
-	
-BASE_CODE_END		EQU	*
 	
 ;###############################################################################
 ;# Tables                                                                      #
@@ -155,7 +161,7 @@ MAIN_NAME_STRING	FCS	"S12CBase"
 #endif
 
 #ifndef	MAIN_VERSION_STRING
-MAIN_VERSION_STRING	FCS	"V00.00"
+MAIN_VERSION_STRING	FCS	"V00.04"
 #endif
 	
 BASE_TABS_END		EQU	*
