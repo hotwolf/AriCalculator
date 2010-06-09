@@ -80,14 +80,14 @@
 ;#    Whenever a framing error, a parity error or noise is detected, the baud  #
 ;#    rate detection is activated and the module begins measuring all high and #
 ;#    low pulses on the RX line. Assuming that the sender uses one of the      #
-;#    following baud rates:    4800	                                       #
-;#                             9600	                                       #
+;#    following baud rates:     4800	                                       #
+;#                              7200	                                       #
+;#                              9600	                                       #
+;#                             14400	                                       #
 ;#                             19200	                                       #
+;#                             28800	                                       #
 ;#                             38400	                                       #
 ;#                             57600	                                       #
-;#                             76800	                                       #
-;#                             115200	                                       #
-;#                             153600	                                       #
 ;#    ...it finds the senders baud rate by elimination. When the baud rate has #
 ;#    been detected (all but one of the valid baud rates eliminated) and 15    #
 ;#    consecutive low or high ulses match this baud rate, then the SCI will be #
@@ -116,6 +116,11 @@
 ;#      - Initial release                                                      #
 ;#    April 22, 2010                                                           #
 ;#      - added functions SCI_TBE and SCI_BAUD                                 #
+;#    June 6, 2010                                                             #
+;#      - changed selection of detectable baud rates                           #
+;#      - stop baud rate detection when receiving a corret character           #
+;#      - stop baud rate detection when manually setting the baud rate         #
+;#                                                                             #
 ;###############################################################################
 
 ;###############################################################################
@@ -124,9 +129,14 @@
 ;#Baud rate devider settings
 ; SCIBD = 24.576MHz / (16*baud rate)
 
+SCI_1200        EQU	1280
+SCI_2400        EQU	 640
 SCI_4800        EQU	 320
+SCI_7200        EQU	 213
 SCI_9600        EQU	 160
+SCI_14400       EQU	 107
 SCI_19200       EQU	  80
+SCI_28800       EQU	  53
 SCI_38400       EQU	  40
 SCI_57600       EQU	  27
 SCI_76800       EQU	  20
@@ -267,6 +277,16 @@ SCI_INIT_3	STX	SCIBDH			;set baud rate
 		BRSET	PTIM, #$01, \1
 #emac
 	
+;Stop baud rate detection
+#macro	SCI_STOP_BD, 0
+		BRCLR	SCI_FLGS, #SCI_FLG_BDCNT, DONE	;baud rate detection already inactive
+		BCLR	TIE, #SCI_TIMCH			;disable interrupts
+		TIM_DISABLE TIM_SCI			;disable timer
+		BCLR	SCI_FLGS, #(SCI_FLG_BDCNT|SCI_FLG_BDIGN);reset status flags
+		LED_COMERR_OFF				;stop signaling communication errors
+DONE		EQU	*
+#emac
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -400,8 +420,11 @@ SCI_BAUD	EQU	*
 		SSTACK_PSHYD			;push all registers onto the SSTACK
 
 		;Finish current transmission
-		SSTACK_JOBSR	SCI_TBE		;(SSTACK: 8 bytes) 
+		SCI_TBE				;(SSTACK: 8 bytes) 
 
+		;Disable baud rate detection
+		SCI_STOP_BD			;stop baud rate detection
+	
 		;Set baud rate 
 		STD	SCIBDH			;set baud rate
 		LDY	#SCI_BMUL		;save baud rate for next warmstart
@@ -490,7 +513,8 @@ SCI_ISR_RX	LDAB	SCIDRL			;load receive data into accu B (clears flags)
 		;Initiate baud rate detection in case of an RX error
 		BITA	#(NF|FE|PE) 		;check for: noise, frame errors, parity errors
 		BNE	SCI_ISR_RX_7		;start baud rate detection
-
+		SCI_STOP_BD			;stop baud rate detection
+	
 		;Transfer SWOR flag to current error flags
 SCI_ISR_RX_1	BRSET	SCI_FLGS, #SCI_FLG_SWOR, SCI_ISR_RX_8 ;move SWOR bit
 
@@ -698,13 +722,13 @@ SCI_CODE_END		EQU	*
 ;Baud rate table
 SCI_BTAB		EQU	*	
 			DW	SCI_4800  
+			DW	SCI_7200  
 			DW	SCI_9600  
+			DW	SCI_14400 
 			DW	SCI_19200 
+			DW	SCI_28800 
 			DW	SCI_38400 
 			DW	SCI_57600 
-			DW	SCI_76800 
-			DW	SCI_115200
-			DW	SCI_153600
 SCI_BTAB_END		EQU	*
 
 ;Baud rate search tree

@@ -35,8 +35,11 @@
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
-;#    May 32, 2010                                                             #
+;#    May 30, 2010                                                             #
 ;#      - Changed "Initialization failure" error to "Unknown cause" error      #
+;#    June 8, 2010                                                             #
+;#      - Changed checksum for error message                                   #
+;#      - Fixed COP error handling                                             #
 ;###############################################################################
 
 ;###############################################################################
@@ -98,10 +101,10 @@ ERROR_INIT_CM		LDY	#ERROR_MSG_CM
 ERROR_INIT_COP		LDD	ERROR_MSG 		;check for valid error message
 			TFR	D, Y
 			ABA
-			NEGA
+			COMA
 			CMPA	ERROR_MSG_CHECK
 			BEQ	ERROR_INIT_COP_1	;error message is valid
-			LDY	ERROR_MSG_COP		;complain ablut COP instead
+			LDY	#ERROR_MSG_COP		;complain ablut COP instead
 ERROR_INIT_COP_1	ERROR_PRINT 			;print error message (SSTACK: 18 bytes)
 			JOB	ERROR_INIT_DONE
 	
@@ -202,7 +205,7 @@ ERROR_PRINT_1		ERROR_RESTART	ERROR_MSG_UKNERR
 ERROR_RESTART		EQU	*
 			STD	ERROR_MSG 	;save error message
 			ABA			;calculate checksum
-			NEGA	
+			COMA	
 			STAA	ERROR_MSG_CHECK	;save checksum
 			COP_RESET
 
