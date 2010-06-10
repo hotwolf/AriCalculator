@@ -62,7 +62,6 @@ FMEM_VARS_END		EQU	FORTH_VARS_END
 ;###############################################################################
 ;#Initialization
 #macro	FORTH_INIT, 0
-	BASE_INIT
 	FCORE_INIT
 	FMEM_INIT
 	FEXCPT_INIT
@@ -83,19 +82,20 @@ FDOUBLE_CODE_START	EQU	FEXCPT_CODE_END
 FTOOLS_CODE_START	EQU	FDOUBLE_CODE_END
 FBDM_CODE_START		EQU	FTOOLS_CODE_END
 FSCI_CODE_START		EQU	FBDM_CODE_END
-			ORG	BASE_APP_START	
+FORTH_CODE_END		EQU	FSCI_CODE_END
 
+			ORG	BASE_APP_START	
 			;Initialize system			
 FORTH_INIT		FORTH_INIT
-
 			;Jump to application code 
 #ifdef FORTH_APP_START
 			JOB	FORTH_APP_START
+BASE_APP_END		EQU	*
 #else
 FORTH_APP_START		EQU	*
+BASE_APP_END		EQU	FORTH_APP_END
 #endif
 	
-FORTH_CODE_END		EQU	*
 	
 ;###############################################################################
 ;# Tables                                                                      #
@@ -144,7 +144,7 @@ FORTH_PREV_NFA		EQU	FCORE_LAST_NFA
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ../Subprojects/S12CBase/Source/base.s	;S12CBase
+#include ../Subprojects/HC12Base/Source/base.s	;S12CBase
 #include ./fcore.s				;Forth core words
 #include ./fmem.s				;Forth memories
 #include ./fexcpt.s				;Forth exceptions

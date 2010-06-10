@@ -1882,21 +1882,21 @@ CF_NAME_1		CPX	NUMBER_TIB		;check for the end of the input buffer
 			LEAX	-TIB_START,X 		;revert >IN	
 			;Convert to upper-case andind trailing whitespace  (index of 1st character in X)
 CF_NAME_2		LDD	TIB_START,X		;next two characters -> D
-			CMPA	#"A"			;convert current character to upper case
+			CMPA	#"a"			;convert current character to upper case
 			BLO	CF_NAME_3
-			CMPA	#"Z"
+			CMPA	#"z"
 			BHI	CF_NAME_3
 			SUBA	#$20			;"a"-"A"
-CF_NAME_3		STAA	TIB_START,X
-			LEAX	1,X			;increment string pointer
+		        STAA	TIB_START,X
+CF_NAME_3		LEAX	1,X			;increment string pointer
+			CPX	NUMBER_TIB		;check for the end of the input buffer
+			BHI	CF_NAME_4 		;terminate string	
 			CMPB	#"!"	
 			BLO	CF_NAME_4 		;terminate string
 			CMPB	#"~"
-			BHI	CF_NAME_4		;terminate strung
-			CPX	NUMBER_TIB		;check for the end of the input buffer
 			BLS	CF_NAME_2		;check next character
 			;Terminate string (last character in A, pointer to last character in X)
-CF_NAME_4		ORAA	$80			;add termination bit to last character
+CF_NAME_4		ORAA	#$80			;add termination bit to last character
 			STAA	 TIB_START-1,X
 			;Adjust >IN pointer
 			STX	TO_IN
@@ -1993,12 +1993,8 @@ CFA_QUIT		DW	CF_QUIT
 			;Empty RS and go into interpretation state 
 CF_QUIT			RS_RESET		;empty the return stack
 			MOVW	#$0000, STATE	;enter interpretation state
-			;Print input prompt 
-CF_QUIT_1		PRINT_LINE_BREAK	;send input prompt
-			LDX	#FCORE_INPUT_PROMPT
-			PRINT_STR
 			;Query comand line
-			LED_BUSY_OFF
+CF_QUIT_1		LED_BUSY_OFF
 			EXEC_CF	CF_QUERY, CF_QUIT_RSOF, CF_QUIT_RSUF	;get command line
 			LED_BUSY_ON
 			;Parse next word of the command line
@@ -2390,7 +2386,7 @@ CFA_WHILE_RT		EQU	CFA_UNTIL_RT 	;same as UNTIL run-time semantics
 
 NFA_WORD		FHEADER, "WORD", NFA_WHILE, COMPILE
 CFA_WORD		DW	CF_WORD
-CF_WORD			PS_CHECK_OF	1, CF_WORD_PSOF ;(PSP -> Y)
+CF_WORD			PS_CHECK_OF	1, CF_WORD_PSUF ;(PSP -> Y)
 			TIB_CHECK_OF	0, CF_WORD_TIBOF
 			
 			;Skip leading delimeters
@@ -2423,7 +2419,7 @@ CF_WORD_4		STX	TO_IN			;update >IN pointer
 			MOVW	#$0000 0,Y		;push $0000 onto the stack
 			NEXT
 			
-CF_WORD_PSOF		JOB	FCORE_THROW_PSOF
+CF_WORD_PSUF		JOB	FCORE_THROW_PSUF
 CF_WORD_TIBOF		JOB	FCORE_THROW_TIBOF
 		
 ;XOR ( x1 x2 -- x3 )

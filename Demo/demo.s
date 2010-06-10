@@ -43,8 +43,6 @@ DEBUG                  EQU     1 ;enable debug code
 ;  		 +-------------+ $0400
 ;  		 |/////////////|
 ;  		 +-------------+ $3000
-;  		 |  RAM Code   |
-;  		 +-------------+ 
 ;  		 |  Variables  |
 ;  		 +-------------+ $4000
 ;  		 |/////////////|
@@ -58,8 +56,7 @@ DEBUG                  EQU     1 ;enable debug code
 ;  		 |  Vectors    |
 ;  		 +-------------+ 
 
-DEMO_RAM_CODE_START		EQU	$3000
-DEMO_VARS_START			EQU	DEMO_RAM_CODE_END
+DEMO_VARS_START			EQU	$3000
 FORTH_VARS_START		EQU	DEMO_VARS_END
 FORTH_VARS_END			EQU	$4000
 FORTH_CODE_START		EQU	$C000
@@ -79,18 +76,26 @@ DEMO_VARS_END			EQU	*
 	
 ;###############################################################################
 ;# Code                                                                        #
-;###############################################################################
-				ORG	DEMO_RAM_CODE_START
-				FILL	$800, $00
-				ORG	DEMO_RAM_CODE_START
-				JOB	CF_QUIT
-	
-DEMO_RAM_CODE_END		EQU	*
-	
+;###############################################################################	
 				ORG	FORTH_APP_START
 DEMO_CODE_START			EQU	*
-				JOB	DEMO_RAM_CODE_START
+				MOVW	#16, BASE
+				EXEC_CF	CF_QUERY,  DEMO_ERROR, DEMO_ERROR
+	
+				EXEC_CF	CF_NAME,   DEMO_ERROR, DEMO_ERROR
+				EXEC_CF	CF_DOT_S,  DEMO_ERROR, DEMO_ERROR
+
+				EXEC_CF	CF_FIND,   DEMO_ERROR, DEMO_ERROR
+				EXEC_CF	CF_DOT_S,  DEMO_ERROR, DEMO_ERROR
+
+				JOB	DEMO_CODE_START
+
+DEMO_ERROR			JOB	*
+
 DEMO_CODE_END			EQU	*
+FORTH_APP_END			EQU	*
+
+
 	
 ;###############################################################################
 ;# Tables                                                                      #
