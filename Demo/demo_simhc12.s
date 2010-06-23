@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - Demo of the S12CBase Framework                                   #
+;# S12CBase - Demo of the S12CBase Framework (SIMHC12 Version)                 #
 ;###############################################################################
 ;#    Copyright 2010 Dirk Heisswolf                                            #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -19,8 +19,10 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#   This demo application receives ASCII characters via the RS232 interface   #
-;#   and returs various numeric representaions of the received character       #
+;#    This demo application receives ASCII characters via the RS232 interface  #
+;#    and returs various numeric representaions of the received character      #
+;#    This version of the demo contains modifications to run on the SIM68HC12  #
+;#    simulator.                                                               #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
@@ -110,4 +112,4 @@ MAIN_TABS_END		EQU	*
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ../Source/base.s         ;framework bundle
+#include ../Source/base_simhc12.s         ;framework bundle

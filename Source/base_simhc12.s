@@ -19,9 +19,9 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#   This module bundles the S12CBase framework into a single include file.    #
-;#   This version of BASE contains modifications to run on the SIM68HC12       #
-;#   simulator.                                                                #
+;#    This module bundles the S12CBase framework into a single include file.   #
+;#    This version of BASE contains modifications to run on the SIM68HC12      #
+;#    simulator.                                                               #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#     REGDEF - Register Definitions                                           #
@@ -164,7 +164,7 @@ MAIN_NAME_STRING	FCS	"S12CBase"
 #endif
 
 #ifndef	MAIN_VERSION_STRING
-MAIN_VERSION_STRING	FCS	"V00.04 (SIMHC12)"
+MAIN_VERSION_STRING	FCS	"V00.05 (SIMHC12)"
 #endif
 	
 BASE_TABS_END		EQU	*
