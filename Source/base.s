@@ -19,7 +19,7 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#   This module bundles the S12CBase framework into a single include file     #
+;#   This module bundles the S12CBase framework into a single include file.    #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#     REGDEF - Register Definitions                                           #
