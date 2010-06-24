@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CForth - S12CForth Framework Bundle                                      #
+;# S12CForth - S12CForth Framework Bundle (SIMHC12 Version)                    #
 ;###############################################################################
 ;#    Copyright 2010 Dirk Heisswolf                                            #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
@@ -144,11 +144,11 @@ FORTH_PREV_NFA		EQU	FCORE_LAST_NFA
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ../Subprojects/S12CBase/Source/base.s	;S12CBase
-#include ./fcore.s				;Forth core words
-#include ./fmem.s				;Forth memories
-#include ./fexcpt.s				;Forth exceptions
-#include ./fdouble.s				;Forth double-number words
-#include ./ftools.s				;Forth programming tools words
-#include ./fbdm.s				;S12CBase BDM wrapper
-#include ./fsci.s				;S12CBase SCI wrapper
+#include ../Subprojects/S12CBase/Source/base_simhc12.s	;S12CBase
+#include ./fcore.s					;Forth core words
+#include ./fmem.s					;Forth memories
+#include ./fexcpt.s					;Forth exceptions
+#include ./fdouble.s					;Forth double-number words
+#include ./ftools.s					;Forth programming tools words
+#include ./fbdm.s					;S12CBase BDM wrapper
+#include ./fsci.s					;S12CBase SCI wrapper

@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CForth - Demo of the S12CForth Framework                                 #
+;# S12CForth - Demo of the S12CForth Framework (SIMHC12 Version)               #
 ;###############################################################################
 ;#    Copyright 2010 Dirk Heisswolf                                            #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
@@ -97,4 +97,4 @@ DEMO_TABS_END			EQU	*
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ../Source/forth.s         ;S12CForth framework bundle
+#include ../Source/forth_simhc12.s	;S12CForth framework bundle

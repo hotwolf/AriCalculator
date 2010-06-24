@@ -54,6 +54,8 @@
 ;      	                    +--------------+--------------+
 ;        FMEM_VARS_START -> |             CP              |
 ;      	                    +--------------+--------------+
+;                           |           LAST_CP           |
+;      	                    +--------------+--------------+
 ;                           |             PSP             |
 ;      	                    +--------------+--------------+
 ;                           |             RSP             |
@@ -124,7 +126,8 @@ FMEM_EC_PADOF		EQU	FEXCPT_EC_PADOF		;pictured numeric output string overflow
 ;# Variables                                                                   #
 ;###############################################################################
 			ORG	FMEM_VARS_START
-CP			DS	2 	;compile pointrer (next free space after the dictionary) 
+CP			DS	2 	;compile pointer (next free space after the dictionary) 
+SAVED_CP		DS	2 	;last compile pointer (before the current compilation)  
 PSP			DS	2 	;parameter stack pointer (top of stack)
 RSP			DS	2 	;return stack pointer (top of stack)
 PAD                     DS	2	;end of the PAD buffer
@@ -144,7 +147,9 @@ RS_EMPTY		EQU	FMEM_VARS_END
 ;#Initialization
 #macro	FMEM_INIT, 0
 			;Initialize memory pointers
-			MOVW	#DICT_START,	CP
+			LDD	#DICT_START
+			STD	CP
+			STD	SAVED_CP	
 			PS_RESET
 			RS_RESET
 			MOVW	#(DICT_START+PAD_SIZE), PAD
@@ -283,6 +288,18 @@ RS_EMPTY		EQU	FMEM_VARS_END
 							;   15 cycles/ 17 cycles
 #emac			
 
+;DICT_CHECK_OF_A: check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
+#macro	DICT_CHECK_OF_A, 1	;1:overflow handler  
+			LDX	CP 			;=> 3 cycles
+			LEAX	A,X			;=> 2 cycles
+			CPX	PSP			;=> 3 cycles
+			BHI	>\1			;=> 1 cycle / 3 cycles
+			STX	PAD			;=> 3 cycles
+			STX	HLD			;=> 3 cycles
+							;  -------------------
+							;   15 cycles/ 17 cycles
+#emac			
+	
 ;#Pictured numeric output buffer (PAD) 
 ;PAD_CHECK_OF: check if there is room for one more character on the PAD (HLD -> )X
 #macro	PAD_CHECK_OF, 1	;1:overflow handler  

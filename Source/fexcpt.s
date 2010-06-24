@@ -101,7 +101,7 @@ FEXCPT_EC_TIBOF			EQU	-18	;parsed string overflow
 FEXCPT_EC_COMPNEST		EQU	-29	;compiler nesting
 ;FEXCPT_EC_30			EQU	-30	;obsolescent feature
 ;FEXCPT_EC_31			EQU	-31	;>BODY used on non-CREATEd definition
-;FEXCPT_EC_32			EQU	-32	;invalid name argument (e.g., TO xxx)
+FEXCPT_EC_INVALNAME		EQU	-32	;invalid name argument (e.g., TO xxx)
 ;FEXCPT_EC_33			EQU	-33	;block read exception
 ;FEXCPT_EC_34			EQU	-34	;block write exception
 ;FEXCPT_EC_35			EQU	-35	;invalid block number
@@ -193,7 +193,7 @@ FEXCPT_THROW_1	LDX	HANDLER						;check if an exception handler excists
 FEXCPT_THROW_2	CPD	#FEXCPT_EC_ABORT 				;check if an ABORT has been requested
 		BEQ	CF_ABORT
 		CPD	#FEXCPT_EC_ABORTQ 				;check if an ABORT" has been requested
-		BEQ	CF_ABORT_QUOTE
+		BEQ	CF_ABORT_QUOTE_RT
 		CPD	#FEXCPT_EC_QUIT 				;check if a QUIT has been requested
 		BEQ	CF_QUIT
 		CPD	#-((FEXCPT_MSGTAB_END-FEXCPT_MSGTAB_START)/2) 	;check for standard error code
@@ -317,6 +317,15 @@ FEXCPT_TABS_END		EQU	*
 ;return zero on top of the data stack, above whatever stack items would have
 ;been returned by xt EXECUTE. Otherwise, the remainder of the execution
 ;semantics are given by THROW.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack overflow"
+;"Return stack overflow"
+;"Corrupt exception stack frame"
+;
+			ALIGN	1
 NFA_CATCH		FHEADER, "CATCH", FEXCPT_PREV_NFA, COMPILE
 CFA_CATCH		DW	CF_CATCH			;
 CF_CATCH		PS_CHECK_UF	1, CF_CATCH_PSUF 	;check PS requirements (PSP -> Y)
@@ -349,8 +358,8 @@ CF_CATCH_RESTORE	RS_CHECK_UF 3, CF_CATCH_CESF	 	;RS for underflow (RSP -> X)
 			JMP	[0,X]
 	
 CF_CATCH_PSUF		JOB	FEXCPT_THROW_PSUF			
-CF_CATCH_RSOF		JOB	FEXCPT_THROW_RSOF			
 CF_CATCH_PSOF		JOB	FEXCPT_THROW_PSOF			
+CF_CATCH_RSOF		JOB	FEXCPT_THROW_RSOF			
 CF_CATCH_CESF		JOB	FEXCPT_CESF			;corrupt exception stack frame 
 	
 ;THROW ( k*x n -- k*x | i*x n )
@@ -373,6 +382,12 @@ CF_CATCH_CESF		JOB	FEXCPT_CESF			;corrupt exception stack frame
 ;information about the condition associated with the THROW code n. Subsequently,
 ;the system shall perform the function of ABORT (the version of ABORT
 ;in the Core word set).
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
 NFA_THROW		FHEADER, "THROW", NFA_CATCH, COMPILE
 CFA_THROW		DW	CF_THROW
 CF_THROW		PS_CHECK_UF	1, CF_THROW_PSUF	;PS for underflow (RSP -> Y)

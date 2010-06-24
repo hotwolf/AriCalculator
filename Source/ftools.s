@@ -85,6 +85,7 @@ FTOOLS_TABS_END		EQU	*
 ;S12CForth implementation details:
 ; SSTACK: 24 bytes
 ;
+			ALIGN	1
 NFA_DOT_RS		FHEADER, ".RS", FTOOLS_PREV_NFA, COMPILE
 CFA_DOT_RS		DW	CF_DOT_RS
 			;Print header 
@@ -144,9 +145,9 @@ CF_DOT_RS_3		;PRINT_LINE_BREAK		;new line (SSTACK: 11 bytes)
 			NEXT
 	
 CF_DOT_RS_HEAD1		FCS	"Return stack"
-;CF_DOT_RS_HEAD2		FCS	":"
+;CF_DOT_RS_HEAD2	FCS	":"
 CF_DOT_RS_HEAD2		EQU	CF_DOT_S_HEAD2
-;CF_DOT_RS_EMPTY		FCS	" is empty!"
+;CF_DOT_RS_EMPTY	FCS	" is empty!"
 CF_DOT_RS_EMPTY		EQU	CF_DOT_S_EMPTY
 
 ;.S ( -- )
@@ -158,6 +159,7 @@ CF_DOT_RS_EMPTY		EQU	CF_DOT_S_EMPTY
 ;S12CForth implementation details:
 ; SSTACK: 24 bytes
 ;
+			ALIGN	1
 NFA_DOT_S		FHEADER, ".S", NFA_DOT_RS, COMPILE
 CFA_DOT_S		DW	CF_DOT_S
 			;Print header 
@@ -223,6 +225,12 @@ CF_DOT_S_EMPTY		FCS	" is empty!"
 ;Display the value stored at a-addr.
 ;? may be implemented using pictured numeric output words. Consequently, its use
 ;may corrupt the transient region identified by #>.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
 NFA_QUESTION		FHEADER, "?", NFA_DOT_S, COMPILE
 CFA_QUESTION		DW	CF_QUESTION
 CF_QUESTION		PS_PULL_X 1, CF_QUESTION_PSUF 	;check for underflow  (PSP -> Y)
@@ -239,6 +247,12 @@ CF_QUESTION_PSUF	JOB	FTOOLS_THROW_PSUF
 ;the display is implementation dependent.
 ;DUMP may be implemented using pictured numeric output words. Consequently, its
 ;use may corrupt the transient region identified by #>.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
 NFA_DUMP		FHEADER, "DUMP", NFA_QUESTION, COMPILE
 CFA_DUMP		DW	CF_DUMP
 CF_DUMP			PS_CHECK_UF	2, CF_DUMP_PSUF ;check for underflow  (PSP -> Y)
@@ -298,6 +312,7 @@ CF_DUMP_HEADER		FCS	"------0--1--2--3--4--5--6--7--8--9--A--B--C--D--E--F"
 ;and the particular form of the display is implementation defined.
 ;SEE may be implemented using pictured numeric output words. Consequently, its
 ;use may corrupt the transient region identified by #>.
+			ALIGN	1
 NFA_SEE			FHEADER, "SEE", NFA_DUMP, COMPILE
 CFA_SEE			DW	CF_SEE
 CF_SEE			NEXT
@@ -307,6 +322,7 @@ CF_SEE			NEXT
 ;format of the display is implementation-dependent.
 ;WORDS may be implemented using pictured numeric output words. Consequently, its
 ;use may corrupt the transient region identified by #>.
+			ALIGN	1
 NFA_WORDS		FHEADER, "WORDS", NFA_SEE, COMPILE
 CFA_WORDS		DW	CF_WORDS
 CF_WORDS
@@ -356,9 +372,10 @@ CF_WORDS_LINE_WIDTH	EQU	40
 ;CREATE.
 ;name Execution: ( i*x -- j*x )
 ;Perform the machine code sequence that was generated following ;CODE.
-NFA_SEMICOLON_CODE	FHEADER, ";CODE", NFA_WORDS, COMPILE 
-CFA_SEMICOLON_CODE	DW	CF_SEMICOLON_CODE
-CF_SEMICOLON_CODE	NEXT
+NFA_SEMICOLON_CODE	EQU	NFA_WORDS 
+;			ALIGN	1
+;NFA_SEMICOLON_CODE	FHEADER, ";CODE", NFA_WORDS, COMPILE 
+;CFA_SEMICOLON_CODE	DW	CF_DUMMY
 
 ;AHEAD 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -376,10 +393,12 @@ NFA_AHEAD		EQU	NFA_SEMICOLON_CODE
 ;
 ;S12CForth implementation details:
 ;not implemented 
+			ALIGN	1
 NFA_ASSEMBLER		EQU	NFA_AHEAD
 
 ;BYE ( -- )
 ;Return control to the host operating system, if any.
+			ALIGN	1
 NFA_BYE			FHEADER, "BYE", NFA_ASSEMBLER, COMPILE 
 CFA_BYE			DW	CF_QUIT
 
@@ -394,9 +413,10 @@ CFA_BYE			DW	CF_QUIT
 ;until an implementation-defined ending sequence is processed.
 ;name Execution: ( i*x -- j*x )
 ;Execute the machine code sequence that was generated following CODE.
-NFA_CODE		FHEADER, "CODE", NFA_BYE, COMPILE 
-CFA_CODE		DW	CF_CODE
-CF_CODE			NEXT
+NFA_CODE		EQU	NFA_BYE
+;			ALIGN	1
+;NFA_CODE		FHEADER, "CODE", NFA_BYE, COMPILE 
+;CFA_CODE		DW	CF_DUMMY
 
 ;CS-PICK
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -407,6 +427,7 @@ CF_CODE			NEXT
 ;orig or dest, on the control-flow stack before CS-PICK is executed.
 ;If the control-flow stack is implemented using the data stack, u shall be the
 ;topmost item on the data stack.
+			ALIGN	1
 NFA_C_S_PICK		EQU	NFA_CODE 
 
 ;CS-ROLL 
@@ -419,6 +440,7 @@ NFA_C_S_PICK		EQU	NFA_CODE
 ;the control-flow stack before CS-ROLL is executed.
 ;If the control-flow stack is implemented using the data stack, u shall be the
 ;topmost item on the data stack.
+			ALIGN	1
 NFA_C_S_ROLL		EQU	NFA_C_S_PICK
 
 ;EDITOR ( -- )
@@ -426,6 +448,7 @@ NFA_C_S_ROLL		EQU	NFA_C_S_PICK
 ;
 ;S12CForth implementation details:
 ;not implemented 
+			ALIGN	1
 NFA_EDITOR		EQU	NFA_C_S_ROLL 
 
 ;FORGET ( "<spaces>name" -- )
@@ -438,19 +461,15 @@ NFA_EDITOR		EQU	NFA_C_S_ROLL
 ;execution.
 ;Note: This word is obsolescent and is included as a concession to existing
 ;implementations.
-NFA_FORGET		FHEADER, "FORGET", NFA_EDITOR, COMPILE 
-CFA_FORGET		DW	CF_FORGET
-CF_FORGET		
-
-
-
-			LDX	LAST_NFA
-			MOVW	0,X, LAST_NFA
-			NEXT
+NFA_FORGET		EQU	NFA_EDITOR
+;			ALIGN	1
+;NFA_FORGET		FHEADER, "FORGET", NFA_EDITOR, COMPILE 
+;CFA_FORGET		DW	CF_DUMMY
 
 ;STATE ( -- a-addr )
 ;Extend the semantics of 6.1.2250 STATE to allow ;CODE to change the value in
 ;STATE. A program shall not directly alter the contents of STATE.
+			ALIGN	1
 NFA_STATE_TOOLS		EQU	NFA_FORGET
 
 ;[ELSE] 
@@ -461,9 +480,10 @@ NFA_STATE_TOOLS		EQU	NFA_FORGET
 ;[IF] ... [ELSE] ... [THEN], until the word [THEN] has been parsed and
 ;discarded. If the parse area becomes exhausted, it is refilled as with REFILL.
 ;[ELSE] is an immediate word.
-NFA_BRACKET_ELSE	FHEADER, "[ELSE]", NFA_STATE_TOOLS, COMPILE 
-CFA_BRACKET_ELSE	DW	CF_BRACKET_ELSE
-CF_BRACKET_ELSE		NEXT
+NFA_BRACKET_ELSE	EQU	NFA_STATE_TOOLS 
+;			ALIGN	1
+;NFA_BRACKET_ELSE	FHEADER, "[ELSE]", NFA_STATE_TOOLS, COMPILE 
+;CFA_BRACKET_ELSE	DW	CF_DUMMY
 
 ;[IF] 
 ;Compilation: Perform the execution semantics given below.
@@ -476,17 +496,19 @@ CF_BRACKET_ELSE		NEXT
 ;An ambiguous condition exists if [IF] is POSTPONEd, or if the end of the input
 ;buffer is reached and cannot be refilled before the terminating [ELSE] or
 ;[THEN] is parsed.
-NFA_BRACKET_IF		FHEADER, "[IF]", NFA_BRACKET_ELSE, COMPILE 
-CFA_BRACKET_IF		DW	CF_BRACKET_IF
-CF_BRACKET_IF		NEXT
+NFA_BRACKET_IF		EQU	NFA_BRACKET_ELSE
+;			ALIGN	1
+;NFA_BRACKET_IF		FHEADER, "[IF]", NFA_BRACKET_ELSE, COMPILE 
+;CFA_BRACKET_IF		DW	CF_DUMMY
 
 ;[THEN] 
 ;Compilation: Perform the execution semantics given below.
 ;Execution:   ( -- )
 ;Does nothing. [THEN] is an immediate word.
-NFA_BRACKET_THEN	FHEADER, "[THEN]", NFA_BRACKET_IF, COMPILE 
-CFA_BRACKET_THEN	DW	CF_BRACKET_THEN
-CF_BRACKET_THEN		NEXT
+NFA_BRACKET_THEN	EQU	NFA_BRACKET_IF
+;			ALIGN	1
+;NFA_BRACKET_THEN	FHEADER, "[THEN]", NFA_BRACKET_IF, COMPILE 
+;CFA_BRACKET_THEN	DW	CF_DUMMY
 	
 FTOOLS_WORDS_END		EQU	*
 FTOOLS_LAST_NFA			EQU	NFA_BRACKET_THEN
