@@ -53,6 +53,7 @@
 ;#    addr            address                         1 cell		       #
 ;#    a-addr          aligned address                 1 cell		       #
 ;#    c-addr          character-aligned address       1 cell		       #
+;#    d-addr          double address                  2 cells (non-standard)   #
 ;#    d               double-cell signed number       2 cells		       #
 ;#    +d              double-cell non-negative number 2 cells		       #
 ;#    ud              double-cell unsigned number     2 cells		       #
@@ -2376,14 +2377,14 @@ CF_QUIT_RSOF		;DEBUG	"Return stack overflow"
 			ERROR_PRINT
 			JOB	CF_ABORT 			
  			;Undefined word (PSP+2 in Y)
-CF_QUIT_UDEFWORD	;DEBUG	"Undefined word"			
+CF_QUIT_UDEFWORD	;DEBUG	"Undefined word"
 			LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message	
 			ERROR_PRINT
 			JOB	CF_ABORT 
 		
 CF_QUIT_MSG_RSUF	EQU	FEXCPT_MSG_RSUF
 CF_QUIT_MSG_RSOF	EQU	FEXCPT_MSG_RSOF
-CF_QUIT_MSG_UDEFWORD	FCS	FEXCPT_MSG_UDEFWORD
+CF_QUIT_MSG_UDEFWORD	EQU	FEXCPT_MSG_UDEFWORD
 	
 ;R> 
 ;Interpretation: Interpretation semantics for this word are undefined.

@@ -241,7 +241,7 @@ CF_QUESTION		PS_PULL_X 1, CF_QUESTION_PSUF 	;check for underflow  (PSP -> Y)
 			NEXT
 
 CF_QUESTION_PSUF	JOB	FTOOLS_THROW_PSUF
-	
+
 ;DUMP ( addr u -- )
 ;Display the contents of u consecutive addresses starting at addr. The format of
 ;the display is implementation dependent.
@@ -255,24 +255,24 @@ CF_QUESTION_PSUF	JOB	FTOOLS_THROW_PSUF
 			ALIGN	1
 NFA_DUMP		FHEADER, "DUMP", NFA_QUESTION, COMPILE
 CFA_DUMP		DW	CF_DUMP
-CF_DUMP			PS_CHECK_UF	2, CF_DUMP_PSUF ;check for underflow  (PSP -> Y)
-			;Check if u>0
+CF_DUMP			PS_CHECK_UF	2, CF_DUMP_PSUF ;check for underflow (PSP -> Y)
+			;Check if u>0 (PSP -> Y)
 			LDD	0,Y
-			BEQ	CF_DUMP_6 		;nothing to do
-			;Print header
+			BEQ	CF_DUMP_7 		;nothing to do
+			;Print header (PSP -> Y)
+			PRINT_LINE_BREAK		;new line (SSTACK: 11 bytes)
 			LDX	#CF_DUMP_HEADER
 			PRINT_STR 			;args: X:string
-			PRINT_LINE_BREAK		;new line (SSTACK: 11 bytes)
 			;Calculate end address (PSP in Y)
 			LDD	2,Y 			;load start address
 			TFR	D, X			;start address -> X
 			ADDD	0,Y			;calculate end address
 			STD	0,Y			;replace u by end address
 			;Calculate block address (PSP in Y, start address in X)
-			TFR	Y, D			;calculate block address
+			TFR	X, D			;calculate block address
 			ANDB	#$F0
 			STD	2,Y			;replace start address by block address	
-			;Print baseblock address (PSP in Y, block address in D)
+			;Print base block address (PSP in Y, start address in X, block address in D)
 CF_DUMP_1		PRINT_LINE_BREAK		;new line (SSTACK: 11 bytes)
 			PRINT_WORD			;args: D:number (SSTACK: 16 bytes)
 			;Print leading spaces (PSP in Y, current address in X, block address in D)
@@ -294,17 +294,27 @@ CF_DUMP_4		PRINT_SPC 			;print 1 space
 			BEQ	CF_DUMP_5		;done
 			CPX	2,Y			;check if end of line has been reached
 			BNE	CF_DUMP_4		;more bytes to print in this line
-			;Prine next line (PSP in Y, current address in X)
+			;Print next line (PSP in Y, current address in X)
 			LDD	2,Y
 			JOB	CF_DUMP_1
-			;Done
-CF_DUMP_5		PRINT_LINE_BREAK		;new line (SSTACK: 11 bytes)
-CF_DUMP_6		NEXT			
+			;Print trailing spaces (PSP in Y)
+CF_DUMP_5		LDD	2,Y
+			SUBD	0,Y
+			BEQ	CF_DUMP_7			
+			LDAA	#3			;3 spaces per missing byte
+CF_DUMP_6		PRINT_SPCS			;args: A:spaces (SSTACK: 12 bytes)
+			DBNE	B, CF_DUMP_6
+			;Done (PSP in Y)
+CF_DUMP_7		LEAY	4,Y
+			STY	PSP
+			NEXT			
 		
 CF_DUMP_PSUF		JOB	FTOOLS_THROW_PSUF
 	
 ;CF_DUMP_HEADER		FCS	"---- -0 -1 -2 -3 -4 -5 -6 -7 -8 -9 -A -B -C -D -E -F"		
-CF_DUMP_HEADER		FCS	"------0--1--2--3--4--5--6--7--8--9--A--B--C--D--E--F"		
+;CF_DUMP_HEADER		FCS	"------0--1--2--3--4--5--6--7--8--9--A--B--C--D--E--F"		
+;CF_DUMP_HEADER		FCS	"____ _0 _1 _2 _3 _4 _5 _6 _7 _8 _9 _A _B _C _D _E _F"		
+CF_DUMP_HEADER		FCS	"______0__1__2__3__4__5__6__7__8__9__A__B__C__D__E__F"		
 	
 ;SEE ( "<spaces>name" -- )
 ;Display a human-readable representation of the named word's definition. The
@@ -393,7 +403,6 @@ NFA_AHEAD		EQU	NFA_SEMICOLON_CODE
 ;
 ;S12CForth implementation details:
 ;not implemented 
-			ALIGN	1
 NFA_ASSEMBLER		EQU	NFA_AHEAD
 
 ;BYE ( -- )
@@ -427,7 +436,6 @@ NFA_CODE		EQU	NFA_BYE
 ;orig or dest, on the control-flow stack before CS-PICK is executed.
 ;If the control-flow stack is implemented using the data stack, u shall be the
 ;topmost item on the data stack.
-			ALIGN	1
 NFA_C_S_PICK		EQU	NFA_CODE 
 
 ;CS-ROLL 
@@ -440,7 +448,6 @@ NFA_C_S_PICK		EQU	NFA_CODE
 ;the control-flow stack before CS-ROLL is executed.
 ;If the control-flow stack is implemented using the data stack, u shall be the
 ;topmost item on the data stack.
-			ALIGN	1
 NFA_C_S_ROLL		EQU	NFA_C_S_PICK
 
 ;EDITOR ( -- )
@@ -448,7 +455,6 @@ NFA_C_S_ROLL		EQU	NFA_C_S_PICK
 ;
 ;S12CForth implementation details:
 ;not implemented 
-			ALIGN	1
 NFA_EDITOR		EQU	NFA_C_S_ROLL 
 
 ;FORGET ( "<spaces>name" -- )
@@ -469,7 +475,6 @@ NFA_FORGET		EQU	NFA_EDITOR
 ;STATE ( -- a-addr )
 ;Extend the semantics of 6.1.2250 STATE to allow ;CODE to change the value in
 ;STATE. A program shall not directly alter the contents of STATE.
-			ALIGN	1
 NFA_STATE_TOOLS		EQU	NFA_FORGET
 
 ;[ELSE] 
