@@ -40,16 +40,20 @@
 ;#    June 8, 2010                                                             #
 ;#      - Changed checksum for error message                                   #
 ;#      - Fixed COP error handling                                             #
+;#    July 2, 2010                                                             #
+;#      - compined error messages "Unknown cause" and "Unknown error" to       #
+;#        "Unknown problem"                                                    #
+;#      - changed error codes                                                  #
 ;###############################################################################
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
 ;Severity levels
-ERROR_LEVEL_INFO	EQU	ERROR_STRINGTAB_INFO-ERROR_STRINGTAB
-ERROR_LEVEL_WARNING	EQU	ERROR_STRINGTAB_WARNING-ERROR_STRINGTAB
-ERROR_LEVEL_ERROR	EQU	ERROR_STRINGTAB_ERROR-ERROR_STRINGTAB
-ERROR_LEVEL_FATAL	EQU	ERROR_STRINGTAB_FATAL-ERROR_STRINGTAB
+ERROR_LEVEL_INFO	EQU	(ERROR_STRINGTAB_INFO-ERROR_STRINGTAB)>>1)
+ERROR_LEVEL_WARNING	EQU	(ERROR_STRINGTAB_WARNING-ERROR_STRINGTAB)>>1)
+ERROR_LEVEL_ERROR	EQU	(ERROR_STRINGTAB_ERROR-ERROR_STRINGTAB)>>1)
+ERROR_LEVEL_FATAL	EQU	(ERROR_STRINGTAB_FATAL-ERROR_STRINGTAB)>>1)
 
 ;#Reset entry codes
 ERROR_ENTRYCODE_EXT	EQU	$00
@@ -178,9 +182,10 @@ ERROR_PRINT		EQU	*
 
 			;Print error level 
 			LDAB	0,Y 			;read error level
-			CMPB	#ERROR_STRINGTAB_END-ERROR_STRINGTAB ;check level
+			CMPB	#((ERROR_STRINGTAB_END-ERROR_STRINGTAB)>>1) ;check level
 			BHS	ERROR_PRINT_1 		;invalid error level
 			LDX	#ERROR_STRINGTAB
+			LSLB
 			LDX	B,X
 			PRINT_LINE_BREAK 		;print line break sequence (SSTACK:11 bytes)
 			PRINT_STR 			;print string (SSTACK: 13 bytes)
@@ -198,7 +203,7 @@ ERROR_PRINT		EQU	*
 			SSTACK_RTS
 
 			;Throw a fatal error
-ERROR_PRINT_1		ERROR_RESTART	ERROR_MSG_UKNERR		
+ERROR_PRINT_1		ERROR_RESTART	ERROR_MSG_UKNOWN		
 	
 ;#Perform a reset due to a fatal error
 ;# Args: D: message pointer	
@@ -220,6 +225,12 @@ ERROR_CODE_END		EQU	*
 ;# Tables                                                                      #
 ;###############################################################################
 			ORG	ERROR_TABS_START
+;#Error strings
+ERROR_STRING_INFO	FCS	"Info! "
+ERROR_STRING_WARNING	FCS	"Warning! "
+ERROR_STRING_ERROR	FCS	"Error! "
+ERROR_STRING_FATAL	FCS	"Fatal Error! "
+
 ;#Error string table
 ERROR_STRINGTAB		EQU	*
 ERROR_STRINGTAB_INFO	DW	ERROR_STRING_INFO
@@ -227,12 +238,6 @@ ERROR_STRINGTAB_WARNING	DW	ERROR_STRING_WARNING
 ERROR_STRINGTAB_ERROR	DW	ERROR_STRING_ERROR
 ERROR_STRINGTAB_FATAL	DW	ERROR_STRING_FATAL
 ERROR_STRINGTAB_END	EQU	*
-
-;#Error strings
-ERROR_STRING_INFO	FCS	"Info! "
-ERROR_STRING_WARNING	FCS	"Warning! "
-ERROR_STRING_ERROR	FCS	"Error! "
-ERROR_STRING_FATAL	FCS	"Fatal Error! "
 
 ;#Welcome strings
 ERROR_WELCOME_STRING	FCS	"Hello, this is "
@@ -242,9 +247,8 @@ ERROR_MSG_SOFT		ERROR_MSG	ERROR_LEVEL_INFO,  "Software reset"
 ERROR_MSG_COP		ERROR_MSG	ERROR_LEVEL_FATAL, "Watchdog timeout"
 ERROR_MSG_CM		ERROR_MSG	ERROR_LEVEL_FATAL, "Clock failure"
 ERROR_MSG_LV		ERROR_MSG	ERROR_LEVEL_FATAL, "Power failure"
-ERROR_MSG_UNKNOWN	ERROR_MSG	ERROR_LEVEL_FATAL, "Unknown cause"
+ERROR_MSG_UNKNOWN	ERROR_MSG	ERROR_LEVEL_FATAL, "Unknown problem"
 ERROR_MSG_UEXPIRQ	ERROR_MSG	ERROR_LEVEL_FATAL, "Unexpected interrupt"
-ERROR_MSG_UKNERR	ERROR_MSG	ERROR_LEVEL_FATAL, "Unknown error"
 ERROR_MSG_EXT		ERROR_MSG	ERROR_LEVEL_INFO,  "External reset"
 	
 ERROR_TABS_END		EQU	*
