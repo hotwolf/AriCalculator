@@ -222,12 +222,12 @@ CF_RESUME		RS_PULL	IP, \3 			;RS -> IP
 	
 ;EXEC_CF: Execute a Forth word's code field (CF) directly from assembler code (w/out setting the W register)
 #macro	EXEC_CF, 3	;args: 1:CF 2:RS overflow handler, 3:RS underflow handler
-			RS_PUSH	IP, \2		;IP -> RS			
+			RS_PUSH	IP, \2			;IP -> RS			
 			MOVW	#IP_RESUME, IP 		;set next IP
 			JOB	\1
 IP_RESUME		DW	CFA_RESUME
 CFA_RESUME		DW	CF_RESUME
-CF_RESUME		RS_PULL	IP, \3 		;RS -> IP
+CF_RESUME		RS_PULL	IP, \3 			;RS -> IP
 #emac
 
 ;BASE_CHECK: Verify the content of the BASE variable (Cdirectly from assembler code (BASE -> D)
@@ -249,6 +249,22 @@ CF_RESUME		RS_PULL	IP, \3 		;RS -> IP
 #macro	INTERPRET_ONLY, 1	;args: 1:error handler
 			LDD	STATE
 			BNE	\1
+#emac
+	
+;DEBUG: Ensure that the system is in interpretation state
+#macro	DEBUG, 1	;args: 1:message
+ADDR			PRINT_LINE_BREAK
+			SSTACK_PSHYXD
+			LDX	#MSG
+			PRINT_STR
+			LDD	#ADDR
+			PRINT_WORD
+			EXEC_CF	CF_DOT_S, CF_QUIT_RSOF, CF_QUIT_RSUF	;debug: show stack
+			SSTACK_PULDXY
+			JOB	DONE
+MSG			FCC	\1
+			FCS     " @"	
+DONE			EQU	*
 #emac
 	
 ;###############################################################################
@@ -1781,13 +1797,13 @@ CF_FIND		 	PS_CHECK_UFOF	1, CF_FIND_PSUF, 1, CF_FIND_PSOF	;check for over and un
 			LDY	2,Y   						;start of word -> Y
 			BEQ	CF_FIND_3  					;empty string
 			;Try to match first two characters (current NFA in X, start of word in Y)
-CF_FIND_1		PRINT_LINE_BREAK					;debug: print NFA
-			TFR	X, D 						
-			PRINT_WORD
-			PRINT_SPC
-			LEAX	3,X 						;debug: print name
-			PRINT_STR
-			LEAX 	-3,X
+CF_FIND_1		;PRINT_LINE_BREAK					;debug: print NFA
+			;TFR	X, D 						
+			;PRINT_WORD
+			;PRINT_SPC
+			;LEAX	3,X 						;debug: print name
+			;PRINT_STR
+			;LEAX 	-3,X
 	
 			LDD	0,Y 						;First two characters -> D 
 			BMI	CF_FIND_6					;single character word
@@ -2285,13 +2301,12 @@ CF_QUIT			RS_RESET		;empty the return stack
 			STD	STATE		;enter interpretation state
 			MOVW	SAVED_CP, CP	;restore compile pointer
 			;Query comand line
-CF_QUIT_1		EXEC_CF	CF_DOT_S, CF_QUIT_RSOF, CF_QUIT_RSUF	;debug: show stack
-			;LED_BUSY_OFF (moved to QUERY)
+CF_QUIT_1		;LED_BUSY_OFF (moved to QUERY)
 			EXEC_CF	CF_QUERY, CF_QUIT_RSOF, CF_QUIT_RSUF	;get command line
 			;LED_BUSY_ON (moved to QUERY)
 			;Parse next word of the command line
 CF_QUIT_2		EXEC_CF	CF_NAME, CF_QUIT_RSOF, CF_QUIT_RSUF	;parse next word
-		        LDY	PSP
+			LDY	PSP
 			LDD	2,Y+
 			BEQ	CF_QUIT_4 				;last word parsed
 			;Look up word in dictionary
@@ -2305,8 +2320,9 @@ CF_QUIT_2		EXEC_CF	CF_NAME, CF_QUIT_RSOF, CF_QUIT_RSUF	;parse next word
 			;Execute word (PSP+2 in Y) 
 CF_QUIT_3		LDX	2,Y+ 					;Pull CFA
 			STY	PSP 					;update PSP
-			MOVW	#CF_QUIT_CFA_DONE, IP 			;set next IP
+			MOVW	#CF_QUIT_IP_DONE, IP 			;set next IP
 			JMP	[0,X]					;execute CF
+CF_QUIT_IP_DONE		DW	CF_QUIT_CFA_DONE			
 CF_QUIT_CFA_DONE	DW	CF_QUIT_2			
 			;Last word parsed (PSP+2 in Y)
 CF_QUIT_4		STY	PSP 					;update PSP
@@ -2315,7 +2331,8 @@ CF_QUIT_4		STY	PSP 					;update PSP
 			PRINT_STR
 			JOB	CF_QUIT_1
 			;Compile word (PSP+2 in Y) 
-CF_QUIT_5		LDX	CP 					;copy CFA do dictionary
+CF_QUIT_5		;DEBUG	"Compile word"			
+			LDX	CP 					;copy CFA do dictionary
 			MOVW	2,Y+, 2,X+
 			STY	PSP
 			STY	CP
@@ -2330,31 +2347,37 @@ CF_QUIT_6		STY	PSP 					;update PSP
 			LDD	STATE 					;check state
 			BEQ	CF_QUIT_2 				;interpret next word 
 			;Compile number (size in D, PSP in Y)
+			;DEBUG	"Compile number"			
 			LDX	CP
 			DBNE	D, CF_QUIT_7 				;compile double number
 			;Compile single number (size in D, PSP in Y, CP in X)
+			;DEBUG	"Compile single number"			
 			MOVW	#CFA_LITERAL_RT, 2,X+ 			;add CFA
 			MOVW	2,Y+, 2,X+ 				;add number
 			STX	CP 					;update CP
 			STY	PSP 					;update PSP
 			JOB	CF_QUIT_2 				;interpret next word 
 			;Compile double number (size in D, PSP in Y, CP in X)
-CF_QUIT_7		MOVW	#CFA_TWO_LITERAL_RT, 2,X+ 		;add CFA
+CF_QUIT_7		;DEBUG	"Compile double number"			
+			MOVW	#CFA_TWO_LITERAL_RT, 2,X+ 		;add CFA
 			MOVW	2,Y+, 2,X+ 				;add number
 			MOVW	2,Y+, 2,X+ 				;add number
 			STX	CP 					;update CP
 			STY	PSP 					;update PSP
 			JOB	CF_QUIT_2 				;interpret next word
  			;Return stack underflow 
-CF_QUIT_RSUF		LDY	#CF_QUIT_MSG_RSUF 			;print standard error message
+CF_QUIT_RSUF		;DEBUG	"Return stack underflow"			
+			LDY	#CF_QUIT_MSG_RSUF 			;print standard error message
 			ERROR_PRINT
 			JOB	CF_ABORT
  			;Return stack overflow 
-CF_QUIT_RSOF		LDY	#CF_QUIT_MSG_RSUF 			;print standard error message	
+CF_QUIT_RSOF		;DEBUG	"Return stack overflow"			
+			LDY	#CF_QUIT_MSG_RSUF 			;print standard error message	
 			ERROR_PRINT
 			JOB	CF_ABORT 			
  			;Undefined word (PSP+2 in Y)
-CF_QUIT_UDEFWORD	LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message	
+CF_QUIT_UDEFWORD	;DEBUG	"Undefined word"			
+			LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message	
 			ERROR_PRINT
 			JOB	CF_ABORT 
 		

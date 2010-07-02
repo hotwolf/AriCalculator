@@ -20,6 +20,8 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#   This module bundles the S12CForth framework into a single include file    #
+;#   This version of OpenBDC contains modifications to run on the SIM68HC12    #
+;#   simulator.                                                                #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#     BASE   - S12CBase framework                                             #
@@ -115,7 +117,7 @@ MAIN_NAME_STRING	FCS	"S12CForth"
 #endif
 
 #ifndef	MAIN_VERSION_STRING
-MAIN_VERSION_STRING	FCS	"V00.00"
+MAIN_VERSION_STRING	FCS	"V00.00-SIMHC12"
 #endif
 	
 FORTH_TABS_END		EQU	*

@@ -151,6 +151,9 @@ FEXCPT_VARS_END		EQU	*
 ;#Throw an exception from within an assembler primitive
 #macro	FEXCPT_THROW, 1
 			LDD	#\1		;set error code
+
+			BGND
+	
 			JOB	FEXCPT_THROW	;throw exception
 #emac
 	
@@ -168,10 +171,16 @@ FEXCPT_THROW_CESF	FEXCPT_THROW	 FEXCPT_EC_CESF	;"Corrupt exception stack frame"
 ;#Throw an exception
 ; args:   D: error code
 FEXCPT_THROW	EQU	*
-		;Check STATE variable 
+		;Check for fatal errors
+		TFR	D, X
+		LDAB	0,X
+		CMPB	#ERROR_LEVEL_FATAL
+		TFR	X, D
+		BEQ	ERROR_RESTART
+		;Check STATE variable (error code in D)
 		LDX	STATE	     					;exceptions in compilation state are uncaught
 		BNE	FEXCPT_THROW_2 					;compilation state	
-		;Restore RSP
+		;Restore RSP (error code in D)
 FEXCPT_THROW_1	LDX	HANDLER						;check if an exception handler excists
 		BEQ	FEXCPT_THROW_2					;no exception handler
 		STX	RSP						;restore RS	
@@ -198,7 +207,7 @@ FEXCPT_THROW_2	CPD	#FEXCPT_EC_ABORT 				;check if an ABORT has been requested
 		BEQ	CF_QUIT
 		CPD	#-((FEXCPT_MSGTAB_END-FEXCPT_MSGTAB_START)/2) 	;check for standard error code
 		BLO	FEXCPT_THROW_3					;custom error message
-		LDX     FEXCPT_MSGTAB_END 				;look-up standard error message
+		LDX     #FEXCPT_MSGTAB_END 				;look-up standard error message
 		LSLD
 		LDD	D,X
 FEXCPT_THROW_3	TFR	D, Y
@@ -281,7 +290,8 @@ FEXCPT_MSGTAB_START	EQU	*
 FEXCPT_MSGTAB_END	EQU	*
 			
 ;Standard error messages 
-FEXCPT_MSG_UNKNOWN	ERROR_MSG	ERROR_LEVEL_ERROR, "Unknown problem"
+;FEXCPT_MSG_UNKNOWN	ERROR_MSG	ERROR_LEVEL_ERROR, "Unknown problem"
+FEXCPT_MSG_UNKNOWN	EQU		ERROR_MSG_UNKNOWN
 FEXCPT_MSG_PSOF		ERROR_MSG	ERROR_LEVEL_ERROR, "Parameter stack overflow"
 FEXCPT_MSG_PSUF		ERROR_MSG	ERROR_LEVEL_ERROR, "Parameter stack underflow" 
 FEXCPT_MSG_RSOF		ERROR_MSG	ERROR_LEVEL_ERROR, "Return stack overflow"

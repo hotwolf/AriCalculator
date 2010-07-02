@@ -203,7 +203,11 @@ ERROR_PRINT		EQU	*
 			SSTACK_RTS
 
 			;Throw a fatal error
+<<<<<<< HEAD
 ERROR_PRINT_1		ERROR_RESTART	ERROR_MSG_UKNOWN		
+=======
+ERROR_PRINT_1		ERROR_RESTART	ERROR_MSG_UNKNOWN		
+>>>>>>> 4c9982e89cd07a50968589b252f80088d16b3733
 	
 ;#Perform a reset due to a fatal error
 ;# Args: D: message pointer	
