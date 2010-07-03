@@ -338,30 +338,32 @@ CFA_WORDS		DW	CF_WORDS
 CF_WORDS
 			;Print line break
 			LDY	LAST_NFA		;current NFA -> Y
-			LDAB	#CF_WORDS_LINE_WIDTH	;current character count -> B
+			CLRB				;remaining chars -> B
 				
-			;Print next word
-CF_WORDS_1		LDX	2,Y	     		;current strung pointer -> X
+			;Print next word (current NFA in Y, remaining chars -> B)
+CF_WORDS_1		LEAX	3,Y	     		;current string pointer -> X
 			PRINT_STRCNT			;string length -> A
-			EXG	A, B	
-			ABA				;check if string fits into the current line
-			INCA				;consider the whitespace
-			EXG	A, B			;word length -> A, character count -> B
-			CMPB	#CF_WORDS_LINE_WIDTH	
-			BHI	CF_WORDS_2		;string exceeds line width
+			INCA				;add one whitespace
+			EXG	A, B
+			SBA
+			EXG	A, B
+			BCS	CF_WORDS_3 		;line is too long
 			PRINT_SPC			;print whitespace
-			PRINT_STR 			;print string (args: X:string)
+CF_WORDS_2		PRINT_STR 			;print string (args: X:string)
 			LDY	0,Y			;advance NFA pointer
 			BNE	CF_WORDS_1		;more words to display
+			TBA
+			PRINT_SPCS
 			NEXT			
-CF_WORDS_2		PRINT_LINE_BREAK		;new line (SSTACK: 11 bytes)
-			PRINT_STR 			;print string (args: X:string)
-			TAB				;set character count
-			LDY	0,Y			;advance NFA pointer
-			BNE	CF_WORDS_1		;more words to display
-			NEXT			
+			;Start a new line (current NFA in Y, current string pointer -> X, remaining chars -1 in B)
+CF_WORDS_3		PRINT_LINE_BREAK		;new line (SSTACK: 11 bytes)
+			LDAB	#(CF_WORDS_LINE_WIDTH+1)
+			EXG 	A, B
+			SBA
+			EXG	A, B
+			JOB	CF_WORDS_2
 
-CF_WORDS_LINE_WIDTH	EQU	40
+CF_WORDS_LINE_WIDTH	EQU	75
 	
 ;;CODE 
 ;Interpretation: Interpretation semantics for this word are undefined.
