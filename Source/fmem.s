@@ -127,7 +127,7 @@ FMEM_EC_PADOF		EQU	FEXCPT_EC_PADOF		;pictured numeric output string overflow
 ;###############################################################################
 			ORG	FMEM_VARS_START
 CP			DS	2 	;compile pointer (next free space after the dictionary) 
-SAVED_CP		DS	2 	;last compile pointer (before the current compilation)  
+CP_SAVED		DS	2 	;last compile pointer (before the current compilation)  
 PSP			DS	2 	;parameter stack pointer (top of stack)
 RSP			DS	2 	;return stack pointer (top of stack)
 PAD                     DS	2	;end of the PAD buffer
@@ -149,7 +149,7 @@ RS_EMPTY		EQU	FMEM_VARS_END
 			;Initialize memory pointers
 			LDD	#DICT_START
 			STD	CP
-			STD	SAVED_CP	
+			STD	CP_SAVED	
 			PS_RESET
 			RS_RESET
 			MOVW	#(DICT_START+PAD_SIZE), PAD
@@ -168,7 +168,7 @@ RS_EMPTY		EQU	FMEM_VARS_END
 #macro	PS_CHECK_UF, 2	;1:expected entries before operation 2:underflow handler  
 			LDY	PSP 			;=> 3 cycles
 			CPY	#(PS_EMPTY-(2*\1))	;=> 2 cycles
-			BHI	>\2			;=> 1 cycle / 3 cycles
+			BHI	<\2			;=> 1 cycle / 3 cycles
 							;  -------------------
 							;   6 cycles/ 8 cycles
 #emac
@@ -178,7 +178,7 @@ RS_EMPTY		EQU	FMEM_VARS_END
 			LDY	PSP 			;=> 3 cycles
 			LEAY	-(2*\1),Y		;=> 2 cycles
 			CPY	PAD			;=> 3 cycles
-			BLO	>\2			;=> 1 cycle / 3 cycles
+			BLO	<\2			;=> 1 cycle / 3 cycles
 							;  -------------------
 							;   9 cycles/ 11 cycles
 #emac
@@ -190,7 +190,7 @@ RS_EMPTY		EQU	FMEM_VARS_END
 			BHI	>\2			;=> 1 cycle / 3 cycles
 			LEAY	-(2*\3),Y		;=> 2 cycles
 			CPY	PAD			;=> 3 cycles
-			BLO	>\4			;=> 1 cycle / 3 cycles
+			BLO	<\4			;=> 1 cycle / 3 cycles
 							;  -------------------
 							;  12 cycles/16 cycles
 #emac
@@ -232,7 +232,7 @@ RS_EMPTY		EQU	FMEM_VARS_END
 #macro	RS_CHECK_UF, 2	;1:expected entries before operation 2:underflow handler  
 			LDX	RSP 			;=> 3 cycles
 			CPX	#(RS_EMPTY-(2*\1))	;=> 2 cycles
-			BHI	>\2			;=> 1 cycle / 3 cycles
+			BHI	\2			;=> 1 cycle / 3 cycles
 							;  -------------------
 							;   6 cycles/ 8 cycles
 #emac
@@ -242,7 +242,7 @@ RS_EMPTY		EQU	FMEM_VARS_END
 			LDX	NUMBER_TIB		;=> 3 cycles
 			LEAX	(TIB_START+(2*\1)),X	;=> 2 cycles
 			CPX	RSP			;=> 3 cycles
-			BHI	>\2			;=> 1 cycle / 3 cycles
+			BHI	\2			;=> 1 cycle / 3 cycles
 							;  -------------------
 							;   9 cycles/ 11 cycles
 #emac
@@ -256,9 +256,9 @@ RS_EMPTY		EQU	FMEM_VARS_END
 							;                         12 cycles
 #emac	
 	
-;RS_PULL_Y: pull one entry from the return stack into index Y (RSP -> X)
+;RS_PULL_Y: pull one entry from the return stack into index Y
 #macro	RS_PULL_Y, 1	;1:underflow handler  
-			RS_CHECK_UF	1, \1		;check for underflow	=> 6 cycles
+			RS_CHECK_UF	1, <\1		;check for underflow	=> 6 cycles
 			LDY		2,X+		;RS -> X		=> 3 cycles 
 			STX		RSP		;			=> 3 cycles
 							;                         ---------
@@ -275,13 +275,26 @@ RS_EMPTY		EQU	FMEM_VARS_END
 							;                         20 cycles
 #emac	
 
+;RS_PUSH: push a variable onto the return stack and don't touch index X
+#macro	RS_PUSH_KEEP_X, 2	;1:variable 2:overflow handler  
+			LDY	NUMBER_TIB		;=> 3 cycles
+			LEAY	(TIB_START+2),Y		;=> 2 cycles
+			CPY	RSP			;=> 3 cycles
+			BHI	<\2			;=> 1 cycle / 3 cycles
+			LDY	RSP			;=> 3 cycles
+			MOVW	\1, 2,-Y		;=> 5 cycles
+			STY	RSP			;=> 3 cycles
+							;  ---------
+							;  20 cycles
+#emac	
+	
 ;#User dictionary (DICT) 
 ;DICT_CHECK_OF: check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
 #macro	DICT_CHECK_OF, 2	;1:required space (in bytes) 2:overflow handler  
 			LDX	CP 			;=> 3 cycles
 			LEAX	\1,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
-			BHI	>\2			;=> 1 cycle / 3 cycles
+			BHI	<\2			;=> 1 cycle / 3 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
 							;  -------------------
@@ -293,7 +306,7 @@ RS_EMPTY		EQU	FMEM_VARS_END
 			LDX	CP 			;=> 3 cycles
 			LEAX	A,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
-			BHI	>\1			;=> 1 cycle / 3 cycles
+			BHI	<\1			;=> 1 cycle / 3 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
 							;  -------------------
@@ -305,7 +318,7 @@ RS_EMPTY		EQU	FMEM_VARS_END
 #macro	PAD_CHECK_OF, 1	;1:overflow handler  
 			LDX	HLD 			;=> 3 cycles
 			CPX	CP			;=> 3 cycles
-			BLS	>\1			;=> 1 cycle / 3 cycles
+			BLS	<\1			;=> 1 cycle / 3 cycles
 							;  -------------------
 							;   7 cycles/ 9 cycles
 #emac			
@@ -334,7 +347,7 @@ PAD_ALLOC_0		STD	PAD
 			LDX	NUMBER_TIB		;=> 3 cycles
 			LEAX	(TIB_START+\1-1),X	;=> 2 cycles
 			CPX	RSP			;=> 3 cycles
-			BHS	>\2			;=> 1 cycle / 3 cycles
+			BHS	<\2			;=> 1 cycle / 3 cycles
 							;  -------------------
 							;   9 cycles/12 cycles
 #emac

@@ -76,7 +76,7 @@ FTOOLS_TABS_END		EQU	*
 ;###############################################################################
 			ORG	FTOOLS_WORDS_START ;(previous NFA: FTOOLS_PREV_NFA)
 
-;.S ( -- ) !!! Not part of the ANS Forth standard !!!
+;.RS ( -- ) !!! Not part of the ANS Forth standard !!!
 ;Copy and display the values currently on the data stack. The format of the
 ;display is implementation-dependent.
 ;.S may be implemented using pictured numeric output words. Consequently, its
@@ -234,7 +234,7 @@ CF_DOT_S_EMPTY		FCS	" is empty!"
 NFA_QUESTION		FHEADER, "?", NFA_DOT_S, COMPILE
 CFA_QUESTION		DW	CF_QUESTION
 CF_QUESTION		PS_PULL_X 1, CF_QUESTION_PSUF 	;check for underflow  (PSP -> Y)
-			PRINT_LINE_BREAK		;new line (SSTACK: 11 bytes)
+			PRINT_SPC			;print space
 			LDX	0,X			;print variable
 			LDAB	BASE+1
 			PRINT_UINT			;args: X:integer, B:base (SSTACK: 24 bytes)
@@ -252,6 +252,8 @@ CF_QUESTION_PSUF	JOB	FTOOLS_THROW_PSUF
 ;Throws:
 ;"Parameter stack underflow"
 ;
+CF_DUMP_PSUF		JOB	FTOOLS_THROW_PSUF 	;(fits better here)
+	
 			ALIGN	1
 NFA_DUMP		FHEADER, "DUMP", NFA_QUESTION, COMPILE
 CFA_DUMP		DW	CF_DUMP
@@ -309,8 +311,6 @@ CF_DUMP_7		LEAY	4,Y
 			STY	PSP
 			NEXT			
 		
-CF_DUMP_PSUF		JOB	FTOOLS_THROW_PSUF
-	
 ;CF_DUMP_HEADER		FCS	"---- -0 -1 -2 -3 -4 -5 -6 -7 -8 -9 -A -B -C -D -E -F"		
 ;CF_DUMP_HEADER		FCS	"------0--1--2--3--4--5--6--7--8--9--A--B--C--D--E--F"		
 ;CF_DUMP_HEADER		FCS	"____ _0 _1 _2 _3 _4 _5 _6 _7 _8 _9 _A _B _C _D _E _F"		
@@ -478,7 +478,7 @@ NFA_FORGET		EQU	NFA_EDITOR
 ;Extend the semantics of 6.1.2250 STATE to allow ;CODE to change the value in
 ;STATE. A program shall not directly alter the contents of STATE.
 NFA_STATE_TOOLS		EQU	NFA_FORGET
-
+	
 ;[ELSE] 
 ;Compilation: Perform the execution semantics given below.
 ;Execution:   ( "<spaces>name" ... -- )

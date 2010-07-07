@@ -102,31 +102,6 @@ NFA_TWO_CONSTANT	EQU	FDOUBLE_PREV_NFA
 								;		  37 cycles
 CF_TWO_CONSTANT_PSOF	JOB	FCORE_THROW_PSOF
 	
-;2LITERAL 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( x1 x2 -- )
-;Append the run-time semantics below to the current definition.
-;Run-time: ( -- x1 x2 )
-;Place cell pair x1 x2 on the stack.
-NFA_TWO_LITERAL		EQU	NFA_TWO_CONSTANT
-;			ALIGN	1
-;NFA_TWO_LITERAL	FHEADER, "2LITERAL", NFA_TWO_CONSTANT, COMPILE
-;CFA_TWO_LITERAL	DW	CF_DUMMY
-
-;2LITERAL run-time semantics
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-;
-CFA_TWO_LITERAL_RT	DW	CF_LITERAL_RT
-CF_TWO_LITERAL_RT	PS_CHECK_OF	2, CF_LITERAL_PSOF 	;check for PS overflow (PSP-new cells -> Y)
-			LDX	IP				;push the value at IP onto the PS
-			MOVW	2,X+, 0,Y			; and increment the IP
-			MOVW	2,X+, 2,Y			; and increment the IP
-			STX	IP
-			STY	PSP
-			NEXT
 			
 ;2VARIABLE ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -137,9 +112,9 @@ CF_TWO_LITERAL_RT	PS_CHECK_OF	2, CF_LITERAL_PSOF 	;check for PS overflow (PSP-ne
 ;a-addr is the address of the first (lowest address) cell of two consecutive
 ;cells in data space reserved by 2VARIABLE when it defined name. A program is
 ;responsible for initializing the contents.
-NFA_TWO_VARIABLE	EQU	NFA_TWO_LITERAL
+NFA_TWO_VARIABLE	EQU	NFA_TWO_CONSTANT
 ;			ALIGN	1
-;NFA_TWO_VARIABLE	FHEADER, "2VARIABLE", NFA_TWO_LITERAL, COMPILE
+;NFA_TWO_VARIABLE	FHEADER, "2VARIABLE", NFA_TWO_constant, COMPILE
 ;CFA_TWO_VARIABLE	DW	CF_DUMMY
 
 ;Run-time of VARIABLE
@@ -210,6 +185,7 @@ CF_D_DOT		PS_CHECK_UF 2, CF_D_DOT_PSUF 	;check for underflow (PSP -> Y)
 			LDX	-2,Y
 			LDY	-4,Y
 			LDD	BASE
+			PRINT_SPC 			;print one space
 			PRINT_SDBL			;print cells as signed double integer
 			NEXT
 			

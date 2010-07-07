@@ -81,7 +81,6 @@
 ;# Required Modules:                                                           #
 ;#    FMEM    - Forth memories                                                 #
 ;#    FEXCPT  - Forth exceptions                                               #
-;#    FDOUBLE - Forth double number words                                      #
 ;#    PRINT   - Print Routines                                                 #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
@@ -240,13 +239,13 @@ CF_RESUME		RS_PULL	IP, \3 			;RS -> IP
 			BHI	>\1
 #emac
 
-;COMPILE_ONLY_ON: Ensure that the system is in compile state
+;COMPILE_ONLY: Ensure that the system is in compile state
 #macro	COMPILE_ONLY, 1	;args: 1:error handler
 			LDD	STATE
 			BEQ	\1
 #emac
 	
-;COMPILE_ONLY_ON: Ensure that the system is in interpretation state
+;INTERPRET_ONLY: Ensure that the system is in interpretation state
 #macro	INTERPRET_ONLY, 1	;args: 1:error handler
 			LDD	STATE
 			BNE	\1
@@ -272,7 +271,7 @@ DONE			EQU	*
 ;# Code                                                                        #
 ;###############################################################################
 			ORG	FCORE_CODE_START
-;Exceptions
+;Standard exceptions
 FCORE_THROW_PSOF	EQU	FMEM_THROW_PSOF			;stack overflow
 FCORE_THROW_PSUF	EQU	FMEM_THROW_PSUF			;stack underflow
 FCORE_THROW_RSOF	EQU	FMEM_THROW_PSOF			;return stack overflow
@@ -280,17 +279,20 @@ FCORE_THROW_RSUF	EQU	FMEM_THROW_RSUF 		;return stack underflow
 FCORE_THROW_DICTOF	EQU	FMEM_THROW_DICTOF		;dictionary overflow
 FCORE_THROW_PADOF	EQU	FMEM_THROW_PADOF		;pictured numeric output string overflow
 FCORE_THROW_TIBOF	EQU	FMEM_THROW_TIBOF		;text input buffer overflow
-FCORE_THROW_0DIV	FEXCPT_THROW	FCORE_EC_0DIV		;division by zero
-FCORE_THROW_RESOR	FEXCPT_THROW	FCORE_EC_RESOR		;result out of range
+FCORE_THROW_0DIV	FEXCPT_THROW	FEXCPT_EC_0DIV		;division by zero
+FCORE_THROW_RESOR	FEXCPT_THROW	FEXCPT_EC_RESOR		;result out of range
 FCORE_THROW_COMPONLY	FEXCPT_THROW	FEXCPT_MSG_COMPONLY	;interpreting a compile-only word
-FCORE_THROW_COMPNEST	FEXCPT_THROW	FCORE_EC_COMPNEST	;compiler nesting
-FCORE_THROW_INVALNAME	FEXCPT_THROW	FCORE_EC_INVALNAME	;invalid name
-FCORE_THROW_INVALBASE	FEXCPT_THROW	FCORE_EC_INVALBASE	;invalid BASE
+FCORE_THROW_COMPNEST	FEXCPT_THROW	FEXCPT_EC_COMPNEST	;compiler nesting
+FCORE_THROW_INVALNAME	FEXCPT_THROW	FEXCPT_EC_INVALNAME	;invalid name
+FCORE_THROW_INVALBASE	FEXCPT_THROW	FEXCPT_EC_INVALBASE	;invalid BASE
+
+;Non-Standard exceptions
+FCORE_THROW_NONAME	FEXCPT_THROW	FEXCPT_EC_NONAME	;missing name argument
 	
 ;CF_INNER   ( -- )
 			;Execute the first execution token after the CFA (CFA in X)
-CF_INNER		EQU		*	
-			RS_PUSH		IP, CF_INNER_RSOF	;IP -> RS		=>20 cycles
+CF_INNER		EQU		*
+			RS_PUSH_KEEP_X	IP, CF_INNER_RSOF	;IP -> RS		=>20 cycles
 			LEAY		4,X			;CFA+4 -> IP		=> 2 cycles
 			STY		IP			;			=> 3 cycles
 			LDX		2,X			;new CFA -> X		=> 3 cycles
@@ -959,15 +961,42 @@ CF_TWO_DROP_2		LDY	#PS_EMPTY 			;reset PS
 			ALIGN	1
 NFA_TWO_DUP		FHEADER, "2DUP", NFA_TWO_DROP, COMPILE
 CFA_TWO_DUP		DW		CF_DUP
-CF_TWO_DUP		PS_CHECK_UFOF	2, CF_TWO_DUP_PSUF, 2, CF_DUP_PSOF ;check for under and overflow
-			MOVW		6,Y, 2,Y			;duplicate stack entry
-			MOVW		4,Y, 0,Y			;duplicate stack entry
+CF_TWO_DUP		PS_CHECK_UFOF	2, CF_TWO_DUP_PSUF, 2, CF_TWO_DUP_PSOF	;check for under and overflow
+			MOVW		6,Y, 2,Y				;duplicate stack entry
+			MOVW		4,Y, 0,Y				;duplicate stack entry
 			STY		PSP
 			NEXT
 
 CF_TWO_DUP_PSUF	JOB	FCORE_THROW_PSUF
 CF_TWO_DUP_PSOF	JOB	FCORE_THROW_PSOF
 
+;2LITERAL (actually part of the ANS Forth double number waid set)
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( x1 x2 -- )
+;Append the run-time semantics below to the current definition.
+;Run-time: ( -- x1 x2 )
+;Place cell pair x1 x2 on the stack.
+NFA_TWO_LITERAL		EQU	NFA_TWO_DUP
+;			ALIGN	1
+;NFA_TWO_LITERAL	FHEADER, "2LITERAL", NFA_TWO_CONSTANT, COMPILE
+;CFA_TWO_LITERAL	DW	CF_DUMMY
+CF_TWO_LITERAL_PSOF	JOB	FCORE_THROW_PSOF
+	
+;2LITERAL run-time semantics
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+CFA_TWO_LITERAL_RT	DW	CF_TWO_LITERAL_RT
+CF_TWO_LITERAL_RT	PS_CHECK_OF	2, CF_TWO_LITERAL_PSOF 	;check for PS overflow (PSP-new cells -> Y)
+			LDX	IP				;push the value at IP onto the PS
+			MOVW	2,X+, 0,Y			; and increment the IP
+			MOVW	2,X+, 2,Y			; and increment the IP
+			STX	IP
+			STY	PSP
+			NEXT
+	
 ;2OVER ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 )
 ;two-over CORE 
 ;	( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 )
@@ -979,7 +1008,7 @@ CF_TWO_DUP_PSOF	JOB	FCORE_THROW_PSOF
 ;"Parameter stack overflow"
 ;
 			ALIGN	1
-NFA_TWO_OVER		FHEADER, "2OVER", NFA_TWO_DUP, COMPILE
+NFA_TWO_OVER		FHEADER, "2OVER", NFA_TWO_LITERAL, COMPILE
 CFA_TWO_OVER		DW	CF_TWO_OVER
 CF_TWO_OVER		PS_CHECK_UFOF	4, CF_TWO_OVER_PSUF, 2, CF_TWO_OVER_PSOF;check for under and overflow
 			MOVW		8,Y, 0,Y				;duplicate stack entry
@@ -1071,7 +1100,7 @@ CFA_EIGHT		DW	CF_CONSTANT_RT
 ;colon-sys is the NFA if the new definition. $0000 is used for :NONAME
 ;definitions. 
 ;Throws:
-;"Parameter stack overflow"
+;"Parameter stack overflow" (implicid)
 ;"Return stack underflow"
 ;"Return stack overflow"
 ;"Compiler nesting"
@@ -1080,15 +1109,17 @@ CFA_EIGHT		DW	CF_CONSTANT_RT
 NFA_COLON		FHEADER, ":", NFA_EIGHT, IMMEDIATE
 CFA_COLON		DW	CF_COLON
 CF_COLON		INTERPRET_ONLY	CF_COLON_COMPNEST		;check for nested definition
-			RS_PUSH		CP, CF_COLON_RSOF		;push CP as colon-sys
 			;Build header 
 			EXEC_CF	CF_HEADER, CF_COLON_RSOF, CF_COLON_RSUF	;get command line
+			;Append CFA 
+			LDX	CP
+			MOVW	#CF_INNER, 2,X+
+			STX	CP
 			;Enter compile state 
 			MOVW	#$0001, STATE
 			;Done 
 			NEXT
 
-CF_COLON_PSOF		JOB	FCORE_THROW_PSOF
 CF_COLON_RSUF		JOB	FCORE_THROW_RSUF
 CF_COLON_RSOF		JOB	FCORE_THROW_RSOF
 CF_COLON_COMPNEST	JOB	FCORE_THROW_COMPNEST
@@ -1104,6 +1135,8 @@ CF_COLON_COMPNEST	JOB	FCORE_THROW_COMPNEST
 ;Return to the calling definition specified by nest-sys.
 ;
 ;S12CForth implementation details:
+;colon-sys is the NFA if the new definition. $0000 is used for :NONAME
+;definitions. 
 ;Throws:
 ;"Return stack underflow"
 ;"Dictionary overflow"
@@ -1113,24 +1146,22 @@ CF_COLON_COMPNEST	JOB	FCORE_THROW_COMPNEST
 			ALIGN	1
 NFA_SEMICOLON		FHEADER, ";", NFA_COLON, IMMEDIATE
 CFA_SEMICOLON		DW	CF_SEMICOLON
-CF_SEMICOLON		COMPILE_ONLY	CF_SEMICOLON_COMPONLY ;ensure that compile mode is on
-			RS_CHECK_UF	1, CF_SEMICOLON_RSUF; (RSP -> X)
-			TFR	X, Y
-			DICT_CHECK_OF	1, CF_SEMICOLON_DICTOF; (CP+bytes -> X)
+CF_SEMICOLON		COMPILE_ONLY	CF_SEMICOLON_COMPONLY 	;ensure that compile mode is on
+			PS_CHECK_UF	1, CF_SEMICOLON_PSUF	;(PSP -> Y)
+			DICT_CHECK_OF	2, CF_SEMICOLON_DICTOF	;(CP+2 -> X)
 			;Add "EXIT" to the compilation 
 			MOVW	#CFA_EXIT_RT, -2,X
 			STX	CP
-			STX	SAVED_CP
 			;Set previous NFA
-			LDX	2,Y+ 				;pull current NFA from RS
-			STY	RSP
-			MOVW	LAST_NFA, 0,X 			;LAST_NFA -> previous NFA
-			STX	LAST_NFA			;current NFA -> LAST_NFA
+			MOVW	2,Y+, LAST_NFA			;pull current NFA from RS
+			STY	PSP
 			;Set STATE
 			MOVW	#$0000, STATE
+			;Update CP_SAVED
+			MOVW	CP, CP_SAVED
 			NEXT
 
-CF_SEMICOLON_RSUF	JOB	FCORE_THROW_RSUF
+CF_SEMICOLON_PSUF	JOB	FCORE_THROW_PSUF
 CF_SEMICOLON_COMPONLY	JOB	FCORE_THROW_COMPONLY
 CF_SEMICOLON_DICTOF	JOB	FCORE_THROW_DICTOF
 	
@@ -1574,8 +1605,8 @@ CF_DECIMAL		MOVW	#10, BASE
 NFA_DEPTH		FHEADER, "DEPTH", NFA_DECIMAL, COMPILE
 CFA_DEPTH		DW	CF_DEPTH
 CF_DEPTH		PS_CHECK_OF	1, CF_DEPTH_PSOF	;check for overflow
-			LDD	PSP		 		;calculate stack depth
-			SUBD	PS_EMPTY
+			LDD	PS_EMPTY		 	;calculate stack depth
+			SUBD	PSP
 			STD	0,Y
 			STY	PSP
 			NEXT
@@ -1836,7 +1867,8 @@ CF_FIND_5		LEAX	3,X 						;set X to start of name
 			JOB	CF_FIND_3
 			;Search single character word (current NFA in X, first character in A)
 CF_FIND_6		CMPA	3,X 						;compare first character
-			BNE	CF_FIND_2 					;parse next NFA
+
+				BNE	CF_FIND_2 					;parse next NFA
 			;Search was successful(current NFA in X)
 CF_FIND_7		LDY	PSP						;put CFA onto PS
 			LDAA	2,+X 						
@@ -2300,7 +2332,7 @@ CF_QUIT			RS_RESET		;empty the return stack
 			LDD	#$0000
 			STD	HANDLER		;clear exception handler
 			STD	STATE		;enter interpretation state
-			MOVW	SAVED_CP, CP	;restore compile pointer
+			MOVW	CP_SAVED, CP	;restore compile pointer
 			;Query comand line
 CF_QUIT_1		;LED_BUSY_OFF (moved to QUERY)
 			EXEC_CF	CF_QUERY, CF_QUIT_RSOF, CF_QUIT_RSUF	;get command line
@@ -2311,20 +2343,19 @@ CF_QUIT_2		EXEC_CF	CF_NAME, CF_QUIT_RSOF, CF_QUIT_RSUF	;parse next word
 			LDD	2,Y+
 			BEQ	CF_QUIT_4 				;last word parsed
 			;Look up word in dictionary
-			EXEC_CF	CF_FIND, CF_QUIT_RSOF, CF_QUIT_RSUF 	;search for word in dictionary
+			EXEC_CF	CF_FIND, CF_QUIT_RSOF, CF_QUIT_RSUF	;search for word in dictionary
 			LDY 	PSP					;check return status
 			LDD	2,Y+
 			BEQ	CF_QUIT_6 				;word not found -> see if it is a number
 			DBEQ	D, CF_QUIT_3 				;immediate word -> execute
-			LDD	STATE 					;check state
-			BNE	CF_QUIT_5 				;compile word
+			INTERPRET_ONLY	CF_QUIT_5 			;check state
 			;Execute word (PSP+2 in Y) 
 CF_QUIT_3		LDX	2,Y+ 					;Pull CFA
 			STY	PSP 					;update PSP
 			MOVW	#CF_QUIT_IP_DONE, IP 			;set next IP
 			JMP	[0,X]					;execute CF
 CF_QUIT_IP_DONE		DW	CF_QUIT_CFA_DONE			
-CF_QUIT_CFA_DONE	DW	CF_QUIT_2			
+CF_QUIT_CFA_DONE	DW	CF_QUIT_2
 			;Last word parsed (PSP+2 in Y)
 CF_QUIT_4		STY	PSP 					;update PSP
 			INTERPRET_ONLY	CF_QUIT_1 			;don't print "ok" in compile state
@@ -2332,56 +2363,49 @@ CF_QUIT_4		STY	PSP 					;update PSP
 			PRINT_STR
 			JOB	CF_QUIT_1
 			;Compile word (PSP+2 in Y) 
-CF_QUIT_5		;DEBUG	"Compile word"			
-			LDX	CP 					;copy CFA do dictionary
+CF_QUIT_5		LDX	CP 					;copy CFA do dictionary
 			MOVW	2,Y+, 2,X+
 			STY	PSP
-			STY	CP
+			STX	CP
 			JOB	CF_QUIT_2 				;parse next word	
 			;Word was not found (PSP+2 in Y)
 CF_QUIT_6		STY	PSP 					;update PSP
 			EXEC_CF	CF_NUMBER, CF_QUIT_RSOF, CF_QUIT_RSUF	;interpret word as number
 			LDY 	PSP					;check return status
-			LDD	2,Y+
-			BEQ	CF_QUIT_UDEFWORD 			;undefined word
+			LDX	2,Y+
+			BEQ	<CF_QUIT_UDEFWORD			;undefined word
 			STY	PSP	  				;update PSP
-			LDD	STATE 					;check state
-			BEQ	CF_QUIT_2 				;interpret next word 
-			;Compile number (size in D, PSP in Y)
-			;DEBUG	"Compile number"			
+			COMPILE_ONLY	CF_QUIT_2			;check state
+			;Compile number (size in X, PSP in Y)
+			DBNE	X, CF_QUIT_7 				;compile double number
+			;Compile single number (size in X, PSP in Y)
 			LDX	CP
-			DBNE	D, CF_QUIT_7 				;compile double number
-			;Compile single number (size in D, PSP in Y, CP in X)
-			;DEBUG	"Compile single number"			
 			MOVW	#CFA_LITERAL_RT, 2,X+ 			;add CFA
 			MOVW	2,Y+, 2,X+ 				;add number
 			STX	CP 					;update CP
 			STY	PSP 					;update PSP
 			JOB	CF_QUIT_2 				;interpret next word 
-			;Compile double number (size in D, PSP in Y, CP in X)
-CF_QUIT_7		;DEBUG	"Compile double number"			
+			;Compile double number (size in X, PSP in Y)
+CF_QUIT_7		LDX	CP
 			MOVW	#CFA_TWO_LITERAL_RT, 2,X+ 		;add CFA
 			MOVW	2,Y+, 2,X+ 				;add number
 			MOVW	2,Y+, 2,X+ 				;add number
 			STX	CP 					;update CP
 			STY	PSP 					;update PSP
 			JOB	CF_QUIT_2 				;interpret next word
- 			;Return stack underflow 
-CF_QUIT_RSUF		;DEBUG	"Return stack underflow"			
-			LDY	#CF_QUIT_MSG_RSUF 			;print standard error message
-			ERROR_PRINT
-			JOB	CF_ABORT
- 			;Return stack overflow 
-CF_QUIT_RSOF		;DEBUG	"Return stack overflow"			
-			LDY	#CF_QUIT_MSG_RSUF 			;print standard error message	
-			ERROR_PRINT
-			JOB	CF_ABORT 			
- 			;Undefined word (PSP+2 in Y)
-CF_QUIT_UDEFWORD	;DEBUG	"Undefined word"
-			LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message	
-			ERROR_PRINT
-			JOB	CF_ABORT 
 		
+			;Error handlers 
+ 			;Return stack underflow 
+CF_QUIT_RSUF		LDY	#CF_QUIT_MSG_RSUF 			;print standard error message
+ 			JOB	CF_QUIT_ERROR
+ 			;Return stack overflow 
+CF_QUIT_RSOF		LDY	#CF_QUIT_MSG_RSUF 			;print standard error message	
+ 			JOB	CF_QUIT_ERROR
+ 			;Undefined word (PSP+2 in Y)
+CF_QUIT_UDEFWORD	LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message	
+CF_QUIT_ERROR		ERROR_PRINT
+			JOB	CF_ABORT 
+
 CF_QUIT_MSG_RSUF	EQU	FEXCPT_MSG_RSUF
 CF_QUIT_MSG_RSOF	EQU	FEXCPT_MSG_RSOF
 CF_QUIT_MSG_UDEFWORD	EQU	FEXCPT_MSG_UDEFWORD
@@ -2399,9 +2423,9 @@ CF_QUIT_MSG_UDEFWORD	EQU	FEXCPT_MSG_UDEFWORD
 			ALIGN	1
 NFA_R_FROM		FHEADER, "R>", NFA_QUIT, COMPILE
 CFA_R_FROM		DW	CF_R_FROM
-CF_R_FROM		RS_CHECK_UF 	1, CF_R_FROM_RSUF	;check for RS underflow 
+CF_R_FROM		RS_CHECK_UF 	1, CF_R_FROM_RSUF	;check for RS underflow (RSP -> X)
 			PS_CHECK_OF	1, CF_R_FROM_PSOF 	;check for PS overflow (PSP-2 -> Y)
-			LDX	RSP
+			;LDX	RSP
 			MOVW	2,X+, 0,Y
 			STX	RSP
 			STY	PSP
@@ -2424,9 +2448,9 @@ CF_R_FROM_PSOF		JOB	FCORE_THROW_PSOF
 			ALIGN	1
 NFA_R_FETCH		FHEADER, "R@", NFA_R_FROM, COMPILE
 CFA_R_FETCH		DW	CF_R_FETCH
-CF_R_FETCH		RS_CHECK_UF 	1, CF_R_FETCH_RSUF	;check for RS underflow 
+CF_R_FETCH		RS_CHECK_UF 	1, CF_R_FETCH_RSUF	;check for RS underflow (RSP -> X)
 			PS_CHECK_OF	1, CF_R_FETCH_PSOF 	;check for PS overflow (PSP-2 -> Y)
-			LDX	RSP
+			;LDX	RSP
 			MOVW	0,X, 0,Y
 			STY	PSP
 			NEXT
@@ -3298,38 +3322,37 @@ NFA_FALSE		FHEADER, "FALSE", NFA_EXPECT, COMPILE
 CFA_FALSE		DW	CF_CONSTANT_RT
 			DW	$0000
 
-
-;HEADER ( "<spaces>name" -- ) Non-standard S12CForth extension!
+;HEADER ( "<spaces>name" -- NFA ) Non-standard S12CForth extension!
 ;Parse name and append a new header to the dictionary
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Parameter stack overflow"
+;"Parameter stack overflow" (implicit)
 ;"Return stack underflow"
 ;"Return stack overflow"
 ;"Dictionary overflow"
 ;"Invalid name argument"
-	
 			ALIGN	1
 NFA_HEADER		FHEADER, "HEADER", NFA_FALSE, COMPILE
 CFA_HEADER		DW	CF_HEADER
-CF_HEADER		;PS_CHECK_OF	1, CF_HEADER_PSOF 		;(PSP-new cells -> Y)
-			;Read next word
+CF_HEADER		;Read next word
 			EXEC_CF	CF_NAME, CF_HEADER_RSOF, CF_HEADER_RSUF	;parse next word
-			LDY	PSP 					;pull string pointer from PS
-			LDX	2,Y+ 					;string pointer -> X
-			STY	PSP
-			TBEQ	X, CF_HEADER_INVALNAME			;no name given
+			LDY	PSP 					;PSP -> Y
+			LDX	0,Y					;string pointer -> X
+			BEQ	CF_HEADER_NONAME			;no name
 			;Count characters in word (PSP in Y, string pointer in X) 
 			PRINT_STRCNT 					;(SSTACK: 2 bytes)
-			;Check for Dictionary overflows (string pointer in X, char count in A)
+			;Check for Dictionary overflow (PSP in Y, string pointer in X, char count in A)
 			TAB
 			ADDA	#5 					;prev. NFA, CFA offs., CFA
-			DICT_CHECK_OF_A	CF_HEADER_DICTOF
-			;Append LAST_NFA (string pointer in X, char count in B)
-			LDY	CP
-			MOVW	LAST_NFA, 2,Y+
-			;Append character count (new CP in Y, string pointer in X, char count in B)
+			DICT_CHECK_OF_A	CF_HEADER_DICTOF		;(CP+5 -> X)
+			;Build header (PSP in Y, char count in B)
+			LDX	0,Y					;string pointer -> X
+			MOVW	CP, 0,Y					;push NFA onto PS
+			LDY	CP 					;CP -> Y
+			;Append LAST_NFA (CP in Y, string pointer in X, char count in B)
+			MOVW	LAST_NFA, 2,Y+ 				;previous NFA field
+			;Append character count (CP in Y, string pointer in X, char count in B)
 			STAB	1,Y+	
 			;Append name (new CP in Y, string pointer in X, char count in B)
 CF_HEADER_1		LDD	2,X+
@@ -3340,12 +3363,19 @@ CF_HEADER_1		LDD	2,X+
 			;Clean up 
 CF_HEADER_2		STY	CP 					;update CP	
 			NEXT
-
-;CF_HEADER_PSOF		JOB	FCORE_THROW_PSOF
+			;No name was given 
+CF_HEADER_NONAME	LDY	PSP 					;restore stack
+			LEAY	-2,Y	
+			STY	PSP
+			JOB	FCORE_THROW_NONAME
+			;Dictionary overflow
+CF_HEADER_DICTOF	LDY	PSP 					;restore stack
+			LEAY	-2,Y	
+			STY	PSP
+			JOB	FCORE_THROW_DICTOF
+	
 CF_HEADER_RSOF		JOB	FCORE_THROW_RSOF
 CF_HEADER_RSUF		JOB	FCORE_THROW_RSUF
-CF_HEADER_DICTOF	JOB	FCORE_THROW_DICTOF
-CF_HEADER_INVALNAME	JOB	FCORE_THROW_INVALNAME
 	
 ;HEX ( -- )
 ;Set contents of BASE to sixteen.
@@ -3448,6 +3478,10 @@ CF_NIP_PSUF		JOB	FCORE_THROW_PSUF
 ;"Parameter stack overflow"
 ;"Invalid BASE value"
 ;
+CF_NUMBER_PSUF		JOB	FCORE_THROW_PSUF
+CF_NUMBER_PSOF		JOB	FCORE_THROW_PSOF
+CF_NUMBER_INVALBASE	JOB	FCORE_THROW_INVALBASE
+	
 			ALIGN	1
 NFA_NUMBER		FHEADER, "NUMBER", NFA_NIP, COMPILE
 CFA_NUMBER		DW	CF_NUMBER
@@ -3572,13 +3606,11 @@ CF_NUMBER_11		MOVW	CF_NUMBER_RESLO,X, 2,Y-
 			;Clean up and leave 
 CF_NUMBER_12		SSTACK_DEALLOC	8 		;free 8 bytes	
 			NEXT
-
 			;Not a number 
 CF_NUMBER_13		LDY	PSP 			;push 0 onto the PS
 			MOVW	#$0000, 2,-Y
 			STY	PSP	
-			JOB	CF_NUMBER_12 		;clean up and leave
-		
+			JOB	CF_NUMBER_12 		;clean up and leave		
 			;Calculate 2's complement (PSP in Y, SP in X)
 CF_NUMBER_14		LDD	CF_NUMBER_RESHI,X	
 			COMA
@@ -3600,17 +3632,15 @@ CF_NUMBER_14		LDD	CF_NUMBER_RESHI,X
 			LDD	CF_NUMBER_RESLO,X
 			BMI	CF_NUMBER_10		;check for forced double number 
 			;Return double number (SP in X)
-CF_NUMBER_15		PS_CHECK_OF, 2, CF_NUMBER_PSOF	;check for PS overflow (PSP-new cells -> Y)
+CF_NUMBER_15		PS_CHECK_OF, 2, CF_NUMBER_PSOF_HI;check for PS overflow (PSP-new cells -> Y)
 			MOVW	CF_NUMBER_RESLO,X, 4,Y
 			MOVW	CF_NUMBER_RESHI,X, 2,Y
 			MOVW	#$0002, 0,Y
 			STY	PSP
 			JOB	CF_NUMBER_12 		;clean up and leave 
 			
-CF_NUMBER_PSUF		JOB	FCORE_THROW_PSUF
-CF_NUMBER_PSOF		JOB	FCORE_THROW_PSOF
-CF_NUMBER_INVALBASE	JOB	FCORE_THROW_INVALBASE
-		
+CF_NUMBER_PSOF_HI	JOB	FCORE_THROW_PSOF
+
 ;OF 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: -- of-sys )

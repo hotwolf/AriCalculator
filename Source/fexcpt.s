@@ -130,7 +130,7 @@ FEXCPT_EC_QUIT			EQU	-56	;QUIT
 ;FEXCPT_EC_58			EQU	-58	;[IF], [ELSE], or [THEN] exception
 	
 ;Additional error codes 
-;FEXCPT_EC_CESF			EQU	FEXCPT_MSG_CESF
+FEXCPT_EC_NONAME		EQU	FEXCPT_MSG_NONAME	;missing name argument
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -255,7 +255,7 @@ FEXCPT_MSGTAB_START	EQU	*
 			DW	FEXCPT_MSG_UNKNOWN	;-35 invalid block number
 			DW	FEXCPT_MSG_UNKNOWN	;-34 block write exception
 			DW	FEXCPT_MSG_UNKNOWN	;-33 block read exception
-			DW	FEXCPT_MSG_UNKNOWN	;-32 invalid name argument (e.g., TO xxx)
+			DW	FEXCPT_MSG_INVALNAME	;-32 invalid name argument (e.g., TO xxx)
 			DW	FEXCPT_MSG_UNKNOWN	;-31 >BODY used on non-CREATEd definition
 			DW	FEXCPT_MSG_UNKNOWN	;-30 obsolescent feature
 			DW	FEXCPT_MSG_COMPNEST	;-29 compiler nesting
@@ -304,12 +304,13 @@ FEXCPT_MSG_UDEFWORD	ERROR_MSG	ERROR_LEVEL_ERROR, "Undefined word"
 FEXCPT_MSG_COMPONLY	ERROR_MSG	ERROR_LEVEL_ERROR, "Compile-only word"
 FEXCPT_MSG_TIBOF	ERROR_MSG	ERROR_LEVEL_ERROR, "TIB overflow"
 FEXCPT_MSG_PADOF	ERROR_MSG	ERROR_LEVEL_ERROR, "PAD overflow"
+FEXCPT_MSG_INVALNAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid name argument"
 FEXCPT_MSG_COMPNEST	ERROR_MSG	ERROR_LEVEL_ERROR, "Nested compilation"
 FEXCPT_MSG_INVALBASE	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid BASE"
 FEXCPT_MSG_CESF		ERROR_MSG	ERROR_LEVEL_ERROR, "Corrupt exception stack frame"
 
 ;Additional error messages 
-;FEXCPT_MSG_CESF		ERROR_MSG	ERROR_LEVEL_ERROR, "Corrupt exception stack frame"
+FEXCPT_MSG_NONAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Missing name argument"
 
 FEXCPT_TABS_END		EQU	*
 
