@@ -518,10 +518,10 @@ FCORE_HEADER_2		LDD	CP
 FCORE_HEADER_3		SSTACK_PULY
 			SSTACK_RTS
 			;No name was given 
-FCORE_HEADER_NONAME	LDX	FCORE_THROW_NONAME
+FCORE_HEADER_NONAME	LDX	#FCORE_THROW_NONAME
 			JOB	FCORE_HEADER_3
 			;Dictionary overflow
-FCORE_HEADER_DICTOF	LDX	FCORE_THROW_DICTOF
+FCORE_HEADER_DICTOF	LDX	#FCORE_THROW_DICTOF
 			JOB	FCORE_HEADER_3
 	
 ;Exceptions:
@@ -895,6 +895,7 @@ CF_COMMA		PS_CHECK_UF	1, CF_COMMA_PSUF 	;check for PS underflow   (PSP -> Y)
 			MOVW	2,Y+, -2,X
 			STY	PSP
 			STX	CP
+			STX	CP_SAVED
 			NEXT
 
 CF_COMMA_PSUF		JOB	FCORE_THROW_PSUF
@@ -1806,36 +1807,33 @@ NFA_CHARS		EQU	NFA_CHAR_PLUS
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;"Parameter stack overflow" (implicid)
-;"Return stack underflow"
-;"Return stack overflow"
-;"Compiler nesting"
+;"Missing name argument"
+;"Dictionary overflow"
 			ALIGN	1
 NFA_CONSTANT		FHEADER, "CONSTANT", NFA_CHARS, COMPILE
 CFA_CONSTANT		DW	CF_CONSTANT
-CF_CONSTANT		;INTERPRET_ONLY	CF_CONSTANT_COMPNEST		;check for nested definition
-			PS_CHECK_UF	1, CF_CONSTANT_PSUF 		;check for underflow
-			;Build header (PSP in Y)
-			EXEC_CF	CF_HEADER, CF_CONSTANT_RSOF, CF_CONSTANT_RSUF;get command line
-			;Set LAST_NFA 
-			LDY	PSP
-			MOVW	2,Y+, LAST_NFA
-			;Append CFA (new PSP in Y)
+CF_CONSTANT		PS_CHECK_UF 1, CF_CONSTANT_PSUF	;(PSP -> Y)
+			;Build header (PSP -> Y)
+			SSTACK_JOBSR	FCORE_HEADER ;NFA -> D, error handler -> X(SSTACK: 10  bytes)
+			TBNE	X, CF_CONSTANT_ERROR
+			;Update LAST_NFA (PSP -> Y)
+			STD	LAST_NFA
+			;Append CFA (PSP -> Y)
 			LDX	CP
 			MOVW	#CF_CONSTANT_RT, 2,X+
-			;Append constant (CP in X, new PSP in Y)
+			;Append constant value (PSP -> Y, CP in X)
 			MOVW	2,Y+, 2,X+
 			STX	CP
 			STY	PSP
-			;Update CP_SAVED (CP in X)
-			STX	CP_SAVED
+			;Update CP saved
+			MOVW	CP, CP_SAVED
+			;Done 
 			NEXT
+			;Error handler for FCORE_HEADER 
+CF_CONSTANT_ERROR	JMP	0,X
 
 CF_CONSTANT_PSUF	JOB	FCORE_THROW_PSUF
 CF_CONSTANT_PSOF	JOB	FCORE_THROW_PSOF
-CF_CONSTANT_RSUF	JOB	FCORE_THROW_RSUF
-CF_CONSTANT_RSOF	JOB	FCORE_THROW_RSOF
-;CF_CONSTANT_COMPNEST	JOB	FCORE_THROW_COMPNEST
 	
 ;CONSTANT run-time semantics
 ;Push the contents of the first cell after the CFA onto the parameter stack
@@ -1878,31 +1876,29 @@ CF_CR			PRINT_LINE_BREAK	;(SSTACK: 11 bytes)
 ;name Execution: ( -- a-addr )
 ;a-addr is the address of name's data field. The execution semantics of name may
 ;be extended by using DOES>.
+;
+;S12CForth implementation details:
+;Throws:
+;"Missing name argument"
+;"Dictionary overflow"
 			ALIGN	1
 NFA_CREATE		FHEADER, "CREATE", NFA_CR, COMPILE
 CFA_CREATE		DW	CF_CREATE
-CF_CREATE		;INTERPRET_ONLY	CF_CREATE_COMPNEST		;check for nested definition
-			;Build header 
-			EXEC_CF	CF_HEADER, CF_CREATE_RSOF, CF_CREATE_RSUF	;get command line
-			;Set LAST_NFA 
-			LDY	PSP
-			MOVW	2,Y+, LAST_NFA
-			STY	PSP
-			;Append CFA
+CF_CREATE		;Build header
+			SSTACK_JOBSR	FCORE_HEADER ;NFA -> D, error handler -> X (SSTACK: 10  bytes)
+			TBNE	X, CF_CREATE_ERROR
+			;Update LAST_NFA 
+			STD	LAST_NFA
+			;Append CFA 
 			LDX	CP
 			MOVW	#CF_VARIABLE_RT, 2,X+
 			STX	CP
-			;Update CP_SAVED (CP in X)
+			;Update CP saved (CP in X)
 			STX	CP_SAVED
+			;Done 
 			NEXT
-
-CF_CREATE_PSOF	JOB	FCORE_THROW_PSOF
-CF_CREATE_RSUF	JOB	FCORE_THROW_RSUF
-CF_CREATE_RSOF	JOB	FCORE_THROW_RSOF
-;CF_CREATE_COMPNEST	JOB	FCORE_THROW_COMPNEST
-
-
-
+			;Error handler for FCORE_HEADER 
+CF_CREATE_ERROR	JMP	0,X
 	
 ;DECIMAL ( -- )
 ;Set the numeric conversion radix to ten (decimal).
@@ -1975,13 +1971,18 @@ NFA_DO			EQU	NFA_DEPTH
 ;definitions. 
 ;Throws:
 ;"Parameter stack overflow"
-;"Compiler nesting"
+;"Return stack underflow"
+;"Dictionary overflow"
+;"Compile-only word"
 
 			ALIGN	1
 NFA_DOES		FHEADER, "DOES>", NFA_DO, IMMEDIATE
 CFA_DOES		DW	CF_DOES
 CF_DOES
 
+CF_DOES_PSUF		JOB	FCORE_THROW_PSUF
+CF_DOES_COMPONLY	JOB	FCORE_THROW_COMPONLY
+CF_DOES_DICTOF		JOB	FCORE_THROW_DICTOF
 
 ;DOES> run-time semantics
 ;
@@ -3210,35 +3211,30 @@ CF_UNTIL_PSUF		JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Parameter stack overflow" (implicid)
-;"Return stack underflow"
-;"Return stack overflow"
-;"Compiler nesting"
+;"Missing name argument"
+;"Dictionary overflow"
 			ALIGN	1
 NFA_VARIABLE		FHEADER, "VARIABLE", NFA_UNTIL, COMPILE
 CFA_VARIABLE		DW	CF_VARIABLE
-CF_VARIABLE		;INTERPRET_ONLY	CF_VARIABLE_COMPNEST		;check for nested definition
-			;Build header 
-			EXEC_CF	CF_HEADER, CF_VARIABLE_RSOF, CF_VARIABLE_RSUF	;get command line
-			;Set LAST_NFA 
-			LDY	PSP
-			MOVW	2,Y+, LAST_NFA
-			STY	PSP
-			;Append CFA
+CF_VARIABLE		;Build header
+			SSTACK_JOBSR	FCORE_HEADER ;NFA -> D, error handler -> X (SSTACK: 10  bytes)
+			TBNE	X, CF_VARIABLE_ERROR
+			;Update LAST_NFA 
+			STD	LAST_NFA
+			;Append CFA 
 			LDX	CP
 			MOVW	#CF_VARIABLE_RT, 2,X+
-			;Append variable (CP in X)
-			;LEAX	2,X 			;don't initialize
-			MOVW	#$0000, 2,X+		;initialize
+			;Append variable space (CP in X)
+			MOVW	#$0000, 2,X+
 			STX	CP
-			;Update CP_SAVED (CP in X)
+			;Update CP saved (CP in X)
 			STX	CP_SAVED
+			;Done 
 			NEXT
+			;Error handler for FCORE_HEADER 
+CF_VARIABLE_ERROR	JMP	0,X
 
 CF_VARIABLE_PSOF	JOB	FCORE_THROW_PSOF
-CF_VARIABLE_RSUF	JOB	FCORE_THROW_RSUF
-CF_VARIABLE_RSOF	JOB	FCORE_THROW_RSOF
-;CF_VARIABLE_COMPNEST	JOB	FCORE_THROW_COMPNEST
 	
 ;VARIABLE run-time semantics
 ;Push the address of the first cell after the CFA onto the parameter stack
@@ -3731,66 +3727,11 @@ FALSE ( -- false )
 NFA_FALSE		FHEADER, "FALSE", NFA_EXPECT, COMPILE
 CFA_FALSE		DW	CF_CONSTANT_RT
 			DW	$0000
-
-;HEADER ( "<spaces>name" -- NFA ) Non-standard S12CForth extension!
-;Parse name and append a new header to the dictionary
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack overflow" (implicit)
-;"Return stack underflow"
-;"Return stack overflow"
-;"Dictionary overflow"
-;"Invalid name argument"
-			ALIGN	1
-NFA_HEADER		FHEADER, "HEADER", NFA_FALSE, COMPILE
-CFA_HEADER		DW	CF_HEADER
-CF_HEADER		;Read next word
-			EXEC_CF	CF_NAME, CF_HEADER_RSOF, CF_HEADER_RSUF	;parse next word
-			LDY	PSP 					;PSP -> Y
-			LDX	0,Y					;string pointer -> X
-			BEQ	CF_HEADER_NONAME			;no name
-			;Count characters in word (PSP in Y, string pointer in X) 
-			PRINT_STRCNT 					;(SSTACK: 2 bytes)
-			;Check for Dictionary overflow (PSP in Y, string pointer in X, char count in A)
-			TAB
-			ADDA	#5 					;prev. NFA, CFA offs., CFA
-			DICT_CHECK_OF_A	CF_HEADER_DICTOF		;(CP+5 -> X)
-			;Build header (PSP in Y, char count in B)
-			LDX	0,Y					;string pointer -> X
-			MOVW	CP, 0,Y					;push NFA onto PS
-			LDY	CP 					;CP -> Y
-			;Append LAST_NFA (CP in Y, string pointer in X, char count in B)
-			MOVW	LAST_NFA, 2,Y+ 				;previous NFA field
-			;Append character count (CP in Y, string pointer in X, char count in B)
-			STAB	1,Y+	
-			;Append name (new CP in Y, string pointer in X, char count in B)
-CF_HEADER_1		LDD	2,X+
-			STAA	1,Y+
-			BMI	CF_HEADER_2 				;clean up
-			STAB	1,Y+
-			BPL	CF_HEADER_1 				;next 2 chars
-			;Clean up 
-CF_HEADER_2		STY	CP 					;update CP	
-			NEXT
-			;No name was given 
-CF_HEADER_NONAME	LDY	PSP 					;restore stack
-			LEAY	-2,Y	
-			STY	PSP
-			JOB	FCORE_THROW_NONAME
-			;Dictionary overflow
-CF_HEADER_DICTOF	LDY	PSP 					;restore stack
-			LEAY	-2,Y	
-			STY	PSP
-			JOB	FCORE_THROW_DICTOF
-	
-CF_HEADER_RSOF		JOB	FCORE_THROW_RSOF
-CF_HEADER_RSUF		JOB	FCORE_THROW_RSUF
 	
 ;HEX ( -- )
 ;Set contents of BASE to sixteen.
 			ALIGN	1
-NFA_HEX			FHEADER, "HEX", NFA_HEADER, COMPILE
+NFA_HEX			FHEADER, "HEX", NFA_FALSE, COMPILE
 CFA_HEX			DW	CF_HEX
 CF_HEX			MOVW	#16, BASE
 			NEXT
