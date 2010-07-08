@@ -480,6 +480,49 @@ FCORE_NUMBER_14		LDD	FCORE_NUMBER_RESHI,X
 			;Return double number (SP in X)
 FCORE_NUMBER_15		MOVW	#$0002, FCORE_NUMBER_SIZE,X
 			JOB	FCORE_NUMBER_12
+
+;#Parse TIB for a name and create a definition header
+; args:   X: string pointer
+; result: D: NFA
+;         X: error hanldler (0=no errors, FCORE_THROW_DICTOF, or FCORE_THROW_NONAME)	
+; SSTACK: 10  bytes
+;          Y is  preserved
+FCORE_HEADER		EQU	*	
+			;Save registers
+			SSTACK_PSHY
+			;Read next word
+			SSTACK_JOBSR	FCORE_NAME 			;string pointer -> X (STACK: 6 bytes)
+			TBEQ	X, FCORE_HEADER_NONAME
+			;Count characters in word (string pointer in X) 
+			PRINT_STRCNT 					;(SSTACK: 2 bytes)
+			;Check for Dictionary overflow (string pointer in X, char count in A)
+			TFR	X, Y
+			TAB
+			ADDA	#5 					;prev. NFA, CFA offs., CFA
+			DICT_CHECK_OF_A	FCORE_HEADER_DICTOF		;(CP+5 -> X)
+			;Build header (string pointer in  Y, char count in B)
+			LDX	CP	       				;CP -> X
+			MOVW	LAST_NFA, 2,X+ 				;append LAST_NFA 
+			STAB	1,X+ 					;append character count
+			;Append name (new CP in X, string pointer in Y)
+FCORE_HEADER_1		LDD	2,Y+
+			STAA	1,X+
+			BMI	FCORE_HEADER_2 				;clean up
+			STAB	1,X+
+			BPL	FCORE_HEADER_1 				;next 2 chars
+			;Return result (new CP in X)
+FCORE_HEADER_2		LDD	CP
+			STX	CP
+			LDX	#$0000
+			;Restore registers 
+FCORE_HEADER_3		SSTACK_PULY
+			SSTACK_RTS
+			;No name was given 
+FCORE_HEADER_NONAME	LDX	FCORE_THROW_NONAME
+			JOB	FCORE_HEADER_3
+			;Dictionary overflow
+FCORE_HEADER_DICTOF	LDX	FCORE_THROW_DICTOF
+			JOB	FCORE_HEADER_3
 	
 ;Exceptions:
 ;===========
@@ -515,15 +558,6 @@ CF_INNER		EQU		*
 								;                         34 cycles
 CF_INNER_RSOF		JOB	FCORE_THROW_RSOF
 	
-;;CF_EXIT   ( -- )
-;			;End compiled word
-;CF_EXIT			EQU		*	
-;			RS_PULL		IP, CF_EXIT_RSUF
-;			NEXT
-;
-;CF_EXIT_RSUF		JOB	FCORE_THROW_RSUF
-
-	
 ;CF_DUMMY   ( -- )
 			;Code field for unimplemented words
 CF_DUMMY		EQU		*	
@@ -549,11 +583,7 @@ FCORE_SYSTEM_PROMPT	FCS	" ok"
 ;			DB	"P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" "[" $5C "]" "^" "_" ;$5x
 ;			DB	$60 "A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M" "N" "O" ;$6x
 ;			DB	"P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" "{" "|" "}" "~" $00 ;$7x
-				
-				
-
-
-	
+									
 FCORE_TABS_END		EQU	*
 
 ;###############################################################################
@@ -1330,17 +1360,22 @@ CFA_EIGHT		DW	CF_CONSTANT_RT
 ;colon-sys is the NFA if the new definition. $0000 is used for :NONAME
 ;definitions. 
 ;Throws:
-;"Parameter stack overflow" (implicid)
-;"Return stack underflow"
-;"Return stack overflow"
+;"Parameter stack overflow"
+;"Missing name argument"
+;"Dictionary overflow"
 ;"Compiler nesting"
 ;
 			ALIGN	1
 NFA_COLON		FHEADER, ":", NFA_EIGHT, IMMEDIATE
 CFA_COLON		DW	CF_COLON
-CF_COLON		INTERPRET_ONLY	CF_COLON_COMPNEST		;check for nested definition
-			;Build header 
-			EXEC_CF	CF_HEADER, CF_COLON_RSOF, CF_COLON_RSUF	;get command line
+CF_COLON		INTERPRET_ONLY	CF_COLON_COMPNEST	;check for nested definition
+			PS_CHECK_OF	1, CF_COLON_PSOF 	;check for PS overflow (PSP-2 -> Y)	
+			;Build header (PSP-2 -> Y)
+			SSTACK_JOBSR	FCORE_HEADER ;NFA -> D, error handler -> X(SSTACK: 10  bytes)
+			TBNE	X, CF_COLON_ERROR
+			;Push NFA onto PS (PSP-2 -> Y) 
+			STD	0,Y
+			STY	PSP
 			;Append CFA 
 			LDX	CP
 			MOVW	#CF_INNER, 2,X+
@@ -1349,9 +1384,10 @@ CF_COLON		INTERPRET_ONLY	CF_COLON_COMPNEST		;check for nested definition
 			MOVW	#$0001, STATE
 			;Done 
 			NEXT
-
-CF_COLON_RSUF		JOB	FCORE_THROW_RSUF
-CF_COLON_RSOF		JOB	FCORE_THROW_RSOF
+			;Error handler for FCORE_HEADER 
+CF_COLON_ERROR		JMP	0,X
+	
+CF_COLON_PSOF		JOB	FCORE_THROW_PSOF
 CF_COLON_COMPNEST	JOB	FCORE_THROW_COMPNEST
 
 ;; 
