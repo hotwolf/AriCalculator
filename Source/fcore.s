@@ -608,8 +608,8 @@ FCORE_TABS_END		EQU	*
 NFA_STORE		FHEADER, "!", FCORE_PREV_NFA, COMPILE
 CFA_STORE		DW	CF_STORE
 CF_STORE		PS_CHECK_UF 2, CF_STORE_PSUF 	;check for underflow  (PSP -> Y)
-			LDX	2,Y-			;x -> a-addr	
-			MOVW	2,Y-, 0,X
+			LDX	2,Y+			;x -> a-addr	
+			MOVW	2,Y+, 0,X
 			STY	PSP
 			NEXT
 
@@ -2145,7 +2145,7 @@ CFA_ELSE_RT		EQU	CFA_AGAIN_RT
 ;"Parameter stack underflow"
 ;
 			ALIGN	1
-NFA_EMIT		FHEADER, "EMIT", NFA_DUP, COMPILE
+NFA_EMIT		FHEADER, "EMIT", NFA_ELSE, COMPILE
 CFA_EMIT		DW	CF_EMIT
 CF_EMIT			PS_PULL_D	1, CF_EMIT_PSUF		;PS -> D (=char)
 			SCI_TX					;print character (SSTACK: 8 bytes)
@@ -2409,13 +2409,13 @@ CFA_IF			DW	CF_IF
 CF_IF			COMPILE_ONLY	CF_IF_COMPONLY 	;ensure that compile mode is on
 			PS_CHECK_OF	1, CF_IF_PSOF	;(PSP-2 -> Y)
 			DICT_CHECK_OF	4, CF_IF_DICTOF	;(CP+4 -> X)
-			;Add run-time CFA to compilation
+			;Add run-time CFA to compilation (CP+4 in X, PSP-2 in Y)
 			MOVW	#CFA_IF_RT, -4,X
 			STX	-2,X
 			STX	CP
-			;Stack orig onto the PS
+			;Stack orig onto the PS (CP+4 in X, PSP-2 in Y)
 			LEAX	-2,X
-			STX	0,Y
+			STX	0,Y 			;default false action = true action
 			STY	PSP
 			;Done 
 			NEXT
@@ -2434,10 +2434,10 @@ CF_IF_DICTOF		JOB	FCORE_THROW_DICTOF
 ;
 CFA_IF_RT		DW	CF_IF_RT
 CF_IF_RT		PS_CHECK_UF	1, CF_IF_PSUF ;check for underflow (PSP -> Y)
-			;Check flag 
-			LDD	2,X+
+			;Check flag (PSP -> Y)
+			LDD	2,Y+
 			BEQ	CF_IF_RT_1 ;flag is false
-			;Flag is true
+			;Flag is true (PSP -> Y)
 			STY	PSP
 			SKIP_NEXT
 			;Flag is false
@@ -2476,7 +2476,7 @@ CF_INVERT_PSUF		JOB	FCORE_THROW_PSUF
 ;Execution: ( -- n|u ) ( R: loop-sys1 loop-sys2 -- loop-sys1 loop-sys2 )
 ;n|u is a copy of the next-outer loop index. An ambiguous condition exists if
 ;the loop control parameters of the next-outer loop, loop-sys1, are unavailable.
-NFA_J			FHEADER, "J", NFA_INVERT, COMPILE
+NFA_J			EQU	NFA_INVERT
 ;			ALIGN	1
 ;NFA_J			FHEADER, "J", NFA_INVERT, COMPILE
 ;CFA_J			DW	CF_DUMMY
