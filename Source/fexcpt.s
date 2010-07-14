@@ -91,7 +91,7 @@ FEXCPT_EC_TIBOF			EQU	-18	;parsed string overflow
 ;FEXCPT_EC_19			EQU	-19	;definition name too long
 ;FEXCPT_EC_20			EQU	-20	;write to a read-only location
 ;FEXCPT_EC_21			EQU	-21	;unsupported operation (e.g., AT-XY on a too-dumb terminal)
-;FEXCPT_EC_22			EQU	-22	;control structure mismatch
+FEXCPT_EC_CTRLSTRUC		EQU	-22	;control structure mismatch
 ;FEXCPT_EC_23			EQU	-23	;address alignment exception
 ;FEXCPT_EC_24			EQU	-24	;invalid numeric argument
 ;FEXCPT_EC_25			EQU	-25	;return stack imbalance
@@ -100,7 +100,7 @@ FEXCPT_EC_TIBOF			EQU	-18	;parsed string overflow
 ;FEXCPT_EC_28			EQU	-28	;user interrupt
 FEXCPT_EC_COMPNEST		EQU	-29	;compiler nesting
 ;FEXCPT_EC_30			EQU	-30	;obsolescent feature
-;FEXCPT_EC_31			EQU	-31	;>BODY used on non-CREATEd definition
+FEXCPT_EC_NONCREATE		EQU	-31	;>BODY used on non-CREATEd definition
 FEXCPT_EC_INVALNAME		EQU	-32	;invalid name argument (e.g., TO xxx)
 ;FEXCPT_EC_33			EQU	-33	;block read exception
 ;FEXCPT_EC_34			EQU	-34	;block write exception
@@ -151,9 +151,7 @@ FEXCPT_VARS_END		EQU	*
 ;#Throw an exception from within an assembler primitive
 #macro	FEXCPT_THROW, 1
 			LDD	#\1		;set error code
-
-			BGND
-	
+			;BGND
 			JOB	FEXCPT_THROW	;throw exception
 #emac
 	
@@ -234,8 +232,8 @@ FEXCPT_MSGTAB_START	EQU	*
 			;DW	FEXCPT_MSG_UNKNOWN	;-56 QUIT
 			;DW	FEXCPT_MSG_UNKNOWN	;-55 floating-point unidentified fault
 			;DW	FEXCPT_MSG_UNKNOWN	;-54 floating-point underflow
-			;DW	FEXCPT_MSG_UNKNOWN	;-53 exception stack overflow
-			DW	FEXCPT_MSG_CESF		;-52 control-flow stack overflow
+			DW	FEXCPT_MSG_CESF		;-53 exception stack overflow
+			DW	FEXCPT_MSG_UNKNOWN	;-52 control-flow stack overflow
 			DW	FEXCPT_MSG_UNKNOWN	;-51 compilation word list changed
 			DW	FEXCPT_MSG_UNKNOWN	;-50 search-order underflow
 			DW	FEXCPT_MSG_UNKNOWN	;-49 search-order overflow
@@ -256,7 +254,7 @@ FEXCPT_MSGTAB_START	EQU	*
 			DW	FEXCPT_MSG_UNKNOWN	;-34 block write exception
 			DW	FEXCPT_MSG_UNKNOWN	;-33 block read exception
 			DW	FEXCPT_MSG_INVALNAME	;-32 invalid name argument (e.g., TO xxx)
-			DW	FEXCPT_MSG_UNKNOWN	;-31 >BODY used on non-CREATEd definition
+			DW	FEXCPT_MSG_NONCREATE	;-31 >BODY used on non-CREATEd definition
 			DW	FEXCPT_MSG_UNKNOWN	;-30 obsolescent feature
 			DW	FEXCPT_MSG_COMPNEST	;-29 compiler nesting
 			DW	FEXCPT_MSG_UNKNOWN	;-28 user interrupt
@@ -265,7 +263,7 @@ FEXCPT_MSGTAB_START	EQU	*
 			DW	FEXCPT_MSG_UNKNOWN	;-25 return stack imbalance
 			DW	FEXCPT_MSG_UNKNOWN	;-24 invalid numeric argument
 			DW	FEXCPT_MSG_UNKNOWN	;-23 address alignment exception
-			DW	FEXCPT_MSG_UNKNOWN	;-22 control structure mismatch
+			DW	FEXCPT_MSG_CTRLSTRUC	;-22 control structure mismatch
 			DW	FEXCPT_MSG_UNKNOWN	;-21 unsupported operation (e.g., AT-XY on a too-dumb terminal)
 			DW	FEXCPT_MSG_UNKNOWN	;-20 write to a read-only location
 			DW	FEXCPT_MSG_UNKNOWN	;-19 definition name too long
@@ -302,15 +300,18 @@ FEXCPT_MSG_0DIV		ERROR_MSG	ERROR_LEVEL_ERROR, "Division by zero"
 FEXCPT_MSG_RESOR	ERROR_MSG	ERROR_LEVEL_ERROR, "Result out of range"
 FEXCPT_MSG_UDEFWORD	ERROR_MSG	ERROR_LEVEL_ERROR, "Undefined word"
 FEXCPT_MSG_COMPONLY	ERROR_MSG	ERROR_LEVEL_ERROR, "Compile-only word"
-FEXCPT_MSG_TIBOF	ERROR_MSG	ERROR_LEVEL_ERROR, "TIB overflow"
 FEXCPT_MSG_PADOF	ERROR_MSG	ERROR_LEVEL_ERROR, "PAD overflow"
-FEXCPT_MSG_INVALNAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid name argument"
+FEXCPT_MSG_TIBOF	ERROR_MSG	ERROR_LEVEL_ERROR, "TIB overflow"
+FEXCPT_MSG_CTRLSTRUC	ERROR_MSG	ERROR_LEVEL_ERROR, "Control structure mismatch"
 FEXCPT_MSG_COMPNEST	ERROR_MSG	ERROR_LEVEL_ERROR, "Nested compilation"
+FEXCPT_MSG_NONCREATE	ERROR_MSG	ERROR_LEVEL_ERROR, "Illegal operation on non-CREATEd definition"
+FEXCPT_MSG_INVALNAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid name argument"
 FEXCPT_MSG_INVALBASE	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid BASE"
 FEXCPT_MSG_CESF		ERROR_MSG	ERROR_LEVEL_ERROR, "Corrupt exception stack frame"
 
 ;Additional error messages 
 FEXCPT_MSG_NONAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Missing name argument"
+FEXCPT_MSG_	ERROR_MSG	ERROR_LEVEL_ERROR, "Missing name argument"
 
 FEXCPT_TABS_END		EQU	*
 
