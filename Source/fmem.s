@@ -195,8 +195,8 @@ RS_EMPTY		EQU	FMEM_VARS_END
 #emac
 	
 ;PS_PULL_X: pull one entry from the parameter stack into index Y (PSP -> Y)
-#macro	PS_PULL_X, 2	;1:expected entries before operation 2:underflow handler 
-			PS_CHECK_UF	\1, \2		;check for underflow	=> 6 cycles
+#macro	PS_PULL_X, 1	;1:underflow handler 
+			PS_CHECK_UF	1, \1		;check for underflow	=> 6 cycles
 			LDX		2,Y+		;PS -> Y		=> 3 cycles 
 			STY		PSP		;			=> 3 cycles
 							;                         ---------
@@ -204,17 +204,26 @@ RS_EMPTY		EQU	FMEM_VARS_END
 #emac	
 	
 ;PS_PULL_D: pull one entry from the parameter stack into accu D (PSP -> Y)
-#macro	PS_PULL_D, 2	;1:expected entries before operation 2:underflow handler 
-			PS_CHECK_UF	\1, \2		;check for underflow	=> 6 cycles
+#macro	PS_PULL_D, 1	;1:underflow handler 
+			PS_CHECK_UF	1, \1		;check for underflow	=> 6 cycles
 			LDD		2,Y+		;PS -> Y		=> 3 cycles 
 			STY		PSP		;			=> 3 cycles
 							;                         ---------
 							;                         12 cycles
 #emac	
 
-;PS_PUSH_D: Push one entry from accu D onto the return stack into index Y (PSP -> Y)
-#macro	PS_PUSH_D, 2	;1:required cells on the stack 2:overflow handler 
-			PS_CHECK_OF	\1, \2		;check for overflow	=> 9 cycles
+;PS_PUSH_X: Push one entry from index X onto the return stack (PSP -> Y)
+#macro	PS_PUSH_X, 1	;1:overflow handler 
+			PS_CHECK_OF	1, \1		;check for overflow	=> 9 cycles
+			STX		0,Y		;PS -> Y		=> 3 cycles 
+			STY		PSP		;			=> 3 cycles
+							;                         ---------
+							;                         15 cycles
+#emac	
+
+;PS_PUSH_D: Push one entry from accu D onto the return stack (PSP -> Y)
+#macro	PS_PUSH_D, 1	;1:overflow handler 
+			PS_CHECK_OF	1, \1		;check for overflow	=> 9 cycles
 			STD		0,Y		;PS -> Y		=> 3 cycles 
 			STY		PSP		;			=> 3 cycles
 							;                         ---------

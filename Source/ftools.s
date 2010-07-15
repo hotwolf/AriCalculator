@@ -233,7 +233,7 @@ CF_DOT_S_EMPTY		FCS	" is empty!"
 			ALIGN	1
 NFA_QUESTION		FHEADER, "?", NFA_DOT_S, COMPILE
 CFA_QUESTION		DW	CF_QUESTION
-CF_QUESTION		PS_PULL_X 1, CF_QUESTION_PSUF 	;check for underflow  (PSP -> Y)
+CF_QUESTION		PS_PULL_X	CF_QUESTION_PSUF ;check for underflow  (PSP -> Y)
 			PRINT_SPC			;print space
 			LDX	0,X			;print variable
 			LDAB	BASE+1

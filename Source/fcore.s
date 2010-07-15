@@ -483,7 +483,7 @@ FCORE_NUMBER_15		MOVW	#$0002, FCORE_NUMBER_SIZE,X
 
 ;#Parse TIB for a name and create a definition header
 ; args:   X: string pointer
-; result: D: NFA
+; resuut: D: NFA
 ;         X: error hanldler (0=no errors, FCORE_THROW_DICTOF, or FCORE_THROW_NONAME)	
 ; SSTACK: 10  bytes
 ;          Y is  preserved
@@ -495,8 +495,8 @@ FCORE_HEADER		EQU	*
 			TBEQ	X, FCORE_HEADER_NONAME
 			;Count characters in word (string pointer in X) 
 			PRINT_STRCNT 					;(SSTACK: 2 bytes)
-			CMPA	#$FF
-			BEQ	FCORE_HEADER_STROF	
+			TSTA
+			BMI	FCORE_HEADER_STROF	
 			;Check for Dictionary overflow (string pointer in X, char count in A)
 			TFR	X, Y
 			TAB
@@ -531,7 +531,7 @@ FCORE_HEADER_STROF	LDX	#FCORE_THROW_STROF
 	
 ;#Find the next double-quote delimitered string on the TIB and terminate it. 
 ; args:   none
-; restlt: X: string pointer
+; result: X: string pointer
 ; SSTACK: 6 bytes
 ;         Y and D are preserved
 FCORE_QUOTE		EQU	*	
@@ -562,6 +562,63 @@ FCORE_QUOTE_3		LEAY	2,Y			;increment >IN
 			;Empty string 
 FCORE_QUOTE_4		LDX	#$0000
 			JOB	FCORE_QUOTE_3
+
+
+;#Find a name in the dictionary and return the xt 
+; args:   X: string pointer
+; result: X: CFA/string pointer
+;         D: status (0:name not cound, 1:immediate, or 1:compile)
+; SSTACK: 4 bytes
+;         Y and D are preserved
+FCORE_FIND		EQU	*	
+			;Save registers
+			SSTACK_PSHY
+			;Initialize search (start of word in X)
+			LDY	LAST_NFA
+			;Check for zero-length string (start of word in X)
+			TBEQ	X, FCORE_FIND_3  				;empty string
+			;Try to match first two characters (current NFA in Y, start of word in X)
+FCORE_FIND_1		LDD	0,X 						;first two characters -> D 
+			BMI	FCORE_FIND_6					;single character word
+			;Search multy character word (first 2 characters in D, current NFA in Y, start of word in X)
+			CPD	3,Y 						;compare first 2 characters
+			BEQ	FCORE_FIND_4 					;first 2 characters match
+			;Parse next NFA	(current NFA in Y, start of word in X)
+FCORE_FIND_2		LDY	0,Y 						;check next NFA
+			BNE	FCORE_FIND_1 					;next iteration
+			;Search was unsuccessfull (current NFA in Y, start of word in X)
+FCORE_FIND_3		LDD	#$0000 						;set return status
+			JOB	FCORE_FIND_8 					;done
+			;First 2 characters match (current NFA in Y, start of word in X)
+FCORE_FIND_4		TSTB							;check if search is over
+			BMI	FCORE_FIND_7 					;search was sucessful
+			;Compare the remaining characters of the current NFA (current NFA in Y, start of word in X, index in A)
+			LDAA	#2 						;set index to 3rd cfaracter
+FCORE_FIND_5		LEAY	3,Y 						;set Y to start of name
+			LDAB	A,Y 						;Compare current character
+			LEAY	-3,Y 						;set Y to NFA
+			CMPB	A,X
+			BNE	FCORE_FIND_2 					;parse next NFA
+			TSTB	 						;check if search is done
+			BMI	FCORE_FIND_7					;search was successful
+			IBNE	A, FCORE_FIND_5					;parse next character
+			;Name is too long -> search unsuccessful 
+			JOB	FCORE_FIND_3
+			;Search single character word (current NFA in Y, first character in A)
+FCORE_FIND_6		CMPA	3,Y 						;compare first character
+			BNE	FCORE_FIND_2 					;parse next NFA			
+			;Search was successful(current NFA in Y)
+FCORE_FIND_7		LEAX	2,Y						;determine current CFA
+			LDAB	1,X+ 
+			SEX	B, D 						;save immediate flag
+			ANDB	#$7F
+			LEAX	B,X
+			COMA
+			TAB							;determine return status
+			ORAB	#$01	
+			;Restore registers 
+FCORE_FIND_8		SSTACK_PULY
+			SSTACK_RTS
 	
 ;Exceptions:
 ;===========
@@ -973,8 +1030,8 @@ CF_MINUS_PSUF	JOB	FCORE_THROW_PSUF
 			ALIGN	1
 NFA_DOT			FHEADER, ".", NFA_MINUS, COMPILE
 CFA_DOT			DW	CF_DOT
-CF_DOT			PS_PULL_X	1, CF_DOT_PSUF 	;pull cell from PS
-			BASE_CHECK	CF_DOT_INVALBASE	;check BASE value
+CF_DOT			PS_PULL_X	CF_DOT_PSUF 	;pull cell from PS
+			BASE_CHECK	CF_DOT_INVALBASE;check BASE value
 			PRINT_SPC			;print a space character
 			PRINT_SINT			;print cell as signed integer
 			NEXT
@@ -1756,7 +1813,8 @@ NFA_ALLOT		EQU	NFA_ALIGNED
 			ALIGN	1
 NFA_AND			FHEADER, "AND", NFA_ALLOT, COMPILE
 CFA_AND			DW		CF_AND
-CF_AND			PS_PULL_D	2, CF_AND_PSUF	;PS 	 -> D
+CF_AND			PS_CHECK_UF	2, CF_AND_PSUF 	;PSP    -> Y
+			LDD	2,Y+
 			ANDA		0,Y		;D & TOS -> D
 			ANDB		1,Y
 			STD		0,Y 		;D       -> TOS
@@ -2207,7 +2265,7 @@ CFA_ELSE_RT		EQU	CFA_AGAIN_RT
 			ALIGN	1
 NFA_EMIT		FHEADER, "EMIT", NFA_ELSE, COMPILE
 CFA_EMIT		DW	CF_EMIT
-CF_EMIT			PS_PULL_D	1, CF_EMIT_PSUF		;PS -> D (=char)
+CF_EMIT			PS_PULL_D	CF_EMIT_PSUF		;PS -> D (=char)
 			SCI_TX					;print character (SSTACK: 8 bytes)
 			NEXT
 			
@@ -2249,7 +2307,7 @@ NFA_EVALUATE		EQU	NFA_ENVIRONMENT_QUERY
 			ALIGN	1
 NFA_EXECUTE		FHEADER, "EXECUTE", NFA_EVALUATE, COMPILE
 CFA_EXECUTE		DW	CF_EXECUTE
-CF_EXECUTE		PS_PULL_X	1, CF_EXECUTE_PSUF	;PS -> X (=CFA)		=>12 cycles
+CF_EXECUTE		PS_PULL_X	CF_EXECUTE_PSUF		;PS -> X (=CFA)		=>12 cycles
 			JMP		[0,X]			;JUMP [CFA]             => 6 cycles
 								;                         ---------
 								;                         18 cycles
@@ -2311,67 +2369,14 @@ NFA_FILL		EQU	NFA_EXIT
 			ALIGN	1
 NFA_FIND	 	FHEADER, "FIND", NFA_FILL, COMPILE
 CFA_FIND	 	DW	CF_FIND
-CF_FIND		 	PS_CHECK_UFOF	1, CF_FIND_PSUF, 1, CF_FIND_PSOF	;check for over and underflow (PSP-new cells -> Y)
-			;Initialize search
-			LDX	LAST_NFA
-			;Pull the word's start address from the PS 
-			LDY	2,Y   						;start of word -> Y
-			BEQ	CF_FIND_3  					;empty string
-			;Try to match first two characters (current NFA in X, start of word in Y)
-CF_FIND_1		;PRINT_LINE_BREAK					;debug: print NFA
-			;TFR	X, D 						
-			;PRINT_WORD
-			;PRINT_SPC
-			;LEAX	3,X 						;debug: print name
-			;PRINT_STR
-			;LEAX 	-3,X
-	
-			LDD	0,Y 						;First two characters -> D 
-			BMI	CF_FIND_6					;single character word
-			;Search multy character word (first 2 characters in D, current NFA in X, start of word in Y)
-			CPD	3,X 						;compare first 2 characters
-			BEQ	CF_FIND_4 					;first 2 characters match
-			;Parse next NFA	(current NFA in X, start of word in Y)
-CF_FIND_2		LDX	0,X 						;check next NFA
-			BNE	CF_FIND_1 					;next iteration
-			;Search was unsuccessfull (current NFA in X)
-CF_FIND_3		LDY	PSP 						;push 0 onto PS
-			MOVW	#$0000, 2,-Y
+CF_FIND		 	PS_CHECK_UFOF	1, CF_FIND_PSUF, 1, CF_FIND_PSOF	;check for over and underflow (PSP-2 -> Y)
+			;Search dictionary (PSP-2 -> Y)
+			LDX	2,Y
+			SSTACK_JOBSR	FCORE_FIND
+			STX	2,Y
+			STD	0,Y
 			STY	PSP
-			NEXT
-			;First 2 characters match (current NFA in X, start of word in Y)
-CF_FIND_4		TSTB						;check if search is over
-			BMI	CF_FIND_7 					;search was sucessful
-			;Compare the remaining characters of the current NFA (current NFA in X, start of word in Y, index in A)
-			LDAA	#2 						;set index to 3rd cfaracter
-CF_FIND_5		LEAX	3,X 						;set X to start of name
-			LDAB	A,X 						;Compare current character
-			LEAX	-3,X 						;set X to NFA
-			CMPB	A,Y
-			BNE	CF_FIND_2 					;parse next NFA
-			TSTB	 						;check if search is done
-			BMI	CF_FIND_7					;search was successful
-			IBNE	A, CF_FIND_5					;parsse next character
-			;Name is too long -> search unsuccessful 
-			JOB	CF_FIND_3
-			;Search single character word (current NFA in X, first character in A)
-CF_FIND_6		CMPA	3,X 						;compare first character
-
-				BNE	CF_FIND_2 					;parse next NFA
-			;Search was successful(current NFA in X)
-CF_FIND_7		LDY	PSP						;put CFA onto PS
-			LDAA	2,+X 						
-			TAB
-			ANDA	#$7F
-			INCA
-			LEAX	A,X
-			STX	0,Y
-			LDX	#$FFFF						;check immediate bit
-			TSTB	
-			BPL	CF_FIND_8 					;compile word
-			LEAX	2,X 						;immediate word
-CF_FIND_8		STX	2,-Y 						;push flag onto PS
-			STY	PSP
+			;Done 
 			NEXT
 		 	
 CF_FIND_PSUF	 	JOB	FCORE_THROW_PSUF
@@ -2875,77 +2880,82 @@ CF_QUIT_1		;LED_BUSY_OFF (moved to QUERY)
 			EXEC_CF	CF_QUERY, CF_QUIT_RSOF, CF_QUIT_RSUF	;get command line
 			;LED_BUSY_ON (moved to QUERY)
 			;Parse next word of the command line
-CF_QUIT_2		EXEC_CF	CF_NAME, CF_QUIT_RSOF, CF_QUIT_RSUF	;parse next word
-			LDY	PSP
-			LDD	2,Y+
-			BEQ	CF_QUIT_4 				;last word parsed
-			;Look up word in dictionary
-			EXEC_CF	CF_FIND, CF_QUIT_RSOF, CF_QUIT_RSUF	;search for word in dictionary
-			LDY 	PSP					;check return status
-			LDD	2,Y+
-			BEQ	CF_QUIT_6 				;word not found -> see if it is a number
+CF_QUIT_2		SSTACK_JOBSR	FCORE_NAME			;parse next word (string pointer -> X)
+			TBEQ	X, CF_QUIT_4				;last word parsed
+			;Look up word in dictionary (string pointer in X)
+			SSTACK_JOBSR	FCORE_FIND 			;search dictionary (xt -> X, status -> D)
+			TBEQ	D, CF_QUIT_6 				;word not found -> see if it is a number
 			DBEQ	D, CF_QUIT_3 				;immediate word -> execute
 			INTERPRET_ONLY	CF_QUIT_5 			;check state
-			;Execute word (PSP+2 in Y) 
-CF_QUIT_3		LDX	2,Y+ 					;Pull CFA
-			STY	PSP 					;update PSP
-			MOVW	#CF_QUIT_IP_DONE, IP 			;set next IP
+			;Execute word (xt in X) 
+CF_QUIT_3		MOVW	#CF_QUIT_IP_DONE, IP 			;set next IP
 			JMP	[0,X]					;execute CF
 CF_QUIT_IP_DONE		DW	CF_QUIT_CFA_DONE			
 CF_QUIT_CFA_DONE	DW	CF_QUIT_2
-			;Last word parsed (PSP+2 in Y)
-CF_QUIT_4		STY	PSP 					;update PSP
-			INTERPRET_ONLY	CF_QUIT_1 			;don't print "ok" in compile state
+			;Last word parsed
+CF_QUIT_4		INTERPRET_ONLY	CF_QUIT_1 			;don't print "ok" in compile state
 			LDX	#FCORE_SYSTEM_PROMPT 			;print "ok"
 			PRINT_STR
 			JOB	CF_QUIT_1
-			;Compile word (PSP+2 in Y) 
-CF_QUIT_5		DICT_CHECK_OF	2, CF_QUIT_DICTOF 		;(CP+2 -> X)
-			MOVW	2,Y+, -2,X
-			STY	PSP
+			;Compile word (xt in X, status in D) 
+CF_QUIT_5		TFR	X, Y
+			DICT_CHECK_OF	2, CF_QUIT_DICTOF 		;(CP+2 -> X)
+			STY     -2,X
 			STX	CP
 			JOB	CF_QUIT_2 				;parse next word	
-			;Word was not found (PSP+2 in Y)
-CF_QUIT_6		STY	PSP 					;update PSP
-			EXEC_CF	CF_NUMBER, CF_QUIT_RSOF, CF_QUIT_RSUF	;interpret word as number
-			LDY 	PSP					;check return status
-			LDX	2,Y+
-			BEQ	<CF_QUIT_UDEFWORD			;undefined word
-			STY	PSP	  				;update PSP
-			COMPILE_ONLY	CF_QUIT_2			;check state
-			;Compile number (size in X, PSP in Y)
-			DBNE	X, CF_QUIT_7 				;compile double number
-			;Compile single number (size in X, PSP in Y)
+			;Word was not found (string pointer in X)
+CF_QUIT_6		SSTACK_JOBSR	FCORE_NUMBER 			;convert to number (value -> Y:X, size -> D)
+			TBEQ	D, CF_QUIT_UDEFWORD			;undefined word
+			DBNE	D, CF_QUIT_8				;double number
+			;Single number 
+			INTERPRET_ONLY	CF_QUIT_7 			;compile
+			;Stack single number 
+			PS_PUSH_X	CF_QUIT_PSOF
+			JOB	CF_QUIT_2
+			;Compile single number (number in X)
+CF_QUIT_7		TFR	X, D
 			DICT_CHECK_OF	4, CF_QUIT_DICTOF 		;(CP+4 -> X)
 			MOVW	#CFA_LITERAL_RT, -4,X 			;add CFA
-			MOVW	2,Y+, -2,X 				;add number
+			STD	 -2,X 					;add number
 			STX	CP 					;update CP
-			STY	PSP 					;update PSP
 			JOB	CF_QUIT_2 				;interpret next word 
-			;Compile double number (size in X, PSP in Y)
-CF_QUIT_7		DICT_CHECK_OF	6, CF_QUIT_DICTOF 		;(CP+6 -> X)
+			;Double number 
+CF_QUIT_8		INTERPRET_ONLY	CF_QUIT_9 			;compile
+			;Stack doublelnumber (number in Y:X)
+			TFR	Y, D
+			PS_CHECK_OF	2, CF_QUIT_PSOF 		;(PSP+4 -> Y)
+			STX	2,Y
+			STD	0,Y
+			STY	PSP
+			JOB	CF_QUIT_2
+			;Compile double number (number in Y:X)
+CF_QUIT_9		TFR	X, D
+			DICT_CHECK_OF	6, CF_QUIT_DICTOF 		;(CP+6 -> X)
 			MOVW	#CFA_TWO_LITERAL_RT, -6,X 		;add CFA
-			MOVW	2,Y+, -4,X 				;add number
-			MOVW	2,Y+, -2,X 				;add number
+			STD	-2,X 					;add number
+			STY	-4,X 					;add number
 			STX	CP 					;update CP
-			STY	PSP 					;update PSP
-			JOB	CF_QUIT_2 				;interpret next word
+			JOB	CF_QUIT_2 				;interpret next word 
 		
 			;Error handlers 
- 			;Undefined word (PSP+2 in Y)
-CF_QUIT_DICTOF		LDY	#CF_QUIT_MSG_DICTOF			;print standard error message	
-			JOB	CF_QUIT_ERROR
+ 			;Return stack overflow 
+CF_QUIT_PSOF		LDY	#CF_QUIT_MSG_PSOF 			;print standard error message	
+ 			JOB	CF_QUIT_ERROR
  			;Return stack underflow 
 CF_QUIT_RSUF		LDY	#CF_QUIT_MSG_RSUF 			;print standard error message
  			JOB	CF_QUIT_ERROR
  			;Return stack overflow 
-CF_QUIT_RSOF		LDY	#CF_QUIT_MSG_RSUF 			;print standard error message	
+CF_QUIT_RSOF		LDY	#CF_QUIT_MSG_RSOF 			;print standard error message	
  			JOB	CF_QUIT_ERROR
  			;Undefined word (PSP+2 in Y)
 CF_QUIT_UDEFWORD	LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message	
+			JOB	CF_QUIT_ERROR
+ 			;Undefined word (PSP+2 in Y)
+CF_QUIT_DICTOF		LDY	#CF_QUIT_MSG_DICTOF			;print standard error message	
 CF_QUIT_ERROR		ERROR_PRINT
 			JOB	CF_ABORT 
 
+CF_QUIT_MSG_PSOF	EQU	FEXCPT_MSG_PSOF
 CF_QUIT_MSG_RSUF	EQU	FEXCPT_MSG_RSUF
 CF_QUIT_MSG_RSOF	EQU	FEXCPT_MSG_RSOF
 CF_QUIT_MSG_UDEFWORD	EQU	FEXCPT_MSG_UDEFWORD
@@ -3179,7 +3189,7 @@ CF_SOURCE_PSOF		JOB	FCORE_THROW_PSOF
 			ALIGN	1
 NFA_SPACE		FHEADER, "SPACE", NFA_SOURCE, COMPILE
 CFA_SPACE		DW	CF_SPACE
-CF_SPACE		PRINT_SPC			;print one space
+CF_SPACE		PRINT_SPC				;print one space
 			NEXT
 
 ;SPACES ( n -- )
@@ -3192,7 +3202,7 @@ CF_SPACE		PRINT_SPC			;print one space
 			ALIGN	1
 NFA_SPACES		FHEADER, "SPACES", NFA_SPACE, COMPILE
 CFA_SPACES		DW	CF_SPACES
-CF_SPACES		PS_PULL_D	1,CF_SPACES_PSUF	;pop PS
+CF_SPACES		PS_PULL_D	CF_SPACES_PSUF		;pop PS
 			TAB
 			PRINT_SPCS				;print spaces
 			NEXT
@@ -3279,7 +3289,7 @@ NFA_TYPE		EQU	NFA_THEN
 			ALIGN	1
 NFA_U_DOT		FHEADER, "U.", NFA_TYPE, COMPILE
 CFA_U_DOT		DW	CF_U_DOT
-CF_U_DOT		PS_PULL_X	1, CF_U_DOT_PSUF 	;pull cell from PS
+CF_U_DOT		PS_PULL_X	CF_U_DOT_PSUF 		;pull cell from PS
 			BASE_CHECK	CF_U_DOT_INVALBASE	;check BASE value
 			PRINT_SPC				;print a space character
 			PRINT_UINT				;print cell as signed integer
@@ -3395,7 +3405,7 @@ NFA_UNTIL		EQU	NFA_UNLOOP
 ;"Parameter stack underflow"
 			ALIGN	1
 CFA_UNTIL_RT		DW	CF_UNTIL_RT
-CF_UNTIL_RT		PS_PULL_X	1, CF_UNTIL_PSUF
+CF_UNTIL_RT		PS_PULL_X	CF_UNTIL_PSUF
 			CPX	#$0000		;check is cell equals 0
 			BEQ	CF_UNTIL_RT_1	;cell is zero 
 			SKIP_NEXT		;increment IP and do NEXT
