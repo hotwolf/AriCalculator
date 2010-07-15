@@ -293,7 +293,7 @@ RS_EMPTY		EQU	FMEM_VARS_END
 			LDX	CP 			;=> 3 cycles
 			LEAX	\1,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
-			BHI	<\2			;=> 1 cycle / 3 cycles
+			BHI	\2			;=> 1 cycle / 3 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
 							;  -------------------

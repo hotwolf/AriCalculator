@@ -2900,8 +2900,8 @@ CF_QUIT_4		STY	PSP 					;update PSP
 			PRINT_STR
 			JOB	CF_QUIT_1
 			;Compile word (PSP+2 in Y) 
-CF_QUIT_5		LDX	CP 					;copy CFA do dictionary
-			MOVW	2,Y+, 2,X+
+CF_QUIT_5		DICT_CHECK_OF	2, CF_QUIT_DICTOF 		;(CP+2 -> X)
+			MOVW	2,Y+, -2,X
 			STY	PSP
 			STX	CP
 			JOB	CF_QUIT_2 				;parse next word	
@@ -2916,22 +2916,25 @@ CF_QUIT_6		STY	PSP 					;update PSP
 			;Compile number (size in X, PSP in Y)
 			DBNE	X, CF_QUIT_7 				;compile double number
 			;Compile single number (size in X, PSP in Y)
-			LDX	CP
-			MOVW	#CFA_LITERAL_RT, 2,X+ 			;add CFA
-			MOVW	2,Y+, 2,X+ 				;add number
+			DICT_CHECK_OF	4, CF_QUIT_DICTOF 		;(CP+4 -> X)
+			MOVW	#CFA_LITERAL_RT, -4,X 			;add CFA
+			MOVW	2,Y+, -2,X 				;add number
 			STX	CP 					;update CP
 			STY	PSP 					;update PSP
 			JOB	CF_QUIT_2 				;interpret next word 
 			;Compile double number (size in X, PSP in Y)
-CF_QUIT_7		LDX	CP
-			MOVW	#CFA_TWO_LITERAL_RT, 2,X+ 		;add CFA
-			MOVW	2,Y+, 2,X+ 				;add number
-			MOVW	2,Y+, 2,X+ 				;add number
+CF_QUIT_7		DICT_CHECK_OF	6, CF_QUIT_DICTOF 		;(CP+6 -> X)
+			MOVW	#CFA_TWO_LITERAL_RT, -6,X 		;add CFA
+			MOVW	2,Y+, -4,X 				;add number
+			MOVW	2,Y+, -2,X 				;add number
 			STX	CP 					;update CP
 			STY	PSP 					;update PSP
 			JOB	CF_QUIT_2 				;interpret next word
 		
 			;Error handlers 
+ 			;Undefined word (PSP+2 in Y)
+CF_QUIT_DICTOF		LDY	#CF_QUIT_MSG_DICTOF			;print standard error message	
+			JOB	CF_QUIT_ERROR
  			;Return stack underflow 
 CF_QUIT_RSUF		LDY	#CF_QUIT_MSG_RSUF 			;print standard error message
  			JOB	CF_QUIT_ERROR
@@ -2946,6 +2949,7 @@ CF_QUIT_ERROR		ERROR_PRINT
 CF_QUIT_MSG_RSUF	EQU	FEXCPT_MSG_RSUF
 CF_QUIT_MSG_RSOF	EQU	FEXCPT_MSG_RSOF
 CF_QUIT_MSG_UDEFWORD	EQU	FEXCPT_MSG_UDEFWORD
+CF_QUIT_MSG_DICTOF	EQU	FEXCPT_MSG_DICTOF
 	
 ;R> 
 ;Interpretation: Interpretation semantics for this word are undefined.
