@@ -119,7 +119,6 @@ FMEM_EC_PSOF		EQU	FEXCPT_EC_PSOF		;stack overflow
 FMEM_EC_PSUF		EQU	FEXCPT_EC_PSUF		;stack underflow
 FMEM_EC_RSOF		EQU	FEXCPT_EC_RSOF		;return stack overflow
 FMEM_EC_RSUF		EQU	FEXCPT_EC_RSUF		;return stack underflow
-FMEM_EC_TIBOF		EQU	FEXCPT_EC_TIBOF		;parsed string overflow
 FMEM_EC_PADOF		EQU	FEXCPT_EC_PADOF		;pictured numeric output string overflow
 	
 ;###############################################################################
@@ -313,6 +312,18 @@ RS_EMPTY		EQU	FMEM_VARS_END
 							;   15 cycles/ 17 cycles
 #emac			
 	
+;DICT_CHECK_OF_D: check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
+#macro	DICT_CHECK_OF_D, 1	;1:overflow handler  
+			LDX	CP 			;=> 3 cycles
+			LEAX	D,X			;=> 2 cycles
+			CPX	PSP			;=> 3 cycles
+			BHI	<\1			;=> 1 cycle / 3 cycles
+			STX	PAD			;=> 3 cycles
+			STX	HLD			;=> 3 cycles
+							;  -------------------
+							;   15 cycles/ 17 cycles
+#emac			
+	
 ;#Pictured numeric output buffer (PAD) 
 ;PAD_CHECK_OF: check if there is room for one more character on the PAD (HLD -> )X
 #macro	PAD_CHECK_OF, 1	;1:overflow handler  
@@ -389,11 +400,6 @@ FMEM_THROW_DICTOF	EQU	*
 ; args:   none
 FMEM_THROW_PADOF	EQU	*
 			FEXCPT_THROW	FMEM_EC_PADOF
-
-;#Throw a TIB pointer out of range exception exception
-; args:   none
-FMEM_THROW_TIBOF	EQU	*
-			FEXCPT_THROW	FMEM_EC_TIBOF
 
 FMEM_CODE_END		EQU	*
 	

@@ -85,9 +85,9 @@ FEXCPT_EC_RESOR			EQU	-11	;result out of range
 FEXCPT_EC_UDEFWORD		EQU	-13	;undefined word
 FEXCPT_EC_COMPONLY		EQU	-14	;interpreting a compile-only word
 ;FEXCPT_EC_15			EQU	-15	;invalid FORGET
-;FEXCPT_EC_16			EQU	-16	;attempt to use zero-length string as a name
+FEXCPT_EC_NONAME		EQU	-16	;attempt to use zero-length string as a name
 FEXCPT_EC_PADOF			EQU	-17	;pictured numeric output string overflow
-FEXCPT_EC_TIBOF			EQU	-18	;parsed string overflow
+FEXCPT_EC_STROF			EQU	-18	;parsed string overflow
 ;FEXCPT_EC_19			EQU	-19	;definition name too long
 ;FEXCPT_EC_20			EQU	-20	;write to a read-only location
 ;FEXCPT_EC_21			EQU	-21	;unsupported operation (e.g., AT-XY on a too-dumb terminal)
@@ -130,7 +130,6 @@ FEXCPT_EC_QUIT			EQU	-56	;QUIT
 ;FEXCPT_EC_58			EQU	-58	;[IF], [ELSE], or [THEN] exception
 	
 ;Additional error codes 
-FEXCPT_EC_NONAME		EQU	FEXCPT_MSG_NONAME	;missing name argument
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -207,7 +206,7 @@ FEXCPT_THROW_2	CPD	#FEXCPT_EC_ABORT 				;check if an ABORT has been requested
 		BLO	FEXCPT_THROW_3					;custom error message
 		LDX     #FEXCPT_MSGTAB_END 				;look-up standard error message
 		LSLD
-		LDD	D,X
+		LDD	D,X	
 FEXCPT_THROW_3	TFR	D, Y
 FEXCPT_THROW_4	ERROR_PRINT						;print error message
 		JOB	CF_ABORT 					;execute abort
@@ -267,9 +266,9 @@ FEXCPT_MSGTAB_START	EQU	*
 			DW	FEXCPT_MSG_UNKNOWN	;-21 unsupported operation (e.g., AT-XY on a too-dumb terminal)
 			DW	FEXCPT_MSG_UNKNOWN	;-20 write to a read-only location
 			DW	FEXCPT_MSG_UNKNOWN	;-19 definition name too long
-			DW	FEXCPT_MSG_TIBOF	;-18 parsed string overflow
+			DW	FEXCPT_MSG_STROF	;-18 parsed string overflow
 			DW	FEXCPT_MSG_PADOF	;-17 pictured numeric output string overflow
-			DW	FEXCPT_MSG_UNKNOWN	;-16 attempt to use zero-length string as a name
+			DW	FEXCPT_MSG_NONAME	;-16 attempt to use zero-length string as a name
 			DW	FEXCPT_MSG_UNKNOWN	;-15 invalid FORGET
 			DW	FEXCPT_MSG_COMPONLY	;-14 interpreting a compile-only word
 			DW	FEXCPT_MSG_UDEFWORD	;-13 undefined word
@@ -300,8 +299,9 @@ FEXCPT_MSG_0DIV		ERROR_MSG	ERROR_LEVEL_ERROR, "Division by zero"
 FEXCPT_MSG_RESOR	ERROR_MSG	ERROR_LEVEL_ERROR, "Result out of range"
 FEXCPT_MSG_UDEFWORD	ERROR_MSG	ERROR_LEVEL_ERROR, "Undefined word"
 FEXCPT_MSG_COMPONLY	ERROR_MSG	ERROR_LEVEL_ERROR, "Compile-only word"
+FEXCPT_MSG_NONAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Missing name argument"
 FEXCPT_MSG_PADOF	ERROR_MSG	ERROR_LEVEL_ERROR, "PAD overflow"
-FEXCPT_MSG_TIBOF	ERROR_MSG	ERROR_LEVEL_ERROR, "TIB overflow"
+FEXCPT_MSG_STROF	ERROR_MSG	ERROR_LEVEL_ERROR, "String too long"
 FEXCPT_MSG_CTRLSTRUC	ERROR_MSG	ERROR_LEVEL_ERROR, "Control structure mismatch"
 FEXCPT_MSG_COMPNEST	ERROR_MSG	ERROR_LEVEL_ERROR, "Nested compilation"
 FEXCPT_MSG_NONCREATE	ERROR_MSG	ERROR_LEVEL_ERROR, "Illegal operation on non-CREATEd definition"
@@ -310,8 +310,6 @@ FEXCPT_MSG_INVALBASE	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid BASE"
 FEXCPT_MSG_CESF		ERROR_MSG	ERROR_LEVEL_ERROR, "Corrupt exception stack frame"
 
 ;Additional error messages 
-FEXCPT_MSG_NONAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Missing name argument"
-FEXCPT_MSG_	ERROR_MSG	ERROR_LEVEL_ERROR, "Missing name argument"
 
 FEXCPT_TABS_END		EQU	*
 

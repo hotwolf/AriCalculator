@@ -495,6 +495,8 @@ FCORE_HEADER		EQU	*
 			TBEQ	X, FCORE_HEADER_NONAME
 			;Count characters in word (string pointer in X) 
 			PRINT_STRCNT 					;(SSTACK: 2 bytes)
+			CMPA	#$FF
+			BEQ	FCORE_HEADER_STROF	
 			;Check for Dictionary overflow (string pointer in X, char count in A)
 			TFR	X, Y
 			TAB
@@ -523,6 +525,43 @@ FCORE_HEADER_NONAME	LDX	#FCORE_THROW_NONAME
 			;Dictionary overflow
 FCORE_HEADER_DICTOF	LDX	#FCORE_THROW_DICTOF
 			JOB	FCORE_HEADER_3
+			;Parsed string overflow
+FCORE_HEADER_STROF	LDX	#FCORE_THROW_STROF
+			JOB	FCORE_HEADER_3
+	
+;#Find the next double-quote delimitered string on the TIB and terminate it. 
+; args:   none
+; restlt: X: string pointer
+; SSTACK: 6 bytes
+;         Y and D are preserved
+FCORE_QUOTE		EQU	*	
+			;Save registers
+			SSTACK_PSHYD			;save index X and accu D			
+			;Check for empty string
+			LDY	TO_IN			;current >IN -> Y
+			LEAY	1,Y			;ignore first space character
+			CPY	NUMBER_TIB		;check for the end of the input buffer
+			BHS	FCORE_QUOTE_4		;return empty string
+			LDAA	#$22			;check for double quote
+			LEAX	TIB_START,Y		;save start of string
+			CMPA	0,X			;check for double quote
+			BEQ	FCORE_QUOTE_4		;return empty string		
+			;Parse remaining characters (>IN in Y, '"' in A, string pointer in X)
+FCORE_QUOTE_1		LEAY	1,Y 			;increment >IN
+			CPY	NUMBER_TIB		;check for the end of the input buffer
+			BHS	FCORE_QUOTE_2		;terminate previous character
+			CMPA	TIB_START,Y		;check for double quote
+			BNE	FCORE_QUOTE_1		;check next character
+			;Terminate previous character (>IN in Y, '"' in A, string pointer in X) 
+FCORE_QUOTE_2		BSET	TIB_START-1,Y, #$80 	;set termination bit
+FCORE_QUOTE_3		LEAY	2,Y			;increment >IN
+			STY	TO_IN			;update >IN
+			;Done
+			SSTACK_PULDY			;restore accu D and index X
+			SSTACK_RTS
+			;Empty string 
+FCORE_QUOTE_4		LDX	#$0000
+			JOB	FCORE_QUOTE_3
 	
 ;Exceptions:
 ;===========
@@ -536,7 +575,7 @@ FCORE_THROW_0DIV	FEXCPT_THROW	FEXCPT_EC_0DIV		;division by zero
 FCORE_THROW_RESOR	FEXCPT_THROW	FEXCPT_EC_RESOR		;result out of range
 FCORE_THROW_COMPONLY	FEXCPT_THROW	FEXCPT_EC_COMPONLY	;interpreting a compile-only word
 FCORE_THROW_PADOF	EQU	FMEM_THROW_PADOF		;pictured numeric output string overflow
-FCORE_THROW_TIBOF	EQU	FMEM_THROW_TIBOF		;text input buffer overflow
+FCORE_THROW_STROF	FEXCPT_THROW	FEXCPT_EC_STROF		;parsed string overflow
 FCORE_THROW_CTRLSTRUC	FEXCPT_THROW	FEXCPT_EC_CTRLSTRUC	;control structure mismatch
 FCORE_THROW_COMPNEST	FEXCPT_THROW	FEXCPT_EC_COMPNEST	;compiler nesting
 FCORE_THROW_NONCREATE	FEXCPT_THROW	FEXCPT_EC_NONCREATE	;invalid usage of non-CREATEd definition
@@ -955,31 +994,55 @@ CF_DOT_INVALBASE	JOB	FCORE_THROW_INVALBASE
 ;Interpretation semantics:
 ;Print string to the terminal
 ;Throws:
-;"Dictionary space exceeded"
+;"Dictionary overflow"
 ;
+CF_DOT_QUOTE_DICTOF	JOB	FCORE_THROW_DICTOF
+CF_DOT_QUOTE_STROF	JOB	FCORE_THROW_STROF
+	
 			ALIGN	1
 NFA_DOT_QUOTE		FHEADER, '."', NFA_DOT, IMMEDIATE ;"
-CFA_DOT_QUOTE		DW	CF_DOT_QUOTE 		;immediate or compile mode?
-CF_DOT_QUOTE		LDD	STATE			
-			BEQ	CF_DOT_QUOTE_1 		;immediate mode
-			;Compile mode: Check if string is empty
-		        
-				
-
-
-	
-			DICT_CHECK_OF	4, CFA_DOT_QUOTE_DICTOF ;check dictonary space (CP+bytes -> X)
-			MOVW	#CFA_DOT_QUOTE_RT, -4,X
-
-
-
-
-		;Loop though quoted string
-CF_DOT_QUOTE_1			
-
-CFA_DOT_QUOTE_DICTOF	JOB	FMEM_THROW_DICTOF
+CFA_DOT_QUOTE		DW	CF_DOT_QUOTE 			;immediate or compile mode?
+CF_DOT_QUOTE		;Parse quote
+			SSTACK_JOBSR	FCORE_QUOTE
+			TBEQ	X, CF_DOT_QUOTE_4 		;empty quote		
+			;Check state (string pointer in X)
+			COMPILE_ONLY	CF_DOT_QUOTE_6 		;ensure that compile mode is on
+			;Check remaining space in dictionary (string pointer in X)
+			PRINT_STRCNT 				;count characters (count in A)
+			IBEQ	A, CF_DOT_QUOTE_STROF		;add CFA to count
+			TAB
+			CLRA
+			ADDD	#1
+			TFR	X, Y
+			DICT_CHECK_OF_D	CF_DOT_QUOTE_DICTOF 	;check for dictionary overflow
+			;Append run-time CFA (string pointer in Y)
+			LDX	CP
+			MOVW	#CFA_DOT_QUOTE_RT, 2,X+
+			;Append quote (CP in X, string pointer in Y)
+			LDD	2,Y+
+			BMI	CF_DOT_QUOTE_2 			;last character
+CF_DOT_QUOTE_1		STAA	1,X+
+			TSTB
+			BMI	CF_DOT_QUOTE_5 			;last character
+			STAB	1,X+
+			LDD	2,Y+	
+			BPL	CF_DOT_QUOTE_1
+CF_DOT_QUOTE_2		STAA	1,X+	
+			;Done
+CF_DOT_QUOTE_3		STX	CP
+CF_DOT_QUOTE_4		NEXT
+CF_DOT_QUOTE_5		STAB	1,X+
+			JOB	CF_DOT_QUOTE_3
+			;Print quote in interpretaion state (string pointer in X)
+CF_DOT_QUOTE_6		PRINT_STR	
+			JOB	CF_DOT_QUOTE_4	
 	
 ;." run-time semantics
+;S12CForth implementation details:
+;Interpretation semantics:
+;Print string to the terminal
+;Throws:
+;
 			ALIGN	1
 CFA_DOT_QUOTE_RT	DW	CF_DOT_QUOTE_RT
 CF_DOT_QUOTE_RT		LDX	IP			;print string at IP
@@ -989,8 +1052,6 @@ CF_DOT_QUOTE_RT		LDX	IP			;print string at IP
 			STX	IP
 			NEXT
 
-
-	
 ;/ ( n1 n2 -- n3 )
 ;Divide n1 by n2, giving the single-cell quotient n3. An ambiguous condition
 ;exists if n2 is zero. If n1 and n2 differ in sign, the implementation-defined
@@ -1592,7 +1653,6 @@ CF_FETCH		PS_CHECK_UF	1, CF_FETCH_PSUF ;check for underflow
 			NEXT
 
 CF_FETCH_PSUF		JOB	FCORE_THROW_PSUF
-
 	
 ;ABORT ( i*x -- ) ( R: j*x -- )
 ;Empty the data stack and perform the function of QUIT, which includes emptying
@@ -3428,47 +3488,8 @@ CFA_WHILE_RT		EQU	CFA_UNTIL_RT 	;same as UNTIL run-time semantics
 ;the address $0000.
 ;Throws:
 ;"Parameter stack underflow"
-;"TIB pointer out of range"
-
-			ALIGN	1
-NFA_WORD		FHEADER, "WORD", NFA_WHILE, COMPILE
-CFA_WORD		DW	CF_WORD
-CF_WORD			PS_CHECK_OF	1, CF_WORD_PSUF ;(PSP -> Y)
-			TIB_CHECK_OF	0, CF_WORD_TIBOF
-			
-			;Skip leading delimeters
-			LDX	TO_IN			;current >IN -> X	
-CF_WORD_1		CPX	NUMBER_TIB		;check for the end of the input buffer
-			BHI	CF_WORD_4		;return empty string
-			LDAB	TIB_START,X
-			LEAX	1,X
-			CMPB	1,Y	
-			BEQ	CF_WORD_1
-			;Beginning of word detected (X points to the 2nd character of the word) 
-			LEAX	TIB_START-1,X 		;calculate string pointer
-			STX	0,Y			;put string pointer on TOS
-			LEAX	-TIB_START,X 		;revert >IN 	
-			;Find trailing delimeter  (X points to the 1st character of the word)
-CF_WORD_2		LEAX	1,X
-			CPX	NUMBER_TIB		;check for the end of the input buffer
-			BHI	CF_WORD_3		;terminate word
-			LDAB	TIB_START,X
-			CMPB	1,Y
-			BNE	CF_WORD_2
-			;Terminate word (X holds next >IN value)
-CF_WORD_3		LDAB	1,-X			;terminate word
-			ORAB	$80
-			STAB	2,X+			;adcance >IN pointer past the delimeter
-			STX	TO_IN			;update >IN pointer
-			NEXT
-			;Return empty string
-CF_WORD_4		STX	TO_IN			;update >IN pointer
-			MOVW	#$0000 0,Y		;push $0000 onto the stack
-			NEXT
-			
-CF_WORD_PSUF		JOB	FCORE_THROW_PSUF
-CF_WORD_TIBOF		JOB	FCORE_THROW_TIBOF
-		
+NFA_WORD		EQU	NFA_WHILE
+	
 ;XOR ( x1 x2 -- x3 )
 ;x3 is the bit-by-bit exclusive-or of x1 with x2.
 ;
@@ -3781,15 +3802,19 @@ NFA_C_QUOTE		EQU	NFA_AGAIN
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack overflow"
-;"Dictionary overflow"
 ;"Compile-only word"
 ;
 			ALIGN	1
 NFA_CASE		FHEADER, "CASE", NFA_C_QUOTE, IMMEDIATE
 CFA_CASE		DW	CF_CASE
 CF_CASE			COMPILE_ONLY	CF_CASE_COMPONLY 	;ensure that compile mode is on
+			PS_CHECK_OF	1, CF_CASE_PSOF 	;(PSP-2 -> Y)
+			;Push initial case-sys ($0000) onto the PS
+			MOVW	#$0000, 0,Y
+			STY	PSP
 			NEXT
-	
+
+CF_CASE_PSOF		JOB	FCORE_THROW_PSOF	
 CF_CASE_COMPONLY	JOB	FCORE_THROW_COMPONLY
 
 ;COMPILE, 
@@ -3833,18 +3858,28 @@ CF_EMPTY		MOVW	#FCORE_LAST_NFA, LAST_NFA 	;set last NFA
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Parameter stack overflow"
-;"Dictionary overflow"
+;"Parameter stack underflow"
 ;"Compile-only word"
 ;
 			ALIGN	1
 NFA_ENDCASE		FHEADER, "ENDCASE", NFA_EMPTY, COMPILE
 CFA_ENDCASE		DW	CF_ENDCASE
 CF_ENDCASE		COMPILE_ONLY	CF_ENDCASE_COMPONLY 	;ensure that compile mode is on
-			NEXT
+			PS_CHECK_UF	1, CF_ENDCASE_PSUF		;(PSP -> Y)
+			;Read case-sys
+			LDX	2,Y+ 				;get case-sys
+			STY	PSP				;update PSP
+			TBEQ	X, CF_ENDCASE_2			;done
+			;Loop through all ENDOFs 
+CF_ENDCASE_1		LDY	0,X 				;get pointer to next ENDOF
+			MOVW	CP, 0,X				;append the correct address
+			TFR	Y, X
+			TBNE	X, CF_ENDCASE_1	
+			;Done 
+CF_ENDCASE_2		NEXT
 	
+CF_ENDCASE_PSUF		JOB	FCORE_THROW_PSUF
 CF_ENDCASE_COMPONLY	JOB	FCORE_THROW_COMPONLY
-
 
 ;ENDOF 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -3858,7 +3893,7 @@ CF_ENDCASE_COMPONLY	JOB	FCORE_THROW_COMPONLY
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Parameter stack overflow"
+;"Parameter stack underflow"
 ;"Dictionary overflow"
 ;"Compile-only word"
 ;
@@ -3866,10 +3901,27 @@ CF_ENDCASE_COMPONLY	JOB	FCORE_THROW_COMPONLY
 NFA_ENDOF		FHEADER, "ENDOF", NFA_ENDCASE, COMPILE
 CFA_ENDOF		DW	CF_ENDOF
 CF_ENDOF		COMPILE_ONLY	CF_ENDOF_COMPONLY 	;ensure that compile mode is on
-			
-	
-CF_ENDOF_COMPONLY	JOB	FCORE_THROW_COMPONLY
+			PS_CHECK_UF	2, CF_ENDOF_PSUF	;(PSP -> Y)
+			DICT_CHECK_OF	4, CF_ENDOF_DICTOF	;(CP+4 -> X)
+			;Add run-time CFA to compilation (CP+4 in X, PSP in Y)
+			MOVW	#CFA_OF_RT, -4,X
+			MOVW	2,Y, 2,-X 	;temporarily put case-sys1 in CFA address
+			STX	2,Y		;replace case-sys1 by pointer to CFA address
+			LEAX	2,X			
+			STX	CP
+			;Append current CP to last OF
+			LDX	2,Y+
+			MOVW	CP, 0,X
+			STY	PSP
+			;Done
+			NEXT
 
+CF_ENDOF_COMPONLY	JOB	FCORE_THROW_COMPONLY
+CF_ENDOF_DICTOF		JOB	FCORE_THROW_DICTOF
+CF_ENDOF_PSUF		JOB	FCORE_THROW_PSUF
+
+CF_ENDOF_RT		EQU	CF_AGAIN_RT
+	
 ;ERASE ( addr u -- )
 ;If u is greater than zero, clear all bits in each of u consecutive address
 ;units of memory beginning at addr .
@@ -4031,11 +4083,11 @@ CFA_OF			DW	CF_OF
 CF_OF			COMPILE_ONLY	CF_OF_COMPONLY 	;ensure that compile mode is on
 			PS_CHECK_OF	1, CF_OF_PSOF	;(PSP-2 -> Y)
 			DICT_CHECK_OF	4, CF_OF_DICTOF	;(CP+4 -> X)
-			;Add run-time CFA to compilation
+			;Add run-time CFA to compilation (CP+4 in X, PSP-2 in Y)
 			MOVW	#CFA_OF_RT, -4,X
 			STX	-2,X
 			STX	CP
-			;Stack orig onto the PS
+			;Stack orig onto the PS (CP+4 in X, PSP-2 in Y)
 			LEAX	-2,X
 			STX	0,Y
 			STY	PSP
@@ -4063,7 +4115,7 @@ CF_OF_RT		PS_CHECK_UF	2, CF_OF_PSUF ;check for underflow (PSP -> Y)
 			STY	PSP 			;update PSP
 			JUMP_NEXT			;go to the next ckeck
 			;Values are equal
-CF_OF_RT_1			LEAY	2,Y			;update PSP
+CF_OF_RT_1		LEAY	2,Y			;update PSP
 			STY	PSP
 			SKIP_NEXT 			;execute conditional code
 	
