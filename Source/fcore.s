@@ -528,40 +528,40 @@ FCORE_HEADER_DICTOF	LDX	#FCORE_THROW_DICTOF
 			;Parsed string overflow
 FCORE_HEADER_STROF	LDX	#FCORE_THROW_STROF
 			JOB	FCORE_HEADER_3
-	
-;#Find the next double-quote delimitered string on the TIB and terminate it. 
-; args:   none
+
+;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
+; args:   A: delimiter
 ; result: X: string pointer
-; SSTACK: 6 bytes
+; SSTACK: 4 bytes
 ;         Y and D are preserved
-FCORE_QUOTE		EQU	*	
+FCORE_PARSE		EQU	*	
 			;Save registers
-			SSTACK_PSHYD			;save index X and accu D			
-			;Check for empty string
+			SSTACK_PSHY			;save index Y			
+			;Check for empty string (delimiter in A)
 			LDY	TO_IN			;current >IN -> Y
 			LEAY	1,Y			;ignore first space character
 			CPY	NUMBER_TIB		;check for the end of the input buffer
-			BHS	FCORE_QUOTE_4		;return empty string
-			LDAA	#$22			;check for double quote
+			BHS	FCORE_PARSE_4		;return empty string
+			;LDAA	#$22			;check for double quote
 			LEAX	TIB_START,Y		;save start of string
-			CMPA	0,X			;check for double quote
-			BEQ	FCORE_QUOTE_4		;return empty string		
-			;Parse remaining characters (>IN in Y, '"' in A, string pointer in X)
-FCORE_QUOTE_1		LEAY	1,Y 			;increment >IN
+			CMPA	0,X			;check for double parse
+			BEQ	FCORE_PARSE_4		;return empty string		
+			;Parse remaining characters (>IN in Y, delimiter in A, string pointer in X)
+FCORE_PARSE_1		LEAY	1,Y 			;increment >IN
 			CPY	NUMBER_TIB		;check for the end of the input buffer
-			BHS	FCORE_QUOTE_2		;terminate previous character
-			CMPA	TIB_START,Y		;check for double quote
-			BNE	FCORE_QUOTE_1		;check next character
-			;Terminate previous character (>IN in Y, '"' in A, string pointer in X) 
-FCORE_QUOTE_2		BSET	TIB_START-1,Y, #$80 	;set termination bit
-FCORE_QUOTE_3		LEAY	2,Y			;increment >IN
+			BHS	FCORE_PARSE_2		;terminate previous character
+			CMPA	TIB_START,Y		;check for double parse
+			BNE	FCORE_PARSE_1		;check next character
+			;Terminate previous character (>IN in Y, delimiter in A, string pointer in X) 
+FCORE_PARSE_2		BSET	TIB_START-1,Y, #$80 	;set termination bit
+FCORE_PARSE_3		LEAY	2,Y			;increment >IN
 			STY	TO_IN			;update >IN
 			;Done
-			SSTACK_PULDY			;restore accu D and index X
+			SSTACK_PULY			;restore index Y
 			SSTACK_RTS
 			;Empty string 
-FCORE_QUOTE_4		LDX	#$0000
-			JOB	FCORE_QUOTE_3
+FCORE_PARSE_4		LDX	#$0000
+			JOB	FCORE_PARSE_3
 
 
 ;#Find a name in the dictionary and return the xt 
@@ -630,6 +630,7 @@ FCORE_THROW_RSUF	EQU	FMEM_THROW_RSUF 		;return stack underflow
 FCORE_THROW_DICTOF	EQU	FMEM_THROW_DICTOF		;dictionary overflow
 FCORE_THROW_0DIV	FEXCPT_THROW	FEXCPT_EC_0DIV		;division by zero
 FCORE_THROW_RESOR	FEXCPT_THROW	FEXCPT_EC_RESOR		;result out of range
+FCORE_THROW_UDEFWORD	FEXCPT_THROW	FEXCPT_EC_UDEFWORD	;undefined word
 FCORE_THROW_COMPONLY	FEXCPT_THROW	FEXCPT_EC_COMPONLY	;interpreting a compile-only word
 FCORE_THROW_PADOF	EQU	FMEM_THROW_PADOF		;pictured numeric output string overflow
 FCORE_THROW_STROF	FEXCPT_THROW	FEXCPT_EC_STROF		;parsed string overflow
@@ -804,21 +805,37 @@ NFA_NUMBER_SIGN_S	EQU	NFA_NUMBER_SIGN_GREATER
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Parameter stack underflow"
-;
-NFA_TICK		EQU	NFA_NUMBER_SIGN_S	
-;			ALIGN	1
-;NFA_TICK		FHEADER, "'", NFA_NUMBER_SIGN_S, COMPILE
-;CFA_TICK		DW	CF_DUMMY
-
+;"Parameter stack overflow"
+;"Undefined word"
+			ALIGN	1
+NFA_TICK		FHEADER, "'", NFA_NUMBER_SIGN_S, COMPILE
+CFA_TICK		DW	CF_TICK
+CF_TICK			PS_CHECK_OF	1, CF_TICK_PSOF 	;check for PS overflow (PSP-2 -> Y)	
+			;Parse name (PSP-2 in Y) 
+			SSTACK_JOBSR	FCORE_NAME 		;string pointer -> X
+			;Search dictionary (string pointer in X, PSP-2 in Y)
+			SSTACK_JOBSR	FCORE_FIND 		;CFA -> X, status -> D
+			TBEQ	D, CF_TICK_UDEFWORD
+			STX	0,Y
+			STY	PSP
+			;Done
+			NEXT
+	
+CF_TICK_PSOF		JOB	FCORE_THROW_PSOF	
+CF_TICK_UDEFWORD	JOB	FCORE_THROW_UDEFWORD
+	
 ;( 
 ;Compilation: Perform the execution semantics given below.
 ;Execution: ( "ccc<paren>" -- )
 ;Parse ccc delimited by ) (right parenthesis). ( is an immediate word.
-NFA_PAREN		equ	NFA_TICK
-;			ALIGN	1
-;NFA_PAREN		FHEADER, "(", NFA_TICK, IMMEDIATE
-;CFA_PAREN		DW	CF_DUMMY
+			ALIGN	1
+NFA_PAREN		FHEADER, "(", NFA_TICK, IMMEDIATE
+CFA_PAREN		DW	CF_PAREN
+CF_PAREN		;Skip TIB to next ")"
+			LDAA	#")"
+			SSTACK_JOBSR	FCORE_PARSE
+			;Done
+			NEXT
 	
 ;* ( n1|u1 n2|u2 -- n3|u3 )
 ;Multiply n1|u1 by n2|u2 giving the product n3|u3.
@@ -1060,7 +1077,8 @@ CF_DOT_QUOTE_STROF	JOB	FCORE_THROW_STROF
 NFA_DOT_QUOTE		FHEADER, '."', NFA_DOT, IMMEDIATE ;"
 CFA_DOT_QUOTE		DW	CF_DOT_QUOTE 			;immediate or compile mode?
 CF_DOT_QUOTE		;Parse quote
-			SSTACK_JOBSR	FCORE_QUOTE
+			LDAA	#$22 				;double quote
+			SSTACK_JOBSR	FCORE_PARSE
 			TBEQ	X, CF_DOT_QUOTE_4 		;empty quote		
 			;Check state (string pointer in X)
 			COMPILE_ONLY	CF_DOT_QUOTE_6 		;ensure that compile mode is on
@@ -1837,15 +1855,36 @@ CFA_BASE		DW	CF_CONSTANT_RT
 ;stack. Append the run-time semantics given below to the current definition.
 ;Run-time: ( -- )
 ;Continue execution.
-NFA_BEGIN		EQU	NFA_BASE
-;			ALIGN	1
-;NFA_BEGIN		FHEADER, "BEGIN", NFA_BASE, IMMEDIATE
-;CFA_BEGIN		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+;"Compile-only word"
+;
+			ALIGN	1
+NFA_BEGIN		FHEADER, "BEGIN", NFA_BASE, IMMEDIATE
+CFA_BEGIN		DW	CF_BEGIN
+CF_BEGIN		COMPILE_ONLY	CF_BEGIN_COMPONLY 	;ensure that compile mode is on
+			PS_CHECK_OF	1, CF_BEGIN_PSOF	;overflow check	=> 9 cycles
+			MOVW	CP, 0,Y
+			STY	PSP
+			NEXT
 
+CF_BEGIN_PSOF		JOB	FCORE_THROW_PSOF	
+CF_BEGIN_COMPONLY	JOB	FCORE_THROW_COMPONLY
+	
+;BIN ( -- ) Non-standard S12CForth extension!
+;Set the numeric conversion radix to two (binary).
+			ALIGN	1
+NFA_BIN			FHEADER, "BIN", NFA_BEGIN, COMPILE
+CFA_BIN			DW	CF_BIN
+CF_BIN			MOVW	#2, BASE
+			NEXT
+	
 ;BL ( -- char )
 ;char is the character value for a space.
 			ALIGN	1
-NFA_B_L			FHEADER, "BL", NFA_BEGIN, COMPILE
+NFA_B_L			FHEADER, "BL", NFA_BIN, COMPILE
 CFA_B_L			DW	CF_CONSTANT_RT
 			DW	PRINT_SYM_SPACE
 
@@ -2062,7 +2101,8 @@ CF_CREATE_RT		PS_CHECK_OF	1, CF_CREATE_PSOF	;overflow check	=> 9 cycles
 			RS_PUSH_KEEP_X	IP, CF_CREATE_RSOF	;IP -> RS	=>20 cycles
 			LEAY		2,X			;IP+2 -> IP	=> 2 cycles
 			STY		IP			;		=> 3 cycles
-			JMP		[0,X]			;JUMP [new CFA] => 6 cycles
+			LDX		0,X			;JUMP [new CFA]	=> 3 cycles
+			JMP		[0,X]			;               => 6 cycles
 								;                 ---------
 								;                 52 cycles
 CF_CREATE_RT_1		NEXT					;NEXT
@@ -2145,8 +2185,8 @@ NFA_DO			EQU	NFA_DEPTH
 NFA_DOES		FHEADER, "DOES>", NFA_DO, IMMEDIATE
 CFA_DOES		DW	CF_DOES
 CF_DOES			COMPILE_ONLY	CF_DOES_COMPONLY 	;ensure that compile mode is on
-			DICT_CHECK_OF	4, CF_DOES_DICTOF	;(CP+2 -> X)
-			MOVW	CF_DOES_RT, -2,X
+			DICT_CHECK_OF	2, CF_DOES_DICTOF	;(CP+2 -> X)
+			MOVW	#CFA_DOES_RT, -2,X
 			STX	CP
 			NEXT
 
@@ -2166,6 +2206,7 @@ CFA_DOES_RT		DW	CF_DOES_RT
 CF_DOES_RT		LDY	LAST_NFA
 			LDAA	2,Y
 			LEAY	A,Y
+			LEAY	3,Y
 			LDD	2,Y+
 			CPD	CFA_CREATE_RT
 			BNE	CF_DOES_NONCREATE	;last word was not defined by CREATE
@@ -2323,13 +2364,23 @@ CF_EXECUTE_PSUF		JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;Run-time throws:
-;"Return stack underflow"
-;
-NFA_EXIT		EQU	NFA_EXECUTE
-;			ALIGN	1
-;NFA_EXIT		FHEADER, "EXIT", NFA_EXECUTE, COMPILE
-;CFA_EXIT_RT		DW	CF_DUMMY
-
+;"Compile-only word"
+;"Dictionary overflow"
+			ALIGN	1
+NFA_EXIT		FHEADER, "EXIT", NFA_EXECUTE, IMMEDIATE
+CFA_EXIT		DW	CF_EXIT
+CF_EXIT			COMPILE_ONLY	CF_EXIT_COMPONLY 	;ensure that compile mode is on
+			DICT_CHECK_OF	2, CF_EXIT_DICTOF	;(CP+2 -> X)
+			;Append CFA (CP+2 in X)
+			MOVW	#CF_EXIT_RT, -2,X
+			STX	CP
+			;Done 
+			NEXT
+			
+CF_EXIT_COMPONLY	JOB	FCORE_THROW_COMPONLY
+CF_EXIT_RSUF		JOB	FCORE_THROW_RSUF
+CF_EXIT_DICTOF		JOB	FCORE_THROW_DICTOF
+	
 ;EXIT run-time semantics
 ;
 ;S12CForth implementation details:
@@ -2343,7 +2394,6 @@ CF_EXIT_RT		RS_PULL_Y	CF_EXIT_RSUF		;RS -> Y (= IP)		=>12 cycles
 			JMP		[0,X]			;JUMP [CFA]             => 6 cycles
 								;                         ---------
 								;                         24 cycles			
-CF_EXIT_RSUF		JOB	FCORE_THROW_RSUF
 	
 ;FILL ( c-addr u char -- )
 ;If u is greater than zero, store char in each of u consecutive characters of
@@ -2847,11 +2897,33 @@ CF_OVER_PSOF		JOB	FCORE_THROW_PSOF
 ;Skip leading space delimiters. Parse name delimited by a space. Find name.
 ;Append the compilation semantics of name to the current definition. An
 ;ambiguous condition exists if name is not found.
-NFA_POSTPONE		EQU	NFA_OVER
-;			ALIGN	1
-;NFA_POSTPONE		FHEADER, "POSTPONE", NFA_OVER, COMPILE
-;CFA_POSTPONE		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Dictionary overflow"
+;"Undefined word"
+;"Compile-only word"
+			ALIGN	1
+NFA_POSTPONE		FHEADER, "POSTPONE", NFA_OVER, IMMEDIATE
+CFA_POSTPONE		DW	CF_POSTPONE
+CF_POSTPONE		COMPILE_ONLY	CF_POSTPONE_COMPONLY 	;ensure that compile mode is on
+			DICT_CHECK_OF	2, CF_POSTPONE_DICTOF	;(CP+2 -> X)
+			;Parse name (CP+2 -> X)
+			TFR	X, Y
+			SSTACK_JOBSR	FCORE_NAME 		;string pointer -> X
+			;Search dictionary (string pointer in X, CF+2 in Y)
+			SSTACK_JOBSR	FCORE_FIND 		;CFA -> X, status -> D
+			TBEQ	D, CF_POSTPONE_UDEFWORD
+			;Compile CFA
+			STX	-2,Y
+			STY	CP
+			;Done
+			NEXT
 
+CF_POSTPONE_DICTOF	JOB	FCORE_THROW_DICTOF	
+CF_POSTPONE_UDEFWORD	JOB	FCORE_THROW_UDEFWORD	
+CF_POSTPONE_COMPONLY	JOB	FCORE_THROW_COMPONLY
+	
 ;QUIT ( -- )  ( R:  i*x -- )
 ;Empty the return stack, store zero in SOURCE-ID if it is present, make the user
 ;input device the input source, and enter interpretation state. Do not display a
@@ -3028,11 +3100,37 @@ NFA_RECURSE		EQU	NFA_R_FETCH
 ;location following the appended run-time semantics.
 ;Run-time: ( -- )
 ;Continue execution at the location given by dest.
-NFA_REPEAT		EQU	NFA_RECURSE
-;			ALIGN	1
-;NFA_REPEAT		FHEADER, "REPEAT", NFA_RECURSE, COMPILE
-;CFA_REPEAT		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Dictionary overflow"
+;"Compile-only word"
+;
+			ALIGN	1
+NFA_REPEAT		FHEADER, "REPEAT", NFA_RECURSE, IMMEDIATE
+CFA_REPEAT		DW	CF_REPEAT
+CF_REPEAT		COMPILE_ONLY	CF_REPEAT_COMPONLY 	;ensure that compile mode is on
+			PS_CHECK_UF	1, CF_REPEAT_PSUF	;(PSP -> Y)
+			DICT_CHECK_OF	4, CF_REPEAT_DICTOF	;(CP+4-> X)
+			;Add run-time CFA to compilation (CP+4 in X, PSP in Y)
+			MOVW	#CFA_REPEAT_RT, -4,X
+			MOVW	2,Y+, -2,X
+			STX	CP
+			;Add address to CFA_WHILE_RT
+			LDX	2,Y+
+			STY	PSP
+			MOVW	CP, 0,X
+			;Done 
+			NEXT
 
+CF_REPEAT_PSUF		JOB	FCORE_THROW_PSUF
+CF_REPEAT_DICTOF	JOB	FCORE_THROW_DICTOF
+CF_REPEAT_COMPONLY	JOB	FCORE_THROW_COMPONLY
+
+;REPEAT run-time semantics 
+CFA_REPEAT_RT		EQU	CFA_AGAIN_RT 	;same as AGAIN run-time semantics
+	
 ;ROT ( x1 x2 x3 -- x2 x3 x1 )
 ;Rotate the top three stack entries.
 ;
@@ -3249,6 +3347,11 @@ CF_SWAP_PSUF		JOB	FCORE_THROW_PSUF
 ;semantics.
 ;Run-time: ( -- )
 ;Continue execution.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter Stack underflow"
+;"Compile-only word"
 			ALIGN	1
 NFA_THEN		FHEADER, "THEN", NFA_SWAP, IMMEDIATE
 CFA_THEN		DW	CF_THEN
@@ -3393,10 +3496,30 @@ NFA_UNLOOP		EQU	NFA_U_M_SLASH_MOD
 ;Run-time: ( x -- )
 ;If all bits of x are zero, continue execution at the location specified by
 ;dest.
-NFA_UNTIL		EQU	NFA_UNLOOP
-;			ALIGN	1
-;NFA_UNTIL		FHEADER, "UNTIL", NFA_UNLOOP, COMPILE
-;CFA_UNTIL		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Dictionary overflow"
+;"Compile-only word"
+;
+			ALIGN	1
+NFA_UNTIL		FHEADER, "UNTIL", NFA_UNLOOP, IMMEDIATE
+CFA_UNTIL		DW	CF_UNTIL
+CF_UNTIL		COMPILE_ONLY	CF_UNTIL_COMPONLY 	;ensure that compile mode is on
+			PS_CHECK_UF	1, CF_UNTIL_PSUF	;(PSP -> Y)
+			DICT_CHECK_OF	4, CF_UNTIL_DICTOF	;(CP+4-> X)
+			;Add run-time CFA to compilation (CP+4 in X, PSP in Y)
+			MOVW	#CFA_UNTIL_RT, -4,X
+			MOVW	2,Y+, -2,X
+			STX	CP
+			STY	PSP
+			;Done 
+			NEXT
+	
+CF_UNTIL_PSUF		JOB	FCORE_THROW_PSUF
+CF_UNTIL_DICTOF		JOB	FCORE_THROW_DICTOF
+CF_UNTIL_COMPONLY	JOB	FCORE_THROW_COMPONLY
 
 ;UNTIL run-time semantics 
 ;
@@ -3411,8 +3534,6 @@ CF_UNTIL_RT		PS_PULL_X	CF_UNTIL_PSUF
 			SKIP_NEXT		;increment IP and do NEXT
 CF_UNTIL_RT_1		JUMP_NEXT
 			
-CF_UNTIL_PSUF		JOB	FCORE_THROW_PSUF	
-
 ;VARIABLE ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below. Reserve one
@@ -3475,11 +3596,37 @@ CF_VARIABLE_RT		PS_CHECK_OF	1, CF_VARIABLE_PSOF	;overflow check	=> 9 cycles
 ;Run-time: ( x -- )
 ;If all bits of x are zero, continue execution at the location specified by the
 ;resolution of orig.
-NFA_WHILE		EQU	NFA_VARIABLE
-;			ALIGN	1
-;NFA_WHILE		FHEADER, "WHILE", NFA_VARIABLE, COMPILE
-;CFA_WHILE		DW	CF_DUMMY
-
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack ovderflow"
+;"Dictionary overflow"
+;"Compile-only word"
+;
+			ALIGN	1
+NFA_WHILE		FHEADER, "WHILE", NFA_VARIABLE, IMMEDIATE
+CFA_WHILE		DW	CF_WHILE
+CF_WHILE		COMPILE_ONLY	CF_WHILE_COMPONLY 	;ensure that compile mode is on
+			PS_CHECK_UFOF	1, CF_WHILE_PSUF, 1, CF_WHILE_PSOF ;check for under and overflow (PSP-2 -> Y)	
+			DICT_CHECK_OF	4, CF_WHILE_DICTOF	;(CP+4-> X)
+			;Add run-time CFA to compilation (CP+4 in X, PSP-2 in Y)
+			MOVW	#CFA_WHILE_RT, -4,X
+			STX	-2,X
+			STX	CP
+			;Move dest to TOS
+			MOVW	2,Y, 0,Y
+			LEAX	-2,X
+			STX	2,Y
+			STY	PSP
+			;Done
+			NEXT
+	
+CF_WHILE_PSUF		JOB	FCORE_THROW_PSUF
+CF_WHILE_PSOF		JOB	FCORE_THROW_PSOF
+CF_WHILE_DICTOF		JOB	FCORE_THROW_DICTOF
+CF_WHILE_COMPONLY	JOB	FCORE_THROW_COMPONLY
+	
 ;WHILE run-time semantics 
 CFA_WHILE_RT		EQU	CFA_UNTIL_RT 	;same as UNTIL run-time semantics
 	
@@ -3716,14 +3863,15 @@ NFA_TWO_R_FETCH		EQU	NFA_TWO_FROM_R
 ;Throws:
 ;"Parameter stack overflow"
 ;"Compiler nesting"
+;"Dictionary overflow"
 ;
 			ALIGN	1
 NFA_COLON_NONAME	FHEADER, ":NONAME", NFA_TWO_R_FETCH, IMMEDIATE
 CFA_COLON_NONAME	DW	CF_COLON_NONAME
 CF_COLON_NONAME		INTERPRET_ONLY	CF_COLON_NONAME_COMPNEST	;check for nested definition
 			PS_CHECK_OF	2, CF_COLON_NONAME_PSOF 	;(PSP-4 -> Y)
-			DICT_CHECK_OF	2, CF_COLON_NAME_DICTOF		;(CP+2 -> X)
-						;Push xt and $0000 onto the PS (PSP-4 in Y)
+			DICT_CHECK_OF	2, CF_COLON_NONAME_DICTOF		;(CP+2 -> X)
+			;Push xt and $0000 onto the PS (PSP-4 in Y, CP+2 -> X)
 			LDX	CP
 			STX	2,Y
 			MOVW	#$0000, 0,Y
@@ -3738,7 +3886,7 @@ CF_COLON_NONAME		INTERPRET_ONLY	CF_COLON_NONAME_COMPNEST	;check for nested defin
 
 CF_COLON_NONAME_PSOF		JOB	FCORE_THROW_PSOF
 CF_COLON_NONAME_COMPNEST	JOB	FCORE_THROW_COMPNEST
-CF_COLON_NAME_DICTOF		JOB	FCORE_THROW_DICTOF
+CF_COLON_NONAME_DICTOF		JOB	FCORE_THROW_DICTOF
 	
 ;<> ( x1 x2 -- flag )
 ;flag is true if and only if x1 is not bit-for-bit the same as x2.
@@ -3782,10 +3930,30 @@ NFA_QUESTION_DO		EQU	NFA_NOT_EQUALS
 ;Run-time: ( -- )
 ;Continue execution at the location specified by dest. If no other control flow
 ;words are used, any program code after AGAIN will not be executed.
-NFA_AGAIN		EQU	NFA_QUESTION_DO
-;			ALIGN	1
-;NFA_AGAIN		FHEADER, "AGAIN", NFA_QUESTION_DO, IMMEDIATE
-;CFA_AGAIN		DW	DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Dictionary overflow"
+;"Compile-only word"
+;
+			ALIGN	1
+NFA_AGAIN		FHEADER, "AGAIN", NFA_QUESTION_DO, IMMEDIATE
+CFA_AGAIN		DW	CF_AGAIN
+CF_AGAIN		COMPILE_ONLY	CF_AGAIN_COMPONLY 	;ensure that compile mode is on
+			PS_CHECK_UF	1, CF_AGAIN_PSUF	;(PSP -> Y)
+			DICT_CHECK_OF	4, CF_AGAIN_DICTOF	;(CP+4-> X)
+			;Add run-time CFA to compilation (CP+4 in X, PSP in Y)
+			MOVW	#CFA_AGAIN_RT, -4,X
+			MOVW	2,Y+, -2,X
+			STX	CP
+			STY	PSP
+			;Done 
+			NEXT
+	
+CF_AGAIN_PSUF		JOB	FCORE_THROW_PSUF
+CF_AGAIN_DICTOF		JOB	FCORE_THROW_DICTOF
+CF_AGAIN_COMPONLY	JOB	FCORE_THROW_COMPONLY
 	
 ;AGAIN run-time semantics
 			ALIGN	1
