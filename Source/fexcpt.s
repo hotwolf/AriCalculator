@@ -58,13 +58,13 @@
 ;                         |                      |
 ;                         |                      |
 ;                         |                      | 
-;                         +----------------------+
-;               HANDLER-> |   previous HANDLER   |
-;                         +----------------------+
-;                         |     PSP at CATCH     |
-;                         +----------------------+
-;                         | IP after CATCH call  |
-;                         +----------------------+
+;                         +----------------------+ <-+
+;               HANDLER-> |   previous HANDLER   |   |
+;                         +----------------------+   |error
+;                         |     PSP at CATCH     |   |stack
+;                         +----------------------+   |frame
+;                         | IP after CATCH call  |   |
+;                         +----------------------+ <-+
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -229,16 +229,17 @@ FEXCPT_THROW_5		TFR	Y, D
 			;ABORT
 FEXCPT_THROW_6		EQU	CF_ABORT_RT
 			;JOB	CF_ABORT_RT	
-			;ABORT" (message pointer in IP)
-FEXCPT_THROW_7		LDX	IP	
+			;ABORT" (message pointer in ABORT_QUOTE_MSG)
+FEXCPT_THROW_7		LDX	ABORT_QUOTE_MSG
+			BEQ	FEXCPT_THROW_9
 			PRINT_STRCNT						
-			IBEQ	A, FEXCPT_THROW_9 				;invalid error message
+			IBEQ	A, FEXCPT_THROW_9				;invalid error message
 			PRINT_LINE_BREAK
 			PRINT_STR
 			JOB	CF_ABORT_RT
-			;ABORT
+			;QUIT
 FEXCPT_THROW_8		EQU	CF_QUIT_RT
-			JOB	CF_QUIT_RT
+			;JOB	CF_QUIT_RT
 			;Invalid error message 
 FEXCPT_THROW_9		LDY	#FEXCPT_MSG_UNKNOWN
 			JOB	FEXCPT_THROW_5
@@ -364,33 +365,36 @@ NFA_CATCH		FHEADER, "CATCH", FEXCPT_PREV_NFA, COMPILE
 CFA_CATCH		DW	CF_CATCH			;
 CF_CATCH		PS_CHECK_UF	1, CF_CATCH_PSUF 	;check PS requirements (PSP -> Y)
 			RS_CHECK_OF	3, CF_CATCH_RSOF	;check RS requirements 
+			;Build exception stack frame 
 			LDX	RSP				;RSP -> X
 			MOVW	IP,	 2,-X			;IP      > RS
+			LEAY	2,Y
 			STY		 2,-X			;PSP     > RS
 			MOVW	HANDLER, 2,-X			;HANDLER > RS			
 			STX	RSP
 			STX	HANDLER		      		;RSP -> HANDLER
-			MOVW	#CFA_CATCH_RESTORE, IP 		;set next IP	
-			LDX	2,Y+ 				;execute xt
+			;Execute xt (RSP in X, PSP+2 in Y)
+			MOVW	#IP_CATCH_RESUME, IP 		;set next IP	
+			LDX	-2,Y 				;execute xt
 			STY	PSP
 			JMP	[0,X]
-	
-CFA_CATCH_RESTORE	DW	CF_CATCH_RESTORE
-CF_CATCH_RESTORE	RS_CHECK_UF 3, CF_CATCH_CESF	 	;RS for underflow (RSP -> X)
-			CPX	HANDLER				;check if RSP=HANDLER
+			;Resume CATCH, no exception was thrown
+IP_CATCH_RESUME		DW	CFA_CATCH_RESUME
+CFA_CATCH_RESUME	DW	CF_CATCH_RESUME
+CF_CATCH_RESUME		RS_CHECK_UF 	3, CF_CATCH_CESF	;check for RS underflow (RSP -> X)
+			PS_CHECK_OF	1, CF_CATCH_PSOF	;check for PS overflow (PSP-2 -> Y)
+			;Check if HANDLER points to the top of the RS (RSP in X, PSP-2 in Y)
+			CPX	HANDLER				;check if RSP==HANDLER
 			BNE	CF_CATCH_CESF			;corrupt exception stack frame
-			;Switch to previous handler 
-			MOVW	4,X+, HANDLER 			;RS > HANDLER
-			LDY	2,X+				;RS > IP
+			;Restore error stack frame (RSP in X, PSP-2 in Y)
+			LEAX	4,X
+			MOVW	2,X+, IP
 			STX	RSP
-			;Push 0x0 onto the PS	
-			PS_CHECK_OF	1, CF_CATCH_PSOF	;check for PS overflow (PSP-new cells -> Y)
-			MOVW	#$0000, 0,Y			;push 0 onto PS 
+			;Push 0x0 onto the PS (RSP in X, PSP-2 in Y)
+			MOVW	#$0000, 0,Y			;push 0 onto PS
 			STY	PSP
-			;Switch over to next instruction	
-			LDX	2,Y+ 				;NEXT
-			STY	IP
-			JMP	[0,X]
+			;Done 
+			NEXT
 	
 CF_CATCH_PSUF		JOB	FEXCPT_THROW_PSUF			
 CF_CATCH_PSOF		JOB	FEXCPT_THROW_PSOF			

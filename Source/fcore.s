@@ -107,6 +107,7 @@ IP			DS	2 	;instruction pointer
 BASE			DS	2	;base for numeric I/O
 STATE			DS	2	;interpreter state (0:iterpreter, -1:compile)
 LAST_NFA		DS	2	;last NFA entry 
+ABORT_QUOTE_MSG		DS	2	;message of last ABORT" call
 FCORE_VARS_END		EQU	*
 	
 ;###############################################################################
@@ -117,6 +118,7 @@ FCORE_VARS_END		EQU	*
 			MOVW	#PRINT_BASE_DEF, BASE		;initialize BASE variable
 			MOVW	#$0000, STATE
 			MOVW	#FCORE_LAST_NFA, LAST_NFA 	;initialize pointer to last NFA
+			MOVW	#$0000, ABORT_QUOTE_MSG
 #emac
 
 ;#Common word format:
@@ -1816,7 +1818,9 @@ CF_ABORT_QUOTE_RT	PS_CHECK_UF	1, CF_ABORT_QUOTE_PSUF;check for underflow
 			;Check x1
 			LDD	2,Y+
 			BEQ	CF_ABORT_QUOTE_RT_2 	;all bita are zero
-			STY	PSP			
+			STY	PSP
+			;Update current ABORT" message
+			MOVW	IP, ABORT_QUOTE_MSG
 			;Throw exception
 CF_ABORT_QUOTE_RT_1	JOB	FCORE_THROW_ABORTQ 	;string pointer is i IP
 			;Resume
