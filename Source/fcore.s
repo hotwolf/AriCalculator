@@ -98,14 +98,6 @@ FCORE_BASE_MIN		EQU	PRINT_BASE_MIN	;2
 FCORE_BASE_MAX		EQU	PRINT_BASE_MAX	;PRINT_SYMTAB_END-PRINT_SYMTAB=26
 FCORE_BASE_DEF		EQU	PRINT_BASE_DEF	;10
 FCORE_SYMTAB		EQU	PRINT_SYMTAB
-
-;Standard error codes
-FCORE_EC_UDEFWORD	EQU	FEXCPT_EC_UDEFWORD	;undefined wor
-FCORE_EC_0DIV		EQU	FEXCPT_EC_0DIV		;division by zero
-FCORE_EC_RESOR		EQU	FEXCPT_EC_RESOR		;result out of range
-FCORE_EC_COMPNEST	EQU	FEXCPT_EC_COMPNEST	;compiler nesting
-FCORE_EC_INVALNAME	EQU	FEXCPT_EC_INVALNAME	;invalid name
-FCORE_EC_INVALBASE	EQU	FEXCPT_EC_INVALBASE	;invalid BASE
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -250,7 +242,27 @@ CF_RESUME		RS_PULL	IP, \3 			;RS -> IP
 			LDD	STATE
 			BNE	\1
 #emac
-	
+
+;CPSTR_X_TO_Y: Copy a string at X to the location at Y (X, Y, and D are modified)
+#macro	CPSTR_X_TO_Y, 0	;args: none
+LOOP			LDD	2,X+
+			STAA	1,Y+
+			BMI	DONE	
+			STAB	1,Y+
+			BPL	LOOP
+DONE			EQU	*	
+#emac
+
+;CPSTR_Y_TO_X: Copy a string at X to the location at Y (X, Y, and D are modified)
+#macro	CPSTR_Y_TO_X, 0	;args: none
+LOOP			LDD	2,Y+
+			STAA	1,X+
+			BMI	DONE	
+			STAB	1,X+
+			BPL	LOOP
+DONE			EQU	*	
+#emac
+
 ;DEBUG: Ensure that the system is in interpretation state
 #macro	DEBUG, 1	;args: 1:message
 ADDR			PRINT_LINE_BREAK
@@ -265,6 +277,7 @@ ADDR			PRINT_LINE_BREAK
 MSG			FCC	\1
 			FCS     " @"	
 DONE			EQU	*
+
 #emac
 	
 ;###############################################################################
@@ -276,17 +289,17 @@ DONE			EQU	*
 ;#Find the next whitespace delimitered string on the TIB, make it upper case and
 ; terminate it. 
 ; args:   none
-; restlt: X: string pointer
-; SSTACK: 6 bytes
-;         Y and D are preserved
+; result: X: string pointer
+;	  A: character count (saturated at 255) 
+; SSTACK: 5 bytes
+;         Y and B are preserved
 FCORE_NAME		EQU	*	
 			;Save registers
-			SSTACK_PSHYD			;save index X and accu D
-
+			SSTACK_PSHYB			;save index X and accu B
 			;Skip leading whitespaces
 			LDY	TO_IN			;current >IN -> Y	
 FCORE_NAME_1		CPY	NUMBER_TIB		;check for the end of the input buffer
-			BHS	FCORE_NAME_5		;return empty string
+			BHS	FCORE_NAME_7		;return empty string
 			LDAB	TIB_START,Y
 			LEAY	1,Y			;increment string pointer
 			CMPB	#"!"	
@@ -313,16 +326,28 @@ FCORE_NAME_3		LEAY	1,Y			;increment string pointer
 			BLS	FCORE_NAME_2		;check next character
 			;Terminate string (last character in A, pointer to last character in Y, string pointer in X)
 FCORE_NAME_4		ORAA	#$80			;add termination bit to last character
-			STAA	 TIB_START-1,Y
-			;Adjust >IN pointer (string pointer in X)
+			STAA	 TIB_START-1,Y	
+			;Adjust >IN pointer (pointer to last character in Y, string pointer in X)
 			STY	TO_IN
-			JOB	FCORE_NAME_6
-			;Return empty string
-FCORE_NAME_5		STY	TO_IN			;update >IN pointer
-			LDX	#$0000			;set string pointer to 
+			;Calculate character count (pointer to last character in Y, string pointer in X)
+			TFR	X, D 			;string pointer -> D
+			COMA				;negate D
+			COMB
+			LEAY	TIB_START+1,Y		;(-D-1) + (Y+1) -> Y
+			LEAY	D,Y 			
+			TFR	Y, D			;character count -> D
+			;Saturate count at 255 (character count in D)
+			TBEQ	A, FCORE_NAME_5
+			LDAB	#$FF
+FCORE_NAME_5		TBA			
 			;Done
-FCORE_NAME_6		SSTACK_PULDY			;restore accu D and index X
+FCORE_NAME_6		SSTACK_PULBY			;restore accu B and index X
 			SSTACK_RTS
+			;Return empty string
+FCORE_NAME_7		STY	TO_IN			;update >IN pointer
+			LDX	#$0000			;set string pointer to 
+			CLRA
+			JOB	FCORE_NAME_6
 
 ;#Convert a terminated string into a number
 ; args:   X:   string pointer
@@ -483,7 +508,7 @@ FCORE_NUMBER_15		MOVW	#$0002, FCORE_NUMBER_SIZE,X
 
 ;#Parse TIB for a name and create a definition header
 ; args:   X: string pointer
-; resuut: D: NFA
+; result: D: NFA
 ;         X: error hanldler (0=no errors, FCORE_THROW_DICTOF, or FCORE_THROW_NONAME)	
 ; SSTACK: 10  bytes
 ;          Y is  preserved
@@ -491,12 +516,10 @@ FCORE_HEADER		EQU	*
 			;Save registers
 			SSTACK_PSHY
 			;Read next word
-			SSTACK_JOBSR	FCORE_NAME 			;string pointer -> X (STACK: 6 bytes)
-			TBEQ	X, FCORE_HEADER_NONAME
-			;Count characters in word (string pointer in X) 
-			PRINT_STRCNT 					;(SSTACK: 2 bytes)
-			TSTA
-			BMI	FCORE_HEADER_STROF	
+			SSTACK_JOBSR	FCORE_NAME 			;string pointer -> X, char count -> A (STACK: 5 bytes)
+			TBEQ	X, FCORE_HEADER_NONAME 			;zero length name
+			IBEQ	A, FCORE_HEADER_STROF 			;name longer then 254 characters
+			DECA
 			;Check for Dictionary overflow (string pointer in X, char count in A)
 			TFR	X, Y
 			TAB
@@ -507,11 +530,7 @@ FCORE_HEADER		EQU	*
 			MOVW	LAST_NFA, 2,X+ 				;append LAST_NFA 
 			STAB	1,X+ 					;append character count
 			;Append name (new CP in X, string pointer in Y)
-FCORE_HEADER_1		LDD	2,Y+
-			STAA	1,X+
-			BMI	FCORE_HEADER_2 				;clean up
-			STAB	1,X+
-			BPL	FCORE_HEADER_1 				;next 2 chars
+FCORE_HEADER_1		CPSTR_Y_TO_X
 			;Return result (new CP in X)
 FCORE_HEADER_2		LDD	CP
 			STX	CP
@@ -532,37 +551,40 @@ FCORE_HEADER_STROF	LDX	#FCORE_THROW_STROF
 ;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
 ; args:   A: delimiter
 ; result: X: string pointer
-; SSTACK: 4 bytes
-;         Y and D are preserved
+;	  A: character count (saturated at 255) 	
+; SSTACK: 5 bytes
+;         Y and B are preserved
 FCORE_PARSE		EQU	*	
 			;Save registers
-			SSTACK_PSHY			;save index Y			
+			SSTACK_PSHYB			;save index X and accu B
 			;Check for empty string (delimiter in A)
+			CLRB	      			;0 -> B
 			LDY	TO_IN			;current >IN -> Y
 			LEAY	1,Y			;ignore first space character
 			CPY	NUMBER_TIB		;check for the end of the input buffer
 			BHS	FCORE_PARSE_4		;return empty string
-			;LDAA	#$22			;check for double quote
 			LEAX	TIB_START,Y		;save start of string
-			CMPA	0,X			;check for double parse
+			CMPA	0,X			;check for double quote
 			BEQ	FCORE_PARSE_4		;return empty string		
 			;Parse remaining characters (>IN in Y, delimiter in A, string pointer in X)
-FCORE_PARSE_1		LEAY	1,Y 			;increment >IN
+FCORE_PARSE_1		ADDB	#1 			;increment B
+			SBCB	#0			;saturate B
+			LEAY	1,Y 			;increment >IN
 			CPY	NUMBER_TIB		;check for the end of the input buffer
 			BHS	FCORE_PARSE_2		;terminate previous character
 			CMPA	TIB_START,Y		;check for double parse
 			BNE	FCORE_PARSE_1		;check next character
 			;Terminate previous character (>IN in Y, delimiter in A, string pointer in X) 
 FCORE_PARSE_2		BSET	TIB_START-1,Y, #$80 	;set termination bit
-FCORE_PARSE_3		LEAY	2,Y			;increment >IN
+FCORE_PARSE_3		LEAY	1,Y			;increment >IN
 			STY	TO_IN			;update >IN
+			TBA				;character count -> A
 			;Done
-			SSTACK_PULY			;restore index Y
+			SSTACK_PULBY			;restore accu B and index X
 			SSTACK_RTS
 			;Empty string 
 FCORE_PARSE_4		LDX	#$0000
 			JOB	FCORE_PARSE_3
-
 
 ;#Find a name in the dictionary and return the xt 
 ; args:   X: string pointer
@@ -623,6 +645,8 @@ FCORE_FIND_8		SSTACK_PULY
 ;Exceptions:
 ;===========
 ;Standard exceptions
+FCORE_THROW_ABORT	FEXCPT_THROW	FEXCPT_EC_ABORT		;ABORT
+FCORE_THROW_ABORTQ	FEXCPT_THROW	FEXCPT_EC_ABORTQ	;ABORT"
 FCORE_THROW_PSOF	EQU	FMEM_THROW_PSOF			;stack overflow
 FCORE_THROW_PSUF	EQU	FMEM_THROW_PSUF			;stack underflow
 FCORE_THROW_RSOF	EQU	FMEM_THROW_PSOF			;return stack overflow
@@ -632,6 +656,7 @@ FCORE_THROW_0DIV	FEXCPT_THROW	FEXCPT_EC_0DIV		;division by zero
 FCORE_THROW_RESOR	FEXCPT_THROW	FEXCPT_EC_RESOR		;result out of range
 FCORE_THROW_UDEFWORD	FEXCPT_THROW	FEXCPT_EC_UDEFWORD	;undefined word
 FCORE_THROW_COMPONLY	FEXCPT_THROW	FEXCPT_EC_COMPONLY	;interpreting a compile-only word
+FCORE_THROW_NONAME	FEXCPT_THROW	FEXCPT_EC_NONAME	;missing name argument
 FCORE_THROW_PADOF	EQU	FMEM_THROW_PADOF		;pictured numeric output string overflow
 FCORE_THROW_STROF	FEXCPT_THROW	FEXCPT_EC_STROF		;parsed string overflow
 FCORE_THROW_CTRLSTRUC	FEXCPT_THROW	FEXCPT_EC_CTRLSTRUC	;control structure mismatch
@@ -639,9 +664,10 @@ FCORE_THROW_COMPNEST	FEXCPT_THROW	FEXCPT_EC_COMPNEST	;compiler nesting
 FCORE_THROW_NONCREATE	FEXCPT_THROW	FEXCPT_EC_NONCREATE	;invalid usage of non-CREATEd definition
 FCORE_THROW_INVALNAME	FEXCPT_THROW	FEXCPT_EC_INVALNAME	;invalid name
 FCORE_THROW_INVALBASE	FEXCPT_THROW	FEXCPT_EC_INVALBASE	;invalid BASE
+FCORE_THROW_QUIT	FEXCPT_THROW	FEXCPT_EC_QUIT		;QUIT
 
 ;Non-Standard exceptions
-FCORE_THROW_NONAME	FEXCPT_THROW	FEXCPT_EC_NONAME	;missing name argument
+FCORE_THROW_NOMSG	EQU	FEXCPT_THROW_NOMSG		;empty message string
 
 ;Common code fields:
 ;=================== 	
@@ -1067,23 +1093,24 @@ CF_DOT_INVALBASE	JOB	FCORE_THROW_INVALBASE
 ;S12CForth implementation details:
 ;Interpretation semantics:
 ;Print string to the terminal
-;Throws:
+;Trows:
 ;"Dictionary overflow"
+;"Parsed string overflow"
 ;
 CF_DOT_QUOTE_DICTOF	JOB	FCORE_THROW_DICTOF
 CF_DOT_QUOTE_STROF	JOB	FCORE_THROW_STROF
 	
 			ALIGN	1
 NFA_DOT_QUOTE		FHEADER, '."', NFA_DOT, IMMEDIATE ;"
-CFA_DOT_QUOTE		DW	CF_DOT_QUOTE 			;immediate or compile mode?
+CFA_DOT_QUOTE		DW	CF_DOT_QUOTE 			
 CF_DOT_QUOTE		;Parse quote
 			LDAA	#$22 				;double quote
-			SSTACK_JOBSR	FCORE_PARSE
-			TBEQ	X, CF_DOT_QUOTE_4 		;empty quote		
-			;Check state (string pointer in X)
-			COMPILE_ONLY	CF_DOT_QUOTE_6 		;ensure that compile mode is on
-			;Check remaining space in dictionary (string pointer in X)
-			PRINT_STRCNT 				;count characters (count in A)
+			SSTACK_JOBSR	FCORE_PARSE		;string pointer -> X, character count -> A
+			TBEQ	X, CF_DOT_QUOTE_1 		;empty quote		
+			;Check state (string pointer in X, character count in A)
+			LDY	STATE		 		;ensure that compile mode is on
+			BEQ	CF_DOT_QUOTE_2			;interpetation mode
+			;Check remaining space in dictionary (string pointer in X, character count in A)
 			IBEQ	A, CF_DOT_QUOTE_STROF		;add CFA to count
 			TAB
 			CLRA
@@ -1094,23 +1121,13 @@ CF_DOT_QUOTE		;Parse quote
 			LDX	CP
 			MOVW	#CFA_DOT_QUOTE_RT, 2,X+
 			;Append quote (CP in X, string pointer in Y)
-			LDD	2,Y+
-			BMI	CF_DOT_QUOTE_2 			;last character
-CF_DOT_QUOTE_1		STAA	1,X+
-			TSTB
-			BMI	CF_DOT_QUOTE_5 			;last character
-			STAB	1,X+
-			LDD	2,Y+	
-			BPL	CF_DOT_QUOTE_1
-CF_DOT_QUOTE_2		STAA	1,X+	
+			CPSTR_Y_TO_X
+			STX	CP
 			;Done
-CF_DOT_QUOTE_3		STX	CP
-CF_DOT_QUOTE_4		NEXT
-CF_DOT_QUOTE_5		STAB	1,X+
-			JOB	CF_DOT_QUOTE_3
+CF_DOT_QUOTE_1		NEXT
 			;Print quote in interpretaion state (string pointer in X)
-CF_DOT_QUOTE_6		PRINT_STR	
-			JOB	CF_DOT_QUOTE_4	
+CF_DOT_QUOTE_2		PRINT_STR	
+			JOB	CF_DOT_QUOTE_1	
 	
 ;." run-time semantics
 ;S12CForth implementation details:
@@ -1735,8 +1752,12 @@ CF_FETCH_PSUF		JOB	FCORE_THROW_PSUF
 			ALIGN	1
 NFA_ABORT		FHEADER, "ABORT", NFA_FETCH, COMPILE
 CFA_ABORT		DW	CF_ABORT
-CF_ABORT		PS_RESET
-			JOB	CF_QUIT
+CF_ABORT		JOB	FCORE_THROW_ABORT
+
+;ABORT run-time semantics
+CFA_ABORT_RT		DW	CF_ABORT_RT
+CF_ABORT_RT		PS_RESET
+			JOB	CF_QUIT_RT
 	
 ;ABORT" 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1746,21 +1767,66 @@ CF_ABORT		PS_RESET
 ;Run-time: ( i*x x1 --  | i*x ) ( R: j*x --  | j*x )
 ;Remove x1 from the stack. If any bit of x1 is not zero, display ccc and perform
 ;an implementation-defined abort sequence that includes the function of ABORT.
-NFA_ABORT_QUOTE		EQU	NFA_ABORT
-;			ALIGN	1
-;NFA_ABORT_QUOTE		FHEADER, 'ABORT"', NFA_ABORT, IMMEDIATE ;"
-;CFA_ABORT_QUOTE		DW	CF_DUMMY
-
+;
+;S12CForth implementation details:
+;Throws:
+;"Dictionary overflow"
+;"Compile-only word"
+;"Parsed string overflow"
+;"Empty message string"
+;
+			ALIGN	1
+NFA_ABORT_QUOTE		FHEADER, 'ABORT"', NFA_ABORT, IMMEDIATE ;"
+CFA_ABORT_QUOTE		DW	CF_ABORT_QUOTE
+CF_ABORT_QUOTE		COMPILE_ONLY	CF_ABORT_QUOTE_COMPONLY ;ensure that compile mode is on
+			;Parse quote
+			LDAA	#$22 				;double quote
+			SSTACK_JOBSR	FCORE_PARSE		;string pointer -> X, character count -> A
+			TBEQ	X, CF_ABORT_QUOTE_NOMSG 		;empty quote		
+			;Check remaining space in dictionary (string pointer in X, character count in A)
+			IBEQ	A, CF_ABORT_QUOTE_STROF		;add CFA to count
+			TAB
+			CLRA
+			ADDD	#1
+			TFR	X, Y
+			DICT_CHECK_OF_D	CF_ABORT_QUOTE_DICTOF 	;check for dictionary overflow
+			;Append run-time CFA (string pointer in Y)
+			LDX	CP
+			MOVW	#CFA_ABORT_QUOTE_RT, 2,X+
+			;Append quote (CP in X, string pointer in Y)
+			CPSTR_Y_TO_X
+			STX	CP
+			;Done
+CF_ABORT_QUOTE_1	NEXT
+				
+CF_ABORT_QUOTE_COMPONLY	JOB	FCORE_THROW_COMPONLY
+CF_ABORT_QUOTE_DICTOF	JOB	FCORE_THROW_DICTOF
+CF_ABORT_QUOTE_STROF	JOB	FCORE_THROW_STROF
+CF_ABORT_QUOTE_PSUF	JOB	FCORE_THROW_PSUF
+CF_ABORT_QUOTE_NOMSG	JOB	FCORE_THROW_NOMSG
+	
 ;ABORT" run-time semantics
+; 
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
 			ALIGN	1
 CFA_ABORT_QUOTE_RT	DW	CF_ABORT_QUOTE_RT
-CF_ABORT_QUOTE_RT	EQU	CF_DUMMY
-
-			;DW	CFA_CR			;print a line break
-			;DW	CFA_DOT_QUOTE_RT	;print the string
-			;DW	CFA_ABORT		;abort
-			;DW	CFA_EXIT_RT
-	
+CF_ABORT_QUOTE_RT	PS_CHECK_UF	1, CF_ABORT_QUOTE_PSUF;check for underflow
+			;Check x1
+			LDD	2,Y+
+			BEQ	CF_ABORT_QUOTE_RT_2 	;all bita are zero
+			STY	PSP			
+			;Throw exception
+CF_ABORT_QUOTE_RT_1	JOB	FCORE_THROW_ABORTQ 	;string pointer is i IP
+			;Resume
+CF_ABORT_QUOTE_RT_2	STY	PSP 			;update PSP
+			LDX	IP			;skip over the abort message
+			PRINT_STRCNT			;char count -> A
+			LEAX	A,X
+			STX	IP	
+			NEXT	
+			
 ;ABS ( n -- u )
 ;u is the absolute value of n.
 ;
@@ -2935,79 +3001,178 @@ CF_POSTPONE_COMPONLY	JOB	FCORE_THROW_COMPONLY
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Return stack underflow"
-;"Return stack overflow"
+;QUIT
 ;
 			ALIGN	1
 NFA_QUIT		FHEADER, "QUIT", NFA_POSTPONE, COMPILE
 CFA_QUIT		DW	CF_QUIT
+CF_QUIT			JOB	FCORE_THROW_QUIT
+	
 			;Empty RS and go into interpretation state 
-CF_QUIT			RS_RESET		;empty the return stack
+;CF_QUIT		RS_RESET		;empty the return stack
+;			LDD	#$0000
+;			STD	HANDLER		;clear exception handler
+;			STD	STATE		;enter interpretation state
+;			MOVW	CP_SAVED, CP	;restore compile pointer
+;			;Query comand line
+;CF_QUIT_1		;LED_BUSY_OFF (moved to QUERY)
+;			EXEC_CF	CF_QUERY, CF_QUIT_RSOF, CF_QUIT_RSUF	;get command line
+;			;LED_BUSY_ON (moved to QUERY)
+;			;Parse next word of the command line
+;CF_QUIT_2		SSTACK_JOBSR	FCORE_NAME			;parse next word (string pointer -> X)
+;			TBEQ	X, CF_QUIT_4				;last word parsed
+;			;Look up word in dictionary (string pointer in X)
+;			SSTACK_JOBSR	FCORE_FIND 			;search dictionary (xt -> X, status -> D)
+;			TBEQ	D, CF_QUIT_6 				;word not found -> see if it is a number
+;			DBEQ	D, CF_QUIT_3 				;immediate word -> execute
+;			INTERPRET_ONLY	CF_QUIT_5 			;check state
+;			;Execute word (xt in X) 
+;CF_QUIT_3		MOVW	#CF_QUIT_IP_DONE, IP 			;set next IP
+;			JMP	[0,X]					;execute CF
+;CF_QUIT_IP_DONE		DW	CF_QUIT_CFA_DONE			
+;CF_QUIT_CFA_DONE	DW	CF_QUIT_2
+;			;Last word parsed
+;CF_QUIT_4		INTERPRET_ONLY	CF_QUIT_1 			;don't print "ok" in compile state
+;			LDX	#FCORE_SYSTEM_PROMPT 			;print "ok"
+;			PRINT_STR
+;			JOB	CF_QUIT_1
+;			;Compile word (xt in X, status in D) 
+;CF_QUIT_5		TFR	X, Y
+;			DICT_CHECK_OF	2, CF_QUIT_DICTOF 		;(CP+2 -> X)
+;			STY     -2,X
+;			STX	CP
+;			JOB	CF_QUIT_2 				;parse next word	
+;			;Word was not found (string pointer in X)
+;CF_QUIT_6		SSTACK_JOBSR	FCORE_NUMBER 			;convert to number (value -> Y:X, size -> D)
+;			TBEQ	D, CF_QUIT_UDEFWORD			;undefined word
+;			DBNE	D, CF_QUIT_8				;double number
+;			;Single number 
+;			INTERPRET_ONLY	CF_QUIT_7 			;compile
+;			;Stack single number 
+;			PS_PUSH_X	CF_QUIT_PSOF
+;			JOB	CF_QUIT_2
+;			;Compile single number (number in X)
+;CF_QUIT_7		TFR	X, D
+;			DICT_CHECK_OF	4, CF_QUIT_DICTOF 		;(CP+4 -> X)
+;			MOVW	#CFA_LITERAL_RT, -4,X 			;add CFA
+;			STD	 -2,X 					;add number
+;			STX	CP 					;update CP
+;			JOB	CF_QUIT_2 				;interpret next word 
+;			;Double number 
+;CF_QUIT_8		INTERPRET_ONLY	CF_QUIT_9 			;compile
+;			;Stack doublelnumber (number in Y:X)
+;			TFR	Y, D
+;			PS_CHECK_OF	2, CF_QUIT_PSOF 		;(PSP+4 -> Y)
+;			STX	2,Y
+;			STD	0,Y
+;			STY	PSP
+;			JOB	CF_QUIT_2
+;			;Compile double number (number in Y:X)
+;CF_QUIT_9		TFR	X, D
+;			DICT_CHECK_OF	6, CF_QUIT_DICTOF 		;(CP+6 -> X)
+;			MOVW	#CFA_TWO_LITERAL_RT, -6,X 		;add CFA
+;			STD	-2,X 					;add number
+;			STY	-4,X 					;add number
+;			STX	CP 					;update CP
+;			JOB	CF_QUIT_2 				;interpret next word 
+;		
+;			;Error handlers 
+; 			;Return stack overflow 
+;CF_QUIT_PSOF		LDY	#CF_QUIT_MSG_PSOF 			;print standard error message	
+; 			JOB	CF_QUIT_ERROR
+; 			;Return stack underflow 
+;CF_QUIT_RSUF		LDY	#CF_QUIT_MSG_RSUF 			;print standard error message
+; 			JOB	CF_QUIT_ERROR
+; 			;Return stack overflow 
+;CF_QUIT_RSOF		LDY	#CF_QUIT_MSG_RSOF 			;print standard error message	
+; 			JOB	CF_QUIT_ERROR
+; 			;Undefined word (PSP+2 in Y)
+;CF_QUIT_UDEFWORD	LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message	
+;			JOB	CF_QUIT_ERROR
+; 			;Undefined word (PSP+2 in Y)
+;CF_QUIT_DICTOF		LDY	#CF_QUIT_MSG_DICTOF			;print standard error message	
+;CF_QUIT_ERROR		ERROR_PRINT
+;			JOB	CF_ABORT 
+;
+;QUIT run-time semantics
+;
+;S12CForth implementation details:
+;Throws (and handles):
+;"Parameter stack overflow" 
+;"Return stack underflow"
+;"Return stack overflow"
+;"Dictionary overflow"
+;"Undefined worrd"
+;
+CFA_QUIT_RT		DW	CF_QUIT_RT
+FCORE_ENTRY		EQU		*
+			;Empty RS and go into interpretation state 
+CF_QUIT_RT		RS_RESET					;empty the return stack
 			LDD	#$0000
-			STD	HANDLER		;clear exception handler
-			STD	STATE		;enter interpretation state
-			MOVW	CP_SAVED, CP	;restore compile pointer
+			STD	HANDLER					;clear exception handler
+			STD	STATE					;enter interpretation state
+			MOVW	CP_SAVED, CP				;restore compile pointer
 			;Query comand line
-CF_QUIT_1		;LED_BUSY_OFF (moved to QUERY)
+CF_QUIT_RT_1		;LED_BUSY_OFF (moved to QUERY)
 			EXEC_CF	CF_QUERY, CF_QUIT_RSOF, CF_QUIT_RSUF	;get command line
 			;LED_BUSY_ON (moved to QUERY)
 			;Parse next word of the command line
-CF_QUIT_2		SSTACK_JOBSR	FCORE_NAME			;parse next word (string pointer -> X)
-			TBEQ	X, CF_QUIT_4				;last word parsed
+CF_QUIT_RT_2		SSTACK_JOBSR	FCORE_NAME			;parse next word (string pointer -> X)
+			TBEQ	X, CF_QUIT_RT_4				;last word parsed
 			;Look up word in dictionary (string pointer in X)
 			SSTACK_JOBSR	FCORE_FIND 			;search dictionary (xt -> X, status -> D)
-			TBEQ	D, CF_QUIT_6 				;word not found -> see if it is a number
-			DBEQ	D, CF_QUIT_3 				;immediate word -> execute
-			INTERPRET_ONLY	CF_QUIT_5 			;check state
+			TBEQ	D, CF_QUIT_RT_6 			;word not found -> see if it is a number
+			DBEQ	D, CF_QUIT_RT_3 			;immediate word -> execute
+			INTERPRET_ONLY	CF_QUIT_RT_5 			;check state
 			;Execute word (xt in X) 
-CF_QUIT_3		MOVW	#CF_QUIT_IP_DONE, IP 			;set next IP
+CF_QUIT_RT_3		MOVW	#CF_QUIT_RT_IP_DONE, IP 		;set next IP
 			JMP	[0,X]					;execute CF
-CF_QUIT_IP_DONE		DW	CF_QUIT_CFA_DONE			
-CF_QUIT_CFA_DONE	DW	CF_QUIT_2
+CF_QUIT_RT_IP_DONE	DW	CF_QUIT_RT_CFA_DONE			
+CF_QUIT_RT_CFA_DONE	DW	CF_QUIT_RT_2
 			;Last word parsed
-CF_QUIT_4		INTERPRET_ONLY	CF_QUIT_1 			;don't print "ok" in compile state
+CF_QUIT_RT_4		INTERPRET_ONLY	CF_QUIT_RT_1 			;don't print "ok" in compile state
 			LDX	#FCORE_SYSTEM_PROMPT 			;print "ok"
 			PRINT_STR
-			JOB	CF_QUIT_1
+			JOB	CF_QUIT_RT_1
 			;Compile word (xt in X, status in D) 
-CF_QUIT_5		TFR	X, Y
+CF_QUIT_RT_5		TFR	X, Y
 			DICT_CHECK_OF	2, CF_QUIT_DICTOF 		;(CP+2 -> X)
 			STY     -2,X
 			STX	CP
-			JOB	CF_QUIT_2 				;parse next word	
+			JOB	CF_QUIT_RT_2 				;parse next word	
 			;Word was not found (string pointer in X)
-CF_QUIT_6		SSTACK_JOBSR	FCORE_NUMBER 			;convert to number (value -> Y:X, size -> D)
+CF_QUIT_RT_6		SSTACK_JOBSR	FCORE_NUMBER 			;convert to number (value -> Y:X, size -> D)
 			TBEQ	D, CF_QUIT_UDEFWORD			;undefined word
-			DBNE	D, CF_QUIT_8				;double number
+			DBNE	D, CF_QUIT_RT_8				;double number
 			;Single number 
-			INTERPRET_ONLY	CF_QUIT_7 			;compile
+			INTERPRET_ONLY	CF_QUIT_RT_7 			;compile
 			;Stack single number 
 			PS_PUSH_X	CF_QUIT_PSOF
-			JOB	CF_QUIT_2
+			JOB	CF_QUIT_RT_2
 			;Compile single number (number in X)
-CF_QUIT_7		TFR	X, D
+CF_QUIT_RT_7		TFR	X, D
 			DICT_CHECK_OF	4, CF_QUIT_DICTOF 		;(CP+4 -> X)
 			MOVW	#CFA_LITERAL_RT, -4,X 			;add CFA
 			STD	 -2,X 					;add number
 			STX	CP 					;update CP
-			JOB	CF_QUIT_2 				;interpret next word 
+			JOB	CF_QUIT_RT_2 				;interpret next word 
 			;Double number 
-CF_QUIT_8		INTERPRET_ONLY	CF_QUIT_9 			;compile
+CF_QUIT_RT_8		INTERPRET_ONLY	CF_QUIT_RT_9 			;compile
 			;Stack doublelnumber (number in Y:X)
 			TFR	Y, D
 			PS_CHECK_OF	2, CF_QUIT_PSOF 		;(PSP+4 -> Y)
 			STX	2,Y
 			STD	0,Y
 			STY	PSP
-			JOB	CF_QUIT_2
+			JOB	CF_QUIT_RT_2
 			;Compile double number (number in Y:X)
-CF_QUIT_9		TFR	X, D
+CF_QUIT_RT_9		TFR	X, D
 			DICT_CHECK_OF	6, CF_QUIT_DICTOF 		;(CP+6 -> X)
 			MOVW	#CFA_TWO_LITERAL_RT, -6,X 		;add CFA
 			STD	-2,X 					;add number
 			STY	-4,X 					;add number
 			STX	CP 					;update CP
-			JOB	CF_QUIT_2 				;interpret next word 
+			JOB	CF_QUIT_RT_2 				;interpret next word 
 		
 			;Error handlers 
  			;Return stack overflow 
@@ -3025,7 +3190,8 @@ CF_QUIT_UDEFWORD	LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message
  			;Undefined word (PSP+2 in Y)
 CF_QUIT_DICTOF		LDY	#CF_QUIT_MSG_DICTOF			;print standard error message	
 CF_QUIT_ERROR		ERROR_PRINT
-			JOB	CF_ABORT 
+			PS_RESET
+			JOB	CF_QUIT_RT
 
 CF_QUIT_MSG_PSOF	EQU	FEXCPT_MSG_PSOF
 CF_QUIT_MSG_RSUF	EQU	FEXCPT_MSG_RSUF

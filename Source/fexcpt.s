@@ -130,6 +130,8 @@ FEXCPT_EC_QUIT			EQU	-56	;QUIT
 ;FEXCPT_EC_58			EQU	-58	;[IF], [ELSE], or [THEN] exception
 	
 ;Additional error codes 
+FEXCPT_EC_NOMSG			EQU	FEXCPT_MSG_NOMSG
+
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -159,71 +161,93 @@ FEXCPT_VARS_END		EQU	*
 ;###############################################################################
 			ORG	FEXCPT_CODE_START
 ;Exceptions
-FEXCPT_THROW_PSOF	EQU	FMEM_THROW_PSOF		;"Parameter stack overflow"
-FEXCPT_THROW_PSUF	EQU	FMEM_THROW_PSUF		;"Parameter stack underflow"
-FEXCPT_THROW_RSOF	EQU	FMEM_THROW_RSOF		;"Parameter stack overflow"
-FEXCPT_THROW_RSUF	EQU	FMEM_THROW_RSUF 	;"Return stack underflow"
-FEXCPT_THROW_CESF	FEXCPT_THROW	 FEXCPT_EC_CESF	;"Corrupt exception stack frame"
-				
+FEXCPT_THROW_PSOF	EQU	FMEM_THROW_PSOF			;"Parameter stack overflow"
+FEXCPT_THROW_PSUF	EQU	FMEM_THROW_PSUF			;"Parameter stack underflow"
+FEXCPT_THROW_RSOF	EQU	FMEM_THROW_RSOF			;"Parameter stack overflow"
+FEXCPT_THROW_RSUF	EQU	FMEM_THROW_RSUF 		;"Return stack underflow"
+FEXCPT_THROW_DICTOF	EQU	FCORE_THROW_DICTOF 		;"Dictionary overflow"
+FEXCPT_THROW_STROF	EQU	FCORE_THROW_STROF 		;"Parsed string overflow"
+FEXCPT_THROW_NOMSG	FEXCPT_THROW	 FEXCPT_EC_NOMSG	;"Empty message string"
+FEXCPT_THROW_CESF	FEXCPT_THROW	 FEXCPT_EC_CESF		;"Corrupt exception stack frame"
+	
 ;#Throw an exception
 ; args:   D: error code
-FEXCPT_THROW	EQU	*
-		;Check for fatal errors
-		TFR	D, X
-		LDAB	0,X
-		CMPB	#ERROR_LEVEL_FATAL
-		TFR	X, D
-		BEQ	ERROR_RESTART
-		;Check STATE variable (error code in D)
-		LDX	STATE	     					;exceptions in compilation state are uncaught
-		BNE	FEXCPT_THROW_2 					;compilation state	
-		;Restore RSP (error code in D)
-FEXCPT_THROW_1	LDX	HANDLER						;check if an exception handler excists
-		BEQ	FEXCPT_THROW_2					;no exception handler
-		STX	RSP						;restore RS	
-		;Check if RSP is valid
-		RS_CHECK_UF	3, FEXCPT_THROW_CESF			;three entries must be on the RS  
-		RS_CHECK_OF	0, FEXCPT_THROW_CESF			;check for RS overflow
-		;Caught exception (RSP in X)
- 		;Restore stacks
-		MOVW	2,X+, HANDLER					;pull previous HANDLER (RSP -> X)
-		MOVW	2,X+, PSP					;pull previous PSP (RSP -> X)		
-		MOVW	2,X+, IP					;pull next IP (RSP -> X)		
-		;Check if PSP is valid
-		PS_CHECK_UFOF 0,FEXCPT_THROW_CESF,1,FEXCPT_THROW_CESF	;check PSP (PSP -> Y)
-		STD	0,Y						;push error code onto PS
-		STX	RSP						;set RSP
-		STY	PSP						;set PSP
-		NEXT
-		;Uncaught exception (error code in D)
-FEXCPT_THROW_2	CPD	#FEXCPT_EC_ABORT 				;check if an ABORT has been requested
-		BEQ	CF_ABORT
-		CPD	#FEXCPT_EC_ABORTQ 				;check if an ABORT" has been requested
-		BEQ	CF_ABORT_QUOTE_RT
-		CPD	#FEXCPT_EC_QUIT 				;check if a QUIT has been requested
-		BEQ	CF_QUIT
-		CPD	#-((FEXCPT_MSGTAB_END-FEXCPT_MSGTAB_START)/2) 	;check for standard error code
-		BLO	FEXCPT_THROW_3					;custom error message
-		LDX     #FEXCPT_MSGTAB_END 				;look-up standard error message
-		LSLD
-		LDD	D,X	
-FEXCPT_THROW_3	TFR	D, Y
-FEXCPT_THROW_4	ERROR_PRINT						;print error message
-		JOB	CF_ABORT 					;execute abort
-		
-;#Handle a corrupt exception stack frame
-; args:   none
-FEXCPT_CESF	EQU	*
-		LDY	#FEXCPT_MSG_CESF				;set error message
-		JOB	FEXCPT_THROW_4
-	
+FEXCPT_THROW		EQU	*
+			;Check if exception is cought
+			LDX	HANDLER						;check if an exception handler exists
+			BEQ	FEXCPT_THROW_2					;no exception handler
+			;Cought exception, verify stack frame (RSP in X, error code in D)
+			STX	RSP						;restore RS	
+			RS_CHECK_UF	3, FEXCPT_THROW_1			;three entries must be on the RS  
+			RS_CHECK_OF	0, FEXCPT_THROW_1			;check for RS overflow
+ 			;Restore stacks (RSP in X, error code in D)
+			LDX	RSP
+			MOVW	2,X+, HANDLER					;pull previous HANDLER (RSP -> X)
+			MOVW	2,X+, PSP					;pull previous PSP (RSP -> X)		
+			MOVW	2,X+, IP					;pull next IP (RSP -> X)		
+			;Check if PSP is valid (RSP in X, error code in D)
+			PS_CHECK_UFOF 0,FEXCPT_THROW_CESF,1,FEXCPT_THROW_1	;check PSP (PSP -> Y)
+			;Return error code (RSP in X, error code in D)
+			STD	0,Y						;push error code onto PS
+			STX	RSP						;set RSP
+			STY	PSP						;set PSP
+			NEXT
+			;Corrupt exception stack frame (error code in D)
+FEXCPT_THROW_1		LDY	#FEXCPT_EC_CESF
+			JOB	FEXCPT_THROW_4 					;print error message
+			;Uncought exception, check for special error codes
+FEXCPT_THROW_2		CPD	#FEXCPT_EC_ABORT 				;check for ABORT				
+			BEQ	FEXCPT_THROW_6
+			CPD	#FEXCPT_EC_ABORTQ 				;check for ABORT"				
+			BEQ	FEXCPT_THROW_7
+			CPD	#FEXCPT_EC_QUIT 				;check for QUIT				
+			BEQ	FEXCPT_THROW_8
+			CPD	#-((FEXCPT_MSGTAB_END-FEXCPT_MSGTAB_START)/2) 	;check for standard error code
+			BLO	FEXCPT_THROW_3					;custom error message
+			;Standard error code (error code in D)
+			LDX     #FEXCPT_MSGTAB_END 				;look-up standard error message
+			LSLD
+			LDD	D,X	
+			;Custom error code (error message in D)
+FEXCPT_THROW_3		TFR	D, Y						;error message -> Y
+			;Check message format (error message in Y)
+			LEAX	1,Y						;count chars in message
+			PRINT_STRCNT						
+			IBEQ	A, FEXCPT_THROW_9 				;invalid error message
+			;Check error level (error message in Y)
+			LDAA	0,Y
+			CMPA	#ERROR_LEVEL_FATAL
+			BEQ	FEXCPT_THROW_5 					;fatal error
+			CMPA	#ERROR_LEVEL_ERROR
+			BNE	FEXCPT_THROW_9 					;invalid error message
+			;Error (error message in Y)
+FEXCPT_THROW_4		ERROR_PRINT						
+			JOB	CF_ABORT_RT	
+			;Fatal error (error message in Y)
+FEXCPT_THROW_5		TFR	Y, D
+			JOB	ERROR_RESTART
+			;ABORT
+FEXCPT_THROW_6		EQU	CF_ABORT_RT
+			;JOB	CF_ABORT_RT	
+			;ABORT" (message pointer in IP)
+FEXCPT_THROW_7		LDX	IP	
+			PRINT_STRCNT						
+			IBEQ	A, FEXCPT_THROW_9 				;invalid error message
+			PRINT_LINE_BREAK
+			PRINT_STR
+			JOB	CF_ABORT_RT
+			;ABORT
+FEXCPT_THROW_8		EQU	CF_QUIT_RT
+			JOB	CF_QUIT_RT
+			;Invalid error message 
+FEXCPT_THROW_9		LDY	#FEXCPT_MSG_UNKNOWN
+			JOB	FEXCPT_THROW_5
+			
 FEXCPT_CODE_END		EQU	*
-	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
 			ORG	FEXCPT_TABS_START
-	
 				;Assign error messages to error codes 
 FEXCPT_MSGTAB_START	EQU	*
 			;DW	FEXCPT_MSG_UNKNOWN	;-58 [IF], [ELSE], or [THEN] exception
@@ -310,9 +334,9 @@ FEXCPT_MSG_INVALBASE	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid BASE"
 FEXCPT_MSG_CESF		ERROR_MSG	ERROR_LEVEL_ERROR, "Corrupt exception stack frame"
 
 ;Additional error messages 
+FEXCPT_MSG_NOMSG	ERROR_MSG	ERROR_LEVEL_ERROR, "Empty message string"
 
 FEXCPT_TABS_END		EQU	*
-
 ;###############################################################################
 ;# Forth words                                                                 #
 ;###############################################################################
@@ -346,11 +370,12 @@ CF_CATCH		PS_CHECK_UF	1, CF_CATCH_PSUF 	;check PS requirements (PSP -> Y)
 			MOVW	HANDLER, 2,-X			;HANDLER > RS			
 			STX	RSP
 			STX	HANDLER		      		;RSP -> HANDLER
-			MOVW	#CF_CATCH_RESTORE, IP 		;set next IP	
+			MOVW	#CFA_CATCH_RESTORE, IP 		;set next IP	
 			LDX	2,Y+ 				;execute xt
 			STY	PSP
 			JMP	[0,X]
 	
+CFA_CATCH_RESTORE	DW	CF_CATCH_RESTORE
 CF_CATCH_RESTORE	RS_CHECK_UF 3, CF_CATCH_CESF	 	;RS for underflow (RSP -> X)
 			CPX	HANDLER				;check if RSP=HANDLER
 			BNE	CF_CATCH_CESF			;corrupt exception stack frame
@@ -370,7 +395,155 @@ CF_CATCH_RESTORE	RS_CHECK_UF 3, CF_CATCH_CESF	 	;RS for underflow (RSP -> X)
 CF_CATCH_PSUF		JOB	FEXCPT_THROW_PSUF			
 CF_CATCH_PSOF		JOB	FEXCPT_THROW_PSOF			
 CF_CATCH_RSOF		JOB	FEXCPT_THROW_RSOF			
-CF_CATCH_CESF		JOB	FEXCPT_CESF			;corrupt exception stack frame 
+CF_CATCH_CESF		JOB	FEXCPT_THROW_CESF		;corrupt exception stack frame 
+
+;ERROR" Non-standard S12CForth extension!
+;Defines a new throwable error code (n).		
+;Interpretation: ( "ccc<quote>" -- n )
+;Parse ccc delimited by " (double-quote) and put the error code onto the parameter stack.
+;Compilation: ( "ccc<quote>" -- )
+;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
+;below to the current definition.
+;Run-time: ( -- n )
+;Put the error code onto the parameter stack.
+;
+;S12CForth implementation details:
+;Trows:
+;"Parameter stack overflow"
+;"Dictionary overflow"
+;"Parsed string overflow"
+;"Empty message string"
+;
+			ALIGN	1
+NFA_ERROR_QUOTE		FHEADER, 'ERROR"', NFA_CATCH, IMMEDIATE ;"
+CFA_ERROR_QUOTE		DW	CF_ERROR_QUOTE 			
+CF_ERROR_QUOTE		;Parse quote
+			LDAA	#$22 				;double quote
+			SSTACK_JOBSR	FCORE_PARSE
+			TBEQ	X, CF_ERROR_QUOTE_NOMSG 	;empty quote
+			IBEQ	A, CF_ERROR_QUOTE_STROF		;add CFA to count
+			TAB
+			CLRA	
+			;Check state (string pointer in X, char count+1 in D)
+			LDY	STATE				;ensure that compile mode is on
+			BEQ	CF_ERROR_QUOTE_3		;interpetation mode
+			;Compile mode (string pointer in X, char count+1 in D) 
+			ADDD	#3				;check for dictionary overflow
+			TFR	X, Y
+			DICT_CHECK_OF_D	CF_ERROR_QUOTE_DICTOF 
+			;Append run-time CFA (string pointer in Y)
+			LDX	CP
+			MOVW	#CFA_ERROR_QUOTE_RT, 2,X+
+			;Append error level (CP in X, string pointer in Y)
+CF_ERROR_QUOTE_1	MOVB	#ERROR_LEVEL_ERROR, 1,X+
+			;Append quote (CP in X, string pointer in Y)
+			CPSTR_Y_TO_X
+			STX	CP
+			INTERPRET_ONLY	CF_ERROR_QUOTE_2
+			STX	CP_SAVED
+			;Done
+CF_ERROR_QUOTE_2	NEXT
+			;Interpretation mode  (string pointer in X, char count+1 in D) 
+CF_ERROR_QUOTE_3	ADDD	#1				;check for dictionary overflow
+			TFR	X, Y
+			DICT_CHECK_OF_D	CF_ERROR_QUOTE_DICTOF
+			TFR	Y, X
+			;Push CP onto PS (string pointer in Y)
+			PS_CHECK_OF	1, CF_ERROR_QUOTE_PSOF 	;(PSP-2 cells -> Y)
+			MOVW	CP, 0,Y
+			STY	PSP
+			TFR	X, Y
+			LDX	CP
+			JOB	CF_ERROR_QUOTE_1
+	
+CF_ERROR_QUOTE_PSOF	JOB	FEXCPT_THROW_PSOF			
+CF_ERROR_QUOTE_DICTOF	JOB	FEXCPT_THROW_DICTOF			
+CF_ERROR_QUOTE_STROF	JOB	FEXCPT_THROW_STROF		
+CF_ERROR_QUOTE_NOMSG	JOB	FEXCPT_THROW_NOMSG		
+
+;ERROR" run-time semantics
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+CFA_ERROR_QUOTE_RT		DW	CF_ERROR_QUOTE_RT 			
+CF_ERROR_QUOTE_RT		PS_CHECK_OF	1, CF_ERROR_QUOTE_PSOF 	;(PSP-2 cells -> Y)
+				;PUSH error code onto the PS 
+				LDX	IP
+				STX	0,Y
+				STY	PSP
+				;Advance IP (IP in X)
+				LEAX	1,X
+				PRINT_STRCNT
+				LEAX	A,X
+				STX	IP
+				;Done
+				NEXT
+	
+;FATAL" ( "ccc<quote>" -- n )  Non-standard S12CForth extension!
+;Defines a new throwable fatal error code (n).		
+;Interpretation: ( "ccc<quote>" -- n )
+;Parse ccc delimited by " (double-quote) and put the error code onto the parameter stack.
+;Compilation: ( "ccc<quote>" -- )
+;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
+;below to the current definition.
+;Run-time: ( -- n )
+;Put the error code onto the parameter stack.
+;
+;S12CForth implementation details:
+;Trows:
+;"Parameter stack overflow"
+;"Dictionary overflow"
+;"Parsed string overflow"
+;
+			ALIGN	1
+NFA_FATAL_QUOTE		FHEADER, 'FATAL"', NFA_ERROR_QUOTE, IMMEDIATE ;"
+CFA_FATAL_QUOTE		DW	CF_FATAL_QUOTE 			
+CF_FATAL_QUOTE		;Parse quote
+			LDAA	#$22 				;double quote
+			SSTACK_JOBSR	FCORE_PARSE
+			TBEQ	X, CF_FATAL_QUOTE_NOMSG 	;empty quote
+			IBEQ	A, CF_FATAL_QUOTE_STROF		;add CFA to count
+			TAB
+			CLRA	
+			;Check state (string pointer in X, char count+1 in D)
+			LDY	STATE				;ensure that compile mode is on
+			BEQ	CF_FATAL_QUOTE_3		;interpetation mode
+			;Compile mode (string pointer in X, char count+1 in D) 
+			ADDD	#3				;check for dictionary overflow
+			TFR	X, Y
+			DICT_CHECK_OF_D	CF_FATAL_QUOTE_DICTOF 
+			;Append run-time CFA (string pointer in Y)
+			LDX	CP
+			MOVW	#CFA_FATAL_QUOTE_RT, 2,X+
+			;Append error level (CP in X, string pointer in Y)
+CF_FATAL_QUOTE_1	MOVB	#ERROR_LEVEL_FATAL, 1,X+
+			;Append quote (CP in X, string pointer in Y)
+			CPSTR_Y_TO_X
+			STX	CP
+			INTERPRET_ONLY	CF_FATAL_QUOTE_2
+			STX	CP_SAVED
+			;Done
+CF_FATAL_QUOTE_2	NEXT
+			;Interpretation mode  (string pointer in X, char count+1 in D) 
+CF_FATAL_QUOTE_3	ADDD	#1				;check for dictionary overflow
+			TFR	X, Y
+			DICT_CHECK_OF_D	CF_FATAL_QUOTE_DICTOF
+			TFR	Y, X
+			;Push CP onto PS (string pointer in Y)
+			PS_CHECK_OF	1, CF_FATAL_QUOTE_PSOF 	;(PSP-2 cells -> Y)
+			MOVW	CP, 0,Y
+			STY	PSP
+			TFR	X, Y
+			LDX	CP
+			JOB	CF_FATAL_QUOTE_1
+	
+CF_FATAL_QUOTE_PSOF	JOB	FEXCPT_THROW_PSOF			
+CF_FATAL_QUOTE_DICTOF	JOB	FEXCPT_THROW_DICTOF			
+CF_FATAL_QUOTE_STROF	JOB	FEXCPT_THROW_STROF		
+CF_FATAL_QUOTE_NOMSG	JOB	FEXCPT_THROW_NOMSG		
+
+CFA_FATAL_QUOTE_RT	EQU	CFA_ERROR_QUOTE_RT
 	
 ;THROW ( k*x n -- k*x | i*x n )
 ;If any bits of n are non-zero, pop the topmost exception frame from the
@@ -398,7 +571,7 @@ CF_CATCH_CESF		JOB	FEXCPT_CESF			;corrupt exception stack frame
 ;"Parameter stack underflow"
 ;
 			ALIGN	1
-NFA_THROW		FHEADER, "THROW", NFA_CATCH, COMPILE
+NFA_THROW		FHEADER, "THROW", NFA_FATAL_QUOTE, COMPILE
 CFA_THROW		DW	CF_THROW
 CF_THROW		PS_CHECK_UF	1, CF_THROW_PSUF	;PS for underflow (RSP -> Y)
 			LDD	2,Y+				;check if TOS is 0
