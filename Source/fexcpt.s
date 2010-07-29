@@ -76,7 +76,7 @@ FEXCPT_EC_PSOF			EQU	-3 	;stack overflow
 FEXCPT_EC_PSUF			EQU	-4 	;stack underflow
 FEXCPT_EC_RSOF			EQU	-5 	;return stack overflow
 FEXCPT_EC_RSUF			EQU	-6 	;return stack underflow
-;FEXCPT_EC_7			EQU	-7 	;do-loops nested too deeply during execution
+FEXCPT_EC_DOOF			EQU	-7 	;do-loops nested too deeply during execution
 FEXCPT_EC_DICTOF		EQU	-8 	;dictionary overflow
 FEXCPT_EC_INVALADR		EQU	-9 	;invalid memory address
 FEXCPT_EC_0DIV			EQU	-10	;division by zero
@@ -318,6 +318,7 @@ FEXCPT_MSG_PSOF		ERROR_MSG	ERROR_LEVEL_ERROR, "Parameter stack overflow"
 FEXCPT_MSG_PSUF		ERROR_MSG	ERROR_LEVEL_ERROR, "Parameter stack underflow" 
 FEXCPT_MSG_RSOF		ERROR_MSG	ERROR_LEVEL_ERROR, "Return stack overflow"
 FEXCPT_MSG_RSUF		ERROR_MSG	ERROR_LEVEL_ERROR, "Return stack underflow"
+;FEXCPT_MSG_DOOF		ERROR_MSG	ERROR_LEVEL_ERROR, "DO-loop nested too deeply"	
 FEXCPT_MSG_DICTOF	ERROR_MSG	ERROR_LEVEL_ERROR, "Dictionary overflow"
 ;FEXCPT_MSG_INVALADR	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid memory address"
 FEXCPT_MSG_0DIV		ERROR_MSG	ERROR_LEVEL_ERROR, "Division by zero"
