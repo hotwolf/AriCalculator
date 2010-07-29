@@ -65,6 +65,8 @@
 ;#      - Initial release                                                      #
 ;#    Apr 29, 2010                                                             #
 ;#      - Added macros "PRINT_UPPER_B" and "PRINT_LOWER_B"                     #
+;#    Jul 29, 2010                                                             #
+;#      - fixed PRINT_SINTCNT                                                  #
 ;###############################################################################
 	
 ;###############################################################################
@@ -1134,9 +1136,10 @@ PRINT_SINTCNT_1		CPX	#$0000
 			ADDD	#1
 			STD	PRINT_UDBLCNT_TMP1,Y
 
-			JOB	PRINT_SINTCNT_2		;jump to the division loop
+			JOB	PRINT_SINTCNT_3		;jump to the division loop
 
-PRINT_SINTCNT_2		EQU	PRINT_UINTCNT_2
+PRINT_SINTCNT_2		EQU	PRINT_UINTCNT_1
+PRINT_SINTCNT_3		EQU	PRINT_UINTCNT_2
 	
 ;#Print spaces
 ; args:   A: character count
