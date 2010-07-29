@@ -2537,7 +2537,7 @@ CF_EXECUTE		PS_PULL_X	CF_EXECUTE_PSUF		;PS -> X (=CFA)		=>12 cycles
 			
 CF_EXECUTE_PSUF		JOB	FCORE_THROW_PSUF
 	
-;EXIT  FAIL!
+;EXIT
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- ) ( R: nest-sys -- )
 ;Return control to the calling definition specified by nest-sys. Before
@@ -4399,7 +4399,7 @@ NFA_C_QUOTE		EQU	NFA_AGAIN
 ;NFA_C_QUOTE		FHEADER, 'C"', NFA_AGAIN, COMPILE ;"
 ;CFA_C_QUOTE		DW	CF_DUMMY
 
-;CASE FAIL!
+;CASE
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: -- case-sys )
 ;Mark the start of the CASE ... OF ... ENDOF ... ENDCASE structure. Append the
@@ -4457,7 +4457,7 @@ CF_EMPTY		MOVW	#FCORE_LAST_NFA, LAST_NFA 	;set last NFA
 			STD	CP_SAVED
 			NEXT
 	
-;ENDCASE FAIL!
+;ENDCASE
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: case-sys -- )
 ;Mark the end of the CASE ... OF ... ENDOF ... ENDCASE structure. Use case-sys
@@ -4502,7 +4502,7 @@ CF_ENDCASE_COMPONLY	JOB	FCORE_THROW_COMPONLY
 
 CFA_ENDCASE_RT		EQU	CFA_DROP
 	
-;ENDOF FAIL!
+;ENDOF
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: case-sys1 of-sys -- case-sys2 )
 ;Mark the end of the OF ... ENDOF part of the CASE structure. The next location
@@ -4683,7 +4683,7 @@ CF_NUMBER_PSUF		JOB	FCORE_THROW_PSUF
 CF_NUMBER_PSOF		JOB	FCORE_THROW_PSOF
 CF_NUMBER_INVALBASE	JOB	FCORE_THROW_INVALBASE
 
-;OF FAIL!
+;OF
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: -- of-sys )
 ;Put of-sys onto the control flow stack. Append the run-time semantics given
@@ -4704,7 +4704,7 @@ CF_NUMBER_INVALBASE	JOB	FCORE_THROW_INVALBASE
 			ALIGN	1
 NFA_OF			FHEADER, "OF", NFA_NUMBER, IMMEDIATE
 CFA_OF			DW	CF_OF
-			DW	CF_OF_RT
+			DW	CFA_OF_RT
 CF_OF			EQU	CF_IF		
 	
 CF_OF_PSUF	JOB	FCORE_THROW_PSUF
