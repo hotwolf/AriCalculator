@@ -322,10 +322,11 @@ CF_DUMP_HEADER		FCS	"______0__1__2__3__4__5__6__7__8__9__A__B__C__D__E__F"
 ;and the particular form of the display is implementation defined.
 ;SEE may be implemented using pictured numeric output words. Consequently, its
 ;use may corrupt the transient region identified by #>.
-			ALIGN	1
-NFA_SEE			FHEADER, "SEE", NFA_DUMP, COMPILE
-CFA_SEE			DW	CF_SEE
-CF_SEE			NEXT
+NFA_SEE			EQU	NFA_DUMP
+;			ALIGN	1
+;NFA_SEE			FHEADER, "SEE", NFA_DUMP, COMPILE
+;CFA_SEE			DW	CF_SEE
+;CF_SEE			NEXT
 
 ;WORDS ( -- )
 ;List the definition names in the first word list of the search order. The

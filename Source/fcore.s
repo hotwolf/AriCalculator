@@ -997,7 +997,7 @@ CF_PLUS_STORE		PS_CHECK_UF	2, CF_PLUS_STORE_PSUF ;check for underflow  (PSP -> Y
 	
 CF_PLUS_STORE_PSUF	JOB	FCORE_THROW_PSUF
 	
-;+LOOP FAIL!
+;+LOOP
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: do-sys -- )
 ;Append the run-time semantics given below to the current definition. Resolve
@@ -2267,7 +2267,7 @@ CF_DEPTH		PS_CHECK_OF	1, CF_DEPTH_PSOF	;check for overflow
 
 CF_DEPTH_PSOF		JOB	FCORE_THROW_PSOF
 	
-;DO FAIL!
+;DO
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: -- do-sys )
 ;Place do-sys onto the control-flow stack. Append the run-time semantics given
@@ -2679,7 +2679,7 @@ NFA_HOLD		EQU	NFA_HERE
 ;NFA_HOLD		FHEADER, "HOLD", NFA_HERE, COMPILE
 ;CFA_HOLD		DW	CF_DUMMY
 
-;I FAIL!
+;I
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- n|u ) ( R:  loop-sys -- loop-sys )
 ;n|u is a copy of the current (innermost) loop index. An ambiguous condition
@@ -2794,7 +2794,7 @@ CF_INVERT		PS_CHECK_UF	1, CF_INVERT_PSUF	;(PSP -> Y)
 			
 CF_INVERT_PSUF		JOB	FCORE_THROW_PSUF
 	
-;J FAIL!
+;J
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- n|u ) ( R: loop-sys1 loop-sys2 -- loop-sys1 loop-sys2 )
 ;n|u is a copy of the next-outer loop index. An ambiguous condition exists if
@@ -2857,7 +2857,7 @@ CF_KEY_1		SCI_RX				;receive one byte
 
 CF_KEY_PSOF		JOB	FCORE_THROW_PSOF
 		
-;LEAVE FAIL!
+;LEAVE
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- ) ( R: loop-sys -- )
 ;Discard the current loop control parameters. An ambiguous condition exists if
@@ -2873,7 +2873,7 @@ CF_KEY_PSOF		JOB	FCORE_THROW_PSOF
 ;"Compile-only word"
 ;
 			ALIGN	1
-NFA_LEAVE		FHEADER, "LEAVE", NFA_KEY, COMPILE
+NFA_LEAVE		FHEADER, "LEAVE", NFA_KEY, IMMEDIATE
 CFA_LEAVE		DW	CF_LEAVE
 			DW	CFA_LEAVE_RT
 			;LEAVE compile semantics (run-time CFA in [X+2])
@@ -2883,10 +2883,9 @@ CF_LEAVE		COMPILE_ONLY	CF_LEAVE_COMPONLY 	;ensure that compile mode is on
 			DICT_CHECK_OF	4, CF_LEAVE_DICTOF	;(CP+4 -> X)
 			;Add run-time CFA to compilation (CP+4 in X, PSP in Y)
 			STD	-4,X
-			MOVW	2,Y, 2,-X 			;swap orig in do-ysy
-			STX	2,Y 				
+			MOVW	0,Y, 2,-X 			;swap orig in do-ysy
+			STX	0,Y 				
 			LEAX	2,X
-			STY	PSP
 			STX	CP
 			;Done
 			NEXT
@@ -2903,13 +2902,13 @@ CF_LEAVE_COMPONLY	JOB	FCORE_THROW_COMPONLY
 ;"Return stack underflow"
 ;
 			ALIGN	1
-CFA_LEAVE_RT		DW	CF_QUESTION_DO_RT
-CF_LEAVE_RT		RS_CHECK_UF	2, CF_OF_PSUF	;(RSP -> X)
+CFA_LEAVE_RT		DW	CF_LEAVE_RT
+CF_LEAVE_RT		RS_CHECK_UF	2, CF_LEAVE_RSUF	;(RSP -> X)
 			;Clean up RS (RSP in X)
 			LEAX	4,X
 			STX	RSP
 			;Leave loop
-		JUMP_NEXT
+			JUMP_NEXT
 	
 ;LITERAL 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2961,7 +2960,7 @@ CF_LITERAL_RT		PS_CHECK_OF	1, CF_LITERAL_PSOF 	;check for PS overflow (PSP-new c
 			STY	PSP
 			NEXT
 
-;LOOP FAIL!
+;LOOP
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: do-sys -- )
 ;Append the run-time semantics given below to the current definition. Resolve
@@ -2992,10 +2991,10 @@ CF_LOOP			COMPILE_ONLY	CF_LOOP_COMPONLY 	;ensure that compile mode is on
 			DICT_CHECK_OF	4, CF_LOOP_DICTOF	;(CP+4 -> X)
 			;Add run-time CFA to compilation (CP+4 in X, PSP in Y)
 			STD	-4,X
-			MOVW	2,Y+, -2,X
+			MOVW	2,Y, -2,X
 			STX	CP
-			;Read do-sys (PSP+2 in Y)
-			LDX	2,Y+ 				;get case-sys
+			;Read do-sys (PSP+4 in Y)
+			LDX	4,Y+ 				;get case-sys
 			STY	PSP				;update PSP
 			TBEQ	X, CF_LOOP_2			;done
 			;Loop through all LEAVESs 
@@ -3853,7 +3852,7 @@ CF_U_M_SLASH_MOD_PSUF	JOB	FCORE_THROW_PSUF
 CF_U_M_SLASH_MOD_0DIV	JOB	FCORE_THROW_0DIV
 CF_U_M_SLASH_MOD_RESOR	JOB	FCORE_THROW_RESOR
 
-;UNLOOP FAIL!
+;UNLOOP
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- ) ( R: loop-sys -- )
 ;Discard the loop-control parameters for the current nesting level. An UNLOOP is
@@ -3870,7 +3869,7 @@ NFA_UNLOOP		FHEADER, "UNLOOP", NFA_U_M_SLASH_MOD, COMPILE
 CFA_UNLOOP		DW	CF_UNLOOP
 CF_UNLOOP		RS_CHECK_UF	2, CF_UNLOOP_RSUF	;(RSP -> X)
 			;Discard loop-sys
-			LEAX	-4,X
+			LEAX	4,X
 			STX	RSP
 			;Done
 			NEXT
@@ -4289,7 +4288,7 @@ CF_NOT_EQUALS_1		STY	PSP
 			
 CF_NOT_EQUALS_PSUF	JOB	FCORE_THROW_PSUF
 
-;?DO FAIL!
+;?DO
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: -- do-sys )
 ;Put do-sys onto the control-flow stack. Append the run-time semantics given
@@ -4324,9 +4323,9 @@ CF_QUESTION_DO		COMPILE_ONLY	CF_QUESTION_DO_COMPONLY 	;ensure that compile mode 
 			STD	-4,X
 			MOVW	#$0000, 2,-X
 			;Stack do-sys onto PS (CP+2 in X, PSP-4 in Y)
-			STX	2,Y
-			LEAX	2,X
 			STX	0,Y
+			LEAX	2,X
+			STX	2,Y
 			STY	PSP
 			STX	CP
 			;Done
@@ -4352,13 +4351,15 @@ CF_QUESTION_DO_RT	PS_CHECK_UF	2, CF_QUESTION_DO_PSUF	;(PSP -> Y)
 			CPD	2,Y+
 			BEQ	CF_QUESTION_DO_RT_1
 			;Move loop-sys from PS to RS
+			STY	PSP
 			LDX	RSP	
 			MOVW	-4,Y, 4,-X 		;copy index
 			MOVW	-2,Y, 2,X 		;copy limit
 			STX	RSP
+			SKIP_NEXT
 			;Done
 CF_QUESTION_DO_RT_1	STY	PSP
-			NEXT
+			JUMP_NEXT
 
 ;AGAIN 
 ;Interpretation: Interpretation semantics for this word are undefined.
