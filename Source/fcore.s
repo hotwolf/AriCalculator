@@ -754,34 +754,35 @@ CF_STORE_PSUF		JOB	FCORE_THROW_PSUF
 ;"PAD buffer overflow"
 ;"Invalid BASE value"
 ;
-			ALIGN	1
-NFA_NUMBER_SIGN		FHEADER, "#", NFA_STORE, COMPILE
-CFA_NUMBER_SIGN		DW	CF_NUMBER_SIGN
-CF_NUMBER_SIGN		PS_CHECK_UF 2, CF_NUMBER_SIGN_PSUF 	;check for underflow  (PSP -> Y)
-			BASE_CHECK	CF_NUMBER_SIGN_INVALBASE	;check BASE value (BASE -> D)
-			;Perform division (PSP in Y, BASE in D)
-			TFR	D,X				;prepare 1st division
-			LDD	0,Y				; (ud1>>16)/BASE
-			IDIV					;D/X=>X; remainder=D
-			STX	0,Y				;return upper word of the result
-			LDX	BASE				;prepare 2nd division
-			STY	2,Y
-			EXG	D,Y
-			EDIV					;Y:D/X=>Y; remainder=>D
-			LDX	PSP				;PSP -> X
-			STY	2,X
-			;Lookup ASCII representation of the remainder (remainder -> D)
-			TFR	D,X
-			LDAB	[FCORE_SYMTAB,X]
-			;Add ASCII character to the PAD buffer
-			PAD_CHECK_OF	CF_NUMBER_SIGN_PADOF	;check for PAD overvlow (HLD-1 -> X)
-			STAB	1,+X
-			STX	HLD
-			NEXT
-	
-CF_NUMBER_SIGN_PSUF		JOB	FCORE_THROW_PSUF
-CF_NUMBER_SIGN_PADOF		JOB	FCORE_THROW_PADOF
-CF_NUMBER_SIGN_INVALBASE	JOB	FCORE_THROW_INVALBASE
+NFA_NUMBER_SIGN		EQU	NFA_STORE
+;			ALIGN	1
+;NFA_NUMBER_SIGN		FHEADER, "#", NFA_STORE, COMPILE
+;CFA_NUMBER_SIGN		DW	CF_NUMBER_SIGN
+;CF_NUMBER_SIGN		PS_CHECK_UF 2, CF_NUMBER_SIGN_PSUF 	;check for underflow  (PSP -> Y)
+;			BASE_CHECK	CF_NUMBER_SIGN_INVALBASE	;check BASE value (BASE -> D)
+;			;Perform division (PSP in Y, BASE in D)
+;			TFR	D,X				;prepare 1st division
+;			LDD	0,Y				; (ud1>>16)/BASE
+;			IDIV					;D/X=>X; remainder=D
+;			STX	0,Y				;return upper word of the result
+;			LDX	BASE				;prepare 2nd division
+;			STY	2,Y
+;			EXG	D,Y
+;			EDIV					;Y:D/X=>Y; remainder=>D
+;			LDX	PSP				;PSP -> X
+;			STY	2,X
+;			;Lookup ASCII representation of the remainder (remainder -> D)
+;			TFR	D,X
+;			LDAB	[FCORE_SYMTAB,X]
+;			;Add ASCII character to the PAD buffer
+;			PAD_CHECK_OF	CF_NUMBER_SIGN_PADOF	;check for PAD overvlow (HLD-1 -> X)
+;			STAB	1,+X
+;			STX	HLD
+;			NEXT
+;	
+;CF_NUMBER_SIGN_PSUF		JOB	FCORE_THROW_PSUF
+;CF_NUMBER_SIGN_PADOF		JOB	FCORE_THROW_PADOF
+;CF_NUMBER_SIGN_INVALBASE	JOB	FCORE_THROW_INVALBASE
 	
 ;#> ( xd -- c-addr u )
 ;Drop xd. Make the pictured numeric output string available as a character

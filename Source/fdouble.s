@@ -131,13 +131,15 @@ CFA_TWO_VARIABLE_RT	EQU	CFA_VARIABLE_RT
 NFA_D_PLUS		FHEADER, "D+", NFA_TWO_VARIABLE, COMPILE
 CFA_D_PLUS		DW	CF_D_PLUS
 CF_D_PLUS		PS_CHECK_UF 4, CF_D_PLUS_PSUF 	;check for underflow  (PSP -> Y)
-			LDD	3,Y
-			ADDD	1,Y
-			STD	3,Y
-			LDD	2,Y
+			;Add LSWs (PSP -> Y)
+			LDD	6,Y
+			ADDD	2,Y
+			STD	6,Y
+			;Add MSWs (PSP -> Y)
+			LDD	4,Y
 			ADCB	1,Y
 			ADCA	0,Y
-			STD	2,+Y	
+			STD	4,+Y
 			STY	PSP
 			NEXT
 	
@@ -154,16 +156,16 @@ CF_D_PLUS_PSUF		JOB	FDOUBLE_THROW_PSUF
 NFA_D_MINUS		FHEADER, "D-", NFA_D_PLUS, COMPILE
 CFA_D_MINUS		DW	CF_D_MINUS
 CF_D_MINUS		PS_CHECK_UF 4, CF_D_MINUS_PSUF 	;check for underflow  (PSP -> Y)
-			LDD	3,Y
-			SUBD	1,Y
-			STD	3,Y			
-			LDD	2,Y
+			;Subtract LSWs (PSP -> Y)
+			LDD	6,Y
+			SUBD	2,Y
+			STD	6,Y
+			;Subtract MSWs (PSP -> Y)
+			LDD	4,Y
 			SBCB	1,Y
 			SBCA	0,Y
-			STD	2,+Y	
+			STD	4,+Y
 			STY	PSP
-			NEXT
-		
 			NEXT
 	
 CF_D_MINUS_PSUF		JOB	FDOUBLE_THROW_PSUF
@@ -208,18 +210,20 @@ NFA_D_DOT_R		FHEADER, "D.R", NFA_D_DOT, COMPILE
 CFA_D_DOT_R		DW	CF_D_DOT_R
 CF_D_DOT_R		PS_CHECK_UF 3, CF_D_DOT_R_PSUF 	;check for underflow  (PSP -> Y)
 			BASE_CHECK CF_D_DOT_R_INVALBASE	;check BASE value (BASE -> D) 
-			TST	1,Y+			;check if n>255 
-			BNE	CF_D_DOT_R_2		;saturate n 
-			LDAA	5,Y+
-CF_D_DOT_R_1		STY	PSP
+			;Get width (PSP in Y, BASE in D)
+			TST	0,Y
+			BNE	CF_D_DOT_R_2 		;saturate width
+			LDAA	1,Y
+			;Get number (PSP in Y, width in A, BASE in B)
+CF_D_DOT_R_1		LEAY	6,Y
+			STY	PSP
 			LDX	-2,Y
 			LDY	-4,Y
-			PRINT_SPC			;print a space character
-			PRINT_SDBL			;print cells as signed double integer
+			;Print number (PSP in Y, width in A, BASE in B)
+			PRINT_RSDBL
 			NEXT
-			;Saturate n
+			;Saturate n (PSP in Y, BASE in D)
 CF_D_DOT_R_2		LDAA	$FF
-			LEAY	5,Y
 			JOB	CF_D_DOT_R_1
 				
 CF_D_DOT_R_PSUF		JOB	FDOUBLE_THROW_PSUF

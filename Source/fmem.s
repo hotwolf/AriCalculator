@@ -106,12 +106,12 @@
 ;# Constants                                                                   #
 ;###############################################################################
 ;Stack and buffer sizes 
-;RS_SIZE		EQU	2*128
-;PAD_SIZE		EQU	68
-;TIB_SIZE		EQU	80
-RS_SIZE			EQU	2*16
-PAD_SIZE		EQU	8
-TIB_SIZE		EQU	16
+RS_SIZE		EQU	2*128
+PAD_SIZE		EQU	68
+TIB_SIZE		EQU	80
+;RS_SIZE			EQU	2*16
+;PAD_SIZE		EQU	8
+;TIB_SIZE		EQU	16
 
 ;Standard error codes
 FMEM_EC_DICTOF		EQU	FEXCPT_EC_DICTOF	;dictionary overflow
