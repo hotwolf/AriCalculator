@@ -93,7 +93,7 @@ FEXCPT_EC_STROF			EQU	-18	;parsed string overflow
 ;FEXCPT_EC_21			EQU	-21	;unsupported operation (e.g., AT-XY on a too-dumb terminal)
 FEXCPT_EC_CTRLSTRUC		EQU	-22	;control structure mismatch
 ;FEXCPT_EC_23			EQU	-23	;address alignment exception
-;FEXCPT_EC_24			EQU	-24	;invalid numeric argument
+FEXCPT_EC_INVALNUM		EQU	-24	;invalid numeric argument
 ;FEXCPT_EC_25			EQU	-25	;return stack imbalance
 ;FEXCPT_EC_26			EQU	-26	;loop parameters unavailable
 ;FEXCPT_EC_27			EQU	-27	;invalid recursion
@@ -131,7 +131,7 @@ FEXCPT_EC_QUIT			EQU	-56	;QUIT
 	
 ;Additional error codes 
 FEXCPT_EC_NOMSG			EQU	FEXCPT_MSG_NOMSG
-
+FEXCPT_EC_DICTPROT		EQU	FEXCPT_MSG_DICTPROT
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -318,7 +318,7 @@ FEXCPT_MSG_PSOF		ERROR_MSG	ERROR_LEVEL_ERROR, "Parameter stack overflow"
 FEXCPT_MSG_PSUF		ERROR_MSG	ERROR_LEVEL_ERROR, "Parameter stack underflow" 
 FEXCPT_MSG_RSOF		ERROR_MSG	ERROR_LEVEL_ERROR, "Return stack overflow"
 FEXCPT_MSG_RSUF		ERROR_MSG	ERROR_LEVEL_ERROR, "Return stack underflow"
-;FEXCPT_MSG_DOOF		ERROR_MSG	ERROR_LEVEL_ERROR, "DO-loop nested too deeply"	
+;FEXCPT_MSG_DOOF	RROR_MSG	ERROR_LEVEL_ERROR, "DO-loop nested too deeply"	
 FEXCPT_MSG_DICTOF	ERROR_MSG	ERROR_LEVEL_ERROR, "Dictionary overflow"
 ;FEXCPT_MSG_INVALADR	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid memory address"
 FEXCPT_MSG_0DIV		ERROR_MSG	ERROR_LEVEL_ERROR, "Division by zero"
@@ -329,6 +329,7 @@ FEXCPT_MSG_NONAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Missing name argument"
 FEXCPT_MSG_PADOF	ERROR_MSG	ERROR_LEVEL_ERROR, "PAD overflow"
 FEXCPT_MSG_STROF	ERROR_MSG	ERROR_LEVEL_ERROR, "String too long"
 FEXCPT_MSG_CTRLSTRUC	ERROR_MSG	ERROR_LEVEL_ERROR, "Control structure mismatch"
+;FFEXCPT_MSG_INVALNUM	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid numeric argument"
 FEXCPT_MSG_COMPNEST	ERROR_MSG	ERROR_LEVEL_ERROR, "Nested compilation"
 FEXCPT_MSG_NONCREATE	ERROR_MSG	ERROR_LEVEL_ERROR, "Illegal operation on non-CREATEd definition"
 FEXCPT_MSG_INVALNAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid name argument"
@@ -337,7 +338,8 @@ FEXCPT_MSG_CESF		ERROR_MSG	ERROR_LEVEL_ERROR, "Corrupt exception stack frame"
 
 ;Additional error messages 
 FEXCPT_MSG_NOMSG	ERROR_MSG	ERROR_LEVEL_ERROR, "Empty message string"
-
+FEXCPT_MSG_DICTPROT	ERROR_MSG	ERROR_LEVEL_ERROR, "Destruction of dictionary structure"
+	
 FEXCPT_TABS_END		EQU	*
 ;###############################################################################
 ;# Forth words                                                                 #
