@@ -602,18 +602,68 @@ FCORE_HEADER_STROF	LDX	#FCORE_THROW_STROF
 			JOB	FCORE_HEADER_3
 
 ;#Get command line input
-; args:   A: delimiter
-; result: X: string pointer
+; args:   none
+; result: none
 ;	  A: character count (saturated at 255) 	
-; SSTACK: 5 bytes
-;         Y and B are preserved
+; SSTACK: 6 bytes
+;         X, Y and D are preserved
 FCORE_QUERY		EQU	*	
+			;Save registers
+			SSTACK_PSHXD				;save index X and accu D
 
+			;Prepare TIB
+			MOVW	#$0000, NUMBER_TIB 		;clear TIB
+			;Wait for input
+			LED_BUSY_OFF			
+FCORE_QUERY_1		SCI_RX					;receive a character
+			;Check for transmission errors (character in B) 
+			BITA	#(NF|FE|PE) 			;check for: noise, frame errors, parity errors
+			BNE	FCORE_QUERY_1			;ignore transmission errors
+			;Check for ignored characters (character in B)
+			CMPB	#PRINT_SYM_LF	
+			BEQ	FCORE_QUERY_1			;ignore character	
+			;Check for BACKSPACE (character in B)
+			CMPB	#PRINT_SYM_BACKSPACE	
+			BEQ	FCORE_QUERY_3 			;remove most recent character
+			CMPB	#PRINT_SYM_DEL	
+			BEQ	FCORE_QUERY_3 			;remove most recent character	
+			;Check for ENTER (character in B)
+			CMPB	#PRINT_SYM_CR	
+			BEQ	FCORE_QUERY_5			;process input
+			;Check for TIB overflow (character in B)
+			TIB_CHECK_OF  1, FCORE_QUERY_4 		;beep on overflow
+			;Check for valid special characters (character in B, next free TIB location in X)
+			CMPB	#PRINT_SYM_TAB	
+			BEQ	FCORE_QUERY_2 			;echo and append to TIB
+			;Check for invalid characters (character in B, next free TIB location in X)
+			CMPB	#" "
+			BLO	FCORE_QUERY_4 			;beep
+			CMPB	#"~"
+			BHI	FCORE_QUERY_4 			;beep
+			;Echo character and append to TIB (character in B, next free TIB location in X)
+FCORE_QUERY_2		STAB	0,X				;store character
+			LEAX	1-TIB_START,X			;increment TIB counter
+			STX	NUMBER_TIB
+			SCI_TX					;echo a character
+			JOB	FCORE_QUERY_1
+			;Remove most recent character
+FCORE_QUERY_3		LDX	NUMBER_TIB			;decrement TIB counter
+			BEQ	FCORE_QUERY_4 			;beep if TIB was empty
+			LEAX	-1,X
+			STX	NUMBER_TIB	
+			LDAB	#PRINT_SYM_BACKSPACE 		;transmit a backspace character
+			SCI_TX
+			JOB	FCORE_QUERY_1
+			;Beep
+FCORE_QUERY_4		PRINT_BEEP		;beep
+			JOB	FCORE_QUERY_1 	;receive next character
+			;Process input (next free TIB location -> X)
+FCORE_QUERY_5		MOVW	#$0000, TO_IN 			;set >IN to zero
+			LED_BUSY_ON
 
-
-
-
-
+			;Restore registers 
+			SSTACK_PULDX
+			SSTACK_RTS
 
 ;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
 ; args:   A: delimiter
@@ -735,6 +785,7 @@ FCORE_TO_BODY		EQU	*
 			;Restore registers 
 FCORE_TO_BODY_1		SSTACK_PULD
 			SSTACK_RTS
+
 	
 ;Exceptions:
 ;===========
@@ -776,7 +827,7 @@ CF_INNER		EQU		*
 			LDX		2,X			;new CFA -> X		=> 3 cycles
 			JMP		[0,X]			;JUMP [new CFA]         => 6 cycles
 								;                         ---------
-								;                         34 cycles
+							;                         34 cycles
 CF_INNER_RSOF		JOB	FCORE_THROW_RSOF
 	
 ;CF_NOP   ( -- )
@@ -834,7 +885,7 @@ CF_STORE		PS_CHECK_UF 2, CF_STORE_PSUF 	;check for underflow  (PSP -> Y)
 
 CF_STORE_PSUF		JOB	FCORE_THROW_PSUF
 	
-;# ( ud1 -- ud2 )
+;# ( ud1 -- ud2 ) CHECK!
 ;Divide ud1 by the number in BASE giving the quotient ud2 and the remainder n.
 ;(n is the least-significant digit of ud1.) Convert n to external form and add
 ;the resulting character to the beginning of the pictured numeric output string.
@@ -847,66 +898,68 @@ CF_STORE_PSUF		JOB	FCORE_THROW_PSUF
 ;"PAD buffer overflow"
 ;"Invalid BASE value"
 ;
-NFA_NUMBER_SIGN		EQU	NFA_STORE
-;			ALIGN	1
-;NFA_NUMBER_SIGN		FHEADER, "#", NFA_STORE, COMPILE
-;CFA_NUMBER_SIGN		DW	CF_NUMBER_SIGN
-;CF_NUMBER_SIGN		PS_CHECK_UF 2, CF_NUMBER_SIGN_PSUF 	;check for underflow  (PSP -> Y)
-;			BASE_CHECK	CF_NUMBER_SIGN_INVALBASE	;check BASE value (BASE -> D)
-;			;Perform division (PSP in Y, BASE in D)
-;			TFR	D,X				;prepare 1st division
-;			LDD	0,Y				; (ud1>>16)/BASE
-;			IDIV					;D/X=>X; remainder=D
-;			STX	0,Y				;return upper word of the result
-;			LDX	BASE				;prepare 2nd division
-;			STY	2,Y
-;			EXG	D,Y
-;			EDIV					;Y:D/X=>Y; remainder=>D
-;			LDX	PSP				;PSP -> X
-;			STY	2,X
-;			;Lookup ASCII representation of the remainder (remainder -> D)
-;			TFR	D,X
-;			LDAB	[FCORE_SYMTAB,X]
-;			;Add ASCII character to the PAD buffer
-;			PAD_CHECK_OF	CF_NUMBER_SIGN_PADOF	;check for PAD overvlow (HLD-1 -> X)
-;			STAB	1,+X
-;			STX	HLD
-;			NEXT
-;	
-;CF_NUMBER_SIGN_PSUF		JOB	FCORE_THROW_PSUF
-;CF_NUMBER_SIGN_PADOF		JOB	FCORE_THROW_PADOF
-;CF_NUMBER_SIGN_INVALBASE	JOB	FCORE_THROW_INVALBASE
+			ALIGN	1
+NFA_NUMBER_SIGN		FHEADER, "#", NFA_STORE, COMPILE
+CFA_NUMBER_SIGN		DW	CF_NUMBER_SIGN
+CF_NUMBER_SIGN		PS_CHECK_UF	2, CF_NUMBER_SIGN_PSUF 	;check for underflow  (PSP -> Y)
+			BASE_CHECK	CF_NUMBER_SIGN_INVALBASE;check BASE value (BASE -> D)
+			;Perform division (PSP in Y, BASE in D)
+			TFR	D,X				;prepare 1st division
+			LDD	0,Y				; (ud1>>16)/BASE
+			IDIV					;D/X=>X; remainder=D
+			STX	0,Y				;return upper word of the result
+			LDX	BASE				;prepare 2nd division
+			STY	2,Y
+			EXG	D,Y
+			EDIV					;Y:D/X=>Y; remainder=>D
+			LDX	PSP				;PSP -> X
+			STY	2,X
+			;Lookup ASCII representation of the remainder (remainder -> D)
+			TFR	D,X
+			LDAB	[FCORE_SYMTAB,X]
+			;Add ASCII character to the PAD buffer
+			PAD_CHECK_OF	CF_NUMBER_SIGN_PADOF	;check for PAD overvlow (HLD -> X)
+			STAB	1,X-
+			STX	HLD
+			NEXT
 	
-;#> ( xd -- c-addr u )
+CF_NUMBER_SIGN_PSUF		JOB	FCORE_THROW_PSUF
+CF_NUMBER_SIGN_PADOF		JOB	FCORE_THROW_PADOF
+CF_NUMBER_SIGN_INVALBASE	JOB	FCORE_THROW_INVALBASE
+	
+;#> ( xd -- c-addr u ) CHECK!
 ;Drop xd. Make the pictured numeric output string available as a character
 ;string. c-addr and u specify the resulting character string. A program may
 ;replace characters within the string. 
 ;
 ;S12CForth implementation details:
+;String in PAD (at c-addr) is terminated. 
 ;Throws:
 ;"Parameter stack underflow"
 ;
-NFA_NUMBER_SIGN_GREATER		EQU	NFA_NUMBER_SIGN
-;				ALIGN	1
-;NFA_NUMBER_SIGN_GREATER	FHEADER, "#>", NFA_NUMBER_SIGN, COMPILE
-;CFA_NUMBER_SIGN_GREATER	DW	CF_NUMBER_SIGN_GREATER
-;CF_NUMBER_SIGN_GREATER		PS_CHECK_UF	2, CF_NUMBER_SIGN_GREATER_PSUF ;check for underflow
-;				;Return string pointer 
-;				MOVW	HLD, 2,Y	;HLD     -> c-addr
-;				;Return string count 
-;				LDD	PAD		;PAD-HLD -> u
-;				TFR	D, X
-;				SUBD	HLD
-;				STD	0,Y
-;				;Terminate string
-;				LDAB	#$80
-;				ORAB	-1,X
-;				STAB	-1,X
-;				NEXT
-;
-;CF_NUMBER_SIGN_GREATER_PSUF	JOB	FCORE_THROW_PSUF
+				ALIGN	1
+NFA_NUMBER_SIGN_GREATER		FHEADER, "#>", NFA_NUMBER_SIGN, COMPILE
+CFA_NUMBER_SIGN_GREATER		DW	CF_NUMBER_SIGN_GREATER
+CF_NUMBER_SIGN_GREATER		PS_CHECK_UF	2, CF_NUMBER_SIGN_GREATER_PSUF ;check for underflow
+				;Check PAD length (PSP in Y)
+				LDD	PAD					;PAD-HLD -> u
+				TFR	D, X
+				SUBD	HLD
+				STD	0,Y
+				BEQ	CF_NUMBER_SIGN_GREATER_2 		;zero length string
+				;Terminate string (PSP in Y, PAD in X)
+				BSET	-1,X, #$80 				;set termination bit in last characer
+				;Return string pointer (PSP in Y, PAD in X)
+				MOVW	HLD, 2,Y				;HLD -> c-addr
+				;Done
+CF_NUMBER_SIGN_GREATER_1	NEXT
+				;Zero-length string (PSP in Y, PAD in X, 0 in D)
+CF_NUMBER_SIGN_GREATER_2	STD	2,Y
+				JOB	CF_NUMBER_SIGN_GREATER_1
+
+CF_NUMBER_SIGN_GREATER_PSUF	JOB	FCORE_THROW_PSUF
 	
-;#S ( ud1 -- ud2 )
+;#S ( ud1 -- ud2 ) CHECK!
 ;Convert one digit of ud1 according to the rule for #. Continue conversion
 ;until the quotient is zero. ud2 is zero. An ambiguous condition exists if #S
 ;executes outside of a <# #> delimited number conversion.
@@ -914,12 +967,45 @@ NFA_NUMBER_SIGN_GREATER		EQU	NFA_NUMBER_SIGN
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
+;"PAD buffer overflow"
+;"Invalid BASE value"
 ;
-NFA_NUMBER_SIGN_S	EQU	NFA_NUMBER_SIGN_GREATER
-;			ALIGN	1
-;NFA_NUMBER_SIGN_S	FHEADER, "#S", NFA_NUMBER_SIGN_GREATER, COMPILE
-;CFA_NUMBER_SIGN_S	DW	CF_NUMBER_SIGN_S
-;CF_NUMBER_SIGN_S	NEXT
+			ALIGN	1
+NFA_NUMBER_SIGN_S	FHEADER, "#S", NFA_NUMBER_SIGN_GREATER, COMPILE
+CFA_NUMBER_SIGN_S	DW	CF_NUMBER_SIGN_S
+CF_NUMBER_SIGN_S	PS_CHECK_UF	2, CF_NUMBER_SIGN_S_PSUF 	;check for underflow  (PSP -> Y)
+			BASE_CHECK	CF_NUMBER_SIGN_S_INVALBASE;check BASE value (BASE -> D)
+			;Perform division (PSP in Y, BASE in D)
+CF_NUMBER_SIGN_S_1	TFR	D,X				;prepare 1st division
+			LDD	0,Y				; (ud1>>16)/BASE
+			IDIV					;D/X=>X; remainder=D
+			STX	0,Y				;return upper word of the result
+			LDX	BASE				;prepare 2nd division
+			STY	2,Y
+			EXG	D,Y
+			EDIV					;Y:D/X=>Y; remainder=>D
+			LDX	PSP				;PSP -> X
+			STY	2,X
+			;Lookup ASCII representation of the remainder (LSB of quotient in Y, remainder in D)
+			TFR	D,X
+			LDAB	[FCORE_SYMTAB,X]
+			;Add ASCII character to the PAD buffer (LSB of quotient in Y)
+			PAD_CHECK_OF	CF_NUMBER_SIGN_S_PADOF	;check for PAD overvlow (HLD -> X)
+			STAB	1,X-
+			STX	HLD
+			;Check if quotient is zero
+			LDD	BASE
+			LDY	PSP
+			LDX	2,Y
+			BNE	CF_NUMBER_SIGN_S_1
+			LDX	0,Y
+			BNE	CF_NUMBER_SIGN_S_1
+			;Quotient is zero
+			NEXT
+
+CF_NUMBER_SIGN_S_PSUF		JOB	FCORE_THROW_PSUF
+CF_NUMBER_SIGN_S_PADOF		JOB	FCORE_THROW_PADOF
+CF_NUMBER_SIGN_S_INVALBASE	JOB	FCORE_THROW_INVALBASE
 	
 ;' ( "<spaces>name" -- xt ) 	;'
 ;Skip leading space delimiters. Parse name delimited by a space. Find name and
@@ -1544,7 +1630,7 @@ CF_TWO_DUP_PSOF	JOB	FCORE_THROW_PSOF
 ;"Compile-only word"
 ;
 			ALIGN	1
-NFA_TWO_LITERAL		FHEADER, "2LITERAL", NFA_TWO_CONSTANT, COMPILE
+NFA_TWO_LITERAL		FHEADER, "2LITERAL", NFA_TWO_DUP, COMPILE
 CFA_TWO_LITERAL		DW	CF_TWO_LITERAL
 			DW	CFA_TWO_LITERAL_RT
 CF_TWO_LITERAL		COMPILE_ONLY	CF_TWO_LITERAL_COMPONLY ;ensure that compile mode is on
@@ -1795,15 +1881,16 @@ CF_LESS_THAN_1		STY	PSP
 	
 CF_LESS_THAN_PSUF	JOB	FCORE_THROW_PSUF
 	
-;<# ( -- )
+;<# ( -- ) CHECK!
 ;Initialize the pictured numeric output conversion process.
 ;
 ;S12CForth implementation details:
-;-Allocares the PAD buffer
-NFA_LESS_NUMBER_SIGN	EQU	NFA_LESS_THAN
-;			ALIGN	1
-;NFA_LESS_NUMBER_SIGN	FHEADER, "<#", NFA_LESS_THAN, COMPILE
-;CFA_LESS_NUMBER_SIGN	DW	CF_DUMMY
+;-Allocates the PAD buffer
+			ALIGN	1
+NFA_LESS_NUMBER_SIGN	FHEADER, "<#", NFA_LESS_THAN, COMPILE
+CFA_LESS_NUMBER_SIGN	DW	CF_LESS_NUMBER_SIGN
+CF_LESS_NUMBER_SIGN	PAD_ALLOC
+			NEXT
 	
 ;= ( x1 x2 -- flag )
 ;flag is true if and only if x1 is bit-for-bit the same as x2.
@@ -1933,12 +2020,12 @@ CF_TO_R_RSOF		JOB	FCORE_THROW_RSOF
 			ALIGN	1
 NFA_QUESTION_DUP	FHEADER, "?DUP", NFA_TO_R, COMPILE
 CFA_QUESTION_DUP	DW	CF_QUESTION_DUP
-CF_QUESTION_DUP		PS_CHECK_UF	1, CF_TO_R_PSUF	;(PSP -> Y)
+CF_QUESTION_DUP		PS_CHECK_UF	1, CF_QUESTION_DUP_PSUF	;(PSP -> Y)
 			;Check value
 			LDD	0,Y
 			BEQ	CF_QUESTION_DUP_1 	;done
 			;Duplicate stack entry (x in D)
-			PS_CHECK_OF	1, CF_TO_R_PSOF	;(PSP-2 -> Y)
+			PS_CHECK_OF	1, CF_QUESTION_DUP_PSOF	;(PSP-2 -> Y)
 			STD	0,Y
 			STY	PSP
 			;Done
@@ -1992,7 +2079,8 @@ CF_ABORT_RT		PS_RESET
 ;"Compile-only word"
 ;"Parsed string overflow"
 ;"Empty message string"
-;
+
+				;
 			ALIGN	1
 NFA_ABORT_QUOTE		FHEADER, 'ABORT"', NFA_ABORT, IMMEDIATE ;"
 CFA_ABORT_QUOTE		DW	CF_ABORT_QUOTE
@@ -2084,8 +2172,8 @@ NFA_ACCEPT		EQU	NFA_ABS
 ;ALIGN ( -- )
 ;If the data-space pointer is not aligned, reserve enough space to align it.
 			ALIGN	1
-NFA_ALIGNED		FHEADER, "ALIGN", NFA_ACCEPT, COMPILE
-CFA_ALIGNED		DW	CF_NOP
+NFA_ALIGN		FHEADER, "ALIGN", NFA_ACCEPT, COMPILE
+CFA_ALIGN		DW	CF_NOP
 
 ;ALIGNED ( addr -- a-addr )
 ;a-addr is the first aligned address greater than or equal to addr.
@@ -2122,8 +2210,8 @@ CF_ALLOT		PS_CHECK_UF	1, CF_ALLOT_PSUF;PSP -> Y
 			DICT_CHECK_OF_D	CF_ALLOT_DICTOF ;CP+bytes -> X
 CF_ALLOT_1		STX	CP
 			STX	CP_SAVED
-			;Done
-CF_ALLOT_2		STY	PSP (new PSP in Y)
+			;Done (new PSP in Y)
+CF_ALLOT_2		STY	PSP
 			NEXT
 			;Deallocate data space (new PSP in Y) 
 CF_ALLOT_3		LDX	CP
@@ -2262,7 +2350,7 @@ CF_C_COMMA_DICTOF	JOB	FCORE_THROW_DICTOF
 			ALIGN	1
 NFA_C_FETCH		FHEADER, "C@", NFA_C_COMMA, COMPILE
 CFA_C_FETCH		DW	CF_C_FETCH
-CF_FETCH		PS_CHECK_UF	1, CF_C_FETCH_PSUF 	;check for underflow
+CF_C_FETCH		PS_CHECK_UF	1, CF_C_FETCH_PSUF 	;check for underflow
 			LDX		0,Y			;[TOS]	-> TOS
 			CLRA
 			LDAB		0,X
@@ -2330,7 +2418,7 @@ CF_CHAR			PS_CHECK_OF	1, CF_CHAR_PSOF ;(PSP-2 -> Y)
 			TBEQ	X, CF_CHAR_1 		;empty string
 			;Put char onto stack (new PSP in Y)
 			LDAB	0,X
-CH_CHAR_1		CLRA
+CF_CHAR_1		CLRA
 			STD	0,Y
 			STY	PSP
 			;Done
@@ -2593,7 +2681,7 @@ CF_DO_RT		PS_CHECK_UF	2, CF_DO_PSUF	;(PSP -> Y)
 			STY	PSP
 			;Done
 			NEXT
-;DOES>
+;DOES> CHECK!
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: colon-sys1 -- colon-sys2 )
 ;Append the run-time semantics below to the current definition. Whether or not
@@ -2632,7 +2720,7 @@ CF_DOES			COMPILE_ONLY	CF_DOES_COMPONLY 	;ensure that compile mode is on
 			STX	CP
 			NEXT
 
-CF_DOES_PSUF		JOB	FCORE_THROW_PSUF
+;CF_DOES_PSUF		JOB	FCORE_THROW_PSUF
 CF_DOES_COMPONLY	JOB	FCORE_THROW_COMPONLY
 CF_DOES_DICTOF		JOB	FCORE_THROW_DICTOF
 CF_DOES_NONCREATE	JOB	FCORE_THROW_NONCREATE
@@ -2945,15 +3033,31 @@ NFA_HERE		FHEADER, "HERE", NFA_F_M_SLASH_MOD, COMPILE
 CFA_HERE		DW	CF_CONSTANT_RT
 			DW	CP
 
-;HOLD ( char -- )
+;HOLD ( char -- ) CHECK!
 ;Add char to the beginning of the pictured numeric output string. An ambiguous
 ;condition exists if HOLD executes outside of a <# #> delimited number
 ;conversion.
-NFA_HOLD		EQU	NFA_HERE
-;			ALIGN	1
-;NFA_HOLD		FHEADER, "HOLD", NFA_HERE, COMPILE
-;CFA_HOLD		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"PAD buffer overflow"
+;
+			ALIGN	1
+NFA_HOLD		FHEADER, "HOLD", NFA_HERE, COMPILE
+CFA_HOLD		DW	CF_HOLD
+CF_HOLD			PS_CHECK_UF	1, CF_HOLD_PSUF ;check for underflow	(PSP -> Y)
+			PAD_CHECK_OF	CF_HOLD_PADOF	;check for PAD overvlow (HLD -> X)
+			;Add ASCII character to the PAD buffer (PSP -> Y, HLD -> X)
+			LDD	2,Y+
+			STAB	1,X-
+			STX	HLD
+			STY	PSP
+			NEXT
 
+CF_HOLD_PSUF		JOB	FCORE_THROW_PSUF
+CF_HOLD_PADOF		JOB	FCORE_THROW_PADOF
+				
 ;I
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- n|u ) ( R:  loop-sys -- loop-sys )
@@ -3596,8 +3700,9 @@ CF_QUIT_RT_1		PRINT_LINE_BREAK	;send input prompt
 			BEQ	CF_QUIT_RT_2
 			LDX	#FCORE_COMPILE_PROMPT
 CF_QUIT_RT_2		PRINT_STR			
-			;Query comand line
-			EXEC_CF	CF_QUERY, CF_QUIT_RSOF, CF_QUIT_RSUF	;get command line
+			;Query comand line	
+			SSTACK_JOBSR	FCORE_QUERY			;get command line
+			;EXEC_CF CF_QUERY, CF_QUIT_RSOF, CF_QUIT_RSUF	;get command line
 			;Parse next word of the command line
 CF_QUIT_RT_3		SSTACK_JOBSR	FCORE_NAME			;parse next word (string pointer -> X)
 			TBEQ	X, CF_QUIT_RT_5				;last word parsed
@@ -3660,13 +3765,13 @@ CF_QUIT_RT_10		TFR	X, D
  			;Return stack overflow 
 CF_QUIT_PSOF		LDY	#CF_QUIT_MSG_PSOF 			;print standard error message	
  			JOB	CF_QUIT_ERROR
- 			;Return stack underflow 
-CF_QUIT_RSUF		LDY	#CF_QUIT_MSG_RSUF 			;print standard error message
- 			JOB	CF_QUIT_ERROR
- 			;Return stack overflow 
-CF_QUIT_RSOF		LDY	#CF_QUIT_MSG_RSOF 			;print standard error message	
- 			JOB	CF_QUIT_ERROR
- 			;Undefined word (PSP+2 in Y)
+; 			;Return stack underflow 
+;CF_QUIT_RSUF		LDY	#CF_QUIT_MSG_RSUF 			;print standard error message
+; 			JOB	CF_QUIT_ERROR
+; 			;Return stack overflow 
+;CF_QUIT_RSOF		LDY	#CF_QUIT_MSG_RSOF 			;print standard error message	
+; 			JOB	CF_QUIT_ERROR
+; 			;Undefined word (PSP+2 in Y)
 CF_QUIT_UDEFWORD	LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message	
 			JOB	CF_QUIT_ERROR
  			;Undefined word (PSP+2 in Y)
@@ -3874,7 +3979,7 @@ CF_R_SHIFT_PSUF		JOB	FCORE_THROW_PSUF
 ;
 			ALIGN	1
 NFA_S_QUOTE		FHEADER, 'S"', NFA_R_SHIFT, IMMEDIATE ;"
-CFA_S_QUOTE		DW	CF_SQUOTE
+CFA_S_QUOTE		DW	CF_S_QUOTE
 CF_S_QUOTE		COMPILE_ONLY	CF_S_QUOTE_COMPONLY ;ensure that compile mode is on
 			;Parse quote
 			LDAA	#$22 				;double quote
@@ -3952,14 +4057,32 @@ CF_S_TO_D_1		NEXT
 CF_S_TO_D_PSUF		JOB	FCORE_THROW_PSUF
 CF_S_TO_D_PSOF		JOB	FCORE_THROW_PSOF
 	
-;SIGN ( n -- )
+;SIGN ( n -- ) CHECK!
 ;If n is negative, add a minus sign to the beginning of the pictured numeric
 ;output string. An ambiguous condition exists if SIGN executes outside of a
 ;<# #> delimited number conversion.
-NFA_SIGN		EQU	NFA_S_TO_D
-;			ALIGN	1
-;NFA_SIGN		FHEADER, "SIGN", NFA_S_TO_D, COMPILE
-;CFA_SIGN		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"PAD buffer overflow"
+;
+			ALIGN	1
+NFA_SIGN		FHEADER, "SIGN", NFA_S_TO_D, COMPILE
+CFA_SIGN		DW	CF_SIGN
+CF_SIGN			PS_CHECK_UF	1, CF_SIGN_PSUF ;check for underflow	(PSP -> Y)
+			PAD_CHECK_OF	CF_SIGN_PADOF	;check for PAD overvlow (HLD -> X)
+			;Add sign character to the PAD buffer
+			LDD	2,Y+
+			BPL	CF_SIGN_1
+			MOVB	#"-", 1,X-
+			STX	HLD
+CF_SIGN_1		STY	PSP
+			NEXT
+
+
+CF_SIGN_PSUF		JOB	FCORE_THROW_PSUF
+CF_SIGN_PADOF		JOB	FCORE_THROW_PADOF
 	
 ;SM/REM ( d1 n1 -- n2 n3 )
 ;Divide d1 by n1, giving the symmetric quotient n3 and the remainder n2. Input
@@ -4480,7 +4603,7 @@ CF_LEFT_BRACKET		MOVW	#$0000, STATE
 			;Done 
 			NEXT
 
-;['] 
+;['] CHECK!
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Find name.
@@ -4490,12 +4613,22 @@ CF_LEFT_BRACKET		MOVW	#$0000, STATE
 ;Place name's execution token xt on the stack. The execution token returned by
 ;the compiled phrase ['] X is the same value returned by ' X outside of
 ;compilation state.
-NFA_BRACKET_TICK	EQU	NFA_LEFT_BRACKET
-;			ALIGN	1
-;NFA_BRACKET_TICK	FHEADER, "[']", NFA_LEFT_BRACKET, IMMEDIATE
-;CFA_BRACKET_TICK	DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Interpretation semantics: see ' (tick)
+;Compilation semantics:    see POSTPONE
+	
+;Throws:
+;"Dictionary overflow"
+;"Undefined word"
 
-;[CHAR] 
+			ALIGN	1
+NFA_BRACKET_TICK	FHEADER, "[']", NFA_LEFT_BRACKET, IMMEDIATE
+CFA_BRACKET_TICK	DW	CF_BRACKET_TICK
+CF_BRACKET_TICK		COMPILE_ONLY	CF_TICK
+			JOB		CF_POSTPONE
+	
+;[CHAR]
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Append the
@@ -4613,36 +4746,85 @@ CF_ZERO_GREATER_1	STY	PSP
 	
 CF_ZERO_GREATER_PSUF	JOB	FCORE_THROW_PSUF
 	
-;2>R 
+;2>R CHECK!
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution:      ( x1 x2 -- ) ( R:  -- x1 x2 )
 ;Transfer cell pair x1 x2 to the return stack. Semantically equivalent to
 ;SWAP >R >R .
-NFA_TWO_TO_R		EQU	NFA_ZERO_GREATER
-;			ALIGN	1
-;NFA_TWO_TO_R		FHEADER, "2>R", NFA_ZERO_GREATER, COMPILE
-;CFA_TWO_TO_R		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Interpretation semantics: same as execution semantics 
+;Throws:
+;"Parameter stack underflow"
+;"Return stack overflow"
+			ALIGN	1
+NFA_TWO_TO_R		FHEADER, "2>R", NFA_ZERO_GREATER, COMPILE
+CFA_TWO_TO_R		PS_CHECK_UF	2, CF_TWO_TO_PSUF	;(PSP -> Y)
+			RS_CHECK_OF	2, CF_TWO_TO_RSOF	;
+			;Move stack entries
+			LDX	RSP
+			MOVW	2,Y,  2,X-
+			MOVW	4,Y+, 2,X-
+			STY	PSP
+			STX	RSP
+			NEXT
 
-;2R> 
+CF_TWO_TO_PSUF		JOB	FCORE_THROW_PSUF
+CF_TWO_TO_RSOF		JOB	FCORE_THROW_RSOF
+	
+;2R> CHECK!
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- x1 x2 ) ( R:  x1 x2 -- )
 ;Transfer cell pair x1 x2 from the return stack. Semantically equivalent to
 ;R> R> SWAP .
-NFA_TWO_FROM_R		EQU	NFA_TWO_TO_R
-;			ALIGN	1
-;NFA_TWO_FROM_R		FHEADER, "2R>", NFA_TWO_TO_R, COMPILE
-;CFA_TWO_FROM_R		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Interpretation semantics: same as execution semantics 
+;Throws:
+;"Parameter stack overflow"
+;"Return stack underflow"
+;
+			ALIGN	1
+NFA_TWO_FROM_R		FHEADER, "2R>", NFA_TWO_TO_R, COMPILE
+CFA_TWO_FROM_R		DW	CF_TWO_FROM_R
+CF_TWO_FROM_R		PS_CHECK_OF	2, CF_TWO_FROM_R_PSOF 	;check for PS overflow (PSP-4 -> Y)	
+			RS_CHECK_UF	2, CF_TWO_FROM_R_RSUF	;(RSP -> X)
+			;Move stack entries
+			MOVW	2,X+, 2,Y
+			MOVW	2,X+, 0,Y
+			STY	PSP
+			STX	RSP
+			NEXT
 
-;2R@ 
+CF_TWO_FROM_R_PSOF	JOB	FCORE_THROW_PSOF
+CF_TWO_FROM_R_RSUF	JOB	FCORE_THROW_RSUF
+	
+;2R@ CHECK!
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- x1 x2 ) ( R:  x1 x2 -- x1 x2 )
 ;Copy cell pair x1 x2 from the return stack. Semantically equivalent to
 ;R> R> 2DUP >R >R SWAP .
-NFA_TWO_R_FETCH		EQU	NFA_TWO_FROM_R
-;			ALIGN	1
-;NFA_TWO_R_FETCH	FHEADER, "2R@", NFA_TWO_FROM_R, COMPILE
-;CFA_TWO_R_FETCH	DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Interpretation semantics: same as execution semantics 
+;Throws:
+;"Parameter stack overflow"
+;"Return stack underflow"
+;
+			ALIGN	1
+NFA_TWO_R_FETCH		FHEADER, "2R@", NFA_TWO_FROM_R, COMPILE
+CFA_TWO_R_FETCH		DW	CF_TWO_R_FETCH
+CF_TWO_R_FETCH		PS_CHECK_OF	2, CF_TWO_R_FETCH_PSOF 	;check for PS overflow (PSP-4 -> Y)	
+			RS_CHECK_UF	2, CF_TWO_R_FETCH_RSUF	;(RSP -> X)
+			;Move stack entries
+			MOVW	2,X+, 2,Y
+			MOVW	2,X+, 0,Y
+			STY	PSP
+			NEXT
 
+CF_TWO_R_FETCH_PSOF	JOB	FCORE_THROW_PSOF
+CF_TWO_R_FETCH_RSUF	JOB	FCORE_THROW_RSUF
+	
 ;:NONAME ( C:  -- colon-sys )  ( S:  -- xt )
 ;Create an execution token xt, enter compilation state and start the current
 ;definition, producing colon-sys. Append the initiation semantics given below
@@ -4831,6 +5013,9 @@ NFA_C_QUOTE		EQU	NFA_AGAIN
 ;"Parameter stack overflow"
 ;"Compile-only word"
 ;
+CF_CASE_PSOF		JOB	FCORE_THROW_PSOF	
+CF_CASE_COMPONLY	JOB	FCORE_THROW_COMPONLY
+
 			ALIGN	1
 NFA_CASE		FHEADER, "CASE", NFA_C_QUOTE, IMMEDIATE
 CFA_CASE		DW	CF_CASE
@@ -4840,9 +5025,6 @@ CF_CASE			COMPILE_ONLY	CF_CASE_COMPONLY 	;ensure that compile mode is on
 			MOVW	#$0000, 0,Y
 			STY	PSP
 			NEXT
-
-CF_CASE_PSOF		JOB	FCORE_THROW_PSOF	
-CF_CASE_COMPONLY	JOB	FCORE_THROW_COMPONLY
 
 ;COMPILE, 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -4859,7 +5041,7 @@ CF_CASE_COMPONLY	JOB	FCORE_THROW_COMPONLY
 			ALIGN	1
 NFA_COMPILE_COMMA	FHEADER, "COMPILE,", NFA_CASE, IMMEDIATE
 CFA_COMPILE_COMMA	DW	CF_COMPILE_COMMA
-CF_COMPILE_COMMA	COMPILE_ONLY	CF_COMPILE__COMPONLY 		;ensure that compile mode is on
+CF_COMPILE_COMMA	COMPILE_ONLY	CF_COMPILE_COMMA_COMPONLY 	;ensure that compile mode is on
 			PS_CHECK_UF	1, CF_COMPILE_COMMA_PSUF 	;check for PS underflow   (PSP -> Y)
 			DICT_CHECK_OF	2, CF_COMPILE_COMMA_DICTOF	;check for DICT overflow (CP+bytes -> X)
 			MOVW	2,Y+, -2,X
@@ -4982,14 +5164,31 @@ CF_ENDOF_PSUF		JOB	FCORE_THROW_PSUF
 
 CFA_ENDOF_RT		EQU	CFA_AGAIN_RT
 	
-;ERASE ( addr u -- )
+;ERASE ( addr u -- ) CHECK!
 ;If u is greater than zero, clear all bits in each of u consecutive address
 ;units of memory beginning at addr .
-NFA_ERASE		EQU	NFA_ENDOF
-;			ALIGN	1
-;NFA_ERASE		FHEADER, "ERASE", NFA_ENDOF, COMPILE
-;CFA_ERASE		DW	CF_DUMMY
-
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+CF_ERASE_PSUF		JOB	FCORE_THROW_PSUF
+	
+			ALIGN	1
+NFA_ERASE		FHEADER, "ERASE", NFA_ENDOF, COMPILE
+CFA_ERASE		DW	CF_ERASE
+CF_ERASE		PS_CHECK_UF	2, CF_ERASE_PSUF	;(PSP -> Y)
+			;Get args
+			LDD	4,Y+
+			BEQ	CF_ERASE_2 			;nothing to do
+			LDX	-2,Y
+			;Erase loop
+CF_ERASE_1		CLR	1,X+
+			DBNE	D, CF_ERASE_1
+			;Done
+CF_ERASE_2		STY	PSP
+			NEXT
+	
 ;EXPECT ( c-addr +n -- )
 ;Receive a string of at most +n characters. Display graphic characters as they
 ;are received. A program that depends on the presence or absence of non-graphic
@@ -5060,6 +5259,8 @@ CF_NAME_PSOF		JOB	FCORE_THROW_PSOF
 			
 ;NIP ( x1 x2 -- x2 )
 ;Drop the first item below the top of stack.
+CF_NIP_PSUF		JOB	FCORE_THROW_PSUF	
+
 			ALIGN	1
 NFA_NIP			FHEADER, "NIP", NFA_NAME, COMPILE
 CFA_NIP			DW	CF_NIP
@@ -5070,8 +5271,6 @@ CF_NIP			PS_CHECK_UF 2, CF_NIP_PSUF 	;check for underflow  (PSP -> Y)
 			STY	PSP
 			;Done 
 			NEXT
-
-CF_NIP_PSUF		JOB	FCORE_THROW_PSUF	
 
 ;NUMBER ( c-addr -- c-addr 0 | u 1 | n 1 | ud 2 | d 2 ) Non-standard S12CForth extension!
 ;Convert terminated the string at c-addr into a number. The value of BASE is the
@@ -5169,13 +5368,29 @@ CF_OF_RT_1		LEAY	2,Y			;update PSP
 			STY	PSP
 			SKIP_NEXT 			;execute conditional code
 	
-;PAD ( -- c-addr )
+;PAD ( -- c-addr ) CHECK!
 ;c-addr is the address of a transient region that can be used to hold data for
 ;intermediate processing.
-NFA_PAD			EQU	NFA_OF
-;			ALIGN	1
-;NFA_PAD		FHEADER, "PAD", NFA_OF, COMPILE
-;CFA_PAD		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+;
+CF_PAD_PSOF		JOB	FCORE_THROW_PSOF
+	
+			ALIGN	1
+NFA_PAD			FHEADER, "PAD", NFA_OF, COMPILE
+CFA_PAD			DW	CF_PAD
+CF_PAD			PS_CHECK_OF	1, CF_PAD_PSOF	;overflow check	(PSP-2 -> Y)
+			;Allocate PAD if it is deallocated or empty
+			LDD	PAD
+			CPD	HLD
+			BNE	CF_PAD_1 		;PAD already allocated
+			PAD_ALLOC
+CF_PAD_1		STD	0,Y
+			STY	PSP
+			;Done 
+			NEXT
 
 ;PARSE ( char "ccc<char>" -- c-addr u ) CHECK!
 ;Parse ccc delimited by the delimiter char.
@@ -5189,6 +5404,9 @@ NFA_PAD			EQU	NFA_OF
 ;the address $0000.
 ;Throws:
 ;"Parameter stack underflow"
+CF_PARSE_PSUF		JOB	FCORE_THROW_PSUF
+CF_PARSE_PSOF		JOB	FCORE_THROW_PSOF
+
 			ALIGN	1
 NFA_PARSE		FHEADER, "PARSE", NFA_PAD, COMPILE
 CFA_PARSE		DW	CF_PARSE
@@ -5207,9 +5425,6 @@ CF_PARSE		PS_CHECK_UFOF	2, CF_PARSE_PSUF, 2, CF_PARSE_PSOF	;check for under and 
 			;Done
 			NEXT
 
-CF_PARSE_PSUF		JOB	FCORE_THROW_PSUF
-CF_PARSE_PSOF		JOB	FCORE_THROW_PSOF
-
 ;PICK ( xu ... x1 x0 u -- xu ... x1 x0 xu )
 ;Remove u. Copy the xu to the top of the stack. An ambiguous condition exists if
 ;there are less than u+2 items on the stack before PICK is executed.
@@ -5218,6 +5433,8 @@ CF_PARSE_PSOF		JOB	FCORE_THROW_PSOF
 ;Throws:
 ;"Parameter stack underflow"
 ;
+CF_PICK_PSUF		JOB	FCORE_THROW_PSUF
+
 			ALIGN	1
 NFA_PICK		FHEADER, "PICK", NFA_PARSE, COMPILE
 CFA_PICK		DW	CF_PICK
@@ -5236,8 +5453,6 @@ CF_PICK			PS_CHECK_UF 1, CF_PICK_PSUF 	;check for underflow  (PSP -> Y)
 			MOVW	2,X, 0,Y 		;xu -> TOS
 			;Done 
 			NEXT
-	
-CF_PICK_PSUF		JOB	FCORE_THROW_PSUF
 
 ;QUERY ( -- )
 ;Make the user input device the input source. Receive input into the terminal
@@ -5248,54 +5463,59 @@ CF_PICK_PSUF		JOB	FCORE_THROW_PSUF
 			ALIGN	1
 NFA_QUERY		FHEADER, "QUERY", NFA_PICK, COMPILE
 CFA_QUERY		DW	CF_QUERY
-CF_QUERY		MOVW	#$0000, NUMBER_TIB ;clear TIB
-			LED_BUSY_OFF				
-CF_QUERY_1		SCI_RX			;receive a character
-			;Check for transmission errors (character in B) 
-			BITA	#(NF|FE|PE) 	;check for: noise, frame errors, parity errors
-			BNE	CF_QUERY_1	;ignore transmission errors
-			;Check for ignored characters (character in B)
-			CMPB	#PRINT_SYM_LF	
-			BEQ	CF_QUERY_1	;ignore character	
-			;Check for BACKSPACE (character in B)
-			CMPB	#PRINT_SYM_BACKSPACE	
-			BEQ	CF_QUERY_3 	;remove most recent character
-			CMPB	#PRINT_SYM_DEL	
-			BEQ	CF_QUERY_3 	;remove most recent character	
-			;Check for ENTER (character in B)
-			CMPB	#PRINT_SYM_CR	
-			BEQ	CF_QUERY_4 	;process input
-			;Check for TIB overflow (character in B)
-			TIB_CHECK_OF  1, CF_QUERY_5 ;beep on overflow
-			;Check for valid special characters (character in B, next free TIB location in X)
-			CMPB	#PRINT_SYM_TAB	
-			BEQ	CF_QUERY_2 	;echo and append to TIB
-			;Check for invalid characters (character in B, next free TIB location in X)
-			CMPB	#" "
-			BLO	CF_QUERY_5 	;beep
-			CMPB	#"~"
-			BHI	CF_QUERY_5 	;beep
-			;Echo character and append to TIB (character in B, next free TIB location in X)
-CF_QUERY_2		STAB	0,X		;store character
-			LEAX	1-TIB_START,X	;increment TIB counter
-			STX	NUMBER_TIB
-			SCI_TX			;echo a character
-			JOB	CF_QUERY_1
-			;Remove most recent character
-CF_QUERY_3		LDX	NUMBER_TIB	;decrement TIB counter
-			BEQ	CF_QUERY_5 	;beep if TIB was empty
-			LEAX	-1,X
-			STX	NUMBER_TIB	
-			LDAB	#PRINT_SYM_BACKSPACE ;transmit a backspace character
-			SCI_TX
-			JOB	CF_QUERY_1	
-CF_QUERY_4		;Process input (next free TIB location -> X)
-			MOVW	#$0000, TO_IN 	;set >IN to zero
-			LED_BUSY_ON
+CF_QUERY		;Query command line
+			SSTACK_JOBSR	FCORE_QUERY 	;(SSTACK: 6 bytes)
+			;Done 
 			NEXT
-			;Beep
-CF_QUERY_5		PRINT_BEEP		;beep
-			JOB	CF_QUERY_1 	;receive next character
+
+;			MOVW	#$0000, NUMBER_TIB ;clear TIB
+;			LED_BUSY_OFF				
+;CF_QUERY_1		SCI_RX			;receive a character
+;			;Check for transmission errors (character in B) 
+;			BITA	#(NF|FE|PE) 	;check for: noise, frame errors, parity errors
+;			BNE	CF_QUERY_1	;ignore transmission errors
+;			;Check for ignored characters (character in B)
+;			CMPB	#PRINT_SYM_LF	
+;			BEQ	CF_QUERY_1	;ignore character	
+;			;Check for BACKSPACE (character in B)
+;			CMPB	#PRINT_SYM_BACKSPACE	
+;			BEQ	CF_QUERY_3 	;remove most recent character
+;			CMPB	#PRINT_SYM_DEL	
+;			BEQ	CF_QUERY_3 	;remove most recent character	
+;			;Check for ENTER (character in B)
+;			CMPB	#PRINT_SYM_CR	
+;			BEQ	CF_QUERY_4 	;process input
+;			;Check for TIB overflow (character in B)
+;			TIB_CHECK_OF  1, CF_QUERY_5 ;beep on overflow
+;			;Check for valid special characters (character in B, next free TIB location in X)
+;			CMPB	#PRINT_SYM_TAB	
+;			BEQ	CF_QUERY_2 	;echo and append to TIB
+;			;Check for invalid characters (character in B, next free TIB location in X)
+;			CMPB	#" "
+;			BLO	CF_QUERY_5 	;beep
+;			CMPB	#"~"
+;			BHI	CF_QUERY_5 	;beep
+;			;Echo character and append to TIB (character in B, next free TIB location in X)
+;CF_QUERY_2		STAB	0,X		;store character
+;			LEAX	1-TIB_START,X	;increment TIB counter
+;			STX	NUMBER_TIB
+;			SCI_TX			;echo a character
+;			JOB	CF_QUERY_1
+;			;Remove most recent character
+;CF_QUERY_3		LDX	NUMBER_TIB	;decrement TIB counter
+;			BEQ	CF_QUERY_5 	;beep if TIB was empty
+;			LEAX	-1,X
+;			STX	NUMBER_TIB	
+;			LDAB	#PRINT_SYM_BACKSPACE ;transmit a backspace character
+;			SCI_TX
+;			JOB	CF_QUERY_1	
+;			;Process input (next free TIB location -> X)
+;CF_QUERY_4		MOVW	#$0000, TO_IN 	;set >IN to zero
+;			LED_BUSY_ON
+;			NEXT
+;			;Beep
+;CF_QUERY_5		PRINT_BEEP		;beep
+;			JOB	CF_QUERY_1 	;receive next character
 	
 ;REFILL ( -- flag )
 ;Attempt to fill the input buffer from the input source, returning a true flag;if successful.
@@ -5324,6 +5544,8 @@ NFA_RESTORE_INPUT	EQU	NFA_REFILL
 ;Throws:
 ;"Parameter stack underflow"
 ;
+CF_ROLL_PSUF		JOB	FCORE_THROW_PSUF
+	
 			ALIGN	1
 NFA_ROLL		FHEADER, "ROLL", NFA_RESTORE_INPUT, COMPILE
 CFA_ROLL		DW	CF_ROLL
@@ -5352,8 +5574,6 @@ CF_ROLL_2		NEXT
 CF_ROLL_3		LEAY	2,Y			;Remove TOS
 			STY	PSP
 			JOB	CF_ROLL_2
-	
-CF_ROLL_PSUF		JOB	FCORE_THROW_PSUF
 	
 ;SAVE-INPUT ( -- xn ... x1 n )
 ;x1 through xn describe the current state of the input source specification for
@@ -5418,6 +5638,9 @@ CFA_TRUE		DW	CF_CONSTANT_RT
 ;"Parameter stack underflow"
 ;"Parameter stack overflow"
 ;
+CF_TUCK_PSUF		JOB	FCORE_THROW_PSUF
+CF_TUCK_PSOF		JOB	FCORE_THROW_PSOF
+	
 			ALIGN	1
 NFA_TUCK		FHEADER, "TUCK", NFA_TRUE, COMPILE
 CFA_TUCK		DW	CF_TUCK
@@ -5430,9 +5653,6 @@ CF_TUCK			PS_CHECK_UFOF	2, CF_TUCK_PSUF, 1, CF_TUCK_PSOF ;(PSP-new cells -> Y)
 			STY	PSP 		;update PSP
 			NEXT
 
-CF_TUCK_PSUF		JOB	FCORE_THROW_PSUF
-CF_TUCK_PSOF		JOB	FCORE_THROW_PSOF
-	
 ;U.R ( u n -- )
 ;Display u right aligned in a field n characters wide. If the number of
 ;characters required to display u is greater than n, all digits are displayed
@@ -5473,6 +5693,8 @@ CF_U_DOT_R_INVALBASE	JOB	FCORE_THROW_INVALBASE
 ;Throws:
 ;"Parameter stack underflow"
 ;
+CF_U_GREATER_THAN_PSUF	JOB	FCORE_THROW_PSUF
+
 			ALIGN	1
 NFA_U_GREATER_THAN	FHEADER, "U>", NFA_U_DOT_R, COMPILE
 CFA_U_GREATER_THAN	DW	CF_U_GREATER_THAN
@@ -5485,8 +5707,6 @@ CF_U_GREATER_THAN	PS_CHECK_UF 2, CF_U_GREATER_THAN_PSUF 	;check for underflow  (
 CF_U_GREATER_THAN_1	STY	PSP
 			NEXT
 	
-CF_U_GREATER_THAN_PSUF	JOB	FCORE_THROW_PSUF
-
 ;UNUSED ( -- u )
 ;u is the amount of space remaining in the region addressed by HERE , in address
 ;units.
@@ -5495,6 +5715,8 @@ CF_U_GREATER_THAN_PSUF	JOB	FCORE_THROW_PSUF
 ;Throws:
 ;"Parameter stack overflow"
 ;
+CF_UNUSED_PSOF	JOB	FCORE_THROW_PSOF
+
 			ALIGN	1
 NFA_UNUSED		FHEADER, "UNUSED", NFA_U_GREATER_THAN, COMPILE
 CFA_UNUSED		DW	CF_UNUSED
@@ -5505,8 +5727,6 @@ CF_UNUSED		PS_CHECK_OF	1, CF_UNUSED_PSOF	;overflow check	(PSP-new cells -> Y)
 			STY	PSP
 			NEXT
 			
-CF_UNUSED_PSOF	JOB	FCORE_THROW_PSOF
-
 ;VALUE ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below, with an initial
@@ -5519,6 +5739,9 @@ CF_UNUSED_PSOF	JOB	FCORE_THROW_PSOF
 ;
 ;S12CForth implementation details:
 ;Same semantics as CONSTANT
+;
+CF_WITHIN_PSUF		JOB	FCORE_THROW_PSUF		
+
 
 			ALIGN	1
 NFA_VALUE		FHEADER, "VALUE", NFA_UNUSED, COMPILE
@@ -5538,7 +5761,7 @@ CFA_VALUE		DW	CF_CONSTANT
 ;
 			ALIGN	1
 NFA_WITHIN		FHEADER, "WITHIN", NFA_VALUE, COMPILE
-CFA_WITHIN		DW	CF_DUMMY
+CFA_WITHIN		DW	CF_WITHIN
 CF_WITHIN		PS_CHECK_UF	3, CF_WITHIN_PSUF ;check for underflow  (PSP -> Y)
 			;Pull boundaries from PS
 			LDX	2,Y+ 			;u3 -> X
@@ -5563,8 +5786,6 @@ CF_WITHIN_3		CLRA
 			CLRB
 			JOB	CF_WITHIN_2
 	
-CF_WITHIN_PSUF		JOB	FCORE_THROW_PSUF		
-
 ;[COMPILE] 
 ;Intrepretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "<spaces>name" -- )

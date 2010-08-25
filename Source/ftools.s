@@ -191,7 +191,7 @@ CF_DOT_S_1		PRINT_LINE_BREAK		;(SSTACK: 11 bytes)
 			;Calculate width of output (current index in Y)
 			LDX	#$FFFF 			;calculate max. data width
 			LDAB	BASE+1
-			PRINT_UINTCNT			;args: X:integer, B:base
+			PRINT_SINTCNT			;args: X:integer, B:base
 							;number of digits -> A (SSTACK: 13 bytes)
 			INCA				;additional whitespace			
 			;INCA				;additional whitespace
@@ -203,7 +203,7 @@ CF_DOT_S_1		PRINT_LINE_BREAK		;(SSTACK: 11 bytes)
 			ADDD	PSP
 			EXG	D, X
 			LDX	0,X                     ;read current cell
-			PRINT_RUINT			;args: X:integer, A:width, B:base (SSTACK: 24 bytes)
+			PRINT_RSINT			;args: X:integer, A:width, B:base (SSTACK: 24 bytes)
 			;Prepare next iteration (current index in Y)
 			DBEQ	Y, CF_DOT_S_3 		;done
 			LDD	#PS_EMPTY		;determine width of PS index
