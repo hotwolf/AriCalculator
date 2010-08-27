@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<chapter xml:id="notation" 
+<chapter xml:id="variables" 
 	 xmlns="http://docbook.org/ns/docbook"
 	 xmlns:xi="http://www.w3.org/2001/XInclude" 
 	 version="5.0">
 
-  <title>Notation</title>
+  <title>Variables</title>
   <info>
     <keywordset>
-      <keyword>stack notation</keyword>
+      <keyword>variables</keyword>
     </keywordset>
   </info> 
 
