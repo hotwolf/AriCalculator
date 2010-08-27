@@ -129,9 +129,9 @@ FEXCPT_EC_QUIT			EQU	-56	;QUIT
 ;FEXCPT_EC_57			EQU	-57	;exception in sending or receiving a character
 ;FEXCPT_EC_58			EQU	-58	;[IF], [ELSE], or [THEN] exception
 	
-;Additional error codes 
-FEXCPT_EC_NOMSG			EQU	FEXCPT_MSG_NOMSG
-FEXCPT_EC_DICTPROT		EQU	FEXCPT_MSG_DICTPROT
+;Non-standard error codes 
+FEXCPT_EC_NOMSG			EQU	-59	;empty message string
+FEXCPT_EC_DICTPROT		EQU	-60	;destruction of dictionary structure
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -168,7 +168,6 @@ FEXCPT_THROW_RSUF	EQU	FMEM_THROW_RSUF 		;"Return stack underflow"
 FEXCPT_THROW_DICTOF	EQU	FCORE_THROW_DICTOF 		;"Dictionary overflow"
 FEXCPT_THROW_STROF	EQU	FCORE_THROW_STROF 		;"Parsed string overflow"
 FEXCPT_THROW_NOMSG	FEXCPT_THROW	 FEXCPT_EC_NOMSG	;"Empty message string"
-FEXCPT_THROW_CESF	FEXCPT_THROW	 FEXCPT_EC_CESF		;"Corrupt exception stack frame"
 	
 ;#Throw an exception
 ; args:   D: error code
@@ -186,13 +185,13 @@ FEXCPT_THROW		EQU	*
 			MOVW	2,X+, PSP					;pull previous PSP (RSP -> X)		
 			MOVW	2,X+, IP					;pull next IP (RSP -> X)		
 			;Check if PSP is valid (RSP in X, error code in D)
-			PS_CHECK_UFOF 0,FEXCPT_THROW_CESF,1,FEXCPT_THROW_1	;check PSP (PSP -> Y)
+			PS_CHECK_UFOF 0,FEXCPT_THROW_1,1,FEXCPT_THROW_1		;check PSP (PSP -> Y)
 			;Return error code (RSP in X, error code in D)
 			STD	0,Y						;push error code onto PS
 			STX	RSP						;set RSP
 			STY	PSP						;set PSP
 			NEXT
-			;Corrupt exception stack frame (error code in D)
+FEXCPT_THROW_CESF	;Corrupt exception stack frame (error code in D)
 FEXCPT_THROW_1		LDY	#FEXCPT_EC_CESF
 			JOB	FEXCPT_THROW_4 					;print error message
 			;Uncought exception, check for special error codes
@@ -251,11 +250,14 @@ FEXCPT_CODE_END		EQU	*
 			ORG	FEXCPT_TABS_START
 				;Assign error messages to error codes 
 FEXCPT_MSGTAB_START	EQU	*
-			;DW	FEXCPT_MSG_UNKNOWN	;-58 [IF], [ELSE], or [THEN] exception
-			;DW	FEXCPT_MSG_UNKNOWN	;-57 exception in sending or receiving a character
-			;DW	FEXCPT_MSG_UNKNOWN	;-56 QUIT
-			;DW	FEXCPT_MSG_UNKNOWN	;-55 floating-point unidentified fault
-			;DW	FEXCPT_MSG_UNKNOWN	;-54 floating-point underflow
+
+			DW	FEXCPT_MSG_DICTPROT	;-60 destruction of dictionary structure
+			DW	FEXCPT_MSG_NOMSG	;-59 empty message string	
+			DW	FEXCPT_MSG_UNKNOWN	;-58 [IF], [ELSE], or [THEN] exception
+			DW	FEXCPT_MSG_UNKNOWN	;-57 exception in sending or receiving a character
+			DW	FEXCPT_MSG_UNKNOWN	;-56 QUIT
+			DW	FEXCPT_MSG_UNKNOWN	;-55 floating-point unidentified fault
+			DW	FEXCPT_MSG_UNKNOWN	;-54 floating-point underflow
 			DW	FEXCPT_MSG_CESF		;-53 exception stack overflow
 			DW	FEXCPT_MSG_UNKNOWN	;-52 control-flow stack overflow
 			DW	FEXCPT_MSG_UNKNOWN	;-51 compilation word list changed
@@ -277,7 +279,7 @@ FEXCPT_MSGTAB_START	EQU	*
 			DW	FEXCPT_MSG_UNKNOWN	;-35 invalid block number
 			DW	FEXCPT_MSG_UNKNOWN	;-34 block write exception
 			DW	FEXCPT_MSG_UNKNOWN	;-33 block read exception
-			DW	FEXCPT_MSG_INVALNAME	;-32 invalid name argument (e.g., TO xxx)
+			DW	FEXCPT_MSG_UNKNOWN	;-32 invalid name argument (e.g., TO xxx)
 			DW	FEXCPT_MSG_NONCREATE	;-31 >BODY used on non-CREATEd definition
 			DW	FEXCPT_MSG_UNKNOWN	;-30 obsolescent feature
 			DW	FEXCPT_MSG_COMPNEST	;-29 compiler nesting
@@ -332,11 +334,11 @@ FEXCPT_MSG_CTRLSTRUC	ERROR_MSG	ERROR_LEVEL_ERROR, "Control structure mismatch"
 ;FFEXCPT_MSG_INVALNUM	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid numeric argument"
 FEXCPT_MSG_COMPNEST	ERROR_MSG	ERROR_LEVEL_ERROR, "Nested compilation"
 FEXCPT_MSG_NONCREATE	ERROR_MSG	ERROR_LEVEL_ERROR, "Illegal operation on non-CREATEd definition"
-FEXCPT_MSG_INVALNAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid name argument"
+;FEXCPT_MSG_INVALNAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid name argument"
 FEXCPT_MSG_INVALBASE	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid BASE"
 FEXCPT_MSG_CESF		ERROR_MSG	ERROR_LEVEL_ERROR, "Corrupt exception stack frame"
 
-;Additional error messages 
+;Non-standard error messages 
 FEXCPT_MSG_NOMSG	ERROR_MSG	ERROR_LEVEL_ERROR, "Empty message string"
 FEXCPT_MSG_DICTPROT	ERROR_MSG	ERROR_LEVEL_ERROR, "Destruction of dictionary structure"
 	

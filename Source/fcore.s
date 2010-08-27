@@ -808,7 +808,7 @@ FCORE_THROW_STROF	FEXCPT_THROW	FEXCPT_EC_STROF		;parsed string overflow
 FCORE_THROW_CTRLSTRUC	FEXCPT_THROW	FEXCPT_EC_CTRLSTRUC	;control structure mismatch
 FCORE_THROW_COMPNEST	FEXCPT_THROW	FEXCPT_EC_COMPNEST	;compiler nesting
 FCORE_THROW_NONCREATE	FEXCPT_THROW	FEXCPT_EC_NONCREATE	;invalid usage of non-CREATEd definition
-FCORE_THROW_INVALNAME	FEXCPT_THROW	FEXCPT_EC_INVALNAME	;invalid name
+;FCORE_THROW_INVALNAME	FEXCPT_THROW	FEXCPT_EC_INVALNAME	;invalid name
 FCORE_THROW_INVALBASE	FEXCPT_THROW	FEXCPT_EC_INVALBASE	;invalid BASE
 FCORE_THROW_QUIT	FEXCPT_THROW	FEXCPT_EC_QUIT		;QUIT
 
@@ -1295,7 +1295,7 @@ CF_DOT			PS_PULL_X	CF_DOT_PSUF 	;pull cell from PS
 CF_DOT_PSUF		JOB	FCORE_THROW_PSUF
 CF_DOT_INVALBASE	JOB	FCORE_THROW_INVALBASE
 	
-;." 			;"
+;." 			;" CHECK!
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "ccc<quote>" -- )
 ;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
@@ -1315,7 +1315,7 @@ CF_DOT_QUOTE_STROF	JOB	FCORE_THROW_STROF
 	
 			ALIGN	1
 NFA_DOT_QUOTE		FHEADER, '."', NFA_DOT, IMMEDIATE ;"
-CFA_DOT_QUOTE		DW	CF_DOT_QUOTE 			
+CFA_DOT_QUOTE		DW	CF_DOT_QUOTE 		;compilation semantics
 CF_DOT_QUOTE		;Parse quote
 			LDAA	#$22 				;double quote
 CF_DOT_QUOTE_1		SSTACK_JOBSR	FCORE_PARSE		;string pointer -> X, character count -> A
@@ -4628,18 +4628,45 @@ CFA_BRACKET_TICK	DW	CF_BRACKET_TICK
 CF_BRACKET_TICK		COMPILE_ONLY	CF_TICK
 			JOB		CF_POSTPONE
 	
-;[CHAR]
+;[CHAR] CHECK!
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Append the
 ;run-time semantics given below to the current definition.
 ;Run-time: ( -- char )
 ;Place char, the value of the first character of name, on the stack.
-NFA_BRACKET_CHAR	EQU	NFA_BRACKET_TICK
-;			ALIGN	1
-;NFA_BRACKET_CHAR	FHEADER, "[CHAR]", NFA_BRACKET_TICK, IMMEDIATE
-;CFA_BRACKET_CHAR	DW	CF_DUMMY
-
+;
+;S12CForth implementation details:
+;Returns "0" in case of a zero length string
+;Interpretation semantcs: see CHAR
+;Throws:
+;"Dictionary overflow"
+;
+			ALIGN	1
+NFA_BRACKET_CHAR	FHEADER, "[CHAR]", NFA_BRACKET_TICK, IMMEDIATE
+CFA_BRACKET_CHAR	DW	CF_BRACKET_CHAR
+			DW	CFA_LITERAL_RT	
+			;[CHAR] compile semantics (run-time CFA in [X+2])
+CF_BRACKET_CHAR		COMPILE_ONLY	CF_CHAR
+			LDD	2,X
+			DICT_CHECK_OF	4, CF_BRACKET_CHAR_DICTOF	;(CP+4 -> X)
+			;Add run-time CFA to compilation (CP+4 in X, run-time CFA in D)
+			STD	 -4,X
+			;Parse word (CP+4 in X)
+			TFR	X, Y
+			SSTACK_JOBSR	FCORE_WORD 			;string pointer -> X (SSTACK: 4 bytes)
+			CLRB
+			TBEQ	X, CF_BRACKET_CHAR_1 			;empty string
+			;Add char to compilation (string pointer in X, CP+4 in Y)
+			LDAB	0,X
+CF_BRACKET_CHAR_1	CLRA
+			STD	-2,Y
+			STY	CP
+			;Done
+			NEXT
+	
+CF_BRACKET_CHAR_DICTOF	JOB	FCORE_THROW_DICTOF
+	
 ;] ( -- )
 ;Enter compilation state.
 			ALIGN	1
@@ -5244,6 +5271,8 @@ NFA_MARKER		EQU	NFA_HEX
 ;Throws:
 ;"Parameter stack overflow"
 ;
+CF_NAME_PSOF		JOB	FCORE_THROW_PSOF
+
 			ALIGN	1
 NFA_NAME		FHEADER, "NAME", NFA_MARKER, COMPILE
 CFA_NAME		DW	CF_NAME
@@ -5254,8 +5283,6 @@ CF_NAME			PS_CHECK_OF	1, CF_NAME_PSOF ;(PSP-2 -> Y)
 			STX	 0,Y
 			STY	PSP
 			NEXT
-			
-CF_NAME_PSOF		JOB	FCORE_THROW_PSOF
 			
 ;NIP ( x1 x2 -- x2 )
 ;Drop the first item below the top of stack.
