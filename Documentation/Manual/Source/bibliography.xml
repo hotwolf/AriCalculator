@@ -27,11 +27,12 @@
       </personname>
     </author>
     <copyright>
+      <year>2003</year>
       <holder>FORTH, Inc.</holder>
     </copyright>
     <title>Starting Forth</title>
     <biblioid class="uri">http://www.forth.com/starting-forth/</biblioid>
-    <biblioid class="uri">http://home.iae.nl/users/mhx/sf.html</biblioid>
+    <!-- <biblioid class="uri">http://home.iae.nl/users/mhx/sf.html</biblioid> -->
   </biblioentry>
 
 </bibliography>

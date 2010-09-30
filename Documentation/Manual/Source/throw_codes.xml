@@ -207,7 +207,7 @@
 	  <link linkend="word_abort_quote"><command>ABORT&quot;</command></link>, 
 	  <link linkend="word_error_quote"><command>ERROR&quot;</command></link>, or
 	  <link linkend="word_abort_quote"><command>FATAL&quot;</command></link>.</entry>
-	  <entry morerows="2" rotate="1"><emphasis><xref linkend="top"/></emphasis></entry>
+	  <entry morerows="2" rotate="1"><emphasis><xi:include href="project_name.txt" parse="text"/></emphasis></entry>
 	</row>
 	<row xml:id="exception_dictprot">
 	  <entry xml:id="exception_dictprot_code"><literal>-60</literal></entry>

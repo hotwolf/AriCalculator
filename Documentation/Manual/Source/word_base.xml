@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section xml:id="word_base" 
+	 xmlns="http://docbook.org/ns/docbook"
+	 xmlns:xi="http://www.w3.org/2001/XInclude" version="5.0">
+  <title><command>BASE</command></title>
+  <info>
+    <keywordset>
+      <keyword>base</keyword>
+      <keyword>radix</keyword>
+      <keyword>variable</keyword>
+    </keywordset>
+  </info>
+ 
+  <para>
+    TBD
+  </para>
+
+</section>

@@ -1,5 +1,5 @@
-<book xml:id="top" xreflabel="S12CForth" 
-      xmlns="http://docbook.org/ns/docbook"
+<?xml version="1.0" encoding="UTF-8"?>
+<book xmlns="http://docbook.org/ns/docbook"
       xmlns:xi="http://www.w3.org/2001/XInclude" 
       version="5.0">
 
@@ -36,6 +36,7 @@
 
   <dedication>
     <para>
+      To Andrea
     </para>
   </dedication>
 

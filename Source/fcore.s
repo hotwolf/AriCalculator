@@ -885,7 +885,7 @@ CF_STORE		PS_CHECK_UF 2, CF_STORE_PSUF 	;check for underflow  (PSP -> Y)
 
 CF_STORE_PSUF		JOB	FCORE_THROW_PSUF
 	
-;# ( ud1 -- ud2 ) CHECK!
+;# ( ud1 -- ud2 )
 ;Divide ud1 by the number in BASE giving the quotient ud2 and the remainder n.
 ;(n is the least-significant digit of ud1.) Convert n to external form and add
 ;the resulting character to the beginning of the pictured numeric output string.
@@ -909,17 +909,17 @@ CF_NUMBER_SIGN		PS_CHECK_UF	2, CF_NUMBER_SIGN_PSUF 	;check for underflow  (PSP -
 			IDIV					;D/X=>X; remainder=D
 			STX	0,Y				;return upper word of the result
 			LDX	BASE				;prepare 2nd division
-			STY	2,Y
+			LDY	2,Y
 			EXG	D,Y
 			EDIV					;Y:D/X=>Y; remainder=>D
 			LDX	PSP				;PSP -> X
 			STY	2,X
 			;Lookup ASCII representation of the remainder (remainder -> D)
 			TFR	D,X
-			LDAB	[FCORE_SYMTAB,X]
+			LDAB	FCORE_SYMTAB,X
 			;Add ASCII character to the PAD buffer
 			PAD_CHECK_OF	CF_NUMBER_SIGN_PADOF	;check for PAD overvlow (HLD -> X)
-			STAB	1,X-
+			STAB	1,-X
 			STX	HLD
 			NEXT
 	
@@ -927,7 +927,7 @@ CF_NUMBER_SIGN_PSUF		JOB	FCORE_THROW_PSUF
 CF_NUMBER_SIGN_PADOF		JOB	FCORE_THROW_PADOF
 CF_NUMBER_SIGN_INVALBASE	JOB	FCORE_THROW_INVALBASE
 	
-;#> ( xd -- c-addr u ) CHECK!
+;#> ( xd -- c-addr u )
 ;Drop xd. Make the pictured numeric output string available as a character
 ;string. c-addr and u specify the resulting character string. A program may
 ;replace characters within the string. 
@@ -948,7 +948,7 @@ CF_NUMBER_SIGN_GREATER		PS_CHECK_UF	2, CF_NUMBER_SIGN_GREATER_PSUF ;check for un
 				STD	0,Y
 				BEQ	CF_NUMBER_SIGN_GREATER_2 		;zero length string
 				;Terminate string (PSP in Y, PAD in X)
-				BSET	-1,X, #$80 				;set termination bit in last characer
+				BSET	1,X, #$80 				;set termination bit in last characer
 				;Return string pointer (PSP in Y, PAD in X)
 				MOVW	HLD, 2,Y				;HLD -> c-addr
 				;Done
@@ -959,7 +959,7 @@ CF_NUMBER_SIGN_GREATER_2	STD	2,Y
 
 CF_NUMBER_SIGN_GREATER_PSUF	JOB	FCORE_THROW_PSUF
 	
-;#S ( ud1 -- ud2 ) CHECK!
+;#S ( ud1 -- ud2 )
 ;Convert one digit of ud1 according to the rule for #. Continue conversion
 ;until the quotient is zero. ud2 is zero. An ambiguous condition exists if #S
 ;executes outside of a <# #> delimited number conversion.
@@ -981,17 +981,17 @@ CF_NUMBER_SIGN_S_1	TFR	D,X				;prepare 1st division
 			IDIV					;D/X=>X; remainder=D
 			STX	0,Y				;return upper word of the result
 			LDX	BASE				;prepare 2nd division
-			STY	2,Y
+			LDY	2,Y
 			EXG	D,Y
 			EDIV					;Y:D/X=>Y; remainder=>D
 			LDX	PSP				;PSP -> X
 			STY	2,X
 			;Lookup ASCII representation of the remainder (LSB of quotient in Y, remainder in D)
 			TFR	D,X
-			LDAB	[FCORE_SYMTAB,X]
+			LDAB	FCORE_SYMTAB,X
 			;Add ASCII character to the PAD buffer (LSB of quotient in Y)
 			PAD_CHECK_OF	CF_NUMBER_SIGN_S_PADOF	;check for PAD overvlow (HLD -> X)
-			STAB	1,X-
+			STAB	1,-X
 			STX	HLD
 			;Check if quotient is zero
 			LDD	BASE
@@ -1295,7 +1295,7 @@ CF_DOT			PS_PULL_X	CF_DOT_PSUF 	;pull cell from PS
 CF_DOT_PSUF		JOB	FCORE_THROW_PSUF
 CF_DOT_INVALBASE	JOB	FCORE_THROW_INVALBASE
 	
-;." 			;" CHECK!
+;." 			;"
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "ccc<quote>" -- )
 ;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
@@ -1569,7 +1569,7 @@ CF_TWO_SLASH_PSUF	JOB	FCORE_THROW_PSUF
 			ALIGN	1
 NFA_TWO_FETCH		FHEADER, "2@", NFA_TWO_SLASH, COMPILE
 CFA_TWO_FETCH		DW	CF_TWO_FETCH
-CF_TWO_FETCH		PS_CHECK_UFOF	2, CF_TWO_FETCH_PSUF, 2, CF_TWO_FETCH_PSOF	;check for under and overflow
+CF_TWO_FETCH		PS_CHECK_UFOF	1, CF_TWO_FETCH_PSUF, 1, CF_TWO_FETCH_PSOF	;check for under and overflow
 			;Fetch data (PSP-2 in Y)
 			LDX	2,Y
 			MOVW	2,X, 2,Y
@@ -1630,7 +1630,7 @@ CF_TWO_DUP_PSOF	JOB	FCORE_THROW_PSOF
 ;"Compile-only word"
 ;
 			ALIGN	1
-NFA_TWO_LITERAL		FHEADER, "2LITERAL", NFA_TWO_DUP, COMPILE
+NFA_TWO_LITERAL		FHEADER, "2LITERAL", NFA_TWO_DUP, IMMEDIATE
 CFA_TWO_LITERAL		DW	CF_TWO_LITERAL
 			DW	CFA_TWO_LITERAL_RT
 CF_TWO_LITERAL		COMPILE_ONLY	CF_TWO_LITERAL_COMPONLY ;ensure that compile mode is on
@@ -1881,7 +1881,7 @@ CF_LESS_THAN_1		STY	PSP
 	
 CF_LESS_THAN_PSUF	JOB	FCORE_THROW_PSUF
 	
-;<# ( -- ) CHECK!
+;<# ( -- )
 ;Initialize the pictured numeric output conversion process.
 ;
 ;S12CForth implementation details:
@@ -1934,7 +1934,7 @@ CF_GREATER_THAN_1	STY	PSP
 	
 CF_GREATER_THAN_PSUF	JOB	FCORE_THROW_PSUF
 
-;>BODY ( xt -- a-addr ) CHECK!
+;>BODY ( xt -- a-addr )
 ;a-addr is the data-field address corresponding to xt. An ambiguous condition
 ;exists if xt is not for a word defined via CREATE.
 ;
@@ -3033,7 +3033,7 @@ NFA_HERE		FHEADER, "HERE", NFA_F_M_SLASH_MOD, COMPILE
 CFA_HERE		DW	CF_CONSTANT_RT
 			DW	CP
 
-;HOLD ( char -- ) CHECK!
+;HOLD ( char -- )
 ;Add char to the beginning of the pictured numeric output string. An ambiguous
 ;condition exists if HOLD executes outside of a <# #> delimited number
 ;conversion.
@@ -3050,7 +3050,7 @@ CF_HOLD			PS_CHECK_UF	1, CF_HOLD_PSUF ;check for underflow	(PSP -> Y)
 			PAD_CHECK_OF	CF_HOLD_PADOF	;check for PAD overvlow (HLD -> X)
 			;Add ASCII character to the PAD buffer (PSP -> Y, HLD -> X)
 			LDD	2,Y+
-			STAB	1,X-
+			STAB	1,-X
 			STX	HLD
 			STY	PSP
 			NEXT
@@ -4057,7 +4057,7 @@ CF_S_TO_D_1		NEXT
 CF_S_TO_D_PSUF		JOB	FCORE_THROW_PSUF
 CF_S_TO_D_PSOF		JOB	FCORE_THROW_PSOF
 	
-;SIGN ( n -- ) CHECK!
+;SIGN ( n -- )
 ;If n is negative, add a minus sign to the beginning of the pictured numeric
 ;output string. An ambiguous condition exists if SIGN executes outside of a
 ;<# #> delimited number conversion.
@@ -4075,7 +4075,7 @@ CF_SIGN			PS_CHECK_UF	1, CF_SIGN_PSUF ;check for underflow	(PSP -> Y)
 			;Add sign character to the PAD buffer
 			LDD	2,Y+
 			BPL	CF_SIGN_1
-			MOVB	#"-", 1,X-
+			MOVB	#"-", 1,-X
 			STX	HLD
 CF_SIGN_1		STY	PSP
 			NEXT
@@ -4236,7 +4236,7 @@ CF_THEN			COMPILE_ONLY	CF_THEN_COMPONLY 	;ensure that compile mode is on
 CF_THEN_PSUF		JOB	FCORE_THROW_PSUF
 CF_THEN_COMPONLY	JOB	FCORE_THROW_COMPONLY
 
-;TYPE ( c-addr u -- ) CHECK!
+;TYPE ( c-addr u -- )
 ;If u is greater than zero, display the character string specified by c-addr and
 ;u.
 ;When passed a character in a character string whose character-defining bits
@@ -5437,7 +5437,7 @@ CF_PARSE_PSOF		JOB	FCORE_THROW_PSOF
 			ALIGN	1
 NFA_PARSE		FHEADER, "PARSE", NFA_PAD, COMPILE
 CFA_PARSE		DW	CF_PARSE
-CF_PARSE		PS_CHECK_UFOF	2, CF_PARSE_PSUF, 2, CF_PARSE_PSOF	;check for under and overflow
+CF_PARSE		PS_CHECK_UFOF	2, CF_PARSE_PSUF, 1, CF_PARSE_PSOF	;check for under and overflow
 			;Pull argument from PS (PSP-2 in Y)
 			LDD	2,Y
 			;Parse quote (PSP-2 in Y, char in D)

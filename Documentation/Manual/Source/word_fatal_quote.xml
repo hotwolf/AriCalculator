@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section xml:id="word_fatal_quote" 
+	 xmlns="http://docbook.org/ns/docbook"
+	 xmlns:xi="http://www.w3.org/2001/XInclude" version="5.0">
+  <title><command>FATAL&quot;</command> (abort quote)</title>
+  <info>
+    <keywordset>
+      <keyword>exception</keyword>
+      <keyword>fatal</keyword>
+      <keyword>severity</keyword>
+    </keywordset>
+  </info>
+ 
+  <para>
+    TBD
+  </para>
+
+</section>

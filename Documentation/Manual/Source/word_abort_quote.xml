@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section xml:id="word_abort_quote" 
+	 xmlns="http://docbook.org/ns/docbook"
+	 xmlns:xi="http://www.w3.org/2001/XInclude" version="5.0">
+  <title><command>ABORT&quot;</command> (abort quote)</title>
+  <info>
+    <keywordset>
+      <keyword>abort</keyword>
+      <keyword>exception</keyword>
+    </keywordset>
+  </info>
+  
+
+  <simplesect>
+    <title>Interpretation Semantics</title>
+    <para>
+      Interpretation semantics for this word are undefined. Executing <command>ABORT&quot;</command>
+      in interpetation mode will throw an exception (error code <literal>-2</literal>).
+      <segmentedlist>
+	<title>Exceptions:</title>
+	<?dbhtml list-presentation="table"?>
+	<?dbfo   list-presentation="table"?>
+	<segtitle>Message</segtitle>
+	<segtitle>Error Code</segtitle>
+	<segtitle>Cause</segtitle>
+	<seglistitem>
+	  <seg><quote>Error! Compile-only word!</quote></seg>
+	  <seg><literal>-2</literal></seg>
+	  <seg>Execution of <command>ABORT&quot;</command> in interpretation mode</seg>
+	</seglistitem>
+      </segmentedlist>
+    </para>
+  </simplesect>  
+
+
+
+</section>
