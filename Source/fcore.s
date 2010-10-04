@@ -361,7 +361,7 @@ FCORE_NAME_7		STY	TO_IN			;update >IN pointer
 ;         Y is preserved
 FCORE_WORD		EQU	*	
 			;Save registers
-			SSTACK_PSHYB			;save index Y
+			SSTACK_PSHY			;save index Y
 			;Skip leading whitespaces
 			LDY	TO_IN			;current >IN -> Y	
 FCORE_WORD_1		CPY	NUMBER_TIB		;check for the end of the input buffer
@@ -375,7 +375,7 @@ FCORE_WORD_1		CPY	NUMBER_TIB		;check for the end of the input buffer
 			;Save start address in X (index of 2nd character in Y)
 			LEAY	-1,Y 			;revert >IN		
 			LEAX	TIB_START,Y 		;calculate string pointer
-			;Convert to upper-case and add trailing whitespace  (index of 1st character in Y, string pointer in X)
+			;Find the end of the string (index of 1st character in Y, string pointer in X)
 FCORE_WORD_2		LDD	TIB_START,Y		;next two characters -> D
 			LEAY	1,Y			;increment string pointer
 			CPY	NUMBER_TIB		;check for the end of the input buffer
@@ -1557,7 +1557,7 @@ CF_TWO_SLASH		PS_CHECK_UF 1, CF_TWO_SLASH_PSUF	;(PSP -> Y)
 	
 CF_TWO_SLASH_PSUF	JOB	FCORE_THROW_PSUF
 
-;2@ ( a-addr -- x1 x2 ) CHECK!
+;2@ ( a-addr -- x1 x2 )
 ;Fetch the cell pair x1 x2 stored at a-addr. x2 is stored at a-addr and x1 at
 ;the next consecutive cell. It is equivalent to the sequence DUP CELL+ @ SWAP @ .
 ;
@@ -1616,7 +1616,7 @@ CF_TWO_DUP		PS_CHECK_UFOF	2, CF_TWO_DUP_PSUF, 2, CF_TWO_DUP_PSOF	;check for unde
 CF_TWO_DUP_PSUF	JOB	FCORE_THROW_PSUF
 CF_TWO_DUP_PSOF	JOB	FCORE_THROW_PSOF
 
-;2LITERAL (actually part of the ANS Forth double number waid set) CHECK!
+;2LITERAL (actually part of the ANS Forth double number waid set)
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( x1 x2 -- )
 ;Append the run-time semantics below to the current definition.
@@ -1638,7 +1638,7 @@ CF_TWO_LITERAL		COMPILE_ONLY	CF_TWO_LITERAL_COMPONLY ;ensure that compile mode i
 			LDD	2,X
 			DICT_CHECK_OF	6, CF_TWO_LITERAL_DICTOF	;(CP+6 -> X)
 			;Add run-time CFA to compilation (CP+6 in X, PSP in Y, run-time CFA in D)
-			STD	 -4,X
+			STD	 -6,X
 			;Add TOS to compilation (CP+6 in X, PSP in Y, run-time CFA in D)
 			MOVW	2,Y+,	-4,X
 			MOVW	2,Y+,	-2,X
@@ -1982,7 +1982,7 @@ NFA_TO_NUMBER		EQU	NFA_TO_IN
 ;CFA_TO_NUMBER		DW	CF_TO_NUMBER
 ;CF_TO_NUMBER		DW	CF_TO_NUMBER
 	
-;>R CHECK!
+;>R
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( x -- ) ( R:  -- x )
 ;Move x to the return stack.
@@ -2000,7 +2000,7 @@ CF_TO_R			;Check stacks
 			RS_CHECK_OF	1, CF_TO_R_RSOF
 			;Move data
 			LDX	RSP
-			MOVW	2,-Y, 2,-X
+			MOVW	2,Y+, 2,-X
 			STY	PSP
 			STX	RSP	
 			;Done
@@ -2009,7 +2009,7 @@ CF_TO_R			;Check stacks
 CF_TO_R_PSUF		JOB	FCORE_THROW_PSUF
 CF_TO_R_RSOF		JOB	FCORE_THROW_RSOF
 	
-;?DUP ( x -- 0 | x x ) CHECK!
+;?DUP ( x -- 0 | x x )
 ;Duplicate x if it is non-zero.
 ;
 ;S12CForth implementation details:
@@ -2181,7 +2181,7 @@ CFA_ALIGN		DW	CF_NOP
 NFA_ALIGNED		FHEADER, "ALIGNED", NFA_ALIGN, COMPILE
 CFA_ALIGNED		DW	CF_NOP
 
-;ALLOT ( n -- ) CHECK!
+;ALLOT ( n -- )
 ;If n is greater than zero, reserve n address units of data space. If n is less
 ;than zero, release |n| address units of data space. If n is zero, leave the
 ;data-space pointer unchanged.
@@ -2292,7 +2292,7 @@ NFA_B_L			FHEADER, "BL", NFA_BIN, COMPILE
 CFA_B_L			DW	CF_CONSTANT_RT
 			DW	PRINT_SYM_SPACE
 
-;C! ( char c-addr -- ) CHECK!
+;C! ( char c-addr -- )
 ;Store char at c-addr. When character size is smaller than cell size, only the
 ;number of low-order bits corresponding to character size are transferred.
 ;
@@ -2312,7 +2312,7 @@ CF_C_STORE		PS_CHECK_UF 2, CF_C_STORE_PSUF 	;check for underflow  (PSP -> Y)
 
 CF_C_STORE_PSUF		JOB	FCORE_THROW_PSUF
 
-;C, ( char -- ) CHECK!
+;C, ( char -- )
 ;Reserve space for one character in the data space and store char in the space.
 ;If the data-space pointer is character aligned when C, begins execution, it
 ;will remain character aligned when C, finishes execution. An ambiguous
@@ -2339,7 +2339,7 @@ CF_C_COMMA		PS_CHECK_UF	1, CF_C_COMMA_PSUF 	;check for PS underflow   (PSP -> Y)
 CF_C_COMMA_PSUF		JOB	FCORE_THROW_PSUF
 CF_C_COMMA_DICTOF	JOB	FCORE_THROW_DICTOF
 
-;C@ ( c-addr -- char ) CHECK!
+;C@ ( c-addr -- char )
 ;Fetch the character stored at c-addr. When the cell size is greater than
 ;character size, the unused high-order bits are all zeroes.
 ;
@@ -2399,7 +2399,7 @@ CF_CELLS		PS_CHECK_UF 1, CF_CELLS_PSUF 	;check for underflow  (PSP -> Y)
 	
 CF_CELLS_PSUF		JOB	FCORE_THROW_PSUF
 			
-;CHAR 	( "<SPACES>NAME" -- char ) CHECK!
+;CHAR 	( "<SPACES>NAME" -- char )
 ;Skip leading space delimiters. Parse name delimited by a space. Put the value
 ;of its first character onto the stack.
 ;
@@ -2426,13 +2426,13 @@ CF_CHAR_1		CLRA
 	
 CF_CHAR_PSOF		JOB	FCORE_THROW_PSOF
 
-;CHAR+ ( c-addr1 -- c-addr2 ) CHECK!
+;CHAR+ ( c-addr1 -- c-addr2 )
 ;Add the size in address units of a character to c-addr1, giving c-addr2.
 			ALIGN	1
 NFA_CHAR_PLUS		FHEADER, "CHAR+", NFA_CHAR, COMPILE
 CFA_CHAR_PLUS		DW	CF_ONE_PLUS
 
-;CHARS ( n1 -- n2 ) CHECK!
+;CHARS ( n1 -- n2 )
 ;n2 is the size in address units of n1 characters.
 			ALIGN	1
 NFA_CHARS		FHEADER, "CHARS", NFA_CHAR_PLUS, COMPILE
@@ -2490,7 +2490,7 @@ CF_CONSTANT_RT		PS_CHECK_OF	1, CF_CONSTANT_PSOF	;overflow check	=> 9 cycles
 								; 		  ---------
 								;		  32 cycles
                                                 
-;COUNT ( c-addr1 -- c-addr2 u ) CHECK!
+;COUNT ( c-addr1 -- c-addr2 u )
 ;Return the character string specification for the counted string stored at
 ;c-addr1. c-addr2 is the address of the first character after c-addr1. u is the
 ;contents of the character at c-addr1, which is the length in characters of the
@@ -2681,7 +2681,7 @@ CF_DO_RT		PS_CHECK_UF	2, CF_DO_PSUF	;(PSP -> Y)
 			STY	PSP
 			;Done
 			NEXT
-;DOES> CHECK!
+;DOES>
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: colon-sys1 -- colon-sys2 )
 ;Append the run-time semantics below to the current definition. Whether or not
