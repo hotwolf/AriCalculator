@@ -2935,10 +2935,10 @@ NFA_FILL		FHEADER, "FILL", NFA_EXIT, COMPILE
 CFA_FILL		DW	CF_FILL
 CF_FILL			PS_CHECK_UF	3, CF_FILL_PSUF ;check for underflow (PSP -> Y)
 			;Pull args fron stack
-			LDX	6,Y+ 			;c-addr -> X	
+			LDD	6,Y+ 			;char -> X	
 			STY	PSP
-			LDD	-6,Y 			;char -> D
-			STY	-4,Y			;u -> Y
+			LDX	-2,Y 			;c-addr -> D
+			LDY	-4,Y			;u -> Y
 			BEQ	CF_FILL_2		;done
 			;Fill memory (c-addr in X, u in Y, char in D)
 CF_FILL_1		STAB	1,X+
@@ -3146,7 +3146,7 @@ CF_IF_RT		PS_CHECK_UF	1, CF_IF_PSUF ;check for underflow (PSP -> Y)
 CF_IF_RT_1		STY	PSP
 			JUMP_NEXT
 			
-;IMMEDIATE ( -- ) CHECK!
+;IMMEDIATE ( -- )
 ;Make the most recent definition an immediate word. An ambiguous condition
 ;exists if the most recent definition does not have a name.
 ;
@@ -4019,7 +4019,7 @@ CF_S_QUOTE_PSOF		JOB	FCORE_THROW_PSOF
 ;Throws:
 ;"Parameter stack overflow"
 			ALIGN	1
-CFA_S_QUOTE_RT	DW	CF_DOT_QUOTE_RT
+CFA_S_QUOTE_RT		DW	CF_S_QUOTE_RT
 CF_S_QUOTE_RT		PS_CHECK_OF	2, CF_S_QUOTE_PSOF 	;check for PS overflow (PSP-4 -> Y)
 			;Push string pointer onto PS (PSP-4 in Y)
 			LDX	IP
@@ -4603,7 +4603,7 @@ CF_LEFT_BRACKET		MOVW	#$0000, STATE
 			;Done 
 			NEXT
 
-;['] CHECK!
+;[']
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Find name.
@@ -5191,7 +5191,7 @@ CF_ENDOF_PSUF		JOB	FCORE_THROW_PSUF
 
 CFA_ENDOF_RT		EQU	CFA_AGAIN_RT
 	
-;ERASE ( addr u -- ) CHECK!
+;ERASE ( addr u -- )
 ;If u is greater than zero, clear all bits in each of u consecutive address
 ;units of memory beginning at addr .
 ;
@@ -5395,7 +5395,7 @@ CF_OF_RT_1		LEAY	2,Y			;update PSP
 			STY	PSP
 			SKIP_NEXT 			;execute conditional code
 	
-;PAD ( -- c-addr ) CHECK!
+;PAD ( -- c-addr )
 ;c-addr is the address of a transient region that can be used to hold data for
 ;intermediate processing.
 ;
@@ -5614,7 +5614,7 @@ NFA_SAVE_INPUT		EQU	NFA_ROLL
 ; 0              User input device
 NFA_SOURCE_ID		EQU	NFA_SAVE_INPUT
 
-;SPAN ( -- a-addr ) CHECK!
+;SPAN ( -- a-addr )
 ;a-addr is the address of a cell containing the count of characters stored by
 ;the last execution of EXPECT.
 ;Note: This word is obsolescent and is included as a concession to existing
