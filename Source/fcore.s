@@ -603,8 +603,7 @@ FCORE_HEADER_STROF	LDX	#FCORE_THROW_STROF
 
 ;#Get command line input
 ; args:   none
-; result: none
-;	  A: character count (saturated at 255) 	
+; result: A: character count (saturated at 255) 	
 ; SSTACK: 6 bytes
 ;         X, Y and D are preserved
 FCORE_QUERY		EQU	*	
