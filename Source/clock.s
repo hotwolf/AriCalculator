@@ -39,7 +39,9 @@
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-CRG_PLL_CFG	EQU	$2305 ;(35+1/5+1) => 49.152MHz (24.576MHz bus clock)
+CLOCK_OSC_FREQ	EQU	 4096000 	;oscillator runs at 4.096 MHz
+CLOCK_BUS_FREQ	EQU	24576000	;bus frequency is 24.576 MHz
+CLOCK_PLL_CFG	EQU	$2305 ;(35+1/5+1) => 49.152MHz (24.576MHz bus clock)
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -53,7 +55,7 @@ CLOCK_VARS_END		EQU	*
 ;#Initialization
 #macro	CLOCK_INIT, 0
 		MOVB	#$FF, CRGFLG 					;clear all flags
-		MOVW	#CRG_PLL_CFG, SYNR				;set PLL frequency (SYNR, REFDV)
+		MOVW	#CLOCK_PLL_CFG, SYNR				;set PLL frequency (SYNR, REFDV)
 		MOVW	#(((RTIE|LOCKIE)<<8)|CWAI|COPWAI), CRGINT 	;CRG configuration:
 									; real-time interrupt enabled		(RTIE)
 									; PLL lock interrupt enabled		(LOCKIE)
