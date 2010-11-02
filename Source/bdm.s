@@ -808,16 +808,12 @@ BDM_DELAY_TGTRST	EQU	*
 BDM_RX			EQU	*
 			;Save registers
 BDM_RX_ACK_TO_TC_MSW	EQU	0
-BDM_RX_ACK_TO_TC_LSW	EQU	0	
-BDM_RX_ACK_WIDTH_BC	EQU	0	
-BDM_RX_ACK_WIDTH_TC	EQU	0	
-BDM_RX_DATA_CNT		EQU	0
-BDM_RX_DATA_PTR		EQU	0
-BDM_RX_D		EQU	2
-BDM_RX_X		EQU	4
-BDM_RX_Y		EQU	6
-			SSTACK_PSHYXD				;save index X, index Y, and accu D
-			SSTACK_ALLOC	10
+BDM_RX_ACK_TO_TC_LSW	EQU	2	
+BDM_RX_DATA_CNT		EQU	4
+BDM_RX_DATA_PTR		EQU	6
+BDM_RX_Y		EQU	8
+			SSTACK_PSHY				;save index X, index Y, and accu D
+			SSTACK_ALLOC	8
 	
 			;Step 1
 BDM_RX_STEP_1		EQU	*	
@@ -827,72 +823,39 @@ BDM_RX_STEP_1		EQU	*
 			BEQ	BDM_RX_STEP_1_1
 			BRSET	PIFP, #$20, BDM_RX_TGTRST
 			;Check if BDM_SPEED is set (bit count in D, BC timeout in X)
-			LDY	BDM_SPEED
-			BEQ	BDM_RX_ 			;BDM_SPEED noty set
+BDM_RX_STEP_1_1		LDY	BDM_SPEED
+			BEQ	BDM_RX_NOSPD 			;BDM_SPEED not set
 			;Initialize local variables (bit count in D, BC timeout in X)
 			LDY	SSTACK_SP
 			STD	BDM_RX_DATA_CNT,Y
-			BEQ	BDM_RX_STEP_ 			;nothing to do
-			MOVW	BDM_RX_Y,Y BDM_RX_DATA_PTR,Y	
+			BEQ	BDM_RX_NOP 			;nothing to do
+			LDD	BDM_RX_Y,Y
+			STD	BDM_RX_DATA_PTR,Y
+			;Clear MSW of the data field (data pointer in D, stack pointer in Y, BC timeout in X) 
+			TFR	D,Y
+			MOVW	#$0000, 0,Y
 			;Calculate timeout (BC timeout in X)
 			TFR	X,D
 			SSTACK_JOBSR	BDM_BC2TC		;(SSTACK: 6 bytes)
-			LDX	SSTACK_SP
+			LDY	SSTACK_SP
 			STY	BDM_DELAY_TO_MSW,Y		;store BDM_DELAY_TO_MSW
 			STD	BDM_DELAY_TO_LSW,Y		;store BDM_DELAY_TO_MSW
-		
-
-
-
-	MOVW	#6, BDM_RX_TMP,Y 		;set minimum delay for 
-			EMAXD	BDM_DELAY_TMP,Y
-			STY	BDM_DELAY_TO_MSW,Y		;store BDM_DELAY_TO_MSW
-			
-
-
-	
-			;Quit if reset monitor is enabled
-			;and previous target reset was detected (bit count in D, BC timeout in X)
-			LDY	BDM_RMCNT
-			BEQ	BDM_RX_STEP_1_1
-			BRSET	PIFP, #$20, BDM_RX_ERROR
-			
-
-
-			;Quit if BDM_SPEED is not set (bit count in D, BC timeout in X)
-BDM_RX_STEP_1_1		LDY	BDM_SPEED 			;BDM cycles*BDM_SPEED
-			BEQ	BDM_RX_ERROR					
-			;Quit if data width is zero (bit count in D, BC timeout in X)
-			TBEQ	D, BDM_RX_ERROR
-			;Quit if BKGD is zero (bit count in D, BC timeout in X)
-			BRCLR	PORTB, #BKGD, BDM_RX_ERROR
-			;Calculate ACK timeout (bit count in D, BC timeout in X)
-			EXG	X,D
-			BDM_BC2TC
-			STY	[SSTACK_SP] 			;Y -> BDM_RX_ACK_TO_TC_MSW
-			LDY	SSTACK_SP
-			STD	BDM_RX_ACKTC_LSW,Y 		;D -> BDM_RX_ACK_TO_TC_LSW
-			;Copy bit count (stack pointer in Y, bit count in X)
-			STX	BDM_RX_DATA_CNT,Y	
-			;Copy data pointer and clear data field (stack pointer in Y)
-			LDX	BDM_RX_Y,Y
-			MOVW	#$0000, 0,X
-			STX	BDM_RX_DATA_PTR,Y
-			;Configure timer (stack pointer in Y)	
+			;Enable timer (stack pointer in Y)	
 			TIM_ENABLE	TIM_BDM			;enable timer
-			BCLR	TIOS, #$60
 			;Setup reset detection (stack pointer in Y)
 			SEI
 			LDX	BDM_RMCNT
 			BEQ	BDM_RX_STEP_1_2
 			PIEP	#$20	
+			;Check that BKGD is not driven low
+			BRCLR	PORTB, #BKGD, BDM_RX_COMERR
 			;Proceed at step 2
 	
 			;Step 2
 BDM_RX_STEP_2		EQU	*
 			;Setup IC5 (posedge) and OC7 (timeout)
-			LDD	TC5 				;clear IC5 (posedge) IF
 			BSET	TIE, #$A0			;enable interrupt
+			LDD	TC5 				;clear IC5 (posedge) IF
 			;Drive RX pulse
 			LDAA	#BKGD
 			JMP	[BDM_RP_CODE]
@@ -911,12 +874,12 @@ BDM_RX_STEP_3		EQU	*
 			LDD	TC5 				;posedge
 			SUBD	TC6				;negedge
 			;Determine and store bit value (pulse length in D)
-			LDY	SSTACK_SP
 			TFR	D,X
+			LDY	SSTACK_SP
 			LDD	[BDM_RX_DATA_PTR,Y]
-			CPD	BDM_DLY_10 			;compare pulse length with 10 cycle delay
-			ROLB					;shift result into data bit
-			ROLA
+			LSLD	
+			CPX	BDM_DLY_10 			;compare pulse length with 10 cycle delay
+			ADCB	#$00
 			EORB	#$01
 			STD	[BDM_RX_DATA_PTR,Y]
 			;Decrement data counter (SP in Y)
@@ -925,13 +888,11 @@ BDM_RX_STEP_3		EQU	*
 			STD	BDM_RX_DATA_CNT,Y
 			BITB	#$0F
 			BNE	BDM_RX_STEP_3_1			;space left in current data word
-			LDX	BDM_RX_DATA_PTR,Y		;decrement data pointer
-			MOVW	#$0000,	2,-X			;and clear next data word
+			LDX	BDM_RX_DATA_PTR,Y		;increment data pointer
+			LEAX	2,X
 			STX	BDM_RX_DATA_PTR,Y
 			;Disable IC5 (posedge)
 BDM_RX_STEP_3_1		BCLR	TIE, #$20			;disable interrupt
-			;Enable OC7 (timeout)
-			;BSET	TIE, #$80			;enable interrupt
 			;Wait for interrupt 
 			MOVW	#BDM_STEP_RX_3, BDM_STEP	;set current processing step
 			ISTACK_RTS	
@@ -959,7 +920,7 @@ BDM_RX_STEP_4		EQU	*
 BDM_RX_STEP_5		EQU	*
 			;If timeout MSW value > 0, decrement it and wait for another max. timeout period
 			LDX	[SSTACK_SP] 			;check timeout MSW value
-			BEQ	BDM_RX_ACK_ERROR			
+			BEQ	BDM_RX_ACK_TO			
 			LEAX	-1,X 				;decrement timeout MSW value
 			STX	[SSTACK_SP]
 			MOVW	TC7, TC7 			;Clear TC7 flag
@@ -970,44 +931,67 @@ BDM_RX_STEP_6		EQU	*
 			;Capture the pulse length
 			LDD	TC5 				;posedge
 			SUBD	TC6				;negedge
-			;Stop blocking interrupts
-			BCLR	TIE, #$E0			;disable interrupt
-			CLI
-			;Convert pulse length in BC (pulse length in D)
-			BDM_TC2BC
-			TBEQ	Y, BDM_RX_ACK_ERROR 		;pulse length is too long
-			LDY	SSTACK_SP
-			STD	BDM_RX_ACK_WIDTH_BC,Y
-	
-
-
-	
-			;Step 4
-BDM_RX_STEP_4		EQU	*
-			;Disable timer
+			;Disable timer (pulse length in D)
 			BCLR	TIE, #$E0 			;disable timer interrupts	
 			TIM_DISABLE	TIM_BDM			;disable timer
-			;Disable reset detection
+			;Disable reset detection (pulse length in D)
 			CLR	PIEP				;disable reset detection
 			;Clean up
 			MOVW	#BDM_STEP_IDLE, BDM_STEP
 			CLI
-			;Done
-			SSTACK_DEALLOC	1			;free allocated memory
-			SSTACK_PULDXY 				;restore registers
-			SSTACK_RTS
-
-			;Error handler
-BDM_RX_ERROR		EQU	*
-			;Set return value 
-			LDX	SSTACK_SP
+			;Convert pulse length in BC (pulse length in D)
+			BDM_TC2BC
+			TBEQ	Y, BDM_RX_ACK_TO 		;pulse length is too long
+			TFR	D, X
+			;Set error status 
 			CLRA
 			CLRB
-			STD	BDM_RX_D,Y
-			;Disable timer, disable reset detection, clean up
-			JOB	BDM_RX_STEP_4	
+			;Restore registers
+			SSTACK_DEALLOC	8
+			SSTACK_PULY
+			SSTACK_RTS
+
+			;ACK Error
+BDM_RX_ACK_TO		EQU	*
+			;Set error status 
+			CLRA
+			CLRB
+			;Disable timer (error status in D)
+BDM_RX_ACK_TO_1		BCLR	TIE, #$E0 			;disable timer interrupts	
+			TIM_DISABLE	TIM_BDM			;disable timer
+			;Disable reset detection (error status in D)
+			CLR	PIEP				;disable reset detection
+			;Clean up (error status in D)
+			MOVW	#BDM_STEP_IDLE, BDM_STEP
+			CLI
+			;Set ACK status 
+			LDX	#$0000
+			;Restore registers (error status in D)
+			SSTACK_DEALLOC	8
+			SSTACK_PULY
+			SSTACK_RTS
+
+			;Nothing to do
+BDM_RX_NOP		EQU	BDM_RX_ACK_TO
 	
+			;Communication error
+BDM_RX_COMERR		EQU	*
+			;Set error status 
+			LDD	#6
+			JOB	BDM_RX_ACK_TO_1
 	
+			;BDM_SPEED not set
+BDM_RX_NOSPD		EQU	*
+			;Set error status 
+			LDD	#4
+			JOB	BDM_RX_ACK_TO_1
+
+			;Target reset
+BDM_RX_TGTRST		EQU	*
+			;Set error status 
+			LDD	#2
+			JOB	BDM_RX_ACK_TO_1
+
 ;#Code sequences to build the RX pulse
 
 ;Pull BKGD pin low for 2 timer counts
@@ -1076,7 +1060,6 @@ BDM_RP_3X4C		EQU	*
 			CLR	DDRA		;relrase BKGD (2 pcycs)
 			JOB	BDM_RP_DONE	;return to program flow
 
-
 ;#Transmit
 ; args:   D: data width [bits]
 ;         X: ACK timeout [BC] 
@@ -1092,7 +1075,43 @@ BDM_RP_3X4C		EQU	*
 ; SSTACK:  bytes
 ;         Y is preserved
 BDM_TX			EQU	*
+			;Save registers
+BDM_TX_ACK_TO_TC_MSW	EQU	0
+BDM_TX_ACK_TO_TC_LSW	EQU	2	
+BDM_TX_DATA_CNT		EQU	4
+BDM_TX_DATA_PTR		EQU	6
+BDM_TX_Y		EQU	8
+			SSTACK_PSHY				;save index X, index Y, and accu D
+			SSTACK_ALLOC	8
+	
+			;Step 1
+BDM_TX_STEP_1		EQU	*	
+			;Quit if reset monitor is enabled
+			;and previous target reset was detected (bit count in D, BC timeout in X)
+			LDY	BDM_RMCNT
+			BEQ	BDM_TX_STEP_1_1
+			BRSET	PIFP, #$20, BDM_RX_TGTRST
+			;Check if BDM_SPEED is set (bit count in D, BC timeout in X)
+BDM_TX_STEP_1_1		LDY	BDM_SPEED
+			BEQ	BDM_RX_NOSPD 			;BDM_SPEED not set
+			;Initialize local variables (bit count in D, BC timeout in X)
+			LDY	SSTACK_SP
+			STD	BDM_TX_DATA_CNT,Y
+			BEQ	BDM_TX_NOP 			;nothing to do
+			MOVW	BDM_TX_Y,Y, BDM_TX_DATA_PTR,Y
+			;Left align MSW of the data field (bit count in D, stack pointer in Y, BC timeout in X) 
+			SUBD	#1
+			LDAA	#15
+			SBA
+			ANDA	#15 
+			TAB
+			CLRA
 
+			LDY	[BDM_TX_DATA_PTR,Y]
+			
+
+			EXG	D,Y
+			
 
 
 
