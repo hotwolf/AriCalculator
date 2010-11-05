@@ -192,7 +192,6 @@
 ;#     start       release  speed-up  sample    transmission      ACK   Done   #
 ;#     pulse      BKGD pin   pulse    point       complete       pulse         #
 ;#                                                                             #
-;#                                                                             #
 ;#       ^                    ^                           ^              ^     #
 ;# Step:1,2                  3,4                          5              6     #
 ;#                                                                             #
@@ -266,21 +265,19 @@
 ;#                                                                             #
 ;#    Transmit:                                                                #
 ;#    =========                                                                #
-;#        <----------------------------16 tcycs------------------------->      #
-;#        <---------------------13 tcycs-------------------->                  #
-;#        <---------------10 tcycs-------------->                              #
-;#        <---4 tcycs--->                                                      #
-;#    ---+               +-----------------------+-----------+-----------+---  #
-;#       |               |                                   |           ^     #
-;#       +---------------+-----------------------+-----------+           |     #
-;#       ^               ^                       ^           ^           |     #
-;#       |               |                       |           |           |     #
-;#     start          transmit                capture     transmit      bit    #
-;#     pulse            "1"                  bit value      "0"    trasmission #
-;#                                                                    complete #
+;#        <------------------16 BC------------------->                         #
+;#        <--------------13 BC--------------->                                 #
+;#        <---4 BC--->                                                         #
+;#    ---+            :```````````````````````:----------+                     #
+;#       |            :                       :          +-------------------  #
+;#       +------------+.......................:          ^           :.....:   #
+;#       ^            ^                       ^          |           ^     ^   #
+;#       |            |                       |          |           |     |   #
+;#     start      toggle to               toggle to    release      ACK   Done #
+;#     pulse      transmit 1              transmit 0    BKGD                   #
 ;#                                                                             #
-;#       ^                      ^                                        ^     #
-;# Step: 1                      2                                        3     #
+;#       ^            ^                                  ^     ^           ^   #
+;# Step: 1            2                                  3     4           5   #
 ;#                                                                             #
 ;#                   TX:                  ACK:                                 #
 ;#    Configuration: TC5 not used         TC5 -> IC (posedge) ->default        #
@@ -291,24 +288,85 @@
 ;#                 4: BDM_SPEED is not set                                     #
 ;#                 6: Target out of sync (BKGD low at start of transmission)   #
 ;#                                                                             #
-;#    Step 1: -Quit if previous target reset was detected                      #
-;#            -Quit if BDM_SPEED has not been set                              #
-;#            -Set OC6 to a count in the near future                           #
-;#            -Set OC5 to TC6 count 4*(BDM_SPEED/128) or 10*(BDM_SPEED/128)    #
-;#            -Set OC7 to 16*(BDM_SPEED/128)                                   #
-;#            -Wait                                                            #
-;#             OC7:          -Proceed at step 2                                #
-;#             Target reset: -Quit with "Unexpected target reset"              #
+;#    Step 1: -Quit if reset monitor is enabled                                #
+;#             and previous target reset was detected                          #
+;#            -Check if BDM_SPEED is set                                       #
+;#            -Check if BDM_SPEED is set                                       #
+;#            -Quit if data count is zero                                      #
+;#            -Calculate ACK timeout                                           #
+;#            -Put left aligned data MSW into shifter                          #
+;#            -Determine timing of initial bit transmission                    #
+;#            -Enable timer                                                    #
+;#            -Setup reset detection                                           #
+;#            -Configure OC6/OC7 output logic                                  #
+;#            -Check the state of the OC6 flipflop                             #
+;#              -Transmit first bit - OC6FF cleared                            #
+;#               or                                                            #
+;#              -Transmit first bit - OC6FF cleared                            #
+;#            -Prepare next bit                                                #
 ;#                                                                             #
-;#    Step 2: -Disable Disable OC7                                             #
+;#    Step 2a: -Check if end of bit timing has been missed                     #
+;#             -Update step                                                    #
+;#             -Shift data                                                     #
+;#             -Determine bit timing                                           #
+;#             -Wait for interrupts                                            #
+;#              OC7:          -Proceed at step 2                               #
+;#              Target reset: -Target reset error handler                      #
+;#                                                                             #
+;#    Step 2b: -Check if end of bit timing has been missed                     #
+;#             -Update step                                                    #
+;#             -Shift data                                                     #
+;#             -Clear IC5 interrupt flag                                       #
+;#             -Check if ACK pulse is requested                                #
+;#             -Wait for interrupts                                            #
+;#              OC7:          -Proceed at step 3                               #
+;#              Target reset: -Target reset error handler                      #
+;#                                                                             #
+;#    Step 2c: -Check if end of bit timing has been missed                     #
+;#             -Update step                                                    #
+;#             -Shift data                                                     #
+;#             -Clear IC5 interrupt flag                                       #
+;#             -Check if ACK pulse is requested                                #
+;#             -Wait for interrupts                                            #
+;#              OC7:          -Proceed at ACK timeout handler                  #
+;#              Target reset: -Target reset error handler                      #
+;#                                                                             #
+;#    Step 3: -Set default configuration for IC6 and OC7                       #
+;#            -Make sure that ACK pulse has not been missed                    #
+;#            -Setup ACK timeout                                               #
+;#             -Wait for interrupts                                            #
+;#              IC5:          -Proceed at step 5                               #
+;#              OC7:          -Proceed at step 4                               #
+;#              Target reset: -Target reset error handler                      #
+;#                                                                             #
+;#    Step 4: -If timeout MSW value > 0, decrement it and wait for another     #
+;#             full timer period. Otherwise go to ACK timeout handler          #
+;#             -Wait for interrupts                                            #
+;#              IC5:          -Proceed at step 5                               #
+;#              OC7:          -Proceed at step 4                               #
+;#              Target reset: -Target reset error handler                      #
+;#                                                                             #
+;#    Step 5: -Capture the pulse length                                        #
+;#            -Disable timer                                                   #
 ;#            -Disable reset detection                                         #
-;#            -Return successfully                                             #
+;#            -Clean up                                                        #
+;#            -Convert pulse length into BCs                                   #
+;#            -Set error status                                                #
+;#            -Restore registers                                               #
 ;#                                                                             #
-;#    Quit:   -Disable Disable IC5, IC6, and OC7                               #
+;#    ACK timeout handler:                                                     #
+;#            -Set error status                                                #
 ;#            -Disable reset detection                                         #
-;#            -Clear BDM_SPEED                                                 #
-;#            -Return error status                                             #
+;#            -Clean up                                                        #
+;#            -Set ACK status                                                  #
+;#            -Restore registers                                               #
 ;#                                                                             #
+;#    All error handlers:                                                      #
+;#            -Set error status                                                #
+;#            -Disable reset detection                                         #
+;#            -Clean up                                                        #
+;#            -Set ACK status                                                  #
+;#            -Restore registers                                               #
 ;#                                                                             #
 ;#    The following routines for low bevel BDM communication are provided:     #
 ;#    BDM_RESET        - reset target (mode determined by target circuitry)    #
@@ -384,24 +442,153 @@ BDM_VARS_END		EQU	*
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	 	BDM_INIT, 0
-	
+#macro	 	BDM_INIT, 0	
  		;Initialize variables
-		
-		BDM_SET_SPEED
-
-	
-		;Initialize reset detection
-		
-		;Initialize timer channels
-
+		CLRA
+		CLRB
+		STD	BDM_SPEED
+		STD	BDM_DLY_16
+		STD	BDM_DLY_13
+		STD	BDM_DLY_10
+		STD	BDM_DLY_4						
+		MOVW	#BDM_RP_DUMMY, BDM_RP_CODE
+		STD	BDM_RP_CODE
+		MOVW	#BDM_STEP_IDLE, BDM_STEP			
+		STD	BDM_RMCNT
+		STAB	BDM_FLGS
 #emac
 
+;Convert BDM cycles into timer counts
+; args:     D: BDM cycles
+; result: Y:D: timer counts (0 in case of an error)
+; SSTACK: 6 bytes
+;         X is preserved
+#macro	BDM_BC2TC, 0	
+	SSTACK_JOBSR	BDM_BC2TC	
+#emac
+
+;Convert timer counts into BDM cycles
+; args:     D: timer counts
+; result: Y:D: BDM cycles (0 in case of an error)
+; SSTACK: 6 bytes
+;         X is preserved
+#macro	BDM_TC2BC, 0	
+	SSTACK_JOBSR	BDM_TC2BC	
+#emac
+
+;#Set BDM_SPEED
+; args:   D: BDM_SPEED (timer count of 128 BDM cycles)
+; result: none
+; SSTACK: 14 bytes
+;         X, Y and D are preserved
+#macro	BDM_SET_SPEED, 0
+	SSTACK_JOBSR	BDM_SET_SPEED	
+#emac
+
+;#Start reset monitor
+; args:  none
+; result: D: Error code:
+;            0: No problems
+;            2: reset monitors nested too deeply
+; SSTACK: 2 bytes
+;         X and Y are preserved
+#macro	BDM_START_RM, 0
+	SSTACK_JOBSR	BDM_START_RM		
+#emac
+
+;#End reset monitor
+; args:  none
+; result: D: Error code:
+;            0: No problems
+;            2: reset monitor mismatch
+;            4: reset has occured
+; SSTACK: 2 bytes
+;         X and Y are preserved
+#macro	BDM_END_RM, 0
+	SSTACK_JOBSR	BDM_END_RM		
+#emac
+
+;#Terminate all reset monitor
+; args:  none
+; result: D: Error code:
+;            0: No problems
+;            2: reset has occured
+; SSTACK: 2 bytes
+;         X and Y are preserved
+#macro	BDM_TERM_ALL_RMS, 0
+	SSTACK_JOBSR	BDM_END_RM		
+#emac
+
+;#Reset target
+; args:   B: run mode (0:SS, >0:NS)
+; result: none
+; SSTACK: 8 bytes
+;         X, Y and D are preserved
+#macro	BDM_RESET, 0
+	SSTACK_JOBSR	BDM_RESET
+#emac
+
+;#Sync
+; args:   none
+; result: D: Error code:
+;            0: Sync succesful
+;            2: Target reset occured during sync (or before)
+;            4: Target is not responding
+; SSTACK: 20 bytes
+;         X and Y are preserved
+#macro	BDM_SYNC, 0
+	SSTACK_JOBSR	BDM_RESET
+#emac
+
+;#Delay
+; args:   D: delay in BDM cycles
+; result: D: Error code:
+;            0: No problems
+;            2: Target reset occured during delay (or before)
+;            4: BDM_SPEED not set
+; SSTACK: 14 bytes
+;         X and Y are preserved
+#macro	BDM_DELAY, 0
+	SSTACK_JOBSR	BDM_RESET
+#emac
+
+;#Receive
+; args:   D: data width [bits]
+;         X: ACK timeout [BC] 
+;         Y: data pointer [word pointer]
+; result: D: Error code:
+;            0: No problems
+;            2: Target reset occured during transmission (or before)
+;            4: BDM_SPEED not set
+;            6: Communication error (BKGD low at start of transmission)
+;         X: ACK pulse width [BC] (0 in case of a ACK timeout) 
+; SSTACK:  bytes
+;         Y is preserved
+#macro	BDM_RX, 0
+	SSTACK_JOBSR	BDM_RX
+#emac
+
+;#Transmit
+; args:   D: data width [bits]
+;         X: ACK timeout [BC] 
+;         Y: data pointer [word pointer]
+; result: D: Error code:
+;            0: No problems
+;            2: Target reset occured during transmission (or before)
+;            4: BDM_SPEED not set
+;            6: Target out of sync (BKGD low at start of transmission)
+;         X: ACK pulse width [BC] (0 in case of a ACK timeout) 
+; SSTACK:  16 bytes
+;         Y is preserved
+#macro	BDM_TX, 0
+	SSTACK_JOBSR	BDM_TX
+#emac
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
 			ORG	BDM_CODE_START
-
+	
 ;Convert BDM cycles into timer counts
 ; args:     D: BDM cycles
 ; result: Y:D: timer counts (0 in case of an error)
@@ -534,6 +721,76 @@ BDM_SET_SPEED_3		SSTACK_PULDXY 				;restore registers
 			STD	BDM_RP_CNT
 			MOVW	#BDM_RP_DUMMY, BDM_RP_CODE
 			SSTACK_RTS
+
+;#Start reset monitor
+; args:  none
+; result: D: Error code:
+;            0: No problems
+;            2: reset monitors nested too deeply
+; SSTACK: 2 bytes
+;         X and Y are preserved
+BDM_START_RM		EQU	*
+			;Clear PP5 interrupt flag 
+			MOVB	#RESET, PIFP
+			;Increment reset monitor count
+			LDD	BDM_RMCNT
+			ADDD	#1
+			BCS	BDM_START_RM_2 		;monitors nested too deeply
+			STD	BDM_RMCNT
+			CLRA
+			CLRB
+			;Done
+BDM_START_RM_1		SSTACK_RTS
+			;Monitors nested too deeply
+BDM_START_RM_2		MOVW	#$0000, BDM_RMCNT	;terminate all monitors
+			STD	#$0002
+			;Done
+			JOB	BDM_START_RM_1
+	
+;#End reset monitor
+; args:  none
+; result: D: Error code:
+;            0: No problems
+;            2: reset monitor mismatch
+;            4: reset has occured
+; SSTACK: 2 bytes
+;         X and Y are preserved
+BDM_END_RM		EQU	*
+			;Decrement reset monitor count
+			LDD	BDM_RMCNT
+			BEQ	BDM_END_RM_3 		;mismatching monitors
+			STD	BDM_RMCNT
+			;No problems so far
+			CLRA				;set return value			
+			CLRB
+			;Check for resets
+BDM_END_RM_1		BRCLR	PIFP, #RESET, BDM_END_RM_2
+			LDAB	#$04	
+			;Done 
+BDM_END_RM_2		SSTACK_RTS
+			;Mismatching monitors
+BDM_END_RM_3		LDD	#$0002			;set return value
+			;Done 
+			JOB	BDM_END_RM_2
+	
+;#Terminate all reset monitor
+; args:  none
+; result: D: Error code:
+;            0: No problems
+;            2: reset has occured
+; SSTACK: 2 bytes
+;         X and Y are preserved
+BDM_TERM_ALL_RMS	EQU	*
+			;Clear monitor count 
+			MOVW	#$0000, BDM_RMCNT
+			;No problems so far
+			CLRA				;set return value			
+			CLRB
+			;Check for resets
+BDM_TERM_ALL_RMS_1	BRCLR	PIFP, #RESET, BDM_TERM_ALL_RMS_2
+			LDAB	#$02	
+			;Done 
+BDM_TERM_ALL_RMS_2	SSTACK_RTS
 	
 ;#Reset target
 ; args:   B: run mode (0:SS, >0:NS)
@@ -1205,7 +1462,7 @@ BDM_TX_STEP_2_2		LDX	BDM_TX_DATA_CNT,Y
 BDM_TX_STEP_2_3		STY	BDM_TX_DATA_PTR,Y
 			;Determine bit timing (stack pointer in Y, data bit in C)
 			LDD	BDM_DLY_4
-			BCS	BDM_TX_STEP_1_10 
+			BCS	BDM_TX_STEP_2_4xs
 			LDD	BDM_DLY_13
 BDM_TX_STEP_2_4		STD	BDM_TX_DATA_TIMING,Y	
 			;Wait for interrupts 
@@ -1229,7 +1486,7 @@ BDM_TX_STEP_3		EQU	*
 			;Set default configuration for IC6 and OC7
 			BCLR	TCTL1, #$FC			;disconnect OC6 output logic
 			BCLR	TIOS,  #$40
-			;Make sure that ack pulse has not been missed
+			;Make sure that ACK pulse has not been missed
 			BRCLR	TFLG1, #$20, BDM_TX_STEP_3_1
 			LDD	TC5
 			SUBD	TC7
@@ -1372,6 +1629,10 @@ BDM_TC5_TAB		EQU	*
 			DW	ERROR_ISR		;DELAY step 1             
 			DW	BDM_RX_STEP_3		;RX step 2             
 			DW	ERROR_ISR		;RX step 3             
+			DW	ERROR_ISR		;TX step 2a
+			DW	ERROR_ISR		;TX step 2b
+			DW	ERROR_ISR		;TX step 2c
+			DW	ERROR_ISR		;TX step 3
 							
 BDM_TC6_TAB		EQU	*			
 			DW	ERROR_ISR		;BDM interface not in use 
@@ -1382,6 +1643,10 @@ BDM_TC6_TAB		EQU	*
 			DW	ERROR_ISR		;DELAY step 1             
 			DW	ERROR_ISR		;RX step 2             
 			DW	ERROR_ISR		;RX step 3             
+			DW	ERROR_ISR		;TX step 2a
+			DW	ERROR_ISR		;TX step 2b
+			DW	ERROR_ISR		;TX step 2c
+			DW	ERROR_ISR		;TX step 3
 							
 BDM_TC7_TAB		EQU	*			
 			DW	ERROR_ISR		;BDM interface not in use 
@@ -1392,6 +1657,10 @@ BDM_TC7_TAB		EQU	*
 			DW	BDM_DELAY_STEP_2	;DELAY step 1             
 			DW	BDM_RX_ERROR		;RX step 2             
 			DW	BDM_RX_STEP_2		;RX step 3             
+			DW	ERROR_ISR		;TX step 2a
+			DW	ERROR_ISR		;TX step 2b
+			DW	ERROR_ISR		;TX step 2c
+			DW	ERROR_ISR		;TX step 3
 							
 BDM_TGTRST_TAB		EQU	*			
 			DW	ERROR_ISR		;BDM interface not in use 
@@ -1401,7 +1670,11 @@ BDM_TGTRST_TAB		EQU	*
 			DW	BDM_SYNC_ERROR		;SYNC step 3		  
 			DW	BDM_DELAY_ERROR		;DELAY step 1             
 			DW	BDM_RX_ERROR		;RX step 2             
-			DW	BDM_RX_ERROR		;RX step 3             
+			DW	ERROR_ISR		;RX step 3             
+			DW	ERROR_ISR		;TX step 2a
+			DW	ERROR_ISR		;TX step 2b
+			DW	ERROR_ISR		;TX step 2c
+			DW	ERROR_ISR		;TX step 3
 
 ;#RX pulse jump table
 BDM_RP_TAB		EQU	*

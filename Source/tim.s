@@ -61,15 +61,15 @@ TIM_VARS_END		EQU	*
 ;###############################################################################
 ;#Initialization
 #macro	TIM_INIT, 0		 ;7 6 5 4 3 2 1 0
-			MOVB	#%1_0_0_1_1_1_0_0, TIOS 	;select input capture (=0)
-				 ;B B B     S S S 		; or output compare (=1) featue
+			MOVB	#%1_0_0_1_1_1_0_0, TIOS 	;select input capture (0)
+				 ;B B B     S S S 		; or output compare (1) feature
 				 ;D D D     C C C
 				 ;M M M     I I I
 				 ;T N P     T N P
 				 ;O E E     O E E
 	
 				 ;7 6 5 4 3 2 1 0
-			MOVB	#%0_1_0_0_0_0_0_0, TOC7D	;OC7 output compares drive
+			;MOVB	#%0_1_0_0_0_0_0_0, TOC7D	;OC7 output compares drive
 				 ;B B B     S S S 		; posedges on TC6 	
 				 ;D D D     C C C
 				 ;M M M     I I I
