@@ -404,10 +404,11 @@ BDM_STEP_SYNC_3		EQU	 8	;SYNC step 3
 BDM_STEP_DELAY_1	EQU	10	;DELAY step 1              
 BDM_STEP_RX_2		EQU	12	;RX step 2		  
 BDM_STEP_RX_3		EQU	14	;RX step 3		  
-BDM_STEP_TX_2A		EQU	16	;TX step 2a
-BDM_STEP_TX_2B		EQU	18	;TX step 2b
-BDM_STEP_TX_2C		EQU	20	;TX step 2c
-BDM_STEP_TX_3		EQU	22	;TX step 3
+BDM_STEP_RX_4		EQU	16	;RX step 4		  
+BDM_STEP_TX_2A		EQU	18	;TX step 2a
+BDM_STEP_TX_2B		EQU	10	;TX step 2b
+BDM_STEP_TX_2C		EQU	22	;TX step 2c
+BDM_STEP_TX_3		EQU	24	;TX step 3
 
 	
 ;Bit positions
@@ -743,7 +744,7 @@ BDM_START_RM		EQU	*
 BDM_START_RM_1		SSTACK_RTS
 			;Monitors nested too deeply
 BDM_START_RM_2		MOVW	#$0000, BDM_RMCNT	;terminate all monitors
-			STD	#$0002
+			LDD	#$0002
 			;Done
 			JOB	BDM_START_RM_1
 	
@@ -803,8 +804,8 @@ BDM_RESET		EQU	*
 	
 			;Step 1
 BDM_RESET_STEP_1	EQU	*
-			;Quit if reset monitor is enabled                                #
-			;and previous target reset was detected                          #
+			;Quit if reset monitor is enabled
+			;and previous target reset was detected
 			LDX	BDM_RMCNT
 			BEQ	BDM_RESET_STEP_1_1
 			BRSET	PIFP, #RESET, BDM_RESET_STEP_2_1
@@ -813,8 +814,8 @@ BDM_RESET_STEP_1_1	MOVB	#RESET, DDRP
 			;Drive MODC (PB4) high for NS or low for SS
 			CLR	PORTB
 			TBEQ	B, BDM_RESET_STEP_1_2
-			MOVB	#$MODC, PORTB
-BDM_RESET_STEP_1_2	MOVB	#$MODC, DDRB
+			MOVB	#MODC, PORTB
+BDM_RESET_STEP_1_2	MOVB	#MODC, DDRB
 			;Configure timer 
 			TIM_ENABLE	TIM_BDM			;enable timer
 			;Set OC7 timeout to $FFFF
@@ -896,7 +897,7 @@ BDM_SYNC_STEP_2		EQU	*
 			STD	TC7
 			;Wait for interrupt 
 			MOVW	#BDM_STEP_SYNC_2, BDM_STEP
-			ISTACK_RT	
+			ISTACK_RTI	
 
 			;Step 3
 BDM_SYNC_STEP_3		EQU	*
@@ -1083,8 +1084,8 @@ BDM_RX_STEP_1_1		LDY	BDM_SPEED
 			TFR	X,D
 			SSTACK_JOBSR	BDM_BC2TC		;(SSTACK: 6 bytes)
 			LDY	SSTACK_SP
-			STY	BDM_DELAY_TO_MSW,Y		;store BDM_DELAY_TO_MSW
-			STD	BDM_DELAY_TO_LSW,Y		;store BDM_DELAY_TO_MSW
+			STY	BDM_RX_ACK_TO_TC_MSW,Y		;store BDM_RX_ACK_TO_TC_MSW
+			STD	BDM_RX_ACK_TO_TC_LSW,Y		;store BDM_RX_ACK_TO_TC_MSW
 			;Enable timer (stack pointer in Y)	
 			TIM_ENABLE	TIM_BDM			;enable timer
 			;Setup reset detection (stack pointer in Y)
@@ -1093,7 +1094,7 @@ BDM_RX_STEP_1_1		LDY	BDM_SPEED
 			BEQ	BDM_RX_STEP_1_2
 			BSET	PIEP, #$20	
 			;Quit if BKGD is driven low
-			BRCLR	PORTB, #BKGD, BDM_RX_COMERR
+BDM_RX_STEP_1_2		BRCLR	PORTB, #BKGD, BDM_RX_COMERR
 			;Proceed at step 2
 	
 			;Step 2
@@ -1146,15 +1147,15 @@ BDM_RX_STEP_3_1		BCLR	TIE, #$20			;disable interrupt
 BDM_RX_STEP_4		EQU	*
 			;Check if ACK pulse is expected
 			LDY	SSTACK_SP
-			LDD	BDM_RX_ACK_TC_LSW,Y
-			BNE	BDM_RX_BDM_RX_STEP_4_1
-			LDX	BDM_RX_ACK_TC_MSW,Y
+			LDD	BDM_RX_ACK_TO_TC_LSW,Y
+			BNE	BDM_RX_STEP_4_1
+			LDX	BDM_RX_ACK_TO_TC_MSW,Y
 			BEQ	BDM_RX_ACK_TO
 			;Add end of bit timing to the ACK timeout (ACK timeout (LSW) in D, SP in Y)
 BDM_RX_STEP_4_1		ADDD	TC7
 			STD	TC7
 			ADCB	BDM_RX_ACK_TO_TC_MSW+1,Y
-			ADCA	BDM_RX_ACK_TO_TC_MSW1,Y
+			ADCA	BDM_RX_ACK_TO_TC_MSW,Y
 			STD	BDM_RX_ACK_TO_TC_MSW,Y
 			;Enable IC5 (posedge) and OC7 (timeout)
 			BSET	TIE, #$A0			;enable interrupt			
@@ -1346,7 +1347,7 @@ BDM_TX_STEP_1_1		LDY	BDM_SPEED
 			;Quit if data count is zero (bit count in D, BC timeout in X)
 			LDY	SSTACK_SP			;store data count
 			STD	BDM_TX_DATA_CNT,Y
-			BEQ	D, BDM_TX_NOP			;nothing to do	
+			BEQ	BDM_TX_NOP			;nothing to do	
 			;Calculate ACK timeout (BC timeout in X, stack pointer in Y)
 			LEAX	12,X 				;add 12 BDM cycles to the timeout
 			TFR	X,D
@@ -1450,7 +1451,7 @@ BDM_TX_STEP_2_2		LDX	BDM_TX_DATA_CNT,Y
 			MOVW	#BDM_STEP_TX_2A, BDM_STEP	;update step
 			STX	BDM_TX_DATA_CNT,Y		;update counter
 			;Shift data (stack pointer in Y, bit count in X)
-			LDD	BDM_TX_DATA_SHIFT,
+			LDD	BDM_TX_DATA_SHIFT,Y
 			LSLD
 			EXG	D,X
 			BITB	#$0F
@@ -1462,7 +1463,7 @@ BDM_TX_STEP_2_2		LDX	BDM_TX_DATA_CNT,Y
 BDM_TX_STEP_2_3		STY	BDM_TX_DATA_PTR,Y
 			;Determine bit timing (stack pointer in Y, data bit in C)
 			LDD	BDM_DLY_4
-			BCS	BDM_TX_STEP_2_4xs
+			BCS	BDM_TX_STEP_2_4
 			LDD	BDM_DLY_13
 BDM_TX_STEP_2_4		STD	BDM_TX_DATA_TIMING,Y	
 			;Wait for interrupts 
@@ -1603,7 +1604,7 @@ BDM_ISR_TGTRST		EQU	*
 	
 			;Stop driving the BKGD pin immediately  
 			CLR	DDRB 		;switch PB4 to input
-			BCLR	TCL1, #$03	;disconnect OC5 and OC6 from output
+			BCLR	TCTL1, #$03	;disconnect OC5 and OC6 from output
 
 			;Disable PP5 KWU 
 			CLR	PIEP
@@ -1629,10 +1630,11 @@ BDM_TC5_TAB		EQU	*
 			DW	ERROR_ISR		;DELAY step 1             
 			DW	BDM_RX_STEP_3		;RX step 2             
 			DW	ERROR_ISR		;RX step 3             
+			DW	BDM_RX_STEP_6		;RX step 4             
 			DW	ERROR_ISR		;TX step 2a
 			DW	ERROR_ISR		;TX step 2b
 			DW	ERROR_ISR		;TX step 2c
-			DW	ERROR_ISR		;TX step 3
+			DW	BDM_TX_STEP_5		;TX step 3
 							
 BDM_TC6_TAB		EQU	*			
 			DW	ERROR_ISR		;BDM interface not in use 
@@ -1643,6 +1645,7 @@ BDM_TC6_TAB		EQU	*
 			DW	ERROR_ISR		;DELAY step 1             
 			DW	ERROR_ISR		;RX step 2             
 			DW	ERROR_ISR		;RX step 3             
+			DW	ERROR_ISR		;RX step 4             
 			DW	ERROR_ISR		;TX step 2a
 			DW	ERROR_ISR		;TX step 2b
 			DW	ERROR_ISR		;TX step 2c
@@ -1657,10 +1660,11 @@ BDM_TC7_TAB		EQU	*
 			DW	BDM_DELAY_STEP_2	;DELAY step 1             
 			DW	BDM_RX_ERROR		;RX step 2             
 			DW	BDM_RX_STEP_2		;RX step 3             
-			DW	ERROR_ISR		;TX step 2a
-			DW	ERROR_ISR		;TX step 2b
-			DW	ERROR_ISR		;TX step 2c
-			DW	ERROR_ISR		;TX step 3
+			DW	BDM_RX_STEP_5		;RX step 4             
+			DW	BDM_TX_STEP_2		;TX step 2a
+			DW	BDM_TX_STEP_3		;TX step 2b
+			DW	BDM_TX_ACK_TO		;TX step 2c
+			DW	BDM_TX_STEP_4		;TX step 3
 							
 BDM_TGTRST_TAB		EQU	*			
 			DW	ERROR_ISR		;BDM interface not in use 
@@ -1669,12 +1673,13 @@ BDM_TGTRST_TAB		EQU	*
 			DW	BDM_SYNC_ERROR		;SYNC step 2		  
 			DW	BDM_SYNC_ERROR		;SYNC step 3		  
 			DW	BDM_DELAY_ERROR		;DELAY step 1             
-			DW	BDM_RX_ERROR		;RX step 2             
-			DW	ERROR_ISR		;RX step 3             
-			DW	ERROR_ISR		;TX step 2a
-			DW	ERROR_ISR		;TX step 2b
-			DW	ERROR_ISR		;TX step 2c
-			DW	ERROR_ISR		;TX step 3
+			DW	BDM_RX_TGTRST		;RX step 2             
+			DW	BDM_RX_TGTRST		;RX step 3             
+			DW	BDM_RX_TGTRST		;RX step 4             
+			DW	BDM_TX_TGTRST		;TX step 2a
+			DW	BDM_TX_TGTRST		;TX step 2b
+			DW	BDM_TX_TGTRST		;TX step 2c
+			DW	BDM_TX_TGTRST		;TX step 3
 
 ;#RX pulse jump table
 BDM_RP_TAB		EQU	*
