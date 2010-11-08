@@ -413,7 +413,7 @@ BDM_STEP_TX_3		EQU	24	;TX step 3
 	
 ;Bit positions
 RESET			EQU	$20 	;PP5
-MODC			EQU	$10	;PB4
+;MODC			EQU	$10	;PB4
 BKGD			EQU	$10	;PB4
 
 ;Flags
@@ -814,8 +814,8 @@ BDM_RESET_STEP_1_1	MOVB	#RESET, DDRP
 			;Drive MODC (PB4) high for NS or low for SS
 			CLR	PORTB
 			TBEQ	B, BDM_RESET_STEP_1_2
-			MOVB	#MODC, PORTB
-BDM_RESET_STEP_1_2	MOVB	#MODC, DDRB
+			MOVB	#BKGD, PORTB
+BDM_RESET_STEP_1_2	MOVB	#BKGD, DDRB
 			;Configure timer 
 			TIM_ENABLE	TIM_BDM			;enable timer
 			;Set OC7 timeout to $FFFF
@@ -878,6 +878,13 @@ BDM_SYNC_STEP_1_1	CLR	PORTB
 			;Wait for interrupts 
 BDM_SYNC_STEP_1_2	MOVW	#BDM_STEP_SYNC_1, BDM_STEP	;set current processing step
 			ISTACK_RTI
+
+			;Target reset error handler
+BDM_SYNC_TGTRST		EQU	*
+			;Set error code 2	
+			LDD	#$0002
+			;Disable interrupts, clean up, and done 
+			JOB	BDM_SYNC_NORSP_1
 	
 			;Step 2
 BDM_SYNC_STEP_2		EQU	*
@@ -932,13 +939,6 @@ BDM_SYNC_STEP_4_1	BCLR	TIE, #$E0 			;disable timer interrupts
 			LDD	#$0000
 BDM_SYNC_STEP_4_2	SSTACK_PULXY 				;restore registers
 			SSTACK_RTS
-
-			;Target reset error handler
-BDM_SYNC_TGTRST		EQU	*
-			;Set error code 2	
-			LDD	#$0002
-			;Disable interrupts, clean up, and done 
-			JOB	BDM_SYNC_NORSP_1
 
 			;Target reset error handler
 BDM_SYNC_NORSP		EQU	*
@@ -997,6 +997,22 @@ BDM_DELAY_STEP_1	EQU	*
 BDM_DELAY_STEP_1_1	MOVW	#BDM_STEP_DELAY_1, BDM_STEP
 			ISTACK_RTI			
 	
+			;Target reset error handler
+BDM_DELAY_TGTRST	EQU	*
+			;Disable timer (SP in Y)
+			BCLR	TIE, #$E0 			;disable timer interrupts	
+			TIM_DISABLE	TIM_BDM			;disable timer
+			;Disable reset detection (SP in Y)
+			CLR	PIEP				;disable reset detection
+			;Clean up
+			MOVW	#BDM_STEP_IDLE, BDM_STEP			
+			CLI
+			;Set error code 
+			LDY	SSTACK_SP
+			MOVW	#2, BDM_DELAY_D,Y
+			;Done
+			JOB	BDM_DELAY_STEP_2_2	
+	
 			;Step 2
 BDM_DELAY_STEP_2	EQU	*
 			;If timeout MSW value > 0, decrement it and wait for another max. timeout period
@@ -1023,22 +1039,6 @@ BDM_DELAY_STEP_2_1	BCLR	TIE, #$E0 			;disable timer interrupts
 BDM_DELAY_STEP_2_2	SSTACK_PULDXY 				;restore registers
 			SSTACK_RTS
 	
-			;Target reset error handler
-BDM_DELAY_TGTRST	EQU	*
-			;Disable timer (SP in Y)
-			BCLR	TIE, #$E0 			;disable timer interrupts	
-			TIM_DISABLE	TIM_BDM			;disable timer
-			;Disable reset detection (SP in Y)
-			CLR	PIEP				;disable reset detection
-			;Clean up
-			MOVW	#BDM_STEP_IDLE, BDM_STEP			
-			CLI
-			;Set error code 
-			LDY	SSTACK_SP
-			MOVW	#2, BDM_DELAY_D,Y
-			;Done
-			JOB	BDM_DELAY_STEP_2_2	
-	
 ;#Receive
 ; args:   D: data width [bits]
 ;         X: ACK timeout [BC] 
@@ -1050,7 +1050,7 @@ BDM_DELAY_TGTRST	EQU	*
 ;            6: Communication error (BKGD low at start of transmission)
 ;         X: ACK pulse width [BC] (0 in case of a ACK timeout) 
 ; SSTACK:  bytes
-;         Y is preserved
+;         Y is preserved	
 BDM_RX			EQU	*
 			;Save registers
 BDM_RX_ACK_TO_TC_MSW	EQU	0
@@ -1113,7 +1113,19 @@ BDM_RP_DONE		EQU	*
 			;Wait for interrupts 
 			MOVW	#BDM_STEP_RX_2, BDM_STEP	;set current processing step
 			ISTACK_RTI
-			
+
+			;Target reset
+BDM_RX_TGTRST		EQU	*
+			;Set error status 
+			LDD	#2
+			JOB	BDM_RX_ACK_TO_1
+
+			;Communication error
+BDM_RX_COMERR		EQU	*
+			;Set error status 
+			LDD	#6
+			JOB	BDM_RX_ACK_TO_1
+	
 			;Step 3
 BDM_RX_STEP_3		EQU	*
 			;Capture the pulse length
@@ -1199,6 +1211,15 @@ BDM_RX_STEP_6		EQU	*
 			SSTACK_PULY
 			SSTACK_RTS
 
+			;Nothing to do
+BDM_RX_NOP		EQU	BDM_RX_ACK_TO
+	
+			;BDM_SPEED not set
+BDM_RX_NOSPD		EQU	*
+			;Set error status 
+			LDD	#4
+			JOB	BDM_RX_ACK_TO_1
+
 			;ACK Error
 BDM_RX_ACK_TO		EQU	*
 			;Set error status 
@@ -1218,27 +1239,6 @@ BDM_RX_ACK_TO_1		BCLR	TIE, #$E0 			;disable timer interrupts
 			SSTACK_DEALLOC	8
 			SSTACK_PULY
 			SSTACK_RTS
-
-			;Nothing to do
-BDM_RX_NOP		EQU	BDM_RX_ACK_TO
-	
-			;Communication error
-BDM_RX_COMERR		EQU	*
-			;Set error status 
-			LDD	#6
-			JOB	BDM_RX_ACK_TO_1
-	
-			;BDM_SPEED not set
-BDM_RX_NOSPD		EQU	*
-			;Set error status 
-			LDD	#4
-			JOB	BDM_RX_ACK_TO_1
-
-			;Target reset
-BDM_RX_TGTRST		EQU	*
-			;Set error status 
-			LDD	#2
-			JOB	BDM_RX_ACK_TO_1
 
 ;#Code sequences to build the RX pulse
 
@@ -1320,6 +1320,18 @@ BDM_RP_3X4C		EQU	*
 ;         X: ACK pulse width [BC] (0 in case of a ACK timeout) 
 ; SSTACK:  16 bytes
 ;         Y is preserved
+			;Target reset
+BDM_TX_TGTRST		EQU	*
+			;Set error status 
+			LDD	#2
+			JOB	BDM_TX_ACK_TO_1
+
+			;Communication error
+BDM_TX_COMERR		EQU	*
+			;Set error status 
+			LDD	#6
+			JOB	BDM_TX_ACK_TO_1
+	
 BDM_TX			EQU	*
 			;Save registers
 BDM_TX_ACK_TO_TC_MSW	EQU	0
@@ -1338,10 +1350,10 @@ BDM_TX_STEP_1		EQU	*
 			;and previous target reset was detected (bit count in D, BC timeout in X)
 			LDY	BDM_RMCNT
 			BEQ	BDM_TX_STEP_1_1
-			BRSET	PIFP, #$20, BDM_RX_TGTRST
+			BRSET	PIFP, #$20, BDM_TX_TGTRST
 			;Check if BDM_SPEED is set (bit count in D, BC timeout in X)
 BDM_TX_STEP_1_1		LDY	BDM_SPEED
-			BEQ	BDM_RX_NOSPD 			;BDM_SPEED not set
+			BEQ	BDM_TX_NOSPD 			;BDM_SPEED not set
 			;Quit if BKGD is driven low (bit count in D, BC timeout in X)
 			BRCLR	PORTB, #BKGD, BDM_TX_COMERR
 			;Quit if data count is zero (bit count in D, BC timeout in X)
@@ -1563,22 +1575,10 @@ BDM_TX_ACK_TO_1		BCLR	TIE, #$E0 			;disable timer interrupts
 			;Nothing to do
 BDM_TX_NOP		EQU	BDM_TX_ACK_TO
 	
-			;Communication error
-BDM_TX_COMERR		EQU	*
-			;Set error status 
-			LDD	#6
-			JOB	BDM_TX_ACK_TO_1
-	
 			;BDM_SPEED not set
 BDM_TX_NOSPD		EQU	*
 			;Set error status 
 			LDD	#4
-			JOB	BDM_TX_ACK_TO_1
-
-			;Target reset
-BDM_TX_TGTRST		EQU	*
-			;Set error status 
-			LDD	#2
 			JOB	BDM_TX_ACK_TO_1
 
 ;#TC5 (posedge) handler
@@ -1655,10 +1655,10 @@ BDM_TC7_TAB		EQU	*
 			DW	ERROR_ISR		;BDM interface not in use 
 			DW	BDM_RESET_STEP_2	;RESET step 1		  
 			DW	BDM_SYNC_STEP_2		;SYNC step 1		  
-			DW	BDM_SYNC_ERROR		;SYNC step 2		  
-			DW	BDM_SYNC_ERROR		;SYNC step 3		  
+			DW	BDM_SYNC_NORSP		;SYNC step 2		  
+			DW	BDM_SYNC_NORSP		;SYNC step 3		  
 			DW	BDM_DELAY_STEP_2	;DELAY step 1             
-			DW	BDM_RX_ERROR		;RX step 2             
+			DW	BDM_RX_ACK_TO		;RX step 2             
 			DW	BDM_RX_STEP_2		;RX step 3             
 			DW	BDM_RX_STEP_5		;RX step 4             
 			DW	BDM_TX_STEP_2		;TX step 2a
@@ -1669,10 +1669,10 @@ BDM_TC7_TAB		EQU	*
 BDM_TGTRST_TAB		EQU	*			
 			DW	ERROR_ISR		;BDM interface not in use 
 			DW	ERROR_ISR		;RESET step 1		  
-			DW	BDM_SYNC_ERROR		;SYNC step 1		  
-			DW	BDM_SYNC_ERROR		;SYNC step 2		  
-			DW	BDM_SYNC_ERROR		;SYNC step 3		  
-			DW	BDM_DELAY_ERROR		;DELAY step 1             
+			DW	BDM_SYNC_TGTRST		;SYNC step 1		  
+			DW	BDM_SYNC_TGTRST		;SYNC step 2		  
+			DW	BDM_SYNC_TGTRST		;SYNC step 3		  
+			DW	BDM_DELAY_TGTRST	;DELAY step 1             
 			DW	BDM_RX_TGTRST		;RX step 2             
 			DW	BDM_RX_TGTRST		;RX step 3             
 			DW	BDM_RX_TGTRST		;RX step 4             
