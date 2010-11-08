@@ -488,34 +488,34 @@ BDM_VARS_END		EQU	*
 
 ;#Start reset monitor
 ; args:  none
-; result: D: Error code:
+; result: X: Error code:
 ;            0: No problems
 ;            2: reset monitors nested too deeply
 ; SSTACK: 2 bytes
-;         X and Y are preserved
+;         D and Y are preserved
 #macro	BDM_START_RM, 0
 	SSTACK_JOBSR	BDM_START_RM		
 #emac
 
 ;#End reset monitor
 ; args:  none
-; result: D: Error code:
+; result: X: Error code:
 ;            0: No problems
 ;            2: reset monitor mismatch
 ;            4: reset has occured
 ; SSTACK: 2 bytes
-;         X and Y are preserved
+;         D and Y are preserved
 #macro	BDM_END_RM, 0
 	SSTACK_JOBSR	BDM_END_RM		
 #emac
 
 ;#Terminate all reset monitor
 ; args:  none
-; result: D: Error code:
+; result: X: Error code:
 ;            0: No problems
 ;            2: reset has occured
 ; SSTACK: 2 bytes
-;         X and Y are preserved
+;         D and Y are preserved
 #macro	BDM_TERM_ALL_RMS, 0
 	SSTACK_JOBSR	BDM_END_RM		
 #emac
@@ -531,38 +531,38 @@ BDM_VARS_END		EQU	*
 
 ;#Sync
 ; args:   none
-; result: D: Error code:
+; result: X: Error code:
 ;            0: Sync succesful
 ;            2: Target reset occured during sync (or before)
 ;            4: Target is not responding
 ; SSTACK: 20 bytes
-;         X and Y are preserved
+;         D and Y are preserved
 #macro	BDM_SYNC, 0
-	SSTACK_JOBSR	BDM_RESET
+	SSTACK_JOBSR	BDM_SYNC
 #emac
 
 ;#Delay
-; args:   D: delay in BDM cycles
-; result: D: Error code:
+; args:   X: delay in BDM cycles
+; result: X: Error code:
 ;            0: No problems
 ;            2: Target reset occured during delay (or before)
 ;            4: BDM_SPEED not set
 ; SSTACK: 14 bytes
-;         X and Y are preserved
+;         D and Y are preserved
 #macro	BDM_DELAY, 0
 	SSTACK_JOBSR	BDM_RESET
 #emac
 
 ;#Receive
-; args:   D: data width [bits]
-;         X: ACK timeout [BC] 
+; args:   D: ACK timeout [BC]
+;         X: data width [bits]
 ;         Y: data pointer [word pointer]
-; result: D: Error code:
+; result: D: ACK pulse width [BC] (0 in case of a ACK timeout)
+;         X: Error code:
 ;            0: No problems
 ;            2: Target reset occured during transmission (or before)
 ;            4: BDM_SPEED not set
 ;            6: Communication error (BKGD low at start of transmission)
-;         X: ACK pulse width [BC] (0 in case of a ACK timeout) 
 ; SSTACK:  bytes
 ;         Y is preserved
 #macro	BDM_RX, 0
@@ -570,16 +570,16 @@ BDM_VARS_END		EQU	*
 #emac
 
 ;#Transmit
-; args:   D: data width [bits]
-;         X: ACK timeout [BC] 
+; SSTACK:  16 bytes
+; args:   D: ACK timeout [BC] 
+;         X: data width [bits]
 ;         Y: data pointer [word pointer]
-; result: D: Error code:
+; result: D: ACK pulse width [BC] (0 in case of a ACK timeout) 
+;         X: Error code:
 ;            0: No problems
 ;            2: Target reset occured during transmission (or before)
 ;            4: BDM_SPEED not set
 ;            6: Target out of sync (BKGD low at start of transmission)
-;         X: ACK pulse width [BC] (0 in case of a ACK timeout) 
-; SSTACK:  16 bytes
 ;         Y is preserved
 #macro	BDM_TX, 0
 	SSTACK_JOBSR	BDM_TX
@@ -725,55 +725,54 @@ BDM_SET_SPEED_3		SSTACK_PULDXY 				;restore registers
 
 ;#Start reset monitor
 ; args:  none
-; result: D: Error code:
+; result: X: Error code:
 ;            0: No problems
 ;            2: reset monitors nested too deeply
 ; SSTACK: 2 bytes
-;         X and Y are preserved
+;         D and Y are preserved
 BDM_START_RM		EQU	*
 			;Clear PP5 interrupt flag 
 			MOVB	#RESET, PIFP
 			;Increment reset monitor count
-			LDD	BDM_RMCNT
-			ADDD	#1
-			BCS	BDM_START_RM_2 		;monitors nested too deeply
-			STD	BDM_RMCNT
-			CLRA
-			CLRB
+			LDX	BDM_RMCNT
+			IBEQ	X, BDM_START_RM_2	;monitors nested too deeply
+			STX	BDM_RMCNT
+			LDX	#$0000
 			;Done
 BDM_START_RM_1		SSTACK_RTS
 			;Monitors nested too deeply
 BDM_START_RM_2		MOVW	#$0000, BDM_RMCNT	;terminate all monitors
-			LDD	#$0002
+			LDX	#$0002
 			;Done
 			JOB	BDM_START_RM_1
 	
 ;#End reset monitor
 ; args:  none
-; result: D: Error code:
+; result: X: Error code:
 ;            0: No problems
 ;            2: reset monitor mismatch
 ;            4: reset has occured
 ; SSTACK: 2 bytes
-;         X and Y are preserved
+;         D and Y are preserved
 BDM_END_RM		EQU	*
 			;Decrement reset monitor count
-			LDD	BDM_RMCNT
-			BEQ	BDM_END_RM_3 		;mismatching monitors
-			STD	BDM_RMCNT
-			;No problems so far
-			CLRA				;set return value			
-			CLRB
-			;Check for resets
-BDM_END_RM_1		BRCLR	PIFP, #RESET, BDM_END_RM_2
-			LDAB	#$04	
+			LDX	BDM_RMCNT
+			BEQ	BDM_END_RM_2 			;mismatching monitors
+			LEAX	-1,X
+			STX	BDM_RMCNT
+			BRSET	PIFP, #RESET, BDM_END_RM_3	;reset has been detected
+			LDX	#$0000	
 			;Done 
-BDM_END_RM_2		SSTACK_RTS
+BDM_END_RM_1		SSTACK_RTS
 			;Mismatching monitors
-BDM_END_RM_3		LDD	#$0002			;set return value
+BDM_END_RM_2		LDD	#$0002				;set return value
 			;Done 
-			JOB	BDM_END_RM_2
-	
+			JOB	BDM_END_RM_1
+			;Reset has occured	
+BDM_END_RM_3		LDD	#$0004				;set return value
+			;Done 
+			JOB	BDM_END_RM_1
+			
 ;#Terminate all reset monitor
 ; args:  none
 ; result: D: Error code:
@@ -783,17 +782,17 @@ BDM_END_RM_3		LDD	#$0002			;set return value
 ;         X and Y are preserved
 BDM_TERM_ALL_RMS	EQU	*
 			;Clear monitor count 
-			MOVW	#$0000, BDM_RMCNT
-			;No problems so far
-			CLRA				;set return value			
-			CLRB
-			;Check for resets
-BDM_TERM_ALL_RMS_1	BRCLR	PIFP, #RESET, BDM_TERM_ALL_RMS_2
-			LDAB	#$02	
+			LDX	#$0000	
+			STX	BDM_RMCNT
+			BRSET	PIFP, #RESET, BDM_TERM_ALL_RMS_2;reset has been detected
 			;Done 
-BDM_TERM_ALL_RMS_2	SSTACK_RTS
-	
-;#Reset target
+BDM_TERM_ALL_RMS_1	SSTACK_RTS
+			;Reset has occured	
+BDM_TERM_ALL_RMS_2	LEAX	2,X
+			;Done 
+			JOB	BDM_TERM_ALL_RMS_2
+
+#Reset target
 ; args:   B: run mode (0:SS, >0:NS)
 ; result: none
 ; SSTACK: 8 bytes
@@ -846,15 +845,15 @@ BDM_RESET_STEP_2_1	SSTACK_PULDXY 			;restore registers
 
 ;#Sync
 ; args:   none
-; result: D: Error code:
+; result: X: Error code:
 ;            0: Sync succesful
 ;            2: Target reset occured during sync (or before)
 ;            4: Target is not responding
 ; SSTACK: 20 bytes
-;         X and Y are preserved
+;         D and Y are preserved
 BDM_SYNC		EQU	*
 			;Save registers
-			SSTACK_PSHYX			;save index X, index Y
+			SSTACK_PSHYD			;save index X, index Y
 			
 			;Step 1
 BDM_SYNC_STEP_1		EQU	*
@@ -882,7 +881,7 @@ BDM_SYNC_STEP_1_2	MOVW	#BDM_STEP_SYNC_1, BDM_STEP	;set current processing step
 			;Target reset error handler
 BDM_SYNC_TGTRST		EQU	*
 			;Set error code 2	
-			LDD	#$0002
+			LDX	#$0002
 			;Disable interrupts, clean up, and done 
 			JOB	BDM_SYNC_NORSP_1
 	
@@ -936,14 +935,14 @@ BDM_SYNC_STEP_4_1	BCLR	TIE, #$E0 			;disable timer interrupts
 			;Set BDM speed (BDM_SPEED in D)
 			SSTACK_JOBSR	BDM_SET_SPEED		;(SSTACK: 14 bytes)
 			;Done
-			LDD	#$0000
-BDM_SYNC_STEP_4_2	SSTACK_PULXY 				;restore registers
+			LDX	#$0000
+BDM_SYNC_STEP_4_2	SSTACK_PULDY 				;restore registers
 			SSTACK_RTS
 
 			;Target reset error handler
 BDM_SYNC_NORSP		EQU	*
 			;Set error code 4	
-			LDD	#$0004
+			LDX	#$0004
 			;Disable timer
 BDM_SYNC_NORSP_1	BCLR	TIE, #$E0 			;disable timer interrupts	
 			TIM_DISABLE	TIM_BDM			;disable timer
@@ -956,13 +955,13 @@ BDM_SYNC_NORSP_1	BCLR	TIE, #$E0 			;disable timer interrupts
 			JOB	BDM_SYNC_STEP_4_2
 
 ;#Delay
-; args:   D: delay in BDM cycles
-; result: D: Error code:
+; args:   X: delay in BDM cycles
+; result: X: Error code:
 ;            0: No problems
 ;            2: Target reset occured during delay (or before)
 ;            4: BDM_SPEED not set
 ; SSTACK: 14 bytes
-;         X and Y are preserved
+;         D and Y are preserved
 BDM_DELAY		EQU	*
 
 BDM_DELAY_TO_MSW	EQU	0 				;timeout (MSW)
@@ -976,7 +975,8 @@ BDM_DELAY_Y		EQU	4
 	
 			;Step 1
 BDM_DELAY_STEP_1	EQU	*
-			;Calculate timeout (delay [BC] in D)
+			;Calculate timeout (delay [BC] in X)
+			TFR	X,D
 			SSTACK_JOBSR	BDM_BC2TC		;(SSTACK: 6 bytes)
 			LDX	SSTACK_SP
 			MOVW	#6, BDM_DELAY_TMP,X 		;set minimum delay for 
@@ -1009,7 +1009,7 @@ BDM_DELAY_TGTRST	EQU	*
 			CLI
 			;Set error code 
 			LDY	SSTACK_SP
-			MOVW	#2, BDM_DELAY_D,Y
+			MOVW	#$0002, BDM_DELAY_X,Y
 			;Done
 			JOB	BDM_DELAY_STEP_2_2	
 	
@@ -1032,23 +1032,24 @@ BDM_DELAY_STEP_2_1	BCLR	TIE, #$E0 			;disable timer interrupts
 			MOVW	#BDM_STEP_IDLE, BDM_STEP			
 			CLI
 			;Check if BDM_SPEED had been set (SP in Y)
+			MOVW	#$0000, BDM_DELAY_X,Y 		;set error code
 			LDX	BDM_SPEED
 			BNE	BDM_DELAY_STEP_2_2
-			MOVW	#4, BDM_DELAY_D,Y 		;set error code
+			MOVW	#$0004, BDM_DELAY_X,Y 		;set error code
 			;Done
 BDM_DELAY_STEP_2_2	SSTACK_PULDXY 				;restore registers
 			SSTACK_RTS
 	
 ;#Receive
-; args:   D: data width [bits]
-;         X: ACK timeout [BC] 
+; args:   D: ACK timeout [BC]
+;         X: data width [bits]
 ;         Y: data pointer [word pointer]
-; result: D: Error code:
+; result: D: ACK pulse width [BC] (0 in case of a ACK timeout)
+;         X: Error code:
 ;            0: No problems
 ;            2: Target reset occured during transmission (or before)
 ;            4: BDM_SPEED not set
 ;            6: Communication error (BKGD low at start of transmission)
-;         X: ACK pulse width [BC] (0 in case of a ACK timeout) 
 ; SSTACK:  bytes
 ;         Y is preserved	
 BDM_RX			EQU	*
@@ -1064,24 +1065,22 @@ BDM_RX_Y		EQU	8
 			;Step 1
 BDM_RX_STEP_1		EQU	*	
 			;Quit if reset monitor is enabled
-			;and previous target reset was detected (bit count in D, BC timeout in X)
+			;and previous target reset was detected (BC timeout in D, bit count in X)
 			LDY	BDM_RMCNT
 			BEQ	BDM_RX_STEP_1_1
 			BRSET	PIFP, #$20, BDM_RX_TGTRST
-			;Quit if BDM_SPEED is not set (bit count in D, BC timeout in X)
+			;Quit if BDM_SPEED is not set (BC timeout in D, bit count in X)
 BDM_RX_STEP_1_1		LDY	BDM_SPEED
 			BEQ	BDM_RX_NOSPD 			;BDM_SPEED not set
-			;Initialize local variables (bit count in D, BC timeout in X)
+			;Initialize local variables (BC timeout in D, bit count in X)
 			LDY	SSTACK_SP
-			STD	BDM_RX_DATA_CNT,Y
+			STX	BDM_RX_DATA_CNT,Y
 			BEQ	BDM_RX_NOP 			;nothing to do
-			LDD	BDM_RX_Y,Y
-			STD	BDM_RX_DATA_PTR,Y
-			;Clear MSW of the data field (data pointer in D, stack pointer in Y, BC timeout in X) 
-			TFR	D,Y
-			MOVW	#$0000, 0,Y
-			;Calculate timeout (BC timeout in X)
-			TFR	X,D
+			LDX	BDM_RX_Y,Y
+			STX	BDM_RX_DATA_PTR,Y
+			;Clear MSW of the data field (BC timeout in D, stack pointer in Y, data pointer in X) 
+			MOVW	#$0000, 0,X
+			;Calculate timeout (BC timeout in D)
 			SSTACK_JOBSR	BDM_BC2TC		;(SSTACK: 6 bytes)
 			LDY	SSTACK_SP
 			STY	BDM_RX_ACK_TO_TC_MSW,Y		;store BDM_RX_ACK_TO_TC_MSW
@@ -1117,13 +1116,13 @@ BDM_RP_DONE		EQU	*
 			;Target reset
 BDM_RX_TGTRST		EQU	*
 			;Set error status 
-			LDD	#2
+			LDX	#$0002
 			JOB	BDM_RX_ACK_TO_1
 
 			;Communication error
 BDM_RX_COMERR		EQU	*
 			;Set error status 
-			LDD	#6
+			LDX	#$0006
 			JOB	BDM_RX_ACK_TO_1
 	
 			;Step 3
@@ -1202,10 +1201,8 @@ BDM_RX_STEP_6		EQU	*
 			;Convert pulse length into BCs (pulse length in D)
 			BDM_TC2BC
 			TBEQ	Y, BDM_RX_ACK_TO 		;pulse length is too long
-			TFR	D, X
 			;Set error status 
-			CLRA
-			CLRB
+			LDX	#$0000
 			;Restore registers
 			SSTACK_DEALLOC	8
 			SSTACK_PULY
@@ -1217,7 +1214,7 @@ BDM_RX_NOP		EQU	BDM_RX_ACK_TO
 			;BDM_SPEED not set
 BDM_RX_NOSPD		EQU	*
 			;Set error status 
-			LDD	#4
+			LDX	#$0004
 			JOB	BDM_RX_ACK_TO_1
 
 			;ACK Error
@@ -1225,17 +1222,18 @@ BDM_RX_ACK_TO		EQU	*
 			;Set error status 
 			CLRA
 			CLRB
-			;Disable timer (error status in D)
+			;Disable timer (error status in X)
 BDM_RX_ACK_TO_1		BCLR	TIE, #$E0 			;disable timer interrupts	
 			TIM_DISABLE	TIM_BDM			;disable timer
-			;Disable reset detection (error status in D)
+			;Disable reset detection (error status in X)
 			CLR	PIEP				;disable reset detection
-			;Clean up (error status in D)
+			;Clean up (error status in X)
 			MOVW	#BDM_STEP_IDLE, BDM_STEP
 			CLI
 			;Set ACK status 
-			LDX	#$0000
-			;Restore registers (error status in D)
+			CLRA
+			CLRB
+			;Restore registers (error status in X)
 			SSTACK_DEALLOC	8
 			SSTACK_PULY
 			SSTACK_RTS
@@ -1309,27 +1307,27 @@ BDM_RP_3X4C		EQU	*
 			JOB	BDM_RP_DONE	;return to program flow
 
 ;#Transmit
-; args:   D: data width [bits]
-;         X: ACK timeout [BC] 
+; args:   D: ACK timeout [BC] 
+;         X: data width [bits]
 ;         Y: data pointer [word pointer]
-; result: D: Error code:
+; result: D: ACK pulse width [BC] (0 in case of a ACK timeout) 
+;         X: Error code:
 ;            0: No problems
 ;            2: Target reset occured during transmission (or before)
 ;            4: BDM_SPEED not set
 ;            6: Target out of sync (BKGD low at start of transmission)
-;         X: ACK pulse width [BC] (0 in case of a ACK timeout) 
 ; SSTACK:  16 bytes
 ;         Y is preserved
 			;Target reset
 BDM_TX_TGTRST		EQU	*
 			;Set error status 
-			LDD	#2
+			LDX	#$0002
 			JOB	BDM_TX_ACK_TO_1
 
 			;Communication error
 BDM_TX_COMERR		EQU	*
 			;Set error status 
-			LDD	#6
+			LDX	#$0006
 			JOB	BDM_TX_ACK_TO_1
 	
 BDM_TX			EQU	*
@@ -1347,22 +1345,21 @@ BDM_TX_Y		EQU	12
 			;Step 1
 BDM_TX_STEP_1		EQU	*	
 			;Quit if reset monitor is enabled
-			;and previous target reset was detected (bit count in D, BC timeout in X)
+			;and previous target reset was detected (BC timeout in D,  bit count in X)
 			LDY	BDM_RMCNT
 			BEQ	BDM_TX_STEP_1_1
 			BRSET	PIFP, #$20, BDM_TX_TGTRST
-			;Check if BDM_SPEED is set (bit count in D, BC timeout in X)
+			;Check if BDM_SPEED is set (BC timeout in D,  bit count in X)
 BDM_TX_STEP_1_1		LDY	BDM_SPEED
 			BEQ	BDM_TX_NOSPD 			;BDM_SPEED not set
-			;Quit if BKGD is driven low (bit count in D, BC timeout in X)
+			;Quit if BKGD is driven low (BC timeout in D,  bit count in X)
 			BRCLR	PORTB, #BKGD, BDM_TX_COMERR
-			;Quit if data count is zero (bit count in D, BC timeout in X)
+			;Quit if data count is zero (BC timeout in D,  bit count in X)
 			LDY	SSTACK_SP			;store data count
-			STD	BDM_TX_DATA_CNT,Y
+			STX	BDM_TX_DATA_CNT,Y
 			BEQ	BDM_TX_NOP			;nothing to do	
-			;Calculate ACK timeout (BC timeout in X, stack pointer in Y)
-			LEAX	12,X 				;add 12 BDM cycles to the timeout
-			TFR	X,D
+			;Calculate ACK timeout (BC timeout in D, stack pointer in Y)
+			ADDD	#12 				;add 12 BDM cycles to the timeout
 			TFR	Y,X
 			SSTACK_JOBSR	BDM_BC2TC		;(SSTACK: 6 bytes)
 			STY	BDM_TX_ACK_TO_TC_MSW,X		;set BDM_TX_ACK_TO_TC_MSW
@@ -1543,10 +1540,8 @@ BDM_TX_STEP_5		EQU	*
 			;Convert pulse length into BCs (pulse length in D)
 			BDM_TC2BC
 			TBEQ	Y, BDM_TX_ACK_TO 		;pulse length is too long
-			TFR	D, X
 			;Set error status 
-			CLRA
-			CLRB
+			LDX	#$0000
 			;Restore registers
 			SSTACK_DEALLOC	12
 			SSTACK_PULY
@@ -1555,19 +1550,19 @@ BDM_TX_STEP_5		EQU	*
 			;ACK Error
 BDM_TX_ACK_TO		EQU	*
 			;Set error status 
-			CLRA
-			CLRB
-			;Disable timer (error status in D)
+			LDX	#$0000
+			;Disable timer (error status in X)
 BDM_TX_ACK_TO_1		BCLR	TIE, #$E0 			;disable timer interrupts	
 			TIM_DISABLE	TIM_BDM			;disable timer
-			;Disable reset detection (error status in D)
+			;Disable reset detection (error status in X)
 			CLR	PIEP				;disable reset detection
-			;Clean up (error status in D)
+			;Clean up (error status in X)
 			MOVW	#BDM_STEP_IDLE, BDM_STEP
 			CLI
 			;Set ACK status 
-			LDX	#$0000
-			;Restore registers (error status in D)
+			CLRA
+			CLRB
+			;Restore registers (error status in X)
 			SSTACK_DEALLOC	8
 			SSTACK_PULY
 			SSTACK_RTS
@@ -1578,7 +1573,7 @@ BDM_TX_NOP		EQU	BDM_TX_ACK_TO
 			;BDM_SPEED not set
 BDM_TX_NOSPD		EQU	*
 			;Set error status 
-			LDD	#4
+			LDX	#$0004
 			JOB	BDM_TX_ACK_TO_1
 
 ;#TC5 (posedge) handler
