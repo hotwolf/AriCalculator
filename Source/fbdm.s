@@ -384,7 +384,7 @@ CF_BDMACK		PS_CHECK_UF	1, CF_BDMACK_PSUF ;check for underflow  (PSP -> Y)
 
 CF_BDMACK_PSUF		JOB	FBDM_THROW_PSUF	
 		
-;BDMSYNC ( -- ) S12CForth extension
+;BDMSYNC ( -- ) S12CForth extension CHECK!
 ;Sends a SYNC pulse and detects the BDM frequency
 ;Throws:
 ;"BDM target does not respond"
@@ -392,35 +392,40 @@ CF_BDMACK_PSUF		JOB	FBDM_THROW_PSUF
 			ALIGN	1
 NFA_BDMSYNC		FHEADER, "BDMSYNC", NFA_BDMACK, COMPILE
 CFA_BDMSYNC		DW	CF_BDMSYNC
-CF_BDMSYNC		
+CF_BDMSYNC		;Sync target
+			BDM_SYNC
+			;Check error code
+			JMP	BDMSYNC_TAB,X
+	
+BDMSYNC_TAB		DW	FBDM_NEXT
+			DW	FBDM_THROW_TGTRST
+			DW	FBDM_THROW_NORSP
 
-			NEXT
-
-;CF_BDMSYNC_PSUF		JOB	FBDM_THROW_PSUF	
-
-
-;BDMRST ( -- ) S12CForth extension
+;BDMRST ( -- ) S12CForth extension CHECK!
 ;Resets the target without touching the BKGD pin.
 ;
 			ALIGN	1
 NFA_BDMRST		FHEADER, "BDMRST", NFA_BDMSYNC, COMPILE
 CFA_BDMRST		DW	CF_BDMRST
-CF_BDMRST		
-
+CF_BDMRST		;Reset target
+			LDAB	#$FF
+			BDM_RESET
+			;Done
 			NEXT
 
-;BDMRES-SP ( -- ) S12CForth extension
+;BDMSRST ( -- ) S12CForth extension CHECK!
 ;Resets the target into special mode
 ;
 			ALIGN	1
 NFA_BDMSRST		FHEADER, "BDMSRST", NFA_BDMRST, COMPILE
 CFA_BDMSRST		DW	CF_BDMSRST
-CF_BDMSRST		
-
+CF_BDMSRST		;Reset target
+			CLRB
+			BDM_RESET
+			;Done
 			NEXT
-
 	
-;BDMFREQ! ( ud -- ) S12CForth extension
+;BDMFREQ! ( ud -- ) S12CForth extension CHECK!
 ;Sets the BDM frequency to ud Hz.
 ;Throws:
 ;"Parameter stack underflow"
@@ -437,17 +442,18 @@ CF_BDMFREQ_STORE	PS_CHECK_UF	2, CF_BDMFREQ_STORE_PSUF ;check for underflow (PSP 
 			SSTACK_JOBSR	FBDM_CONVERT		 ;(SSTACK: 18 bytes)
 			;Check SPEED value
 			TBNE	D, CF_BDMFREQ_STORE_INVALNUM	;the MSW must be zero
-			CPX	#BDM_SPPED_MIN
+			CPX	#BDM_SPEED_MIN
 			BLO	CF_BDMFREQ_STORE_INVALNUM
 			;Set new BDM speed
-			STX	BDM_SPEED
+			TFR	X, D
+			BDM_SET_SPEED
 			;Done
 			NEXT
 
 CF_BDMFREQ_STORE_PSUF		JOB	FBDM_THROW_PSUF
 CF_BDMFREQ_STORE_INVALNUM	JOB	FBDM_THROW_INVALNUM
 
-;BDMFREQ@ (  -- ud ) S12CForth extension
+;BDMFREQ@ (  -- ud ) S12CForth extension CHECK!
 ;Returns the BDM frequency in Hz. Returns zero if the target frequency has
 ;been set.
 ;Throws:
