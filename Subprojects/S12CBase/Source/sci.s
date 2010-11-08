@@ -286,6 +286,11 @@ SCI_INIT_3	STX	SCIBDH			;set baud rate
 		LED_COMERR_OFF				;stop signaling communication errors
 DONE		EQU	*
 #emac
+
+;Clear wait flags
+#macro	SCI_CLR_WAIT_FLGS, 0
+		BCLR	SCI_FLGS, #(SCI_FLG_WAITRX|SCI_FLG_WAITTX|SCI_FLG_WAITTBE)
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -425,12 +430,15 @@ SCI_BAUD	EQU	*
 		;Disable baud rate detection
 		SCI_STOP_BD			;stop baud rate detection
 	
-		;Set baud rate 
+		;Set baud rate
 		STD	SCIBDH			;set baud rate
 		LDY	#SCI_BMUL		;save baud rate for next warmstart
 		EMUL				;D*Y -> Y:D
 		STD	SCI_BVAL
 
+		;Clear input buffer
+		MOVW	#$0000, SCI_RXBUF_IN	;reset in and out pointer of the RX buffer
+	
 		;End subroutine
 		SSTACK_PULDY			;restore all registers
 		SSTACK_RTS			;return

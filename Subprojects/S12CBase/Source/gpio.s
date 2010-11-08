@@ -121,7 +121,7 @@ GPIO_VARS_END	EQU	*
 		LDAA	#MODC		;lock MODE register into NSC mode
 		STAA	MODE		
 		STAA	MODE
-		MOVB	#~PUPBE, PUCR 	;enable pull-ups on ports A & E
+		MOVB	#$FF, PUCR 	;enable pull-ups on ports A, B & E
 		;#Port B
 		;#Port E
 		MOVB	#NECLK, PEAR 	;lock PEAR register
@@ -132,13 +132,13 @@ GPIO_VARS_END	EQU	*
 		MOVB	#$02, DDRM 	;switch PM1 to ouput
 		MOVB	#$FC, PERM	;enable pull-ups on PM[6:2]	
 		;#Port P
-		MOVB	#$DF, PERP	;enable pull-ups on PP[7:6] and PP[4:0]	
+		MOVW	#$FF00, PERP	;enable pull-ups on PP[7:0]
 		;#Port S
 		MOVB	#$02, DDRS 	;switch PS1 to ouput
 		MOVB	#$02, PTS 	;drive PS1 high
 		MOVB	#$FC, PERS	;enable pull-ups on PS[3:2]	
 		;#Port T
-		MOVB	#$9C, PERT	;enable pull-ups on PT7 & PT[4:2]	
+		MOVB	#$FF, PERT	;enable pull-ups on PT[7:0]	
 		;#Port AD
 		;CLR	ATDDIEN		;enable digital input buffers
 		MOVB	#$80, DDRAD	;switch PAD0 to ouput

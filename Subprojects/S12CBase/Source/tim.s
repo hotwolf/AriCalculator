@@ -60,17 +60,37 @@ TIM_VARS_END		EQU	*
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	TIM_INIT, 0		 ;76543210
-			MOVB	#%10011100, TIOS 	;select input capture (=0)
-							; or output compare (=1) featue
-				 ;76543210
-			MOVB	#010000000, TOC7D 	;OC7 output compares drive
-							; posedges on TC6 	
+#macro	TIM_INIT, 0		 ;7 6 5 4 3 2 1 0
+			MOVB	#%1_0_0_1_1_1_0_0, TIOS 	;select input capture (0)
+				 ;B B B     S S S 		; or output compare (1) feature
+				 ;D D D     C C C
+				 ;M M M     I I I
+				 ;T N P     T N P
+				 ;O E E     O E E
+	
 				 ;7 6 5 4 3 2 1 0
-			MOVW	#%0010000000000000, TCTL1 ;OC6 output compares drive
-							  ; negedges (=10) on TC6
+			;MOVB	#%0_1_0_0_0_0_0_0, TOC7D	;OC7 output compares drive
+				 ;B B B     S S S 		; posedges on TC6 	
+				 ;D D D     C C C
+				 ;M M M     I I I
+				 ;T N P     T N P
+				 ;O E E     O E E
+
 				 ;7 6 5 4 3 2 1 0
-			MOVW	#%0010010000001001, TCTL3 ;set capture edges
+			MOVW	#%0010000000000000, TCTL1 	;OC6 output compares drive
+				 ;B B B     S S S		; negedges (=10) on TC6
+				 ;D D D     C C C
+				 ;M M M     I I I
+				 ;T N P     T N P
+				 ;O E E     O E E
+
+			 	 ;7 6 5 4 3 2 1 0
+			MOVW	#%0010010000001001, TCTL3 	;set capture edges
+				 ;B B B     S S S	
+				 ;D D D     C C C
+				 ;M M M     I I I
+				 ;T N P     T N P
+				 ;O E E     O E E
 
 			MOVB	#(VEC_TC2&$FE), HPRIO ;TC2 gets highest interrupt priority
 #emac

@@ -94,7 +94,7 @@ ERROR_VARS_END		EQU	*
 			DECB
 			BEQ	ERROR_INIT_CM
 			;Illegal entry code
-			ERROR_RESTART	ERROR_MSG_UNKNOWN ;throw fatal error
+			BRA	ERROR_INIT_UNKNOWN ;throw fatal error
 
 			;Clock monitor reset
 ERROR_INIT_CM		LDY	#ERROR_MSG_CM 
@@ -107,9 +107,13 @@ ERROR_INIT_COP		LDD	ERROR_MSG 		;check for valid error message
 			ABA
 			COMA
 			CMPA	ERROR_MSG_CHECK
-			BEQ	ERROR_INIT_COP_1	;error message is valid
-			LDY	#ERROR_MSG_COP		;complain ablut COP instead
-ERROR_INIT_COP_1	ERROR_PRINT 			;print error message (SSTACK: 18 bytes)
+			BNE	ERROR_INIT_COP_1	;checksum is invalid
+        		LEAX	1,Y
+			PRINT_STRCNT 			;chack if error message has a valid format
+			CMPA	#$FF
+			BNE	ERROR_INIT_COP_2	;message is correctly terminated		
+ERROR_INIT_COP_1	LDY	#ERROR_MSG_COP		;complain ablut COP instead
+ERROR_INIT_COP_2	ERROR_PRINT 			;print error message (SSTACK: 18 bytes)
 			JOB	ERROR_INIT_DONE
 	
 			;External reset
@@ -142,6 +146,11 @@ ERROR_INIT_EXT_1	;BITA	#PORF 			;check for power-on reset ;treat external reset 
 ERROR_INIT_EXT_2	;LDY	#ERROR_MSG_EXT
 			;ERROR_PRINT 			;print error message (SSTACK: 18 bytes)
 			;JOB	ERROR_INIT_DONE
+
+			;Unknown error 
+ERROR_INIT_UNKNOWN	LDY	#ERROR_MSG_UNKNOWN
+			ERROR_PRINT 			;print error message (SSTACK: 18 bytes)
+			JOB	ERROR_INIT_DONE
 	
 ERROR_INIT_DONE		EQU	*
 #emac
@@ -192,6 +201,9 @@ ERROR_PRINT		EQU	*
 	
 			;Print error message
                         LEAX	1,Y
+			PRINT_STRCNT 			;chack if error message has a valid format
+			CMPA	#$FF
+			BEQ	ERROR_PRINT_1 		;message too long (probably not terminated)	
 			PRINT_STR 			;print string (SSTACK:13 bytes)
 
 			;Print error message
