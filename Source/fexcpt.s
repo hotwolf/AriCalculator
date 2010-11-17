@@ -251,6 +251,7 @@ FEXCPT_CODE_END		EQU	*
 				;Assign error messages to error codes 
 FEXCPT_MSGTAB_START	EQU	*
 
+FEXCPT_MSGTAB_FBDM	FBDM_MSGTAB	
 			DW	FEXCPT_MSG_DICTPROT	;-60 destruction of dictionary structure
 			DW	FEXCPT_MSG_NOMSG	;-59 empty message string	
 			DW	FEXCPT_MSG_UNKNOWN	;-58 [IF], [ELSE], or [THEN] exception

@@ -50,7 +50,13 @@
 ;# Constants                                                                   #
 ;###############################################################################
 FBDM_DIVISOR		EQU	CLOCK_BUS_FREQ*128		;constant divisor
-	
+
+;Non-standard error codes 
+FBDM_EC_TGTRST		EQU	(FEXCPT_MSGTAB_FBDM-FEXCPT_MSGTAB_END)/2;Unexpected target reset
+FBDM_EC_NORSP 		EQU	2+FBDM_EC_TGTRST			;Target is not responding
+FBDM_EC_NOSPD 		EQU	4+FBDM_EC_TGTRST			;BDM frequency not set   
+FBDM_EC_COMERR 		EQU	6+FBDM_EC_TGTRST			;BDM communication error
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -62,6 +68,14 @@ FBDM_VARS_END		EQU	*
 ;###############################################################################
 ;#Initialization
 #macro	FBDM_INIT, 0
+#emac
+
+;#Error message lookup table
+#macro	FBDM_MSGTAB, 0
+			DW	FBDM_MSG_TGTRST	;Unexpected target reset
+			DW	FBDM_MSG_NORSP 	;Target is not responding
+			DW	FBDM_MSG_NOSPD 	;BDM frequency not set   
+			DW	FBDM_MSG_COMERR ;Communication error   
 #emac
 
 ;###############################################################################
@@ -83,7 +97,7 @@ FBDM_CONVERT	EQU	*
 			TBEQ	D, FBDM_CONVERT_8 		;16-bit dividend
 
 			;32-bit dividend (dividend in D:X)
-FBDM_CONVERT_1	SSTACK_ALLOC	10 			;allocate temporary variables
+FBDM_CONVERT_1		SSTACK_ALLOC	10 			;allocate temporary variables
 			LDY	SSTACK_SP
 ;  	                +--------------+--------------+
 ;           SSTACK_SP-> |         temp variable       | +$00
@@ -122,7 +136,7 @@ FBDM_CONVERT_RESULT	EQU	$0A
 			STX	FBDM_CONVERT_DIVIDEND_LSW,Y
 			
 			;Terminate if divisor <= dividend (SP in Y, dividend in D:X)
-FBDM_CONVERT_2	CPD	FBDM_CONVERT_DIVISOR_MSW,Y
+FBDM_CONVERT_2		CPD	FBDM_CONVERT_DIVISOR_MSW,Y
 			BHI	FBDM_CONVERT_7 			;terminate
 			BLO	FBDM_CONVERT_3 			;continue division
 			;Divisor MSW == dividend MSW (SP in Y, dividend in D:X)
@@ -155,7 +169,7 @@ FBDM_CONVERT_4		EXG	D, X
 			LDD	FBDM_CONVERT_TMP,Y
 			
 			;Next iteration 
-			JOB	FBDM_CONVERT_ 			
+			JOB	FBDM_CONVERT_2 			
 	
 			;Terminate iteration and consider carry bit (SP in Y, shifted dividend in C:D:X)
 FBDM_CONVERT_5		RORA	
@@ -224,165 +238,332 @@ FBDM_CONVERT_9	SSTACK_PULDXY
 ;Exceptions:
 ;===========
 ;Standard exceptions
-FBDM_THROW_PSOF	EQU	FMEM_THROW_PSOF			;stack overflow
-FBDM_THROW_PSUF	EQU	FMEM_THROW_PSUF			;stack underflow
-FBDM_THROW_INVALNUM	THROW	FEXCPT_EC_INVALNUM	;invalid numeric argument
-
+FBDM_THROW_PSOF	EQU	FMEM_THROW_PSOF				;stack overflow
+FBDM_THROW_PSUF	EQU	FMEM_THROW_PSUF				;stack underflow
+FBDM_THROW_INVALNUM	FEXCPT_THROW	FEXCPT_EC_INVALNUM	;invalid numeric argument
+FBDM_THROW_TGTRST	FEXCPT_THROW	FBDM_EC_TGTRST		;Unexpected target reset 
+FBDM_THROW_NORSP	FEXCPT_THROW	FBDM_EC_NORSP		;Target is not responding
+FBDM_THROW_NOSPD	FEXCPT_THROW	FBDM_EC_NOSPD		;BDM frequency not set   
+FBDM_THROW_COMERR	FEXCPT_THROW	FBDM_EC_COMERR		;Communication error
+	
 FBDM_CODE_END		EQU	*
 	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
 			ORG	FBDM_TABS_START
+
+;Non-standard error messages 
+FBDM_MSG_TGTRST		ERROR_MSG	ERROR_LEVEL_ERROR, "Unexpected target reset" 
+FBDM_MSG_NORSP		ERROR_MSG	ERROR_LEVEL_ERROR, "Target is not responding"
+FBDM_MSG_NOSPD		ERROR_MSG	ERROR_LEVEL_ERROR, "BDM frequency not set"   
+FBDM_MSG_COMERR		ERROR_MSG	ERROR_LEVEL_ERROR, "Communication error"
+
 FBDM_TABS_END		EQU	*
 
 ;###############################################################################
 ;# Forth words                                                                 #
 ;###############################################################################
 			ORG	FBDM_WORDS_START
-
-;BDMTX ( u1 u2 -- ) S12CForth extension
-;Transmit the lower u2 bits of u1.
-;Throws:
-;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_BDMTX		FHEADER, "BDMTX", FBDM_PREV_NFA, COMPILE
-CFA_BDMTX		DW	CF_BDMTX
-CF_BDMTX		PS_CHECK_UF	2, CF_BDMTX_PSUF ;check for underflow  (PSP -> Y)
-
-			NEXT
-
-CF_BDMTX_PSUF		JOB	FBDM_THROW_PSUF	
 	
-;BDMTXB ( c -- ) S12CForth extension
-;Transmit c.
+;BDMTXB ( u u_ackto -- u_ack ) S12CForth extension CHECK!
+;Send a double word over the BDM interface and wait for an ACK pulse
+;u:      transmit data
+;u_ackto: timeout of the ACK pulse (0 if no ACK pulse is expected)
+;u_bits:  number of bits to receive 
+;u_ack:   width of the ACK pulse (0 if no ACK pulse was received)
 ;Throws:
 ;"Parameter stack underflow"
+;"Invalid numeric value"
+;"Unexpected target reset"
+;"BDM frequency not set"
 ;
 			ALIGN	1
-NFA_BDMTXB		FHEADER, "BDMTXB", NFA_BDMTX, COMPILE
+NFA_BDMTXB		FHEADER, "BDMTXB", FBDM_PREV_NFA, COMPILE
 CFA_BDMTXB		DW	CF_BDMTXB
-CF_BDMTXB		PS_CHECK_UF	1, CF_BDMTXB_PSUF ;check for underflow  (PSP -> Y)
-
-			NEXT
-
+CF_BDMTXB		PS_CHECK_UF	2, CF_BDMTXB_PSUF ;check for underflow  (PSP -> Y)
+			;BDM write access (PSP in Y)
+			LDX	#8
+			LDD	2,Y+ 	;ACK timeout [BC]
+			BDM_TX
+			JMP	[CF_BDMTXW_TAB,X]
+	
 CF_BDMTXB_PSUF		JOB	FBDM_THROW_PSUF	
 	
-;BDMTXW ( u -- ) S12CForth extension
-;Transmit u.
+;BDMTXW ( u u_ackto -- u_ack ) S12CForth extension CHECK!
+;Send a double word over the BDM interface and wait for an ACK pulse
+;u:      transmit data
+;u_ackto: timeout of the ACK pulse (0 if no ACK pulse is expected)
+;u_bits:  number of bits to receive 
+;u_ack:   width of the ACK pulse (0 if no ACK pulse was received)
 ;Throws:
 ;"Parameter stack underflow"
+;"Invalid numeric value"
+;"Unexpected target reset"
+;"BDM frequency not set"
 ;
 			ALIGN	1
 NFA_BDMTXW		FHEADER, "BDMTXW", NFA_BDMTXB, COMPILE
 CFA_BDMTXW		DW	CF_BDMTXW
-CF_BDMTXW		PS_CHECK_UF	1, CF_BDMTXW_PSUF ;check for underflow  (PSP -> Y)
-
-			NEXT
-
-CF_BDMTXW_PSUF		JOB	FBDM_THROW_PSUF	
+CF_BDMTXW		PS_CHECK_UF	2, CF_BDMTXW_PSUF ;check for underflow  (PSP -> Y)
+			;BDM write access (PSP in Y)
+			LDX	#16
+			LDD	2,Y+ 	;ACK timeout [BC]
+			BDM_TX
+			JMP	[CF_BDMTXW_TAB,X]
 	
-;BDMTXD ( ud -- ) S12CForth extension
-;Transmit ud.
+CF_BDMTXW_PSUF		JOB	FBDM_THROW_PSUF	
+
+CF_BDMTXW_TAB		DW	CF_BDMTXW_1
+			DW	FBDM_THROW_TGTRST
+			DW	FBDM_THROW_NOSPD
+			DW	FBDM_THROW_COMERR
+
+			;No problems (PSP+2 in Y)
+CF_BDMTXW_1		STD	2,+Y
+			STY	PSP
+			;Done	
+FBDM_NEXT		NEXT
+	
+;BDMTXD ( ud u_ackto -- u_ack ) S12CForth extension CHECK!
+;Send a double word over the BDM interface and wait for an ACK pulse
+;ud:      transmit data
+;u_ackto: timeout of the ACK pulse (0 if no ACK pulse is expected)
+;u_bits:  number of bits to receive 
+;u_ack:   width of the ACK pulse (0 if no ACK pulse was received)
 ;Throws:
 ;"Parameter stack underflow"
+;"Invalid numeric value"
+;"Unexpected target reset"
+;"BDM frequency not set"
 ;
 			ALIGN	1
 NFA_BDMTXD		FHEADER, "BDMTXD", NFA_BDMTXW, COMPILE
 CFA_BDMTXD		DW	CF_BDMTXD
-CF_BDMTXD		PS_CHECK_UF	2, CF_BDMTXD_PSUF ;check for underflow  (PSP -> Y)
-
-			NEXT
-
+CF_BDMTXD		PS_CHECK_UF	3, CF_BDMTXD_PSUF ;check for underflow  (PSP -> Y)
+			;BDM write access (PSP in Y)
+			LDX	#32
+			LDD	2,Y+ 	;ACK timeout [BC]
+			BDM_TX
+			JMP	[CF_BDMTXD_TAB,X]
+	
 CF_BDMTXD_PSUF		JOB	FBDM_THROW_PSUF	
-	
-;BDMRX ( u1 -- u2 ) S12CForth extension
-;Read u1 bits from the BDM interface. The resulting data is returened as u2.
-;Throws:
-;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_BDMRX		FHEADER, "BDMRX", NFA_BDMTXD, COMPILE
-CFA_BDMRX		DW	CF_BDMRX
-CF_BDMRX		PS_CHECK_UF	1, CF_BDMRX_PSUF ;check for underflow  (PSP -> Y)
 
+CF_BDMTXD_TAB		DW	CF_BDMTXD_1
+			DW	FBDM_THROW_TGTRST
+			DW	FBDM_THROW_NOSPD
+			DW	FBDM_THROW_COMERR
+
+			;No problems (PSP+2 in Y)
+CF_BDMTXD_1		STD	4,+Y
+			STY	PSP
+			;Done	
 			NEXT
 
-CF_BDMRX_PSUF		JOB	FBDM_THROW_PSUF	
-	
-;BDMRXB ( -- c ) S12CForth extension
-;Read one byte from the BDM interface.
+;BDMTX ( u_1...u_n u_ackto u_bits -- u_ack ) S12CForth extension CHECK!
+;Send a number of bits over the BDM interface and wait for an ACK pulse
+;u_1:     LSW of the transmit data
+;u_n:	  MSW of the transmit data (n = (u_bits+15)/16)
+;u_ackto: timeout of the ACK pulse (0 if no ACK pulse is expected)
+;u_bits:  number of bits to receive 
+;u_ack:   width of the ACK pulse (0 if no ACK pulse was received)
 ;Throws:
 ;"Parameter stack underflow"
+;"Invalid numeric value"
+;"Unexpected target reset"
+;"BDM frequency not set"
 ;
 			ALIGN	1
-NFA_BDMRXB		FHEADER, "BDMRXB", NFA_BDMRX, COMPILE
+NFA_BDMTX		FHEADER, "BDMTX", NFA_BDMTXD, COMPILE
+CFA_BDMTX		DW	CF_BDMTX
+CF_BDMTX		PS_CHECK_UF	2, CF_BDMTX_PSUF ;check for underflow  (PSP -> Y)
+			;Check for stack underflow (PSP in Y)			
+			LDD	0,Y			 
+			LSRD
+			ADCB	#$27
+			ADCA	#$00
+			LSRD
+			LSRD
+			ANDB	#$FE 			;min. stack size -> D
+			ADDD	PSP
+			BCS	CF_BDMTX_PSUF
+			CPD	#PS_EMPTY
+			BLO	CF_BDMTX_PSUF
+			;BDM write access (PSP in Y)
+			LDD	2,Y 	;ACK timeout [BC]
+			LDX	4,Y+ 	;data width [bits]
+			BDM_TX
+			JMP	[CF_BDMTX_TAB,X]
+
+CF_BDMTX_PSUF		JOB	FBDM_THROW_PSUF	
+
+CF_BDMTX_TAB		DW	CF_BDMTX_1
+			DW	FBDM_THROW_TGTRST
+			DW	FBDM_THROW_NOSPD
+			DW	FBDM_THROW_COMERR
+
+			;No problems (PSP+4 in Y)
+CF_BDMTX_1		TFR	D,X
+			LDD	4,-Y
+			LSRD
+			ADCB	#$17
+			ADCA	#$00
+			LSRD
+			LSRD
+			ANDB	#$FE 			;min. stack size -> D
+			LEAY	D,Y
+			STY	PSP
+			;Done	
+			NEXT
+
+;BDMRXB ( u_ackto --  char u_ack ) S12CForth extension CHECK!
+;Read a byte from the BDM interface.
+;u_ackto: timeout of the ACK pulse (0 if no ACK pulse is expected)
+;u:       received byte
+;u_ack:   width of the ACK pulse (0 if no ACK pulse was received)
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack underflow"
+;"Unexpected target reset"
+;"BDM frequency not set"
+;
+			ALIGN	1
+NFA_BDMRXB		FHEADER, "BDMRXB", NFA_BDMTX, COMPILE
 CFA_BDMRXB		DW	CF_BDMRXB
-CF_BDMRXB		PS_CHECK_OF	1, CF_BDMRXB_PSOF ;check for underflow  (PSP+2 -> Y)
-
-			NEXT
-
+CF_BDMRXB		PS_CHECK_UFOF	1, CF_BDMRXB_PSUF, 1, CF_BDMRXB_PSOF	;check for over and underflow (PSP-2 -> Y)
+			;BDM read access (PSP-2 in Y)
+			LDD	2,+Y	;ACK timeout [BC]
+			LDX	#8	;data width [bits]
+			BDM_RX
+			JMP	[CF_BDMRX_TAB,X]
+	
+CF_BDMRXB_PSUF		JOB	FBDM_THROW_PSUF	
 CF_BDMRXB_PSOF		JOB	FBDM_THROW_PSOF	
 	
-;BDMRXW ( -- u ) S12CForth extension
-;Read one word from the BDM interface.
+;BDMRXW ( u_ackto -- u u_ack ) S12CForth extension CHECK!
+;Read a word from the BDM interface.
+;u_ackto: timeout of the ACK pulse (0 if no ACK pulse is expected)
+;u:       received word
+;u_ack:   width of the ACK pulse (0 if no ACK pulse was received)
 ;Throws:
 ;"Parameter stack underflow"
+;"Parameter stack underflow"
+;"Unexpected target reset"
+;"BDM frequency not set"
 ;
 			ALIGN	1
 NFA_BDMRXW		FHEADER, "BDMRXW", NFA_BDMRXB, COMPILE
 CFA_BDMRXW		DW	CF_BDMRXW
-CF_BDMRXW		PS_CHECK_OF	1, CF_BDMRXW_PSOF ;check for underflow  (PSP+2 -> Y)
-
-			NEXT
-
-CF_BDMRXW_PSOF		JOB	FBDM_THROW_PSOF	
+CF_BDMRXW		PS_CHECK_UFOF	1, CF_BDMRXW_PSUF, 1, CF_BDMRXW_PSOF	;check for over and underflow (PSP-2 -> Y)
+			;BDM read access (PSP-2 in Y)
+			LDD	2,+Y	;ACK timeout [BC]
+			LDX	#16	;data width [bits]
+			BDM_RX
+			JMP	[CF_BDMRX_TAB,X]
 	
-;BDMRXD ( -- ud ) S12CForth extension
-;Read one word from the BDM interface.
+CF_BDMRXW_PSUF		JOB	FBDM_THROW_PSUF	
+CF_BDMRXW_PSOF		JOB	FBDM_THROW_PSOF	
+
+;BDMRXD ( u_ackto -- ud u_ack ) S12CForth extension CHECK!
+;Read a double word from the BDM interface.
+;u_ackto: timeout of the ACK pulse (0 if no ACK pulse is expected)
+;ud:      received double word
+;u_ack:   width of the ACK pulse (0 if no ACK pulse was received)
 ;Throws:
 ;"Parameter stack underflow"
+;"Parameter stack underflow"
+;"Unexpected target reset"
+;"BDM frequency not set"
 ;
 			ALIGN	1
 NFA_BDMRXD		FHEADER, "BDMRXD", NFA_BDMRXW, COMPILE
 CFA_BDMRXD		DW	CF_BDMRXD
-CF_BDMRXD		PS_CHECK_OF	2, CF_BDMRXD_PSOF ;check for underflow  (PSP+4 -> Y)
+CF_BDMRXD		PS_CHECK_UFOF	1, CF_BDMRXD_PSUF, 2, CF_BDMRXD_PSOF	;check for over and underflow (PSP-4 -> Y)
+			;BDM read access (PSP-4 in Y)
+			LDD	4,Y	;ACK timeout [BC]
+			LEAY	2,Y	;data pointer [word pointer]
+			LDX	#32	;data width [bits]
+			BDM_RX
+			JMP	[CF_BDMRX_TAB,X]
+	
+CF_BDMRXD_PSUF		JOB	FBDM_THROW_PSUF	
+CF_BDMRXD_PSOF		JOB	FBDM_THROW_PSOF	
 
+;BDMRX ( u_ackto u_bits -- u_1...u_n u_ack ) S12CForth extension CHECK!
+;Read a number of bits from the BDM interface and wait for an ACK pulse
+;u_ackto: timeout of the ACK pulse (0 if no ACK pulse is expected)
+;u_bits:  number of bits to receive 
+;u_1:     LSW of the received data
+;u_n:	  MSW of the received data (n = (u_bits+15)/16)
+;u_ack:   width of the ACK pulse (0 if no ACK pulse was received)
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack underflow"
+;"Invalid numeric value"
+;"Unexpected target reset"
+;"BDM frequency not set"
+;
+			ALIGN	1
+NFA_BDMRX		FHEADER, "BDMRX", NFA_BDMRXD, COMPILE
+CFA_BDMRX		DW	CF_BDMRX
+			;Check for stack overflow
+CF_BDMRX		PS_CHECK_UF	1, CF_BDMRX_PSUF ;check for underflow  (PSP -> Y)
+			;Check for stack overflow (PSP in Y)
+			TFR	Y,X
+			LDD	0,Y
+			LSRD
+			ADCB	#7
+			ADCA	#0
+			LSRD
+			LSRD
+			LSRD
+			SUBD	#1
+			PS_CHECK_OF_D	CF_BDMRX_PSOF ;check for underflow  (final PSP -> Y)
+			;BDM read access (current PSP in X, final PSP in Y)
+			LEAY	2,Y	;data pointer [word pointer]
+			LDD	2,X	;ACK timeout [BC]
+			LDX	0,X	;data width [bits]
+			BDM_RX
+			JMP	[CF_BDMRX_TAB,X]
+
+CF_BDMRX_PSUF		JOB	FBDM_THROW_PSUF	
+CF_BDMRX_PSOF		JOB	FBDM_THROW_PSOF	
+CF_BDMRX_INVALNUM	JOB	FBDM_THROW_INVALNUM	
+
+CF_BDMRX_TAB		DW	CF_BDMRX_1
+			DW	FBDM_THROW_TGTRST
+			DW	FBDM_THROW_NOSPD
+			DW	FBDM_THROW_COMERR
+
+			;No problems 
+CF_BDMRX_1		STD	2,-Y
+			STY	PSP
+			;Done	
 			NEXT
 
-CF_BDMRXD_PSOF		JOB	FBDM_THROW_PSOF	
-	
-;BDMDLY ( u -- ) S12CForth extension
+;BDMDLY ( u -- ) S12CForth extension CHECK!
 ;Delay transmission by at least u BDM cycles
 ;Throws:
 ;"Parameter stack underflow"
+;"Unexpected target reset"
+;"BDM frequency not set"
 ;
 			ALIGN	1
 NFA_BDMDLY		FHEADER, "BDMDLY", NFA_BDMRXD, COMPILE
 CFA_BDMDLY		DW	CF_BDMDLY
 CF_BDMDLY		PS_CHECK_UF	1, CF_BDMDLY_PSUF ;check for underflow  (PSP -> Y)
-
-			NEXT
-
-CF_BDMDLY_PSUF		JOB	FBDM_THROW_PSUF	
+			;Execute delay
+			LDX	2,Y+
+			STY	PSP
+			BDM_DELAY
+			;Check error code
+			JMP	[CF_BDMDLY_TAB,X]
 	
-;BDMACK ( u1 -- u2) S12CForth extension
-;Wait for an ACK pulse from the target. If u1>0 then the ACK pulase must be seen
-;within u1 target cycles. Otherwise a timeout error will be thrown. u2 is the 	
-;length of the ACK pulse in BDM cycles.
-;Throws:
-;"Parameter stack underflow"
-;"BDM target does not respond"
-;
-			ALIGN	1
-NFA_BDMACK		FHEADER, "BDMACK", NFA_BDMDLY, COMPILE
-CFA_BDMACK		DW	CF_BDMACK
-CF_BDMACK		PS_CHECK_UF	1, CF_BDMACK_PSUF ;check for underflow  (PSP -> Y)
+CF_BDMDLY_TAB		DW	FBDM_NEXT
+			DW	FBDM_THROW_TGTRST
+			DW	FBDM_THROW_NOSPD
 
-			NEXT
-
-CF_BDMACK_PSUF		JOB	FBDM_THROW_PSUF	
+CF_BDMDLY_PSUF		JOB	FBDM_THROW_PSUF
 		
 ;BDMSYNC ( -- ) S12CForth extension CHECK!
 ;Sends a SYNC pulse and detects the BDM frequency
@@ -390,14 +571,14 @@ CF_BDMACK_PSUF		JOB	FBDM_THROW_PSUF
 ;"BDM target does not respond"
 ;
 			ALIGN	1
-NFA_BDMSYNC		FHEADER, "BDMSYNC", NFA_BDMACK, COMPILE
+NFA_BDMSYNC		FHEADER, "BDMSYNC", NFA_BDMDLY, COMPILE
 CFA_BDMSYNC		DW	CF_BDMSYNC
 CF_BDMSYNC		;Sync target
 			BDM_SYNC
 			;Check error code
-			JMP	BDMSYNC_TAB,X
+			JMP	[CF_BDMSYNC_TAB,X]
 	
-BDMSYNC_TAB		DW	FBDM_NEXT
+CF_BDMSYNC_TAB		DW	FBDM_NEXT
 			DW	FBDM_THROW_TGTRST
 			DW	FBDM_THROW_NORSP
 
@@ -431,7 +612,7 @@ CF_BDMSRST		;Reset target
 ;"Parameter stack underflow"
 ;
 			ALIGN	1
-NFA_BDMFREQ_STORE	FHEADER, "BDMFREQ!", NFA_BDMSWRST, COMPILE
+NFA_BDMFREQ_STORE	FHEADER, "BDMFREQ!", NFA_BDMSRST, COMPILE
 CFA_BDMFREQ_STORE	DW	CF_BDMFREQ_STORE
 CF_BDMFREQ_STORE	PS_CHECK_UF	2, CF_BDMFREQ_STORE_PSUF ;check for underflow (PSP -> Y)
 			;Pull baud rate from PSP
@@ -442,7 +623,7 @@ CF_BDMFREQ_STORE	PS_CHECK_UF	2, CF_BDMFREQ_STORE_PSUF ;check for underflow (PSP 
 			SSTACK_JOBSR	FBDM_CONVERT		 ;(SSTACK: 18 bytes)
 			;Check SPEED value
 			TBNE	D, CF_BDMFREQ_STORE_INVALNUM	;the MSW must be zero
-			CPX	#BDM_SPEED_MIN
+			CPX	#BDM_SPEED_MAX
 			BLO	CF_BDMFREQ_STORE_INVALNUM
 			;Set new BDM speed
 			TFR	X, D
@@ -479,4 +660,4 @@ CF_BDMFREQ_FETCH	PS_CHECK_OF	2, CF_BDMFREQ_FETCH_PSOF ;check for underflow (PSP-
 CF_BDMFREQ_FETCH_PSOF	JOB	FBDM_THROW_PSOF
 	
 FBDM_WORDS_END		EQU	*
-FBDM_LAST_NFA		EQU	NFA_BDMFREQ
+FBDM_LAST_NFA		EQU	NFA_BDMFREQ_FETCH

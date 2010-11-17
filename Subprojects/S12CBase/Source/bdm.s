@@ -410,7 +410,9 @@ BDM_STEP_TX_2B		EQU	10	;TX step 2b
 BDM_STEP_TX_2C		EQU	22	;TX step 2c
 BDM_STEP_TX_3		EQU	24	;TX step 3
 
-	
+;Mini 
+BDM_SPEED_MAX		EQU	85
+		
 ;Bit positions
 RESET			EQU	$20 	;PP5
 ;MODC			EQU	$10	;PB4

@@ -182,6 +182,22 @@ RS_EMPTY		EQU	FMEM_VARS_END
 							;   9 cycles/ 11 cycles
 #emac
 
+;PS_CHECK_OF_D: check if there is room for a number of stack entries (PSP-new cells -> Y)
+#macro	PS_CHECK_OF_D, 1;1:overflow handler (number of required cells in D) 
+			LDY	PSP 			;=> 3 cycles
+			COMA				;=> 1 cycle
+			COMB				;=> 1 cycle
+			LEAY	D,Y			;=> 2 cycles
+			LEAY	D,Y			;=> 2 cycles
+			LEAY	2,Y			;=> 2 cycles
+			COMA				;=> 1 cycle
+			COMB				;=> 1 cycle
+			CPY	PAD			;=> 3 cycles
+			BLO	<\1			;=> 1 cycle / 3 cycles
+							;  -------------------
+							;  17 cycles/ 19 cycles
+#emac
+
 ;PS_CHECK_UFOF: check for over and underflow (PSP-new cells -> Y)
 #macro	PS_CHECK_UFOF, 4	;1:expected entries before operation 2:underflow handler 3:required cells on the stack 4:overflow handler  
 			LDY	PSP 			;=> 3 cycles

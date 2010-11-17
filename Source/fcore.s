@@ -4627,7 +4627,7 @@ CFA_BRACKET_TICK	DW	CF_BRACKET_TICK
 CF_BRACKET_TICK		COMPILE_ONLY	CF_TICK
 			JOB		CF_POSTPONE
 	
-;[CHAR] CHECK!
+;[CHAR]
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Append the
@@ -4787,10 +4787,10 @@ CF_ZERO_GREATER_PSUF	JOB	FCORE_THROW_PSUF
 NFA_TWO_TO_R		FHEADER, "2>R", NFA_ZERO_GREATER, COMPILE
 CFA_TWO_TO_R		PS_CHECK_UF	2, CF_TWO_TO_PSUF	;(PSP -> Y)
 			RS_CHECK_OF	2, CF_TWO_TO_RSOF	;
-			;Move stack entries
+			;Move stack entries (PSP in Y)
 			LDX	RSP
-			MOVW	2,Y,  2,X-
-			MOVW	4,Y+, 2,X-
+			MOVW	2,Y,  2,-X
+			MOVW	4,Y+, 2,-X
 			STY	PSP
 			STX	RSP
 			NEXT
@@ -4825,7 +4825,7 @@ CF_TWO_FROM_R		PS_CHECK_OF	2, CF_TWO_FROM_R_PSOF 	;check for PS overflow (PSP-4 
 CF_TWO_FROM_R_PSOF	JOB	FCORE_THROW_PSOF
 CF_TWO_FROM_R_RSUF	JOB	FCORE_THROW_RSUF
 	
-;2R@ CHECK!
+;2R@
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- x1 x2 ) ( R:  x1 x2 -- x1 x2 )
 ;Copy cell pair x1 x2 from the return stack. Semantically equivalent to
@@ -5436,7 +5436,7 @@ CF_PARSE_PSOF		JOB	FCORE_THROW_PSOF
 			ALIGN	1
 NFA_PARSE		FHEADER, "PARSE", NFA_PAD, COMPILE
 CFA_PARSE		DW	CF_PARSE
-CF_PARSE		PS_CHECK_UFOF	2, CF_PARSE_PSUF, 1, CF_PARSE_PSOF	;check for under and overflow
+CF_PARSE		PS_CHECK_UFOF	1, CF_PARSE_PSUF, 1, CF_PARSE_PSOF	;check for under and overflow
 			;Pull argument from PS (PSP-2 in Y)
 			LDD	2,Y
 			;Parse quote (PSP-2 in Y, char in D)
@@ -5795,23 +5795,27 @@ CF_WITHIN		PS_CHECK_UF	3, CF_WITHIN_PSUF ;check for underflow  (PSP -> Y)
 			STY	PSP
 			;Compare boundaries (PSP in Y, u2 in D, u3 in X)
 			CPD	-4,Y
-			BLO	CF_WITHIN_1
-			EXG	D, X
-			;Test value (PSP in Y, upper boundary in D, lower boundary in X)
-CF_WITHIN_1		CPD	0,Y
-			BLO	CF_WITHIN_3 		;fail
-			CPX	0,Y
+			BHI	CF_WITHIN_2 		;u2 > u3
+			;u2 <= u3 (PSP in Y, upper boundary in D, lower boundary in X)
+			CPD	0,Y
 			BHI	CF_WITHIN_3 		;fail
+			CPX	0,Y
+			BLS	CF_WITHIN_3 		;fail
 			;Pass (PSP in Y)
-			LDD	#$FFFF
+CF_WITHIN_1		LDD	#$FFFF
 CF_WITHIN_2		STD	 0,Y
 			;Done 
 			NEXT
+			;u2 > u3 (PSP in Y, upper boundary in D, lower boundary in X)
+			CPD	0,Y
+			BLS	CF_WITHIN_1 		;pass
+			CPX	0,Y
+			BHI	CF_WITHIN_1 		;pass
 			;Fail (PSP in Y) 
 CF_WITHIN_3		CLRA
 			CLRB
 			JOB	CF_WITHIN_2
-	
+
 ;[COMPILE] 
 ;Intrepretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "<spaces>name" -- )

@@ -121,7 +121,7 @@ FSCI_CONVERT_RESULT	EQU	$0A
 			STX	FSCI_CONVERT_DIVIDEND_LSW,Y
 			
 			;Terminate if divisor <= dividend (SP in Y, dividend in D:X)
-FSCI_CONVERT_2	CPD	FSCI_CONVERT_DIVISOR_MSW,Y
+FSCI_CONVERT_2		CPD	FSCI_CONVERT_DIVISOR_MSW,Y
 			BHI	FSCI_CONVERT_7 			;terminate
 			BLO	FSCI_CONVERT_3 			;continue division
 			;Divisor MSW == dividend MSW (SP in Y, dividend in D:X)
@@ -154,7 +154,7 @@ FSCI_CONVERT_4		EXG	D, X
 			LDD	FSCI_CONVERT_TMP,Y
 			
 			;Next iteration 
-			JOB	FSCI_CONVERT_ 			
+			JOB	FSCI_CONVERT_4 			
 	
 			;Terminate iteration and consider carry bit (SP in Y, shifted dividend in C:D:X)
 FSCI_CONVERT_5		RORA	
@@ -225,7 +225,7 @@ FSCI_CONVERT_9	SSTACK_PULDXY
 ;Standard exceptions
 FSCI_THROW_PSOF		EQU	FMEM_THROW_PSOF			;stack overflow
 FSCI_THROW_PSUF		EQU	FMEM_THROW_PSUF			;stack underflow
-FSCI_THROW_INVALNUM	THROW	FEXCPT_EC_INVALNUM		;invalid numeric argument
+FSCI_THROW_INVALNUM	FEXCPT_THROW	FEXCPT_EC_INVALNUM	;invalid numeric argument
 	
 FSCI_CODE_END		EQU	*
 	
@@ -287,8 +287,8 @@ CF_BAUD_STORE_INVALNUM	JOB	FSCI_THROW_INVALNUM
 ;
 			ALIGN	1
 NFA_BAUD_FETCH		FHEADER, "BAUD@", NFA_BAUD_STORE, COMPILE
-CFA_BAUD_FETCH		DW	CF_BAUD
-CF_BAUD_FETCH		PS_CHECK_OF	2, CF_BDMDLY_PSOF ;check for underflow (PSP-4 -> Y)
+CFA_BAUD_FETCH		DW	CF_BAUD_FETCH
+CF_BAUD_FETCH		PS_CHECK_OF	2, CF_BAUD_FETCH_PSOF ;check for underflow (PSP-4 -> Y)
 			;Get SCIBD value 
 			CLRA
 			CLRB
