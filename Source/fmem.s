@@ -85,7 +85,7 @@
 ;                           |              ^              | <- [PSP]	  
 ;                           |              |              |		  
 ;                           |       Parameter stack       |		  
-;    	                    |              |              |		  
+;    	       DICT_MAX,    |              |              |		  
 ;              PS_EMPTY,    +--------------+--------------+        
 ;              TIB_START -> |              |              | |          
 ;                           |       Text Input Buffer     | | [TIB_CNT]
@@ -134,6 +134,7 @@ HLD			DS	2	;pointer for pictured numeric output
 NUMBER_TIB  		DS	2	;number of chars in the TIB
 TO_IN  			DS	2	;in pointer of the TIB (TIB_START+TO_IN points to the next character)
 DICT_START		EQU	*
+DICT_MAX		EQU	FMEM_VARS_END-(TIB_SIZE+RS_SIZE+PAD_SIZE)
 PS_EMPTY		EQU	FMEM_VARS_END-(TIB_SIZE+RS_SIZE+PAD_SIZE)
 PAD_START		EQU	FMEM_VARS_END-(TIB_SIZE+RS_SIZE+PAD_SIZE)
 PAD_END			EQU	FMEM_VARS_END-(TIB_SIZE+RS_SIZE)

@@ -57,12 +57,80 @@ FTOOLS_VARS_END		EQU	*
 ;# Code                                                                        #
 ;###############################################################################
 			ORG	FTOOLS_CODE_START
-;Exceptions
+;Common subroutines:
+;=================== 	
+;#Skip to the next [IF], [ELSE], or [THEN] in the TIB 
+; args:   none
+; result: X: jump table index
+;            0: [IF]
+;            2: [ELSE]
+;            4: [THEN]
+; SSTACK: 18 bytes
+;         Y and D are preserved
+FTOOLS_SKIP		EQU	*	
+			;Save registers
+			SSTACK_PSHD			;save accu D
+			;Parse the next name
+FTOOLS_SKIP_1		SSTACK_JOBSR	FCORE_NAME 	;string pointer -> X, char count -> A (SSTACK: 5 bytes)
+			;Check for end of line
+			TBEQ	X, FTOOLS_SKIP_5 	;parse a new line 
+			;Check character count (string pointer in X, char count in A)
+			CMPA	#4
+			BEQ	FTOOLS_SKIP_4 		;4 chars like [IF]
+			CMPA	#6
+			BNE	FTOOLS_SKIP_1 		;parse next word
+			;6 chars like [ELSE] or [THEN] (string pointer in X)
+			LDD	0,X
+			CPD	#"[E"
+			BEQ	FTOOLS_SKIP_2 		;starts with "[E"
+			CPD	#"[T"
+			BNE	FTOOLS_SKIP_1 		;parse next word
+			;Starts with "[T" (string pointer in X)
+			LDD	2,X
+			CPD	#"HE"
+			BNE	FTOOLS_SKIP_1 		;parse next word
+			LDD	4,X
+			CPD	#"N]"
+			BNE	FTOOLS_SKIP_1 		;parse next word
+			LDX	#4
+			;Done
+FTOOLS_SKIP_2		SSTACK_PULD			;restore accu D
+			SSTACK_RTS
+			;Starts with "[E" (string pointer in X)
+FTOOLS_SKIP_3		LDD	2,X
+			CPD	#"LS"
+			BNE	FTOOLS_SKIP_1 		;parse next word
+			LDD	4,X
+			CPD	#"E]"
+			BNE	FTOOLS_SKIP_1 		;parse next word
+			LDX	#2
+			;Done
+			JOB	FTOOLS_SKIP_2
+			;4 chars like [IF]
+FTOOLS_SKIP_4		LDD	0,X
+			CPD	#"[I"
+			BNE	FTOOLS_SKIP_1 		;parse next word
+			LDD	2,X
+			CPD	#"F]"
+			BNE	FTOOLS_SKIP_1 		;parse next word
+			LDX	#2
+			;Done
+			JOB	FTOOLS_SKIP_2
+			;Parse a new line
+FTOOLS_SKIP_5		PRINT_LINE_BREAK		;send input prompt (SSTACK: 11 bytes)				
+			LDX	#FCORE_SKIP_PROMPT
+			PRINT_STR			;(SSTACK: 14 bytes)
+			SSTACK_JOBSR	FCORE_QUERY	;(SSTACK: 6 bytes)
+			JOB	FTOOLS_SKIP_1 		;parse next word
+	
+;Exceptions:
+;=========== 	
 FTOOLS_THROW_PSOF	EQU	FMEM_THROW_PSOF			;"Parameter stack overflow"
 FTOOLS_THROW_PSUF	EQU	FMEM_THROW_PSUF			;"Parameter stack underflow"
-FTOOLS_THROW_PSOF	EQU	FMEM_THROW_PSOF			;"Parameter stack overflow"
+FTOOLS_THROW_RSOF	EQU	FMEM_THROW_RSOF			;"Return stack overflow"
 FTOOLS_THROW_RSUF	EQU	FMEM_THROW_RSUF 		;"Return stack underflow"
-
+FTOOLS_THROW_COMPONLY	EQU	FCORE_THROW_COMPONLY 		;"Compile-only word"
+	
 FTOOLS_CODE_END		EQU	*
 
 ;###############################################################################
@@ -460,7 +528,7 @@ NFA_C_S_ROLL		EQU	NFA_C_S_PICK
 ;not implemented 
 NFA_EDITOR		EQU	NFA_C_S_ROLL 
 
-;FORGET ( "<spaces>name" -- )
+;FORGET ( "<spaces>name" -- ) CHECK!
 ;Skip leading space delimiters. Parse name delimited by a space. Find name, then
 ;delete name from the dictionary along with all words added to the dictionary
 ;after name. An ambiguous condition exists if name cannot be found.
@@ -470,17 +538,47 @@ NFA_EDITOR		EQU	NFA_C_S_ROLL
 ;execution.
 ;Note: This word is obsolescent and is included as a concession to existing
 ;implementations.
-NFA_FORGET		EQU	NFA_EDITOR
-;			ALIGN	1
-;NFA_FORGET		FHEADER, "FORGET", NFA_EDITOR, COMPILE 
-;CFA_FORGET		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Missing name argument"
+;"Undefined word"
+;
+			ALIGN	1
+NFA_FORGET		FHEADER, "FORGET", NFA_EDITOR, COMPILE 
+CFA_FORGET		DW	CF_FORGET
+CF_FORGET		;Parse name
+			SSTACK_JOBSR	FCORE_NAME 		;(SSTACK: 5 bytes)
+			TBEQ	X, CF_FORGET_NONAME
+			;Find NFA in dictionary (string pointer in X) 
+			SSTACK_JOBSR	FCORE_FIND_NFA 		;(SSTACK: 8 bytes)			
+			TBEQ	X, CF_FORGET_UDEFWORD
+			;Restore old last NFA 
+			MOVW	0,X, LAST_NFA
+			;See if the word is located in RAM (NFA in X)
+			CPX	#DICT_START
+			BLE	CF_FORGET_2 			;name not in user dictionary
+			CPX	#DICT_MAX
+			BGT	CF_FORGET_2 			;name not in user dictionary
+			;Name is in user sictionary (NFA in X)
+			LEAX	-2,X 				;restore old CP
+CF_FORGET_1		STX	CP
+			STX	CP_SAVED
+			;Done
+			NEXT
+			;Name is in user sictionary (NFA in X)
+CF_FORGET_2		LDX	#DICT_START
+			JOB	CF_FORGET_1
 
+CF_FORGET_NONAME	JOB	FCORE_THROW_NONAME
+CF_FORGET_UDEFWORD	JOB	FCORE_THROW_UDEFWORD
+	
 ;STATE ( -- a-addr )
 ;Extend the semantics of 6.1.2250 STATE to allow ;CODE to change the value in
 ;STATE. A program shall not directly alter the contents of STATE.
 NFA_STATE_TOOLS		EQU	NFA_FORGET
 	
-;[ELSE] 
+;[ELSE] CHECK!
 ;Compilation: Perform the execution semantics given below.
 ;Execution:   ( "<spaces>name" ... -- )
 ;Skipping leading spaces, parse and discard space-delimited words from the parse
@@ -488,12 +586,36 @@ NFA_STATE_TOOLS		EQU	NFA_FORGET
 ;[IF] ... [ELSE] ... [THEN], until the word [THEN] has been parsed and
 ;discarded. If the parse area becomes exhausted, it is refilled as with REFILL.
 ;[ELSE] is an immediate word.
-NFA_BRACKET_ELSE	EQU	NFA_STATE_TOOLS 
-;			ALIGN	1
-;NFA_BRACKET_ELSE	FHEADER, "[ELSE]", NFA_STATE_TOOLS, COMPILE 
-;CFA_BRACKET_ELSE	DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Return stack overflow"
+;"Return stack underflow"
+;"Compile-only word"
+;
+			ALIGN	1
+NFA_BRACKET_ELSE	FHEADER, "[ELSE]", NFA_STATE_TOOLS, COMPILE 
+CFA_BRACKET_ELSE	DW	CF_BRACKET_ELSE
+CF_BRACKET_ELSE		COMPILE_ONLY	CF_BRACKET_IF_COMPONLY	;ensure that compile mode is on
+			;Skip to next [THEN]. Skip over nested [IF]s.	
+CF_BRACKET_ELSE_1	SSTACK_JOBSR	FTOOLS_SKIP
+			JMP	[CF_BRACKET_ELSE_TAB,X]
 
-;[IF] 
+CF_BRACKET_ELSE_TAB	DW	CF_BRACKET_ELSE_2 		;[IF]
+			DW	CF_BRACKET_ELSE_1		;[ELSE]
+			DW	CF_BRACKET_ELSE_3		;[THEN]
+
+			;Skip to next [THEN]. Skip over nested [IF]s.	
+CF_BRACKET_ELSE_2	EXEC_CF	CF_BRACKET_ELSE, CF_BRACKET_ELSE_RSOF, CF_BRACKET_ELSE_RSUF
+			JOB	CF_BRACKET_ELSE_1
+			;Done 
+CF_BRACKET_ELSE_3	NEXT
+	
+CF_BRACKET_ELSE_RSUF		JOB	FTOOLS_THROW_RSUF
+CF_BRACKET_ELSE_RSOF		JOB	FTOOLS_THROW_RSOF
+CF_BRACKET_ELSE_COMPONLY	JOB	FTOOLS_THROW_COMPONLY
+
+;[IF] CHECK!
 ;Compilation: Perform the execution semantics given below.
 ;Execution:  ( flag | flag "<spaces>name" ... -- )
 ;If flag is true, do nothing. Otherwise, skipping leading spaces, parse and
@@ -504,19 +626,55 @@ NFA_BRACKET_ELSE	EQU	NFA_STATE_TOOLS
 ;An ambiguous condition exists if [IF] is POSTPONEd, or if the end of the input
 ;buffer is reached and cannot be refilled before the terminating [ELSE] or
 ;[THEN] is parsed.
-NFA_BRACKET_IF		EQU	NFA_BRACKET_ELSE
-;			ALIGN	1
-;NFA_BRACKET_IF		FHEADER, "[IF]", NFA_BRACKET_ELSE, COMPILE 
-;CFA_BRACKET_IF		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Return stack overflow"
+;"Return stack underflow"
+;"Compile-only word"
+;
+			ALIGN	1
+NFA_BRACKET_IF		FHEADER, "[IF]", NFA_BRACKET_ELSE, COMPILE 
+CFA_BRACKET_IF		DW	CF_BRACKET_IF
+CF_BRACKET_IF		COMPILE_ONLY	CF_BRACKET_IF_COMPONLY	;ensure that compile mode is on
+			PS_CHECK_UF	1, CF_BRACKET_IF_PSUF	;(PSP -> Y)
+			;Check flag (PSP in Y) 
+			LDD	2,Y+
+			STY	PSP
+			TBNE	D, CF_BRACKET_IF_1		;do nothing
+			;Done 
+			;Skip to next [ELSE] or [THEN]. Skip over nested [IF]s.	
+			SSTACK_JOBSR	FTOOLS_SKIP
+			TBNE	X, CF_BRACKET_IF_1 
+			;nested [IF]
+			EXEC_CF	CF_BRACKET_ELSE, CF_BRACKET_IF_RSOF, CF_BRACKET_IF_RSUF
+			;Done 
+CF_BRACKET_IF_1		NEXT
+	
+CF_BRACKET_IF_PSUF	JOB	FTOOLS_THROW_PSUF
+CF_BRACKET_IF_RSUF	JOB	FTOOLS_THROW_RSUF
+CF_BRACKET_IF_RSOF	JOB	FTOOLS_THROW_RSOF
+CF_BRACKET_IF_COMPONLY	JOB	FTOOLS_THROW_COMPONLY
 
-;[THEN] 
+;[THEN] CHECK!
 ;Compilation: Perform the execution semantics given below.
 ;Execution:   ( -- )
 ;Does nothing. [THEN] is an immediate word.
-NFA_BRACKET_THEN	EQU	NFA_BRACKET_IF
-;			ALIGN	1
-;NFA_BRACKET_THEN	FHEADER, "[THEN]", NFA_BRACKET_IF, IMMEDIATE
-;CFA_BRACKET_THEN	DW	CF_NOP
+;
+;S12CForth implementation details:
+;Throws:
+;"Compile-only word"
+;
+			ALIGN	1
+NFA_BRACKET_THEN	FHEADER, "[THEN]", NFA_BRACKET_IF, IMMEDIATE
+CFA_BRACKET_THEN	DW	CF_BRACKET_THEN
+CF_BRACKET_THEN		COMPILE_ONLY	CF_BRACKET_THEN_COMPONLY	;ensure that compile mode is on
+			;Done 
+			NEXT
+			
+CF_BRACKET_THEN_COMPONLY	JOB	FTOOLS_THROW_COMPONLY
+
 	
 FTOOLS_WORDS_END		EQU	*
 FTOOLS_LAST_NFA			EQU	NFA_BRACKET_THEN

@@ -330,7 +330,10 @@ FCORE_NAME_3		LEAY	1,Y			;increment string pointer
 FCORE_NAME_4		ORAA	#$80			;add termination bit to last character
 			STAA	 TIB_START-1,Y	
 			;Adjust >IN pointer (pointer to last character in Y, string pointer in X)
-			STY	TO_IN
+			TFR	Y,D
+			ADDD	#1 			;skip the trailing whitespace
+			EMIND	TIB_START,Y		;don't go beyond the end of the TIB
+			STD	TO_IN
 			;Calculate character count (pointer to last character in Y, string pointer in X)
 			TFR	X, D 			;string pointer -> D
 			COMA				;negate D
@@ -346,7 +349,7 @@ FCORE_NAME_5		TBA
 FCORE_NAME_6		SSTACK_PULBY			;restore accu B and index Y
 			SSTACK_RTS
 			;Return empty string
-FCORE_NAME_7		STY	TO_IN			;update >IN pointer
+FCORE_NAME_7		MOVW	NUMBER_TIB, TO_IN	;update >IN pointer
 			LDX	#$0000			;set string pointer to 
 			CLRA
 			JOB	FCORE_NAME_6
@@ -385,7 +388,10 @@ FCORE_WORD_2		LDD	TIB_START,Y		;next two characters -> D
 			CMPB	#"~"
 			BLS	FCORE_WORD_2		;check next character
 			;Adjust >IN pointer (pointer to last character in Y, string pointer in X)
-FCORE_WORD_3		STY	TO_IN
+FCORE_WORD_3		TFR	Y,D
+			ADDD	#1			;skip the trailing whitespace
+			EMIND	TIB_START,Y		;don't go beyond the end of the TIB
+			STD	TO_IN
 			;Calculate character count (pointer to last character in Y, string pointer in X)
 			TFR	X, D 			;string pointer -> D
 			COMA				;negate D
@@ -397,7 +403,7 @@ FCORE_WORD_3		STY	TO_IN
 FCORE_WORD_4		SSTACK_PULY			;restore index Y
 			SSTACK_RTS
 			;Return empty string
-FCORE_WORD_5		STY	TO_IN			;update >IN pointer
+FCORE_WORD_5		MOVW	NUMBER_TIB, TO_IN	;update >IN pointer
 			LDX	#$0000			;set string pointer to 
 			CLRA
 			JOB	FCORE_WORD_4
@@ -676,7 +682,7 @@ FCORE_PARSE		EQU	*
 			;Check for empty string (delimiter in A)
 			CLRB	      			;0 -> B
 			LDY	TO_IN			;current >IN -> Y
-			LEAY	1,Y			;ignore first space character
+			;LEAY	1,Y			;ignore first space character
 			CPY	NUMBER_TIB		;check for the end of the input buffer
 			BHS	FCORE_PARSE_4		;return empty string
 			LEAX	TIB_START,Y		;save start of string
@@ -702,51 +708,68 @@ FCORE_PARSE_3		LEAY	1,Y			;increment >IN
 FCORE_PARSE_4		LDX	#$0000
 			JOB	FCORE_PARSE_3
 
+;#Find a name in the dictionary and return the NFA 
+; args:   X: string pointer
+; result: X: NFA (0:name not cound)
+; SSTACK: 6 bytes
+;         D and Y are preserved
+FCORE_FIND_NFA		EQU	*	
+			;Save registers
+			SSTACK_PSHYD
+			;Initialize search (start of word in X)
+			LDY	LAST_NFA
+			;Check for zero-length string (start of word in X)
+			TBEQ	X, FCORE_FIND_NFA_3  				;empty string
+			;Try to match first two characters (current NFA in Y, start of word in X)
+FCORE_FIND_NFA_1	LDD	0,X 						;first two characters -> D 
+			BMI	FCORE_FIND_NFA_6				;single character word
+			;Search multy character word (first 2 characters in D, current NFA in Y, start of word in X)
+			CPD	3,Y 						;compare first 2 characters
+			BEQ	FCORE_FIND_NFA_4 				;first 2 characters match
+			;Parse next NFA	(current NFA in Y, start of word in X)
+FCORE_FIND_NFA_2	LDY	0,Y 						;check next NFA
+			BNE	FCORE_FIND_NFA_1 				;next iteration
+			;Search was unsuccessfull (current NFA in Y, start of word in X)
+FCORE_FIND_NFA_3	LDX	#$0000 						;set return status
+			JOB	FCORE_FIND_NFA_8 				;done
+			;First 2 characters match (current NFA in Y, start of word in X)
+FCORE_FIND_NFA_4	TSTB							;check if search is over
+			BMI	FCORE_FIND_NFA_7 				;search was sucessful
+			;Compare the remaining characters of the current NFA (current NFA in Y, start of word in X, index in A)
+			LDAA	#2 						;set index to 3rd cfaracter
+FCORE_FIND_NFA_5	LEAY	3,Y 						;set Y to start of name
+			LDAB	A,Y 						;Compare current character
+			LEAY	-3,Y 						;set Y to NFA
+			CMPB	A,X
+			BNE	FCORE_FIND_NFA_2 				;parse next NFA
+			TSTB	 						;check if search is done
+			BMI	FCORE_FIND_NFA_7				;search was successful
+			IBNE	A, FCORE_FIND_NFA_5				;parse next character
+			;Name is too long -> search unsuccessful 
+			JOB	FCORE_FIND_NFA_3
+			;Search single character word (current NFA in Y, first character in A)
+FCORE_FIND_NFA_6	CMPA	3,Y 						;compare first character
+			BNE	FCORE_FIND_NFA_2 				;parse next NFA			
+			;Search was successful(current NFA in Y)
+FCORE_FIND_NFA_7	TFR	Y,X		
+			;Restore registers 
+FCORE_FIND_NFA_8	SSTACK_PULDY
+			SSTACK_RTS
+	
 ;#Find a name in the dictionary and return the xt 
 ; args:   X: string pointer
 ; result: X: CFA/string pointer
 ;         D: status (0:name not cound, 1:immediate, or 1:compile)
-; SSTACK: 4 bytes
-;         Y and D are preserved
+; SSTACK: 8 bytes
+;         Y is preserved
+
 FCORE_FIND		EQU	*	
-			;Save registers
-			SSTACK_PSHY
-			;Initialize search (start of word in X)
-			LDY	LAST_NFA
-			;Check for zero-length string (start of word in X)
-			TBEQ	X, FCORE_FIND_3  				;empty string
-			;Try to match first two characters (current NFA in Y, start of word in X)
-FCORE_FIND_1		LDD	0,X 						;first two characters -> D 
-			BMI	FCORE_FIND_6					;single character word
-			;Search multy character word (first 2 characters in D, current NFA in Y, start of word in X)
-			CPD	3,Y 						;compare first 2 characters
-			BEQ	FCORE_FIND_4 					;first 2 characters match
-			;Parse next NFA	(current NFA in Y, start of word in X)
-FCORE_FIND_2		LDY	0,Y 						;check next NFA
-			BNE	FCORE_FIND_1 					;next iteration
-			;Search was unsuccessfull (current NFA in Y, start of word in X)
-FCORE_FIND_3		LDD	#$0000 						;set return status
-			JOB	FCORE_FIND_8 					;done
-			;First 2 characters match (current NFA in Y, start of word in X)
-FCORE_FIND_4		TSTB							;check if search is over
-			BMI	FCORE_FIND_7 					;search was sucessful
-			;Compare the remaining characters of the current NFA (current NFA in Y, start of word in X, index in A)
-			LDAA	#2 						;set index to 3rd cfaracter
-FCORE_FIND_5		LEAY	3,Y 						;set Y to start of name
-			LDAB	A,Y 						;Compare current character
-			LEAY	-3,Y 						;set Y to NFA
-			CMPB	A,X
-			BNE	FCORE_FIND_2 					;parse next NFA
-			TSTB	 						;check if search is done
-			BMI	FCORE_FIND_7					;search was successful
-			IBNE	A, FCORE_FIND_5					;parse next character
-			;Name is too long -> search unsuccessful 
-			JOB	FCORE_FIND_3
-			;Search single character word (current NFA in Y, first character in A)
-FCORE_FIND_6		CMPA	3,Y 						;compare first character
-			BNE	FCORE_FIND_2 					;parse next NFA			
-			;Search was successful(current NFA in Y)
-FCORE_FIND_7		LEAX	2,Y						;determine current CFA
+			;Find NFA
+			TFR	X,D
+			SSTACK_JOBSR	FCORE_FIND_NFA 				;(SSTACK: 8 bytes)
+			TBEQ	X, FCORE_FIND_2			
+			;Search was successful (current NFA in X)
+			LEAX	2,X						;determine current CFA
 			LDAB	1,X+ 
 			SEX	B, D 						;save immediate flag
 			ANDB	#$7F
@@ -754,19 +777,71 @@ FCORE_FIND_7		LEAX	2,Y						;determine current CFA
 			COMA
 			TAB							;determine return status
 			ORAB	#$01	
-			;Restore registers 
-FCORE_FIND_8		SSTACK_PULY
-			SSTACK_RTS
+			;Done
+FCORE_FIND_1		SSTACK_RTS
+			;Search was unsuccessful ( in X)
+			TFR	X,D
+FCORE_FIND_2		JOB	FCORE_FIND_1	
 
-;#Find a name in the dictionary and return the xt 
-; args:   X: pointer to NFA
+;FCORE_FIND		EQU	*	
+;			;Save registers
+;			SSTACK_PSHY
+;			;Initialize search (start of word in X)
+;			LDY	LAST_NFA
+;			;Check for zero-length string (start of word in X)
+;			TBEQ	X, FCORE_FIND_3  				;empty string
+;			;Try to match first two characters (current NFA in Y, start of word in X)
+;FCORE_FIND_1		LDD	0,X 						;first two characters -> D 
+;			BMI	FCORE_FIND_6					;single character word
+;			;Search multy character word (first 2 characters in D, current NFA in Y, start of word in X)
+;			CPD	3,Y 						;compare first 2 characters
+;			BEQ	FCORE_FIND_4 					;first 2 characters match
+;			;Parse next NFA	(current NFA in Y, start of word in X)
+;FCORE_FIND_2		LDY	0,Y 						;check next NFA
+;			BNE	FCORE_FIND_1 					;next iteration
+;			;Search was unsuccessfull (current NFA in Y, start of word in X)
+;FCORE_FIND_3		LDD	#$0000 						;set return status
+;			JOB	FCORE_FIND_8 					;done
+;			;First 2 characters match (current NFA in Y, start of word in X)
+;FCORE_FIND_4		TSTB							;check if search is over
+;			BMI	FCORE_FIND_7 					;search was sucessful
+;			;Compare the remaining characters of the current NFA (current NFA in Y, start of word in X, index in A)
+;			LDAA	#2 						;set index to 3rd cfaracter
+;FCORE_FIND_5		LEAY	3,Y 						;set Y to start of name
+;			LDAB	A,Y 						;Compare current character
+;			LEAY	-3,Y 						;set Y to NFA
+;			CMPB	A,X
+;			BNE	FCORE_FIND_2 					;parse next NFA
+;			TSTB	 						;check if search is done
+;			BMI	FCORE_FIND_7					;search was successful
+;			IBNE	A, FCORE_FIND_5					;parse next character
+;			;Name is too long -> search unsuccessful 
+;			JOB	FCORE_FIND_3
+;			;Search single character word (current NFA in Y, first character in A)
+;FCORE_FIND_6		CMPA	3,Y 						;compare first character
+;			BNE	FCORE_FIND_2 					;parse next NFA			
+;			;Search was successful(current NFA in Y)
+;FCORE_FIND_7		LEAX	2,Y						;determine current CFA
+;			LDAB	1,X+ 
+;			SEX	B, D 						;save immediate flag
+;			ANDB	#$7F
+;			LEAX	B,X
+;			COMA
+;			TAB							;determine return status
+;			ORAB	#$01	
+;			;Restore registers 
+;FCORE_FIND_8		SSTACK_PULY
+;			SSTACK_RTS
+
+;#Locate the cody of a CREATEd word 
+; args:   X: pointer to CFA
 ; result: X: pointer to BODY (0 in case of a non-CREATEd word)
 ; SSTACK: 4 bytes
 ;         Y and D are preserved
 FCORE_TO_BODY		EQU	*	
 			;Save registers
 			SSTACK_PSHD
-			;Get NFA 
+			;Get CFA 
 			LDD	0,X	;CF  -> D
 			LEAX	2,X
 			;Check if it is a VARIABLE definition 
@@ -843,6 +918,7 @@ FCORE_CODE_END		EQU	*
 ;System prompt
 FCORE_INTERPRET_PROMPT	FCS	"> "
 FCORE_COMPILE_PROMPT	FCS	"+ "
+FCORE_SKIP_PROMPT	FCS	"0 "
 FCORE_SYSTEM_PROMPT	FCS	" ok"
 
 ;Character conversion for NAME
@@ -1014,6 +1090,7 @@ CF_NUMBER_SIGN_S_INVALBASE	JOB	FCORE_THROW_INVALBASE
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack overflow"
+;"Missing name argument"
 ;"Undefined word"
 			ALIGN	1
 NFA_TICK		FHEADER, "'", NFA_NUMBER_SIGN_S, COMPILE
@@ -1021,6 +1098,7 @@ CFA_TICK		DW	CF_TICK
 CF_TICK			PS_CHECK_OF	1, CF_TICK_PSOF 	;check for PS overflow (PSP-2 -> Y)	
 			;Parse name (PSP-2 in Y) 
 			SSTACK_JOBSR	FCORE_NAME 		;string pointer -> X
+			TBEQ	X, CF_TICK_NONAME			
 			;Search dictionary (string pointer in X, PSP-2 in Y)
 			SSTACK_JOBSR	FCORE_FIND 		;CFA -> X, status -> D
 			TBEQ	D, CF_TICK_UDEFWORD
@@ -1030,6 +1108,7 @@ CF_TICK			PS_CHECK_OF	1, CF_TICK_PSOF 	;check for PS overflow (PSP-2 -> Y)
 			NEXT
 	
 CF_TICK_PSOF		JOB	FCORE_THROW_PSOF	
+CF_TICK_NONAME		JOB	FCORE_THROW_NONAME
 CF_TICK_UDEFWORD	JOB	FCORE_THROW_UDEFWORD
 	
 ;( 
@@ -1965,7 +2044,7 @@ NFA_TO_IN		FHEADER, ">IN", NFA_TO_BODY, COMPILE
 CFA_TO_IN		DW	CF_CONSTANT_RT
 			DW	TO_IN
 
-;>NUMBER ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 )
+;>NUMBER ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 ) TODO!
 ;ud2 is the unsigned result of converting the characters within the string
 ;specified by c-addr1 u1 into digits, using the number in BASE, and adding each
 ;into ud1 after multiplying ud1 by the number in BASE. Conversion continues
@@ -2437,6 +2516,15 @@ CFA_CHAR_PLUS		DW	CF_ONE_PLUS
 NFA_CHARS		FHEADER, "CHARS", NFA_CHAR_PLUS, COMPILE
 CFA_CHARS		DW	CF_NOP
 
+;CLS ( -- empty ) S12CForth extension! CHECK!
+			ALIGN	1
+NFA_CLS			FHEADER, "CLS", NFA_CHARS, COMPILE
+CFA_CLS			DW	CF_CLS
+CF_CLS			;Reset PS
+			PS_RESET
+			;Done
+			NEXT
+	
 ;CONSTANT ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below.
@@ -2450,7 +2538,7 @@ CFA_CHARS		DW	CF_NOP
 ;"Missing name argument"
 ;"Dictionary overflow"
 			ALIGN	1
-NFA_CONSTANT		FHEADER, "CONSTANT", NFA_CHARS, COMPILE
+NFA_CONSTANT		FHEADER, "CONSTANT", NFA_CLS, COMPILE
 CFA_CONSTANT		DW	CF_CONSTANT
 CF_CONSTANT		PS_CHECK_UF 1, CF_CONSTANT_PSUF	;(PSP -> Y)
 			;Build header (PSP -> Y)
@@ -3632,6 +3720,7 @@ CF_OVER_PSOF		JOB	FCORE_THROW_PSOF
 ;S12CForth implementation details:
 ;Throws:
 ;"Dictionary overflow"
+;"Missing name argument"
 ;"Undefined word"
 ;"Compile-only word"
 			ALIGN	1
@@ -3642,6 +3731,7 @@ CF_POSTPONE		COMPILE_ONLY	CF_POSTPONE_COMPONLY 	;ensure that compile mode is on
 			;Parse name (CP+2 -> X)
 			TFR	X, Y
 			SSTACK_JOBSR	FCORE_NAME 		;string pointer -> X
+			TBEQ	X, CF_POSTPONE_NONAME
 			;Search dictionary (string pointer in X, CF+2 in Y)
 			SSTACK_JOBSR	FCORE_FIND 		;CFA -> X, status -> D
 			TBEQ	D, CF_POSTPONE_UDEFWORD
@@ -3652,6 +3742,7 @@ CF_POSTPONE		COMPILE_ONLY	CF_POSTPONE_COMPONLY 	;ensure that compile mode is on
 			NEXT
 
 CF_POSTPONE_DICTOF	JOB	FCORE_THROW_DICTOF	
+CF_POSTPONE_NONAME	JOB	FCORE_THROW_NONAME
 CF_POSTPONE_UDEFWORD	JOB	FCORE_THROW_UDEFWORD	
 CF_POSTPONE_COMPONLY	JOB	FCORE_THROW_COMPONLY
 	
@@ -4558,7 +4649,9 @@ CF_WORD			PS_CHECK_UF	1, CF_WORD_PSUF	;check for underflow
 			LDD	0,Y
 			;Parse quote (PSP in Y, char in D)
 			TBA
-			SSTACK_JOBSR	FCORE_PARSE	;string pointer -> X, character count -> A
+			SSTACK_JOBSR	FCORE_PARSE	;skip to the starting delimiter
+			TBA
+			SSTACK_JOBSR	FCORE_PARSE	;string pointer -> X
 			STX	0,Y	
 			;Done
 			NEXT
@@ -5013,7 +5106,7 @@ CF_AGAIN		EQU	CF_LITERAL
 CFA_AGAIN_RT		DW	CF_AGAIN_RT
 CF_AGAIN_RT		JUMP_NEXT
 
-;C" 
+;C" TODO!
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "ccc<quote>" -- )
 ;Parse ccc delimited by " (double-quote) and append the run-time semantics given
@@ -5079,7 +5172,7 @@ CF_COMPILE_COMMA_PSUF		JOB	FCORE_THROW_PSUF
 CF_COMPILE_COMMA_DICTOF		JOB	FCORE_THROW_DICTOF
 CF_COMPILE_COMMA_COMPONLY	JOB	FCORE_THROW_COMPONLY
 
-;CONVERT ( ud1 c-addr1 -- ud2 c-addr2 )
+;CONVERT ( ud1 c-addr1 -- ud2 c-addr2 ) TODO!
 ;ud2 is the result of converting the characters within the text beginning at the
 ;first character after c-addr1 into digits, using the number in BASE, and adding
 ;each digit to ud1 after multiplying ud1 by the number in BASE. Conversion
@@ -5215,7 +5308,7 @@ CF_ERASE_1		CLR	1,X+
 CF_ERASE_2		STY	PSP
 			NEXT
 	
-;EXPECT ( c-addr +n -- )
+;EXPECT ( c-addr +n -- ) TODO!
 ;Receive a string of at most +n characters. Display graphic characters as they
 ;are received. A program that depends on the presence or absence of non-graphic
 ;characters in the string has an environmental dependency. The editing
@@ -5245,7 +5338,7 @@ CFA_HEX			DW	CF_HEX
 CF_HEX			MOVW	#16, BASE
 			NEXT
 
-;MARKER ( "<spaces>name" -- )
+;MARKER ( "<spaces>name" -- ) CHECK!
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below.
 ;name Execution: ( -- )
@@ -5254,11 +5347,47 @@ CF_HEX			MOVW	#16, BASE
 ;subsequent definitions. Restoration of any structures still existing that could
 ;refer to deleted definitions or deallocated data space is not necessarily
 ;provided. No other contextual information such as numeric base is affected.
-NFA_MARKER		EQU	NFA_HEX	
-;			ALIGN	1
-;NFA_MARKER		FHEADER, "MARKER", NFA_HEX, COMPILE
-;CFA_MARKER		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Missing name argument"
+;"Dictionary overflow"
+;
+			ALIGN	1
+NFA_MARKER		FHEADER, "MARKER", NFA_HEX, COMPILE
+CFA_MARKER		DW	CF_MARKER
+CF_MARKER		;Build header
+			SSTACK_JOBSR	FCORE_HEADER	;NFA -> D, error handler -> X (SSTACK: 10  bytes)
+			TBNE	X, CF_MARKER_ERROR
+			;Update LAST_NFA (NFA in D)
+			STD	LAST_NFA
+			;Append CFA and data field (NFA in D)
+			LDX	CP
+			MOVW	#CF_MARKER_RT, 2,X+
+			STD	 2,X+ 			;store NFA in data field
+			;Update CP saved (CP in X)
+			STX	CP_SAVED
+			;Done 
+			NEXT
+			;Error handler for FCORE_HEADER 
+CF_MARKER_ERROR	JMP	0,X
 
+;MARKER run-time semantics
+;Restore old last NFA an CP
+;
+;S12CForth implementation details:
+;
+			ALIGN	1
+CFA_MARKER_RT		DW	CF_MARKER_RT	
+CF_MARKER_RT		;Restore last NFA
+			LDX		2,X 			;NFA -> X
+			MOVW		2,X-, LAST_NFA		;Restore last NFA
+			;Restore CP 
+			STX		CP
+			STX		CP_SAVED
+			;Done
+			NEXT
+	
 ;NAME ("<spaces>ccc<space>" -- c-addr ) Non-standard S12CForth extension!
 ;Parse whitespace separated word: 
 ;Skip leading whitespaces (" ", TAB, and non-printables). Parse characters ccc
@@ -5543,7 +5672,7 @@ CF_QUERY		;Query command line
 ;CF_QUERY_5		PRINT_BEEP		;beep
 ;			JOB	CF_QUERY_1 	;receive next character
 	
-;REFILL ( -- flag )
+;REFILL ( -- flag ) TODO!
 ;Attempt to fill the input buffer from the input source, returning a true flag;if successful.
 ;When the input source is the user input device, attempt to receive input into
 ;the terminal input buffer. If successful, make the result the input buffer, set
@@ -5632,7 +5761,7 @@ NFA_TIB			FHEADER, "TIB", NFA_SPAN, COMPILE
 CFA_TIB			DW	CF_CONSTANT_RT
 			DW	TIB_START
 
-;TO 
+;TO Check!
 ;Interpretation: ( x "<spaces>name" -- )
 ;Skip leading spaces and parse name delimited by a space. Store x in name. An
 ;ambiguous condition exists if name was not defined by VALUE.
@@ -5644,10 +5773,37 @@ CFA_TIB			DW	CF_CONSTANT_RT
 ;Store x in name.
 ;Note: An ambiguous condition exists if either POSTPONE or [COMPILE] is applied
 ;to TO.
-NFA_TO			EQU	NFA_TIB
-;			ALIGN	1
-;NFA_TO			FHEADER, "TO", NFA_TIB, COMPILE
-;CFA_TO			DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Missing name argument"
+;"Undefined word"
+;"invalid usage of non-CREATEd definition"
+;
+			ALIGN	1
+NFA_TO			FHEADER, "TO", NFA_TIB, COMPILE
+CFA_TO			DW	CF_TO
+CF_TO			PS_CHECK_UF	1, CF_TO_PSUF ;check for underflow
+			;Parse name (PSP in Y)
+			SSTACK_JOBSR	FCORE_NAME 		;(SSTACK: 5 bytes)
+			TBEQ	X, CF_TO_NONAME
+			;Lookup name in dictionary (PSP in Y, string pointer in X)
+			SSTACK_JOBSR	FCORE_FIND 		;(SSTACK: 4 bytes)
+			TBEQ	D, CF_TO_UDEFWORD ;check for underflow
+			;Locate body (PSP in Y, CFA in X)
+			SSTACK_JOBSR	FCORE_TO_BODY		 ;(SSTACK: 4 bytes)
+			TBEQ	X, CF_TO_NONCREATE
+			;Store data in body (PSP in Y, pointer to body in X)
+			MOVW	2,Y+, 0,X
+			STY	PSP
+			;Done
+			NEXT
+
+CF_TO_PSUF 		JOB	FCORE_THROW_PSUF
+CF_TO_NONAME		JOB	FCORE_THROW_NONAME
+CF_TO_UDEFWORD		JOB	FCORE_THROW_UDEFWORD
+CF_TO_NONCREATE		JOB	FCORE_THROW_NONCREATE
 
 ;TRUE ( -- true )
 ;Return a true flag, a single-cell value with all bits set.
@@ -5689,6 +5845,9 @@ CF_TUCK			PS_CHECK_UFOF	2, CF_TUCK_PSUF, 1, CF_TUCK_PSOF ;(PSP-new cells -> Y)
 ;"Parameter stack underflow"
 ;"Invalid BASE value"
 ;
+CF_U_DOT_R_PSUF		JOB	FCORE_THROW_PSUF
+CF_U_DOT_R_INVALBASE	JOB	FCORE_THROW_INVALBASE
+	
 			ALIGN	1
 NFA_U_DOT_R		FHEADER, "U.R", NFA_TUCK, COMPILE
 CFA_U_DOT_R		DW	CF_U_DOT_R
@@ -5707,9 +5866,6 @@ CF_U_DOT_R_1		LDX	2,Y+ 			;u -> X
 CF_U_DOT_R_2		LDAA	#$FF
 			JOB	CF_U_DOT_R_1
 
-CF_U_DOT_R_PSUF		JOB	FCORE_THROW_PSUF
-CF_U_DOT_R_INVALBASE	JOB	FCORE_THROW_INVALBASE
-	
 ;U> 
 ;u-greater-than CORE EXT 
 ;	( u1 u2 -- flag )
