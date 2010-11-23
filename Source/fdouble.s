@@ -75,7 +75,7 @@ FDOUBLE_TABS_END		EQU	*
 ;###############################################################################
 			ORG	FDOUBLE_WORDS_START ;(previous NFA: FDOUBLE_PREV_NFA)
 
-;2CONSTANT ( x1 x2 "<spaces>name" -- )
+;2CONSTANT ( x1 x2 "<spaces>name" -- ) TODO!
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below.
 ;name is referred to as a two-constant.
@@ -94,16 +94,16 @@ NFA_TWO_CONSTANT	EQU	FDOUBLE_PREV_NFA
 ;"Parameter stack underflow"
 ;
 ;CF_TWO_CONSTANT_RT	PS_CHECK_OF	2, CF_TWO_CONSTANT_PSOF	;overflow check	=> 9 cycles
-			MOVW		4,X, 2,Y		;[CFA+4] -> PS	=> 5 cycles
-			MOVW		2,X, 0,Y		;[CFA+2] -> PS	=> 5 cycles
-			STY		PSP			;		=> 3 cycles
-			NEXT					;NEXT		=>15 cycles
-								; 		  ---------
-								;		  37 cycles
-CF_TWO_CONSTANT_PSOF	JOB	FCORE_THROW_PSOF
+;			MOVW		4,X, 2,Y		;[CFA+4] -> PS	=> 5 cycles
+;			MOVW		2,X, 0,Y		;[CFA+2] -> PS	=> 5 cycles
+;			STY		PSP			;		=> 3 cycles
+;			NEXT					;NEXT		=>15 cycles
+;								; 		  ---------
+;								;		  37 cycles
+;CF_TWO_CONSTANT_PSOF	JOB	FCORE_THROW_PSOF		;
 	
 			
-;2VARIABLE ( "<spaces>name" -- )
+;2VARIABLE ( "<spaces>name" -- ) CHECK!
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below. Reserve two
 ;consecutive cells of data space.
@@ -112,15 +112,42 @@ CF_TWO_CONSTANT_PSOF	JOB	FCORE_THROW_PSOF
 ;a-addr is the address of the first (lowest address) cell of two consecutive
 ;cells in data space reserved by 2VARIABLE when it defined name. A program is
 ;responsible for initializing the contents.
-NFA_TWO_VARIABLE	EQU	NFA_TWO_CONSTANT
-;			ALIGN	1
-;NFA_TWO_VARIABLE	FHEADER, "2VARIABLE", NFA_TWO_constant, COMPILE
-;CFA_TWO_VARIABLE	DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Missing name argument"
+;"Dictionary overflow"
+			ALIGN	1
+NFA_TWO_VARIABLE	FHEADER, "2VARIABLE", NFA_TWO_CONSTANT, COMPILE
+CFA_TWO_VARIABLE	DW	CF_TWO_VARIABLE
+CF_TWO_VARIABLE		;Build header
+			SSTACK_JOBSR	FCORE_HEADER 			;NFA -> D, error handler -> X (SSTACK: 10  bytes)
+			TBNE	X, CF_TWO_VARIABLE_ERROR
+			DICT_CHECK_OF	6, CF_TWO_VARIABLE_DICTOF	;CP+6 -> X
+			;Update LAST_NFA 
+			STD	LAST_NFA
+			;Append CFA 
+			MOVW	#CF_TWO_VARIABLE_RT, -6,X
+			;Append variable space (CP in X)
+			MOVW	#$0000, -4,X
+			MOVW	#$0000, -2,X
+			STX	CP
+			;Update CP saved (CP in X)
+			STX	CP_SAVED
+			;Done 
+			NEXT
+			;Error handler for FCORE_HEADER 
+CF_TWO_VARIABLE_ERROR	JMP	0,X
+
+CF_TWO_VARIABLE_PSOF	JOB	FCORE_THROW_PSOF
+CF_TWO_VARIABLE_DICTOF	JOB	FCORE_THROW_DICTOF
 
 ;Run-time of VARIABLE
+;Throws:
+;"Parameter stack overflow"
 CFA_TWO_VARIABLE_RT	EQU	CFA_VARIABLE_RT		
 	
-;D+ ( d1|ud1 d2|ud2 -- d3|ud3 )
+;D+ ( d1|ud1 d2|ud2 -- d3|ud3 ) CHECK!
 ;Add d2|ud2 to d1|ud1, giving the sum d3|ud3.
 ;
 ;S12CForth implementation details:
@@ -145,7 +172,7 @@ CF_D_PLUS		PS_CHECK_UF 4, CF_D_PLUS_PSUF 	;check for underflow  (PSP -> Y)
 	
 CF_D_PLUS_PSUF		JOB	FDOUBLE_THROW_PSUF
 			
-;D- ( d1|ud1 d2|ud2 -- d3|ud3 )
+;D- ( d1|ud1 d2|ud2 -- d3|ud3 ) CHECK!
 ;Subtract d2|ud2 from d1|ud1, giving the difference d3|ud3.
 ;
 ;S12CForth implementation details:
@@ -170,7 +197,7 @@ CF_D_MINUS		PS_CHECK_UF 4, CF_D_MINUS_PSUF 	;check for underflow  (PSP -> Y)
 	
 CF_D_MINUS_PSUF		JOB	FDOUBLE_THROW_PSUF
 	
-;D. ( d -- )
+;D. ( d -- ) CHECK!
 ;Display d in free field format.
 ;
 ;S12CForth implementation details:
@@ -194,7 +221,7 @@ CF_D_DOT		PS_CHECK_UF 2, CF_D_DOT_PSUF 	;check for underflow (PSP -> Y)
 CF_D_DOT_PSUF		JOB	FDOUBLE_THROW_PSUF
 CF_D_DOT_INVALBASE	JOB	FDOUBLE_THROW_INVALBASE
 		
-;D.R ( d n -- )
+;D.R ( d n -- ) CHECK!
 ;Display d right aligned in a field n characters wide. If the number of
 ;characters required to display d is greater than n, all digits are displayed
 ;with no leading spaces in a field as wide as necessary.
@@ -229,89 +256,294 @@ CF_D_DOT_R_2		LDAA	$FF
 CF_D_DOT_R_PSUF		JOB	FDOUBLE_THROW_PSUF
 CF_D_DOT_R_INVALBASE	JOB	FDOUBLE_THROW_INVALBASE
 	
-;D0< ( d -- flag )
+;D0< ( d -- flag ) CHECK!
 ;flag is true if and only if d is less than zero.
-NFA_D_ZERO_LESS		EQU	NFA_D_DOT_R
-;			ALIGN	1
-;NFA_D_ZERO_LESS	FHEADER, "D0<", NFA_D_DOT_R, COMPILE
-;CFA_D_ZERO_LESS	DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_D_ZERO_LESS	FHEADER, "D0<", NFA_D_DOT_R, COMPILE
+CFA_D_ZERO_LESS	DW	CF_D_ZERO_LESS
+CF_D_ZERO_LESS		PS_CHECK_UF 2, CF_D_ZERO_LESS_PSUF 	;check for underflow (PSP -> Y)
+			;Check MSB (PSP in Y)
+			LDD	0,Y
+			BMI	CF_D_ZERO_LESS_2 		;false	
+			;True (PSP in Y)
+			LDD	#$FFFF
+CF_D_ZERO_LESS_1	STD	2,+Y
+			STY	PSP
+			;Done
+			NEXT
+			;False (PSP in Y)
+CF_D_ZERO_LESS_2	LDD	#$0000
+			JOB	CF_D_ZERO_EQUALS_1
 
-;D0= ( xd -- flag )
+CF_D_ZERO_LESS_PSUF	JOB	FDOUBLE_THROW_PSUF
+
+;D0= ( xd -- flag ) CHECK!
 ;flag is true if and only if xd is equal to zero.
-NFA_D_ZERO_EQUALS	EQU	NFA_D_ZERO_LESS
-;			ALIGN	1
-;NFA_D_ZERO_EQUALS	FHEADER, "D0=", NFA_D_ZERO_LESS, COMPILE
-;CFA_D_ZERO_EQUALS	DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_D_ZERO_EQUALS	FHEADER, "D0=", NFA_D_ZERO_LESS, COMPILE
+CFA_D_ZERO_EQUALS	DW	CF_D_ZERO_EQUALS
+CF_D_ZERO_EQUALS	PS_CHECK_UF 2, CF_D_ZERO_EQUALS_PSUF 	;check for underflow (PSP -> Y)
+			;Check MSW (PSP in Y)
+			LDD	0,Y
+			BNE	CF_D_ZERO_EQUALS_2 		;false
+			LDD	2,Y
+			BNE	CF_D_ZERO_EQUALS_2 		;false
+			;True (PSP in Y)
+			LDD	#$FFFF
+CF_D_ZERO_EQUALS_1	STD	2,+Y
+			STY	PSP
+			;Done
+			NEXT
+			;False (PSP in Y)
+CF_D_ZERO_EQUALS_2	LDD	#$0000
+			JOB	CF_D_ZERO_EQUALS_1
 
-;D2* ( xd1 -- xd2 )
+CF_D_ZERO_EQUALS_PSUF	JOB	FDOUBLE_THROW_PSUF
+	
+;D2* ( xd1 -- xd2 ) CHECK!
 ;xd2 is the result of shifting xd1 one bit toward the most-significant bit,
 ;filling the vacated least-significant bit with zero.
-NFA_D_TWO_STAR		EQU	NFA_D_ZERO_EQUALS
-;			ALIGN	1
-;NFA_D_TWO_STAR		FHEADER, "D2*", NFA_D_ZERO_EQUALS, COMPILE
-;CFA_D_TWO_STAR		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_D_TWO_STAR		FHEADER, "D2*", NFA_D_ZERO_EQUALS, COMPILE
+CFA_D_TWO_STAR		DW	CF_D_TWO_STAR
+CF_D_TWO_STAR		PS_CHECK_UF 2, CF_D_TWO_STAR_PSUF 	;check for underflow (PSP -> Y)
+			;Shift LSW (PSP in Y)
+			LDD	2,Y
+			LSLD
+			STD	2,Y
+			;Shift MSW (PSP in Y)
+			LDD	0,Y
+			ROLB
+			ROLA
+			STD	0,Y
+			;Done
+			NEXT
 
-;D2/ ( xd1 -- xd2 )
+CF_D_TWO_STAR_PSUF	JOB	FDOUBLE_THROW_PSUF
+
+;D2/ ( xd1 -- xd2 ) CHECK!
 ;xd2 is the result of shifting xd1 one bit toward the least-significant bit,
 ;leaving the most-significant bit unchanged.
-NFA_D_TWO_SLASH		EQU	NFA_D_TWO_STAR
-;			ALIGN	1
-;NFA_D_TWO_SLASH		FHEADER, "D2/", NFA_D_TWO_STAR, COMPILE
-;CFA_D_TWO_SLASH		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_D_TWO_SLASH		FHEADER, "D2/", NFA_D_TWO_STAR, COMPILE
+CFA_D_TWO_SLASH		DW	CF_D_TWO_SLASH
+CF_D_TWO_SLASH		PS_CHECK_UF 2, CF_D_TWO_SLASH_PSUF 	;check for underflow (PSP -> Y)
+			;Shift MSW (PSP in Y)
+			LDD	0,Y
+			ASRA
+			RORB
+			STD	0,Y
+			;Shift LSW (PSP in Y)
+			LDD	2,Y
+			RORA
+			RORB
+			STD	2,Y
+			;Done
+			NEXT
+
+CF_D_TWO_SLASH_PSUF	JOB	FDOUBLE_THROW_PSUF
 	
-;D< 
-;d-less-than ( d1 d2 -- flag )
+;D< ( d1 d2 -- flag ) TODO!
 ;flag is true if and only if d1 is less than d2.
 NFA_D_LESS_THAN		EQU	NFA_D_TWO_SLASH
 ;			ALIGN	1
 ;NFA_D_LESS_THAN		FHEADER, "D<", NFA_D_TWO_SLASH, COMPILE
 ;CFA_D_LESS_THAN		DW	CF_DUMMY
 
-;D= ( xd1 xd2 -- flag )
+;D= ( xd1 xd2 -- flag ) CHECK!
 ;flag is true if and only if xd1 is bit-for-bit the same as xd2.
-NFA_D_EQUALS		EQU	NFA_D_LESS_THAN
-;			ALIGN	1
-;NFA_D_EQUALS		FHEADER, "D=", NFA_D_LESS_THAN, COMPILE
-;CFA_D_EQUALS		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_D_EQUALS		FHEADER, "D=", NFA_D_LESS_THAN, COMPILE
+CFA_D_EQUALS		DW	CF_D_EQUALS
+CF_D_EQUALS		PS_CHECK_UF 4, CF_D_EQUALS_PSUF 	;check for underflow (PSP -> Y)
+			;Compare MSWs (PSP in Y)
+			LDD	4,Y
+			CPD	0,Y
+			BEQ	CF_D_EQUALS_3			;compare LSWs
+			;False (PSP in Y)
+CF_D_EQUALS_1		LDD	#$0000
+CF_D_EQUALS_2		STD	7,+Y
+			STY	PSP
+			;Done
+			NEXT
+			;Compare LSWs (PSP in Y)
+CF_D_EQUALS_3		LDD	6,Y
+			CPD	2,Y
+			BNE	CF_D_EQUALS_1
+			;True (PSP in Y)
+			LDD	#$FFFF
+			JOB	CF_D_EQUALS_2
+	
+CF_D_EQUALS_PSUF	JOB	FDOUBLE_THROW_PSUF
 
-;D>S  d -- n )
+;D>S  d -- n ) CHECK!
 ;n is the equivalent of d. An ambiguous condition exists if d lies outside the
 ;range of a signed single-cell number.
-NFA_D_TO_S		EQU	NFA_D_EQUALS
-;			ALIGN	1
-;NFA_D_TO_S		FHEADER, "D>S", NFA_D_EQUALS, COMPILE
-;CFA_D_TO_S		DW	CF_DUMMY
-
-;DABS ( d -- ud )
-;ud is the absolute value of d.
-NFA_D_ABS		EQU	NFA_D_TO_S
-;			ALIGN	1
-;NFA_D_ABS		FHEADER, "DABS", NFA_D_TO_S, COMPILE
-;CFA_D_ABS		DW	CF_DUMMY
-
-;DMAX ( d1 d2 -- d3 )
-;d3 is the greater of d1 and d2.
-NFA_D_MAX		EQU	NFA_D_ABS
-;			ALIGN	1
-;NFA_D_MAX		FHEADER, "DMAX", NFA_D_ABS, COMPILE
-;CFA_D_MAX		DW	CF_DUMMY
-
-;DMIN ( d1 d2 -- d3 )
-;d3 is the lesser of d1 and d2.
-NFA_D_MIN		EQU	NFA_D_MAX
-;			ALIGN	1
-;NFA_D_MIN		FHEADER, "DMIN", NFA_D_MAX, COMPILE
-;CFA_D_MIN		DW	CF_DUMMY
-
-;DNEGATE ( d1 -- d2 )
-;d2 is the negation of d1.
-NFA_D_NEGATE		EQU	NFA_D_MIN
-;			ALIGN	1
-;NFA_D_NEGATE		FHEADER, "DNEGATE", NFA_D_MIN, COMPILE
-;CFA_D_NEGATE		DW	CF_DUMMY
-
 ;
-;M*/ ( d1 n1 +n2 -- d2 )
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Result out of range"
+;
+			ALIGN	1
+NFA_D_TO_S		FHEADER, "D>S", NFA_D_EQUALS, COMPILE
+CFA_D_TO_S		DW	CF_D_TO_S
+CF_D_TO_S		PS_CHECK_UF 2, CF_D_ABS_PSUF 	;check for underflow (PSP -> Y)
+			;Check MSW of d (PSP in Y) 
+			LDD	2,Y+
+			CPD	#$FFFF
+			BEQ	CF_D_TO_S_2 		;LSW must be negative
+			CPD	#$0000
+			BNE	CF_D_TO_S_RESOR		;result is out of range
+			;LSW must be positive (new PSP in Y)
+			LDD	0,Y
+			BMI	CF_D_TO_S_RESOR		;result is out of range			
+			;Done (new PSP in Y)
+CF_D_TO_S_1		STY	PSP
+			NEXT
+			;LSW must be positive (new PSP in Y)
+			LDD	0,Y
+			BMI	CF_D_TO_S_1		;result is within range			
+			;JOB	CF_D_TO_S_RESOR		;result is out of range	
+	
+CF_D_TO_S_RESOR		JOB	FDOUBLE_THROW_RESOR
+CF_D_TO_S_PSUF		JOB	FDOUBLE_THROW_PSUF
+	
+;DABS ( d -- ud ) CHECK!
+;ud is the absolute value of d.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_D_ABS		FHEADER, "DABS", NFA_D_TO_S, COMPILE
+CFA_D_ABS		DW	CF_D_ABS
+CF_D_ABS		PS_CHECK_UF 2, CF_D_ABS_PSUF 	;check for underflow (PSP -> Y)
+			;Check sign of d (PSP in Y) 
+			BRCLR	0,Y, #$80, 
+			JOB	CF_DNEGATE_1
+			;Done
+			NEXT
+	
+CF_D_ABS_PSUF		JOB	FDOUBLE_THROW_PSUF
+
+;DMAX ( d1 d2 -- d3 ) CHECK!
+;d3 is the greater of d1 and d2.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+NFA_D_MAX		EQU	NFA_D_ABS
+			ALIGN	1
+NFA_D_MAX		FHEADER, "DMAX", NFA_D_ABS, COMPILE
+CFA_D_MAX		DW	CF_DUMMY
+CF_D_MAX		PS_CHECK_UF 4, CF_D_MAX_PSUF 	;check for underflow (PSP -> Y)
+			;Compare MSWs (PSP in Y) 
+			LDD	4,+Y
+			STY	PSP
+			CPD	0,Y
+			BEQ	CF_D_MAX_2 		;compare LSWs
+			EMAXM	0,Y
+			BCS	CF_D_MAX_1
+			;Copy LSW (new PSP in Y)
+			MOVW	-2,Y, 2,Y
+			;Done
+CF_D_MAX_1		NEXT	
+			;Compare MSWs (PSP in Y) 
+CF_D_MAX_2		LDD	2,Y
+			EMAXM	-2,Y
+			JOB	CF_D_MAX_1
+	
+CF_D_MAX_PSUF		JOB	FDOUBLE_THROW_PSUF
+
+;DMIN ( d1 d2 -- d3 ) CHECK!
+;d3 is the lesser of d1 and d2.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_D_MIN		FHEADER, "DMIN", NFA_D_MAX, COMPILE
+CFA_D_MIN		DW	CF_D_MIN
+CF_D_MIN		PS_CHECK_UF 4, CF_D_MIN_PSUF 	;check for underflow (PSP -> Y)
+			;Compare MSWs (PSP in Y) 
+			LDD	4,+Y
+			STY	PSP
+			CPD	0,Y
+			BEQ	CF_D_MIN_2 		;compare LSWs
+			EMINM	0,Y
+			BCC	CF_D_MIN_1
+			;Copy LSW (new PSP in Y)
+			MOVW	-2,Y, 2,Y
+			;Done
+CF_D_MIN_1		NEXT	
+			;Compare MSWs (PSP in Y) 
+CF_D_MIN_2		LDD	2,Y
+			EMINM	-2,Y
+			JOB	CF_D_MIN_1
+	
+CF_D_MIN_PSUF		JOB	FDOUBLE_THROW_PSUF
+	
+;DNEGATE ( d1 -- d2 ) CHECK!
+;d2 is the negation of d1.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_D_NEGATE		FHEADER, "DNEGATE", NFA_D_MIN, COMPILE
+CFA_D_NEGATE		DW	CF_DNEGATE
+CF_D_NEGATE		PS_CHECK_UF 2, CF_D_NEGATE_PSUF 	;check for underflow (PSP -> Y)
+			;Calculate 2's complement of the PS entry (PSP in Y)
+CF_D_NEGATE_1		LDD	0,Y 				;invert MSW
+			COMA
+			COMB
+			TFR	D,X
+			LDD	2,Y 				;invert LSW
+			COMA
+			COMB
+			ADDD	#1 				;increment LSW
+			EXG	D,X				;add carry to MSW
+			ADCB	#0
+			ADCA	#0
+			STD	0,Y
+			STX	2,Y
+			;Done
+			NEXT
+	
+CF_D_NEGATE_PSUF	JOB	FDOUBLE_THROW_PSUF
+	
+;
+;M*/ ( d1 n1 +n2 -- d2 ) TODO!
 ;Multiply d1 by n1 producing the triple-cell intermediate result t. Divide t by
 ;+n2 giving the double-cell quotient d2. An ambiguous condition exists if +n2 is
 ;zero or negative, or the quotient lies outside of the range of a
@@ -322,28 +554,90 @@ NFA_M_STAR_SLASH	EQU	NFA_D_NEGATE
 ;CFA_M_STAR_SLASH	DW	CF_DUMMY
 
 ;M+ 
-;m-plus DOUBLE 
+;m-plus DOUBLE CHECK!
 ;	( d1|ud1 n -- d2|ud2 )
 ;Add n to d1|ud1, giving the sum d2|ud2.
-NFA_M_PLUS		EQU	NFA_M_STAR_SLASH
-;			ALIGN	1
-;NFA_M_PLUS		FHEADER, "M+", NFA_M_STAR_SLASH, COMPILE
-;CFA_M_PLUS		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_M_PLUS		FHEADER, "M+", NFA_M_STAR_SLASH, COMPILE
+CFA_M_PLUS		DW	CF_M_PLUS
+CF_M_PLUS		PS_CHECK_UF 3, CF_M_PLUS_PSUF 	;check for underflow (PSP -> Y)
+			;Add PS entries (PSP in Y)
+			LDD	2,Y+ 			;n -> D
+			STY	PSP
+			ADDD	0,Y 			;n + d1 -> D
+			STD	0,Y
+			LDD	2,Y 			;C + d2 -> D
+			ADCB	#0
+			ADCA	#0
+			STAA	2,Y
+			;Done
+			NEXT
 
-;2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 )
+CF_M_PLUS_PSUF		JOB	FDOUBLE_THROW_PSUF
+	
+;2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 ) CHECK!
 ;Rotate the top three cell pairs on the stack bringing cell pair x1 x2 to the
 ;top of the stack.
-NFA_TWO_ROT		EQU	NFA_M_PLUS
-;			ALIGN	1
-;NFA_TWO_ROT		FHEADER, "2ROT", NFA_M_PLUS, COMPILE
-;CFA_TWO_ROT		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_TWO_ROT		FHEADER, "2ROT", NFA_M_PLUS, COMPILE
+CFA_TWO_ROT		DW	CF_TWO_ROT
+CF_TWO_ROT		PS_CHECK_UF 6, CF_TWO_ROT_PSUF 	;check for underflow (PSP -> Y)
+			;Swap PS entries (PSP in Y)
+			LDD	10,Y 			;save  x1
+			MOVW	 6,Y, 10,Y		;x3 -> x1
+			MOVW	 2,Y,  6,Y		;x5 -> x3
+			STD	 2,Y			;x1 -> x5
+			LDD	 8,Y 			;save  x2
+			MOVW	 4,Y,  8,Y		;x4 -> x2
+			MOVW	 0,Y,  4,Y		;x6 -> x4
+			STD	 0,Y			;x2 -> x6
+			;Done 
+			NEXT
 
-;DU< ( ud1 ud2 -- flag )
+CF_D_U_LESS_PSUF	JOB	FDOUBLE_THROW_PSUF
+
+;DU< ( ud1 ud2 -- flag ) CHECK!
 ;flag is true if and only if ud1 is less than ud2.
-NFA_D_U_LESS		EQU	NFA_TWO_ROT
-;			ALIGN	1
-;NFA_D_U_LESS		FHEADER, "DU<", NFA_TWO_ROT, COMPILE
-;CFA_D_U_LESS		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_D_U_LESS		FHEADER, "DU<", NFA_TWO_ROT, COMPILE
+CFA_D_U_LESS		DW	CF_D_U_LESS
+CF_D_U_LESS		PS_CHECK_UF 4, CF_D_U_LESS_PSUF 	;check for underflow (PSP -> Y)
+			;Compare MSWs (PSP in Y)
+			LDD	4,Y
+			CPD	0,Y
+			BEQ	CF_D_U_LESS_3			;compare LSWs
+			BLO	CF_D_U_LESS_4 			;true
+			;False (PSP in Y)
+CF_D_U_LESS_1		LDD	#$0000
+CF_D_U_LESS_2		STD	7,+Y
+			STY	PSP
+			;Done
+			NEXT
+			;Compare LSWs (PSP in Y)
+CF_D_U_LESS_3		LDD	6,Y
+			CPD	2,Y
+			BGE	CF_D_U_LESS_1
+			;True (PSP in Y)
+CF_D_U_LESS_4		LDD	#$FFFF
+			JOB	CF_D_U_LESS_2
 	
-FDOUBLE_WORDS_END		EQU	*
-FDOUBLE_LAST_NFA		EQU	NFA_D_U_LESS
+CF_D_U_LESS_PSUF	JOB	FDOUBLE_THROW_PSUF
+
+	
+FDOUBLE_WORDS_END	EQU	*
+FDOUBLE_LAST_NFA	EQU	NFA_D_U_LESS
