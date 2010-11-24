@@ -759,7 +759,7 @@ FCORE_FIND_NFA_8	SSTACK_PULDY
 ;#Find a name in the dictionary and return the xt 
 ; args:   X: string pointer
 ; result: X: CFA/string pointer
-;         D: status (0:name not cound, 1:immediate, or 1:compile)
+;         D: status (0:name not cound, 1:immediate, or -1:compile)
 ; SSTACK: 8 bytes
 ;         Y is preserved
 
@@ -779,9 +779,9 @@ FCORE_FIND		EQU	*
 			ORAB	#$01	
 			;Done
 FCORE_FIND_1		SSTACK_RTS
-			;Search was unsuccessful ( in X)
-			TFR	X,D
-FCORE_FIND_2		JOB	FCORE_FIND_1	
+			;Search was unsuccessful (0 in X)
+FCORE_FIND_2		EXG	D,X
+			JOB	FCORE_FIND_1	
 
 ;FCORE_FIND		EQU	*	
 ;			;Save registers
@@ -2516,7 +2516,7 @@ CFA_CHAR_PLUS		DW	CF_ONE_PLUS
 NFA_CHARS		FHEADER, "CHARS", NFA_CHAR_PLUS, COMPILE
 CFA_CHARS		DW	CF_NOP
 
-;CLS ( -- empty ) S12CForth extension! CHECK!
+;CLS ( -- empty ) S12CForth extension!
 			ALIGN	1
 NFA_CLS			FHEADER, "CLS", NFA_CHARS, COMPILE
 CFA_CLS			DW	CF_CLS
@@ -2541,20 +2541,20 @@ CF_CLS			;Reset PS
 NFA_CONSTANT		FHEADER, "CONSTANT", NFA_CLS, COMPILE
 CFA_CONSTANT		DW	CF_CONSTANT
 CF_CONSTANT		PS_CHECK_UF 1, CF_CONSTANT_PSUF	;(PSP -> Y)
-			;Build header (PSP -> Y)
+			;Build header (PSP in Y)
 			SSTACK_JOBSR	FCORE_HEADER ;NFA -> D, error handler -> X(SSTACK: 10  bytes)
 			TBNE	X, CF_CONSTANT_ERROR
-			;Update LAST_NFA (PSP -> Y)
+			;Update LAST_NFA (PSP in Y)
 			STD	LAST_NFA
-			;Append CFA (PSP -> Y)
+			;Append CFA (PSP in Y)
 			LDX	CP
 			MOVW	#CF_CONSTANT_RT, 2,X+
-			;Append constant value (PSP -> Y, CP in X)
+			;Append constant value (PSP in Y, CP in X)
 			MOVW	2,Y+, 2,X+
 			STX	CP
 			STY	PSP
-			;Update CP saved
-			MOVW	CP, CP_SAVED
+			;Update CP saved (CP in X)
+			STX	 CP_SAVED
 			;Done 
 			NEXT
 			;Error handler for FCORE_HEADER 
@@ -3009,7 +3009,7 @@ CF_EXIT_RT		RS_PULL_Y	CF_EXIT_RSUF		;RS -> Y (= IP)		=>12 cycles
 								;                         ---------
 								;                         24 cycles			
 	
-;FILL ( c-addr u char -- ) CHECK!
+;FILL ( c-addr u char -- )
 ;If u is greater than zero, store char in each of u consecutive characters of
 ;memory beginning at c-addr.
 ;
@@ -4565,8 +4565,6 @@ CF_VARIABLE_PSOF	JOB	FCORE_THROW_PSOF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack overflow"
-			ALIGN	1
-CFA_VARIABLE_RT		DW	CF_VARIABLE_RT	
 CF_VARIABLE_RT		PS_CHECK_OF	1, CF_VARIABLE_PSOF	;overflow check	=> 9 cycles
 			LEAX		2,X			;CFA+2 -> PS	=> 2 cycles
 			STX		0,Y			;		=> 3 cycles
@@ -4788,7 +4786,7 @@ NFA_NUMBER_TIB		FHEADER, "#TIB", NFA_CP, COMPILE
 CFA_NUMBER_TIB		DW	CF_CONSTANT_RT
 			DW	NUMBER_TIB
 
-;.( CHECK
+;.( CHECK!
 ;Compilation: Perform the execution semantics given below.
 ;Execution: ( "ccc<paren>" -- )
 ;Parse and display ccc delimited by ) (right parenthesis). .( is an immediate
@@ -5374,7 +5372,7 @@ CF_MARKER		;Build header
 			;Done 
 			NEXT
 			;Error handler for FCORE_HEADER 
-CF_MARKER_ERROR	JMP	0,X
+CF_MARKER_ERROR		JMP	0,X
 
 ;MARKER run-time semantics
 ;Restore old last NFA an CP
@@ -5385,7 +5383,7 @@ CF_MARKER_ERROR	JMP	0,X
 CFA_MARKER_RT		DW	CF_MARKER_RT	
 CF_MARKER_RT		;Restore last NFA
 			LDX		2,X 			;NFA -> X
-			MOVW		2,X-, LAST_NFA		;Restore last NFA
+			MOVW		0,X, LAST_NFA		;Restore last NFA
 			;Restore CP 
 			STX		CP
 			STX		CP_SAVED
@@ -5765,7 +5763,7 @@ NFA_TIB			FHEADER, "TIB", NFA_SPAN, COMPILE
 CFA_TIB			DW	CF_CONSTANT_RT
 			DW	TIB_START
 
-;TO Check!
+;TO
 ;Interpretation: ( x "<spaces>name" -- )
 ;Skip leading spaces and parse name delimited by a space. Store x in name. An
 ;ambiguous condition exists if name was not defined by VALUE.
@@ -5933,7 +5931,7 @@ CF_WITHIN_PSUF		JOB	FCORE_THROW_PSUF
 NFA_VALUE		FHEADER, "VALUE", NFA_UNUSED, COMPILE
 CFA_VALUE		DW	CF_CONSTANT
 
-;WITHIN ( n1|u1 n2|u2 n3|u3 -- flag ) CHECK!
+;WITHIN ( n1|u1 n2|u2 n3|u3 -- flag )
 ;Perform a comparison of a test value n1|u1 with a lower limit n2|u2 and an
 ;upper limit n3|u3, returning true if either
 ;(n2|u2 < n3|u3 and (n2|u2 <= n1|u1 and n1|u1 < n3|u3)) or
@@ -5955,24 +5953,24 @@ CF_WITHIN		PS_CHECK_UF	3, CF_WITHIN_PSUF ;check for underflow  (PSP -> Y)
 			STY	PSP
 			;Compare boundaries (PSP in Y, u2 in D, u3 in X)
 			CPD	-4,Y
-			BHI	CF_WITHIN_2 		;u2 > u3
+			BHI	CF_WITHIN_3 		;u2 > u3
 			;u2 <= u3 (PSP in Y, upper boundary in D, lower boundary in X)
 			CPD	0,Y
-			BHI	CF_WITHIN_3 		;fail
+			BHI	CF_WITHIN_4 		;fail
 			CPX	0,Y
-			BLS	CF_WITHIN_3 		;fail
+			BLS	CF_WITHIN_4 		;fail
 			;Pass (PSP in Y)
 CF_WITHIN_1		LDD	#$FFFF
 CF_WITHIN_2		STD	 0,Y
 			;Done 
 			NEXT
 			;u2 > u3 (PSP in Y, upper boundary in D, lower boundary in X)
-			CPD	0,Y
+CF_WITHIN_3		CPD	0,Y
 			BLS	CF_WITHIN_1 		;pass
 			CPX	0,Y
 			BHI	CF_WITHIN_1 		;pass
 			;Fail (PSP in Y) 
-CF_WITHIN_3		CLRA
+CF_WITHIN_4		CLRA
 			CLRB
 			JOB	CF_WITHIN_2
 

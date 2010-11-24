@@ -60,6 +60,7 @@ FDOUBLE_VARS_END		EQU	*
 ;Exceptions
 FDOUBLE_THROW_PSOF	EQU	FMEM_THROW_PSOF			;stack overflow
 FDOUBLE_THROW_PSUF	EQU	FMEM_THROW_PSUF			;stack underflow
+FDOUBLE_THROW_RESOR	EQU	FCORE_THROW_RESOR		;result out of range
 FDOUBLE_THROW_INVALBASE	EQU	FCORE_THROW_INVALBASE		;invalid BASE value
 
 FDOUBLE_CODE_END		EQU	*
@@ -75,16 +76,45 @@ FDOUBLE_TABS_END		EQU	*
 ;###############################################################################
 			ORG	FDOUBLE_WORDS_START ;(previous NFA: FDOUBLE_PREV_NFA)
 
-;2CONSTANT ( x1 x2 "<spaces>name" -- ) TODO!
+;2CONSTANT ( x1 x2 "<spaces>name" -- ) CHECK!
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below.
 ;name is referred to as a two-constant.
 ;name Execution: ( -- x1 x2 )
 ;Place cell pair x1 x2 on the stack.
-NFA_TWO_CONSTANT	EQU	FDOUBLE_PREV_NFA
-;			ALIGN	1
-;NFA_TWO_CONSTANT	FHEADER, "2CONSTANT", FDOUBLE_PREV_NFA, COMPILE
-;CFA_TWO_CONSTANT	DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Missing name argument"
+;"Dictionary overflow"
+			ALIGN	1
+NFA_TWO_CONSTANT	FHEADER, "2CONSTANT", FDOUBLE_PREV_NFA, COMPILE
+CFA_TWO_CONSTANT	DW	CF_TWO_CONSTANT
+CF_TWO_CONSTANT		PS_CHECK_UF 1, CF_TWO_CONSTANT_PSUF	;(PSP -> Y)
+			;Build header (PSP -> Y)
+			SSTACK_JOBSR	FCORE_HEADER ;NFA -> D, error handler -> X(SSTACK: 10  bytes)
+			TBNE	X, CF_TWO_CONSTANT_ERROR
+			DICT_CHECK_OF	6, CF_TWO_CONSTANT_DICTOF	;CP+6 -> X
+			;Update LAST_NFA (PSP in Y, CP+6 in X)
+			STD	LAST_NFA
+			;Append CFA (PSP in Y, CP+6 in X)
+			LDX	CP
+			MOVW	#CF_TWO_CONSTANT_RT, -6,X
+			;Append constant value (PSP in Y, CP in X)
+			MOVW	2,Y+, -4,X
+			MOVW	2,Y+, -2,X
+			STX	CP
+			STY	PSP
+			;Update CP saved
+			STX	CP_SAVED
+			;Done 
+			NEXT
+			;Error handler for FCORE_HEADER 
+CF_TWO_CONSTANT_ERROR	JMP	0,X
+
+CF_TWO_CONSTANT_PSUF	JOB	FCORE_THROW_PSUF
+CF_TWO_CONSTANT_DICTOF	JOB	FCORE_THROW_DICTOF
 
 ;2CONSTANT run-time semantics
 ;Push the contents of the first cell after the CFA onto the parameter stack
@@ -93,16 +123,15 @@ NFA_TWO_CONSTANT	EQU	FDOUBLE_PREV_NFA
 ;Throws:
 ;"Parameter stack underflow"
 ;
-;CF_TWO_CONSTANT_RT	PS_CHECK_OF	2, CF_TWO_CONSTANT_PSOF	;overflow check	=> 9 cycles
-;			MOVW		4,X, 2,Y		;[CFA+4] -> PS	=> 5 cycles
-;			MOVW		2,X, 0,Y		;[CFA+2] -> PS	=> 5 cycles
-;			STY		PSP			;		=> 3 cycles
-;			NEXT					;NEXT		=>15 cycles
-;								; 		  ---------
-;								;		  37 cycles
-;CF_TWO_CONSTANT_PSOF	JOB	FCORE_THROW_PSOF		;
-	
-			
+CF_TWO_CONSTANT_RT	PS_CHECK_OF	2, CF_TWO_CONSTANT_PSOF	;overflow check	=> 9 cycles
+			MOVW		4,X, 2,Y		;[CFA+4] -> PS	=> 5 cycles
+			MOVW		2,X, 0,Y		;[CFA+2] -> PS	=> 5 cycles
+			STY		PSP			;		=> 3 cycles
+			NEXT					;NEXT		=>15 cycles
+								; 		  ---------
+								;		  37 cycles
+CF_TWO_CONSTANT_PSOF	JOB	FCORE_THROW_PSOF		;
+				
 ;2VARIABLE ( "<spaces>name" -- ) CHECK!
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below. Reserve two
@@ -145,7 +174,7 @@ CF_TWO_VARIABLE_DICTOF	JOB	FCORE_THROW_DICTOF
 ;Run-time of VARIABLE
 ;Throws:
 ;"Parameter stack overflow"
-CFA_TWO_VARIABLE_RT	EQU	CFA_VARIABLE_RT		
+CF_TWO_VARIABLE_RT	EQU	CF_VARIABLE_RT		
 	
 ;D+ ( d1|ud1 d2|ud2 -- d3|ud3 ) CHECK!
 ;Add d2|ud2 to d1|ud1, giving the sum d3|ud3.
@@ -427,7 +456,7 @@ CF_D_TO_S		PS_CHECK_UF 2, CF_D_ABS_PSUF 	;check for underflow (PSP -> Y)
 CF_D_TO_S_1		STY	PSP
 			NEXT
 			;LSW must be positive (new PSP in Y)
-			LDD	0,Y
+CF_D_TO_S_2		LDD	0,Y
 			BMI	CF_D_TO_S_1		;result is within range			
 			;JOB	CF_D_TO_S_RESOR		;result is out of range	
 	
@@ -446,10 +475,10 @@ NFA_D_ABS		FHEADER, "DABS", NFA_D_TO_S, COMPILE
 CFA_D_ABS		DW	CF_D_ABS
 CF_D_ABS		PS_CHECK_UF 2, CF_D_ABS_PSUF 	;check for underflow (PSP -> Y)
 			;Check sign of d (PSP in Y) 
-			BRCLR	0,Y, #$80, 
-			JOB	CF_DNEGATE_1
+			BRCLR	0,Y, #$80, CF_D_ABS_1
+			JOB	CF_D_NEGATE_1
 			;Done
-			NEXT
+CF_D_ABS_1		NEXT
 	
 CF_D_ABS_PSUF		JOB	FDOUBLE_THROW_PSUF
 
@@ -460,10 +489,9 @@ CF_D_ABS_PSUF		JOB	FDOUBLE_THROW_PSUF
 ;Throws:
 ;"Parameter stack underflow"
 ;
-NFA_D_MAX		EQU	NFA_D_ABS
 			ALIGN	1
 NFA_D_MAX		FHEADER, "DMAX", NFA_D_ABS, COMPILE
-CFA_D_MAX		DW	CF_DUMMY
+CFA_D_MAX		DW	CF_D_MAX
 CF_D_MAX		PS_CHECK_UF 4, CF_D_MAX_PSUF 	;check for underflow (PSP -> Y)
 			;Compare MSWs (PSP in Y) 
 			LDD	4,+Y
@@ -521,7 +549,7 @@ CF_D_MIN_PSUF		JOB	FDOUBLE_THROW_PSUF
 ;
 			ALIGN	1
 NFA_D_NEGATE		FHEADER, "DNEGATE", NFA_D_MIN, COMPILE
-CFA_D_NEGATE		DW	CF_DNEGATE
+CFA_D_NEGATE		DW	CF_D_NEGATE
 CF_D_NEGATE		PS_CHECK_UF 2, CF_D_NEGATE_PSUF 	;check for underflow (PSP -> Y)
 			;Calculate 2's complement of the PS entry (PSP in Y)
 CF_D_NEGATE_1		LDD	0,Y 				;invert MSW
@@ -548,11 +576,17 @@ CF_D_NEGATE_PSUF	JOB	FDOUBLE_THROW_PSUF
 ;+n2 giving the double-cell quotient d2. An ambiguous condition exists if +n2 is
 ;zero or negative, or the quotient lies outside of the range of a
 ;double-precision signed integer.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
 NFA_M_STAR_SLASH	EQU	NFA_D_NEGATE
 ;			ALIGN	1
 ;NFA_M_STAR_SLASH	FHEADER, "M*/", NFA_D_NEGATE, COMPILE
-;CFA_M_STAR_SLASH	DW	CF_DUMMY
-
+;CFA_M_STAR_SLASH	DW	CF_M_STAR_SLASH
+;CF_M_STAR_SLASH		NEXT
+	
 ;M+ 
 ;m-plus DOUBLE CHECK!
 ;	( d1|ud1 n -- d2|ud2 )
@@ -604,7 +638,7 @@ CF_TWO_ROT		PS_CHECK_UF 6, CF_TWO_ROT_PSUF 	;check for underflow (PSP -> Y)
 			;Done 
 			NEXT
 
-CF_D_U_LESS_PSUF	JOB	FDOUBLE_THROW_PSUF
+CF_TWO_ROT_PSUF	JOB	FDOUBLE_THROW_PSUF
 
 ;DU< ( ud1 ud2 -- flag ) CHECK!
 ;flag is true if and only if ud1 is less than ud2.

@@ -62,7 +62,7 @@ FORTH_VARS_END			EQU	$4000
 FORTH_CODE_START		EQU	$C000
 DEMO_TABS_START			EQU	FORTH_CODE_END
 FORTH_TABS_START		EQU	DEMO_TABS_END
-FORTH_WORDS_START		EQU	$4000
+FORTH_WORDS_START		EQU	$8000
 	
 ;###############################################################################
 ;# Constants                                                                   #
