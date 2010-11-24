@@ -76,7 +76,7 @@ FDOUBLE_TABS_END		EQU	*
 ;###############################################################################
 			ORG	FDOUBLE_WORDS_START ;(previous NFA: FDOUBLE_PREV_NFA)
 
-;2CONSTANT ( x1 x2 "<spaces>name" -- ) CHECK!
+;2CONSTANT ( x1 x2 "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below.
 ;name is referred to as a two-constant.
@@ -99,7 +99,6 @@ CF_TWO_CONSTANT		PS_CHECK_UF 1, CF_TWO_CONSTANT_PSUF	;(PSP -> Y)
 			;Update LAST_NFA (PSP in Y, CP+6 in X)
 			STD	LAST_NFA
 			;Append CFA (PSP in Y, CP+6 in X)
-			LDX	CP
 			MOVW	#CF_TWO_CONSTANT_RT, -6,X
 			;Append constant value (PSP in Y, CP in X)
 			MOVW	2,Y+, -4,X
@@ -132,7 +131,7 @@ CF_TWO_CONSTANT_RT	PS_CHECK_OF	2, CF_TWO_CONSTANT_PSOF	;overflow check	=> 9 cycl
 								;		  37 cycles
 CF_TWO_CONSTANT_PSOF	JOB	FCORE_THROW_PSOF		;
 				
-;2VARIABLE ( "<spaces>name" -- ) CHECK!
+;2VARIABLE ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below. Reserve two
 ;consecutive cells of data space.
@@ -176,7 +175,7 @@ CF_TWO_VARIABLE_DICTOF	JOB	FCORE_THROW_DICTOF
 ;"Parameter stack overflow"
 CF_TWO_VARIABLE_RT	EQU	CF_VARIABLE_RT		
 	
-;D+ ( d1|ud1 d2|ud2 -- d3|ud3 ) CHECK!
+;D+ ( d1|ud1 d2|ud2 -- d3|ud3 )
 ;Add d2|ud2 to d1|ud1, giving the sum d3|ud3.
 ;
 ;S12CForth implementation details:
@@ -201,7 +200,7 @@ CF_D_PLUS		PS_CHECK_UF 4, CF_D_PLUS_PSUF 	;check for underflow  (PSP -> Y)
 	
 CF_D_PLUS_PSUF		JOB	FDOUBLE_THROW_PSUF
 			
-;D- ( d1|ud1 d2|ud2 -- d3|ud3 ) CHECK!
+;D- ( d1|ud1 d2|ud2 -- d3|ud3 )
 ;Subtract d2|ud2 from d1|ud1, giving the difference d3|ud3.
 ;
 ;S12CForth implementation details:
@@ -226,7 +225,7 @@ CF_D_MINUS		PS_CHECK_UF 4, CF_D_MINUS_PSUF 	;check for underflow  (PSP -> Y)
 	
 CF_D_MINUS_PSUF		JOB	FDOUBLE_THROW_PSUF
 	
-;D. ( d -- ) CHECK!
+;D. ( d -- )
 ;Display d in free field format.
 ;
 ;S12CForth implementation details:
@@ -250,7 +249,7 @@ CF_D_DOT		PS_CHECK_UF 2, CF_D_DOT_PSUF 	;check for underflow (PSP -> Y)
 CF_D_DOT_PSUF		JOB	FDOUBLE_THROW_PSUF
 CF_D_DOT_INVALBASE	JOB	FDOUBLE_THROW_INVALBASE
 		
-;D.R ( d n -- ) CHECK!
+;D.R ( d n -- )
 ;Display d right aligned in a field n characters wide. If the number of
 ;characters required to display d is greater than n, all digits are displayed
 ;with no leading spaces in a field as wide as necessary.
@@ -285,7 +284,7 @@ CF_D_DOT_R_2		LDAA	$FF
 CF_D_DOT_R_PSUF		JOB	FDOUBLE_THROW_PSUF
 CF_D_DOT_R_INVALBASE	JOB	FDOUBLE_THROW_INVALBASE
 	
-;D0< ( d -- flag ) CHECK!
+;D0< ( d -- flag )
 ;flag is true if and only if d is less than zero.
 ;
 ;S12CForth implementation details:
@@ -298,7 +297,7 @@ CFA_D_ZERO_LESS	DW	CF_D_ZERO_LESS
 CF_D_ZERO_LESS		PS_CHECK_UF 2, CF_D_ZERO_LESS_PSUF 	;check for underflow (PSP -> Y)
 			;Check MSB (PSP in Y)
 			LDD	0,Y
-			BMI	CF_D_ZERO_LESS_2 		;false	
+			BPL	CF_D_ZERO_LESS_2 		;false	
 			;True (PSP in Y)
 			LDD	#$FFFF
 CF_D_ZERO_LESS_1	STD	2,+Y
@@ -311,7 +310,7 @@ CF_D_ZERO_LESS_2	LDD	#$0000
 
 CF_D_ZERO_LESS_PSUF	JOB	FDOUBLE_THROW_PSUF
 
-;D0= ( xd -- flag ) CHECK!
+;D0= ( xd -- flag )
 ;flag is true if and only if xd is equal to zero.
 ;
 ;S12CForth implementation details:
@@ -339,7 +338,7 @@ CF_D_ZERO_EQUALS_2	LDD	#$0000
 
 CF_D_ZERO_EQUALS_PSUF	JOB	FDOUBLE_THROW_PSUF
 	
-;D2* ( xd1 -- xd2 ) CHECK!
+;D2* ( xd1 -- xd2 )
 ;xd2 is the result of shifting xd1 one bit toward the most-significant bit,
 ;filling the vacated least-significant bit with zero.
 ;
@@ -365,7 +364,7 @@ CF_D_TWO_STAR		PS_CHECK_UF 2, CF_D_TWO_STAR_PSUF 	;check for underflow (PSP -> Y
 
 CF_D_TWO_STAR_PSUF	JOB	FDOUBLE_THROW_PSUF
 
-;D2/ ( xd1 -- xd2 ) CHECK!
+;D2/ ( xd1 -- xd2 )
 ;xd2 is the result of shifting xd1 one bit toward the least-significant bit,
 ;leaving the most-significant bit unchanged.
 ;
@@ -399,7 +398,7 @@ NFA_D_LESS_THAN		EQU	NFA_D_TWO_SLASH
 ;NFA_D_LESS_THAN		FHEADER, "D<", NFA_D_TWO_SLASH, COMPILE
 ;CFA_D_LESS_THAN		DW	CF_DUMMY
 
-;D= ( xd1 xd2 -- flag ) CHECK!
+;D= ( xd1 xd2 -- flag )
 ;flag is true if and only if xd1 is bit-for-bit the same as xd2.
 ;
 ;S12CForth implementation details:
@@ -416,7 +415,7 @@ CF_D_EQUALS		PS_CHECK_UF 4, CF_D_EQUALS_PSUF 	;check for underflow (PSP -> Y)
 			BEQ	CF_D_EQUALS_3			;compare LSWs
 			;False (PSP in Y)
 CF_D_EQUALS_1		LDD	#$0000
-CF_D_EQUALS_2		STD	7,+Y
+CF_D_EQUALS_2		STD	6,+Y
 			STY	PSP
 			;Done
 			NEXT
@@ -430,7 +429,7 @@ CF_D_EQUALS_3		LDD	6,Y
 	
 CF_D_EQUALS_PSUF	JOB	FDOUBLE_THROW_PSUF
 
-;D>S  d -- n ) CHECK!
+;D>S  ( d -- n )
 ;n is the equivalent of d. An ambiguous condition exists if d lies outside the
 ;range of a signed single-cell number.
 ;
@@ -463,7 +462,7 @@ CF_D_TO_S_2		LDD	0,Y
 CF_D_TO_S_RESOR		JOB	FDOUBLE_THROW_RESOR
 CF_D_TO_S_PSUF		JOB	FDOUBLE_THROW_PSUF
 	
-;DABS ( d -- ud ) CHECK!
+;DABS ( d -- ud )
 ;ud is the absolute value of d.
 ;
 ;S12CForth implementation details:
@@ -482,7 +481,7 @@ CF_D_ABS_1		NEXT
 	
 CF_D_ABS_PSUF		JOB	FDOUBLE_THROW_PSUF
 
-;DMAX ( d1 d2 -- d3 ) CHECK!
+;DMAX ( d1 d2 -- d3 )
 ;d3 is the greater of d1 and d2.
 ;
 ;S12CForth implementation details:
@@ -498,20 +497,22 @@ CF_D_MAX		PS_CHECK_UF 4, CF_D_MAX_PSUF 	;check for underflow (PSP -> Y)
 			STY	PSP
 			CPD	0,Y
 			BEQ	CF_D_MAX_2 		;compare LSWs
-			EMAXM	0,Y
-			BCS	CF_D_MAX_1
-			;Copy LSW (new PSP in Y)
+			BLT	CF_D_MAX_1		;d1 is the lesser value
+			STD	0,Y			;copy d2 to d3
 			MOVW	-2,Y, 2,Y
 			;Done
 CF_D_MAX_1		NEXT	
-			;Compare MSWs (PSP in Y) 
-CF_D_MAX_2		LDD	2,Y
-			EMAXM	-2,Y
+			;Compare MSWs (new PSP in Y) 
+CF_D_MAX_2		LDD	-2,Y
+			CPD	2,Y
+			BLT	CF_D_MAX_1		;d1 is the lesser value
+			STD	2,Y			;copy d2 to d3
+			MOVW	-4,Y, 0,Y
 			JOB	CF_D_MAX_1
 	
 CF_D_MAX_PSUF		JOB	FDOUBLE_THROW_PSUF
 
-;DMIN ( d1 d2 -- d3 ) CHECK!
+;DMIN ( d1 d2 -- d3 )
 ;d3 is the lesser of d1 and d2.
 ;
 ;S12CForth implementation details:
@@ -527,20 +528,22 @@ CF_D_MIN		PS_CHECK_UF 4, CF_D_MIN_PSUF 	;check for underflow (PSP -> Y)
 			STY	PSP
 			CPD	0,Y
 			BEQ	CF_D_MIN_2 		;compare LSWs
-			EMINM	0,Y
-			BCC	CF_D_MIN_1
-			;Copy LSW (new PSP in Y)
+			BGT	CF_D_MIN_1		;d1 is the lesser value
+			STD	0,Y			;copy d2 to d3
 			MOVW	-2,Y, 2,Y
 			;Done
 CF_D_MIN_1		NEXT	
-			;Compare MSWs (PSP in Y) 
-CF_D_MIN_2		LDD	2,Y
-			EMINM	-2,Y
+			;Compare MSWs (new PSP in Y) 
+CF_D_MIN_2		LDD	-2,Y
+			CPD	2,Y
+			BGT	CF_D_MIN_1		;d1 is the lesser value
+			STD	2,Y			;copy d2 to d3
+			MOVW	-4,Y, 0,Y
 			JOB	CF_D_MIN_1
 	
 CF_D_MIN_PSUF		JOB	FDOUBLE_THROW_PSUF
 	
-;DNEGATE ( d1 -- d2 ) CHECK!
+;DNEGATE ( d1 -- d2 )
 ;d2 is the negation of d1.
 ;
 ;S12CForth implementation details:
@@ -587,9 +590,7 @@ NFA_M_STAR_SLASH	EQU	NFA_D_NEGATE
 ;CFA_M_STAR_SLASH	DW	CF_M_STAR_SLASH
 ;CF_M_STAR_SLASH		NEXT
 	
-;M+ 
-;m-plus DOUBLE CHECK!
-;	( d1|ud1 n -- d2|ud2 )
+;M+ ( d1|ud1 n -- d2|ud2 )
 ;Add n to d1|ud1, giving the sum d2|ud2.
 ;
 ;S12CForth implementation details:
@@ -603,18 +604,18 @@ CF_M_PLUS		PS_CHECK_UF 3, CF_M_PLUS_PSUF 	;check for underflow (PSP -> Y)
 			;Add PS entries (PSP in Y)
 			LDD	2,Y+ 			;n -> D
 			STY	PSP
-			ADDD	0,Y 			;n + d1 -> D
-			STD	0,Y
-			LDD	2,Y 			;C + d2 -> D
+			ADDD	2,Y 			;n + d1 -> D
+			STD	2,Y
+			LDD	0,Y 			;C + d2 -> D
 			ADCB	#0
 			ADCA	#0
-			STAA	2,Y
+			STAA	0,Y
 			;Done
 			NEXT
 
 CF_M_PLUS_PSUF		JOB	FDOUBLE_THROW_PSUF
 	
-;2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 ) CHECK!
+;2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 )
 ;Rotate the top three cell pairs on the stack bringing cell pair x1 x2 to the
 ;top of the stack.
 ;
@@ -640,7 +641,7 @@ CF_TWO_ROT		PS_CHECK_UF 6, CF_TWO_ROT_PSUF 	;check for underflow (PSP -> Y)
 
 CF_TWO_ROT_PSUF	JOB	FDOUBLE_THROW_PSUF
 
-;DU< ( ud1 ud2 -- flag ) CHECK!
+;DU< ( ud1 ud2 -- flag )
 ;flag is true if and only if ud1 is less than ud2.
 ;
 ;S12CForth implementation details:
@@ -658,7 +659,7 @@ CF_D_U_LESS		PS_CHECK_UF 4, CF_D_U_LESS_PSUF 	;check for underflow (PSP -> Y)
 			BLO	CF_D_U_LESS_4 			;true
 			;False (PSP in Y)
 CF_D_U_LESS_1		LDD	#$0000
-CF_D_U_LESS_2		STD	7,+Y
+CF_D_U_LESS_2		STD	6,+Y
 			STY	PSP
 			;Done
 			NEXT

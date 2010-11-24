@@ -243,7 +243,7 @@ FSCI_TABS_END		EQU	*
 ;###############################################################################
 			ORG	FSCI_WORDS_START
 	
-;BAUD! ( ud -- ) S12CForth extension
+;BAUD! ( ud -- ) S12CForth extension CHECK!
 ;Sets the baud RATE to ud.
 ;Throws:
 ;"Parameter stack underflow"
@@ -279,7 +279,7 @@ CF_BAUD_STORE_1		SCI_RX				;get one byte
 CF_BAUD_STORE_PSUF	JOB	FSCI_THROW_PSUF
 CF_BAUD_STORE_INVALNUM	JOB	FSCI_THROW_INVALNUM
 
-;BAUD@ (  -- ud ) S12CForth extension
+;BAUD@ (  -- ud ) S12CForth extension CHECK!
 ;Returns the current baud rate.
 ;been set.
 ;Throws:

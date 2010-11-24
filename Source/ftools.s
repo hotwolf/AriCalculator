@@ -82,7 +82,7 @@ FTOOLS_SKIP_1		SSTACK_JOBSR	FCORE_NAME 	;string pointer -> X, char count -> A (S
 			;6 chars like [ELSE] or [THEN] (string pointer in X)
 			LDD	0,X
 			CPD	#"[E"
-			BEQ	FTOOLS_SKIP_2 		;starts with "[E"
+			BEQ	FTOOLS_SKIP_3 		;starts with "[E"
 			CPD	#"[T"
 			BNE	FTOOLS_SKIP_1 		;parse next word
 			;Starts with "[T" (string pointer in X)
@@ -90,7 +90,7 @@ FTOOLS_SKIP_1		SSTACK_JOBSR	FCORE_NAME 	;string pointer -> X, char count -> A (S
 			CPD	#"HE"
 			BNE	FTOOLS_SKIP_1 		;parse next word
 			LDD	4,X
-			CPD	#"N]"
+			CPD	#(("N]")|$0080)
 			BNE	FTOOLS_SKIP_1 		;parse next word
 			LDX	#4
 			;Done
@@ -101,7 +101,7 @@ FTOOLS_SKIP_3		LDD	2,X
 			CPD	#"LS"
 			BNE	FTOOLS_SKIP_1 		;parse next word
 			LDD	4,X
-			CPD	#"E]"
+			CPD	#(("E]")|$0080)
 			BNE	FTOOLS_SKIP_1 		;parse next word
 			LDX	#2
 			;Done
@@ -111,9 +111,9 @@ FTOOLS_SKIP_4		LDD	0,X
 			CPD	#"[I"
 			BNE	FTOOLS_SKIP_1 		;parse next word
 			LDD	2,X
-			CPD	#"F]"
+			CPD	#(("F]")|$0080)
 			BNE	FTOOLS_SKIP_1 		;parse next word
-			LDX	#2
+			LDX	#0
 			;Done
 			JOB	FTOOLS_SKIP_2
 			;Parse a new line
@@ -528,7 +528,7 @@ NFA_C_S_ROLL		EQU	NFA_C_S_PICK
 ;not implemented 
 NFA_EDITOR		EQU	NFA_C_S_ROLL 
 
-;FORGET ( "<spaces>name" -- ) CHECK!
+;FORGET ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Find name, then
 ;delete name from the dictionary along with all words added to the dictionary
 ;after name. An ambiguous condition exists if name cannot be found.
@@ -560,8 +560,7 @@ CF_FORGET		;Parse name
 			BLE	CF_FORGET_2 			;name not in user dictionary
 			CPX	#DICT_MAX
 			BGT	CF_FORGET_2 			;name not in user dictionary
-			;Name is in user sictionary (NFA in X)
-			LEAX	-2,X 				;restore old CP
+			;Name is in user dictionary (NFA in X)
 CF_FORGET_1		STX	CP
 			STX	CP_SAVED
 			;Done
@@ -578,7 +577,7 @@ CF_FORGET_UDEFWORD	JOB	FCORE_THROW_UDEFWORD
 ;STATE. A program shall not directly alter the contents of STATE.
 NFA_STATE_TOOLS		EQU	NFA_FORGET
 	
-;[ELSE] CHECK!
+;[ELSE]
 ;Compilation: Perform the execution semantics given below.
 ;Execution:   ( "<spaces>name" ... -- )
 ;Skipping leading spaces, parse and discard space-delimited words from the parse
@@ -594,28 +593,28 @@ NFA_STATE_TOOLS		EQU	NFA_FORGET
 ;"Compile-only word"
 ;
 			ALIGN	1
-NFA_BRACKET_ELSE	FHEADER, "[ELSE]", NFA_STATE_TOOLS, COMPILE 
+NFA_BRACKET_ELSE	FHEADER, "[ELSE]", NFA_STATE_TOOLS, IMMEDIATE
 CFA_BRACKET_ELSE	DW	CF_BRACKET_ELSE
 CF_BRACKET_ELSE		COMPILE_ONLY	CF_BRACKET_IF_COMPONLY	;ensure that compile mode is on
 			;Skip to next [THEN]. Skip over nested [IF]s.	
 CF_BRACKET_ELSE_1	SSTACK_JOBSR	FTOOLS_SKIP
 			JMP	[CF_BRACKET_ELSE_TAB,X]
 
-CF_BRACKET_ELSE_TAB	DW	CF_BRACKET_ELSE_2 		;[IF]
+CF_BRACKET_ELSE_TAB	DW	CF_BRACKET_ELSE_3 		;[IF]
 			DW	CF_BRACKET_ELSE_1		;[ELSE]
-			DW	CF_BRACKET_ELSE_3		;[THEN]
+			DW	CF_BRACKET_ELSE_2		;[THEN]
 
-			;Skip to next [THEN]. Skip over nested [IF]s.	
-CF_BRACKET_ELSE_2	EXEC_CF	CF_BRACKET_ELSE, CF_BRACKET_ELSE_RSOF, CF_BRACKET_ELSE_RSUF
-			JOB	CF_BRACKET_ELSE_1
 			;Done 
-CF_BRACKET_ELSE_3	NEXT
+CF_BRACKET_ELSE_2	NEXT
+			;Nested [IF]
+CF_BRACKET_ELSE_3	EXEC_CF	CF_BRACKET_ELSE, CF_BRACKET_ELSE_RSOF, CF_BRACKET_ELSE_RSUF
+			JOB	CF_BRACKET_ELSE_1	
 	
 CF_BRACKET_ELSE_RSUF		JOB	FTOOLS_THROW_RSUF
 CF_BRACKET_ELSE_RSOF		JOB	FTOOLS_THROW_RSOF
 CF_BRACKET_ELSE_COMPONLY	JOB	FTOOLS_THROW_COMPONLY
 
-;[IF] CHECK!
+;[IF]
 ;Compilation: Perform the execution semantics given below.
 ;Execution:  ( flag | flag "<spaces>name" ... -- )
 ;If flag is true, do nothing. Otherwise, skipping leading spaces, parse and
@@ -635,29 +634,27 @@ CF_BRACKET_ELSE_COMPONLY	JOB	FTOOLS_THROW_COMPONLY
 ;"Compile-only word"
 ;
 			ALIGN	1
-NFA_BRACKET_IF		FHEADER, "[IF]", NFA_BRACKET_ELSE, COMPILE 
+NFA_BRACKET_IF		FHEADER, "[IF]", NFA_BRACKET_ELSE, IMMEDIATE 
 CFA_BRACKET_IF		DW	CF_BRACKET_IF
 CF_BRACKET_IF		COMPILE_ONLY	CF_BRACKET_IF_COMPONLY	;ensure that compile mode is on
 			PS_CHECK_UF	1, CF_BRACKET_IF_PSUF	;(PSP -> Y)
 			;Check flag (PSP in Y) 
 			LDD	2,Y+
 			STY	PSP
-			TBNE	D, CF_BRACKET_IF_1		;do nothing
+			TBNE	D, CF_BRACKET_IF_2		;do nothing
 			;Done 
 			;Skip to next [ELSE] or [THEN]. Skip over nested [IF]s.	
-			SSTACK_JOBSR	FTOOLS_SKIP
-			TBNE	X, CF_BRACKET_IF_1 
-			;nested [IF]
-			EXEC_CF	CF_BRACKET_ELSE, CF_BRACKET_IF_RSOF, CF_BRACKET_IF_RSUF
+CF_BRACKET_IF_1		SSTACK_JOBSR	FTOOLS_SKIP
+			TBEQ	X, CF_BRACKET_IF_3
 			;Done 
-CF_BRACKET_IF_1		NEXT
-	
+CF_BRACKET_IF_2		NEXT
+			;nested [IF]
+CF_BRACKET_IF_3		EQU	CF_BRACKET_ELSE_1
+		
 CF_BRACKET_IF_PSUF	JOB	FTOOLS_THROW_PSUF
-CF_BRACKET_IF_RSUF	JOB	FTOOLS_THROW_RSUF
-CF_BRACKET_IF_RSOF	JOB	FTOOLS_THROW_RSOF
 CF_BRACKET_IF_COMPONLY	JOB	FTOOLS_THROW_COMPONLY
 
-;[THEN] CHECK!
+;[THEN]
 ;Compilation: Perform the execution semantics given below.
 ;Execution:   ( -- )
 ;Does nothing. [THEN] is an immediate word.
