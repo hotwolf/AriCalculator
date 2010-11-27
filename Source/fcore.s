@@ -332,7 +332,7 @@ FCORE_NAME_4		ORAA	#$80			;add termination bit to last character
 			;Adjust >IN pointer (pointer to last character in Y, string pointer in X)
 			TFR	Y,D
 			ADDD	#1 			;skip the trailing whitespace
-			EMIND	TIB_START,Y		;don't go beyond the end of the TIB
+			EMIND	NUMBER_TIB-*,PC		;don't go beyond the end of the TIB
 			STD	TO_IN
 			;Calculate character count (pointer to last character in Y, string pointer in X)
 			TFR	X, D 			;string pointer -> D
@@ -698,7 +698,10 @@ FCORE_PARSE_1		ADDB	#1 			;increment B
 			BNE	FCORE_PARSE_1		;check next character
 			;Terminate previous character (>IN in Y, delimiter in A, string pointer in X) 
 FCORE_PARSE_2		BSET	TIB_START-1,Y, #$80 	;set termination bit
-FCORE_PARSE_3		LEAY	1,Y			;increment >IN
+FCORE_PARSE_3		EXG	Y,D
+			ADDD	#1			;increment >IN
+			EMIND	NUMBER_TIB-*,PC		;don't go beyond the end of the TIB
+			EXG	Y,D
 			STY	TO_IN			;update >IN
 			TBA				;character count -> A
 			;Done
@@ -4051,7 +4054,7 @@ CF_R_SHIFT_2		STY	PSP
 			
 CF_R_SHIFT_PSUF		JOB	FCORE_THROW_PSUF		
 	
-;S" CHECK!
+;S"
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "ccc<quote>" -- )
 ;Parse ccc delimited by " (double-quote). Append the run-time semantics given
@@ -4114,10 +4117,12 @@ CF_S_QUOTE_RT		PS_CHECK_OF	2, CF_S_QUOTE_PSOF 	;check for PS overflow (PSP-4 -> 
 			;Push string pointer onto PS (PSP-4 in Y)
 			LDX	IP
 			STX	2,Y
-			;Push character count onto PS (PSP-4 in Y, string pointer in X)
+			;Count characters (PSP-4 in Y, string pointer in X)
 			PRINT_STRCNT
-			;TBA	
-			;CLRA
+			;Adjust IP (PSP-4 in Y, string pointer in X, char count in A)
+			LEAX	A,X
+			STX	IP
+			;Push character count onto PS (PSP-4 in Y, char count in A)
 			EXG	A, D
 			STD	0,Y
 			STY	PSP
@@ -4620,7 +4625,7 @@ CF_WHILE_COMPONLY	JOB	FCORE_THROW_COMPONLY
 ;WHILE run-time semantics 
 CFA_WHILE_RT		EQU	CFA_UNTIL_RT 	;same as UNTIL run-time semantics
 	
-;WORD ( char "<chars>ccc<char>" -- c-addr ) CHECK!
+;WORD ( char "<chars>ccc<char>" -- c-addr )
 ;Skip leading delimiters. Parse characters ccc delimited by char. An ambiguous
 ;condition exists if the length of the parsed string is greater than the
 ;implementation-defined length of a counted string.
@@ -4786,7 +4791,7 @@ NFA_NUMBER_TIB		FHEADER, "#TIB", NFA_CP, COMPILE
 CFA_NUMBER_TIB		DW	CF_CONSTANT_RT
 			DW	NUMBER_TIB
 
-;.( CHECK!
+;.(
 ;Compilation: Perform the execution semantics given below.
 ;Execution: ( "ccc<paren>" -- )
 ;Parse and display ccc delimited by ) (right parenthesis). .( is an immediate
@@ -4803,9 +4808,15 @@ CFA_NUMBER_TIB		DW	CF_CONSTANT_RT
 NFA_DOT_PAREN		FHEADER, ".(", NFA_NUMBER_TIB, IMMEDIATE
 CFA_DOT_PAREN		DW	CF_DOT_PAREN
 CF_DOT_PAREN		;Parse quote
-			LDAA	#"(" 				;left parenthesis
-			JOB	CF_DOT_QUOTE_1
-	
+			LDAA	#")" 				;right parenthesis
+			;JOB	CF_DOT_QUOTE_1
+			SSTACK_JOBSR	FCORE_PARSE		;string pointer -> X, character count -> A
+			TBEQ	X, CF_DOT_PAREN_1
+			;Print quote (string pointer in X)
+			PRINT_STR	
+			;Done
+CF_DOT_PAREN_1		NEXT
+				
 ;.R ( n1 n2 -- )
 ;Display n1 right aligned in a field n2 characters wide. If the number of
 ;characters required to display n1 is greater than n2, all digits are displayed
@@ -4863,7 +4874,7 @@ CF_ZERO_GREATER_1	STY	PSP
 	
 CF_ZERO_GREATER_PSUF	JOB	FCORE_THROW_PSUF
 	
-;2>R CHECK!
+;2>R
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution:      ( x1 x2 -- ) ( R:  -- x1 x2 )
 ;Transfer cell pair x1 x2 to the return stack. Semantically equivalent to
@@ -4876,7 +4887,8 @@ CF_ZERO_GREATER_PSUF	JOB	FCORE_THROW_PSUF
 ;"Return stack overflow"
 			ALIGN	1
 NFA_TWO_TO_R		FHEADER, "2>R", NFA_ZERO_GREATER, COMPILE
-CFA_TWO_TO_R		PS_CHECK_UF	2, CF_TWO_TO_PSUF	;(PSP -> Y)
+CFA_TWO_TO_R		DW	CF_TWO_TO_R
+CF_TWO_TO_R		PS_CHECK_UF	2, CF_TWO_TO_PSUF	;(PSP -> Y)
 			RS_CHECK_OF	2, CF_TWO_TO_RSOF	;
 			;Move stack entries (PSP in Y)
 			LDX	RSP
@@ -4889,7 +4901,7 @@ CFA_TWO_TO_R		PS_CHECK_UF	2, CF_TWO_TO_PSUF	;(PSP -> Y)
 CF_TWO_TO_PSUF		JOB	FCORE_THROW_PSUF
 CF_TWO_TO_RSOF		JOB	FCORE_THROW_RSOF
 	
-;2R> CHECK!
+;2R>
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- x1 x2 ) ( R:  x1 x2 -- )
 ;Transfer cell pair x1 x2 from the return stack. Semantically equivalent to
@@ -4907,8 +4919,8 @@ CFA_TWO_FROM_R		DW	CF_TWO_FROM_R
 CF_TWO_FROM_R		PS_CHECK_OF	2, CF_TWO_FROM_R_PSOF 	;check for PS overflow (PSP-4 -> Y)	
 			RS_CHECK_UF	2, CF_TWO_FROM_R_RSUF	;(RSP -> X)
 			;Move stack entries
-			MOVW	2,X+, 2,Y
 			MOVW	2,X+, 0,Y
+			MOVW	2,X+, 2,Y
 			STY	PSP
 			STX	RSP
 			NEXT
@@ -5340,7 +5352,7 @@ CFA_HEX			DW	CF_HEX
 CF_HEX			MOVW	#16, BASE
 			NEXT
 
-;MARKER ( "<spaces>name" -- ) CHECK!
+;MARKER ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below.
 ;name Execution: ( -- )
@@ -5368,6 +5380,7 @@ CF_MARKER		;Build header
 			MOVW	#CF_MARKER_RT, 2,X+
 			STD	 2,X+ 			;store NFA in data field
 			;Update CP saved (CP in X)
+			STX	CP
 			STX	CP_SAVED
 			;Done 
 			NEXT
@@ -5549,7 +5562,7 @@ CF_PAD_1		STD	0,Y
 			;Done 
 			NEXT
 
-;PARSE ( char "ccc<char>" -- c-addr u ) CHECK!
+;PARSE ( char "ccc<char>" -- c-addr u )
 ;Parse ccc delimited by the delimiter char.
 ;c-addr is the address (within the input buffer) and u is the length of the
 ;parsed string. If the parse area was empty, the resulting string has a zero
