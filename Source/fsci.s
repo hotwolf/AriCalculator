@@ -19,7 +19,7 @@
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module implements Forth words for the S12CBase SCI driver           # 
+;#    This module implements Forth words for the S12CBase SCI driver           #
 ;#    Relationship between SCIBR and the baud rate:                            #
 ;#                                                                             #
 ;#                               CLOCK_BUS_FREQ                                #
@@ -63,6 +63,19 @@ FSCI_VARS_END		EQU	*
 #macro	FSCI_INIT, 0
 #emac
 
+
+#macro	FSCI_LSLDX, 0
+
+
+#emac
+	
+#macro	FSCI_LSLRX, 0
+
+
+#emac
+
+
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -82,117 +95,95 @@ FSCI_CONVERT	EQU	*
 			TBEQ	D, FSCI_CONVERT_8 		;16-bit dividend
 
 			;32-bit dividend (dividend in D:X)
-FSCI_CONVERT_1	SSTACK_ALLOC	10 			;allocate temporary variables
+			;Allocate temporary memory (dividend in D:X)
+			SSTACK_ALLOC	8 			;allocate 4 additional words
 			LDY	SSTACK_SP
 ;  	                +--------------+--------------+
-;           SSTACK_SP-> |         temp variable       | +$00
+;           SSTACK_SP-> |        divisor (MSW)        | +$00
 ;  	                +--------------+--------------+
-;                       |           shifter           | +$02
+;                       |        divisor (LSW)        | +$02
 ;  	                +--------------+--------------+
-;                       |        divisor (MSW)        | +$04
-;  	                +--------------+--------------+          
-;                       |        divisor (LSW)        | +$06         
-;  	                +--------------+--------------+	     
 ;                       |        dividend (MSW)       | +$04
 ;  	                +--------------+--------------+          
 ;                       |        dividend (LSW)       | +$06         
 ;  	                +--------------+--------------+	     
-;                       |           result            | +$08         
+;                       |         D (shifter)         | +$08         
 ;  	                +--------------+--------------+	     
-;                       |              Y              | +$0A         
+;                       |         X (result)          | +$0A         
+;  	                +--------------+--------------+	     
+;                       |              Y              | +$0C         
 ;  	                +--------------+--------------+          
-FSCI_CONVERT_TMP		EQU	$00
-FSCI_CONVERT_SHIFTER	EQU	$02
-FSCI_CONVERT_DIVISOR_LSW	EQU	$06
-FSCI_CONVERT_DIVISOR_MSW	EQU	$08
-FSCI_CONVERT_DIVIDEND_LSW	EQU	$06
-FSCI_CONVERT_DIVIDEND_MSW	EQU	$08
-FSCI_CONVERT_RESULT	EQU	$0A
-
-			;Initialize result (SP in Y, dividend in D:X))
+FSCI_CONVERT_DIVISOR_LSW	EQU	$00
+FSCI_CONVERT_DIVISOR_MSW	EQU	$02
+FSCI_CONVERT_DIVIDEND_LSW	EQU	$04
+FSCI_CONVERT_DIVIDEND_MSW	EQU	$06
+FSCI_CONVERT_SHIFTER		EQU	$08
+FSCI_CONVERT_RESULT		EQU	$0A
+			;Initialize temporary registers (SP in Y, dividend in D:X)
+			MOVW	#$0000, FSCI_CONVERT_SHIFTER,Y
 			MOVW	#$0000, FSCI_CONVERT_RESULT,Y
-
-			;Initialize divisor (SP in Y, dividend in D:X))
-			MOVW	#(FSCI_DIVISOR>>16),  FSCI_CONVERT_DIVISOR_MSW,Y
-			MOVW	#(FSCI_DIVISOR>>$FF), FSCI_CONVERT_DIVISOR_LSW,Y
-
-			;Initialize dividend (SP in Y, dividend in D:X))
-			STD	FSCI_CONVERT_DIVIDEND_MSW,Y
-			STX	FSCI_CONVERT_DIVIDEND_LSW,Y
-			
-			;Terminate if divisor <= dividend (SP in Y, dividend in D:X)
-FSCI_CONVERT_2		CPD	FSCI_CONVERT_DIVISOR_MSW,Y
-			BHI	FSCI_CONVERT_7 			;terminate
-			BLO	FSCI_CONVERT_3 			;continue division
-			;Divisor MSW == dividend MSW (SP in Y, dividend in D:X)
+			MOVW	#(FSCI_DIVISOR>>16), FSCI_CONVERT_DIVISOR_MSW,Y
+			MOVW	#FSCI_DIVISOR,       FSCI_CONVERT_DIVISOR_LSW,Y
+			MOVW	#$0000, FSCI_CONVERT_DIVIDEND_MSW,Y
+			MOVW	#$0000, FSCI_CONVERT_DIVIDEND_LSW,Y
+			;Check if shifted dividend is greater than the divisor (SP in Y, shifted dividend in D:X)
+FSCI_CONVERT_1		CPD	FSCI_CONVERT_DIVISOR_MSW,Y	
+			BHI	FSCI_CONVERT_4 			;shifted dividend > divisor
+			BLO	FSCI_CONVERT_2			;shifted dividend < divisor
 			CPX	FSCI_CONVERT_DIVISOR_LSW,Y
-			BHI	FSCI_CONVERT_7 			;terminate
-
-			;Initialize shifter  (SP in Y, dividend in D:X))
-FSCI_CONVERT_3		MOVW	#$0001, FSCI_CONVERT_SHIFTER,Y
-
-			;Shift dividend  (SP in Y, dividend in D:X)			
-FSCI_CONVERT_4		EXG	D, X
+			BHI	FSCI_CONVERT_4 			;dividend > divisor
+			;Shifted dividend < divisor (SP in Y, shifted dividend in D:X)
+FSCI_CONVERT_2		STD	FSCI_CONVERT_DIVIDEND_MSW,Y 	;store shifted dividend
+			STX	FSCI_CONVERT_DIVIDEND_LSW,Y
+			LDD	FSCI_CONVERT_SHIFTER,Y 		;update shifter
 			LSLD
-			EXG	D, X
+			BNE	FSCI_CONVERT_3
+			LDD	#$0001
+FSCI_CONVERT_3		STD	FSCI_CONVERT_SHIFTER,Y
+			TFR	X,D 				;left-shift dividend
+			LSLD
+			TFR	D,X
+			LDD	FSCI_CONVERT_DIVIDEND_MSW,Y
 			ROLB
 			ROLA
-
-			;Check if shifted divisor < shifted dividend (SP in Y, shifted dividend in C:D:X)
-			BCS	FSCI_CONVERT_5 			;terminate iteration and consider carry bit
-			CPD	FSCI_CONVERT_DIVISOR_MSW,Y
-			BHI	FSCI_CONVERT_6 			;terminate iteration
-			;Divisor MSW == dividend MSW (SP in Y, shifted dividend in D:X)
-			CPX	FSCI_CONVERT_DIVISOR_LSW,Y
-			BHI	FSCI_CONVERT_6 			;terminate iteration
-
-			;Shift shifter (SP in Y, shifted dividend in D:X)
-			STD	FSCI_CONVERT_TMP,Y
-			LDD	FSCI_CONVERT_SHIFTER,Y
-			LSLD
-			STD	FSCI_CONVERT_SHIFTER,Y
-			LDD	FSCI_CONVERT_TMP,Y
-			
-			;Next iteration 
-			JOB	FSCI_CONVERT_4 			
-	
-			;Terminate iteration and consider carry bit (SP in Y, shifted dividend in C:D:X)
-FSCI_CONVERT_5		RORA	
-			RORB
-			JOB	FSCI_CONVERT_6			;terminate iteration
-	
-			;Terminate iteration (SP in Y, shifted dividend in D:X)
-FSCI_CONVERT_6		LSRD
-			EXG	D,X
+			JOB	FSCI_CONVERT_1
+			;Shifted dividend > divisor (SP in Y)
+FSCI_CONVERT_4		LDD	FSCI_CONVERT_RESULT,Y 		;add shifter to result
+			ADDD	FSCI_CONVERT_SHIFTER,Y
+			STD	FSCI_CONVERT_RESULT,Y
+			LDD	FSCI_CONVERT_DIVISOR_LSW,Y 	;subtract dividend from divisor
+			SUBD	FSCI_CONVERT_DIVIDEND_LSW,Y
+			LDD	FSCI_CONVERT_DIVISOR_MSW,Y
+			SBCB	FSCI_CONVERT_DIVIDEND_MSW+1,Y
+			SBCA	FSCI_CONVERT_DIVIDEND_MSW,Y
+			STD	FSCI_CONVERT_DIVISOR_MSW,Y
+			LDD	FSCI_CONVERT_DIVIDEND_MSW,Y 	;dividend -> D:X
+			LDX	FSCI_CONVERT_DIVIDEND_LSW,Y
+			;Right-shift dividend (SP in Y, dividend in D:X) 
+FSCI_CONVERT_5		LSRD					;shift MSW
+			STD	FSCI_CONVERT_DIVIDEND_MSW,Y	;store MSW
+			TFR	X,D				;shift LSW
 			RORA
 			RORB
-
-			;Subtract dividend from divisor (SP in Y, shifted dividend in X:D)
-			STD	FSCI_CONVERT_TMP,Y
-			LDD	FSCI_CONVERT_DIVISOR_LSW,Y
-			SUBD	FSCI_CONVERT_TMP,Y
-			STD	FSCI_CONVERT_DIVISOR_LSW,Y
-			STX	FSCI_CONVERT_TMP,Y
-			LDD	FSCI_CONVERT_DIVISOR_MSW,Y
-			SBCB	FSCI_CONVERT_TMP+1,Y
-			SBCA	FSCI_CONVERT_TMP,Y
-			STD	FSCI_CONVERT_DIVISOR_MSW,Y
-			
-			;Add shifter to result (SP in Y)
-			LDD	FSCI_CONVERT_SHIFTER,Y	
-			ADDD	FSCI_CONVERT_RESULT,Y
-			STD	FSCI_CONVERT_RESULT,Y
-
-			;Load original dividend (SP in Y)
+			TFR	D,X
+			STX	FSCI_CONVERT_DIVIDEND_LSW,Y	;store LSW
+			LDD	FSCI_CONVERT_SHIFTER,Y		;update shifter
+			LSRD
+			STD	FSCI_CONVERT_SHIFTER,Y
 			LDD	FSCI_CONVERT_DIVIDEND_MSW,Y
-			LDX	FSCI_CONVERT_DIVIDEND_LSW,Y
-		
-			;Rerun outer loop with new divisor (SP in Y, dividend in D:X)
-			JOB	FSCI_CONVERT_2	
-
-			;Terminate (SP in Y)
-FSCI_CONVERT_7		MOVW	#$0000, FSCI_CONVERT_DIVIDEND_LSW,Y	;clean up result
-			SSTACK_DEALLOC	10 				;free temporary variables
+			;Terminate if shifted dividend is zero (SP in Y, dividend in D:X)
+			TBNE	D, FSCI_CONVERT_6		;dividend is not zero
+			TBEQ	X, FSCI_CONVERT_7		;dividend is zero
+			;Check if dividend < divisor (SP in Y, dividend in D:X)
+FSCI_CONVERT_6		CPD	FSCI_CONVERT_DIVISOR_MSW,Y
+			BLO	FSCI_CONVERT_4 			;shifted dividend < divisor
+			BHI	FSCI_CONVERT_5			;shifted dividend > divisor
+			CPX	FSCI_CONVERT_DIVISOR_MSW,Y
+			BHI	FSCI_CONVERT_5			;shifted dividend > divisor
+			JOB	FSCI_CONVERT_4 			;shifted dividend <= divisor
+			;Prepare result (SP in Y)
+FSCI_CONVERT_7		;MOVW	#$0000, FSCI_CONVERT_SHIFTER,Y	
+			SSTACK_DEALLOC	8 				;free temporary variables
 			JOB	FSCI_CONVERT_9	
 				
 			;16-bit dividend (dividend in X)
@@ -202,23 +193,32 @@ FSCI_CONVERT_7		MOVW	#$0000, FSCI_CONVERT_DIVIDEND_LSW,Y	;clean up result
 ;                       |     X (dividend/result LSW) | +$02         
 ;  	                +--------------+--------------+	     
 ;                       |              Y              | +$04         
-;  	                +--------------+--------------+	
+;  	                +--------------+--------------+
+FSCI_CONVERT_D		EQU	$00
+FSCI_CONVERT_X		EQU	$02
+FSCI_CONVERT_Y		EQU	$04
+			;Check if divident ia zero (dividend in X)
+FSCI_CONVERT_8		TBEQ	X, FSCI_CONVERT_10 		;division by zero (return zero)	
 			;1st division: divisor(MSB)/dividend => result(MSB) 
-FSCI_CONVERT_8		LDD	#(FSCI_DIVISOR>>16)
+			LDD	#(FSCI_DIVISOR>>16)
 			IDIV					;D/X=>X; remainder=D
 			LDY	SSTACK_SP
-			STX	0,Y
+			STX	FSCI_CONVERT_D,Y
 			;2nd division: remainder:divisor(LSB)/dividend => result(LSB) 
-			LDX	2,Y	
+			LDX	FSCI_CONVERT_X,Y	
 			TFR	D,Y
-			LDD	#(FSCI_DIVISOR>>$FF)
+			LDD	#FSCI_DIVISOR
 			EDIV					;Y:D/X=>Y; remainder=>D
 			LDX	SSTACK_SP
-			STY	0,X
-
+			STY	FSCI_CONVERT_X,X
 			;Restore registers 
-FSCI_CONVERT_9	SSTACK_PULDXY
+FSCI_CONVERT_9		SSTACK_PULDXY
 			SSTACK_RTS
+			;Division by zero
+FSCI_CONVERT_10		LDY	SSTACK_SP
+			MOVW	#$FFFF, FSCI_CONVERT_D,Y
+			MOVW	#$FFFF, FSCI_CONVERT_X,Y
+			JOB	FSCI_CONVERT_9
 
 ;Exceptions:
 ;===========
@@ -243,8 +243,9 @@ FSCI_TABS_END		EQU	*
 ;###############################################################################
 			ORG	FSCI_WORDS_START
 	
-;BAUD! ( ud -- ) S12CForth extension CHECK!
-;Sets the baud RATE to ud.
+;BAUD! ( ud " " -- ) S12CForth extension CHECK!
+;Sets the baud RATE to ud. As soon as the word is executed, it expects to
+;receive a space character a new baud rate.
 ;Throws:
 ;"Parameter stack underflow"
 ;"Invalid numeric argument"
@@ -279,7 +280,7 @@ CF_BAUD_STORE_1		SCI_RX				;get one byte
 CF_BAUD_STORE_PSUF	JOB	FSCI_THROW_PSUF
 CF_BAUD_STORE_INVALNUM	JOB	FSCI_THROW_INVALNUM
 
-;BAUD@ (  -- ud ) S12CForth extension CHECK!
+;BAUD@ (  -- ud ) S12CForth extension
 ;Returns the current baud rate.
 ;been set.
 ;Throws:
