@@ -87,7 +87,7 @@ FBDM_VARS_END		EQU	*
 ;#Divide CLOCK_BUS_FREQ*128 by a double number
 ; args:   D:X: Dividend
 ; result: D:X: Result
-; SSTACK: 18 bytes
+; SSTACK: 16 bytes
 ;         Y is preserved
 FBDM_CONVERT	EQU	*
 			;Save registers
@@ -97,117 +97,95 @@ FBDM_CONVERT	EQU	*
 			TBEQ	D, FBDM_CONVERT_8 		;16-bit dividend
 
 			;32-bit dividend (dividend in D:X)
-FBDM_CONVERT_1		SSTACK_ALLOC	10 			;allocate temporary variables
+			;Allocate temporary memory (dividend in D:X)
+			SSTACK_ALLOC	8 			;allocate 4 additional words
 			LDY	SSTACK_SP
 ;  	                +--------------+--------------+
-;           SSTACK_SP-> |         temp variable       | +$00
+;           SSTACK_SP-> |        divisor (MSW)        | +$00
 ;  	                +--------------+--------------+
-;                       |           shifter           | +$02
+;                       |        divisor (LSW)        | +$02
 ;  	                +--------------+--------------+
-;                       |        divisor (MSW)        | +$04
-;  	                +--------------+--------------+          
-;                       |        divisor (LSW)        | +$06         
-;  	                +--------------+--------------+	     
 ;                       |        dividend (MSW)       | +$04
 ;  	                +--------------+--------------+          
 ;                       |        dividend (LSW)       | +$06         
 ;  	                +--------------+--------------+	     
-;                       |           result            | +$08         
+;                       |         D (shifter)         | +$08         
 ;  	                +--------------+--------------+	     
-;                       |              Y              | +$0A         
+;                       |         X (result)          | +$0A         
+;  	                +--------------+--------------+	     
+;                       |              Y              | +$0C         
 ;  	                +--------------+--------------+          
-FBDM_CONVERT_TMP		EQU	$00
-FBDM_CONVERT_SHIFTER	EQU	$02
-FBDM_CONVERT_DIVISOR_LSW	EQU	$06
-FBDM_CONVERT_DIVISOR_MSW	EQU	$08
-FBDM_CONVERT_DIVIDEND_LSW	EQU	$06
-FBDM_CONVERT_DIVIDEND_MSW	EQU	$08
-FBDM_CONVERT_RESULT	EQU	$0A
-
-			;Initialize result (SP in Y, dividend in D:X))
+FBDM_CONVERT_DIVISOR_LSW	EQU	$00
+FBDM_CONVERT_DIVISOR_MSW	EQU	$02
+FBDM_CONVERT_DIVIDEND_LSW	EQU	$04
+FBDM_CONVERT_DIVIDEND_MSW	EQU	$06
+FBDM_CONVERT_SHIFTER		EQU	$08
+FBDM_CONVERT_RESULT		EQU	$0A
+			;Initialize temporary registers (SP in Y, dividend in D:X)
+			MOVW	#$0000, FBDM_CONVERT_SHIFTER,Y
 			MOVW	#$0000, FBDM_CONVERT_RESULT,Y
-
-			;Initialize divisor (SP in Y, dividend in D:X))
-			MOVW	#(FBDM_DIVISOR>>16),  FBDM_CONVERT_DIVISOR_MSW,Y
-			MOVW	#(FBDM_DIVISOR>>$FF), FBDM_CONVERT_DIVISOR_LSW,Y
-
-			;Initialize dividend (SP in Y, dividend in D:X))
-			STD	FBDM_CONVERT_DIVIDEND_MSW,Y
-			STX	FBDM_CONVERT_DIVIDEND_LSW,Y
-			
-			;Terminate if divisor <= dividend (SP in Y, dividend in D:X)
-FBDM_CONVERT_2		CPD	FBDM_CONVERT_DIVISOR_MSW,Y
-			BHI	FBDM_CONVERT_7 			;terminate
-			BLO	FBDM_CONVERT_3 			;continue division
-			;Divisor MSW == dividend MSW (SP in Y, dividend in D:X)
+			MOVW	#(FBDM_DIVISOR>>16), FBDM_CONVERT_DIVISOR_MSW,Y
+			MOVW	#FBDM_DIVISOR,       FBDM_CONVERT_DIVISOR_LSW,Y
+			MOVW	#$0000, FBDM_CONVERT_DIVIDEND_MSW,Y
+			MOVW	#$0000, FBDM_CONVERT_DIVIDEND_LSW,Y
+			;Check if shifted dividend is greater than the divisor (SP in Y, shifted dividend in D:X)
+FBDM_CONVERT_1		CPD	FBDM_CONVERT_DIVISOR_MSW,Y	
+			BHI	FBDM_CONVERT_4 			;shifted dividend > divisor
+			BLO	FBDM_CONVERT_2			;shifted dividend < divisor
 			CPX	FBDM_CONVERT_DIVISOR_LSW,Y
-			BHI	FBDM_CONVERT_7 			;terminate
-
-			;Initialize shifter  (SP in Y, dividend in D:X))
-FBDM_CONVERT_3		MOVW	#$0001, FBDM_CONVERT_SHIFTER,Y
-
-			;Shift dividend  (SP in Y, dividend in D:X)			
-FBDM_CONVERT_4		EXG	D, X
+			BHI	FBDM_CONVERT_4 			;dividend > divisor
+			;Shifted dividend < divisor (SP in Y, shifted dividend in D:X)
+FBDM_CONVERT_2		STD	FBDM_CONVERT_DIVIDEND_MSW,Y 	;store shifted dividend
+			STX	FBDM_CONVERT_DIVIDEND_LSW,Y
+			LDD	FBDM_CONVERT_SHIFTER,Y 		;update shifter
 			LSLD
-			EXG	D, X
+			BNE	FBDM_CONVERT_3
+			LDD	#$0001
+FBDM_CONVERT_3		STD	FBDM_CONVERT_SHIFTER,Y
+			TFR	X,D 				;left-shift dividend
+			LSLD
+			TFR	D,X
+			LDD	FBDM_CONVERT_DIVIDEND_MSW,Y
 			ROLB
 			ROLA
-
-			;Check if shifted divisor < shifted dividend (SP in Y, shifted dividend in C:D:X)
-			BCS	FBDM_CONVERT_5 			;terminate iteration and consider carry bit
-			CPD	FBDM_CONVERT_DIVISOR_MSW,Y
-			BHI	FBDM_CONVERT_6 			;terminate iteration
-			;Divisor MSW == dividend MSW (SP in Y, shifted dividend in D:X)
-			CPX	FBDM_CONVERT_DIVISOR_LSW,Y
-			BHI	FBDM_CONVERT_6 			;terminate iteration
-
-			;Shift shifter (SP in Y, shifted dividend in D:X)
-			STD	FBDM_CONVERT_TMP,Y
-			LDD	FBDM_CONVERT_SHIFTER,Y
-			LSLD
-			STD	FBDM_CONVERT_SHIFTER,Y
-			LDD	FBDM_CONVERT_TMP,Y
-			
-			;Next iteration 
-			JOB	FBDM_CONVERT_2 			
-	
-			;Terminate iteration and consider carry bit (SP in Y, shifted dividend in C:D:X)
-FBDM_CONVERT_5		RORA	
-			RORB
-			JOB	FBDM_CONVERT_6			;terminate iteration
-	
-			;Terminate iteration (SP in Y, shifted dividend in D:X)
-FBDM_CONVERT_6		LSRD
-			EXG	D,X
+			BCC	FBDM_CONVERT_1
+			;Shifted dividend > divisor (SP in Y)
+FBDM_CONVERT_4		LDD	FBDM_CONVERT_RESULT,Y 		;add shifter to result
+			ADDD	FBDM_CONVERT_SHIFTER,Y
+			STD	FBDM_CONVERT_RESULT,Y
+			LDD	FBDM_CONVERT_DIVISOR_LSW,Y 	;subtract dividend from divisor
+			SUBD	FBDM_CONVERT_DIVIDEND_LSW,Y
+			LDD	FBDM_CONVERT_DIVISOR_MSW,Y
+			SBCB	FBDM_CONVERT_DIVIDEND_MSW+1,Y
+			SBCA	FBDM_CONVERT_DIVIDEND_MSW,Y
+			STD	FBDM_CONVERT_DIVISOR_MSW,Y
+			LDD	FBDM_CONVERT_DIVIDEND_MSW,Y 	;dividend -> D:X
+			LDX	FBDM_CONVERT_DIVIDEND_LSW,Y
+			;Right-shift dividend (SP in Y, dividend in D:X) 
+FBDM_CONVERT_5		LSRD					;shift MSW
+			STD	FBDM_CONVERT_DIVIDEND_MSW,Y	;store MSW
+			TFR	X,D				;shift LSW
 			RORA
 			RORB
-
-			;Subtract dividend from divisor (SP in Y, shifted dividend in X:D)
-			STD	FBDM_CONVERT_TMP,Y
-			LDD	FBDM_CONVERT_DIVISOR_LSW,Y
-			SUBD	FBDM_CONVERT_TMP,Y
-			STD	FBDM_CONVERT_DIVISOR_LSW,Y
-			STX	FBDM_CONVERT_TMP,Y
-			LDD	FBDM_CONVERT_DIVISOR_MSW,Y
-			SBCB	FBDM_CONVERT_TMP+1,Y
-			SBCA	FBDM_CONVERT_TMP,Y
-			STD	FBDM_CONVERT_DIVISOR_MSW,Y
-			
-			;Add shifter to result (SP in Y)
-			LDD	FBDM_CONVERT_SHIFTER,Y	
-			ADDD	FBDM_CONVERT_RESULT,Y
-			STD	FBDM_CONVERT_RESULT,Y
-
-			;Load original dividend (SP in Y)
+			TFR	D,X
+			STX	FBDM_CONVERT_DIVIDEND_LSW,Y	;store LSW
+			LDD	FBDM_CONVERT_SHIFTER,Y		;update shifter
+			LSRD
+			STD	FBDM_CONVERT_SHIFTER,Y
 			LDD	FBDM_CONVERT_DIVIDEND_MSW,Y
-			LDX	FBDM_CONVERT_DIVIDEND_LSW,Y
-		
-			;Rerun outer loop with new divisor (SP in Y, dividend in D:X)
-			JOB	FBDM_CONVERT_2	
-
-			;Terminate (SP in Y)
-FBDM_CONVERT_7		MOVW	#$0000, FBDM_CONVERT_DIVIDEND_LSW,Y	;clean up result
-			SSTACK_DEALLOC	10 				;free temporary variables
+			;Terminate if shifted dividend is zero (SP in Y, dividend in D:X)
+			TBNE	D, FBDM_CONVERT_6		;dividend is not zero
+			TBEQ	X, FBDM_CONVERT_7		;dividend is zero
+			;Check if dividend < divisor (SP in Y, dividend in D:X)
+FBDM_CONVERT_6		CPD	FBDM_CONVERT_DIVISOR_MSW,Y
+			BLO	FBDM_CONVERT_4 			;shifted dividend < divisor
+			BHI	FBDM_CONVERT_5			;shifted dividend > divisor
+			CPX	FBDM_CONVERT_DIVISOR_MSW,Y
+			BHI	FBDM_CONVERT_5			;shifted dividend > divisor
+			JOB	FBDM_CONVERT_4 			;shifted dividend <= divisor
+			;Prepare result (SP in Y)
+FBDM_CONVERT_7		;MOVW	#$0000, FBDM_CONVERT_SHIFTER,Y	
+			SSTACK_DEALLOC	8 				;free temporary variables
 			JOB	FBDM_CONVERT_9	
 				
 			;16-bit dividend (dividend in X)
@@ -217,24 +195,33 @@ FBDM_CONVERT_7		MOVW	#$0000, FBDM_CONVERT_DIVIDEND_LSW,Y	;clean up result
 ;                       |     X (dividend/result LSW) | +$02         
 ;  	                +--------------+--------------+	     
 ;                       |              Y              | +$04         
-;  	                +--------------+--------------+	
+;  	                +--------------+--------------+
+FBDM_CONVERT_D		EQU	$00
+FBDM_CONVERT_X		EQU	$02
+FBDM_CONVERT_Y		EQU	$04
+			;Check if divident ia zero (dividend in X)
+FBDM_CONVERT_8		TBEQ	X, FBDM_CONVERT_10 		;division by zero (return zero)	
 			;1st division: divisor(MSB)/dividend => result(MSB) 
-FBDM_CONVERT_8		LDD	#(FBDM_DIVISOR>>16)
+			LDD	#(FBDM_DIVISOR>>16)
 			IDIV					;D/X=>X; remainder=D
 			LDY	SSTACK_SP
-			STX	0,Y
+			STX	FBDM_CONVERT_D,Y
 			;2nd division: remainder:divisor(LSB)/dividend => result(LSB) 
-			LDX	2,Y	
+			LDX	FBDM_CONVERT_X,Y	
 			TFR	D,Y
-			LDD	#(FBDM_DIVISOR>>$FF)
+			LDD	#FBDM_DIVISOR
 			EDIV					;Y:D/X=>Y; remainder=>D
 			LDX	SSTACK_SP
-			STY	0,X
-
+			STY	FBDM_CONVERT_X,X
 			;Restore registers 
-FBDM_CONVERT_9	SSTACK_PULDXY
+FBDM_CONVERT_9		SSTACK_PULDXY
 			SSTACK_RTS
-
+			;Division by zero
+FBDM_CONVERT_10		LDY	SSTACK_SP
+			MOVW	#$FFFF, FBDM_CONVERT_D,Y
+			MOVW	#$FFFF, FBDM_CONVERT_X,Y
+			JOB	FBDM_CONVERT_9
+	
 ;Exceptions:
 ;===========
 ;Standard exceptions

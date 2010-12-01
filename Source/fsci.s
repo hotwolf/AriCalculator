@@ -85,7 +85,7 @@ FSCI_VARS_END		EQU	*
 ;#Divide CLOCK_BUS_FREQ/16 by a double number
 ; args:   D:X: Dividend
 ; result: D:X: Result
-; SSTACK: 18 bytes
+; SSTACK: 16 bytes
 ;         Y is preserved
 FSCI_CONVERT	EQU	*
 			;Save registers
@@ -146,7 +146,7 @@ FSCI_CONVERT_3		STD	FSCI_CONVERT_SHIFTER,Y
 			LDD	FSCI_CONVERT_DIVIDEND_MSW,Y
 			ROLB
 			ROLA
-			JOB	FSCI_CONVERT_1
+			BCC	FSCI_CONVERT_1
 			;Shifted dividend > divisor (SP in Y)
 FSCI_CONVERT_4		LDD	FSCI_CONVERT_RESULT,Y 		;add shifter to result
 			ADDD	FSCI_CONVERT_SHIFTER,Y
@@ -250,6 +250,9 @@ FSCI_TABS_END		EQU	*
 ;"Parameter stack underflow"
 ;"Invalid numeric argument"
 ;
+CF_BAUD_STORE_PSUF	JOB	FSCI_THROW_PSUF
+CF_BAUD_STORE_INVALNUM	JOB	FSCI_THROW_INVALNUM
+
 			ALIGN	1
 NFA_BAUD_STORE		FHEADER, "BAUD!", FSCI_PREV_NFA, COMPILE
 CFA_BAUD_STORE		DW	CF_BAUD_STORE
@@ -265,8 +268,12 @@ CF_BAUD_STORE		PS_CHECK_UF	2, CF_BAUD_STORE_PSUF ;check for underflow (PSP -> Y)
 			TBEQ	X, CF_BAUD_STORE_INVALNUM	;the LSW must not
 			CPX	#$2000
 			BHS	CF_BAUD_STORE_INVALNUM    	;the LSW must only be 13 bit wide
-			;Change baud rate (SCIBD value in X)
+			;Print message (SCIBD value in X)
 			TFR	X,D
+			PRINT_LINE_BREAK
+			LDX	#FSCI_INSTR_MSG
+			PRINT_STR
+			;Change baud rate (SCIBD value in D)
 			SCI_BAUD
 			;Wait until a " " (space) has been correctly received
 CF_BAUD_STORE_1		SCI_RX				;get one byte
@@ -276,9 +283,6 @@ CF_BAUD_STORE_1		SCI_RX				;get one byte
 			BNE	CF_BAUD_STORE_1
 			;Done
 			NEXT
-
-CF_BAUD_STORE_PSUF	JOB	FSCI_THROW_PSUF
-CF_BAUD_STORE_INVALNUM	JOB	FSCI_THROW_INVALNUM
 
 ;BAUD@ (  -- ud ) S12CForth extension
 ;Returns the current baud rate.
