@@ -132,6 +132,7 @@ FEXCPT_EC_QUIT			EQU	-56	;QUIT
 ;Non-standard error codes 
 FEXCPT_EC_NOMSG			EQU	-59	;empty message string
 FEXCPT_EC_DICTPROT		EQU	-60	;destruction of dictionary structure
+FEXCPT_EC_COMERR		EQU	-61	;communication problem
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -252,6 +253,7 @@ FEXCPT_CODE_END		EQU	*
 FEXCPT_MSGTAB_START	EQU	*
 
 FEXCPT_MSGTAB_FBDM	FBDM_MSGTAB	
+			DW	FEXCPT_MSG_COMERR	;-61 destruction of dictionary structure
 			DW	FEXCPT_MSG_DICTPROT	;-60 destruction of dictionary structure
 			DW	FEXCPT_MSG_NOMSG	;-59 empty message string	
 			DW	FEXCPT_MSG_UNKNOWN	;-58 [IF], [ELSE], or [THEN] exception
@@ -338,10 +340,11 @@ FEXCPT_MSG_NONCREATE	ERROR_MSG	ERROR_LEVEL_ERROR, "Illegal operation on non-CREA
 ;FEXCPT_MSG_INVALNAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid name argument"
 FEXCPT_MSG_INVALBASE	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid BASE"
 FEXCPT_MSG_CESF		ERROR_MSG	ERROR_LEVEL_ERROR, "Corrupt exception stack frame"
-
+2
 ;Non-standard error messages 
 FEXCPT_MSG_NOMSG	ERROR_MSG	ERROR_LEVEL_ERROR, "Empty message string"
 FEXCPT_MSG_DICTPROT	ERROR_MSG	ERROR_LEVEL_ERROR, "Destruction of dictionary structure"
+FEXCPT_MSG_COMERR	ERROR_MSG	ERROR_LEVEL_ERROR, "Communication problem"
 	
 FEXCPT_TABS_END		EQU	*
 ;###############################################################################

@@ -59,10 +59,14 @@ DEBUG                  EQU     1 ;enable debug code
 DEMO_VARS_START			EQU	$3000
 FORTH_VARS_START		EQU	DEMO_VARS_END
 FORTH_VARS_END			EQU	$4000
-FORTH_CODE_START		EQU	$C000
+		
+FORTH_WORDS_P1_START		EQU	$8000
+FORTH_WORDS_P2_START		EQU	$C000
+
+FORTH_CODE_START		EQU	FORTH_WORDS_P2_END
+
 DEMO_TABS_START			EQU	FORTH_CODE_END
 FORTH_TABS_START		EQU	DEMO_TABS_END
-FORTH_WORDS_START		EQU	$8000
 	
 ;###############################################################################
 ;# Constants                                                                   #

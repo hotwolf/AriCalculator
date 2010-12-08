@@ -253,9 +253,9 @@ FBDM_TABS_END		EQU	*
 ;###############################################################################
 			ORG	FBDM_WORDS_START
 	
-;BDMTXB ( u u_ackto -- u_ack ) S12CForth extension CHECK!
-;Send a double word over the BDM interface and wait for an ACK pulse
-;u:      transmit data
+;BDMTXB ( char u_ackto -- u_ack ) S12CForth extension CHECK!
+;Send a byte over the BDM interface and wait for an ACK pulse
+;char:    transmit data
 ;u_ackto: timeout of the ACK pulse (0 if no ACK pulse is expected)
 ;u_bits:  number of bits to receive 
 ;u_ack:   width of the ACK pulse (0 if no ACK pulse was received)
