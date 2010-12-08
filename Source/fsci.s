@@ -62,19 +62,6 @@ FSCI_VARS_END		EQU	*
 ;#Initialization
 #macro	FSCI_INIT, 0
 #emac
-
-
-#macro	FSCI_LSLDX, 0
-
-
-#emac
-	
-#macro	FSCI_LSLRX, 0
-
-
-#emac
-
-
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -225,7 +212,8 @@ FSCI_CONVERT_10		LDY	SSTACK_SP
 ;Standard exceptions
 FSCI_THROW_PSOF		EQU	FMEM_THROW_PSOF			;stack overflow
 FSCI_THROW_PSUF		EQU	FMEM_THROW_PSUF			;stack underflow
-FSCI_THROW_INVALNUM	FEXCPT_THROW	FEXCPT_EC_INVALNUM	;invalid numeric argument
+FSCI_THROW_INVALNUM	EQU	FCORE_THROW_INVALNUM		;invalid numeric argument
+FSCI_THROW_COMERR	EQU	FCORE_THROW_COMERR		;communication problem
 	
 FSCI_CODE_END		EQU	*
 	
@@ -242,19 +230,157 @@ FSCI_TABS_END		EQU	*
 ;# Forth words                                                                 #
 ;###############################################################################
 			ORG	FSCI_WORDS_START
+
+;TXW ( u -- ) S12CForth extension CHECK!
+;Send a word
+;u:      transmit data
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_TXW			FHEADER, "TXW", FSCI_PREV_NFA, COMPILE
+CFA_TXW			DW	CF_TXW
+CF_TXW			PS_CHECK_UF	1, CF_TXW_PSUF ;check for underflow (PSP -> Y)
+			;Transmit data (PSP -> Y) 
+			LDD	2,Y+
+			STY	PSP
+			SCI_TX
+			;Done 
+			NEXT
+	
+CF_TXW_PSUF		JOB	FSCI_THROW_PSUF
+
+;TXB ( char -- ) S12CForth extension CHECK!
+;Send a byte
+;char:      transmit data
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_TXB			FHEADER, "TXB", NFA_TXW, COMPILE
+CFA_TXB			DW	CF_TXB
+CF_TXB			PS_CHECK_UF	1, CF_TXB_PSUF ;check for underflow (PSP -> Y)
+			;Transmit data (PSP -> Y) 
+			LDD	2,Y+
+			STY	PSP
+			EXG	A,B
+			SCI_TX
+			EXG	A,B
+			SCI_TX
+			;Done 
+			NEXT
+	
+CF_TXB_PSUF		JOB	FSCI_THROW_PSUF
+
+;RXW ( -- u ) S12CForth extension CHECK!
+;Receive a word (big endian) 
+;u:         transmit data
+;Throws:
+;"Parameter stack overflow"
+;"Transmission error"
+;
+			ALIGN	1
+NFA_RXW			FHEADER, "RXW", NFA_TXB, COMPILE
+CFA_RXW			DW	CF_RXW
+CF_RXW			PS_CHECK_OF	1, CF_RXW_PSOF ;check for underflow (PSP-2 -> Y)
+			;Receive data (PSP-2 -> Y) 
+			SCI_RX
+			BITA	#(NF|FE|PE)		;transmission error has occured
+			BNE	CF_RXW_COMERR	
+			EXG	B,X
+			SCI_RX
+			BITA	#(NF|FE|PE)		;transmission error has occured
+			BNE	CF_RXW_COMERR	
+			EXG	X,A
+			;Push data onto stack (PSP-2 in Y)
+			STD	0,Y
+			STY	PSP
+			;Done 
+			NEXT
+	
+CF_RXW_PSOF		JOB	FSCI_THROW_PSOF
+CF_RXW_COMERR		JOB	FSCI_THROW_COMERR
+
+;RXB ( -- c ) S12CForth extension CHECK!
+;Receive a wordbytea (big endian)
+;u:         transmit data
+;Throws:
+;"Parameter stack overflow"
+;"Transmission error"
+;
+			ALIGN	1
+NFA_RXB			FHEADER, "RXB", NFA_TXB, COMPILE
+CFA_RXB			DW	CF_RXB
+CF_RXB			PS_CHECK_OF	1, CF_RXB_PSOF ;check for underflow (PSP-2 -> Y)
+			;Receive data (PSP-2 -> Y) 
+			SCI_RX
+			BITA	#(NF|FE|PE)		;transmission error has occured
+			BNE	CF_RXB_COMERR	
+			EXG	B,X
+			SCI_RX
+			BITA	#(NF|FE|PE)		;transmission error has occured
+			BNE	CF_RXB_COMERR	
+			EXG	X,A
+			;Push data onto stack (PSP-2 in Y)
+			STD	0,Y
+			STY	PSP
+			;Done 
+			NEXT
+	
+CF_RXB_PSOF		JOB	FSCI_THROW_PSOF
+CF_RXB_COMERR		JOB	FSCI_THROW_COMERR
+
+;TX-READY ( -- u ) S12CForth extension CHECK!
+;Check if SCI is ready to transmit data
+;u:         remaining space in the TX queue [bytes]
+;Throws:
+;"Parameter stack overflow"
+;
+			ALIGN	1
+NFA_TX_READY		FHEADER, "TX-READY", NFA_RXB, COMPILE
+CFA_TX_READY		DW	CF_TX_READY
+CF_TX_READY		PS_CHECK_OF	1, CF_TX_READY_PSOF ;check for underflow (PSP-2 -> Y)
+			;Check RX queue (PSP-2 -> Y) 
+			;SCI_TX_READY
+			;Push result onto stack (PSP-2 in Y)
+			STD	0,Y
+			STY	PSP
+			;Done 
+			NEXT
+
+CF_TX_READY_PSOF	JOB	FSCI_THROW_PSOF
+
+;RX-READY ( -- u ) S12CForth extension CHECK!
+;Check if read data is available
+;u:         number of available data bytes
+;Throws:
+;"Parameter stack overflow"
+;
+			ALIGN	1
+NFA_RX_READY		FHEADER, "RX-READY", NFA_TX_READY, COMPILE
+CFA_RX_READY		DW	CF_RX_READY
+CF_RX_READY		PS_CHECK_OF	1, CF_RX_READY_PSOF ;check for underflow (PSP-2 -> Y)
+			;Check RX queue (PSP-2 -> Y) 
+			;SCI_RX_READY
+			;Push result onto stack (PSP-2 in Y)
+			STD	0,Y
+			STY	PSP
+			;Done 
+			NEXT
+
+CF_RX_READY_PSOF	JOB	FSCI_THROW_PSOF
 	
 ;BAUD! ( ud " " -- ) S12CForth extension CHECK!
 ;Sets the baud RATE to ud. As soon as the word is executed, it expects to
 ;receive a space character a new baud rate.
 ;Throws:
 ;"Parameter stack underflow"
-;"Invalid numeric argument"
-;
+;"Invalid numeric argument;
 CF_BAUD_STORE_PSUF	JOB	FSCI_THROW_PSUF
 CF_BAUD_STORE_INVALNUM	JOB	FSCI_THROW_INVALNUM
 
 			ALIGN	1
-NFA_BAUD_STORE		FHEADER, "BAUD!", FSCI_PREV_NFA, COMPILE
+NFA_BAUD_STORE		FHEADER, "BAUD!", NFA_RX_READY, COMPILE
 CFA_BAUD_STORE		DW	CF_BAUD_STORE
 CF_BAUD_STORE		PS_CHECK_UF	2, CF_BAUD_STORE_PSUF ;check for underflow (PSP -> Y)
 			;Pull baud rate from PSP

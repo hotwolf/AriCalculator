@@ -607,68 +607,176 @@ FCORE_HEADER_DICTOF	LDX	#FCORE_THROW_DICTOF
 FCORE_HEADER_STROF	LDX	#FCORE_THROW_STROF
 			JOB	FCORE_HEADER_3
 
-;#Get command line input
+;#Read an ASCII character from the SCI
 ; args:   none
-; result: A: character count (saturated at 255) 	
-; SSTACK: 6 bytes
-;         X, Y and D are preserved
-FCORE_QUERY		EQU	*	
+; result: A: error status (0 in case of no errors)	
+;         B: ASCII character
+; SSTACK: 8 bytes
+;         X and Y are preserved
+FCORE_KEY		EQU	*	
+			;Read byte from SCI 
+FCORE_KEY_1		SCI_RX				;receive one byte (SSTACK: 6 bytes)
+			TBNE	A, FCORE_KEY_2		;transmission error
+			;Check if it is a valid ASCII character
+			CMPB	#" " 			;first legal character in ASCII table
+			BLO	FCORE_KEY_1		;ignore character
+			CMPB	#"~"			;last legal character in ASCII table
+			BHI	FCORE_KEY_1		;ignore character
+ 			;Done
+FCORE_KEY_2		SSTACK_RTS
+	
+;#Get command line input and store it into any buffer
+; args:   X: buffer pointer
+;         D: buffer size
+; result: X: error status (0:no problems, 2:communication problem)	
+;         D: character count	
+; SSTACK: 16 bytes
+;         Y is preserved
+FCORE_ACCEPT		EQU	*	
 			;Save registers
-			SSTACK_PSHXD				;save index X and accu D
-
-			;Prepare TIB
-			MOVW	#$0000, NUMBER_TIB 		;clear TIB
-			;Wait for input
+			SSTACK_PSHYXD
+			;Allocate temporary variables
+			;+--------+--------+
+			;| char limit (D)  | <-SSTACK_SP
+			;+--------+--------+
+			;| buffer ptr (X)  |
+			;+--------+--------+
+			;|        Y        | 
+			;+--------+--------+
+			;| Return address  |
+			;+--------+--------+
+			;Signal input request
+			LED_BUSY_OFF
+			;Initialize counter 
+			LDY	#$0000
+			;Read input (buffer pointer in Y, char count in Y)
 			LED_BUSY_OFF			
-FCORE_QUERY_1		SCI_RX					;receive a character
-			;Check for transmission errors (character in B) 
-			BITA	#(NF|FE|PE) 			;check for: noise, frame errors, parity errors
-			BNE	FCORE_QUERY_1			;ignore transmission errors
-			;Check for ignored characters (character in B)
-			CMPB	#PRINT_SYM_LF	
-			BEQ	FCORE_QUERY_1			;ignore character	
-			;Check for BACKSPACE (character in B)
+FCORE_ACCEPT_1		SCI_RX					;receive an ASCII character (SSTACK: 8 bytes)
+			TBNE	A, FCORE_ACCEPT_6		;communication error
+			;Check for BACKSPACE (char in B, buffer pointer in X, char count in Y)
 			CMPB	#PRINT_SYM_BACKSPACE	
-			BEQ	FCORE_QUERY_3 			;remove most recent character
+			BEQ	FCORE_ACCEPT_3 			;remove most recent character
 			CMPB	#PRINT_SYM_DEL	
-			BEQ	FCORE_QUERY_3 			;remove most recent character	
-			;Check for ENTER (character in B)
+			BEQ	FCORE_ACCEPT_3 			;remove most recent character	
+			;Check for ENTER (char in B, buffer pointer in X, char count in Y)
 			CMPB	#PRINT_SYM_CR	
-			BEQ	FCORE_QUERY_5			;process input
-			;Check for TIB overflow (character in B)
-			TIB_CHECK_OF  1, FCORE_QUERY_4 		;beep on overflow
-			;Check for valid special characters (character in B, next free TIB location in X)
+			BEQ	FCORE_ACCEPT_4			;process input
+			;Check for buffer overflow (char in B, buffer pointer in X, char count in Y)
+			CPY	[SSTACK_SP]	
+			BHS	FCORE_ACCEPT_4	 		;beep on overflow
+			;Check for valid special characters (char in B, buffer pointer in X, char count in Y)
 			CMPB	#PRINT_SYM_TAB	
-			BEQ	FCORE_QUERY_2 			;echo and append to TIB
-			;Check for invalid characters (character in B, next free TIB location in X)
+			BEQ	FCORE_ACCEPT_2 			;echo and append to buffer
+			;Check for invalid characters (char in B, buffer pointer in X, char count in Y)
 			CMPB	#" "
-			BLO	FCORE_QUERY_4 			;beep
+			BLO	FCORE_ACCEPT_4 			;beep
 			CMPB	#"~"
-			BHI	FCORE_QUERY_4 			;beep
-			;Echo character and append to TIB (character in B, next free TIB location in X)
-FCORE_QUERY_2		STAB	0,X				;store character
-			LEAX	1-TIB_START,X			;increment TIB counter
-			STX	NUMBER_TIB
+			BHI	FCORE_ACCEPT_4 			;beep	
+			;Echo character and append to TIB (char in B, buffer pointer in X, char count in Y)
+FCORE_ACCEPT_2		LEAY	1,Y			
+			STAB	1,X+				;store character
 			SCI_TX					;echo a character
-			JOB	FCORE_QUERY_1
-			;Remove most recent character
-FCORE_QUERY_3		LDX	NUMBER_TIB			;decrement TIB counter
-			BEQ	FCORE_QUERY_4 			;beep if TIB was empty
-			LEAX	-1,X
-			STX	NUMBER_TIB	
+			JOB	FCORE_ACCEPT_1
+			;Remove most recent character (buffer pointer in X, char count in Y)
+FCORE_ACCEPT_3		TBEQ	Y, FCORE_ACCEPT_4		;beep if TIB was empty
+			LEAY	-1,Y			
+			LEAx	-1,X			
 			LDAB	#PRINT_SYM_BACKSPACE 		;transmit a backspace character
 			SCI_TX
-			JOB	FCORE_QUERY_1
+			JOB	FCORE_ACCEPT_1
 			;Beep
-FCORE_QUERY_4		PRINT_BEEP		;beep
-			JOB	FCORE_QUERY_1 	;receive next character
-			;Process input (next free TIB location -> X)
-FCORE_QUERY_5		MOVW	#$0000, TO_IN 			;set >IN to zero
+FCORE_ACCEPT_4		PRINT_BEEP		;beep
+			JOB	FCORE_ACCEPT_1 	;receive next character
+			;Process input (char count in Y)
+			CLRA
+			CLRB
+FCORE_ACCEPT_5		LDX	SSTACK_SP
+			STY	0,X	
+			STD	2,X
+			;Done
 			LED_BUSY_ON
-
-			;Restore registers 
-			SSTACK_PULDX
+			SSTACK_PULDXY
 			SSTACK_RTS
+			;Communication error (char count in Y)
+FCORE_ACCEPT_6		LDD	#$0002
+			JOB	FCORE_ACCEPT_5
+
+;#Get command line input and store it into the TIB
+; args:   none
+; result: X: error status (0:no problems, 2:communication problem)	
+;         D: character count	
+; SSTACK: 18 bytes
+;         Y is preserved
+FCORE_QUERY		EQU	*	
+			;Determine the TIB size limit
+			LDD	RSP
+			SUBD	#TIB_START
+			;Get command line (char limit in D)
+			LDX	#TIB_START
+			SSTACK_JOBSR	FCORE_ACCEPT
+			;Update #TIB and >IN (char count in D, error status in X)
+			STD	NUMBER_TIB
+			MOVW	#$0000, TO_IN
+			;Done (char count in D, error status in X)
+			SSTACK_RTS
+
+;FCORE_QUERY		EQU	*	
+;			;Save registers
+;			SSTACK_PSHXD				;save index X and accu D
+;
+;			;Prepare TIB
+;			MOVW	#$0000, NUMBER_TIB 		;clear TIB
+;			;Wait for input
+;			LED_BUSY_OFF			
+;FCORE_QUERY_1		SCI_RX					;receive a character
+;			;Check for transmission errors (character in B) 
+;			BITA	#(NF|FE|PE) 			;check for: noise, frame errors, parity errors
+;			BNE	FCORE_QUERY_1			;ignore transmission errors
+;			;Check for ignored characters (character in B)
+;			CMPB	#PRINT_SYM_LF	
+;			BEQ	FCORE_QUERY_1			;ignore character	
+;			;Check for BACKSPACE (character in B)
+;			CMPB	#PRINT_SYM_BACKSPACE	
+;			BEQ	FCORE_QUERY_3 			;remove most recent character
+;			CMPB	#PRINT_SYM_DEL	
+;			BEQ	FCORE_QUERY_3 			;remove most recent character	
+;			;Check for ENTER (character in B)
+;			CMPB	#PRINT_SYM_CR	
+;			BEQ	FCORE_QUERY_5			;process input
+;			;Check for TIB overflow (character in B)
+;			TIB_CHECK_OF  1, FCORE_QUERY_4 		;beep on overflow
+;			;Check for valid special characters (character in B, next free TIB location in X)
+;			CMPB	#PRINT_SYM_TAB	
+;			BEQ	FCORE_QUERY_2 			;echo and append to TIB
+;			;Check for invalid characters (character in B, next free TIB location in X)
+;			CMPB	#" "
+;			BLO	FCORE_QUERY_4 			;beep
+;			CMPB	#"~"
+;			BHI	FCORE_QUERY_4 			;beep
+;			;Echo character and append to TIB (character in B, next free TIB location in X)
+;FCORE_QUERY_2		STAB	0,X				;store character
+;			LEAX	1-TIB_START,X			;increment TIB counter
+;			STX	NUMBER_TIB
+;			SCI_TX					;echo a character
+;			JOB	FCORE_QUERY_1
+;			;Remove most recent character
+;FCORE_QUERY_3		LDX	NUMBER_TIB			;decrement TIB counter
+;			BEQ	FCORE_QUERY_4 			;beep if TIB was empty
+;			LEAX	-1,X
+;			STX	NUMBER_TIB	
+;			LDAB	#PRINT_SYM_BACKSPACE 		;transmit a backspace character
+;			SCI_TX
+;			JOB	FCORE_QUERY_1
+;			;Beep
+;FCORE_QUERY_4		PRINT_BEEP		;beep
+;			JOB	FCORE_QUERY_1 	;receive next character
+;			;Process input (next free TIB location -> X)
+;FCORE_QUERY_5		MOVW	#$0000, TO_IN 			;set >IN to zero
+;			LED_BUSY_ON
+;
+;			;Restore registers 
+;			SSTACK_PULDX
+;			SSTACK_RTS
 
 ;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
 ; args:   A: delimiter
@@ -883,6 +991,7 @@ FCORE_THROW_NONAME	FEXCPT_THROW	FEXCPT_EC_NONAME	;missing name argument
 FCORE_THROW_PADOF	EQU	FMEM_THROW_PADOF		;pictured numeric output string overflow
 FCORE_THROW_STROF	FEXCPT_THROW	FEXCPT_EC_STROF		;parsed string overflow
 FCORE_THROW_CTRLSTRUC	FEXCPT_THROW	FEXCPT_EC_CTRLSTRUC	;control structure mismatch
+FCORE_THROW_INVALNUM	FEXCPT_THROW	FEXCPT_EC_INVALNUM	;invalid numeric argument
 FCORE_THROW_COMPNEST	FEXCPT_THROW	FEXCPT_EC_COMPNEST	;compiler nesting
 FCORE_THROW_NONCREATE	FEXCPT_THROW	FEXCPT_EC_NONCREATE	;invalid usage of non-CREATEd definition
 ;FCORE_THROW_INVALNAME	FEXCPT_THROW	FEXCPT_EC_INVALNAME	;invalid name
@@ -892,6 +1001,7 @@ FCORE_THROW_QUIT	FEXCPT_THROW	FEXCPT_EC_QUIT		;QUIT
 ;Non-Standard exceptions
 FCORE_THROW_NOMSG	EQU	FEXCPT_THROW_NOMSG		;empty message string
 FCORE_THROW_DICTPROT	FEXCPT_THROW	FEXCPT_EC_DICTPROT	;destruction of dictionary structure
+FCORE_THROW_COMERR	FEXCPT_THROW	FEXCPT_EC_COMERR 	;communication problem
 
 ;Common code fields:
 ;=================== 	
@@ -1165,7 +1275,7 @@ CF_STAR_PSUF		JOB	FCORE_THROW_PSUF
 			ALIGN	1
 NFA_STAR_SLASH		FHEADER, "*/", NFA_STAR, COMPILE
 CFA_STAR_SLASH		DW	CF_STAR_SLASH
-CF_STAR_SLASH		PS_CHECK_UF	3, CF_STAR_SLASH_PSUF ;check for underflow  (PSP -> Y)
+CF_STAR_SLASH		PS_CHECK_UF	3, CF_STAR_SLASH_PSUF ;check for underflow (PSP -> Y)
 			TFR	Y, X
 			LDY	4,X			;n1    -> Y
 			LDD	2,X			;n2    -> D
@@ -1450,7 +1560,7 @@ CF_DOT_QUOTE_RT		LDX	IP			;print string at IP
 ;"Divide by zero"
 ;
 			ALIGN	1
-NFA_SLASH		FHEADER, "/", NFA_DOT_QUOTE, COMPILE
+NFA_SLASH		FHEADER, "/", NFA_DOT_QUOTE, IMMEDIATE
 CFA_SLASH		DW	CF_SLASH
 CF_SLASH		PS_CHECK_UF	2, CF_SLASH_PSUF ;check for underflow (PSP -> Y)
 			LDD	2,Y			 ;n1   -> D
@@ -2237,7 +2347,7 @@ CF_ABS_1		NEXT
 
 CF_ABS_PSUF		JOB	FCORE_THROW_PSUF
 	
-;ACCEPT ( c-addr +n1 -- +n2 )
+;ACCEPT ( c-addr +n1 -- +n2 ) CHECK!
 ;Receive a string of at most +n1 characters. An ambiguous condition exists if
 ;+n1 is zero or greater than 32,767. Display graphic characters as they are
 ;received. A program that depends on the presence or absence of non-graphic
@@ -2248,8 +2358,34 @@ CF_ABS_PSUF		JOB	FCORE_THROW_PSUF
 ;When input terminates, nothing is appended to the string, and the display is
 ;maintained in an implementation-defined way.
 ;+n2 is the length of the string stored at c-addr.
-NFA_ACCEPT		EQU	NFA_ABS
-
+;
+;S12CForth implementation details:
+;Input is captured in the TIB and afterwards copied to c-addr.
+;;Throws:
+;"Parameter stack underflow"
+;"Invalid numeric argument"	
+;"Communication problem"
+;
+			ALIGN	1
+NFA_ACCEPT		FHEADER, "ACCEPT", NFA_ABS, COMPILE
+CFA_ACCEPT		DW	CF_ACCEPT
+CF_ACCEPT		PS_CHECK_UF	2, CF_ACCEPT_PSUF	;PSP -> Y
+			;Parse command line (PSP in Y)
+			LDD	0,Y
+			BMI	CF_ACCEPT_INVALNUM 		;+n1 is negative			
+			LDX	2,Y
+			SSTACK_JOBSR	FCORE_ACCEPT
+			TBNE	X, CF_ACCEPT_COMERR
+			;Stack result (+n2 in D, PSP in Y)
+			STD	2,+Y
+			STY	PSP
+			;Done
+			NEXT
+	
+CF_ACCEPT_PSUF		JOB	FCORE_THROW_PSUF
+CF_ACCEPT_INVALNUM	JOB	FCORE_THROW_INVALNUM
+CF_ACCEPT_COMERR	JOB	FCORE_THROW_COMERR
+	
 ;ALIGN ( -- )
 ;If the data-space pointer is not aligned, reserve enough space to align it.
 			ALIGN	1
@@ -3298,7 +3434,7 @@ CF_J			RS_CHECK_UF	4, CF_J_RSUF	;(RSP -> X)
 CF_J_RSUF		JOB	FCORE_THROW_RSUF
 CF_J_PSOF		JOB	FCORE_THROW_PSOF
 
-;KEY ( -- char )
+;KEY ( -- char ) CHECK!
 ;Receive one character char, a member of the implementation-defined character
 ;set. Keyboard events that do not correspond to such characters are discarded
 ;until a valid character is received, and those events are subsequently
@@ -3312,28 +3448,26 @@ CF_J_PSOF		JOB	FCORE_THROW_PSOF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack overflow"
+;"Communication problem"
 ;
 			ALIGN	1
 NFA_KEY			FHEADER, "KEY", NFA_J, COMPILE
 CFA_KEY			DW	CF_KEY
-CF_KEY			PS_CHECK_OF	1, CF_KEY_PSOF	;check for PS overflow (PSP-new cells -> Y)
-			;Wait for data byte 
-CF_KEY_1		SCI_RX				;receive one byte
-			;Check for transmission errors 
-			BITA	#(NF|FE|PE)		;ignore data if a transmission error has occured
-			BNE	CF_KEY_1	
-			;Check for illegal characters
-			CMPB	#" " 			;first legal character in ASCII table
-			BLO	CF_KEY_1
-			CMPB	#"~"			;last legal character in ASCII table
-			BHI	CF_KEY_1
- 			;Put received character onto the stack
+CF_KEY			PS_CHECK_OF	1, CF_KEY_PSOF	;check for PS overflow (PSP-2 cells -> Y)
+			;Wait for data byte
+			LED_BUSY_OFF
+			SSTACK_JOBSR	FCORE_KEY       ;(SSTACK: 8 bytes)
+			LED_BUSY_ON
+			;Check for transmission errors (error status in A, char in B, PSP in Y)
+			TBNE	A, CF_KEY_COMMERR
+ 			;Put received character onto the stack (char in B, PSP in Y)
 			CLRA
 			STD	0,Y
 			STY	PSP
 			NEXT
 
 CF_KEY_PSOF		JOB	FCORE_THROW_PSOF
+CF_KEY_COMMERR		JOB	FCORE_THROW_COMERR
 		
 ;LEAVE
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -3795,7 +3929,7 @@ CF_QUIT_RT_1		PRINT_LINE_BREAK	;send input prompt
 CF_QUIT_RT_2		PRINT_STR			
 			;Query comand line	
 			SSTACK_JOBSR	FCORE_QUERY			;get command line
-			;EXEC_CF CF_QUERY, CF_QUIT_RSOF, CF_QUIT_RSUF	;get command line
+			TBNE	X, CF_QUIT_COMERR   			;communication error			
 			;Parse next word of the command line
 CF_QUIT_RT_3		SSTACK_JOBSR	FCORE_NAME			;parse next word (string pointer -> X)
 			TBEQ	X, CF_QUIT_RT_5				;last word parsed
@@ -3809,6 +3943,26 @@ CF_QUIT_RT_4		MOVW	#CF_QUIT_RT_IP_DONE, IP 		;set next IP
 			JMP	[0,X]					;execute CF
 CF_QUIT_RT_IP_DONE	DW	CF_QUIT_RT_CFA_DONE			
 CF_QUIT_RT_CFA_DONE	DW	CF_QUIT_RT_3
+
+; 			;Return stack underflow 
+;CF_QUIT_RSUF		LDY	#CF_QUIT_MSG_RSUF 			;print standard error message
+; 			JOB	CF_QUIT_ERROR
+; 			;Return stack overflow 
+;CF_QUIT_RSOF		LDY	#CF_QUIT_MSG_RSOF 			;print standard error message	
+; 			JOB	CF_QUIT_ERROR
+; 			;Undefined word (PSP+2 in Y)
+CF_QUIT_UDEFWORD	LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message	
+			JOB	CF_QUIT_ERROR
+ 			;Undefined word (PSP+2 in Y)
+CF_QUIT_DICTOF		LDY	#CF_QUIT_MSG_DICTOF			;print standard error message	
+			JOB	CF_QUIT_ERROR
+ 			;Communication problem (PSP+2 in Y)
+CF_QUIT_COMERR		LDY	#CF_QUIT_MSG_COMERR			;print standard error message	
+			JOB	CF_QUIT_ERROR
+CF_QUIT_ERROR		ERROR_PRINT
+			PS_RESET
+			JOB	CF_QUIT_RT
+	
 			;Last word parsed
 CF_QUIT_RT_5		INTERPRET_ONLY	CF_QUIT_RT_1 			;don't print "ok" in compile state
 			LDX	#FCORE_SYSTEM_PROMPT 			;print "ok"
@@ -3858,26 +4012,13 @@ CF_QUIT_RT_10		TFR	X, D
  			;Return stack overflow 
 CF_QUIT_PSOF		LDY	#CF_QUIT_MSG_PSOF 			;print standard error message	
  			JOB	CF_QUIT_ERROR
-; 			;Return stack underflow 
-;CF_QUIT_RSUF		LDY	#CF_QUIT_MSG_RSUF 			;print standard error message
-; 			JOB	CF_QUIT_ERROR
-; 			;Return stack overflow 
-;CF_QUIT_RSOF		LDY	#CF_QUIT_MSG_RSOF 			;print standard error message	
-; 			JOB	CF_QUIT_ERROR
-; 			;Undefined word (PSP+2 in Y)
-CF_QUIT_UDEFWORD	LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message	
-			JOB	CF_QUIT_ERROR
- 			;Undefined word (PSP+2 in Y)
-CF_QUIT_DICTOF		LDY	#CF_QUIT_MSG_DICTOF			;print standard error message	
-CF_QUIT_ERROR		ERROR_PRINT
-			PS_RESET
-			JOB	CF_QUIT_RT
 
 CF_QUIT_MSG_PSOF	EQU	FEXCPT_MSG_PSOF
 CF_QUIT_MSG_RSUF	EQU	FEXCPT_MSG_RSUF
 CF_QUIT_MSG_RSOF	EQU	FEXCPT_MSG_RSOF
 CF_QUIT_MSG_UDEFWORD	EQU	FEXCPT_MSG_UDEFWORD
 CF_QUIT_MSG_DICTOF	EQU	FEXCPT_MSG_DICTOF
+CF_QUIT_MSG_COMERR	EQU	FEXCPT_MSG_COMERR
 	
 ;R> 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -4545,7 +4686,7 @@ CF_UNTIL_RT_1		JUMP_NEXT
 NFA_VARIABLE		FHEADER, "VARIABLE", NFA_UNTIL, COMPILE
 CFA_VARIABLE		DW	CF_VARIABLE
 CF_VARIABLE		;Build header
-			SSTACK_JOBSR	FCORE_HEADER ;NFA -> D, error handler -> X (SSTACK: 10  bytes)
+			SSTACK_JOBSR	FCORE_HEADER ;NFA -> D, error handler -> X (SSTACK: 10 bytes)
 			TBNE	X, CF_VARIABLE_ERROR
 			;Update LAST_NFA 
 			STD	LAST_NFA
@@ -5116,7 +5257,7 @@ CF_AGAIN		EQU	CF_LITERAL
 CFA_AGAIN_RT		DW	CF_AGAIN_RT
 CF_AGAIN_RT		JUMP_NEXT
 
-;C" TODO!
+;C" CHECK!
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "ccc<quote>" -- )
 ;Parse ccc delimited by " (double-quote) and append the run-time semantics given
@@ -5124,11 +5265,70 @@ CF_AGAIN_RT		JUMP_NEXT
 ;Run-time: ( -- c-addr )
 ;Return c-addr, a counted string consisting of the characters ccc. A program
 ;shall not alter the returned string.
-NFA_C_QUOTE		EQU	NFA_AGAIN
-;			ALIGN	1
-;NFA_C_QUOTE		FHEADER, 'C"', NFA_AGAIN, COMPILE ;"
-;CFA_C_QUOTE		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;The string will be terminated
+;Throws:
+;"Dictionary overflow"
+;"Compile-only word"
+;"Parsed string overflow"
+;
+			ALIGN	1
+NFA_C_QUOTE		FHEADER, 'C"', NFA_AGAIN, COMPILE ;"
+CFA_C_QUOTE		DW	CF_C_QUOTE
+CF_C_QUOTE		COMPILE_ONLY	CF_C_QUOTE_COMPONLY ;ensure that compile mode is on
+			;Parse quote
+			LDAA	#$22 				;double quote
+			SSTACK_JOBSR	FCORE_PARSE		;string pointer -> X, character count -> A
+			TBEQ	X, CF_C_QUOTE_2 		;empty quote		
+			;Check remaining space in dictionary (string pointer in X, character count in A)
+			IBEQ	A, CF_C_QUOTE_STROF		;add CFA to count
+			TAB
+			CLRA
+			ADDD	#1
+			TFR	X, Y
+			DICT_CHECK_OF_D	CF_C_QUOTE_DICTOF 	;check for dictionary overflow
+			;Append run-time CFA (string pointer in Y)
+			LDX	CP
+			MOVW	#CFA_C_QUOTE_RT, 2,X+
+			;Append quote (CP in X, string pointer in Y)
+			CPSTR_Y_TO_X
+CF_C_QUOTE_1		STX	CP
+			;Done
+			NEXT
+			;Empty string
+CF_C_QUOTE_2		DICT_CHECK_OF	6, CF_C_QUOTE_DICTOF 	;check for dictionary overflow
+			MOVW	#CFA_TWO_LITERAL_RT, -6,X 		;add CFA
+			MOVW	#$0000, 	-2,X 			;zero pointer
+			MOVW	#$0000, 	-2,X 			;zero count
+			JOB	CF_C_QUOTE_1
+	
+CF_C_QUOTE_COMPONLY	JOB	FCORE_THROW_COMPONLY
+CF_C_QUOTE_DICTOF	JOB	FCORE_THROW_DICTOF
+CF_C_QUOTE_STROF	JOB	FCORE_THROW_STROF
+CF_C_QUOTE_PSOF		JOB	FCORE_THROW_PSOF
 
+;C" run-time semantics
+;S12CForth implementation details:
+;Interpretation semantics:
+;Print string to the terminal
+;Throws:
+;"Parameter stack overflow"
+			ALIGN	1
+CFA_C_QUOTE_RT		DW	CF_C_QUOTE_RT
+CF_C_QUOTE_RT		PS_CHECK_OF	1, CF_C_QUOTE_PSOF 	;check for PS overflow (PSP-2 -> Y)
+			;Push string pointer onto PS (PSP-2 in Y)
+			LDX	IP
+			STX	0,Y
+			STY	PSP
+			;Count characters (PSP-4 in Y, string pointer in X)
+			PRINT_STRCNT
+			;Adjust IP (PSP-4 in Y, string pointer in X, char count in A)
+			LEAX	A,X
+			STX	IP
+			;Done
+			NEXT
+	
 ;CASE
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: -- case-sys )
@@ -5167,6 +5367,10 @@ CF_CASE			COMPILE_ONLY	CF_CASE_COMPONLY 	;ensure that compile mode is on
 ;"Dictionary overflow"
 ;"Compile-only word"
 ;
+CF_COMPILE_COMMA_PSUF		JOB	FCORE_THROW_PSUF
+CF_COMPILE_COMMA_DICTOF		JOB	FCORE_THROW_DICTOF
+CF_COMPILE_COMMA_COMPONLY	JOB	FCORE_THROW_COMPONLY
+	
 			ALIGN	1
 NFA_COMPILE_COMMA	FHEADER, "COMPILE,", NFA_CASE, IMMEDIATE
 CFA_COMPILE_COMMA	DW	CF_COMPILE_COMMA
@@ -5177,10 +5381,6 @@ CF_COMPILE_COMMA	COMPILE_ONLY	CF_COMPILE_COMMA_COMPONLY 	;ensure that compile mo
 			STY	PSP
 			STX	CP
 			NEXT
-
-CF_COMPILE_COMMA_PSUF		JOB	FCORE_THROW_PSUF
-CF_COMPILE_COMMA_DICTOF		JOB	FCORE_THROW_DICTOF
-CF_COMPILE_COMMA_COMPONLY	JOB	FCORE_THROW_COMPONLY
 
 ;CONVERT ( ud1 c-addr1 -- ud2 c-addr2 ) TODO!
 ;ud2 is the result of converting the characters within the text beginning at the
@@ -5322,7 +5522,7 @@ CF_ERASE_1		CLR	1,X+
 CF_ERASE_2		STY	PSP
 			NEXT
 	
-;EXPECT ( c-addr +n -- ) TODO!
+;EXPECT ( c-addr +n -- ) CHECK!
 ;Receive a string of at most +n characters. Display graphic characters as they
 ;are received. A program that depends on the presence or absence of non-graphic
 ;characters in the string has an environmental dependency. The editing
@@ -5335,9 +5535,34 @@ CF_ERASE_2		STY	PSP
 ;Store the string at c-addr and its length in SPAN.
 ;Note: This word is obsolescent and is included as a concession to existing
 ;implementations. Its function is superseded by 6.1.0695 ACCEPT.
-NFA_EXPECT		EQU	NFA_ERASE
+;
+;S12CForth implementation details:
+;Input is captured in the TIB and afterwards copied to c-addr.
+;Throws:
+;"Parameter stack underflow"
+;"Invalid numeric argument"	
+;"Communication problem"
+;
+CF_EXPECT_PSUF		JOB	FCORE_THROW_PSUF
+CF_EXPECT_INVALNUM	JOB	FCORE_THROW_INVALNUM
+CF_EXPECT_COMERR	JOB	FCORE_THROW_COMERR
 
-FALSE ( -- false )
+			ALIGN	1
+NFA_EXPECT		FHEADER, "EXPECT", NFA_ABS, COMPILE
+CFA_EXPECT		DW	CF_EXPECT
+CF_EXPECT		PS_CHECK_UF	2, CF_EXPECT_PSUF	;PSP -> Y
+			;Parse command line (PSP in Y)
+			LDD	2,Y+
+			BMI	CF_EXPECT_INVALNUM 		;+n is negative			
+			LDX	0,Y
+			SSTACK_JOBSR	FCORE_ACCEPT
+			TBNE	X, CF_EXPECT_COMERR
+			;Update PSP (new PSP in Y)
+			STY	PSP
+			;Done
+			NEXT
+	
+;FALSE ( -- false )
 ;Return a false flag.
 			ALIGN	1
 NFA_FALSE		FHEADER, "FALSE", NFA_EXPECT, COMPILE
@@ -5630,64 +5855,23 @@ CF_PICK			PS_CHECK_UF 1, CF_PICK_PSUF 	;check for underflow  (PSP -> Y)
 ;is returned by TIB, the input buffer. Set >IN to zero.
 ;Note: This word is obsolescent and is included as a concession to existing
 ;implementations.
+;
+;S12CForth implementation details:
+;Throws:
+;"Communication problem"
+;
 			ALIGN	1
 NFA_QUERY		FHEADER, "QUERY", NFA_PICK, COMPILE
 CFA_QUERY		DW	CF_QUERY
 CF_QUERY		;Query command line
-			SSTACK_JOBSR	FCORE_QUERY 	;(SSTACK: 6 bytes)
+			SSTACK_JOBSR	FCORE_QUERY 	;(SSTACK: 18 bytes)
+			TBNE	X, CF_QUERY_COMERR	;communication error
 			;Done 
 			NEXT
 
-;			MOVW	#$0000, NUMBER_TIB ;clear TIB
-;			LED_BUSY_OFF				
-;CF_QUERY_1		SCI_RX			;receive a character
-;			;Check for transmission errors (character in B) 
-;			BITA	#(NF|FE|PE) 	;check for: noise, frame errors, parity errors
-;			BNE	CF_QUERY_1	;ignore transmission errors
-;			;Check for ignored characters (character in B)
-;			CMPB	#PRINT_SYM_LF	
-;			BEQ	CF_QUERY_1	;ignore character	
-;			;Check for BACKSPACE (character in B)
-;			CMPB	#PRINT_SYM_BACKSPACE	
-;			BEQ	CF_QUERY_3 	;remove most recent character
-;			CMPB	#PRINT_SYM_DEL	
-;			BEQ	CF_QUERY_3 	;remove most recent character	
-;			;Check for ENTER (character in B)
-;			CMPB	#PRINT_SYM_CR	
-;			BEQ	CF_QUERY_4 	;process input
-;			;Check for TIB overflow (character in B)
-;			TIB_CHECK_OF  1, CF_QUERY_5 ;beep on overflow
-;			;Check for valid special characters (character in B, next free TIB location in X)
-;			CMPB	#PRINT_SYM_TAB	
-;			BEQ	CF_QUERY_2 	;echo and append to TIB
-;			;Check for invalid characters (character in B, next free TIB location in X)
-;			CMPB	#" "
-;			BLO	CF_QUERY_5 	;beep
-;			CMPB	#"~"
-;			BHI	CF_QUERY_5 	;beep
-;			;Echo character and append to TIB (character in B, next free TIB location in X)
-;CF_QUERY_2		STAB	0,X		;store character
-;			LEAX	1-TIB_START,X	;increment TIB counter
-;			STX	NUMBER_TIB
-;			SCI_TX			;echo a character
-;			JOB	CF_QUERY_1
-;			;Remove most recent character
-;CF_QUERY_3		LDX	NUMBER_TIB	;decrement TIB counter
-;			BEQ	CF_QUERY_5 	;beep if TIB was empty
-;			LEAX	-1,X
-;			STX	NUMBER_TIB	
-;			LDAB	#PRINT_SYM_BACKSPACE ;transmit a backspace character
-;			SCI_TX
-;			JOB	CF_QUERY_1	
-;			;Process input (next free TIB location -> X)
-;CF_QUERY_4		MOVW	#$0000, TO_IN 	;set >IN to zero
-;			LED_BUSY_ON
-;			NEXT
-;			;Beep
-;CF_QUERY_5		PRINT_BEEP		;beep
-;			JOB	CF_QUERY_1 	;receive next character
+CF_QUERY_COMERR		JOB	FCORE_THROW_COMERR
 	
-;REFILL ( -- flag ) TODO!
+;REFILL ( -- flag ) CHECK!
 ;Attempt to fill the input buffer from the input source, returning a true flag;if successful.
 ;When the input source is the user input device, attempt to receive input into
 ;the terminal input buffer. If successful, make the result the input buffer, set
@@ -5696,8 +5880,27 @@ CF_QUERY		;Query command line
 ;source, return false.
 ;When the input source is a string from EVALUATE, return false and perform no
 ;other action.
-NFA_REFILL		EQU	NFA_QUERY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+;"Communication problem"
+;
+CF_REFILL_PSOF		JOB	FCORE_THROW_PSOF
+CF_REFILL_COMERR	JOB	FCORE_THROW_COMERR
 
+NFA_REFILL		FHEADER, "REFILL", NFA_QUERY, COMPILE
+CFA_REFILL		DW	CF_REFILL
+CF_REFILL		PS_CHECK_UF	1, CF_REFILL_PSOF 	;check for PS overflow (PSP-2 -> Y)
+			;Query command line
+			SSTACK_JOBSR	FCORE_QUERY   		;(SSTACK: 18 bytes)
+			TBNE	X, CF_QUERY_COMERR   		;communication error
+			;Push return status 
+			MOVW	#-1, 0,Y
+			STY	PSP
+			;Done 
+			NEXT
+			
 ;RESTORE-INPUT ( xn ... x1 n -- flag )
 ;Attempt to restore the input source specification to the state described by x1
 ;through xn. flag is true if the input source specification cannot be so

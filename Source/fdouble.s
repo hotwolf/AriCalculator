@@ -61,7 +61,9 @@ FDOUBLE_VARS_END		EQU	*
 FDOUBLE_THROW_PSOF	EQU	FMEM_THROW_PSOF			;stack overflow
 FDOUBLE_THROW_PSUF	EQU	FMEM_THROW_PSUF			;stack underflow
 FDOUBLE_THROW_RESOR	EQU	FCORE_THROW_RESOR		;result out of range
+FDOUBLE_THROW_0DIV	EQU	FCORE_THROW_0DIV		;division by zero
 FDOUBLE_THROW_INVALBASE	EQU	FCORE_THROW_INVALBASE		;invalid BASE value
+FDOUBLE_THROW_INVALNUM	EQU	FCORE_THROW_INVALNUM		;invalid numeric argument
 
 FDOUBLE_CODE_END		EQU	*
 	
@@ -391,12 +393,46 @@ CF_D_TWO_SLASH		PS_CHECK_UF 2, CF_D_TWO_SLASH_PSUF 	;check for underflow (PSP ->
 
 CF_D_TWO_SLASH_PSUF	JOB	FDOUBLE_THROW_PSUF
 	
-;D< ( d1 d2 -- flag ) TODO!
+;D< ( d1 d2 -- flag ) CHECK!
 ;flag is true if and only if d1 is less than d2.
-NFA_D_LESS_THAN		EQU	NFA_D_TWO_SLASH
-;			ALIGN	1
-;NFA_D_LESS_THAN		FHEADER, "D<", NFA_D_TWO_SLASH, COMPILE
-;CFA_D_LESS_THAN		DW	CF_DUMMY
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_D_LESS_THAN		FHEADER, "D<", NFA_D_TWO_SLASH, COMPILE
+CFA_D_LESS_THAN		DW	CF_D_LESS_THAN
+CF_D_LESS_THAN		PS_CHECK_UF 2, CF_D_LESS_THAN_PSUF 	;check for underflow (PSP -> Y)
+			;Compare MSWs (PSP in Y)
+			LDD	4,Y
+			CPD	0,Y
+			BLT	CF_D_LESS_THAN_1		;true
+			BGT	CF_D_LESS_THAN_3		;false
+			;MSWs are equal (MSW in D, PSP in Y)
+			TSTA
+			BMI	CF_D_LESS_THAN_4 		;d1 and d2 are negative
+			;d1 and d2 are positive (PSP in Y)
+			LDD	6,Y
+			CPD	2,Y
+			BHS	CF_D_LESS_THAN_3		;false	
+			;TRUE (PSP in Y)
+CF_D_LESS_THAN_1	LDD	#$FFFF
+CF_D_LESS_THAN_2	STD	6,+Y 				;Return result
+			STY	PSP
+			;Done
+			NEXT
+			;FALSE (PSP in Y)
+CF_D_LESS_THAN_3	CLRA
+			CLRB
+			JOB	CF_D_LESS_THAN_2	
+			;d1 and d2 are negative
+CF_D_LESS_THAN_4	LDD	6,Y
+			CPD	2,Y
+			BLS	CF_D_LESS_THAN_3		;false	
+			JOB	CF_D_LESS_THAN_1		;true
+	
+CF_D_LESS_THAN_PSUF	JOB	FDOUBLE_THROW_PSUF
 
 ;D= ( xd1 xd2 -- flag )
 ;flag is true if and only if xd1 is bit-for-bit the same as xd2.
@@ -574,7 +610,7 @@ CF_D_NEGATE_1		LDD	0,Y 				;invert MSW
 CF_D_NEGATE_PSUF	JOB	FDOUBLE_THROW_PSUF
 	
 ;
-;M*/ ( d1 n1 +n2 -- d2 ) TODO!
+;M*/ ( d1 n1 +n2 -- d2 ) CHECK!
 ;Multiply d1 by n1 producing the triple-cell intermediate result t. Divide t by
 ;+n2 giving the double-cell quotient d2. An ambiguous condition exists if +n2 is
 ;zero or negative, or the quotient lies outside of the range of a
@@ -583,13 +619,77 @@ CF_D_NEGATE_PSUF	JOB	FDOUBLE_THROW_PSUF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
+;"Divide by zero"
+;"Quotient out of range"
+;"Invalid numeric argument"
 ;
-NFA_M_STAR_SLASH	EQU	NFA_D_NEGATE
-;			ALIGN	1
-;NFA_M_STAR_SLASH	FHEADER, "M*/", NFA_D_NEGATE, COMPILE
-;CFA_M_STAR_SLASH	DW	CF_M_STAR_SLASH
-;CF_M_STAR_SLASH		NEXT
-	
+CF_M_STAR_SLASH_RESOR		JOB	FDOUBLE_THROW_RESOR
+CF_M_STAR_SLASH_0DIV		JOB	FDOUBLE_THROW_0DIV
+CF_M_STAR_SLASH_INVALNUM	JOB	FDOUBLE_THROW_INVALNUM
+CF_M_STAR_SLASH_PSUF		JOB	FDOUBLE_THROW_PSUF
+
+			ALIGN	1
+NFA_M_STAR_SLASH	FHEADER, "M*/", NFA_D_NEGATE, COMPILE
+CFA_M_STAR_SLASH	DW	CF_M_STAR_SLASH
+CF_M_STAR_SLASH		PS_CHECK_UF	4, CF_M_STAR_SLASH_PSUF ;check for underflow (PSP -> Y)
+			;Check +n2 (PSP in Y)
+			LDD	0,Y		 		;+n2 -> D
+			BEQ	CF_M_STAR_SLASH_0DIV 		;division by zero
+			BMI	CF_M_STAR_SLASH_INVALNUM	;+n2 is negative
+			;Allocate temporary memory (PSP in Y)
+			SSTACK_ALLOC	6		;allocate 6 bytes
+			;+--------+--------+
+			;|   Result (MSW)  | <-SSTACK_SP (in X)
+			;+--------+--------+
+			;|   Result        | +2
+			;+--------+--------+
+			;|   Result (LSW)  | +4
+			;+--------+--------+
+			MOVW	#$0000, 0,X
+			;Multiply LSW (SP in X, PSP in Y)
+			LDD	2,Y 				;n1      -> D
+			LDX	6,Y				;d1(LSW) -> Y
+			EMULS					;Y * D => Y:D
+			BPL	CF_M_STAR_SLASH_1		;result is positive
+			MOVW	#$FFFF, 0,X
+CF_M_STAR_SLASH_1	STY	2,X				;n1      -> D
+			STD	4,X				;d1(LSW) -> Y
+			;Multiply LSW (SP in X)
+			LDY	PSP
+			LDD	2,Y 				;n1      -> D
+			LDX	4,Y				;d1(MSW) -> Y
+			EMULS					;Y * D => Y:D
+			ADDD	2,X
+			STD	2,X
+			EXG	Y, D
+			ADCB	1,X
+			ADCA	0,X
+			STD	0,X
+			;Divide MSW by +n2 (SP in X, Result (MSW) in Y:D)
+			LDX	[PSP]		 		;+n2 -> X
+			EDIV					;Y:D/X=>Y; remainder=>D
+			BVS	CF_M_STAR_SLASH_3 		;result is out of range
+			LDX	PSP
+			STY	4,X
+			;Divide LSW by +n2 (Remainder in D)
+			TFR	D, Y
+			STX	SSTACK_SP
+			LDD	4,X
+			LDX	[PSP]		 		;+n2 -> X	
+			EDIV					;Y:D/X=>Y; remainder=>D
+			LDX	PSP
+			STY	6,X
+			;Deallocate temporary memory (PSP in Y)
+			SSTACK_DEALLOC	6			;deallocate 6 bytes
+			;Adjust PS (PSP in Y)
+			LEAY	4,Y
+			STY	PSP
+			;Done
+CF_M_STAR_SLASH_2	NEXT
+			;Result out of range
+CF_M_STAR_SLASH_3	SSTACK_DEALLOC	6		
+			;JOB	CF_M_STAR_SLASH_INVALNUM
+
 ;M+ ( d1|ud1 n -- d2|ud2 )
 ;Add n to d1|ud1, giving the sum d2|ud2.
 ;
