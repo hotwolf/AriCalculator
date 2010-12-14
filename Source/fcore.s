@@ -465,7 +465,7 @@ FCORE_PROC_DIGIT_RESHI	EQU	12
 FCORE_PROC_DIGIT_RESLO	EQU	14
 			;Read next character 
 			LDX	SSTACK_SP	
-			LDAB	FCORE_PROC_DIGIT_CHRPTR,X
+			LDAB	[FCORE_PROC_DIGIT_CHRPTR,X]
 			;Ignore termination (character in B, SP in X)
 			ANDB	#$7F
 			;Convert character to digit (unterminated character in B, SP in X)
@@ -507,7 +507,7 @@ FCORE_PROC_DIGIT_5	CLRA				;digit in D
 			STD	FCORE_PROC_DIGIT_Y,X    ;store digit
 			;Multiply result by base (SP in X)
 			LDY	FCORE_PROC_DIGIT_RESLO,X
-			LDD	FCORE_PROC_DIGIT_RESLO,X
+			LDD	FCORE_PROC_DIGIT_BASE,X
 			EMUL				;Y * D => Y:D
 			STD	FCORE_PROC_DIGIT_RESLO,X
 			LDD	FCORE_PROC_DIGIT_RESHI,X
@@ -547,7 +547,6 @@ FCORE_PROC_DIGIT_8	MOVW	#$0004, FCORE_PROC_DIGIT_Y,X
 ;         No registers are preserved
 FCORE_NUMBER		EQU	*	
 ;			;Allocate temporary memory
-			TFR	X,Y
 			SSTACK_ALLOC	10 		;allocate 18 bytes
 ;         Stack:        +--------+--------+
 ;			|      Base       | SSTACK_SP +0
@@ -565,8 +564,10 @@ FCORE_NUMBER_CHRPTR	EQU	2
 FCORE_NUMBER_RESHI	EQU	4
 FCORE_NUMBER_RESLO	EQU	6
 FCORE_NUMBER_STRPTR	EQU	8
-FCORE_NUMBER_SIZE	EQU	FCORE_NUMBER_STRPTR
-	
+FCORE_NUMBER_SIZE	EQU	FCORE_NUMBER_CHRPTR
+
+			TFR	X,Y
+			LDX	SSTACK_SP
 			MOVW	BASE, FCORE_NUMBER_BASE,X
 			STY	FCORE_NUMBER_CHRPTR,X
 			MOVW	#$0000, FCORE_NUMBER_RESHI,X
@@ -582,8 +583,7 @@ FCORE_NUMBER_SIZE	EQU	FCORE_NUMBER_STRPTR
 			STY	FCORE_NUMBER_CHRPTR,X
 			LDAB	0,Y	
 			;Handle base modifier (char in B, char pointer in Y, stack pointer in X)
-FCORE_NUMBER_1		ANDB	#$7F 			;remove termination
-			CMPB	#"%" 			;check for binary modifier
+FCORE_NUMBER_1		CMPB	#"%" 			;check for binary modifier
 			BNE	FCORE_NUMBER_2		;no binary modifier
 			MOVW	#2, FCORE_NUMBER_BASE,X
 			JOB	FCORE_NUMBER_4 		;skip to next char
@@ -626,35 +626,36 @@ FCORE_NUMBER_8		MOVW	#2, FCORE_NUMBER_SIZE,X   ;default size: double word
 			CMPB	#"-"
 			BEQ	FCORE_NUMBER_11 	;negative number
 			;Positive number (char pointer+1 in Y, stack pointer in X) 
-			LDD	FCORE_NUMBER_RESLO,X	;calculate 2's complement
+			LDD	FCORE_NUMBER_RESHI,X	;calculate 2's complement
 			BNE	FCORE_NUMBER_10		;return result
 			;Check for forced double value (char pointer+1 in Y, stack pointer in X)
 FCORE_NUMBER_9		LDAB	-1,Y
 			CMPB	#((".")|$80)
 			BEQ	FCORE_NUMBER_10		;return result
 			MOVW	#1, FCORE_NUMBER_SIZE,X ;default size: double word
-			;Return result
+			;Return result (stack pointer in X)
 FCORE_NUMBER_10		SSTACK_DEALLOC	10      ;free memory
-			LDD	-2,X
-			LDY	-6,X
-			LDX	-4,X
+			LDD	FCORE_NUMBER_SIZE,X
+			LDY	FCORE_NUMBER_RESHI,X
+			LDX	FCORE_NUMBER_RESLO,X
 			SSTACK_RTS
 			;Negative number (char pointer+1 in Y, stack pointer in X) 
-FCORE_NUMBER_11		LDD	FCORE_NUMBER_RESLO,X	;calculate 2's complement
+FCORE_NUMBER_11		LDD	FCORE_NUMBER_RESHI,X	;calculate 2's complement
+			COMA
+			COMB
+			STD	FCORE_NUMBER_RESHI,X
+			LDD	FCORE_NUMBER_RESLO,X	;calculate 2's complement
 			COMA
 			COMB
 			ADDD	#1
 			STD	FCORE_NUMBER_RESLO,X
 			LDD	FCORE_NUMBER_RESHI,X
-			COMB
 			ADCB	#0
-			COMA
 			ADCA	#0
 			STD	FCORE_NUMBER_RESHI,X
 			BCS	FCORE_NUMBER_7		;overflow (not a number)
 			;Check negative size (MSW in D, char pointer+1 in Y, stack pointer in X)
-			MOVW	#2, FCORE_NUMBER_SIZE   ;default size: double word	
-			DBNE	D, FCORE_NUMBER_10	;return result
+			IBNE	D, FCORE_NUMBER_10	;return result
 			TST	FCORE_NUMBER_RESLO,X
 			BPL	FCORE_NUMBER_10		;return result
 			JOB	FCORE_NUMBER_9		;check for forced double value
@@ -948,7 +949,7 @@ FCORE_ACCEPT		EQU	*
 			;Read input (buffer pointer in Y, char count in Y)
 			LED_BUSY_OFF			
 FCORE_ACCEPT_1		SCI_RX					;receive an ASCII character (SSTACK: 8 bytes)
-			TBNE	A, FCORE_ACCEPT_6		;communication error
+			TBNE	A, FCORE_ACCEPT_7		;communication error
 			;Check for BACKSPACE (char in B, buffer pointer in X, char count in Y)
 			CMPB	#PRINT_SYM_BACKSPACE	
 			BEQ	FCORE_ACCEPT_3 			;remove most recent character
@@ -956,7 +957,7 @@ FCORE_ACCEPT_1		SCI_RX					;receive an ASCII character (SSTACK: 8 bytes)
 			BEQ	FCORE_ACCEPT_3 			;remove most recent character	
 			;Check for ENTER (char in B, buffer pointer in X, char count in Y)
 			CMPB	#PRINT_SYM_CR	
-			BEQ	FCORE_ACCEPT_4			;process input
+			BEQ	FCORE_ACCEPT_5			;process input
 			;Check for buffer overflow (char in B, buffer pointer in X, char count in Y)
 			CPY	[SSTACK_SP]	
 			BHS	FCORE_ACCEPT_4	 		;beep on overflow
@@ -984,9 +985,9 @@ FCORE_ACCEPT_3		TBEQ	Y, FCORE_ACCEPT_4		;beep if TIB was empty
 FCORE_ACCEPT_4		PRINT_BEEP		;beep
 			JOB	FCORE_ACCEPT_1 	;receive next character
 			;Process input (char count in Y)
-			CLRA
+FCORE_ACCEPT_5		CLRA
 			CLRB
-FCORE_ACCEPT_5		LDX	SSTACK_SP
+FCORE_ACCEPT_6		LDX	SSTACK_SP
 			STY	0,X	
 			STD	2,X
 			;Done
@@ -994,8 +995,8 @@ FCORE_ACCEPT_5		LDX	SSTACK_SP
 			SSTACK_PULDXY
 			SSTACK_RTS
 			;Communication error (char count in Y)
-FCORE_ACCEPT_6		LDD	#$0002
-			JOB	FCORE_ACCEPT_5
+FCORE_ACCEPT_7		LDD	#$0002
+			JOB	FCORE_ACCEPT_6
 
 ;#Get command line input and store it into the TIB
 ; args:   none
@@ -5903,7 +5904,7 @@ CF_EXPECT_INVALNUM	JOB	FCORE_THROW_INVALNUM
 CF_EXPECT_COMERR	JOB	FCORE_THROW_COMERR
 
 			ALIGN	1
-NFA_EXPECT		FHEADER, "EXPECT", NFA_ABS, COMPILE
+NFA_EXPECT		FHEADER, "EXPECT", NFA_ERASE, COMPILE
 CFA_EXPECT		DW	CF_EXPECT
 CF_EXPECT		PS_CHECK_UF	2, CF_EXPECT_PSUF	;PSP -> Y
 			;Parse command line (PSP in Y)
