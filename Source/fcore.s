@@ -408,163 +408,459 @@ FCORE_WORD_5		MOVW	NUMBER_TIB, TO_IN	;update >IN pointer
 			CLRA
 			JOB	FCORE_WORD_4
 
+;#Skip to the next character of a string
+
+
+	
+;#Process one digit in a string to number conversion
+; args:   Stack:        +--------+--------+
+;			|      Base       | SSTACK_SP +2
+;			+--------+--------+
+;			|   Char Pointer  | SSTACK_SP +4
+;			+--------+--------+
+;			|    Result MSW   | SSTACK_SP +6
+;			+--------+--------+
+;			|    Result LSW   | SSTACK_SP +8
+;			+--------+--------+
+; result: Y:	Status (0: everything ok, 2:fill char, 4:not a number) 	
+;         Stack:        +--------+--------+
+;			|      Base       | SSTACK_SP +2
+;			+--------+--------+
+;			|   Char Pointer  | SSTACK_SP +4
+;			+--------+--------+
+;			|  New Result MSW | SSTACK_SP +6
+;			+--------+--------+
+;			|  New Result LSW | SSTACK_SP +8
+;			+--------+--------+
+; SSTACK: 8 bytes
+;         D and X are preserved
+;
+FCORE_PROC_DIGIT	EQU	*	
+			;Allocate temporary variables
+			SSTACK_PSHYXD	
+			;+--------+--------+
+			;|    D (Status)   | SSTACK_SP +0
+			;+--------+--------+
+			;|        X        | SSTACK_SP +2
+			;+--------+--------+
+			;|        Y        | SSTACK_SP +4
+			;+--------+--------+
+			;|  Return value   | SSTACK_SP +6
+			;+--------+--------+
+			;|      Base       | SSTACK_SP +8
+			;+--------+--------+
+			;|   Char Pointer  | SSTACK_SP +10
+			;+--------+--------+
+			;|    Result MSW   | SSTACK_SP +12
+			;+--------+--------+
+			;|    Result LSW   | SSTACK_SP +14
+			;+--------+--------+
+FCORE_PROC_DIGIT_D	EQU	0		
+FCORE_PROC_DIGIT_X	EQU	2		
+FCORE_PROC_DIGIT_Y	EQU	4		
+FCORE_PROC_DIGIT_RETURN	EQU	6		
+FCORE_PROC_DIGIT_BASE	EQU	8		
+FCORE_PROC_DIGIT_CHRPTR	EQU	10
+FCORE_PROC_DIGIT_RESHI	EQU	12
+FCORE_PROC_DIGIT_RESLO	EQU	14
+			;Read next character 
+			LDX	SSTACK_SP	
+			LDAB	FCORE_PROC_DIGIT_CHRPTR,X
+			;Ignore termination (character in B, SP in X)
+			ANDB	#$7F
+			;Convert character to digit (unterminated character in B, SP in X)
+			;[0-9]
+			CMPB	#"0"
+			BLO	FCORE_PROC_DIGIT_3 	;[,.]
+			CMPB	#"9"
+			BHI	FCORE_PROC_DIGIT_1 	;[A-Z]
+			SUBB	#"0"			;subtract offset
+			JOB	FCORE_PROC_DIGIT_5	;check digit
+			;[A-Z]
+FCORE_PROC_DIGIT_1	CMPB	#"A"
+			BLO	FCORE_PROC_DIGIT_8	;not a number
+			CMPB	#"Z"
+			BHI	FCORE_PROC_DIGIT_2	;[a-z]
+			SUBB	#("A"-10)		;subtract offset
+			JOB	FCORE_PROC_DIGIT_5 	;check digit
+			;[a-z] 
+FCORE_PROC_DIGIT_2	CMPB	#"a"			
+			BLO	FCORE_PROC_DIGIT_4 	;[_]
+			CMPB	#"z"
+			BHI	FCORE_PROC_DIGIT_8	;not a number
+			SUBB	#("A"-10)		;subtract offset
+			JOB	FCORE_PROC_DIGIT_5 	;check digit
+			;[,.]
+FCORE_PROC_DIGIT_3	CMPB	#","
+			BEQ	FCORE_PROC_DIGIT_7 	;filler character
+			CMPB	#"."
+			BEQ	FCORE_PROC_DIGIT_7 	;filler character
+			JOB	FCORE_PROC_DIGIT_8	;not a number
+			;[_]
+FCORE_PROC_DIGIT_4	CMPB	#"_"
+			BEQ	FCORE_PROC_DIGIT_7 	;filler character
+			JOB	FCORE_PROC_DIGIT_8	;not a number	
+			;Check digit (digit in B, SP in X)
+FCORE_PROC_DIGIT_5	CLRA				;digit in D
+			CPD	FCORE_PROC_DIGIT_BASE,X	;check if digit < BASE
+			BHS	FCORE_PROC_DIGIT_8	;not a number
+			STD	FCORE_PROC_DIGIT_Y,X    ;store digit
+			;Multiply result by base (SP in X)
+			LDY	FCORE_PROC_DIGIT_RESLO,X
+			LDD	FCORE_PROC_DIGIT_RESLO,X
+			EMUL				;Y * D => Y:D
+			STD	FCORE_PROC_DIGIT_RESLO,X
+			LDD	FCORE_PROC_DIGIT_RESHI,X
+			STY	FCORE_PROC_DIGIT_RESHI,X
+			LDY	FCORE_PROC_DIGIT_BASE,X
+			EMUL				;Y * D => Y:D
+			TBNE	Y, FCORE_PROC_DIGIT_8	;number out of range 	
+			ADDD	FCORE_PROC_DIGIT_RESHI,X
+			BCS	FCORE_PROC_DIGIT_8	;number out of range
+			STD	FCORE_PROC_DIGIT_RESHI,X
+			;Add digit to result (SP in X)
+			LDD	FCORE_PROC_DIGIT_RESLO,X
+			ADDD	FCORE_PROC_DIGIT_Y,X
+			STD	FCORE_PROC_DIGIT_RESLO,X
+			LDD	#$0000
+			ADCB	FCORE_PROC_DIGIT_RESHI+1,X
+			ADCA	FCORE_PROC_DIGIT_RESHI,X
+			BCS	FCORE_PROC_DIGIT_8	;number out of range
+			STD	FCORE_PROC_DIGIT_RESHI,X
+			;Set status (SP in X)
+			MOVW	#$0000, FCORE_PROC_DIGIT_Y,X
+			;Done
+FCORE_PROC_DIGIT_6	SSTACK_PULDXY
+			SSTACK_RTS
+			;Filler char (SP in X)
+FCORE_PROC_DIGIT_7	MOVW	#$0002, FCORE_PROC_DIGIT_Y,X
+			JOB	FCORE_PROC_DIGIT_6 	;done		
+			;Not a number (SP in X)
+FCORE_PROC_DIGIT_8	MOVW	#$0004, FCORE_PROC_DIGIT_Y,X
+			JOB	FCORE_PROC_DIGIT_6 	;done		
+
 ;#Convert a terminated string into a number
 ; args:   X:   string pointer
 ; result: Y:X: number
 ;	  D:   size	
-; SSTACK: 12 bytes
+; SSTACK: 20 bytes
 ;         No registers are preserved
 FCORE_NUMBER		EQU	*	
-			;+--------+--------+
-			;| String Pointer  | <-SSTACK_SP (in X)
-			;+--------+--------+
-			;|   Char Pointer  | 
-			;+--------+--------+
-			;|  Digit/Size (D) |
-			;+--------+--------+
-			;|  Result LSW (X) |
-			;+--------+--------+
-			;|  Result MSW (Y) | 
-			;+--------+--------+
-			;| Return address  |
-			;+--------+--------+
-FCORE_NUMBER_STRPTR	EQU	0		
-FCORE_NUMBER_CHARPTR	EQU	2		
-FCORE_NUMBER_DIGIT	EQU	4
-FCORE_NUMBER_SIZE	EQU	4
+;			;Allocate temporary memory
+			TFR	X,Y
+			SSTACK_ALLOC	10 		;allocate 18 bytes
+;         Stack:        +--------+--------+
+;			|      Base       | SSTACK_SP +0
+;			+--------+--------+
+;			|   Char Pointer  | SSTACK_SP +2
+;			+--------+--------+
+;			|  New Result MSW | SSTACK_SP +4
+;			+--------+--------+
+;			|  New Result LSW | SSTACK_SP +6
+;			+--------+--------+
+;			| String Pointer  | SSTACK_SP +8
+;			+--------+--------+
+FCORE_NUMBER_BASE	EQU	0		
+FCORE_NUMBER_CHRPTR	EQU	2
+FCORE_NUMBER_RESHI	EQU	4
 FCORE_NUMBER_RESLO	EQU	6
-FCORE_NUMBER_RESHI	EQU	8
-
-			;Initialize temporary memory
-			SSTACK_ALLOC	10 		;allocate 8 bytes
-			TFR	X, Y
-			LDX	SSTACK_SP 		;SP -> X
+FCORE_NUMBER_STRPTR	EQU	8
+FCORE_NUMBER_SIZE	EQU	FCORE_NUMBER_STRPTR
+	
+			MOVW	BASE, FCORE_NUMBER_BASE,X
+			STY	FCORE_NUMBER_CHRPTR,X
+			MOVW	#$0000, FCORE_NUMBER_RESHI,X
+			MOVW	#$0000, FCORE_NUMBER_RESLO,X
 			STY	FCORE_NUMBER_STRPTR,X
-			BEQ	FCORE_NUMBER_13 	;quit if the string is empty
-			STY	FCORE_NUMBER_CHARPTR,X
-			CLRA				;Clear result field
-			CLRB
-			STD	FCORE_NUMBER_DIGIT,X
-			STD	FCORE_NUMBER_RESLO,X
-			STD	FCORE_NUMBER_RESHI,X
-			;Skip for minus sign (char pointer in Y, SP in X)
+
+			;Skip sign (char pointer in Y, stack pointer in X)
 			LDAB	0,Y
+			ANDB	#$7F 			;remove termination
 			CMPB	#"-"
-			BNE	FCORE_NUMBER_2 		;Ignore termination
-			;Read next character 
-FCORE_NUMBER_1		LDAB	1,+Y
-			;Ignore termination (character in B, char pointer in Y, SP in X)
-FCORE_NUMBER_2		ANDB	#$7F			;remove termination
-			;Convert character to digit (unterminated character in B, char pointer in Y, SP in X)
-FCORE_NUMBER_3		;[0-9]
-			CMPB	#"0"
-			BLO	FCORE_NUMBER_6 		;[,.]
-			CMPB	#"9"
-			BHI	FCORE_NUMBER_4 		;[A-Z]
-			SUBB	#"0"			;subtract offset
-			JOB	FCORE_NUMBER_8 		;check digit
-			;[A-Z]
-FCORE_NUMBER_4		CMPB	#"A"
-			BLO	FCORE_NUMBER_13		;not a number
-			CMPB	#"Z"
-			BHI	FCORE_NUMBER_5		;[a-z]
-			SUBB	#("A"-10)		;subtract offset
-			JOB	FCORE_NUMBER_8 		;check digit
-			;[a-z] 
-FCORE_NUMBER_5		CMPB	#"a"			
-			BLO	FCORE_NUMBER_7 		;[_]
-			CMPB	#"z"
-			BHI	FCORE_NUMBER_13		;not a number
-			SUBB	#("A"-10)		;subtract offset
-			JOB	FCORE_NUMBER_8 		;check digit
-			;[,.]
-FCORE_NUMBER_6		STY	FCORE_NUMBER_CHARPTR,X	;store char pointer
-			CMPB	#","
-			BEQ	FCORE_NUMBER_9 		;ignore character
-			CMPB	#"."
-			BEQ	FCORE_NUMBER_9 		;ignore character
-			JOB	FCORE_NUMBER_13		;not a number
-			;[_]
-FCORE_NUMBER_7		STY	FCORE_NUMBER_CHARPTR,X	;store char pointer
-			CMPB	#"_"
-			BEQ	FCORE_NUMBER_9 		;ignore character
-			JOB	FCORE_NUMBER_13		;not a number	
-			;Check digit (digit in B, SP in X, char pointer in Y)
-FCORE_NUMBER_8		CLRA				;digit in D
-			CPD	BASE 			;check if digit < BASE
-			BHS	FCORE_NUMBER_13		;not a number
-			STD	FCORE_NUMBER_DIGIT,X 	;store digit
-			STY	FCORE_NUMBER_CHARPTR,X	;store char pointer
-			;Multiply result by base (SP in X)
-			LDY	FCORE_NUMBER_RESLO,X
-			LDD	BASE
-			EMUL				;Y * D => Y:D
-			STD	FCORE_NUMBER_RESLO,X
-			LDD	FCORE_NUMBER_RESHI,X
-			STY	FCORE_NUMBER_RESHI,X
-			LDY	BASE
-			EMUL				;Y * D => Y:D
-			TBNE	Y, FCORE_NUMBER_13		;number out of range 	
-			ADDD	FCORE_NUMBER_RESHI,X
-			BCS	FCORE_NUMBER_13		;number out of range
-			STD	FCORE_NUMBER_RESHI,X
-			;Add digit to result (SP in X)
-			LDD	FCORE_NUMBER_RESLO,X
-			ADDD	FCORE_NUMBER_DIGIT,X
-			STD	FCORE_NUMBER_RESLO,X
-			LDD	#$0000
-			ADCB	FCORE_NUMBER_RESHI+1,X
-			ADCA	FCORE_NUMBER_RESHI,X
-			BCS	FCORE_NUMBER_13		;number out of range
-			STD	FCORE_NUMBER_RESHI,X
-			;Check for string termination (SP in X)
-FCORE_NUMBER_9		LDY	FCORE_NUMBER_CHARPTR,X		
-			LDAB	0,Y
-			BPL	FCORE_NUMBER_1 		;read next character
-			;Check if number is negative (char pointer in Y, SP in X)
-			LDAB	[FCORE_NUMBER_STRPTR,X]			
+			BNE	FCORE_NUMBER_1 		;check for base modifier
+			BRSET	1,Y+, #$80, FCORE_NUMBER_7;not a number
+			STY	FCORE_NUMBER_CHRPTR,X
+			LDAB	0,Y	
+			;Handle base modifier (char in B, char pointer in Y, stack pointer in X)
+FCORE_NUMBER_1		ANDB	#$7F 			;remove termination
+			CMPB	#"%" 			;check for binary modifier
+			BNE	FCORE_NUMBER_2		;no binary modifier
+			MOVW	#2, FCORE_NUMBER_BASE,X
+			JOB	FCORE_NUMBER_4 		;skip to next char
+FCORE_NUMBER_2		CMPB	#"&" 			;check for decimal modifier
+			BNE	FCORE_NUMBER_3		;no decimal modifier
+			MOVW	#10, FCORE_NUMBER_BASE,X
+			JOB	FCORE_NUMBER_4 		;skip to next char
+FCORE_NUMBER_3		CMPA	#"$" 			;check for hexadecimal modifier
+			BNE	FCORE_NUMBER_5		;no hexadecimal modifier
+			MOVW	#16, FCORE_NUMBER_BASE,X			
+FCORE_NUMBER_4		LDY	FCORE_NUMBER_CHRPTR,X
+			BRSET	1,Y+, #$80, FCORE_NUMBER_7;not a number
+			STY	FCORE_NUMBER_CHRPTR,X
+			;Skip to first digit (stack pointer in X) 
+FCORE_NUMBER_5		SSTACK_JOBSR	FCORE_PROC_DIGIT
+			JMP	[FCORE_NUMBER_TAB_1,Y]
+
+FCORE_NUMBER_TAB_1	DW	FCORE_NUMBER_6 		;first digit processed
+			DW	FCORE_NUMBER_4		;try to next digit
+			DW	FCORE_NUMBER_7		;not a number
+
+			;First digit procesed (stack pointer in X)
+FCORE_NUMBER_6		LDY	FCORE_NUMBER_CHRPTR,X
+			BRSET	1,Y+, #$80, FCORE_NUMBER_8 ;handle sign
+			STY	FCORE_NUMBER_CHRPTR,X
+			SSTACK_JOBSR	FCORE_PROC_DIGIT
+			JMP	[FCORE_NUMBER_TAB_2,Y]
+
+FCORE_NUMBER_TAB_2	DW	FCORE_NUMBER_6 		;first digit processed
+			DW	FCORE_NUMBER_6		;try to next digit
+			DW	FCORE_NUMBER_7		;not a number
+
+			;Not a number (stack pointer in X)
+FCORE_NUMBER_7		MOVW	#0, FCORE_NUMBER_SIZE,X   ;default size: double word	
+			JOB	FCORE_NUMBER_10		  ;return result
+
+			;Handle sign (char pointer+1 in Y, stack pointer in X)
+FCORE_NUMBER_8		MOVW	#2, FCORE_NUMBER_SIZE,X   ;default size: double word	
+			LDAB	[FCORE_NUMBER_STRPTR,X]
 			CMPB	#"-"
-			BEQ	FCORE_NUMBER_14 	;negative number
-			;Check the size of the unsigned number (SP in X)
-			LDD	FCORE_NUMBER_RESHI,X
-			BNE	FCORE_NUMBER_15		;return double number			
-			;Check for forced double number (SP in X)
-FCORE_NUMBER_10		LDAB	[FCORE_NUMBER_CHARPTR,X];check if double number is forced
-			CMPB	#("."+$80)			
-			BEQ	FCORE_NUMBER_15 	;return double number
-			;Return single number (SP in X)
-FCORE_NUMBER_11		MOVW	#$0001, FCORE_NUMBER_SIZE,X
-			;Clean up and leave 
-FCORE_NUMBER_12		SSTACK_DEALLOC	4 		;free 4  bytes
-			SSTACK_PULDXY		
+			BEQ	FCORE_NUMBER_11 	;negative number
+			;Positive number (char pointer+1 in Y, stack pointer in X) 
+			LDD	FCORE_NUMBER_RESLO,X	;calculate 2's complement
+			BNE	FCORE_NUMBER_10		;return result
+			;Check for forced double value (char pointer+1 in Y, stack pointer in X)
+FCORE_NUMBER_9		LDAB	-1,Y
+			CMPB	#((".")|$80)
+			BEQ	FCORE_NUMBER_10		;return result
+			MOVW	#1, FCORE_NUMBER_SIZE,X ;default size: double word
+			;Return result
+FCORE_NUMBER_10		SSTACK_DEALLOC	10      ;free memory
+			LDD	-2,X
+			LDY	-6,X
+			LDX	-4,X
 			SSTACK_RTS
-			;Not a number (SP in X)
-FCORE_NUMBER_13		MOVW	#$0000, FCORE_NUMBER_SIZE,X
-			JOB	FCORE_NUMBER_12 	;clean up and leave		
-			;Calculate 2's complement (SP in X)
-FCORE_NUMBER_14		LDD	FCORE_NUMBER_RESHI,X	
-			COMA
-			COMB
-			STD	FCORE_NUMBER_RESHI,X
-			LDD	FCORE_NUMBER_RESLO,X
+			;Negative number (char pointer+1 in Y, stack pointer in X) 
+FCORE_NUMBER_11		LDD	FCORE_NUMBER_RESLO,X	;calculate 2's complement
 			COMA
 			COMB
 			ADDD	#1
 			STD	FCORE_NUMBER_RESLO,X
 			LDD	FCORE_NUMBER_RESHI,X
-			ADCB	#$00
-			ADCA	#$00
-			BPL	FCORE_NUMBER_13		;number out of range
-			STD	FCORE_NUMBER_RESHI,X	
-			;Check the size of the negative number (result(hi) in D, SP in X)
-			CPD	#$FFFF
-			BNE	FCORE_NUMBER_15		;return double number
-			LDD	FCORE_NUMBER_RESLO,X
-			BMI	FCORE_NUMBER_10		;check for forced double number 
-			;Return double number (SP in X)
-FCORE_NUMBER_15		MOVW	#$0002, FCORE_NUMBER_SIZE,X
-			JOB	FCORE_NUMBER_12
+			COMB
+			ADCB	#0
+			COMA
+			ADCA	#0
+			STD	FCORE_NUMBER_RESHI,X
+			BCS	FCORE_NUMBER_7		;overflow (not a number)
+			;Check negative size (MSW in D, char pointer+1 in Y, stack pointer in X)
+			MOVW	#2, FCORE_NUMBER_SIZE   ;default size: double word	
+			DBNE	D, FCORE_NUMBER_10	;return result
+			TST	FCORE_NUMBER_RESLO,X
+			BPL	FCORE_NUMBER_10		;return result
+			JOB	FCORE_NUMBER_9		;check for forced double value
+	
+;			;+--------+--------+
+;			;| String Pointer  | <-SSTACK_SP (in X)
+;			;+--------+--------+
+;			;|   Char Pointer  | 
+;			;+--------+--------+
+;			;|  Digit/Size (D) |
+;			;+--------+--------+
+;			;|  Result LSW (X) |
+;			;+--------+--------+
+;			;|  Result MSW (Y) | 
+;			;+--------+--------+
+;			;| Return address  |
+;			;+--------+--------+
+;FCORE_NUMBER_STRPTR	EQU	0		
+;FCORE_NUMBER_CHARPTR	EQU	2		
+;FCORE_NUMBER_DIGIT	EQU	4
+;FCORE_NUMBER_SIZE	EQU	4
+;FCORE_NUMBER_RESLO	EQU	6
+;FCORE_NUMBER_RESHI	EQU	8
+;
+;			;Initialize temporary memory
+;			SSTACK_ALLOC	10 		;allocate 8 bytes
+;			TFR	X, Y
+;			LDX	SSTACK_SP 		;SP -> X
+;			STY	FCORE_NUMBER_STRPTR,X
+;			BEQ	FCORE_NUMBER_13 	;quit if the string is empty
+;			STY	FCORE_NUMBER_CHARPTR,X
+;			CLRA				;Clear result field
+;			CLRB
+;			STD	FCORE_NUMBER_DIGIT,X
+;			STD	FCORE_NUMBER_RESLO,X
+;			STD	FCORE_NUMBER_RESHI,X
+;			;Skip for minus sign (char pointer in Y, SP in X)
+;			LDAB	0,Y
+;			CMPB	#"-"
+;			BNE	FCORE_NUMBER_2 		;Ignore termination
+;			;Read next character 
+;FCORE_NUMBER_1		LDAB	1,+Y
+;			;Ignore termination (character in B, char pointer in Y, SP in X)
+;FCORE_NUMBER_2		ANDB	#$7F			;remove termination
+;			;Convert character to digit (unterminated character in B, char pointer in Y, SP in X)
+;FCORE_NUMBER_3		;[0-9]
+;			CMPB	#"0"
+;			BLO	FCORE_NUMBER_6 		;[,.]
+;			CMPB	#"9"
+;			BHI	FCORE_NUMBER_4 		;[A-Z]
+;			SUBB	#"0"			;subtract offset
+;			JOB	FCORE_NUMBER_8 		;check digit
+;			;[A-Z]
+;FCORE_NUMBER_4		CMPB	#"A"
+;			BLO	FCORE_NUMBER_13		;not a number
+;			CMPB	#"Z"
+;			BHI	FCORE_NUMBER_5		;[a-z]
+;			SUBB	#("A"-10)		;subtract offset
+;			JOB	FCORE_NUMBER_8 		;check digit
+;			;[a-z] 
+;FCORE_NUMBER_5		CMPB	#"a"			
+;			BLO	FCORE_NUMBER_7 		;[_]
+;			CMPB	#"z"
+;			BHI	FCORE_NUMBER_13		;not a number
+;			SUBB	#("A"-10)		;subtract offset
+;			JOB	FCORE_NUMBER_8 		;check digit
+;			;[,.]
+;FCORE_NUMBER_6		STY	FCORE_NUMBER_CHARPTR,X	;store char pointer
+;			CMPB	#","
+;			BEQ	FCORE_NUMBER_9 		;ignore character
+;			CMPB	#"."
+;			BEQ	FCORE_NUMBER_9 		;ignore character
+;			JOB	FCORE_NUMBER_13		;not a number
+;			;[_]
+;FCORE_NUMBER_7		STY	FCORE_NUMBER_CHARPTR,X	;store char pointer
+;			CMPB	#"_"
+;			BEQ	FCORE_NUMBER_9 		;ignore character
+;			JOB	FCORE_NUMBER_13		;not a number	
+;			;Check digit (digit in B, SP in X, char pointer in Y)
+;FCORE_NUMBER_8		CLRA				;digit in D
+;			CPD	BASE 			;check if digit < BASE
+;			BHS	FCORE_NUMBER_13		;not a number
+;			STD	FCORE_NUMBER_DIGIT,X 	;store digit
+;			STY	FCORE_NUMBER_CHARPTR,X	;store char pointer
+;			;Multiply result by base (SP in X)
+;			LDY	FCORE_NUMBER_RESLO,X
+;			LDD	BASE
+;			EMUL				;Y * D => Y:D
+;			STD	FCORE_NUMBER_RESLO,X
+;			LDD	FCORE_NUMBER_RESHI,X
+;			STY	FCORE_NUMBER_RESHI,X
+;			LDY	BASE
+;			EMUL				;Y * D => Y:D
+;			TBNE	Y, FCORE_NUMBER_13	;number out of range 	
+;			ADDD	FCORE_NUMBER_RESHI,X
+;			BCS	FCORE_NUMBER_13		;number out of range
+;			STD	FCORE_NUMBER_RESHI,X
+;			;Add digit to result (SP in X)
+;			LDD	FCORE_NUMBER_RESLO,X
+;			ADDD	FCORE_NUMBER_DIGIT,X
+;			STD	FCORE_NUMBER_RESLO,X
+;			LDD	#$0000
+;			ADCB	FCORE_NUMBER_RESHI+1,X
+;			ADCA	FCORE_NUMBER_RESHI,X
+;			BCS	FCORE_NUMBER_13		;number out of range
+;			STD	FCORE_NUMBER_RESHI,X
+;			;Check for string termination (SP in X)
+;FCORE_NUMBER_9		LDY	FCORE_NUMBER_CHARPTR,X		
+;			LDAB	0,Y
+;			BPL	FCORE_NUMBER_1 		;read next character
+;			;Check if number is negative (char pointer in Y, SP in X)
+;			LDAB	[FCORE_NUMBER_STRPTR,X]			
+;			CMPB	#"-"
+;			BEQ	FCORE_NUMBER_14 	;negative number
+;			;Check the size of the unsigned number (SP in X)
+;			LDD	FCORE_NUMBER_RESHI,X
+;			BNE	FCORE_NUMBER_15		;return double number			
+;			;Check for forced double number (SP in X)
+;FCORE_NUMBER_10		LDAB	[FCORE_NUMBER_CHARPTR,X];check if double number is forced
+;			CMPB	#("."+$80)			
+;			BEQ	FCORE_NUMBER_15 	;return double number
+;			;Return single number (SP in X)
+;FCORE_NUMBER_11		MOVW	#$0001, FCORE_NUMBER_SIZE,X
+;			;Clean up and leave 
+;FCORE_NUMBER_12		SSTACK_DEALLOC	4 		;free 4  bytes
+;			SSTACK_PULDXY		
+;			SSTACK_RTS
+;			;Not a number (SP in X)
+;FCORE_NUMBER_13		MOVW	#$0000, FCORE_NUMBER_SIZE,X
+;			JOB	FCORE_NUMBER_12 	;clean up and leave		
+;			;Calculate 2's complement (SP in X)
+;FCORE_NUMBER_14		LDD	FCORE_NUMBER_RESHI,X	
+;			COMA
+;			COMB
+;			STD	FCORE_NUMBER_RESHI,X
+;			LDD	FCORE_NUMBER_RESLO,X
+;			COMA
+;			COMB
+;			ADDD	#1
+;			STD	FCORE_NUMBER_RESLO,X
+;			LDD	FCORE_NUMBER_RESHI,X
+;			ADCB	#$00
+;			ADCA	#$00
+;			BPL	FCORE_NUMBER_13		;number out of range
+;			STD	FCORE_NUMBER_RESHI,X	
+;			;Check the size of the negative number (result(hi) in D, SP in X)
+;			CPD	#$FFFF
+;			BNE	FCORE_NUMBER_15		;return double number
+;			LDD	FCORE_NUMBER_RESLO,X
+;			BMI	FCORE_NUMBER_10		;check for forced double number 
+;			;Return double number (SP in X)
+;FCORE_NUMBER_15		MOVW	#$0002, FCORE_NUMBER_SIZE,X
+;			JOB	FCORE_NUMBER_12
 
+;#Convert a terminated string into a number
+; args:   Stack:        +--------+--------+
+;			|      Base       | SSTACK_SP +0
+;			+--------+--------+
+;			|   Char Pointer  | SSTACK_SP +2
+;			+--------+--------+
+;			|    Result MSW   | SSTACK_SP +4
+;			+--------+--------+
+;			|    Result LSW   | SSTACK_SP +6
+;			+--------+--------+
+;			|   String Size   | SSTACK_SP +8
+;			+--------+--------+
+; result: Y:	Status (0: everything ok, 2:overflow) 	
+;         Stack:        +--------+--------+
+;			|      Base       | SSTACK_SP +0
+;			+--------+--------+
+;			|   Char Pointer  | SSTACK_SP +2
+;			+--------+--------+
+;			|  New Result MSW | SSTACK_SP +4
+;			+--------+--------+
+;			|  New Result LSW | SSTACK_SP +6
+;			+--------+--------+
+;			| Remaining Chars | SSTACK_SP +8
+;			+--------+--------+
+; SSTACK: 20 bytes
+;         No registers are preserved
+FCORE_TO_NUMBER		EQU	*
+FCORE_TO_NUMBER_BASE	EQU	2		
+FCORE_TO_NUMBER_CHRPTR	EQU	4
+FCORE_TO_NUMBER_RESHI	EQU	6
+FCORE_TO_NUMBER_RESLO	EQU	8
+FCORE_TO_NUMBER_CHRCNT	EQU	10
+			;Process one character 
+FCORE_TO_NUMBER_1	SSTACK_JOBSR	FCORE_PROC_DIGIT
+			JMP	[FCORE_TO_NUMBER_TAB,Y]
+
+FCORE_TO_NUMBER_TAB	DW	FCORE_TO_NUMBER_2 		;process next digit
+			DW	FCORE_TO_NUMBER_2		;process next digit
+			DW	FCORE_TO_NUMBER_3		;stop
+			
+			;Process next number
+FCORE_TO_NUMBER_2	LDX	SSTACK_SP
+			LDD	FCORE_TO_NUMBER_CHRCNT,X
+			DBEQ	D, FCORE_TO_NUMBER_3		;stop
+			STD	FCORE_TO_NUMBER_CHRCNT,X
+			LDY	FCORE_TO_NUMBER_CHRPTR,Y
+			LEAY	1,Y
+			STY	FCORE_TO_NUMBER_CHRPTR,Y
+			JOB	FCORE_TO_NUMBER_1
+			;Stop 
+FCORE_TO_NUMBER_3	SSTACK_RTS	
+	
 ;#Parse TIB for a name and create a definition header
 ; args:   X: string pointer
 ; result: D: NFA
@@ -2157,7 +2453,7 @@ NFA_TO_IN		FHEADER, ">IN", NFA_TO_BODY, COMPILE
 CFA_TO_IN		DW	CF_CONSTANT_RT
 			DW	TO_IN
 
-;>NUMBER ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 ) TODO!
+;>NUMBER ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 ) CHECK!
 ;ud2 is the unsigned result of converting the characters within the string
 ;specified by c-addr1 u1 into digits, using the number in BASE, and adding each
 ;into ud1 after multiplying ud1 by the number in BASE. Conversion continues
@@ -2167,12 +2463,38 @@ CFA_TO_IN		DW	CF_CONSTANT_RT
 ;string if the string was entirely converted. u2 is the number of unconverted
 ;characters in the string. An ambiguous condition exists if ud2 overflows during
 ;the conversion. 
-NFA_TO_NUMBER		EQU	NFA_TO_IN
-;			ALIGN	1
-;NFA_TO_NUMBER		FHEADER, ">NUMBER", NFA_TO_IN, COMPILE
-;CFA_TO_NUMBER		DW	CF_TO_NUMBER
-;CF_TO_NUMBER		DW	CF_TO_NUMBER
-	
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_TO_NUMBER		FHEADER, ">NUMBER", NFA_TO_IN, COMPILE
+CFA_TO_NUMBER		DW	CF_TO_NUMBER
+CF_TO_NUMBER		PS_CHECK_UF	4, CF_TO_NUMBER_PSUF	;(PSP -> Y)
+			;Allocate temporary memory (PSP in Y)
+			SSTACK_ALLOC	10
+			MOVW	BASE, 0,X
+			MOVW	2,Y,  2,X
+			MOVW	4,Y,  4,X
+			MOVW	6,Y,  6,X
+			MOVW	0,Y, 10,X
+			;Convert to number
+			SSTACK_JOBSR	FCORE_TO_NUMBER
+			;Return results
+			LDY	PSP
+			LDX	SSTACK_SP
+			MOVW	2,X,  2,Y
+			MOVW	4,X,  4,Y
+			MOVW	6,X,  6,Y
+			MOVW   10,X,  0,Y
+			;Deallocate temporary memory
+			SSTACK_DEALLOC	10
+			;Done
+			NEXT
+
+CF_TO_NUMBER_PSUF	JOB	FCORE_THROW_PSUF
+
 ;>R
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( x -- ) ( R:  -- x )
@@ -5144,6 +5466,13 @@ CF_COLON_NONAME_DICTOF		JOB	FCORE_THROW_DICTOF
 	
 ;<> ( x1 x2 -- flag )
 ;flag is true if and only if x1 is not bit-for-bit the same as x2.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+;
+CF_NOT_EQUALS_PSUF	JOB	FCORE_THROW_PSUF
+
 			ALIGN	1
 NFA_NOT_EQUALS		FHEADER, "<>", NFA_COLON_NONAME, COMPILE
 CFA_NOT_EQUALS		DW	CF_NOT_EQUALS
@@ -5156,8 +5485,6 @@ CF_NOT_EQUALS		PS_CHECK_UF 2, CF_NOT_EQUALS_PSUF 	;check for underflow  (PSP -> 
 CF_NOT_EQUALS_1		STY	PSP
 			NEXT
 			
-CF_NOT_EQUALS_PSUF	JOB	FCORE_THROW_PSUF
-
 ;?DO
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: -- do-sys )
@@ -5382,7 +5709,7 @@ CF_COMPILE_COMMA	COMPILE_ONLY	CF_COMPILE_COMMA_COMPONLY 	;ensure that compile mo
 			STX	CP
 			NEXT
 
-;CONVERT ( ud1 c-addr1 -- ud2 c-addr2 ) TODO!
+;CONVERT ( ud1 c-addr1 -- ud2 c-addr2 ) CHECK!
 ;ud2 is the result of converting the characters within the text beginning at the
 ;first character after c-addr1 into digits, using the number in BASE, and adding
 ;each digit to ud1 after multiplying ud1 by the number in BASE. Conversion
@@ -5391,8 +5718,36 @@ CF_COMPILE_COMMA	COMPILE_ONLY	CF_COMPILE_COMMA_COMPONLY 	;ensure that compile mo
 ;if ud2 overflows.
 ;Note: This word is obsolescent and is included as a concession to existing
 ;implementations. Its function is superseded by >NUMBER.
-NFA_CONVERT		EQU	NFA_COMPILE_COMMA
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_CONVERT		FHEADER, "CONVERT", NFA_COMPILE_COMMA, COMPILE
+CFA_CONVERT		DW	CF_CONVERT
+CF_CONVERT		PS_CHECK_UF	3, CF_CONVERT_PSUF	;(PSP -> Y)
+			;Allocate temporary memory (PSP in Y)
+			SSTACK_ALLOC	10
+			MOVW	BASE, 0,X
+			MOVW	0,Y,  2,X
+			MOVW	2,Y,  4,X
+			MOVW	4,Y,  6,X
+			MOVW	#$FFFF, 10,X
+			;Convert to number
+			SSTACK_JOBSR	FCORE_TO_NUMBER
+			;Return results
+			LDY	PSP
+			LDX	SSTACK_SP
+			MOVW	2,X,  0,Y
+			MOVW	4,X,  2,Y
+			;Deallocate temporary memory
+			SSTACK_DEALLOC	10
+			;Done
+			NEXT
 
+CF_CONVERT_PSUF		JOB	FCORE_THROW_PSUF
+	
 ;EMPTY ( -- ) Non-standard S12CForth extension!
 ;Delete all user defined words
 			ALIGN	1
@@ -5999,6 +6354,11 @@ CFA_TIB			DW	CF_CONSTANT_RT
 ;"Undefined word"
 ;"invalid usage of non-CREATEd definition"
 ;
+CF_TO_PSUF 		JOB	FCORE_THROW_PSUF
+CF_TO_NONAME		JOB	FCORE_THROW_NONAME
+CF_TO_UDEFWORD		JOB	FCORE_THROW_UDEFWORD
+CF_TO_NONCREATE		JOB	FCORE_THROW_NONCREATE
+
 			ALIGN	1
 NFA_TO			FHEADER, "TO", NFA_TIB, COMPILE
 CFA_TO			DW	CF_TO
@@ -6017,11 +6377,6 @@ CF_TO			PS_CHECK_UF	1, CF_TO_PSUF ;check for underflow
 			STY	PSP
 			;Done
 			NEXT
-
-CF_TO_PSUF 		JOB	FCORE_THROW_PSUF
-CF_TO_NONAME		JOB	FCORE_THROW_NONAME
-CF_TO_UDEFWORD		JOB	FCORE_THROW_UDEFWORD
-CF_TO_NONCREATE		JOB	FCORE_THROW_NONCREATE
 
 ;TRUE ( -- true )
 ;Return a true flag, a single-cell value with all bits set.
