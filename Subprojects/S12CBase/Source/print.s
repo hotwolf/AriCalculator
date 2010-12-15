@@ -1258,9 +1258,9 @@ PRINT_LINE_BREAK	EQU	*
 			;Print CR symbol
 			LDAB	#PRINT_SYM_CR
 			SCI_TX				;print character (SSTACK: 8 bytes)
-			;;Print LF symbol
-			;LDAB	#PRINT_SYM_LF
-			;SCI_TX				;print character (SSTACK: 8 bytes)
+			;Print LF symbol
+			LDAB	#PRINT_SYM_LF
+			SCI_TX				;print character (SSTACK: 8 bytes)
 
 			;Save registers
 			SSTACK_PULB 			;restore accu B
