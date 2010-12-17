@@ -78,6 +78,9 @@ FDOUBLE_TABS_END		EQU	*
 ;###############################################################################
 			ORG	FDOUBLE_WORDS_START ;(previous NFA: FDOUBLE_PREV_NFA)
 
+;#Double-Number words (DOUBLE):
+; =============================
+	
 ;2CONSTANT ( x1 x2 "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below.
@@ -132,7 +135,58 @@ CF_TWO_CONSTANT_RT	PS_CHECK_OF	2, CF_TWO_CONSTANT_PSOF	;overflow check	=> 9 cycl
 								; 		  ---------
 								;		  37 cycles
 CF_TWO_CONSTANT_PSOF	JOB	FCORE_THROW_PSOF		;
-				
+	
+;2LITERAL (actually part of the ANS Forth double number waid set)
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( x1 x2 -- )
+;Append the run-time semantics below to the current definition.
+;Run-time: ( -- x1 x2 )
+;Place cell pair x1 x2 on the stack.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Dictionary overflow"
+;"Compile-only word"
+;
+			ALIGN	1
+NFA_TWO_LITERAL		FHEADER, "2LITERAL", NFA_TWO_CONSTANT, IMMEDIATE
+CFA_TWO_LITERAL		DW	CF_TWO_LITERAL
+			DW	CFA_TWO_LITERAL_RT
+CF_TWO_LITERAL		COMPILE_ONLY	CF_TWO_LITERAL_COMPONLY ;ensure that compile mode is on
+			PS_CHECK_UF	1, CF_TWO_LITERAL_PSUF	;(PSP -> Y)
+			LDD	2,X
+			DICT_CHECK_OF	6, CF_TWO_LITERAL_DICTOF	;(CP+6 -> X)
+			;Add run-time CFA to compilation (CP+6 in X, PSP in Y, run-time CFA in D)
+			STD	 -6,X
+			;Add TOS to compilation (CP+6 in X, PSP in Y, run-time CFA in D)
+			MOVW	2,Y+,	-4,X
+			MOVW	2,Y+,	-2,X
+			STX	CP
+			STY	PSP
+			;Done 
+			NEXT
+
+CF_TWO_LITERAL_PSOF	JOB	FCORE_THROW_PSOF
+CF_TWO_LITERAL_PSUF	JOB	FCORE_THROW_PSUF
+CF_TWO_LITERAL_DICTOF	JOB	FCORE_THROW_DICTOF	
+CF_TWO_LITERAL_COMPONLY	JOB	FCORE_THROW_COMPONLY
+	
+;2LITERAL run-time semantics
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+			ALIGN	1
+CFA_TWO_LITERAL_RT	DW	CF_TWO_LITERAL_RT
+CF_TWO_LITERAL_RT	PS_CHECK_OF	2, CF_TWO_LITERAL_PSOF 	;check for PS overflow (PSP-new cells -> Y)
+			LDX	IP				;push the value at IP onto the PS
+			MOVW	2,X+, 0,Y			; and increment the IP
+			MOVW	2,X+, 2,Y			; and increment the IP
+			STX	IP
+			STY	PSP
+			NEXT
+	
 ;2VARIABLE ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below. Reserve two
@@ -148,7 +202,7 @@ CF_TWO_CONSTANT_PSOF	JOB	FCORE_THROW_PSOF		;
 ;"Missing name argument"
 ;"Dictionary overflow"
 			ALIGN	1
-NFA_TWO_VARIABLE	FHEADER, "2VARIABLE", NFA_TWO_CONSTANT, COMPILE
+NFA_TWO_VARIABLE	FHEADER, "2VARIABLE", NFA_TWO_LITERAL, COMPILE
 CFA_TWO_VARIABLE	DW	CF_TWO_VARIABLE
 CF_TWO_VARIABLE		;Build header
 			SSTACK_JOBSR	FCORE_HEADER 			;NFA -> D, error handler -> X (SSTACK: 10  bytes)
@@ -393,7 +447,7 @@ CF_D_TWO_SLASH		PS_CHECK_UF 2, CF_D_TWO_SLASH_PSUF 	;check for underflow (PSP ->
 
 CF_D_TWO_SLASH_PSUF	JOB	FDOUBLE_THROW_PSUF
 	
-;D< ( d1 d2 -- flag ) CHECK!
+;D< ( d1 d2 -- flag )
 ;flag is true if and only if d1 is less than d2.
 ;
 ;S12CForth implementation details:
@@ -610,22 +664,23 @@ CF_D_NEGATE_1		LDD	0,Y 				;invert MSW
 CF_D_NEGATE_PSUF	JOB	FDOUBLE_THROW_PSUF
 	
 ;
-;M*/ ( d1 n1 +n2 -- d2 ) CHECK!
+;M*/ ( d1 n1 +n2 -- d2 )
 ;Multiply d1 by n1 producing the triple-cell intermediate result t. Divide t by
 ;+n2 giving the double-cell quotient d2. An ambiguous condition exists if +n2 is
 ;zero or negative, or the quotient lies outside of the range of a
 ;double-precision signed integer.
 ;
 ;S12CForth implementation details:
+;+n2 may be negative 
 ;Throws:
 ;"Parameter stack underflow"
 ;"Divide by zero"
 ;"Quotient out of range"
-;"Invalid numeric argument"
+;"Invalid numeric argument" (only if +n2 must not be negative)
 ;
 CF_M_STAR_SLASH_RESOR		JOB	FDOUBLE_THROW_RESOR
 CF_M_STAR_SLASH_0DIV		JOB	FDOUBLE_THROW_0DIV
-CF_M_STAR_SLASH_INVALNUM	JOB	FDOUBLE_THROW_INVALNUM
+CF_M_STAR_SLASH_INVALNUM	EQU	FDOUBLE_THROW_INVALNUM
 CF_M_STAR_SLASH_PSUF		JOB	FDOUBLE_THROW_PSUF
 
 			ALIGN	1
@@ -635,7 +690,7 @@ CF_M_STAR_SLASH		PS_CHECK_UF	4, CF_M_STAR_SLASH_PSUF ;check for underflow (PSP -
 			;Check +n2 (PSP in Y)
 			LDD	0,Y		 		;+n2 -> D
 			BEQ	CF_M_STAR_SLASH_0DIV 		;division by zero
-			BMI	CF_M_STAR_SLASH_INVALNUM	;+n2 is negative
+			;BMI	CF_M_STAR_SLASH_INVALNUM	;+n2 is negative
 			;Allocate temporary memory (PSP in Y)
 			SSTACK_ALLOC	6		;allocate 6 bytes
 			;+--------+--------+
@@ -645,10 +700,11 @@ CF_M_STAR_SLASH		PS_CHECK_UF	4, CF_M_STAR_SLASH_PSUF ;check for underflow (PSP -
 			;+--------+--------+
 			;|   Result (LSW)  | +4
 			;+--------+--------+
+			LDX	SSTACK_SP
 			MOVW	#$0000, 0,X
 			;Multiply LSW (SP in X, PSP in Y)
 			LDD	2,Y 				;n1      -> D
-			LDX	6,Y				;d1(LSW) -> Y
+			LDY	6,Y				;d1(LSW) -> Y
 			EMULS					;Y * D => Y:D
 			BPL	CF_M_STAR_SLASH_1		;result is positive
 			MOVW	#$FFFF, 0,X
@@ -657,7 +713,7 @@ CF_M_STAR_SLASH_1	STY	2,X				;n1      -> D
 			;Multiply LSW (SP in X)
 			LDY	PSP
 			LDD	2,Y 				;n1      -> D
-			LDX	4,Y				;d1(MSW) -> Y
+			LDY	4,Y				;d1(MSW) -> Y
 			EMULS					;Y * D => Y:D
 			ADDD	2,X
 			STD	2,X
@@ -665,30 +721,31 @@ CF_M_STAR_SLASH_1	STY	2,X				;n1      -> D
 			ADCB	1,X
 			ADCA	0,X
 			STD	0,X
+			EXG	Y, D
 			;Divide MSW by +n2 (SP in X, Result (MSW) in Y:D)
 			LDX	[PSP]		 		;+n2 -> X
-			EDIV					;Y:D/X=>Y; remainder=>D
+			EDIVS					;Y:D/X=>Y; remainder=>D
 			BVS	CF_M_STAR_SLASH_3 		;result is out of range
 			LDX	PSP
 			STY	4,X
 			;Divide LSW by +n2 (Remainder in D)
 			TFR	D, Y
-			STX	SSTACK_SP
+			LDX	SSTACK_SP
 			LDD	4,X
 			LDX	[PSP]		 		;+n2 -> X	
-			EDIV					;Y:D/X=>Y; remainder=>D
+			EDIVS					;Y:D/X=>Y; remainder=>D
 			LDX	PSP
 			STY	6,X
-			;Deallocate temporary memory (PSP in Y)
+			;Deallocate temporary memory (PSP in X)
 			SSTACK_DEALLOC	6			;deallocate 6 bytes
-			;Adjust PS (PSP in Y)
-			LEAY	4,Y
+			;Adjust PS (PSP in X)
+			LEAY	4,X
 			STY	PSP
 			;Done
 CF_M_STAR_SLASH_2	NEXT
 			;Result out of range
 CF_M_STAR_SLASH_3	SSTACK_DEALLOC	6		
-			;JOB	CF_M_STAR_SLASH_INVALNUM
+			JOB	CF_M_STAR_SLASH_RESOR
 
 ;M+ ( d1|ud1 n -- d2|ud2 )
 ;Add n to d1|ud1, giving the sum d2|ud2.
