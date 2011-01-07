@@ -51,8 +51,9 @@
 ;#      - Initial release                                                      #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    ERROR - Error Handler                                                    #
-;;#                                                                            #
+;#    SSTACK - Subroutine Stack Handler                                        #
+;#    ERROR  - Error Handler                                                   #
+;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - The state of the X- and the I-bit in the Condition Code Register must  #
 ;#      be modified.                                                           #
@@ -88,11 +89,11 @@
 ;  ISTACK_IDLE_CCR,     ---+--------------+
 ;  ISTACK_SP_RUN ->      ^ |   Idle CCR   |  -> Stack pointer value during
 ;                        | +--------------+     program or ISR execution 
-;                      I | |              | 
-;                      D | |              |
+;                      I | |    Flags     | 
+;                      D | +--------------*
 ;                      L | |              |
 ;                      E | +              +
-;                        | | 6 bytes for  | 
+;                        | | 5 bytes for  | 
 ;                      C | |  temporary   |
 ;                      O | |   storage    |
 ;                      N | +              +
@@ -111,6 +112,7 @@
 ;# Constants                                                                   #
 ;###############################################################################
 ISTACK_CCR		EQU	%0100_0000
+ISTACK_FLG_WAIT		EQU	%1000_0000
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -121,7 +123,7 @@ ISTACK_SP_ISR		EQU	*
 			DS	9
 ISTACK_IDLE_CCR		EQU	*
 ISTACK_SP_RUN		DS	1
-ISTACK_TMP0		DS	1
+ISTACK_FLGS		DS	1
 ISTACK_TMP1		DS	1
 ISTACK_TMP2		DS	1
 ISTACK_TMP3		DS	1
@@ -146,26 +148,48 @@ ISTACK_VARS_END		EQU	*
 			CLI
 #emac	
 
+;#Wait until any interrupt has been serviced
+#macro	ISTACK_WAIT, 0
+			;Call WAIT subroutine
+			SSTACK_JOBSR	ISTACK_WAIT
+#emac
+	
 ;#Return from interrupt
 #macro	ISTACK_RTI, 0
 			;Verify SP at the end of each ISR
 			CPS	#ISTACK_SP_ISR
-			BNE	ISTACK_RTI_1
-	                RTI
+			BNE	ISTACK_RTI_1	
+	                RTI				;stack pointer is at ISR level
 ISTACK_RTI_1		CPS	#ISTACK_SP_RUN
-			;BNE	ISTACK_INVALSP
-			;RTI
-
+			BNE	ISTACK_INVALSP 		;invalid stack pointer
+			TST	ISTACK_FLGS
 			BNE	ISTACK_RTI_2
-			RTI
-ISTACK_RTI_2		BGND
-
+			RTI				;stack pointer is at RUN level
+			;Resume ISTACK_WAIT 
+ISTACK_RTI_2		JOB	ISTACK_WAIT_RESUME
+	
 #emac	
 
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
 			ORG	ISTACK_CODE_START
+
+;#Wait for any innterrupt
+ISTACK_WAIT		EQU	*
+			;Save registers
+			SSTACK_PSHYXD			;push all registers onto the SSTACK
+			;Set wait flag
+			BSET	ISTACK_FLGS, #ISTACK_FLG_WAIT
+			;Descent to IDLE level
+			RTI
+
+			;An interrupt has been handled	
+ISTACK_WAIT_RESUME	CLI				;enable iterrupte
+			;Done
+			SSTACK_PULDXY			;restore all registers
+			SSTACK_RTS			;return
+
 ;#Idle Loop	
 ISTACK_IDLELOOP		EQU	*
 #ifdef	DEBUG

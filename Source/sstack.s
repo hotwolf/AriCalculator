@@ -147,6 +147,14 @@ SSTACK_VARS_END		EQU	*
 			SSTACK_POSTPUSH
 #emac
 
+;#Push index Y and accu A onto the stack
+#macro	SSTACK_PSHYA, 0
+			SSTACK_PREPARE
+			STY	2,-X
+			STAA	1,-X
+			SSTACK_POSTPUSH
+#emac
+
 ;#Push index Y and accu B onto the stack
 #macro	SSTACK_PSHYB, 0
 			SSTACK_PREPARE
@@ -218,6 +226,15 @@ SSTACK_VARS_END		EQU	*
 			LDX	SSTACK_SP
 			LDAA	1,X+
 			MOVW	2,X+, SSTACK_TMPX
+			LDY	2,X+
+			SSTACK_POSTPULL
+#emac
+
+;#Pull accu A and index Y from the stack
+#macro	SSTACK_PULAY, 0
+			;SSTACK_PREPARE
+			LDX	SSTACK_SP
+			LDAA	1,X+
 			LDY	2,X+
 			SSTACK_POSTPULL
 #emac

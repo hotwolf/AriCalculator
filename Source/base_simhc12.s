@@ -184,7 +184,7 @@ BASE_TABS_END		EQU	*
 #include led.s			;LED driver
 #include tim.s          	;timer driver
 #include sci.s			;UART friver
-#include print_simhc12.s	;string output handler
+#include print.s		;string output handler
 #include error.s		;error handler
 #include bdm.s			;BDM driver
 

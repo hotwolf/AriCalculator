@@ -1104,14 +1104,6 @@ BDM_RX_STEP_2		EQU	*
 			;Drive RX pulse
 			LDAA	#BKGD
 			JMP	[BDM_RP_CODE]
-BDM_RP_DONE		EQU	*
-			;Set OC7 (timeout) to IC6 + 16*(BDM_SPEED/128)
-			LDD	TC6
-			ADDD	BDM_DLY_16
-			STD	TC7
-			;Wait for interrupts 
-			MOVW	#BDM_STEP_RX_2, BDM_STEP	;set current processing step
-			ISTACK_RTI
 
 			;Target reset
 BDM_RX_TGTRST		EQU	*
@@ -1124,6 +1116,15 @@ BDM_RX_COMERR		EQU	*
 			;Set error status 
 			LDX	#$0006
 			JOB	BDM_RX_ACK_TO_1
+
+BDM_RP_DONE		EQU	*
+			;Set OC7 (timeout) to IC6 + 16*(BDM_SPEED/128)
+			LDD	TC6
+			ADDD	BDM_DLY_16
+			STD	TC7
+			;Wait for interrupts 
+			MOVW	#BDM_STEP_RX_2, BDM_STEP	;set current processing step
+			ISTACK_RTI
 	
 			;Step 3
 BDM_RX_STEP_3		EQU	*
@@ -1617,79 +1618,37 @@ BDM_CODE_END		EQU	*
 ;#IRQ jump tables
 ;TC5 jump table 
 BDM_TC5_TAB		EQU	*
-			;DW	ERROR_ISR		;BDM interface not in use 
-			;DW	ERROR_ISR		;RESET step 1		  
-			;DW	ERROR_ISR		;SYNC step 1		  
-			;DW	BDM_SYNC_STEP_4		;SYNC step 2		  
-			;DW	BDM_SYNC_STEP_4		;SYNC step 3		  
-			;DW	ERROR_ISR		;DELAY step 1             
-			;DW	BDM_RX_STEP_3		;RX step 2             
-			;DW	ERROR_ISR		;RX step 3             
-			;DW	BDM_RX_STEP_6		;RX step 4             
-			;DW	ERROR_ISR		;TX step 2a
-			;DW	ERROR_ISR		;TX step 2b
-			;DW	ERROR_ISR		;TX step 2c
-			;DW	BDM_TX_STEP_5		;TX step 3
-
-			DW	ISR_VEC_TC5		;BDM interface not in use 
-			DW	ISR_VEC_TC5		;RESET step 1		  
-			DW	ISR_VEC_TC5		;SYNC step 1		  
+			DW	ERROR_ISR		;BDM interface not in use 
+			DW	ERROR_ISR		;RESET step 1		  
+			DW	ERROR_ISR		;SYNC step 1		  
 			DW	BDM_SYNC_STEP_4		;SYNC step 2		  
 			DW	BDM_SYNC_STEP_4		;SYNC step 3		  
-			DW	ISR_VEC_TC5		;DELAY step 1             
+			DW	ERROR_ISR		;DELAY step 1             
 			DW	BDM_RX_STEP_3		;RX step 2             
-			DW	ISR_VEC_TC5		;RX step 3             
+			DW	ERROR_ISR		;RX step 3             
 			DW	BDM_RX_STEP_6		;RX step 4             
-			DW	ISR_VEC_TC5		;TX step 2a
-			DW	ISR_VEC_TC5		;TX step 2b
-			DW	ISR_VEC_TC5		;TX step 2c
+			DW	ERROR_ISR		;TX step 2a
+			DW	ERROR_ISR		;TX step 2b
+			DW	ERROR_ISR		;TX step 2c
 			DW	BDM_TX_STEP_5		;TX step 3
 
 BDM_TC6_TAB		EQU	*			
-			;DW	ERROR_ISR		;BDM interface not in use 
-			;DW	ERROR_ISR		;RESET step 1		  
-			;DW	ERROR_ISR		;SYNC step 1		  
-			;DW	BDM_SYNC_STEP_3		;SYNC step 2		  
-			;DW	ERROR_ISR		;SYNC step 3		  
-			;DW	ERROR_ISR		;DELAY step 1             
-			;DW	ERROR_ISR		;RX step 2             
-			;DW	ERROR_ISR		;RX step 3             
-			;DW	ERROR_ISR		;RX step 4             
-			;DW	ERROR_ISR		;TX step 2a
-			;DW	ERROR_ISR		;TX step 2b
-			;DW	ERROR_ISR		;TX step 2c
-			;DW	ERROR_ISR		;TX step 3
-							
-			DW	ISR_VEC_TC6		;BDM interface not in use 
-			DW	ISR_VEC_TC6		;RESET step 1		  
-			DW	ISR_VEC_TC6		;SYNC step 1		  
+			DW	ERROR_ISR		;BDM interface not in use 
+			DW	ERROR_ISR		;RESET step 1		  
+			DW	ERROR_ISR		;SYNC step 1		  
 			DW	BDM_SYNC_STEP_3		;SYNC step 2		  
-			DW	ISR_VEC_TC6		;SYNC step 3		  
-			DW	ISR_VEC_TC6		;DELAY step 1             
-			DW	ISR_VEC_TC6		;RX step 2             
-			DW	ISR_VEC_TC6		;RX step 3             
-			DW	ISR_VEC_TC6		;RX step 4             
-			DW	ISR_VEC_TC6		;TX step 2a
-			DW	ISR_VEC_TC6		;TX step 2b
-			DW	ISR_VEC_TC6		;TX step 2c
-			DW	ISR_VEC_TC6		;TX step 3
+			DW	ERROR_ISR		;SYNC step 3		  
+			DW	ERROR_ISR		;DELAY step 1             
+			DW	ERROR_ISR		;RX step 2             
+			DW	ERROR_ISR		;RX step 3             
+			DW	ERROR_ISR		;RX step 4             
+			DW	ERROR_ISR		;TX step 2a
+			DW	ERROR_ISR		;TX step 2b
+			DW	ERROR_ISR		;TX step 2c
+			DW	ERROR_ISR		;TX step 3
 							
 BDM_TC7_TAB		EQU	*			
-			;DW	ERROR_ISR		;BDM interface not in use 
-			;DW	BDM_RESET_STEP_2	;RESET step 1		  
-			;DW	BDM_SYNC_STEP_2		;SYNC step 1		  
-			;DW	BDM_SYNC_NORSP		;SYNC step 2		  
-			;DW	BDM_SYNC_NORSP		;SYNC step 3		  
-			;DW	BDM_DELAY_STEP_2	;DELAY step 1             
-			;DW	BDM_RX_ACK_TO		;RX step 2             
-			;DW	BDM_RX_STEP_2		;RX step 3             
-			;DW	BDM_RX_STEP_5		;RX step 4             
-			;DW	BDM_TX_STEP_2		;TX step 2a
-			;DW	BDM_TX_STEP_3		;TX step 2b
-			;DW	BDM_TX_ACK_TO		;TX step 2c
-			;DW	BDM_TX_STEP_4		;TX step 3
-							
-			DW	ISR_VEC_TC7		;BDM interface not in use 
+			DW	ERROR_ISR		;BDM interface not in use 
 			DW	BDM_RESET_STEP_2	;RESET step 1		  
 			DW	BDM_SYNC_STEP_2		;SYNC step 1		  
 			DW	BDM_SYNC_NORSP		;SYNC step 2		  
@@ -1704,22 +1663,8 @@ BDM_TC7_TAB		EQU	*
 			DW	BDM_TX_STEP_4		;TX step 3
 							
 BDM_TGTRST_TAB		EQU	*			
-			;DW	ERROR_ISR		;BDM interface not in use 
-			;DW	ERROR_ISR		;RESET step 1		  
-			;DW	BDM_SYNC_TGTRST		;SYNC step 1		  
-			;DW	BDM_SYNC_TGTRST		;SYNC step 2		  
-			;DW	BDM_SYNC_TGTRST		;SYNC step 3		  
-			;DW	BDM_DELAY_TGTRST	;DELAY step 1             
-			;DW	BDM_RX_TGTRST		;RX step 2             
-			;DW	BDM_RX_TGTRST		;RX step 3             
-			;DW	BDM_RX_TGTRST		;RX step 4             
-			;DW	BDM_TX_TGTRST		;TX step 2a
-			;DW	BDM_TX_TGTRST		;TX step 2b
-			;DW	BDM_TX_TGTRST		;TX step 2c
-			;DW	BDM_TX_TGTRST		;TX step 3
-
-			DW	ISR_VEC_PORTP		;BDM interface not in use 
-			DW	ISR_VEC_PORTP		;RESET step 1		  
+			DW	ERROR_ISR		;BDM interface not in use 
+			DW	ERROR_ISR		;RESET step 1		  
 			DW	BDM_SYNC_TGTRST		;SYNC step 1		  
 			DW	BDM_SYNC_TGTRST		;SYNC step 2		  
 			DW	BDM_SYNC_TGTRST		;SYNC step 3		  
