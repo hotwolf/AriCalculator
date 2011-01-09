@@ -19,36 +19,26 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    The S12CBase framework uses two stacks in its assembly code:             #
-;#      1. An interrupt stack, which is implemented in this module             #
-;#      2. An subroutine stack, which is implemented in the SSTACK module      #
+;#    Early versions of S12CBase framework used to have separate stacks        #
+;#    interrupt handling and subroutine calls. These two stacks have noe been  #
+;#    combined to one. However the API of the separate stacks has been kept:   #
+;#    => The ISTACK module implements all functions required for interrupt     #
+;#       handling.                                                             #
+;#    => The SSTACK module implements all functions for subroutine calls and   #
+;#       temporary RAM storage.                                                #
 ;#                                                                             #
-;#    The interrupt stack is solely intended to store interrupt stack frames.  #
-;#    It must not be used for subrutine calls storing temporary data. The      #
-;#    interrupt stack is implemented using the S12s stack pointer register SP. #
+;#    All of the stacking functions check the upper and lower boundaries of    #
+;#    the stack. Fatel errors are thrown if the stacking space is exceeded.    #
 ;#                                                                             #
-;#    The S12CBase framework doesn't allow nested interrupts. This has the     #
-;#    effect that the SP register will hold only three values:                 #
-;#      1. one, for running in the idle loop                                   #
-;#      2. one, for executing the main program, or an interrupt service        #
-;#         routine that was initiated wlile running in the idle loop           #
-;#      3. one, for executing an ISR that interrupted the main program         #
-;#    The SP can be used to determine the applications state for debug         #
-;#    purposes.                                                                #
-;#                                                                             #
-;#    The value of the SP rerister is checked whenever an ISR is ended with    #
-;#    macro call "ISTACK_RTI". Upon detection of a broken interrupt stack will #
-;#    a fatal error will be reported to the ERROR module.                      #
-;#                                                                             #
-;#    The idle loop does not touch any of the CPU12 registers. This allows     #
-;#    that parts of the idle stack frame (field for A, B, X, and Y) can be     #
-;#    used as general purpose storage. By convention, the ownership of this    #
-;#    storage space goes to the code in main program, which switches over to   #
-;#    idle loop.                                                               #
+;#    The ISTACK module no longer implements an idle loop. Instead it offers   #
+;#    the macro ISTACK_WAIT to build local idle loops for drivers which        #
+;#    implement blocking I/O.                                                  #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
+;#    January 8, 2011                                                          #
+;#      - Combined ISTACK and SSTACK                                           #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    SSTACK - Subroutine Stack Handler                                        #
@@ -57,81 +47,45 @@
 ;# Requirements to Software Using this Module:                                 #
 ;#    - The state of the X- and the I-bit in the Condition Code Register must  #
 ;#      be modified.                                                           #
-;#    - The content of the stack pounter must not be modified.                 #
-;#    - All interrupt service routines must end with the macro call            #
-;#      "ISTACK_RTI".                                                          #
 ;###############################################################################
 ;# Global Defines:                                                             #
 ;#    DEBUG - Prevents idle loop from entering WAIT mode.                      #
 ;###############################################################################
-
 ;###############################################################################
 ;# Stack Layout                                                                #
 ;###############################################################################
-;                       ---+--------------+
-;  ISTACK_SP_ISR ->      ^ |      CCR     | -> Stack pointer value in ISR
-;                       P| +--------------+
-;                       R| |       B      |
-;                       O| +--------------+
-;                       G| |       A      |
-;                       R| +--------------+
-;                       A| |              |
-;                       M| |       X      |
-;                        | |              |
-;                       C| +--------------+
-;                       O| |              |
-;                       N| |       Y      |
-;                       T| |              |
-;                       E| +--------------+
-;                       X| |    Return    |
-;                       T| |    Address   |
-;                        v |              |
-;  ISTACK_IDLE_CCR,     ---+--------------+
-;  ISTACK_SP_RUN ->      ^ |   Idle CCR   |  -> Stack pointer value during
-;                        | +--------------+     program or ISR execution 
-;                      I | |    Flags     | 
-;                      D | +--------------*
-;                      L | |              |
-;                      E | +              +
-;                        | | 5 bytes for  | 
-;                      C | |  temporary   |
-;                      O | |   storage    |
-;                      N | +              +
-;                      T | |              | 
-;                      E | |              |
-;                      X | |              |
-;                      T | +--------------+
-;  ISTACK_IDLE_RETADR -> | |    Return    |
-;                        | |  Address to  |
-;                        v |   Idle Loop  |
-;  ISTACK_SP_IDLE,      ---+--------------+
-;  ISTACK_VAR_END ->                         -> Stack pointer when idle 
+; ISTACK_VARS_START,   +-------------------+
+;        ISTACK_TOP -> |                   |
+;                      | ISTACK_FRAME_SIZE |
+;                      |                   |
+;                      +-------------------+
+;        SSTACK_TOP -> |                   |
+;                      |                   |
+;                      |                   |
+;                      |                   |
+;                      |    SSTACK_DEPTH   |
+;                      |                   |
+;                      |                   |
+;                      |                   |
+;     SSTACK_BOTTOM,   |                   |
+;     ISTACK_BOTTOM,   +-------------------+
+;   ISTACK_VARS_END ->
 ;
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
 ISTACK_CCR		EQU	%0100_0000
-ISTACK_FLG_WAIT		EQU	%1000_0000
+ISTACK_FRAME_SIZE	EQU	9
 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 			ORG	ISTACK_VARS_START
-	
-ISTACK_SP_ISR		EQU	*
+ISTACK_TOP		EQU	*
 			DS	9
-ISTACK_IDLE_CCR		EQU	*
-ISTACK_SP_RUN		DS	1
-ISTACK_FLGS		DS	1
-ISTACK_TMP1		DS	1
-ISTACK_TMP2		DS	1
-ISTACK_TMP3		DS	1
-ISTACK_TMP4		DS	1
-ISTACK_TMP5		DS	1
-ISTACK_IDLE_RETADR	DS	2
-ISTACK_SP_IDLE		EQU	*
-
+			DS	SSTACK_DEPTH
+ISTACK_BOTTOM		EQU	*
 ISTACK_VARS_END		EQU	*
 
 ;###############################################################################
@@ -139,35 +93,36 @@ ISTACK_VARS_END		EQU	*
 ;###############################################################################
 ;#Initialization
 #macro	ISTACK_INIT, 0
-			;Prepare stack for RUN level
-			MOVW	#ISTACK_IDLELOOP, ISTACK_IDLE_RETADR 
-			MOVB	#ISTACK_CCR, ISTACK_IDLE_CCR	
-			LDS	#ISTACK_SP_RUN	
-
+			;Set stack pointer
+			LDS	#ISTACK_BOTTOM	
 			;Enable interrupts
 			CLI
 #emac	
 
 ;#Wait until any interrupt has been serviced
 #macro	ISTACK_WAIT, 0
-			;Call WAIT subroutine
-			SSTACK_JOBSR	ISTACK_WAIT
+			;Verify SP before runnung ISRs
+			CPS	#ISTACK_TOP+ISTACK_FRAME_SIZE
+			BLO	ISTACK_OF
+			CPS	#ISTACK_BOTTOM
+			BHI	ISTACK_UF
+			;Wait for the next interrupt
+			;COP_SERVICE			;already taken care of by WAI
+			CLI		
+			WAI
 #emac
 	
 ;#Return from interrupt
 #macro	ISTACK_RTI, 0
 			;Verify SP at the end of each ISR
-			CPS	#ISTACK_SP_ISR
-			BNE	ISTACK_RTI_1	
-	                RTI				;stack pointer is at ISR level
-ISTACK_RTI_1		CPS	#ISTACK_SP_RUN
-			BNE	ISTACK_INVALSP 		;invalid stack pointer
-			TST	ISTACK_FLGS
-			BNE	ISTACK_RTI_2
-			RTI				;stack pointer is at RUN level
-			;Resume ISTACK_WAIT 
-ISTACK_RTI_2		JOB	ISTACK_WAIT_RESUME
-	
+			CPS	#ISTACK_TOP
+			BLO	OF
+			CPS	#ISTACK_BOTTOM-ISTACK_FRAME_SIZE
+			BHI	UF
+			;End ISR
+			RTI
+OF			JOB	ISTACK_OF	
+UF			JOB	ISTACK_UF	
 #emac	
 
 ;###############################################################################
@@ -175,44 +130,13 @@ ISTACK_RTI_2		JOB	ISTACK_WAIT_RESUME
 ;###############################################################################
 			ORG	ISTACK_CODE_START
 
-;#Wait for any innterrupt
-ISTACK_WAIT		EQU	*
-			;Save registers
-			SSTACK_PSHYXD			;push all registers onto the SSTACK
-			;Set wait flag
-			BSET	ISTACK_FLGS, #ISTACK_FLG_WAIT
-			;Descent to IDLE level
-			RTI
+;#Handle stack overflows
+ISTACK_OF		EQU	*
+			ERROR_RESTART	ISTACK_MSG_OF ;throw a fatal error
 
-			;An interrupt has been handled	
-ISTACK_WAIT_RESUME	CLI				;enable iterrupte
-			;Done
-			SSTACK_PULDXY			;restore all registers
-			SSTACK_RTS			;return
-
-;#Idle Loop	
-ISTACK_IDLELOOP		EQU	*
-#ifdef	DEBUG
-			COP_SERVICE
-#else
-			WAI
-#endif
-			JOB	ISTACK_IDLELOOP
-
-;#Invalid Stack Pointer Handler
-ISTACK_INVALSP		EQU	*
-			;Check for stack overflow
-			CPS	#ISTACK_SP_ISR
-			BHS	ISTACK_INVALSP_1
-			ERROR_RESTART	ISTACK_MSG_OF	
-	
-			;Check for stack underflow
-ISTACK_INVALSP_1	CPS		#ISTACK_SP_RUN
-			BLS		ISTACK_INVALSP_2
-			ERROR_RESTART	ISTACK_MSG_UF
-
-			;SP must have been manually altered
-ISTACK_INVALSP_2	ERROR_RESTART	ISTACK_MSG_CORPT
+;#Handle stack underflows
+ISTACK_UF		EQU	*
+			ERROR_RESTART	ISTACK_MSG_UF ;throw a fatal error
 	
 ISTACK_CODE_END		EQU	*
 	
@@ -221,8 +145,7 @@ ISTACK_CODE_END		EQU	*
 ;###############################################################################
 			ORG	ISTACK_TABS_START
 ;#Error Messages
-ISTACK_MSG_OF		ERROR_MSG	ERROR_LEVEL_FATAL, "Interrupt stack overflow"
-ISTACK_MSG_UF		ERROR_MSG	ERROR_LEVEL_FATAL, "Interrupt stack underflow"
-ISTACK_MSG_CORPT	ERROR_MSG	ERROR_LEVEL_FATAL, "Interrupt stack pointer corrupt"
+ISTACK_MSG_OF		ERROR_MSG	ERROR_LEVEL_FATAL, "System stack overflow"
+ISTACK_MSG_UF		ERROR_MSG	ERROR_LEVEL_FATAL, "System stack underflow"
 
 ISTACK_TABS_END		EQU	*

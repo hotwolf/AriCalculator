@@ -19,61 +19,65 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    The S12CBase framework uses two stacks in its assembly code:             #
-;#      1. An interrupt stack, which is implemented in the ISTACK module       #
-;#      2. An subroutine stack, which is implemented in this module            #
+;#    Early versions of S12CBase framework used to have separate stacks        #
+;#    interrupt handling and subroutine calls. These two stacks have noe been  #
+;#    combined to one. However the API of the separate stacks has been kept:   #
+;#    => The ISTACK module implements all functions required for interrupt     #
+;#       handling.                                                             #
+;#    => The SSTACK module implements all functions for subroutine calls and   #
+;#       temporary RAM storage.                                                #
 ;#                                                                             #
-;#   The subroutine stack is implemented in software. It provides assembler    #
-;#   macros which are intended to be used as a replacement for the CPUs native #
-;#   stacking instructions.                                                    #
+;#    All of the stacking functions check the upper and lower boundaries of    #
+;#    the stack. Fatel errors are thrown if the stacking space is exceeded.    #
 ;#                                                                             #
-;#   Stack under- and overflows are checked with every stack operation. Upon   #
-;#   detection, a fatal error will be triggered to the reset handler.          #
+;#    The ISTACK module no longer implements an idle loop. Instead it offers   #
+;#    the macro ISTACK_WAIT to build local idle loops for drivers which        #
+;#    implement blocking I/O.                                                  #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
+;#    January 8, 2011                                                          #
+;#      - Combined ISTACK and SSTACK                                           #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    ERROR - Error Handler                                                    #
+;#    ISTACK - Interrupt Stack Handler                                         #
+;#    ERROR  - Error Handler                                                   #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
 ;###############################################################################
-
 ;###############################################################################
-;# Memory Layout                                                               #
+;# Stack Layout                                                                #
 ;###############################################################################
-;                       +--------------+--------------+  
-;   SSTACK_VAR_START,-> |                             | 
-;         SSTACK_TOP    |                             |
-;                       |         Stack Space         |
-;                       |                             | 
-;                       |                             |
-;                       |                             |
-;      SSTACK_BOTTOM,   +--------------+--------------+
-;          SSTACK_SP -> |       Stack Pointer         |
-;                       +--------------+--------------+
-;        SSTACK_TMPX -> |   Temporary Storage Space   |
-;                       +--------------+--------------+
-;      SSTACK_TMPRET -> |   Temporary Storage Space   |
-;                       +--------------+--------------+
-;     SSTACK_VAR_END ->                 
+; ISTACK_VARS_START,   +-------------------+
+;        ISTACK_TOP -> |                   |
+;                      | ISTACK_FRAME_SIZE |
+;                      |                   |
+;                      +-------------------+
+;        SSTACK_TOP -> |                   |
+;                      |                   |
+;                      |                   |
+;                      |                   |
+;                      |    SSTACK_DEPTH   |
+;                      |                   |
+;                      |                   |
+;                      |                   |
+;     SSTACK_BOTTOM,   |                   |
+;     ISTACK_BOTTOM,   +-------------------+
+;   ISTACK_VARS_END ->
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
 SSTACK_DEPTH		EQU	24
+SSTACK_TOP		EQU	ISTACK_TOP+ISTACK_FRAME_SIZE
+SSTACK_BOTTOM		EQU	ISTACK_BOTTOM
 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 			ORG	SSTACK_VARS_START
-SSTACK_TOP		DS	2*SSTACK_DEPTH
-SSTACK_BOTTOM
-SSTACK_SP		DS	2
-SSTACK_TMPX		DS	2 ;temporary storage forv index X
-SSTACK_TMPRET		DS	2	
 SSTACK_VARS_END		EQU	*
 
 ;###############################################################################
@@ -81,311 +85,252 @@ SSTACK_VARS_END		EQU	*
 ;###############################################################################
 ;#Initialization
 #macro	SSTACK_INIT, 0
-			MOVW	#SSTACK_BOTTOM, SSTACK_SP	;Set stack pointer
-#emac
-
-;#Load Stack Pointer
-#macro	SSTACK_LDS, 1
-			MOVW		#\1, SSTACK_SP
 #emac
 
 ;#Allocate local memory
 #macro	SSTACK_ALLOC, 1
-			SSTACK_PREPARE
-			LEAX	-\1,X
+			LEAS	-\1,X
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push accu A onto stack
 #macro	SSTACK_PSHA, 0
-			SSTACK_PREPARE
-			STAA	1,-X
+			PSHA
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push accu B onto stack
 #macro	SSTACK_PSHB, 0
-			SSTACK_PREPARE
-			STAB	1,-X
+			PSHB
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push accu D onto stack
 #macro	SSTACK_PSHD, 0
-			SSTACK_PREPARE
-			STD	2,-X
+			PSHD
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push index X onto stack
 #macro	SSTACK_PSHX, 0
-			SSTACK_PREPARE
-			MOVW	SSTACK_TMPX, 2,-X
+			PSHX
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push index X and accu B onto stack
 #macro	SSTACK_PSHXB, 0
-			SSTACK_PREPARE
-			MOVW	SSTACK_TMPX, 2,-X
-			STAB	1,-X
+			PSHX
+			PSHB
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push index X and accu D onto stack
 #macro	SSTACK_PSHXD, 0
-			SSTACK_PREPARE
-			MOVW	SSTACK_TMPX, 2,-X
-			STD	2,-X
+			PSHX
+			PSHD
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push index Y onto stack
 #macro	SSTACK_PSHY, 0
-			SSTACK_PREPARE
-			STY	2,-X
+			PSHY
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push index Y and accu A onto the stack
 #macro	SSTACK_PSHYA, 0
-			SSTACK_PREPARE
-			STY	2,-X
-			STAA	1,-X
+			PSHY
+			PSHA
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push index Y and accu B onto the stack
 #macro	SSTACK_PSHYB, 0
-			SSTACK_PREPARE
-			STY	2,-X
-			STAB	1,-X
+			PSHY
+			PSHB
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push index Y and accu D onto the stack
 #macro	SSTACK_PSHYD, 0
-			SSTACK_PREPARE
-			STY	2,-X
-			STD	2,-X
+			PSHY
+			PSHD
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push index X and Y onto the stack
 #macro	SSTACK_PSHYX, 0
-			SSTACK_PREPARE
-			STY	2,-X
-			MOVW	SSTACK_TMPX, 2,-X
+			PSHY
+			PSHX
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push index X, Y and accu A onto the stack
 #macro	SSTACK_PSHYXA, 0
-			SSTACK_PREPARE
-			STY	2,-X
-			MOVW	SSTACK_TMPX, 2,-X
-			STAA	1,-X
+			PSHY
+			PSHX
+			PSHA
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push index X, Y and accu B onto the stack
 #macro	SSTACK_PSHYXB, 0
-			SSTACK_PREPARE
-			STY	2,-X
-			MOVW	SSTACK_TMPX, 2,-X
-			STAB	1,-X
+			PSHY
+			PSHX
+			PSHB
 			SSTACK_POSTPUSH
 #emac
 
 ;#Push index X, Y and accu D onto the stack
 #macro	SSTACK_PSHYXD, 0
-			SSTACK_PREPARE
-			STY	2,-X
-			MOVW	SSTACK_TMPX, 2,-X
-			STD	2,-X
+			PSHY
+			PSHX
+			PSHD
 			SSTACK_POSTPUSH
 #emac
 
 ;#Deallocate local memory
 #macro	SSTACK_DEALLOC, 1
-			SSTACK_PREPARE
-			LEAX	\1,X
+			LEAS	\1,X
 			SSTACK_POSTPULL
 #emac
 	
 ;#Pull accu A from stack
 #macro	SSTACK_PULA, 0
-			SSTACK_PREPARE
-			LDAA	1,X+
+			PULA
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull accu A, index X and Y from the stack
 #macro	SSTACK_PULAXY, 0
-			;SSTACK_PREPARE
-			LDX	SSTACK_SP
-			LDAA	1,X+
-			MOVW	2,X+, SSTACK_TMPX
-			LDY	2,X+
+			PULA
+			PULX
+			PULY
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull accu A and index Y from the stack
 #macro	SSTACK_PULAY, 0
-			;SSTACK_PREPARE
-			LDX	SSTACK_SP
-			LDAA	1,X+
-			LDY	2,X+
+			PULA
+			PULY
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull accu B from stack
 #macro	SSTACK_PULB, 0
-			SSTACK_PREPARE
-			LDAB	1,X+
+			PULB
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull accu B and index X from stack
 #macro	SSTACK_PULBX, 0
-			;SSTACK_PREPARE
-			LDX	SSTACK_SP
-			LDAB	1,X+
-			MOVW	2,X+, SSTACK_TMPX
+			PULB
+			PULX
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull accu B, index X and Y from the stack
 #macro	SSTACK_PULBXY, 0
-			;SSTACK_PREPARE
-			LDX	SSTACK_SP
-			LDAB	1,X+
-			MOVW	2,X+, SSTACK_TMPX
-			LDY	2,X+
+			PULB
+			PULX
+			PULY
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull index Y and accu B from the stack
 #macro	SSTACK_PULBY, 0
-			SSTACK_PREPARE
-			LDAB	1,X+
-			LDY	2,X+
+			PULB
+			PULY
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull accu D from stack
 #macro	SSTACK_PULD, 0
-			SSTACK_PREPARE
-			LDD	2,X+
+			PULD
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull accu D and index X from the stack
 #macro	SSTACK_PULDX, 0
-			;SSTACK_PREPARE
-			LDX	SSTACK_SP
-			LDD	2,X+
-			MOVW	2,X+, SSTACK_TMPX
+			PULD
+			PULX
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull accu D, index X and Y from the stack
 #macro	SSTACK_PULDXY, 0
-			;SSTACK_PREPARE
-			LDX	SSTACK_SP
-			LDD	2,X+
-			MOVW	2,X+, SSTACK_TMPX
-			LDY	2,X+
+			PULD
+			PULX
+			PULY
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull index Y and accu D from the stack
 #macro	SSTACK_PULDY, 0
-			SSTACK_PREPARE
-			LDD	2,X+
-			LDY	2,X+
+			PULD
+			PULY
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull index X from stack
 #macro	SSTACK_PULX, 0
-			;SSTACK_PREPARE
-			LDX	SSTACK_SP
-			MOVW	2,X+, SSTACK_TMPX
+			PULX
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull index X and Y from the stack
 #macro	SSTACK_PULXY, 0
-			;SSTACK_PREPARE
-			LDX	SSTACK_SP
-			MOVW	2,X+, SSTACK_TMPX
-			LDY	2,X+
+			PULX
+			PULY
 			SSTACK_POSTPULL
 #emac
 
 ;#Pull index Y from stack
 #macro	SSTACK_PULY, 0
-			SSTACK_PREPARE
-			LDY	2,X+
+			PULY
 			SSTACK_POSTPULL
 #emac
 
 ;#Call subroutine	
 #macro	SSTACK_JOBSR, 1
-			SSTACK_PREPARE
-			MOVW	#RETURN_ADDR, 2,-X
-			SSTACK_POSTPUSH
-			JOB	\1
-RETURN_ADDR		EQU	*
+			CPS	#SSTACK_TOP+2
+			BLO	SSTACK_OF
+			JOBSR	\1
 #emac
 
 ;#Return from subroutine	
 #macro	SSTACK_RTS, 0
-			SSTACK_PREPARE
-			MOVW	2,X+, SSTACK_TMPRET
-			SSTACK_POSTPULL
-			JMP	[SSTACK_TMPRET]		
+			CPS	#SSTACK_BOTTOM-2
+			BHI	SSTACK_UF
+			RTS
 #emac
 
 ;#Return from subroutine and flag no error (carry cleared)	
 #macro	SSTACK_RTS_NOERR, 0
-			SSTACK_PREPARE
-			MOVW	2,X+, SSTACK_TMPRET
-			SSTACK_POSTPULL
+			CPS	#SSTACK_BOTTOM-2
+			BHI	SSTACK_UF
 			CLC
-			JMP	[SSTACK_TMPRET]		
+			RTS
 #emac
 
 ;#Return from subroutine and flag an error (carry set)	
 #macro	SSTACK_RTS_ERR, 0
-			SSTACK_PREPARE
-			MOVW	2,X+, SSTACK_TMPRET
-			SSTACK_POSTPULL
+			CPS	#SSTACK_BOTTOM-2
+			BHI	SSTACK_UF
 			SEC
-			JMP	[SSTACK_TMPRET]		
-#emac
-
-;#Prepare stack operation	
-#macro	SSTACK_PREPARE, 0
-			STX	SSTACK_TMPX
-			LDX	SSTACK_SP
+			RTS
 #emac
 
 ;#Conclude push operation	
 #macro	SSTACK_POSTPUSH, 0
-			STX	SSTACK_SP
-			CPX	#SSTACK_TOP
+			CPS	#SSTACK_TOP
 			BLO	SSTACK_OF
-			LDX	SSTACK_TMPX			
 #emac
 
 ;#Conclude pull operation	
 #macro	SSTACK_POSTPULL, 0
-			STX	SSTACK_SP
-			CPX	#SSTACK_BOTTOM
+			CPS	#SSTACK_BOTTOM
 			BHI	SSTACK_UF
-			LDX	SSTACK_TMPX			
 #emac
 	
 ;###############################################################################
@@ -394,12 +339,10 @@ RETURN_ADDR		EQU	*
 			ORG	SSTACK_CODE_START
 
 ;#Stack overflow detected	
-SSTACK_OF		EQU	*
-			ERROR_RESTART	SSTACK_MSG_OF
+SSTACK_OF		EQU	ISTACK_OF
 
 ;#Stack underflow detected	
-SSTACK_UF		EQU	*
-			ERROR_RESTART	SSTACK_MSG_UF
+SSTACK_UF		EQU	ISTACK_UF
 	
 SSTACK_CODE_END		EQU	*
 	
@@ -408,7 +351,7 @@ SSTACK_CODE_END		EQU	*
 ;###############################################################################
 			ORG	SSTACK_TABS_START
 ;#Error Messages
-SSTACK_MSG_OF		ERROR_MSG	ERROR_LEVEL_FATAL, "Subroutine stack overflow"
-SSTACK_MSG_UF		ERROR_MSG	ERROR_LEVEL_FATAL, "Subroutine stack underflow"
+SSTACK_MSG_OF		EQU	ISTACK_MSG_OF
+SSTACK_MSG_UF		EQU	ISTACK_MSG_UF
 
 SSTACK_TABS_END		EQU	*

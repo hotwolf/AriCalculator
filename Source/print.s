@@ -504,7 +504,7 @@ PRINT_LUINT_1		SSTACK_JOBSR	PRINT_FIX_BASE	;adjust base value (SSTACK: 2 bytes)
 
 			;Allocate and initialize local variables
 			SSTACK_ALLOC,12			;allocate local variables
-			LDY	SSTACK_SP 		;use Y as stack pointer
+			TFR	SP, Y	 		;use Y as stack pointer
 			STD	PRINT_LUINT_CNT,Y
 			STX	PRINT_LUINT_FTMP1,Y
 			MOVW	#$0000, PRINT_LUINT_FTMP3,Y
@@ -570,7 +570,7 @@ PRINT_LSDBL_1		CPY	#$0000
 	
 			;Allocate local variables
 			SSTACK_ALLOC,12			;allocate local variables
-			LDY	SSTACK_SP 		;use Y as stack pointer
+			TFR	SP,Y	 		;use Y as stack pointer
 
 			;Fix base
 			LDAB	PRINT_LSDBL_B,Y
@@ -669,7 +669,7 @@ PRINT_LUDBL_1		SSTACK_JOBSR	PRINT_FIX_BASE	;adjust base value (SSTACK: 2 bytes)
 
 			;Allocate and initialize local variables
 			SSTACK_ALLOC,12			;allocate local variables
-			LDY	SSTACK_SP 		;use Y as stack pointer
+			TFR	SP, Y 		;use Y as stack pointer
 			STD	PRINT_LUDBL1_CNT,Y
 			STX	PRINT_LUDBL1_FTMP1,Y
 			LDX	PRINT_LUDBL1_Y,Y
@@ -703,7 +703,7 @@ PRINT_LUDBL_4		CLRA				;base => D
 			EXG	X, Y
 			EXG	X, D
 			EDIV				;Y:D / X => Y,  Y:D % X => D 
-			LDX	SSTACK_SP		;use X as stack pointer
+			TFR	SP, X		;use X as stack pointer
 			STY	PRINT_LUDBL1_FTMP1,X	;result => tmp1:tmp0
 	
 			;Add remainder to the reverse value (SP in X)
@@ -759,7 +759,7 @@ PRINT_LUDBL_5		LDY	PRINT_LUDBL1_RTMP1,X
 			
 			;Deallocate forward variable
 PRINT_LUDBL_6		SSTACK_DEALLOC,4
-			LDY	SSTACK_SP		;use Y as stack pointer
+			TFR	SP, Y		;use Y as stack pointer
 PRINT_LUDBL2_RTMP5	EQU	$0
 PRINT_LUDBL2_RTMP4	EQU	$1
 PRINT_LUDBL2_RTMP3	EQU	$2
@@ -787,7 +787,7 @@ PRINT_LUDBL_8		CLRA				;base => D
 			EXG	X, Y
 			EXG	X, D
 			EDIV				;Y:D / X => Y,  Y:D % X => D 
-			LDX	SSTACK_SP		;use X as stack pointer
+			TFR	SP, X			;use X as stack pointer
 			STY	PRINT_LUDBL2_RTMP3,X	;result => tmp3:tmp2
 
 			;Byte 1/Byte 0 (SP in X, prev, remainder in D)
@@ -797,7 +797,7 @@ PRINT_LUDBL_8		CLRA				;base => D
 			LDX	PRINT_LUDBL2_RTMP1,X 	;tmp1:tmp0 => D
 			EXG	D, X
 			EDIV				;Y:D / X => Y,  Y:D % X => D 
-			LDX	SSTACK_SP		;use X as stack pointer
+			TFR	SP, X			;use X as stack pointer
 			STY	PRINT_LUDBL2_RTMP1,X	;result => tmp1:tmp0
 			
 			;Print remainder (SP in X, prev, remainder in D)
@@ -817,7 +817,7 @@ PRINT_LUDBL_8		CLRA				;base => D
 	
 			;Deallocate reverse variable
 			SSTACK_DEALLOC,6
-			LDX	SSTACK_SP
+			TFR	SP, X
 PRINT_LUDBL3_CNT	EQU	$0
 PRINT_LUDBL3_BASE	EQU	$1
 
@@ -848,7 +848,7 @@ PRINT_RUDBL_Y		EQU	$3
 			;Print padding
 PRINT_RUDBL_1		SSTACK_JOBSR	PRINT_UDBLCNT 	;determine the number of digits (SSTACK: 13 bytes)
 			NEGA
-			LDY	SSTACK_SP		;use Y as stack pointer
+			TFR	SP, Y			;use Y as stack pointer
 			ADDA	PRINT_RUDBL_A,Y		;calculate the size of the padding
 			BCC	PRINT_RUDBL_2	
 			SSTACK_JOBSR	PRINT_SPCS
@@ -877,7 +877,7 @@ PRINT_RSDBL_Y		EQU	$3
 			;Print padding
 PRINT_RSDBL_1		SSTACK_JOBSR	PRINT_SDBLCNT 	;determine the number of digits
 			NEGA
-			LDY	SSTACK_SP		;use Y as stack pointer
+			TFR	SP, Y		;use Y as stack pointer
 			ADDA	PRINT_RSDBL_A,Y		;calculate the size of the padding
 			BCC	PRINT_RSDBL_2	
 			SSTACK_JOBSR	PRINT_SPCS
@@ -907,7 +907,7 @@ PRINT_RUINT_Y		EQU	$3
 			;Print padding
 PRINT_RUINT_1		SSTACK_JOBSR	PRINT_UINTCNT 	;determine the number of digits (SSTACK: 13 bytes)
 			NEGA
-			LDY	SSTACK_SP		;use Y as stack pointer
+			TFR	SP, Y			;use Y as stack pointer
 			ADDA	PRINT_RUINT_A,Y		;calculate the size of the padding
 			BCC	PRINT_RUINT_2	
 			SSTACK_JOBSR	PRINT_SPCS
@@ -936,7 +936,7 @@ PRINT_RSINT_Y		EQU	$3
 			;Print padding
 PRINT_RSINT_1		SSTACK_JOBSR	PRINT_SINTCNT 	;determine the number of digits (SSTACK: 13 bytes)
 			NEGA
-			LDY	SSTACK_SP		;use Y as stack pointer
+			TFR	SP, Y			;use Y as stack pointer
 			ADDA	PRINT_RSINT_A,Y		;calculate the size of the padding
 			BCC	PRINT_RSINT_2	
 			SSTACK_JOBSR	PRINT_SPCS
@@ -972,7 +972,7 @@ PRINT_UDBLCNT_1		SSTACK_JOBSR	PRINT_FIX_BASE	;adjust base value (SSTACK: 2 bytes
 
 			;Allocate and initialize local variables
 			SSTACK_ALLOC,5			;allocate local variables
-			LDY	SSTACK_SP 		;use Y as stack pointer
+			TFR	SP, Y	 		;use Y as stack pointer
 			CLR	PRINT_UDBLCNT_CNT,Y
 			STAB	PRINT_UDBLCNT_BASE,Y
 			MOVW	PRINT_UDBLCNT_Y,Y PRINT_UDBLCNT_TMP3,Y
@@ -998,7 +998,7 @@ PRINT_UDBLCNT_3		CLRA				;base => D
 			EXG	X, Y
 			EXG	X, D
 			EDIV				;Y:D / X => Y,  Y:D % X => D 
-			LDX	SSTACK_SP		;use X as stack pointer
+			TFR	SP, X			;use X as stack pointer
 			STY	PRINT_UDBLCNT_TMP1,X	;result => tmp1:tmp0
 			TFR	X, Y			;use Y as stack pointer
 			BNE	PRINT_UDBLCNT_2		;result is not zero, yet
@@ -1039,7 +1039,7 @@ PRINT_SDBLCNT_1		CPY	#$0000
 
 			;Allocate and initialize local variables
 			SSTACK_ALLOC,5			;allocate local variables
-			LDY	SSTACK_SP 		;use Y as stack pointer
+			TFR	SP, Y	 		;use Y as stack pointer
 			MOVB	#$01, PRINT_SDBLCNT_CNT,Y
 			STAB	PRINT_SDBLCNT_BASE,Y	
 			LDD	PRINT_SDBLCNT_Y,Y
@@ -1086,7 +1086,7 @@ PRINT_UINTCNT_1		SSTACK_JOBSR	PRINT_FIX_BASE	;adjust base value (SSTACK: 2 bytes
 
 			;Allocate and initialize local variables
 			SSTACK_ALLOC,5			;allocate local variables
-			LDY	SSTACK_SP 		;use Y as stack pointer
+			TFR	SP, Y	 		;use Y as stack pointer
 			CLR	PRINT_UDBLCNT_CNT,Y
 			STAB	PRINT_UDBLCNT_BASE,Y
 			MOVW	#$0000, PRINT_UDBLCNT_TMP3,Y
@@ -1126,7 +1126,7 @@ PRINT_SINTCNT_1		CPX	#$0000
 			
 			;Allocate and initialize local variables
 			SSTACK_ALLOC,5			;allocate local variables
-			LDY	SSTACK_SP 		;use Y as stack pointer
+			TFR	SP, Y	 		;use Y as stack pointer
 			MOVB	#$01,	PRINT_UDBLCNT_CNT,Y
 			STAB	PRINT_UDBLCNT_BASE,Y
 			MOVW	#$0000, PRINT_UDBLCNT_TMP3,Y

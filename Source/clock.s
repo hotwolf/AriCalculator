@@ -35,6 +35,9 @@
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
 ;###############################################################################
+;# Global Defines:                                                             #
+;#    DEBUG - Keeps core clock running in WAIT mode.                           #
+;###############################################################################
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -56,7 +59,11 @@ CLOCK_VARS_END		EQU	*
 #macro	CLOCK_INIT, 0
 		MOVB	#$FF, CRGFLG 					;clear all flags
 		MOVW	#CLOCK_PLL_CFG, SYNR				;set PLL frequency (SYNR, REFDV)
-		MOVW	#(((RTIE|LOCKIE)<<8)|CWAI|COPWAI), CRGINT 	;CRG configuration:
+#ifdef	DEBUG
+		MOVW	#(((RTIE|LOCKIE)<<8)|COPWAI), CRGINT
+#else
+		MOVW	#(((RTIE|LOCKIE)<<8)|CWAI|COPWAI), CRGINT
+#endif                                                                  ;CRG configuration:
 									; real-time interrupt enabled		(RTIE)
 									; PLL lock interrupt enabled		(LOCKIE)
 									; no self-clock mode interrupt		(~SCMIE)
@@ -68,7 +75,8 @@ CLOCK_VARS_END		EQU	*
 									; RTI keeps running in wait mode	(~RTIWAI)
 									; COP stops in wait mode		(COPWAI)
 		MOVW	#((CME|PLLON|AUTO)<<8), PLLCTL 			; clock monitor enabled			(CME)
-									; PLL enabled				(PLLON)
+
+				; PLL enabled				(PLLON)
 									; automatic bandwith control		(AUTO)
 									; no self-clock mode			(~SCME)
 #emac	
