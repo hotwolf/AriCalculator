@@ -607,7 +607,7 @@ BDM_BC2TC		EQU	*
 			EXG	D,Y				;(BDM cycles*BDM_SPEED)/128
 			LDX	#128			
 			IDIV					;D / X => X,  D % X => D 
-			STX	[SSTACK_SP]
+			STX	0,SP
 			EXG	D,Y			
 			LDX	#128			
 			EDIV					;Y:D / X => Y,  Y:D % X => D 
@@ -643,7 +643,7 @@ BDM_TC2BC	EQU	*
 			LDX	BDM_SPEED
 			BEQ	BDM_TC2BC_2 			;BDM_SPEED is not set
 			IDIV					;D / X => X,  D % X => D 
-			STX	[SSTACK_SP]
+			STX	0,SP
 			EXG	D,Y			
 			LDX	BDM_SPEED			
 			EDIV					;Y:D / X => Y,  Y:D % X => D 
@@ -980,7 +980,7 @@ BDM_DELAY_STEP_1	EQU	*
 			;Calculate timeout (delay [BC] in X)
 			TFR	X,D
 			SSTACK_JOBSR	BDM_BC2TC		;(SSTACK: 6 bytes)
-			LDX	SSTACK_SP
+			TFR	SP, X
 			MOVW	#6, BDM_DELAY_TMP,X 		;set minimum delay for 
 			EMAXD	BDM_DELAY_TMP,X
 			STY	BDM_DELAY_TO_MSW,X		;store BDM_DELAY_TO_MSW
@@ -1010,7 +1010,7 @@ BDM_DELAY_TGTRST	EQU	*
 			MOVW	#BDM_STEP_IDLE, BDM_STEP			
 			CLI
 			;Set error code 
-			LDY	SSTACK_SP
+			TFR	SP, Y
 			MOVW	#$0002, BDM_DELAY_X,Y
 			;Done
 			JOB	BDM_DELAY_STEP_2_2	
@@ -1018,7 +1018,7 @@ BDM_DELAY_TGTRST	EQU	*
 			;Step 2
 BDM_DELAY_STEP_2	EQU	*
 			;If timeout MSW value > 0, decrement it and wait for another max. timeout period
-			LDY	SSTACK_SP
+			TFR	SP, Y
 			LDX	BDM_DELAY_TO_MSW,Y 		;check timeout MSW value
 			BEQ	BDM_DELAY_STEP_2_1
 			LEAX	-1,X 				;decrement timeout MSW value
@@ -1075,7 +1075,7 @@ BDM_RX_STEP_1		EQU	*
 BDM_RX_STEP_1_1		LDY	BDM_SPEED
 			BEQ	BDM_RX_NOSPD 			;BDM_SPEED not set
 			;Initialize local variables (BC timeout in D, bit count in X)
-			LDY	SSTACK_SP
+			TFR	SP, Y
 			STX	BDM_RX_DATA_CNT,Y
 			BEQ	BDM_RX_NOP 			;nothing to do
 			LDX	BDM_RX_Y,Y
@@ -1084,7 +1084,7 @@ BDM_RX_STEP_1_1		LDY	BDM_SPEED
 			MOVW	#$0000, 0,X
 			;Calculate timeout (BC timeout in D)
 			SSTACK_JOBSR	BDM_BC2TC		;(SSTACK: 6 bytes)
-			LDY	SSTACK_SP
+			TFR	SP, Y
 			STY	BDM_RX_ACK_TO_TC_MSW,Y		;store BDM_RX_ACK_TO_TC_MSW
 			STD	BDM_RX_ACK_TO_TC_LSW,Y		;store BDM_RX_ACK_TO_TC_MSW
 			;Enable timer (stack pointer in Y)	
@@ -1106,14 +1106,6 @@ BDM_RX_STEP_2		EQU	*
 			;Drive RX pulse
 			LDAA	#BKGD
 			JMP	[BDM_RP_CODE]
-BDM_RP_DONE		EQU	*
-			;Set OC7 (timeout) to IC6 + 16*(BDM_SPEED/128)
-			LDD	TC6
-			ADDD	BDM_DLY_16
-			STD	TC7
-			;Wait for interrupts 
-			MOVW	#BDM_STEP_RX_2, BDM_STEP	;set current processing step
-			ISTACK_RTI
 
 			;Target reset
 BDM_RX_TGTRST		EQU	*
@@ -1126,6 +1118,15 @@ BDM_RX_COMERR		EQU	*
 			;Set error status 
 			LDX	#$0006
 			JOB	BDM_RX_ACK_TO_1
+
+BDM_RP_DONE		EQU	*
+			;Set OC7 (timeout) to IC6 + 16*(BDM_SPEED/128)
+			LDD	TC6
+			ADDD	BDM_DLY_16
+			STD	TC7
+			;Wait for interrupts 
+			MOVW	#BDM_STEP_RX_2, BDM_STEP	;set current processing step
+			ISTACK_RTI
 	
 			;Step 3
 BDM_RX_STEP_3		EQU	*
@@ -1134,7 +1135,7 @@ BDM_RX_STEP_3		EQU	*
 			SUBD	TC6				;negedge
 			;Determine and store bit value (pulse length in D)
 			TFR	D,X
-			LDY	SSTACK_SP
+			TFR	SP, Y
 			LDD	[BDM_RX_DATA_PTR,Y]
 			LSLD	
 			CPX	BDM_DLY_10 			;compare pulse length with 10 cycle delay
@@ -1159,7 +1160,7 @@ BDM_RX_STEP_3_1		BCLR	TIE, #$20			;disable interrupt
 			;Step 4
 BDM_RX_STEP_4		EQU	*
 			;Check if ACK pulse is expected
-			LDY	SSTACK_SP
+			TFR	SP, Y
 			LDD	BDM_RX_ACK_TO_TC_LSW,Y
 			BNE	BDM_RX_STEP_4_1
 			LDX	BDM_RX_ACK_TO_TC_MSW,Y
@@ -1180,10 +1181,10 @@ BDM_RX_STEP_4_1		ADDD	TC7
 BDM_RX_STEP_5		EQU	*
 			;If timeout MSW value > 0, decrement it and wait for another
 			;full timer period. Otherwise go to ACK timeout handler
-			LDX	[SSTACK_SP] 			;check timeout MSW value
+			LDX	0,SP 				;check timeout MSW value
 			BEQ	BDM_RX_ACK_TO			
 			LEAX	-1,X 				;decrement timeout MSW value
-			STX	[SSTACK_SP]
+			STX	0,SP
 			MOVW	TC7, TC7 			;Clear TC7 flag
 			ISTACK_RTI
 
@@ -1357,7 +1358,7 @@ BDM_TX_STEP_1_1		LDY	BDM_SPEED
 			;Quit if BKGD is driven low (BC timeout in D,  bit count in X)
 			BRCLR	PORTB, #BKGD, BDM_TX_COMERR
 			;Quit if data count is zero (BC timeout in D,  bit count in X)
-			LDY	SSTACK_SP			;store data count
+			TFR	SP, Y			;store data count
 			STX	BDM_TX_DATA_CNT,Y
 			BEQ	BDM_TX_NOP			;nothing to do	
 			;Calculate ACK timeout (BC timeout in D, stack pointer in Y)
@@ -1443,7 +1444,7 @@ BDM_TX_STEP_1_8		TFR	X,Y
 			;Step 2
 BDM_TX_STEP_2		EQU	*	
 			;Check if end of bit timing has been missed
-			LDY	SSTACK_SP
+			TFR	SP, Y
 			LDD	TC6 				;determine time unlil end of bit timing
 			ADDD	BDM_DLY_16
 			TFR	D,X			
@@ -1505,7 +1506,7 @@ BDM_TX_STEP_3		EQU	*
 			CPD	#4
 			BGT	BDM_TX_ACK_TO
 			;Setup ACK timeout	
-BDM_TX_STEP_3_1		LDY	SSTACK_SP
+BDM_TX_STEP_3_1		TFR	SP, Y
 			LDD	#6
 			EMAXD	BDM_TX_ACK_TO_TC_LSW,Y
 			ADDD	TCNT 		;RPf
@@ -1519,10 +1520,10 @@ BDM_TX_STEP_3_1		LDY	SSTACK_SP
 BDM_TX_STEP_4		EQU	*
 			;If timeout MSW value > 0, decrement it and wait for another
 			;full timer period. Otherwise go to ACK timeout handler
-			LDX	[SSTACK_SP] 			;check timeout MSW value
+			LDX	0,SP 				;check timeout MSW value
 			BEQ	BDM_TX_ACK_TO			
 			LEAX	-1,X 				;decrement timeout MSW value
-			STX	[SSTACK_SP]
+			STX	0,SP
 			MOVW	TC7, TC7 			;Clear TC7 flag
 			ISTACK_RTI
 
@@ -1632,7 +1633,7 @@ BDM_TC5_TAB		EQU	*
 			DW	ERROR_ISR		;TX step 2b
 			DW	ERROR_ISR		;TX step 2c
 			DW	BDM_TX_STEP_5		;TX step 3
-							
+
 BDM_TC6_TAB		EQU	*			
 			DW	ERROR_ISR		;BDM interface not in use 
 			DW	ERROR_ISR		;RESET step 1		  
