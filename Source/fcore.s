@@ -2194,11 +2194,11 @@ CFA_TO_NUMBER		DW	CF_TO_NUMBER
 CF_TO_NUMBER		PS_CHECK_UF	4, CF_TO_NUMBER_PSUF	;(PSP -> Y)
 			;Allocate temporary memory (PSP in Y)
 			SSTACK_ALLOC	10
-			MOVW	BASE, 0,X
-			MOVW	2,Y,  2,X
-			MOVW	4,Y,  4,X
-			MOVW	6,Y,  6,X
-			MOVW	0,Y, 10,X
+			MOVW	BASE, 0,SP
+			MOVW	2,Y,  2,SP
+			MOVW	4,Y,  4,SP
+			MOVW	6,Y,  6,SP
+			MOVW	0,Y, 10,SP
 			;Convert to number
 			SSTACK_JOBSR	FCORE_TO_NUMBER
 			;Return results
