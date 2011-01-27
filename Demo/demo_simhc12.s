@@ -91,7 +91,7 @@ DEBUG                  EQU     1 ;enable debug code
 	                EXG	X,B
 			LDX	#MAIN_STR_BIN 	;print binary value
 			PRINT_STR
-			PRINT_BITS
+			PRINT_BYTE
 	
 			JOB	BASE_APP_START
 
