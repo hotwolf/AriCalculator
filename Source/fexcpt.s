@@ -132,7 +132,8 @@ FEXCPT_EC_QUIT			EQU	-56	;QUIT
 ;Non-standard error codes 
 FEXCPT_EC_NOMSG			EQU	-59	;empty message string
 FEXCPT_EC_DICTPROT		EQU	-60	;destruction of dictionary structure
-FEXCPT_EC_COMERR		EQU	-61	;communication problem
+FEXCPT_EC_COMERR		EQU	-61	;invalid RX data
+FEXCPT_EC_COMOF			EQU	-62	;RX buffer overflow
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -253,7 +254,8 @@ FEXCPT_CODE_END		EQU	*
 FEXCPT_MSGTAB_START	EQU	*
 
 FEXCPT_MSGTAB_FBDM	FBDM_MSGTAB	
-			DW	FEXCPT_MSG_COMERR	;-61 destruction of dictionary structure
+			DW	FEXCPT_MSG_COMOF	;-62 RX buffer overflow
+			DW	FEXCPT_MSG_COMERR	;-61 invalid RX data
 			DW	FEXCPT_MSG_DICTPROT	;-60 destruction of dictionary structure
 			DW	FEXCPT_MSG_NOMSG	;-59 empty message string	
 			DW	FEXCPT_MSG_UNKNOWN	;-58 [IF], [ELSE], or [THEN] exception
@@ -344,13 +346,17 @@ FEXCPT_MSG_CESF		ERROR_MSG	ERROR_LEVEL_ERROR, "Corrupt exception stack frame"
 ;Non-standard error messages 
 FEXCPT_MSG_NOMSG	ERROR_MSG	ERROR_LEVEL_ERROR, "Empty message string"
 FEXCPT_MSG_DICTPROT	ERROR_MSG	ERROR_LEVEL_ERROR, "Destruction of dictionary structure"
-FEXCPT_MSG_COMERR	ERROR_MSG	ERROR_LEVEL_ERROR, "Communication problem"
+FEXCPT_MSG_COMERR	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid RX data"
+FEXCPT_MSG_COMOF	ERROR_MSG	ERROR_LEVEL_ERROR, "RX buffer overflow"
 	
 FEXCPT_TABS_END		EQU	*
 ;###############################################################################
 ;# Forth words                                                                 #
 ;###############################################################################
 			ORG	FEXCPT_WORDS_START
+
+;#EXception words (EXCEPTION):
+; ============================
 
 ;CATCH ( i*x xt -- j*x 0 | i*x n )
 ;Push an exception frame on the exception stack and then execute the execution
@@ -410,6 +416,47 @@ CF_CATCH_PSOF		JOB	FEXCPT_THROW_PSOF
 CF_CATCH_RSOF		JOB	FEXCPT_THROW_RSOF			
 CF_CATCH_CESF		JOB	FEXCPT_THROW_CESF		;corrupt exception stack frame 
 
+;THROW ( k*x n -- k*x | i*x n )
+;If any bits of n are non-zero, pop the topmost exception frame from the
+;exception stack, along with everything on the return stack above that frame.
+;Then restore the input source specification in use before the corresponding
+;CATCH and adjust the depths of all stacks defined by this Standard so that they
+;are the same as the depths saved in the exception frame (i is the same number
+;as the i in the input arguments to the corresponding CATCH), put n on top of
+;the data stack, and transfer control to a point just after the CATCH that
+;pushed that exception frame.
+;If the top of the stack is non zero and there is no exception frame on the
+;exception stack, the behavior is as follows:
+;If n is minus-one (-1), perform the function of ABORT (the version of
+;ABORT in the Core word set), displaying no message.
+;If n is minus-two, perform the function of ABORT" (the version of
+;ABORT" in the Core word set), displaying the characters ccc associated with the
+;ABORT" that generated the THROW.
+;Otherwise, the system may display an implementation-dependent message giving
+;information about the condition associated with the THROW code n. Subsequently,
+;the system shall perform the function of ABORT (the version of ABORT
+;in the Core word set).
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;
+			ALIGN	1
+NFA_THROW		FHEADER, "THROW", NFA_FATAL_QUOTE, COMPILE
+CFA_THROW		DW	CF_THROW
+CF_THROW		PS_CHECK_UF	1, CF_THROW_PSUF	;PS for underflow (RSP -> Y)
+			LDD	2,Y+				;check if TOS is 0
+			BEQ	CF_THROW_1			;NEXT
+			STX	PSP
+			JOB	FEXCPT_THROW
+CF_THROW_1		STX	PSP
+			NEXT
+
+CF_THROW_PSUF		JOB	FEXCPT_THROW_PSUF			
+
+;#Non-standard S12CForth extensions:
+; ==================================
+	
 ;ERROR" Non-standard S12CForth extension!
 ;Defines a new throwable error code (n).		
 ;Interpretation: ( "ccc<quote>" -- n )
@@ -558,44 +605,6 @@ CF_FATAL_QUOTE_NOMSG	JOB	FEXCPT_THROW_NOMSG
 
 CFA_FATAL_QUOTE_RT	EQU	CFA_ERROR_QUOTE_RT
 	
-;THROW ( k*x n -- k*x | i*x n )
-;If any bits of n are non-zero, pop the topmost exception frame from the
-;exception stack, along with everything on the return stack above that frame.
-;Then restore the input source specification in use before the corresponding
-;CATCH and adjust the depths of all stacks defined by this Standard so that they
-;are the same as the depths saved in the exception frame (i is the same number
-;as the i in the input arguments to the corresponding CATCH), put n on top of
-;the data stack, and transfer control to a point just after the CATCH that
-;pushed that exception frame.
-;If the top of the stack is non zero and there is no exception frame on the
-;exception stack, the behavior is as follows:
-;If n is minus-one (-1), perform the function of ABORT (the version of
-;ABORT in the Core word set), displaying no message.
-;If n is minus-two, perform the function of ABORT" (the version of
-;ABORT" in the Core word set), displaying the characters ccc associated with the
-;ABORT" that generated the THROW.
-;Otherwise, the system may display an implementation-dependent message giving
-;information about the condition associated with the THROW code n. Subsequently,
-;the system shall perform the function of ABORT (the version of ABORT
-;in the Core word set).
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_THROW		FHEADER, "THROW", NFA_FATAL_QUOTE, COMPILE
-CFA_THROW		DW	CF_THROW
-CF_THROW		PS_CHECK_UF	1, CF_THROW_PSUF	;PS for underflow (RSP -> Y)
-			LDD	2,Y+				;check if TOS is 0
-			BEQ	CF_THROW_1			;NEXT
-			STX	PSP
-			JOB	FEXCPT_THROW
-CF_THROW_1		STX	PSP
-			NEXT
-
-CF_THROW_PSUF		JOB	FEXCPT_THROW_PSUF			
-	
 	
 FEXCPT_WORDS_END	EQU	*
-FEXCPT_LAST_NFA		EQU	NFA_THROW
+FEXCPT_LAST_NFA		EQU	NFA_FATAL_QUOTE

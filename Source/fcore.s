@@ -80,7 +80,8 @@
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    FMEM    - Forth memories                                                 #
-;#    FEXCPT  - Forth exceptions                                               #
+;#    FEXCPT  - Forth exception words                                          #
+;#    FDOUBLE - Forth double-number words                                      #
 ;#    PRINT   - Print Routines                                                 #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
@@ -245,6 +246,14 @@ CF_RESUME		RS_PULL	IP, \3 			;RS -> IP
 			BNE	\1
 #emac
 
+;ASCII_ONLY: Ensure that accu B contains an ASCII character
+#macro	ASCII_ONLY, 1	;args: 1:error handler
+			CMPB	#" " 		;first legal character in ASCII table
+			BLO	\1		;ignore character
+			CMPB	#"~"		;last legal character in ASCII table
+			BHI	\1		;ignore character
+#emac
+	
 ;CPSTR_X_TO_Y: Copy a string at X to the location at Y (X, Y, and D are modified)
 #macro	CPSTR_X_TO_Y, 0	;args: none
 LOOP			LDD	2,X+
@@ -287,7 +296,303 @@ DONE			EQU	*
 ;###############################################################################
 			ORG	FCORE_CODE_START
 ;Common subroutines:
-;=================== 	
+;===================
+
+;#Get command line input and store it into any buffer
+; args:   D: buffer size
+;         X: buffer pointer
+; result: D: character count	
+;         X: error code (0 if everything goes well)	
+; SSTACK: 16 bytes
+;         Y is preserved
+FCORE_ACCEPT		EQU	*	
+			;Save registers
+			SSTACK_PSHYXD
+			;Allocate temporary variables
+			;+--------+--------+
+			;| char limit (D)  | <-SP
+			;+--------+--------+
+			;| buffer ptr (X)  |  +2
+			;+--------+--------+
+			;|        Y        |  +4
+			;+--------+--------+
+			;| Return address  |  +6
+			;+--------+--------+
+FCORE_ACCEPT_CHAR_LIMIT	EQU	0
+FCORE_ACCEPT_BUF_PTR	EQU	2	
+			;Signal input request
+			LED_BUSY_OFF
+			;Initialize counter 
+			LDY	#$0000
+			;Read input (buffer pointer in X, char count in Y)
+			LED_BUSY_OFF			
+FCORE_ACCEPT_1		SSTACK_JOBSR	FCORE_EKEY		;receive an ASCII character (SSTACK: 8 bytes)
+			TBNE	X, FCORE_ACCEPT_7		;communication error
+			LDX	FCORE_ACCEPT_BUF_PTR,SP
+			;Check for BACKSPACE (char in D, buffer pointer in X, char count in Y)
+			CMPB	#PRINT_SYM_BACKSPACE	
+			BEQ	FCORE_ACCEPT_3 			;remove most recent character
+			CMPB	#PRINT_SYM_DEL	
+			BEQ	FCORE_ACCEPT_3 			;remove most recent character
+			;Check for ENTER (CR) (char in D, buffer pointer in X, char count in Y)
+			CMPB	#PRINT_SYM_CR	
+			BEQ	FCORE_ACCEPT_5			;process input
+			;Ignore LF (char in D, buffer pointer in X, char count in Y)
+			CMPB	#PRINT_SYM_LF
+			BEQ	FCORE_ACCEPT_1			;ignore
+			;Check for buffer overflow (char in D, buffer pointer in X, char count in Y)
+			CPY	FCORE_ACCEPT_CHAR_LIMIT,SP	
+			BHS	FCORE_ACCEPT_4	 		;beep on overflow
+			;Check for valid special characters (char in D, buffer pointer in X, char count in Y)
+			CMPB	#PRINT_SYM_TAB	
+			BEQ	FCORE_ACCEPT_2 			;echo and append to buffer
+			;Check for invalid characters (char in D, buffer pointer in X, char count in Y)
+			ASCII_ONLY	FCORE_ACCEPT_4 	
+			;Echo character and append to buffer (char in D, buffer pointer in X, char count in Y)
+FCORE_ACCEPT_2		LEAY	1,Y			
+			STAB	1,X+				;store character
+			STX	FCORE_ACCEPT_BUF_PTR,SP
+			SSTACK_JOBSR	FCORE_EMIT		;echo a character
+			JOB	FCORE_ACCEPT_1
+			;Remove most recent character (buffer pointer in X, char count in Y)
+FCORE_ACCEPT_3		TBEQ	Y, FCORE_ACCEPT_4		;beep if TIB was empty
+			LEAY	-1,Y			
+			LEAX	-1,X
+			STX	FCORE_ACCEPT_BUF_PTR,SP
+			LDAB	#PRINT_SYM_BACKSPACE 		;transmit a backspace character
+			SSTACK_JOBSR	FCORE_EMIT
+			JOB	FCORE_ACCEPT_1
+			;Beep
+FCORE_ACCEPT_4		PRINT_BEEP		;beep
+			JOB	FCORE_ACCEPT_1 	;receive next character
+			;Process input (char count in Y)
+FCORE_ACCEPT_5		LDX	#$0000
+FCORE_ACCEPT_6		STY	FCORE_ACCEPT_CHAR_LIMIT,SP	
+			STX	FCORE_ACCEPT_BUF_PTR,SP
+			;Done
+			LED_BUSY_ON
+			SSTACK_PULDXY
+			SSTACK_RTS
+			;Communication error (char count in Y)
+FCORE_ACCEPT_7		EQU	FCORE_ACCEPT_6
+
+;#Read a byte character from the SCI
+; args:   none
+; result: D: RX data
+;         X: error code (0 if everything goes well)	
+; SSTACK: 8 bytes
+;         Y is preserved
+FCORE_EKEY		EQU	*
+			;Receive one byte
+			SCI_RX			;(SSTACK: 6 bytes)
+			;Check for buffer overflows (flags in A, data in B)
+			BITA	#(SCI_FLG_SWOR|OR)
+			BNE	FCORE_EKEY_2 	;buffer overflow
+			;Check for RX errors (flags in A, data in B)
+			BITA	#(NF|FE|PE)
+			BNE	FCORE_EKEY_3 	;RX error
+			;Return data (data in B)
+FCORE_EKEY_1		CLRA
+			LDX	#$0000
+			;Done
+			SSTACK_RTS
+			;Buffer overflow
+FCORE_EKEY_2		LDX	#FEXCPT_EC_COMOF
+			JOB	FCORE_EKEY_1
+			;RX error
+FCORE_EKEY_3		LDX	#FEXCPT_EC_COMERR
+			JOB	FCORE_EKEY_1
+
+
+;#Check if RX data is available from the SCI
+; args:   none
+; result: D: oldest queue entry (random value if X is zero)
+;         X: number of entries in RX queue
+; SSTACK: 2 bytes
+;         Y is preserved 
+FCORE_EKEY_QUESTION	EQU	SCI_RX_PEEK
+	
+;#Send a byte character over the SCI
+; args:   B: byte
+; result: none
+; SSTACK: 8 bytes
+;         X, Y and D are preserved
+FCORE_EMIT		EQU	SCI_TX	
+			
+;#Check if TX data can be send
+; args:   none
+; result: A: number of entries left in queue
+; SSTACK: 3 bytes
+;         X, Y, and B are preserved 
+FCORE_EMIT_QUESTION	EQU	SCI_TX_PEEK	
+			
+;#Find a name in the dictionary and return the xt 
+; args:   X: string pointer
+; result: X: CFA/string pointer
+;         D: status (0:name not cound, 1:immediate, or -1:compile)
+; SSTACK: 8 bytes
+;         Y is preserved
+
+FCORE_FIND		EQU	*	
+			;Find NFA
+			TFR	X,D
+			SSTACK_JOBSR	FCORE_FIND_NFA 				;(SSTACK: 8 bytes)
+			TBEQ	X, FCORE_FIND_2			
+			;Search was successful (current NFA in X)
+			LEAX	2,X						;determine current CFA
+			LDAB	1,X+ 
+			SEX	B, D 						;save immediate flag
+			ANDB	#$7F
+			LEAX	B,X
+			COMA
+			TAB							;determine return status
+			ORAB	#$01	
+			;Done
+FCORE_FIND_1		SSTACK_RTS
+			;Search was unsuccessful (0 in X)
+FCORE_FIND_2		EXG	D,X
+			JOB	FCORE_FIND_1	
+
+;#Find a name in the dictionary and return the NFA 
+; args:   X: string pointer
+; result: X: NFA (0:name not cound)
+; SSTACK: 6 bytes
+;         D and Y are preserved
+FCORE_FIND_NFA		EQU	*	
+			;Save registers
+			SSTACK_PSHYD
+			;Initialize search (start of word in X)
+			LDY	LAST_NFA
+			;Check for zero-length string (start of word in X)
+			TBEQ	X, FCORE_FIND_NFA_3  				;empty string
+			;Try to match first two characters (current NFA in Y, start of word in X)
+FCORE_FIND_NFA_1	LDD	0,X 						;first two characters -> D 
+			BMI	FCORE_FIND_NFA_6				;single character word
+			;Search multy character word (first 2 characters in D, current NFA in Y, start of word in X)
+			CPD	3,Y 						;compare first 2 characters
+			BEQ	FCORE_FIND_NFA_4 				;first 2 characters match
+			;Parse next NFA	(current NFA in Y, start of word in X)
+FCORE_FIND_NFA_2	LDY	0,Y 						;check next NFA
+			BNE	FCORE_FIND_NFA_1 				;next iteration
+			;Search was unsuccessfull (current NFA in Y, start of word in X)
+FCORE_FIND_NFA_3	LDX	#$0000 						;set return status
+			JOB	FCORE_FIND_NFA_8 				;done
+			;First 2 characters match (current NFA in Y, start of word in X)
+FCORE_FIND_NFA_4	TSTB							;check if search is over
+			BMI	FCORE_FIND_NFA_7 				;search was sucessful
+			;Compare the remaining characters of the current NFA (current NFA in Y, start of word in X, index in A)
+			LDAA	#2 						;set index to 3rd cfaracter
+FCORE_FIND_NFA_5	LEAY	3,Y 						;set Y to start of name
+			LDAB	A,Y 						;Compare current character
+			LEAY	-3,Y 						;set Y to NFA
+			CMPB	A,X
+			BNE	FCORE_FIND_NFA_2 				;parse next NFA
+			TSTB	 						;check if search is done
+			BMI	FCORE_FIND_NFA_7				;search was successful
+			IBNE	A, FCORE_FIND_NFA_5				;parse next character
+			;Name is too long -> search unsuccessful 
+			JOB	FCORE_FIND_NFA_3
+			;Search single character word (current NFA in Y, first character in A)
+FCORE_FIND_NFA_6	CMPA	3,Y 						;compare first character
+			BNE	FCORE_FIND_NFA_2 				;parse next NFA			
+			;Search was successful(current NFA in Y)
+FCORE_FIND_NFA_7	TFR	Y,X		
+			;Restore registers 
+FCORE_FIND_NFA_8	SSTACK_PULDY
+			SSTACK_RTS
+	
+;#Parse TIB for a name and create a definition header
+; args:   X: string pointer
+; result: D: NFA
+;         X: error hanldler (0=no errors, FCORE_THROW_DICTOF, or FCORE_THROW_NONAME)	
+; SSTACK: 10  bytes
+;          Y is  preserved
+FCORE_HEADER		EQU	*	
+			;Save registers
+			SSTACK_PSHY
+			;Read next word
+			SSTACK_JOBSR	FCORE_NAME 			;string pointer -> X, char count -> A (STACK: 5 bytes)
+			TBEQ	X, FCORE_HEADER_NONAME 			;zero length name
+			IBEQ	A, FCORE_HEADER_STROF 			;name longer then 254 characters
+			DECA
+			;Check for Dictionary overflow (string pointer in X, char count in A)
+			TFR	X, Y
+			TAB
+			ADDA	#7 					;prev. NFA, CFA offs., CFA, 1 cell
+			DICT_CHECK_OF_A	FCORE_HEADER_DICTOF		;(CP+7 -> X)
+			;Build header (string pointer in  Y, char count in B)
+			LDX	CP	       				;CP -> X
+			MOVW	LAST_NFA, 2,X+ 				;append LAST_NFA 
+			STAB	1,X+ 					;append character count
+			;Append name (new CP in X, string pointer in Y)
+FCORE_HEADER_1		CPSTR_Y_TO_X
+			;Return result (new CP in X)
+FCORE_HEADER_2		LDD	CP
+			STX	CP
+			LDX	#$0000
+			;Restore registers 
+FCORE_HEADER_3		SSTACK_PULY
+			SSTACK_RTS
+			;No name was given 
+FCORE_HEADER_NONAME	LDX	#FCORE_THROW_NONAME
+			JOB	FCORE_HEADER_3
+			;Dictionary overflow
+FCORE_HEADER_DICTOF	LDX	#FCORE_THROW_DICTOF
+			JOB	FCORE_HEADER_3
+			;Parsed string overflow
+FCORE_HEADER_STROF	LDX	#FCORE_THROW_STROF
+			JOB	FCORE_HEADER_3
+
+;#Read an ASCII character from the SCI
+; args:   none
+; result: D: ASCII character	
+;         X: error code (0 in case of no errors)
+; SSTACK: 10 bytes
+;         Y is preserved
+FCORE_KEY		EQU	*	
+			;Read byte from SCI 
+FCORE_KEY_1		SSTACK_JOBSR	FCORE_EKEY	;receive one byte (SSTACK: 8 bytes)
+			TBNE	X, FCORE_KEY_2		;transmission error
+			;Check if it is a valid ASCII character
+			ASCII_ONLY	FCORE_KEY_1
+ 			;Done
+FCORE_KEY_2		SSTACK_RTS
+
+;#Check if ASCII data is available from the SCI
+; args:   none
+; result: D: number of entries in RX queue
+;         X: error code (0 in case of no errors)
+; SSTACK: 4 bytes
+;         Y is preserved 
+FCORE_KEY_QUESTION	EQU	*
+			;Peek into RX queue
+			SCI_RX_PEEK				;(SSTACK: 2 bytes)
+			TBEQ	X, FCORE_KEY_QUESTION_2		;RX queue is empty
+			;Check if ASCII character is available (flags in A, data in B, number of chars in X)
+			ASCII_ONLY	FCORE_KEY_QUESTION_4	;non-ASCII character
+			;RX queue contains ASCII data (RX errors are not reported)
+			TFR	X, D
+			LDX	#$0000
+			;Done
+FCORE_KEY_QUESTION_1	SSTACK_RTS
+			;RX queue is empty
+FCORE_KEY_QUESTION_2	LDX	#$0000
+FCORE_KEY_QUESTION_3	CLRA
+			CLRB
+			JOB	FCORE_KEY_QUESTION_1
+			;Drop oldest RX queue entry (flags in A, data in B, number of chars in X)
+FCORE_KEY_QUESTION_4	SCI_RX_DROP	
+			;Check for buffer overflows (flags in A, data in B, number of chars in X)
+			LDX	#FEXCPT_EC_COMOF
+			BITA	#(SCI_FLG_SWOR|OR)
+			BNE	FCORE_KEY_QUESTION_3	;buffer overflow
+			;Check for RX errors (flags in A, data in B, number of chars in X)
+			LDX	#FEXCPT_EC_COMERR
+			BITA	#(NF|FE|PE)
+			BNE	FCORE_KEY_QUESTION_3 	;RX error
+			;Peek again
+			JOB	FCORE_KEY_QUESTION
+	
 ;#Find the next whitespace delimitered string on the TIB, make it upper case and
 ; terminate it. 
 ; args:   none
@@ -354,8 +659,372 @@ FCORE_NAME_7		MOVW	NUMBER_TIB, TO_IN	;update >IN pointer
 			CLRA
 			JOB	FCORE_NAME_6
 
-;Common subroutines:
-;=================== 	
+;#Convert a terminated string into a number
+; args:   X:   string pointer
+; result: Y:X: number
+;	  D:   size (0 if not a number)	
+; SSTACK: 20 bytes
+;         No registers are preserved
+FCORE_NUMBER		EQU	*	
+;			;Allocate temporary memory
+			SSTACK_ALLOC	10 		;allocate 18 bytes
+;         Stack:        +--------+--------+
+;			|      Base       | SP+0
+;			+--------+--------+
+;			|   Char Pointer  | SP+2
+;			+--------+--------+
+;			|  New Result MSW | SP+4
+;			+--------+--------+
+;			|  New Result LSW | SP+6
+;			+--------+--------+
+;			| String Pointer  | SP+8
+;			+--------+--------+
+FCORE_NUMBER_BASE	EQU	0		
+FCORE_NUMBER_CHRPTR	EQU	2
+FCORE_NUMBER_RESHI	EQU	4
+FCORE_NUMBER_RESLO	EQU	6
+FCORE_NUMBER_STRPTR	EQU	8
+FCORE_NUMBER_SIZE	EQU	FCORE_NUMBER_CHRPTR
+
+			MOVW	BASE, FCORE_NUMBER_BASE,SP
+			STX	FCORE_NUMBER_CHRPTR,SP
+			MOVW	#$0000, FCORE_NUMBER_RESHI,SP
+			MOVW	#$0000, FCORE_NUMBER_RESLO,SP
+			STX	FCORE_NUMBER_STRPTR,SP
+
+			;Skip sign (char pointer in X)
+			LDAB	0,X
+			ANDB	#$7F 			;remove termination
+			CMPB	#"-"
+			BNE	FCORE_NUMBER_1 		;check for base modifier
+			BRSET	1,X+, #$80, FCORE_NUMBER_7;not a number
+			STX	FCORE_NUMBER_CHRPTR,SP
+			LDAB	0,X	
+			;Handle base modifier (char in B, char pointer in X)
+FCORE_NUMBER_1		CMPB	#"%" 			;check for binary modifier
+			BNE	FCORE_NUMBER_2		;no binary modifier
+			MOVW	#2, FCORE_NUMBER_BASE,SP
+			JOB	FCORE_NUMBER_4 		;skip to next char
+FCORE_NUMBER_2		CMPB	#"&" 			;check for decimal modifier
+			BNE	FCORE_NUMBER_3		;no decimal modifier
+			MOVW	#10, FCORE_NUMBER_BASE,SP
+			JOB	FCORE_NUMBER_4 		;skip to next char
+FCORE_NUMBER_3		CMPA	#"$" 			;check for hexadecimal modifier
+			BNE	FCORE_NUMBER_5		;no hexadecimal modifier
+			MOVW	#16, FCORE_NUMBER_BASE,SP			
+FCORE_NUMBER_4		BRSET	1,X+, #$80, FCORE_NUMBER_7;not a number
+			STX	FCORE_NUMBER_CHRPTR,SP
+			;Skip to first digit (char pointer in X) 
+FCORE_NUMBER_5		SSTACK_JOBSR	FCORE_PROC_DIGIT
+			JMP	[FCORE_NUMBER_TAB_1,Y]
+
+FCORE_NUMBER_TAB_1	DW	FCORE_NUMBER_6 		;first digit processed
+			DW	FCORE_NUMBER_4		;try to next digit
+			DW	FCORE_NUMBER_7		;not a number
+
+			;First digit procesed (char pointer in X)
+FCORE_NUMBER_6		BRSET	1,X+, #$80, FCORE_NUMBER_8 ;handle sign
+			STX	FCORE_NUMBER_CHRPTR,SP
+			SSTACK_JOBSR	FCORE_PROC_DIGIT
+			JMP	[FCORE_NUMBER_TAB_2,Y]
+
+FCORE_NUMBER_TAB_2	DW	FCORE_NUMBER_6 		;first digit processed
+			DW	FCORE_NUMBER_6		;try to next digit
+			DW	FCORE_NUMBER_7		;not a number
+
+			;Not a number (char pointer in X)
+FCORE_NUMBER_7		MOVW	#0, FCORE_NUMBER_SIZE,SP;default size: double word	
+			JOB	FCORE_NUMBER_10	  	;return result
+
+			;Handle sign (char pointer+1 in X)
+FCORE_NUMBER_8		MOVW	#2, FCORE_NUMBER_SIZE,SP;default size: double word	
+			LDAB	[FCORE_NUMBER_STRPTR,SP]
+			CMPB	#"-"
+			BEQ	FCORE_NUMBER_11 	;negative number
+			;Positive number (char pointer+1 in X) 
+			LDD	FCORE_NUMBER_RESHI,SP	;determine the size of the number 
+			BNE	FCORE_NUMBER_10		;return result
+			;Check for forced double value (char pointer+1 in X)
+FCORE_NUMBER_9		LDAB	-1,X
+			CMPB	#((".")|$80)
+			BEQ	FCORE_NUMBER_10		;return result
+			MOVW	#1, FCORE_NUMBER_SIZE,SP;set size to word
+			;Return result (char pointer in X)
+FCORE_NUMBER_10		LDD	FCORE_NUMBER_SIZE,SP
+			LDY	FCORE_NUMBER_RESHI,SP
+			LDX	FCORE_NUMBER_RESLO,SP
+			SSTACK_DEALLOC	10      	;free memory
+			SSTACK_RTS
+			;Negative number (char pointer+1 in X) 
+FCORE_NUMBER_11		LDD	FCORE_NUMBER_RESHI,SP	;calculate 2's complement
+			COMA
+			COMB
+			STD	FCORE_NUMBER_RESHI,SP
+			LDD	FCORE_NUMBER_RESLO,SP	;calculate 2's complement
+			COMA
+			COMB
+			ADDD	#1
+			STD	FCORE_NUMBER_RESLO,SP
+			LDD	FCORE_NUMBER_RESHI,SP
+			ADCB	#0
+			ADCA	#0
+			STD	FCORE_NUMBER_RESHI,SP
+			BCS	FCORE_NUMBER_7		;overflow (not a number)
+			;Check negative size (MSW in D, char pointer+1 in Y, stack pointer in X)
+			IBNE	D, FCORE_NUMBER_10	;return result
+			TST	FCORE_NUMBER_RESLO,SP
+			BPL	FCORE_NUMBER_10		;return result
+			JOB	FCORE_NUMBER_9		;check for forced double value
+
+
+;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
+; args:   A: delimiter
+; result: X: string pointer
+;	  A: character count (saturated at 255) 	
+; SSTACK: 5 bytes
+;         Y and B are preserved
+FCORE_PARSE		EQU	*	
+			;Save registers
+			SSTACK_PSHYB			;save index X and accu B
+			;Check for empty string (delimiter in A)
+			CLRB	      			;0 -> B
+			LDY	TO_IN			;current >IN -> Y
+			;LEAY	1,Y			;ignore first space character
+			CPY	NUMBER_TIB		;check for the end of the input buffer
+			BHS	FCORE_PARSE_4		;return empty string
+			LEAX	TIB_START,Y		;save start of string
+			CMPA	0,X			;check for double quote
+			BEQ	FCORE_PARSE_4		;return empty string		
+			;Parse remaining characters (>IN in Y, delimiter in A, string pointer in X)
+FCORE_PARSE_1		ADDB	#1 			;increment B
+			SBCB	#0			;saturate B
+			LEAY	1,Y 			;increment >IN
+			CPY	NUMBER_TIB		;check for the end of the input buffer
+			BHS	FCORE_PARSE_2		;terminate previous character
+			CMPA	TIB_START,Y		;check for double parse
+			BNE	FCORE_PARSE_1		;check next character
+			;Terminate previous character (>IN in Y, delimiter in A, string pointer in X) 
+FCORE_PARSE_2		BSET	TIB_START-1,Y, #$80 	;set termination bit
+FCORE_PARSE_3		EXG	Y,D
+			ADDD	#1			;increment >IN
+			EMIND	NUMBER_TIB-*,PC		;don't go beyond the end of the TIB
+			EXG	Y,D
+			STY	TO_IN			;update >IN
+			TBA				;character count -> A
+			;Done
+			SSTACK_PULBY			;restore accu B and index X
+			SSTACK_RTS
+			;Empty string 
+FCORE_PARSE_4		LDX	#$0000
+			JOB	FCORE_PARSE_3
+	
+;#Process one digit in a string to number conversion
+; args:   Stack:        +--------+--------+
+;			|      Base       | SP+2
+;			+--------+--------+
+;			|   Char Pointer  | SP+4
+;			+--------+--------+
+;			|    Result MSW   | SP+6
+;			+--------+--------+
+;			|    Result LSW   | SP+8
+;			+--------+--------+
+; result: Y:	Status (0: everything ok, 2:fill char, 4:not a number) 	
+;         Stack:        +--------+--------+
+;			|      Base       | SP+2
+;			+--------+--------+
+;			|   Char Pointer  | SP+4
+;			+--------+--------+
+;			|  New Result MSW | SP+6
+;			+--------+--------+
+;			|  New Result LSW | SP+8
+;			+--------+--------+
+; SSTACK: 8 bytes
+;         D and X are preserved
+;
+FCORE_PROC_DIGIT	EQU	*	
+			;Allocate temporary variables
+			SSTACK_PSHYXD	
+			;+--------+--------+
+			;|    D (Status)   | SP+0
+			;+--------+--------+
+			;|        X        | SP+2
+			;+--------+--------+
+			;|        Y        | SP+4
+			;+--------+--------+
+			;|  Return value   | SP+6
+			;+--------+--------+
+			;|      Base       | SP+8
+			;+--------+--------+
+			;|   Char Pointer  | SP+10
+			;+--------+--------+
+			;|    Result MSW   | SP+12
+			;+--------+--------+
+			;|    Result LSW   | SP+14
+			;+--------+--------+
+FCORE_PROC_DIGIT_D	EQU	0		
+FCORE_PROC_DIGIT_X	EQU	2		
+FCORE_PROC_DIGIT_Y	EQU	4		
+FCORE_PROC_DIGIT_RETURN	EQU	6		
+FCORE_PROC_DIGIT_BASE	EQU	8		
+FCORE_PROC_DIGIT_CHRPTR	EQU	10
+FCORE_PROC_DIGIT_RESHI	EQU	12
+FCORE_PROC_DIGIT_RESLO	EQU	14
+			;Read next character
+			;LDX	FCORE_PROC_DIGIT_CHRPTR,SP
+			;LDAB	1,X+
+			;STX	FCORE_PROC_DIGIT_CHRPTR,SP		
+			LDAB	[FCORE_PROC_DIGIT_CHRPTR,SP]
+			;Ignore termination (character in B)
+			ANDB	#$7F
+			;Convert character to digit (unterminated character in B)
+			;[0-9]
+			CMPB	#"0"
+			BLO	FCORE_PROC_DIGIT_3 	;[,.]
+			CMPB	#"9"
+			BHI	FCORE_PROC_DIGIT_1 	;[A-Z]
+			SUBB	#"0"			;subtract offset
+			JOB	FCORE_PROC_DIGIT_5	;check digit
+			;[A-Z]
+FCORE_PROC_DIGIT_1	CMPB	#"A"
+			BLO	FCORE_PROC_DIGIT_8	;not a number
+			CMPB	#"Z"
+			BHI	FCORE_PROC_DIGIT_2	;[a-z]
+			SUBB	#("A"-10)		;subtract offset
+			JOB	FCORE_PROC_DIGIT_5 	;check digit
+			;[a-z] 
+FCORE_PROC_DIGIT_2	CMPB	#"a"			
+			BLO	FCORE_PROC_DIGIT_4 	;[_]
+			CMPB	#"z"
+			BHI	FCORE_PROC_DIGIT_8	;not a number
+			SUBB	#("A"-10)		;subtract offset
+			JOB	FCORE_PROC_DIGIT_5 	;check digit
+			;[,.]
+FCORE_PROC_DIGIT_3	CMPB	#","
+			BEQ	FCORE_PROC_DIGIT_7 	;filler character
+			CMPB	#"."
+			BEQ	FCORE_PROC_DIGIT_7 	;filler character
+			JOB	FCORE_PROC_DIGIT_8	;not a number
+			;[_]
+FCORE_PROC_DIGIT_4	CMPB	#"_"
+			BEQ	FCORE_PROC_DIGIT_7 	;filler character
+			JOB	FCORE_PROC_DIGIT_8	;not a number	
+			;Check digit (digit in B)
+FCORE_PROC_DIGIT_5	CLRA				;digit in D
+			CPD	FCORE_PROC_DIGIT_BASE,SP;check if digit < BASE
+			BHS	FCORE_PROC_DIGIT_8	;not a number
+			STD	FCORE_PROC_DIGIT_Y,SP   ;store digit
+			;Multiply result by base
+			LDY	FCORE_PROC_DIGIT_RESLO,SP
+			LDD	FCORE_PROC_DIGIT_BASE,SP
+			EMUL				;Y * D => Y:D
+			STD	FCORE_PROC_DIGIT_RESLO,SP
+			LDD	FCORE_PROC_DIGIT_RESHI,SP
+			STY	FCORE_PROC_DIGIT_RESHI,SP
+			LDY	FCORE_PROC_DIGIT_BASE,SP
+			EMUL				;Y * D => Y:D
+			TBNE	Y, FCORE_PROC_DIGIT_8	;number out of range 	
+			ADDD	FCORE_PROC_DIGIT_RESHI,SP
+			BCS	FCORE_PROC_DIGIT_8	;number out of range
+			STD	FCORE_PROC_DIGIT_RESHI,SP
+			;Add digit to result
+			LDD	FCORE_PROC_DIGIT_RESLO,SP
+			ADDD	FCORE_PROC_DIGIT_Y,SP
+			STD	FCORE_PROC_DIGIT_RESLO,SP
+			LDD	#$0000
+			ADCB	FCORE_PROC_DIGIT_RESHI+1,SP
+			ADCA	FCORE_PROC_DIGIT_RESHI,SP
+			BCS	FCORE_PROC_DIGIT_8	;number out of range
+			STD	FCORE_PROC_DIGIT_RESHI,SP
+			;Set status
+			MOVW	#$0000, FCORE_PROC_DIGIT_Y,SP
+			;Done
+FCORE_PROC_DIGIT_6	SSTACK_PULDXY
+			SSTACK_RTS
+			;Filler char
+FCORE_PROC_DIGIT_7	MOVW	#$0002, FCORE_PROC_DIGIT_Y,SP
+			JOB	FCORE_PROC_DIGIT_6 	;done		
+			;Not a number
+FCORE_PROC_DIGIT_8	MOVW	#$0004, FCORE_PROC_DIGIT_Y,SP
+			JOB	FCORE_PROC_DIGIT_6 	;done		
+	
+;#Locate the cody of a CREATEd word 
+; args:   X: pointer to CFA
+; result: X: pointer to BODY (0 in case of a non-CREATEd word)
+; SSTACK: 4 bytes
+;         Y and D are preserved
+FCORE_TO_BODY		EQU	*	
+			;Save registers
+			SSTACK_PSHD
+			;Get CFA 
+			LDD	0,X	;CF  -> D
+			LEAX	2,X
+			;Check if it is a VARIABLE definition 
+			CPD	#CF_VARIABLE_RT
+			BEQ	FCORE_TO_BODY_1 	;done
+			;Check if it is a CONSTANT definition 
+			CPD	#CF_CONSTANT_RT
+			BEQ	FCORE_TO_BODY_1 	;done
+			;Check if it is a CREATE definition
+			LEAX	2,X
+			CPD	#CF_CREATE_RT
+			BEQ	FCORE_TO_BODY_1 	;done
+			;Non-CREATED word
+			LDX	#$0000	
+			;Restore registers 
+FCORE_TO_BODY_1		SSTACK_PULD
+			SSTACK_RTS
+
+;#Convert a terminated string into a number
+; args:   Stack:        +--------+--------+
+;			|      Base       | SP+0
+;			+--------+--------+
+;			|   Char Pointer  | SP+2
+;			+--------+--------+
+;			|    Result MSW   | SP+4
+;			+--------+--------+
+;			|    Result LSW   | SP+6
+;			+--------+--------+
+;			|   String Size   | SP+8
+;			+--------+--------+
+; result: Y:     Status (0: everything ok, 2:overflow) 	
+;         Stack:        +--------+--------+
+;			|      Base       | SP+0
+;			+--------+--------+
+;			|   Char Pointer  | SP+2
+;			+--------+--------+
+;			|  New Result MSW | SP+4
+;			+--------+--------+
+;			|  New Result LSW | SP+6
+;			+--------+--------+
+;			| Remaining Chars | SP+8
+;			+--------+--------+
+; SSTACK: 20 bytes
+;         No registers are preserved
+FCORE_TO_NUMBER		EQU	*
+FCORE_TO_NUMBER_BASE	EQU	2		
+FCORE_TO_NUMBER_CHRPTR	EQU	4
+FCORE_TO_NUMBER_RESHI	EQU	6
+FCORE_TO_NUMBER_RESLO	EQU	8
+FCORE_TO_NUMBER_CHRCNT	EQU	10
+			;Process one character 
+FCORE_TO_NUMBER_1	SSTACK_JOBSR	FCORE_PROC_DIGIT
+			JMP	[FCORE_TO_NUMBER_TAB,Y]
+
+FCORE_TO_NUMBER_TAB	DW	FCORE_TO_NUMBER_2 		;process next digit
+			DW	FCORE_TO_NUMBER_2		;process next digit
+			DW	FCORE_TO_NUMBER_3		;stop
+			
+			;Process next number
+FCORE_TO_NUMBER_2	LDD	FCORE_TO_NUMBER_CHRCNT,SP
+			DBEQ	D, FCORE_TO_NUMBER_3		;stop
+			STD	FCORE_TO_NUMBER_CHRCNT,SP
+			LDY	FCORE_TO_NUMBER_CHRPTR,Y
+			LEAY	1,Y
+			STY	FCORE_TO_NUMBER_CHRPTR,Y
+			JOB	FCORE_TO_NUMBER_1
+			;Stop 
+FCORE_TO_NUMBER_3	SSTACK_RTS	
+	
 ;#Find the next whitespace delimitered string on the TIB, and don't modify the string
 ; args:   none
 ; result: X: string pointer
@@ -408,600 +1077,10 @@ FCORE_WORD_5		MOVW	NUMBER_TIB, TO_IN	;update >IN pointer
 			CLRA
 			JOB	FCORE_WORD_4
 
-;#Skip to the next character of a string
-
-
-	
-;#Process one digit in a string to number conversion
-; args:   Stack:        +--------+--------+
-;			|      Base       | SSTACK_SP +2
-;			+--------+--------+
-;			|   Char Pointer  | SSTACK_SP +4
-;			+--------+--------+
-;			|    Result MSW   | SSTACK_SP +6
-;			+--------+--------+
-;			|    Result LSW   | SSTACK_SP +8
-;			+--------+--------+
-; result: Y:	Status (0: everything ok, 2:fill char, 4:not a number) 	
-;         Stack:        +--------+--------+
-;			|      Base       | SSTACK_SP +2
-;			+--------+--------+
-;			|   Char Pointer  | SSTACK_SP +4
-;			+--------+--------+
-;			|  New Result MSW | SSTACK_SP +6
-;			+--------+--------+
-;			|  New Result LSW | SSTACK_SP +8
-;			+--------+--------+
-; SSTACK: 8 bytes
-;         D and X are preserved
-;
-FCORE_PROC_DIGIT	EQU	*	
-			;Allocate temporary variables
-			SSTACK_PSHYXD	
-			;+--------+--------+
-			;|    D (Status)   | SSTACK_SP +0
-			;+--------+--------+
-			;|        X        | SSTACK_SP +2
-			;+--------+--------+
-			;|        Y        | SSTACK_SP +4
-			;+--------+--------+
-			;|  Return value   | SSTACK_SP +6
-			;+--------+--------+
-			;|      Base       | SSTACK_SP +8
-			;+--------+--------+
-			;|   Char Pointer  | SSTACK_SP +10
-			;+--------+--------+
-			;|    Result MSW   | SSTACK_SP +12
-			;+--------+--------+
-			;|    Result LSW   | SSTACK_SP +14
-			;+--------+--------+
-FCORE_PROC_DIGIT_D	EQU	0		
-FCORE_PROC_DIGIT_X	EQU	2		
-FCORE_PROC_DIGIT_Y	EQU	4		
-FCORE_PROC_DIGIT_RETURN	EQU	6		
-FCORE_PROC_DIGIT_BASE	EQU	8		
-FCORE_PROC_DIGIT_CHRPTR	EQU	10
-FCORE_PROC_DIGIT_RESHI	EQU	12
-FCORE_PROC_DIGIT_RESLO	EQU	14
-			;Read next character 
-			LDX	SSTACK_SP	
-			LDAB	[FCORE_PROC_DIGIT_CHRPTR,X]
-			;Ignore termination (character in B, SP in X)
-			ANDB	#$7F
-			;Convert character to digit (unterminated character in B, SP in X)
-			;[0-9]
-			CMPB	#"0"
-			BLO	FCORE_PROC_DIGIT_3 	;[,.]
-			CMPB	#"9"
-			BHI	FCORE_PROC_DIGIT_1 	;[A-Z]
-			SUBB	#"0"			;subtract offset
-			JOB	FCORE_PROC_DIGIT_5	;check digit
-			;[A-Z]
-FCORE_PROC_DIGIT_1	CMPB	#"A"
-			BLO	FCORE_PROC_DIGIT_8	;not a number
-			CMPB	#"Z"
-			BHI	FCORE_PROC_DIGIT_2	;[a-z]
-			SUBB	#("A"-10)		;subtract offset
-			JOB	FCORE_PROC_DIGIT_5 	;check digit
-			;[a-z] 
-FCORE_PROC_DIGIT_2	CMPB	#"a"			
-			BLO	FCORE_PROC_DIGIT_4 	;[_]
-			CMPB	#"z"
-			BHI	FCORE_PROC_DIGIT_8	;not a number
-			SUBB	#("A"-10)		;subtract offset
-			JOB	FCORE_PROC_DIGIT_5 	;check digit
-			;[,.]
-FCORE_PROC_DIGIT_3	CMPB	#","
-			BEQ	FCORE_PROC_DIGIT_7 	;filler character
-			CMPB	#"."
-			BEQ	FCORE_PROC_DIGIT_7 	;filler character
-			JOB	FCORE_PROC_DIGIT_8	;not a number
-			;[_]
-FCORE_PROC_DIGIT_4	CMPB	#"_"
-			BEQ	FCORE_PROC_DIGIT_7 	;filler character
-			JOB	FCORE_PROC_DIGIT_8	;not a number	
-			;Check digit (digit in B, SP in X)
-FCORE_PROC_DIGIT_5	CLRA				;digit in D
-			CPD	FCORE_PROC_DIGIT_BASE,X	;check if digit < BASE
-			BHS	FCORE_PROC_DIGIT_8	;not a number
-			STD	FCORE_PROC_DIGIT_Y,X    ;store digit
-			;Multiply result by base (SP in X)
-			LDY	FCORE_PROC_DIGIT_RESLO,X
-			LDD	FCORE_PROC_DIGIT_BASE,X
-			EMUL				;Y * D => Y:D
-			STD	FCORE_PROC_DIGIT_RESLO,X
-			LDD	FCORE_PROC_DIGIT_RESHI,X
-			STY	FCORE_PROC_DIGIT_RESHI,X
-			LDY	FCORE_PROC_DIGIT_BASE,X
-			EMUL				;Y * D => Y:D
-			TBNE	Y, FCORE_PROC_DIGIT_8	;number out of range 	
-			ADDD	FCORE_PROC_DIGIT_RESHI,X
-			BCS	FCORE_PROC_DIGIT_8	;number out of range
-			STD	FCORE_PROC_DIGIT_RESHI,X
-			;Add digit to result (SP in X)
-			LDD	FCORE_PROC_DIGIT_RESLO,X
-			ADDD	FCORE_PROC_DIGIT_Y,X
-			STD	FCORE_PROC_DIGIT_RESLO,X
-			LDD	#$0000
-			ADCB	FCORE_PROC_DIGIT_RESHI+1,X
-			ADCA	FCORE_PROC_DIGIT_RESHI,X
-			BCS	FCORE_PROC_DIGIT_8	;number out of range
-			STD	FCORE_PROC_DIGIT_RESHI,X
-			;Set status (SP in X)
-			MOVW	#$0000, FCORE_PROC_DIGIT_Y,X
-			;Done
-FCORE_PROC_DIGIT_6	SSTACK_PULDXY
-			SSTACK_RTS
-			;Filler char (SP in X)
-FCORE_PROC_DIGIT_7	MOVW	#$0002, FCORE_PROC_DIGIT_Y,X
-			JOB	FCORE_PROC_DIGIT_6 	;done		
-			;Not a number (SP in X)
-FCORE_PROC_DIGIT_8	MOVW	#$0004, FCORE_PROC_DIGIT_Y,X
-			JOB	FCORE_PROC_DIGIT_6 	;done		
-
-;#Convert a terminated string into a number
-; args:   X:   string pointer
-; result: Y:X: number
-;	  D:   size	
-; SSTACK: 20 bytes
-;         No registers are preserved
-FCORE_NUMBER		EQU	*	
-;			;Allocate temporary memory
-			SSTACK_ALLOC	10 		;allocate 18 bytes
-;         Stack:        +--------+--------+
-;			|      Base       | SSTACK_SP +0
-;			+--------+--------+
-;			|   Char Pointer  | SSTACK_SP +2
-;			+--------+--------+
-;			|  New Result MSW | SSTACK_SP +4
-;			+--------+--------+
-;			|  New Result LSW | SSTACK_SP +6
-;			+--------+--------+
-;			| String Pointer  | SSTACK_SP +8
-;			+--------+--------+
-FCORE_NUMBER_BASE	EQU	0		
-FCORE_NUMBER_CHRPTR	EQU	2
-FCORE_NUMBER_RESHI	EQU	4
-FCORE_NUMBER_RESLO	EQU	6
-FCORE_NUMBER_STRPTR	EQU	8
-FCORE_NUMBER_SIZE	EQU	FCORE_NUMBER_CHRPTR
-
-			TFR	X,Y
-			LDX	SSTACK_SP
-			MOVW	BASE, FCORE_NUMBER_BASE,X
-			STY	FCORE_NUMBER_CHRPTR,X
-			MOVW	#$0000, FCORE_NUMBER_RESHI,X
-			MOVW	#$0000, FCORE_NUMBER_RESLO,X
-			STY	FCORE_NUMBER_STRPTR,X
-
-			;Skip sign (char pointer in Y, stack pointer in X)
-			LDAB	0,Y
-			ANDB	#$7F 			;remove termination
-			CMPB	#"-"
-			BNE	FCORE_NUMBER_1 		;check for base modifier
-			BRSET	1,Y+, #$80, FCORE_NUMBER_7;not a number
-			STY	FCORE_NUMBER_CHRPTR,X
-			LDAB	0,Y	
-			;Handle base modifier (char in B, char pointer in Y, stack pointer in X)
-FCORE_NUMBER_1		CMPB	#"%" 			;check for binary modifier
-			BNE	FCORE_NUMBER_2		;no binary modifier
-			MOVW	#2, FCORE_NUMBER_BASE,X
-			JOB	FCORE_NUMBER_4 		;skip to next char
-FCORE_NUMBER_2		CMPB	#"&" 			;check for decimal modifier
-			BNE	FCORE_NUMBER_3		;no decimal modifier
-			MOVW	#10, FCORE_NUMBER_BASE,X
-			JOB	FCORE_NUMBER_4 		;skip to next char
-FCORE_NUMBER_3		CMPA	#"$" 			;check for hexadecimal modifier
-			BNE	FCORE_NUMBER_5		;no hexadecimal modifier
-			MOVW	#16, FCORE_NUMBER_BASE,X			
-FCORE_NUMBER_4		LDY	FCORE_NUMBER_CHRPTR,X
-			BRSET	1,Y+, #$80, FCORE_NUMBER_7;not a number
-			STY	FCORE_NUMBER_CHRPTR,X
-			;Skip to first digit (stack pointer in X) 
-FCORE_NUMBER_5		SSTACK_JOBSR	FCORE_PROC_DIGIT
-			JMP	[FCORE_NUMBER_TAB_1,Y]
-
-FCORE_NUMBER_TAB_1	DW	FCORE_NUMBER_6 		;first digit processed
-			DW	FCORE_NUMBER_4		;try to next digit
-			DW	FCORE_NUMBER_7		;not a number
-
-			;First digit procesed (stack pointer in X)
-FCORE_NUMBER_6		LDY	FCORE_NUMBER_CHRPTR,X
-			BRSET	1,Y+, #$80, FCORE_NUMBER_8 ;handle sign
-			STY	FCORE_NUMBER_CHRPTR,X
-			SSTACK_JOBSR	FCORE_PROC_DIGIT
-			JMP	[FCORE_NUMBER_TAB_2,Y]
-
-FCORE_NUMBER_TAB_2	DW	FCORE_NUMBER_6 		;first digit processed
-			DW	FCORE_NUMBER_6		;try to next digit
-			DW	FCORE_NUMBER_7		;not a number
-
-			;Not a number (stack pointer in X)
-FCORE_NUMBER_7		MOVW	#0, FCORE_NUMBER_SIZE,X   ;default size: double word	
-			JOB	FCORE_NUMBER_10		  ;return result
-
-			;Handle sign (char pointer+1 in Y, stack pointer in X)
-FCORE_NUMBER_8		MOVW	#2, FCORE_NUMBER_SIZE,X   ;default size: double word	
-			LDAB	[FCORE_NUMBER_STRPTR,X]
-			CMPB	#"-"
-			BEQ	FCORE_NUMBER_11 	;negative number
-			;Positive number (char pointer+1 in Y, stack pointer in X) 
-			LDD	FCORE_NUMBER_RESHI,X	;calculate 2's complement
-			BNE	FCORE_NUMBER_10		;return result
-			;Check for forced double value (char pointer+1 in Y, stack pointer in X)
-FCORE_NUMBER_9		LDAB	-1,Y
-			CMPB	#((".")|$80)
-			BEQ	FCORE_NUMBER_10		;return result
-			MOVW	#1, FCORE_NUMBER_SIZE,X ;default size: double word
-			;Return result (stack pointer in X)
-FCORE_NUMBER_10		SSTACK_DEALLOC	10      ;free memory
-			LDD	FCORE_NUMBER_SIZE,X
-			LDY	FCORE_NUMBER_RESHI,X
-			LDX	FCORE_NUMBER_RESLO,X
-			SSTACK_RTS
-			;Negative number (char pointer+1 in Y, stack pointer in X) 
-FCORE_NUMBER_11		LDD	FCORE_NUMBER_RESHI,X	;calculate 2's complement
-			COMA
-			COMB
-			STD	FCORE_NUMBER_RESHI,X
-			LDD	FCORE_NUMBER_RESLO,X	;calculate 2's complement
-			COMA
-			COMB
-			ADDD	#1
-			STD	FCORE_NUMBER_RESLO,X
-			LDD	FCORE_NUMBER_RESHI,X
-			ADCB	#0
-			ADCA	#0
-			STD	FCORE_NUMBER_RESHI,X
-			BCS	FCORE_NUMBER_7		;overflow (not a number)
-			;Check negative size (MSW in D, char pointer+1 in Y, stack pointer in X)
-			IBNE	D, FCORE_NUMBER_10	;return result
-			TST	FCORE_NUMBER_RESLO,X
-			BPL	FCORE_NUMBER_10		;return result
-			JOB	FCORE_NUMBER_9		;check for forced double value
-	
-;			;+--------+--------+
-;			;| String Pointer  | <-SSTACK_SP (in X)
-;			;+--------+--------+
-;			;|   Char Pointer  | 
-;			;+--------+--------+
-;			;|  Digit/Size (D) |
-;			;+--------+--------+
-;			;|  Result LSW (X) |
-;			;+--------+--------+
-;			;|  Result MSW (Y) | 
-;			;+--------+--------+
-;			;| Return address  |
-;			;+--------+--------+
-;FCORE_NUMBER_STRPTR	EQU	0		
-;FCORE_NUMBER_CHARPTR	EQU	2		
-;FCORE_NUMBER_DIGIT	EQU	4
-;FCORE_NUMBER_SIZE	EQU	4
-;FCORE_NUMBER_RESLO	EQU	6
-;FCORE_NUMBER_RESHI	EQU	8
-;
-;			;Initialize temporary memory
-;			SSTACK_ALLOC	10 		;allocate 8 bytes
-;			TFR	X, Y
-;			LDX	SSTACK_SP 		;SP -> X
-;			STY	FCORE_NUMBER_STRPTR,X
-;			BEQ	FCORE_NUMBER_13 	;quit if the string is empty
-;			STY	FCORE_NUMBER_CHARPTR,X
-;			CLRA				;Clear result field
-;			CLRB
-;			STD	FCORE_NUMBER_DIGIT,X
-;			STD	FCORE_NUMBER_RESLO,X
-;			STD	FCORE_NUMBER_RESHI,X
-;			;Skip for minus sign (char pointer in Y, SP in X)
-;			LDAB	0,Y
-;			CMPB	#"-"
-;			BNE	FCORE_NUMBER_2 		;Ignore termination
-;			;Read next character 
-;FCORE_NUMBER_1		LDAB	1,+Y
-;			;Ignore termination (character in B, char pointer in Y, SP in X)
-;FCORE_NUMBER_2		ANDB	#$7F			;remove termination
-;			;Convert character to digit (unterminated character in B, char pointer in Y, SP in X)
-;FCORE_NUMBER_3		;[0-9]
-;			CMPB	#"0"
-;			BLO	FCORE_NUMBER_6 		;[,.]
-;			CMPB	#"9"
-;			BHI	FCORE_NUMBER_4 		;[A-Z]
-;			SUBB	#"0"			;subtract offset
-;			JOB	FCORE_NUMBER_8 		;check digit
-;			;[A-Z]
-;FCORE_NUMBER_4		CMPB	#"A"
-;			BLO	FCORE_NUMBER_13		;not a number
-;			CMPB	#"Z"
-;			BHI	FCORE_NUMBER_5		;[a-z]
-;			SUBB	#("A"-10)		;subtract offset
-;			JOB	FCORE_NUMBER_8 		;check digit
-;			;[a-z] 
-;FCORE_NUMBER_5		CMPB	#"a"			
-;			BLO	FCORE_NUMBER_7 		;[_]
-;			CMPB	#"z"
-;			BHI	FCORE_NUMBER_13		;not a number
-;			SUBB	#("A"-10)		;subtract offset
-;			JOB	FCORE_NUMBER_8 		;check digit
-;			;[,.]
-;FCORE_NUMBER_6		STY	FCORE_NUMBER_CHARPTR,X	;store char pointer
-;			CMPB	#","
-;			BEQ	FCORE_NUMBER_9 		;ignore character
-;			CMPB	#"."
-;			BEQ	FCORE_NUMBER_9 		;ignore character
-;			JOB	FCORE_NUMBER_13		;not a number
-;			;[_]
-;FCORE_NUMBER_7		STY	FCORE_NUMBER_CHARPTR,X	;store char pointer
-;			CMPB	#"_"
-;			BEQ	FCORE_NUMBER_9 		;ignore character
-;			JOB	FCORE_NUMBER_13		;not a number	
-;			;Check digit (digit in B, SP in X, char pointer in Y)
-;FCORE_NUMBER_8		CLRA				;digit in D
-;			CPD	BASE 			;check if digit < BASE
-;			BHS	FCORE_NUMBER_13		;not a number
-;			STD	FCORE_NUMBER_DIGIT,X 	;store digit
-;			STY	FCORE_NUMBER_CHARPTR,X	;store char pointer
-;			;Multiply result by base (SP in X)
-;			LDY	FCORE_NUMBER_RESLO,X
-;			LDD	BASE
-;			EMUL				;Y * D => Y:D
-;			STD	FCORE_NUMBER_RESLO,X
-;			LDD	FCORE_NUMBER_RESHI,X
-;			STY	FCORE_NUMBER_RESHI,X
-;			LDY	BASE
-;			EMUL				;Y * D => Y:D
-;			TBNE	Y, FCORE_NUMBER_13	;number out of range 	
-;			ADDD	FCORE_NUMBER_RESHI,X
-;			BCS	FCORE_NUMBER_13		;number out of range
-;			STD	FCORE_NUMBER_RESHI,X
-;			;Add digit to result (SP in X)
-;			LDD	FCORE_NUMBER_RESLO,X
-;			ADDD	FCORE_NUMBER_DIGIT,X
-;			STD	FCORE_NUMBER_RESLO,X
-;			LDD	#$0000
-;			ADCB	FCORE_NUMBER_RESHI+1,X
-;			ADCA	FCORE_NUMBER_RESHI,X
-;			BCS	FCORE_NUMBER_13		;number out of range
-;			STD	FCORE_NUMBER_RESHI,X
-;			;Check for string termination (SP in X)
-;FCORE_NUMBER_9		LDY	FCORE_NUMBER_CHARPTR,X		
-;			LDAB	0,Y
-;			BPL	FCORE_NUMBER_1 		;read next character
-;			;Check if number is negative (char pointer in Y, SP in X)
-;			LDAB	[FCORE_NUMBER_STRPTR,X]			
-;			CMPB	#"-"
-;			BEQ	FCORE_NUMBER_14 	;negative number
-;			;Check the size of the unsigned number (SP in X)
-;			LDD	FCORE_NUMBER_RESHI,X
-;			BNE	FCORE_NUMBER_15		;return double number			
-;			;Check for forced double number (SP in X)
-;FCORE_NUMBER_10		LDAB	[FCORE_NUMBER_CHARPTR,X];check if double number is forced
-;			CMPB	#("."+$80)			
-;			BEQ	FCORE_NUMBER_15 	;return double number
-;			;Return single number (SP in X)
-;FCORE_NUMBER_11		MOVW	#$0001, FCORE_NUMBER_SIZE,X
-;			;Clean up and leave 
-;FCORE_NUMBER_12		SSTACK_DEALLOC	4 		;free 4  bytes
-;			SSTACK_PULDXY		
-;			SSTACK_RTS
-;			;Not a number (SP in X)
-;FCORE_NUMBER_13		MOVW	#$0000, FCORE_NUMBER_SIZE,X
-;			JOB	FCORE_NUMBER_12 	;clean up and leave		
-;			;Calculate 2's complement (SP in X)
-;FCORE_NUMBER_14		LDD	FCORE_NUMBER_RESHI,X	
-;			COMA
-;			COMB
-;			STD	FCORE_NUMBER_RESHI,X
-;			LDD	FCORE_NUMBER_RESLO,X
-;			COMA
-;			COMB
-;			ADDD	#1
-;			STD	FCORE_NUMBER_RESLO,X
-;			LDD	FCORE_NUMBER_RESHI,X
-;			ADCB	#$00
-;			ADCA	#$00
-;			BPL	FCORE_NUMBER_13		;number out of range
-;			STD	FCORE_NUMBER_RESHI,X	
-;			;Check the size of the negative number (result(hi) in D, SP in X)
-;			CPD	#$FFFF
-;			BNE	FCORE_NUMBER_15		;return double number
-;			LDD	FCORE_NUMBER_RESLO,X
-;			BMI	FCORE_NUMBER_10		;check for forced double number 
-;			;Return double number (SP in X)
-;FCORE_NUMBER_15		MOVW	#$0002, FCORE_NUMBER_SIZE,X
-;			JOB	FCORE_NUMBER_12
-
-;#Convert a terminated string into a number
-; args:   Stack:        +--------+--------+
-;			|      Base       | SSTACK_SP +0
-;			+--------+--------+
-;			|   Char Pointer  | SSTACK_SP +2
-;			+--------+--------+
-;			|    Result MSW   | SSTACK_SP +4
-;			+--------+--------+
-;			|    Result LSW   | SSTACK_SP +6
-;			+--------+--------+
-;			|   String Size   | SSTACK_SP +8
-;			+--------+--------+
-; result: Y:	Status (0: everything ok, 2:overflow) 	
-;         Stack:        +--------+--------+
-;			|      Base       | SSTACK_SP +0
-;			+--------+--------+
-;			|   Char Pointer  | SSTACK_SP +2
-;			+--------+--------+
-;			|  New Result MSW | SSTACK_SP +4
-;			+--------+--------+
-;			|  New Result LSW | SSTACK_SP +6
-;			+--------+--------+
-;			| Remaining Chars | SSTACK_SP +8
-;			+--------+--------+
-; SSTACK: 20 bytes
-;         No registers are preserved
-FCORE_TO_NUMBER		EQU	*
-FCORE_TO_NUMBER_BASE	EQU	2		
-FCORE_TO_NUMBER_CHRPTR	EQU	4
-FCORE_TO_NUMBER_RESHI	EQU	6
-FCORE_TO_NUMBER_RESLO	EQU	8
-FCORE_TO_NUMBER_CHRCNT	EQU	10
-			;Process one character 
-FCORE_TO_NUMBER_1	SSTACK_JOBSR	FCORE_PROC_DIGIT
-			JMP	[FCORE_TO_NUMBER_TAB,Y]
-
-FCORE_TO_NUMBER_TAB	DW	FCORE_TO_NUMBER_2 		;process next digit
-			DW	FCORE_TO_NUMBER_2		;process next digit
-			DW	FCORE_TO_NUMBER_3		;stop
-			
-			;Process next number
-FCORE_TO_NUMBER_2	LDX	SSTACK_SP
-			LDD	FCORE_TO_NUMBER_CHRCNT,X
-			DBEQ	D, FCORE_TO_NUMBER_3		;stop
-			STD	FCORE_TO_NUMBER_CHRCNT,X
-			LDY	FCORE_TO_NUMBER_CHRPTR,Y
-			LEAY	1,Y
-			STY	FCORE_TO_NUMBER_CHRPTR,Y
-			JOB	FCORE_TO_NUMBER_1
-			;Stop 
-FCORE_TO_NUMBER_3	SSTACK_RTS	
-	
-;#Parse TIB for a name and create a definition header
-; args:   X: string pointer
-; result: D: NFA
-;         X: error hanldler (0=no errors, FCORE_THROW_DICTOF, or FCORE_THROW_NONAME)	
-; SSTACK: 10  bytes
-;          Y is  preserved
-FCORE_HEADER		EQU	*	
-			;Save registers
-			SSTACK_PSHY
-			;Read next word
-			SSTACK_JOBSR	FCORE_NAME 			;string pointer -> X, char count -> A (STACK: 5 bytes)
-			TBEQ	X, FCORE_HEADER_NONAME 			;zero length name
-			IBEQ	A, FCORE_HEADER_STROF 			;name longer then 254 characters
-			DECA
-			;Check for Dictionary overflow (string pointer in X, char count in A)
-			TFR	X, Y
-			TAB
-			ADDA	#7 					;prev. NFA, CFA offs., CFA, 1 cell
-			DICT_CHECK_OF_A	FCORE_HEADER_DICTOF		;(CP+7 -> X)
-			;Build header (string pointer in  Y, char count in B)
-			LDX	CP	       				;CP -> X
-			MOVW	LAST_NFA, 2,X+ 				;append LAST_NFA 
-			STAB	1,X+ 					;append character count
-			;Append name (new CP in X, string pointer in Y)
-FCORE_HEADER_1		CPSTR_Y_TO_X
-			;Return result (new CP in X)
-FCORE_HEADER_2		LDD	CP
-			STX	CP
-			LDX	#$0000
-			;Restore registers 
-FCORE_HEADER_3		SSTACK_PULY
-			SSTACK_RTS
-			;No name was given 
-FCORE_HEADER_NONAME	LDX	#FCORE_THROW_NONAME
-			JOB	FCORE_HEADER_3
-			;Dictionary overflow
-FCORE_HEADER_DICTOF	LDX	#FCORE_THROW_DICTOF
-			JOB	FCORE_HEADER_3
-			;Parsed string overflow
-FCORE_HEADER_STROF	LDX	#FCORE_THROW_STROF
-			JOB	FCORE_HEADER_3
-
-;#Read an ASCII character from the SCI
-; args:   none
-; result: A: error status (0 in case of no errors)	
-;         B: ASCII character
-; SSTACK: 8 bytes
-;         X and Y are preserved
-FCORE_KEY		EQU	*	
-			;Read byte from SCI 
-FCORE_KEY_1		SCI_RX				;receive one byte (SSTACK: 6 bytes)
-			TBNE	A, FCORE_KEY_2		;transmission error
-			;Check if it is a valid ASCII character
-			CMPB	#" " 			;first legal character in ASCII table
-			BLO	FCORE_KEY_1		;ignore character
-			CMPB	#"~"			;last legal character in ASCII table
-			BHI	FCORE_KEY_1		;ignore character
- 			;Done
-FCORE_KEY_2		SSTACK_RTS
-	
-;#Get command line input and store it into any buffer
-; args:   X: buffer pointer
-;         D: buffer size
-; result: X: error status (0:no problems, 2:communication problem)	
-;         D: character count	
-; SSTACK: 16 bytes
-;         Y is preserved
-FCORE_ACCEPT		EQU	*	
-			;Save registers
-			SSTACK_PSHYXD
-			;Allocate temporary variables
-			;+--------+--------+
-			;| char limit (D)  | <-SSTACK_SP
-			;+--------+--------+
-			;| buffer ptr (X)  |
-			;+--------+--------+
-			;|        Y        | 
-			;+--------+--------+
-			;| Return address  |
-			;+--------+--------+
-			;Signal input request
-			LED_BUSY_OFF
-			;Initialize counter 
-			LDY	#$0000
-			;Read input (buffer pointer in Y, char count in Y)
-			LED_BUSY_OFF			
-FCORE_ACCEPT_1		SCI_RX					;receive an ASCII character (SSTACK: 8 bytes)
-			TBNE	A, FCORE_ACCEPT_7		;communication error
-			;Check for BACKSPACE (char in B, buffer pointer in X, char count in Y)
-			CMPB	#PRINT_SYM_BACKSPACE	
-			BEQ	FCORE_ACCEPT_3 			;remove most recent character
-			CMPB	#PRINT_SYM_DEL	
-			BEQ	FCORE_ACCEPT_3 			;remove most recent character	
-			;Check for ENTER (char in B, buffer pointer in X, char count in Y)
-			CMPB	#PRINT_SYM_CR	
-			BEQ	FCORE_ACCEPT_5			;process input
-			;Check for buffer overflow (char in B, buffer pointer in X, char count in Y)
-			CPY	[SSTACK_SP]	
-			BHS	FCORE_ACCEPT_4	 		;beep on overflow
-			;Check for valid special characters (char in B, buffer pointer in X, char count in Y)
-			CMPB	#PRINT_SYM_TAB	
-			BEQ	FCORE_ACCEPT_2 			;echo and append to buffer
-			;Check for invalid characters (char in B, buffer pointer in X, char count in Y)
-			CMPB	#" "
-			BLO	FCORE_ACCEPT_4 			;beep
-			CMPB	#"~"
-			BHI	FCORE_ACCEPT_4 			;beep	
-			;Echo character and append to TIB (char in B, buffer pointer in X, char count in Y)
-FCORE_ACCEPT_2		LEAY	1,Y			
-			STAB	1,X+				;store character
-			SCI_TX					;echo a character
-			JOB	FCORE_ACCEPT_1
-			;Remove most recent character (buffer pointer in X, char count in Y)
-FCORE_ACCEPT_3		TBEQ	Y, FCORE_ACCEPT_4		;beep if TIB was empty
-			LEAY	-1,Y			
-			LEAx	-1,X			
-			LDAB	#PRINT_SYM_BACKSPACE 		;transmit a backspace character
-			SCI_TX
-			JOB	FCORE_ACCEPT_1
-			;Beep
-FCORE_ACCEPT_4		PRINT_BEEP		;beep
-			JOB	FCORE_ACCEPT_1 	;receive next character
-			;Process input (char count in Y)
-FCORE_ACCEPT_5		CLRA
-			CLRB
-FCORE_ACCEPT_6		LDX	SSTACK_SP
-			STY	0,X	
-			STD	2,X
-			;Done
-			LED_BUSY_ON
-			SSTACK_PULDXY
-			SSTACK_RTS
-			;Communication error (char count in Y)
-FCORE_ACCEPT_7		LDD	#$0002
-			JOB	FCORE_ACCEPT_6
-
 ;#Get command line input and store it into the TIB
 ; args:   none
-; result: X: error status (0:no problems, 2:communication problem)	
-;         D: character count	
+; result: D: character count	
+;         X: error handler (0 if everything goes well)	
 ; SSTACK: 18 bytes
 ;         Y is preserved
 FCORE_QUERY		EQU	*	
@@ -1010,264 +1089,12 @@ FCORE_QUERY		EQU	*
 			SUBD	#TIB_START
 			;Get command line (char limit in D)
 			LDX	#TIB_START
-			SSTACK_JOBSR	FCORE_ACCEPT
+			SSTACK_JOBSR	FCORE_ACCEPT	;(SSTACK: 16 bytes)
 			;Update #TIB and >IN (char count in D, error status in X)
 			STD	NUMBER_TIB
 			MOVW	#$0000, TO_IN
 			;Done (char count in D, error status in X)
 			SSTACK_RTS
-
-;FCORE_QUERY		EQU	*	
-;			;Save registers
-;			SSTACK_PSHXD				;save index X and accu D
-;
-;			;Prepare TIB
-;			MOVW	#$0000, NUMBER_TIB 		;clear TIB
-;			;Wait for input
-;			LED_BUSY_OFF			
-;FCORE_QUERY_1		SCI_RX					;receive a character
-;			;Check for transmission errors (character in B) 
-;			BITA	#(NF|FE|PE) 			;check for: noise, frame errors, parity errors
-;			BNE	FCORE_QUERY_1			;ignore transmission errors
-;			;Check for ignored characters (character in B)
-;			CMPB	#PRINT_SYM_LF	
-;			BEQ	FCORE_QUERY_1			;ignore character	
-;			;Check for BACKSPACE (character in B)
-;			CMPB	#PRINT_SYM_BACKSPACE	
-;			BEQ	FCORE_QUERY_3 			;remove most recent character
-;			CMPB	#PRINT_SYM_DEL	
-;			BEQ	FCORE_QUERY_3 			;remove most recent character	
-;			;Check for ENTER (character in B)
-;			CMPB	#PRINT_SYM_CR	
-;			BEQ	FCORE_QUERY_5			;process input
-;			;Check for TIB overflow (character in B)
-;			TIB_CHECK_OF  1, FCORE_QUERY_4 		;beep on overflow
-;			;Check for valid special characters (character in B, next free TIB location in X)
-;			CMPB	#PRINT_SYM_TAB	
-;			BEQ	FCORE_QUERY_2 			;echo and append to TIB
-;			;Check for invalid characters (character in B, next free TIB location in X)
-;			CMPB	#" "
-;			BLO	FCORE_QUERY_4 			;beep
-;			CMPB	#"~"
-;			BHI	FCORE_QUERY_4 			;beep
-;			;Echo character and append to TIB (character in B, next free TIB location in X)
-;FCORE_QUERY_2		STAB	0,X				;store character
-;			LEAX	1-TIB_START,X			;increment TIB counter
-;			STX	NUMBER_TIB
-;			SCI_TX					;echo a character
-;			JOB	FCORE_QUERY_1
-;			;Remove most recent character
-;FCORE_QUERY_3		LDX	NUMBER_TIB			;decrement TIB counter
-;			BEQ	FCORE_QUERY_4 			;beep if TIB was empty
-;			LEAX	-1,X
-;			STX	NUMBER_TIB	
-;			LDAB	#PRINT_SYM_BACKSPACE 		;transmit a backspace character
-;			SCI_TX
-;			JOB	FCORE_QUERY_1
-;			;Beep
-;FCORE_QUERY_4		PRINT_BEEP		;beep
-;			JOB	FCORE_QUERY_1 	;receive next character
-;			;Process input (next free TIB location -> X)
-;FCORE_QUERY_5		MOVW	#$0000, TO_IN 			;set >IN to zero
-;			LED_BUSY_ON
-;
-;			;Restore registers 
-;			SSTACK_PULDX
-;			SSTACK_RTS
-
-;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
-; args:   A: delimiter
-; result: X: string pointer
-;	  A: character count (saturated at 255) 	
-; SSTACK: 5 bytes
-;         Y and B are preserved
-FCORE_PARSE		EQU	*	
-			;Save registers
-			SSTACK_PSHYB			;save index X and accu B
-			;Check for empty string (delimiter in A)
-			CLRB	      			;0 -> B
-			LDY	TO_IN			;current >IN -> Y
-			;LEAY	1,Y			;ignore first space character
-			CPY	NUMBER_TIB		;check for the end of the input buffer
-			BHS	FCORE_PARSE_4		;return empty string
-			LEAX	TIB_START,Y		;save start of string
-			CMPA	0,X			;check for double quote
-			BEQ	FCORE_PARSE_4		;return empty string		
-			;Parse remaining characters (>IN in Y, delimiter in A, string pointer in X)
-FCORE_PARSE_1		ADDB	#1 			;increment B
-			SBCB	#0			;saturate B
-			LEAY	1,Y 			;increment >IN
-			CPY	NUMBER_TIB		;check for the end of the input buffer
-			BHS	FCORE_PARSE_2		;terminate previous character
-			CMPA	TIB_START,Y		;check for double parse
-			BNE	FCORE_PARSE_1		;check next character
-			;Terminate previous character (>IN in Y, delimiter in A, string pointer in X) 
-FCORE_PARSE_2		BSET	TIB_START-1,Y, #$80 	;set termination bit
-FCORE_PARSE_3		EXG	Y,D
-			ADDD	#1			;increment >IN
-			EMIND	NUMBER_TIB-*,PC		;don't go beyond the end of the TIB
-			EXG	Y,D
-			STY	TO_IN			;update >IN
-			TBA				;character count -> A
-			;Done
-			SSTACK_PULBY			;restore accu B and index X
-			SSTACK_RTS
-			;Empty string 
-FCORE_PARSE_4		LDX	#$0000
-			JOB	FCORE_PARSE_3
-
-;#Find a name in the dictionary and return the NFA 
-; args:   X: string pointer
-; result: X: NFA (0:name not cound)
-; SSTACK: 6 bytes
-;         D and Y are preserved
-FCORE_FIND_NFA		EQU	*	
-			;Save registers
-			SSTACK_PSHYD
-			;Initialize search (start of word in X)
-			LDY	LAST_NFA
-			;Check for zero-length string (start of word in X)
-			TBEQ	X, FCORE_FIND_NFA_3  				;empty string
-			;Try to match first two characters (current NFA in Y, start of word in X)
-FCORE_FIND_NFA_1	LDD	0,X 						;first two characters -> D 
-			BMI	FCORE_FIND_NFA_6				;single character word
-			;Search multy character word (first 2 characters in D, current NFA in Y, start of word in X)
-			CPD	3,Y 						;compare first 2 characters
-			BEQ	FCORE_FIND_NFA_4 				;first 2 characters match
-			;Parse next NFA	(current NFA in Y, start of word in X)
-FCORE_FIND_NFA_2	LDY	0,Y 						;check next NFA
-			BNE	FCORE_FIND_NFA_1 				;next iteration
-			;Search was unsuccessfull (current NFA in Y, start of word in X)
-FCORE_FIND_NFA_3	LDX	#$0000 						;set return status
-			JOB	FCORE_FIND_NFA_8 				;done
-			;First 2 characters match (current NFA in Y, start of word in X)
-FCORE_FIND_NFA_4	TSTB							;check if search is over
-			BMI	FCORE_FIND_NFA_7 				;search was sucessful
-			;Compare the remaining characters of the current NFA (current NFA in Y, start of word in X, index in A)
-			LDAA	#2 						;set index to 3rd cfaracter
-FCORE_FIND_NFA_5	LEAY	3,Y 						;set Y to start of name
-			LDAB	A,Y 						;Compare current character
-			LEAY	-3,Y 						;set Y to NFA
-			CMPB	A,X
-			BNE	FCORE_FIND_NFA_2 				;parse next NFA
-			TSTB	 						;check if search is done
-			BMI	FCORE_FIND_NFA_7				;search was successful
-			IBNE	A, FCORE_FIND_NFA_5				;parse next character
-			;Name is too long -> search unsuccessful 
-			JOB	FCORE_FIND_NFA_3
-			;Search single character word (current NFA in Y, first character in A)
-FCORE_FIND_NFA_6	CMPA	3,Y 						;compare first character
-			BNE	FCORE_FIND_NFA_2 				;parse next NFA			
-			;Search was successful(current NFA in Y)
-FCORE_FIND_NFA_7	TFR	Y,X		
-			;Restore registers 
-FCORE_FIND_NFA_8	SSTACK_PULDY
-			SSTACK_RTS
-	
-;#Find a name in the dictionary and return the xt 
-; args:   X: string pointer
-; result: X: CFA/string pointer
-;         D: status (0:name not cound, 1:immediate, or -1:compile)
-; SSTACK: 8 bytes
-;         Y is preserved
-
-FCORE_FIND		EQU	*	
-			;Find NFA
-			TFR	X,D
-			SSTACK_JOBSR	FCORE_FIND_NFA 				;(SSTACK: 8 bytes)
-			TBEQ	X, FCORE_FIND_2			
-			;Search was successful (current NFA in X)
-			LEAX	2,X						;determine current CFA
-			LDAB	1,X+ 
-			SEX	B, D 						;save immediate flag
-			ANDB	#$7F
-			LEAX	B,X
-			COMA
-			TAB							;determine return status
-			ORAB	#$01	
-			;Done
-FCORE_FIND_1		SSTACK_RTS
-			;Search was unsuccessful (0 in X)
-FCORE_FIND_2		EXG	D,X
-			JOB	FCORE_FIND_1	
-
-;FCORE_FIND		EQU	*	
-;			;Save registers
-;			SSTACK_PSHY
-;			;Initialize search (start of word in X)
-;			LDY	LAST_NFA
-;			;Check for zero-length string (start of word in X)
-;			TBEQ	X, FCORE_FIND_3  				;empty string
-;			;Try to match first two characters (current NFA in Y, start of word in X)
-;FCORE_FIND_1		LDD	0,X 						;first two characters -> D 
-;			BMI	FCORE_FIND_6					;single character word
-;			;Search multy character word (first 2 characters in D, current NFA in Y, start of word in X)
-;			CPD	3,Y 						;compare first 2 characters
-;			BEQ	FCORE_FIND_4 					;first 2 characters match
-;			;Parse next NFA	(current NFA in Y, start of word in X)
-;FCORE_FIND_2		LDY	0,Y 						;check next NFA
-;			BNE	FCORE_FIND_1 					;next iteration
-;			;Search was unsuccessfull (current NFA in Y, start of word in X)
-;FCORE_FIND_3		LDD	#$0000 						;set return status
-;			JOB	FCORE_FIND_8 					;done
-;			;First 2 characters match (current NFA in Y, start of word in X)
-;FCORE_FIND_4		TSTB							;check if search is over
-;			BMI	FCORE_FIND_7 					;search was sucessful
-;			;Compare the remaining characters of the current NFA (current NFA in Y, start of word in X, index in A)
-;			LDAA	#2 						;set index to 3rd cfaracter
-;FCORE_FIND_5		LEAY	3,Y 						;set Y to start of name
-;			LDAB	A,Y 						;Compare current character
-;			LEAY	-3,Y 						;set Y to NFA
-;			CMPB	A,X
-;			BNE	FCORE_FIND_2 					;parse next NFA
-;			TSTB	 						;check if search is done
-;			BMI	FCORE_FIND_7					;search was successful
-;			IBNE	A, FCORE_FIND_5					;parse next character
-;			;Name is too long -> search unsuccessful 
-;			JOB	FCORE_FIND_3
-;			;Search single character word (current NFA in Y, first character in A)
-;FCORE_FIND_6		CMPA	3,Y 						;compare first character
-;			BNE	FCORE_FIND_2 					;parse next NFA			
-;			;Search was successful(current NFA in Y)
-;FCORE_FIND_7		LEAX	2,Y						;determine current CFA
-;			LDAB	1,X+ 
-;			SEX	B, D 						;save immediate flag
-;			ANDB	#$7F
-;			LEAX	B,X
-;			COMA
-;			TAB							;determine return status
-;			ORAB	#$01	
-;			;Restore registers 
-;FCORE_FIND_8		SSTACK_PULY
-;			SSTACK_RTS
-
-;#Locate the cody of a CREATEd word 
-; args:   X: pointer to CFA
-; result: X: pointer to BODY (0 in case of a non-CREATEd word)
-; SSTACK: 4 bytes
-;         Y and D are preserved
-FCORE_TO_BODY		EQU	*	
-			;Save registers
-			SSTACK_PSHD
-			;Get CFA 
-			LDD	0,X	;CF  -> D
-			LEAX	2,X
-			;Check if it is a VARIABLE definition 
-			CPD	#CF_VARIABLE_RT
-			BEQ	FCORE_TO_BODY_1 	;done
-			;Check if it is a CONSTANT definition 
-			CPD	#CF_CONSTANT_RT
-			BEQ	FCORE_TO_BODY_1 	;done
-			;Check if it is a CREATE definition
-			LEAX	2,X
-			CPD	#CF_CREATE_RT
-			BEQ	FCORE_TO_BODY_1 	;done
-			;Non-CREATED word
-			LDX	#$0000	
-			;Restore registers 
-FCORE_TO_BODY_1		SSTACK_PULD
-			SSTACK_RTS
-
 	
 ;Exceptions:
 ;===========
@@ -1296,9 +1123,14 @@ FCORE_THROW_INVALBASE	FEXCPT_THROW	FEXCPT_EC_INVALBASE	;invalid BASE
 FCORE_THROW_QUIT	FEXCPT_THROW	FEXCPT_EC_QUIT		;QUIT
 
 ;Non-Standard exceptions
-FCORE_THROW_NOMSG	EQU	FEXCPT_THROW_NOMSG		;empty message string
+FCORE_THROW_NOMSG	EQU		FEXCPT_THROW_NOMSG	;empty message string
 FCORE_THROW_DICTPROT	FEXCPT_THROW	FEXCPT_EC_DICTPROT	;destruction of dictionary structure
-FCORE_THROW_COMERR	FEXCPT_THROW	FEXCPT_EC_COMERR 	;communication problem
+;FCORE_THROW_COMERR	FEXCPT_THROW	FEXCPT_EC_COMERR	;invalid RX data
+;FCORE_THROW_COMOF	FEXCPT_THROW	FEXCPT_EC_COMOF		;RX buffer overflow
+
+;Common throw routines
+FCORE_THROW_X		TFR	X, D 				;throw error code in X
+			JOB	FEXCPT_THROW
 
 ;Common code fields:
 ;=================== 	
@@ -1349,8 +1181,8 @@ FCORE_TABS_END		EQU	*
 ;###############################################################################
 			ORG	FCORE_WORDS_START ;(previous NFA: FCORE_PREV_NFA)
 
-;#Core words:
-; ===========
+;#Core words (CORE):
+; ==================
 	
 ;! ( x a-addr -- )
 ;Store x at a-addr.
@@ -1896,13 +1728,6 @@ CF_SLASH_MOD		PS_CHECK_UF	2, CF_SLASH_MOD_PSUF	;check for underflow  (PSP -> Y)
 		
 CF_SLASH_MOD_PSUF	JOB	FCORE_THROW_PSUF
 CF_SLASH_MOD_0DIV	JOB	FCORE_THROW_0DIV
-
-;0 ( -- 0 ) Non-standard, but common constant!
-;Constant 0
-			ALIGN	1
-NFA_ZERO		FHEADER, "0", NFA_SLASH_MOD, COMPILE
-CFA_ZERO		DW	CF_CONSTANT_RT
-			DW	0
 	
 ;0< ( n -- flag )
 ;flag is true if and only if n is less than zero.
@@ -1912,7 +1737,7 @@ CFA_ZERO		DW	CF_CONSTANT_RT
 ;"Parameter stack underflow"
 ;
 			ALIGN	1
-NFA_ZERO_LESS		FHEADER, "0<", NFA_ZERO, COMPILE
+NFA_ZERO_LESS		FHEADER, "0<", NFA_SLASH_MOD, COMPILE
 CFA_ZERO_LESS		DW	CF_ZERO_LESS
 CF_ZERO_LESS		PS_CHECK_UF 1, CF_ZERO_LESS_PSUF	;(PSP -> Y)
 			LDX	0,Y
@@ -1942,13 +1767,6 @@ CF_ZERO_EQUALS_2	EQU	CF_ZERO_LESS_1
 
 CF_ZERO_EQUALS_PSUF	JOB	FCORE_THROW_PSUF
 
-;1 ( -- 1 ) Non-standard, but common constant!
-;Constant 1
-			ALIGN	1
-NFA_ONE			FHEADER, "1", NFA_ZERO_EQUALS, COMPILE
-CFA_ONE			DW	CF_CONSTANT_RT
-			DW	1
-	
 ;1+ ( n1|u1 -- n2|u2 )
 ;Add one (1) to n1|u1 giving the sum n2|u2.
 ;
@@ -1957,7 +1775,7 @@ CFA_ONE			DW	CF_CONSTANT_RT
 ;"Parameter stack underflow"
 ;
 			ALIGN	1
-NFA_ONE_PLUS		FHEADER, "1+", NFA_ONE, COMPILE
+NFA_ONE_PLUS		FHEADER, "1+", NFA_ZERO_EQUALS, COMPILE
 CFA_ONE_PLUS		DW	CF_ONE_PLUS
 CF_ONE_PLUS		PS_CHECK_UF 1, CF_ONE_MINUS_PSUF	;(PSP -> Y)
 			LDX	0,Y
@@ -1980,13 +1798,6 @@ CF_ONE_MINUS		PS_CHECK_UF 1, CF_ONE_MINUS_PSUF	;(PSP -> Y)
 	
 CF_ONE_MINUS_PSUF	JOB	FCORE_THROW_PSUF
 	
-;2 ( -- 2 ) Non-standard, but common constant!
-;Constant 2
-			ALIGN	1
-NFA_TWO			FHEADER, "2", NFA_ONE_MINUS, COMPILE
-CFA_TWO			DW	CF_CONSTANT_RT
-			DW	2
-	
 ;2! ( x1 x2 a-addr -- )
 ;Store the cell pair x1 x2 at a-addr, with x2 at a-addr and x1 at the next
 ;consecutive cell. It is equivalent to the sequence SWAP OVER ! CELL+ ! .
@@ -1996,7 +1807,7 @@ CFA_TWO			DW	CF_CONSTANT_RT
 ;"Parameter stack underflow"
 ;
 			ALIGN	1
-NFA_TWO_STORE		FHEADER, "2!", NFA_TWO, COMPILE
+NFA_TWO_STORE		FHEADER, "2!", NFA_ONE_MINUS, COMPILE
 CFA_TWO_STORE		DW	CF_TWO_STORE
 CF_TWO_STORE		PS_CHECK_UF 3, CF_TWO_STORE_PSUF 	;check for underflow  (PSP -> Y)
 			LDX	2,Y+				;x -> a-addr	
@@ -2101,59 +1912,9 @@ CF_TWO_DUP		PS_CHECK_UFOF	2, CF_TWO_DUP_PSUF, 2, CF_TWO_DUP_PSOF	;check for unde
 			STY		PSP
 			NEXT
 
-CF_TWO_DUP_PSUF	JOB	FCORE_THROW_PSUF
-CF_TWO_DUP_PSOF	JOB	FCORE_THROW_PSOF
+CF_TWO_DUP_PSUF		JOB	FCORE_THROW_PSUF
+CF_TWO_DUP_PSOF		JOB	FCORE_THROW_PSOF
 
-;2LITERAL (actually part of the ANS Forth double number waid set)
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( x1 x2 -- )
-;Append the run-time semantics below to the current definition.
-;Run-time: ( -- x1 x2 )
-;Place cell pair x1 x2 on the stack.
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-;"Dictionary overflow"
-;"Compile-only word"
-;
-			ALIGN	1
-NFA_TWO_LITERAL		FHEADER, "2LITERAL", NFA_TWO_DUP, IMMEDIATE
-CFA_TWO_LITERAL		DW	CF_TWO_LITERAL
-			DW	CFA_TWO_LITERAL_RT
-CF_TWO_LITERAL		COMPILE_ONLY	CF_TWO_LITERAL_COMPONLY ;ensure that compile mode is on
-			PS_CHECK_UF	1, CF_TWO_LITERAL_PSUF	;(PSP -> Y)
-			LDD	2,X
-			DICT_CHECK_OF	6, CF_TWO_LITERAL_DICTOF	;(CP+6 -> X)
-			;Add run-time CFA to compilation (CP+6 in X, PSP in Y, run-time CFA in D)
-			STD	 -6,X
-			;Add TOS to compilation (CP+6 in X, PSP in Y, run-time CFA in D)
-			MOVW	2,Y+,	-4,X
-			MOVW	2,Y+,	-2,X
-			STX	CP
-			STY	PSP
-			;Done 
-			NEXT
-
-CF_TWO_LITERAL_PSOF	JOB	FCORE_THROW_PSOF
-CF_TWO_LITERAL_PSUF	JOB	FCORE_THROW_PSUF
-CF_TWO_LITERAL_DICTOF	JOB	FCORE_THROW_DICTOF	
-CF_TWO_LITERAL_COMPONLY	JOB	FCORE_THROW_COMPONLY
-	
-;2LITERAL run-time semantics
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack overflow"
-			ALIGN	1
-CFA_TWO_LITERAL_RT	DW	CF_TWO_LITERAL_RT
-CF_TWO_LITERAL_RT	PS_CHECK_OF	2, CF_TWO_LITERAL_PSOF 	;check for PS overflow (PSP-new cells -> Y)
-			LDX	IP				;push the value at IP onto the PS
-			MOVW	2,X+, 0,Y			; and increment the IP
-			MOVW	2,X+, 2,Y			; and increment the IP
-			STX	IP
-			STY	PSP
-			NEXT
 	
 ;2OVER ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 )
 ;Copy cell pair x1 x2 to the top of the stack.
@@ -2164,7 +1925,7 @@ CF_TWO_LITERAL_RT	PS_CHECK_OF	2, CF_TWO_LITERAL_PSOF 	;check for PS overflow (PS
 ;"Parameter stack overflow"
 ;
 			ALIGN	1
-NFA_TWO_OVER		FHEADER, "2OVER", NFA_TWO_LITERAL, COMPILE
+NFA_TWO_OVER		FHEADER, "2OVER", NFA_TWO_DUP, COMPILE
 CFA_TWO_OVER		DW	CF_TWO_OVER
 CF_TWO_OVER		PS_CHECK_UFOF	4, CF_TWO_OVER_PSUF, 2, CF_TWO_OVER_PSOF;check for under and overflow
 			MOVW		8,Y, 0,Y				;duplicate stack entry
@@ -2196,48 +1957,6 @@ CF_TWO_SWAP		PS_CHECK_UF 4, CF_TWO_SWAP_PSUF	;(PSP -> Y)
 	
 CF_TWO_SWAP_PSUF	JOB	FCORE_THROW_PSUF
 	
-;3 ( -- 3 ) Non-standard, but common constant!
-;Constant 3
-			ALIGN	1
-NFA_THREE		FHEADER, "3", NFA_TWO_SWAP, COMPILE
-CFA_THREE		DW	CF_CONSTANT_RT
-			DW	3
-
-;4 ( -- 4 ) Non-standard, but common constant!
-;Constant 4
-			ALIGN	1
-NFA_FOUR		FHEADER, "4", NFA_THREE, COMPILE
-CFA_FOUR		DW	CF_CONSTANT_RT
-			DW	4
-
-;5 ( -- 5 ) Non-standard, but common constant!
-;Constant 5
-			ALIGN	1
-NFA_FIVE		FHEADER, "5", NFA_FOUR, COMPILE
-CFA_FIVE		DW	CF_CONSTANT_RT
-			DW	5
-
-;6 ( -- 6 ) Non-standard, but common constant!
-;Constant 6
-			ALIGN	1
-NFA_SIX			FHEADER, "6", NFA_FIVE, COMPILE
-CFA_SIX			DW	CF_CONSTANT_RT
-			DW	6
-
-;7 ( -- 7 ) Non-standard, but common constant!
-;Constant 7
-			ALIGN	1
-NFA_SEVEN		FHEADER, "7", NFA_SIX, COMPILE
-CFA_SEVEN		DW	CF_CONSTANT_RT
-			DW	7
-
-;8 ( -- 8 ) Non-standard, but common constant!
-;Constant 8
-			ALIGN	1
-NFA_EIGHT		FHEADER, "8", NFA_SEVEN, COMPILE
-CFA_EIGHT		DW	CF_CONSTANT_RT
-			DW	8
-	
 ;: ( C: "<spac2es>name" -- colon-sys )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name, called a colon definition. Enter compilation state and
@@ -2263,7 +1982,7 @@ CFA_EIGHT		DW	CF_CONSTANT_RT
 ;"Compiler nesting"
 ;
 			ALIGN	1
-NFA_COLON		FHEADER, ":", NFA_EIGHT, IMMEDIATE
+NFA_COLON		FHEADER, ":", NFA_TWO_SWAP, IMMEDIATE
 CFA_COLON		DW	CF_COLON
 CF_COLON		INTERPRET_ONLY	CF_COLON_COMPNEST	;check for nested definition
 			PS_CHECK_OF	1, CF_COLON_PSOF 	;check for PS overflow (PSP-2 -> Y)	
@@ -2484,11 +2203,10 @@ CF_TO_NUMBER		PS_CHECK_UF	4, CF_TO_NUMBER_PSUF	;(PSP -> Y)
 			SSTACK_JOBSR	FCORE_TO_NUMBER
 			;Return results
 			LDY	PSP
-			LDX	SSTACK_SP
-			MOVW	2,X,  2,Y
-			MOVW	4,X,  4,Y
-			MOVW	6,X,  6,Y
-			MOVW   10,X,  0,Y
+			MOVW	2,SP,  2,Y
+			MOVW	4,SP,  4,Y
+			MOVW	6,SP,  6,Y
+			MOVW   10,SP,  0,Y
 			;Deallocate temporary memory
 			SSTACK_DEALLOC	10
 			;Done
@@ -2687,7 +2405,8 @@ CF_ABS_PSUF		JOB	FCORE_THROW_PSUF
 ;;Throws:
 ;"Parameter stack underflow"
 ;"Invalid numeric argument"	
-;"Communication problem"
+;"Invalid RX data"
+;"RX buffer overflow"
 ;
 			ALIGN	1
 NFA_ACCEPT		FHEADER, "ACCEPT", NFA_ABS, COMPILE
@@ -2707,7 +2426,7 @@ CF_ACCEPT		PS_CHECK_UF	2, CF_ACCEPT_PSUF	;PSP -> Y
 	
 CF_ACCEPT_PSUF		JOB	FCORE_THROW_PSUF
 CF_ACCEPT_INVALNUM	JOB	FCORE_THROW_INVALNUM
-CF_ACCEPT_COMERR	JOB	FCORE_THROW_COMERR
+CF_ACCEPT_COMERR	JMP	0,X
 	
 ;ALIGN ( -- )
 ;If the data-space pointer is not aligned, reserve enough space to align it.
@@ -2817,18 +2536,10 @@ CF_BEGIN		COMPILE_ONLY	CF_BEGIN_COMPONLY 	;ensure that compile mode is on
 CF_BEGIN_PSOF		JOB	FCORE_THROW_PSOF	
 CF_BEGIN_COMPONLY	JOB	FCORE_THROW_COMPONLY
 	
-;BIN ( -- ) Non-standard S12CForth extension!
-;Set the numeric conversion radix to two (binary).
-			ALIGN	1
-NFA_BIN			FHEADER, "BIN", NFA_BEGIN, COMPILE
-CFA_BIN			DW	CF_BIN
-CF_BIN			MOVW	#2, BASE
-			NEXT
-	
 ;BL ( -- char )
 ;char is the character value for a space.
 			ALIGN	1
-NFA_B_L			FHEADER, "BL", NFA_BIN, COMPILE
+NFA_B_L			FHEADER, "BL", NFA_BEGIN, COMPILE
 CFA_B_L			DW	CF_CONSTANT_RT
 			DW	PRINT_SYM_SPACE
 
@@ -3757,7 +3468,7 @@ CF_J			RS_CHECK_UF	4, CF_J_RSUF	;(RSP -> X)
 CF_J_RSUF		JOB	FCORE_THROW_RSUF
 CF_J_PSOF		JOB	FCORE_THROW_PSOF
 
-;KEY ( -- char ) CHECK!
+;KEY ( -- char )
 ;Receive one character char, a member of the implementation-defined character
 ;set. Keyboard events that do not correspond to such characters are discarded
 ;until a valid character is received, and those events are subsequently
@@ -3771,7 +3482,8 @@ CF_J_PSOF		JOB	FCORE_THROW_PSOF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack overflow"
-;"Communication problem"
+;"Invalid RX data"
+;"RX buffer overflow"
 ;
 			ALIGN	1
 NFA_KEY			FHEADER, "KEY", NFA_J, COMPILE
@@ -3781,16 +3493,15 @@ CF_KEY			PS_CHECK_OF	1, CF_KEY_PSOF	;check for PS overflow (PSP-2 cells -> Y)
 			LED_BUSY_OFF
 			SSTACK_JOBSR	FCORE_KEY       ;(SSTACK: 8 bytes)
 			LED_BUSY_ON
-			;Check for transmission errors (error status in A, char in B, PSP in Y)
-			TBNE	A, CF_KEY_COMMERR
+			;Check for transmission errors (char in D, PSP in Y, error code in X)
+			TBNE	X, CF_KEY_COMMERR
  			;Put received character onto the stack (char in B, PSP in Y)
-			CLRA
 			STD	0,Y
 			STY	PSP
 			NEXT
 
 CF_KEY_PSOF		JOB	FCORE_THROW_PSOF
-CF_KEY_COMMERR		JOB	FCORE_THROW_COMERR
+CF_KEY_COMMERR		JOB	FCORE_THROW_X
 		
 ;LEAVE
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -4280,8 +3991,8 @@ CF_QUIT_UDEFWORD	LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message
 CF_QUIT_DICTOF		LDY	#CF_QUIT_MSG_DICTOF			;print standard error message	
 			JOB	CF_QUIT_ERROR
  			;Communication problem (PSP+2 in Y)
-CF_QUIT_COMERR		LDY	#CF_QUIT_MSG_COMERR			;print standard error message	
-			JOB	CF_QUIT_ERROR
+CF_QUIT_COMERR		TFR	X, Y					;print standard error message	
+			;JOB	CF_QUIT_ERROR
 CF_QUIT_ERROR		ERROR_PRINT
 			PS_RESET
 			JOB	CF_QUIT_RT
@@ -4341,7 +4052,7 @@ CF_QUIT_MSG_RSUF	EQU	FEXCPT_MSG_RSUF
 CF_QUIT_MSG_RSOF	EQU	FEXCPT_MSG_RSOF
 CF_QUIT_MSG_UDEFWORD	EQU	FEXCPT_MSG_UDEFWORD
 CF_QUIT_MSG_DICTOF	EQU	FEXCPT_MSG_DICTOF
-CF_QUIT_MSG_COMERR	EQU	FEXCPT_MSG_COMERR
+;CF_QUIT_MSG_COMERR	EQU	FEXCPT_MSG_COMERR
 	
 ;R> 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -5147,9 +4858,6 @@ CF_XOR			PS_CHECK_UF 2, CF_XOR_PSUF	;(PSP -> Y)
 	
 CF_XOR_PSUF		JOB	FCORE_THROW_PSUF
 
-;#Core extension words:
-; =====================
-	
 ;[ 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: Perform the execution semantics given below.
@@ -5235,15 +4943,8 @@ CF_RIGHT_BRACKET	MOVW	#$0001, STATE
 			;Done 
 			NEXT
 
-;#Core extension words:
-; =====================
-
-;CP ( -- addr)
-;Compile pointer (points to the next free byte after the user dictionary)
-			ALIGN	1
-NFA_CP			FHEADER, "CP", NFA_RIGHT_BRACKET, COMPILE
-CFA_CP			DW	CF_CONSTANT_RT
-			DW	CP
+;#Core extension words (CORE EXT):
+; ================================
 	
 ;#TIB ( -- a-addr )
 ;a-addr is the address of a cell containing the number of characters in the
@@ -5251,7 +4952,7 @@ CFA_CP			DW	CF_CONSTANT_RT
 ;Note: This word is obsolescent and is included as a concession to existing
 ;      implementations.
 			ALIGN	1
-NFA_NUMBER_TIB		FHEADER, "#TIB", NFA_CP, COMPILE
+NFA_NUMBER_TIB		FHEADER, "#TIB", NFA_RIGHT_BRACKET, COMPILE
 CFA_NUMBER_TIB		DW	CF_CONSTANT_RT
 			DW	NUMBER_TIB
 
@@ -5739,30 +5440,14 @@ CF_CONVERT		PS_CHECK_UF	3, CF_CONVERT_PSUF	;(PSP -> Y)
 			SSTACK_JOBSR	FCORE_TO_NUMBER
 			;Return results
 			LDY	PSP
-			LDX	SSTACK_SP
-			MOVW	2,X,  0,Y
-			MOVW	4,X,  2,Y
+			MOVW	2,SP,  0,Y
+			MOVW	4,SP,  2,Y
 			;Deallocate temporary memory
 			SSTACK_DEALLOC	10
 			;Done
 			NEXT
 
 CF_CONVERT_PSUF		JOB	FCORE_THROW_PSUF
-	
-;EMPTY ( -- ) Non-standard S12CForth extension!
-;Delete all user defined words
-			ALIGN	1
-NFA_EMPTY		FHEADER, "EMPTY", NFA_CONVERT, COMPILE
-CFA_EMPTY		DW	CF_EMPTY
-CF_EMPTY		;Clear dictionary
-			MOVW	#FCORE_LAST_NFA, LAST_NFA 	;set last NFA
-			LDD	#DICT_START			;set compile pointer
-			STD	CP
-			STD	CP_SAVED
-			;Reset PS
-			PS_RESET
-			;Done		
-			NEXT
 	
 ;ENDCASE
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -5780,7 +5465,7 @@ CF_EMPTY		;Clear dictionary
 ;"Compile-only word"
 ;
 			ALIGN	1
-NFA_ENDCASE		FHEADER, "ENDCASE", NFA_EMPTY, IMMEDIATE
+NFA_ENDCASE		FHEADER, "ENDCASE", NFA_CONVERT, IMMEDIATE
 CFA_ENDCASE		DW	CF_ENDCASE
 			DW	CFA_ENDCASE_RT
 			;ENDCASE compile semantics (run-time CFA in [X+2])
@@ -5897,11 +5582,11 @@ CF_ERASE_2		STY	PSP
 ;Throws:
 ;"Parameter stack underflow"
 ;"Invalid numeric argument"	
-;"Communication problem"
+;"RX buffer overflow"
 ;
 CF_EXPECT_PSUF		JOB	FCORE_THROW_PSUF
 CF_EXPECT_INVALNUM	JOB	FCORE_THROW_INVALNUM
-CF_EXPECT_COMERR	JOB	FCORE_THROW_COMERR
+CF_EXPECT_COMERR	JMP	0,X
 
 			ALIGN	1
 NFA_EXPECT		FHEADER, "EXPECT", NFA_ERASE, COMPILE
@@ -5984,36 +5669,13 @@ CF_MARKER_RT		;Restore last NFA
 			;Done
 			NEXT
 	
-;NAME ("<spaces>ccc<space>" -- c-addr ) Non-standard S12CForth extension!
-;Parse whitespace separated word: 
-;Skip leading whitespaces (" ", TAB, and non-printables). Parse characters ccc
-;delimited by a whitespace (" ", TAB, or non-printable character). c-addr is
-;the address of a terminated upper-case string. A resulting string of zero
-; length will return the address $0000.
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack overflow"
-;
-CF_NAME_PSOF		JOB	FCORE_THROW_PSOF
-
-			ALIGN	1
-NFA_NAME		FHEADER, "NAME", NFA_MARKER, COMPILE
-CFA_NAME		DW	CF_NAME
-CF_NAME			PS_CHECK_OF	1, CF_NAME_PSOF ;(PSP-2 -> Y)
-			;Parse name (new PSP in Y)
-			SSTACK_JOBSR	FCORE_NAME 	;string pointer -> X (SSTACK: 6 bytes)
-			;Stack result (new PSP in Y, string pointer in X)
-			STX	 0,Y
-			STY	PSP
-			NEXT
 			
 ;NIP ( x1 x2 -- x2 )
 ;Drop the first item below the top of stack.
 CF_NIP_PSUF		JOB	FCORE_THROW_PSUF	
 
 			ALIGN	1
-NFA_NIP			FHEADER, "NIP", NFA_NAME, COMPILE
+NFA_NIP			FHEADER, "NIP", NFA_MARKER, COMPILE
 CFA_NIP			DW	CF_NIP
 CF_NIP			PS_CHECK_UF 2, CF_NIP_PSUF 	;check for underflow  (PSP -> Y)
 			;NIP 
@@ -6022,52 +5684,6 @@ CF_NIP			PS_CHECK_UF 2, CF_NIP_PSUF 	;check for underflow  (PSP -> Y)
 			STY	PSP
 			;Done 
 			NEXT
-
-;NUMBER ( c-addr -- c-addr 0 | u 1 | n 1 | ud 2 | d 2 ) Non-standard S12CForth extension!
-;Convert terminated the string at c-addr into a number. The value of BASE is the
-;radix for the conversion. 	
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-;"Parameter stack overflow"
-;"Invalid BASE value"
-;
-			ALIGN	1
-NFA_NUMBER		FHEADER, "NUMBER", NFA_NIP, COMPILE
-CFA_NUMBER		DW	CF_NUMBER
-			;Check BASE value 
-CF_NUMBER		BASE_CHECK	CF_NUMBER_INVALBASE	;check BASE value (BASE -> D)
-			;Check minimum stack requirements 
-			PS_CHECK_UFOF	1, CF_NUMBER_PSUF, 1, CF_NUMBER_PSOF ;check for under and overflow (PSP-2 -> Y)
-			;Convert string
-			LDX	2,Y	
-			SSTACK_JOBSR	FCORE_NUMBER ;value -> Y:X, size -> D (SSTACK: 12 bytes)
-			;Check result
-			CPD	#$0001
-			BLO	CF_NUMBER_3
-			BHI	CF_NUMBER_2
-			;Single number
-			LDY	PSP
-			STX	2,Y-
-			STD	0,Y
-CF_NUMBER_1		STY	PSP
-			NEXT
-			;Double number
-CF_NUMBER_2		TFR	Y,D
-			LDY	PSP
-			STX	2,Y-
-			STD	2,Y-
-			MOVW	#$0002, 0,Y
-			JOB	CF_NUMBER_1
-			;Not a number
-CF_NUMBER_3		LDY	PSP
-			STD	2,-Y
-			JOB	CF_NUMBER_1
-
-CF_NUMBER_PSUF		JOB	FCORE_THROW_PSUF
-CF_NUMBER_PSOF		JOB	FCORE_THROW_PSOF
-CF_NUMBER_INVALBASE	JOB	FCORE_THROW_INVALBASE
 
 ;OF
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -6088,7 +5704,7 @@ CF_NUMBER_INVALBASE	JOB	FCORE_THROW_INVALBASE
 ;"Compile-only word"
 ;
 			ALIGN	1
-NFA_OF			FHEADER, "OF", NFA_NUMBER, IMMEDIATE
+NFA_OF			FHEADER, "OF", NFA_NIP, IMMEDIATE
 CFA_OF			DW	CF_OF
 			DW	CFA_OF_RT
 CF_OF			EQU	CF_IF		
@@ -6214,7 +5830,8 @@ CF_PICK			PS_CHECK_UF 1, CF_PICK_PSUF 	;check for underflow  (PSP -> Y)
 ;
 ;S12CForth implementation details:
 ;Throws:
-;"Communication problem"
+;"Invalid numeric argument"	
+;"RX buffer overflow"
 ;
 			ALIGN	1
 NFA_QUERY		FHEADER, "QUERY", NFA_PICK, COMPILE
@@ -6225,7 +5842,7 @@ CF_QUERY		;Query command line
 			;Done 
 			NEXT
 
-CF_QUERY_COMERR		JOB	FCORE_THROW_COMERR
+CF_QUERY_COMERR		JMP	0,X
 	
 ;REFILL ( -- flag ) CHECK!
 ;Attempt to fill the input buffer from the input source, returning a true flag;if successful.
@@ -6240,10 +5857,11 @@ CF_QUERY_COMERR		JOB	FCORE_THROW_COMERR
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack overflow"
-;"Communication problem"
+;"Invalid numeric argument"	
+;"RX buffer overflow"
 ;
 CF_REFILL_PSOF		JOB	FCORE_THROW_PSOF
-CF_REFILL_COMERR	JOB	FCORE_THROW_COMERR
+CF_REFILL_COMERR	JMP	0,X
 
 NFA_REFILL		FHEADER, "REFILL", NFA_QUERY, COMPILE
 CFA_REFILL		DW	CF_REFILL
@@ -6464,7 +6082,7 @@ CF_U_GREATER_THAN_1	STY	PSP
 			NEXT
 	
 ;UNUSED ( -- u )
-;u is the amount of space remaining in the region addressed by HERE , in address
+;u is the amount of space remaining in the region addressed by HERE, in address
 ;units.
 ;
 ;S12CForth implementation details:
@@ -6571,6 +6189,173 @@ NFA_BACKSLASH		FHEADER, "\", NFA_BRACKET_COMPILE, COMPILE ;"
 CFA_BACKSLASH		DW	CF_BACKSLASH
 CF_BACKSLASH		MOVW	NUMBER_TIB, TO_IN ;set >IN do the last character 
 			NEXT
+
+;#Non-standard S12CForth extensions:
+; ==================================
+
+;0 ( -- 0 )
+;Constant 0
+			ALIGN	1
+NFA_ZERO		FHEADER, "0", NFA_BACKSLASH, COMPILE
+CFA_ZERO		DW	CF_CONSTANT_RT
+			DW	0
+
+;1 ( -- 1 )
+;Constant 1
+			ALIGN	1
+NFA_ONE			FHEADER, "1", NFA_ZERO, COMPILE
+CFA_ONE			DW	CF_CONSTANT_RT
+			DW	1
 	
+;2 ( -- 2 )
+;Constant 2
+			ALIGN	1
+NFA_TWO			FHEADER, "2", NFA_ONE, COMPILE
+CFA_TWO			DW	CF_CONSTANT_RT
+			DW	2
+	
+;3 ( -- 3 )
+;Constant 3
+			ALIGN	1
+NFA_THREE		FHEADER, "3", NFA_TWO, COMPILE
+CFA_THREE		DW	CF_CONSTANT_RT
+			DW	3
+
+;4 ( -- 4 )
+;Constant 4
+			ALIGN	1
+NFA_FOUR		FHEADER, "4", NFA_THREE, COMPILE
+CFA_FOUR		DW	CF_CONSTANT_RT
+			DW	4
+
+;5 ( -- 5 )
+;Constant 5
+			ALIGN	1
+NFA_FIVE		FHEADER, "5", NFA_FOUR, COMPILE
+CFA_FIVE		DW	CF_CONSTANT_RT
+			DW	5
+
+;6 ( -- 6 )
+;Constant 6
+			ALIGN	1
+NFA_SIX			FHEADER, "6", NFA_FIVE, COMPILE
+CFA_SIX			DW	CF_CONSTANT_RT
+			DW	6
+
+;7 ( -- 7 )
+;Constant 7
+			ALIGN	1
+NFA_SEVEN		FHEADER, "7", NFA_SIX, COMPILE
+CFA_SEVEN		DW	CF_CONSTANT_RT
+			DW	7
+
+;8 ( -- 8 )
+;Constant 8
+			ALIGN	1
+NFA_EIGHT		FHEADER, "8", NFA_SEVEN, COMPILE
+CFA_EIGHT		DW	CF_CONSTANT_RT
+			DW	8
+
+;BINARY ( -- )
+;Set the numeric conversion radix to two (binary).
+			ALIGN	1
+NFA_BINARY			FHEADER, "BINARY", NFA_EIGHT, COMPILE
+CFA_BINARY			DW	CF_BINARY
+CF_BINARY			MOVW	#2, BASE
+			NEXT
+	
+;CP ( -- addr)
+;Compile pointer (points to the next free byte after the user dictionary)
+			ALIGN	1
+NFA_CP			FHEADER, "CP", NFA_BINARY, COMPILE
+CFA_CP			DW	CF_CONSTANT_RT
+			DW	CP
+
+;EMPTY ( -- )
+;Delete all user defined words
+			ALIGN	1
+NFA_EMPTY		FHEADER, "EMPTY", NFA_CP, COMPILE
+CFA_EMPTY		DW	CF_EMPTY
+CF_EMPTY		;Clear dictionary
+			MOVW	#FCORE_LAST_NFA, LAST_NFA 	;set last NFA
+			LDD	#DICT_START			;set compile pointer
+			STD	CP
+			STD	CP_SAVED
+			;Reset PS
+			PS_RESET
+			;Done		
+			NEXT
+
+;NAME ("<spaces>ccc<space>" -- c-addr )
+;Parse whitespace separated word: 
+;Skip leading whitespaces (" ", TAB, and non-printables). Parse characters ccc
+;delimited by a whitespace (" ", TAB, or non-printable character). c-addr is
+;the address of a terminated upper-case string. A resulting string of zero
+; length will return the address $0000.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+;
+CF_NAME_PSOF		JOB	FCORE_THROW_PSOF
+
+			ALIGN	1
+NFA_NAME		FHEADER, "NAME", NFA_EMPTY, COMPILE
+CFA_NAME		DW	CF_NAME
+CF_NAME			PS_CHECK_OF	1, CF_NAME_PSOF ;(PSP-2 -> Y)
+			;Parse name (new PSP in Y)
+			SSTACK_JOBSR	FCORE_NAME 	;string pointer -> X (SSTACK: 6 bytes)
+			;Stack result (new PSP in Y, string pointer in X)
+			STX	 0,Y
+			STY	PSP
+			NEXT
+	
+
+;NUMBER ( c-addr -- c-addr 0 | u 1 | n 1 | ud 2 | d 2 )
+;Convert terminated the string at c-addr into a number. The value of BASE is the
+;radix for the conversion. 	
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack overflow"
+;"Invalid BASE value"
+;
+CF_NUMBER_PSUF		JOB	FCORE_THROW_PSUF
+CF_NUMBER_PSOF		JOB	FCORE_THROW_PSOF
+CF_NUMBER_INVALBASE	JOB	FCORE_THROW_INVALBASE
+
+			ALIGN	1
+NFA_NUMBER		FHEADER, "NUMBER", NFA_NAME, COMPILE
+CFA_NUMBER		DW	CF_NUMBER
+			;Check BASE value 
+CF_NUMBER		BASE_CHECK	CF_NUMBER_INVALBASE	;check BASE value (BASE -> D)
+			;Check minimum stack requirements 
+			PS_CHECK_UFOF	1, CF_NUMBER_PSUF, 1, CF_NUMBER_PSOF ;check for under and overflow (PSP-2 -> Y)
+			;Convert string
+			LDX	2,Y	
+			SSTACK_JOBSR	FCORE_NUMBER ;value -> Y:X, size -> D (SSTACK: 12 bytes)
+			;Check result
+			CPD	#$0001
+			BLO	CF_NUMBER_3
+			BHI	CF_NUMBER_2
+			;Single number
+			LDY	PSP
+			STX	2,Y-
+			STD	0,Y
+CF_NUMBER_1		STY	PSP
+			NEXT
+			;Double number
+CF_NUMBER_2		TFR	Y,D
+			LDY	PSP
+			STX	2,Y-
+			STD	2,Y-
+			MOVW	#$0002, 0,Y
+			JOB	CF_NUMBER_1
+			;Not a number
+CF_NUMBER_3		LDY	PSP
+			STD	2,-Y
+			JOB	CF_NUMBER_1
+
 FCORE_WORDS_END		EQU	*
-FCORE_LAST_NFA		EQU	NFA_BACKSLASH
+FCORE_LAST_NFA		EQU	NFA_NUMBER

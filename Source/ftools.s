@@ -144,79 +144,8 @@ FTOOLS_TABS_END		EQU	*
 ;###############################################################################
 			ORG	FTOOLS_WORDS_START ;(previous NFA: FTOOLS_PREV_NFA)
 
-;.RS ( -- ) !!! Not part of the ANS Forth standard !!!
-;Copy and display the values currently on the data stack. The format of the
-;display is implementation-dependent.
-;.S may be implemented using pictured numeric output words. Consequently, its
-;use may corrupt the transient region identified by #>.
-;	
-;S12CForth implementation details:
-; SSTACK: 24 bytes
-;
-			ALIGN	1
-NFA_DOT_RS		FHEADER, ".RS", FTOOLS_PREV_NFA, COMPILE
-CFA_DOT_RS		DW	CF_DOT_RS
-			;Print header 
-CF_DOT_RS		PRINT_LINE_BREAK		;(SSTACK: 11 bytes)
-			LDX	#CF_DOT_RS_HEAD1
-			PRINT_STR			;(SSTACK: 14 bytes)
-			;Determine the number of RS entries
-			LDD	#RS_EMPTY
-			SUBD	RSP
-			;BEQ	CF_DOT_RS_2 		;RS is empty
-			BLS	CF_DOT_RS_2 		;RS is empty
-			LSRD				;number of RS entries -> D
-			TFR	D, Y			;current index -> Y
-			;Print the rest of the header 
-			LDX	#CF_DOT_RS_HEAD2
-			PRINT_STR			;(SSTACK: 14 bytes)
-			;Print line break
-CF_DOT_RS_1		PRINT_LINE_BREAK		;(SSTACK: 11 bytes)	
-			;Print current RS index (highest index in D, current index in Y)
-			TFR	D, X 			;calculate max. index width
-			LDAB	#10
-			;LDAB	BASE+1
-			PRINT_UINTCNT			;args: X:integer, B:base
-							;number of digits -> A (SSTACK: 13 bytes)
-			TFR	Y, X			;print current index
-			PRINT_RUINT			;args: X:integer, A:width, B:base (SSTACK: 24 bytes)
-			LDAB	#":"			;print colon
-			PRINT_CHAR
-			;Calculate width of output (current index in Y)
-			LDX	#$FFFF 			;calculate max. data width
-			;LDAB	BASE+1
-			LDAB	#16
-			PRINT_UINTCNT			;args: X:integer, B:base
-							;number of digits -> A (SSTACK: 13 bytes)
-			INCA				;additional whitespace			
-			;INCA				;additional whitespace
-			;Print current RS cell (current index in Y, BASE in B, output width in A)
-			TFR	Y, X			;calculate current stack address
-			EXG	X, D
-			SUBD	#1
-			LSLD
-			ADDD	RSP
-			EXG	D, X
-			LDX	0,X                     ;read current cell
-			PRINT_RUINT			;args: X:integer, A:width, B:base (SSTACK: 24 bytes)
-			;Prepare next iteration (current index in Y)
-			DBEQ	Y, CF_DOT_RS_3 		;done
-			LDD	#RS_EMPTY		;determine width of RS index
-			SUBD	RSP
-			LSRD				;number of RS entries -> D
-			JOB	CF_DOT_RS_1
-			;RS is empty 
-CF_DOT_RS_2		LDX	#CF_DOT_RS_EMPTY
-			PRINT_STR 			;args: X:string			
-			;Done 
-CF_DOT_RS_3		;PRINT_LINE_BREAK		;new line (SSTACK: 11 bytes)
-			NEXT
-	
-CF_DOT_RS_HEAD1		FCS	"Return stack"
-;CF_DOT_RS_HEAD2	FCS	":"
-CF_DOT_RS_HEAD2		EQU	CF_DOT_S_HEAD2
-;CF_DOT_RS_EMPTY	FCS	" is empty!"
-CF_DOT_RS_EMPTY		EQU	CF_DOT_S_EMPTY
+;#Programming-Tools words (TOOLS):
+; ================================
 
 ;.S ( -- )
 ;Copy and display the values currently on the data stack. The format of the
@@ -228,7 +157,7 @@ CF_DOT_RS_EMPTY		EQU	CF_DOT_S_EMPTY
 ; SSTACK: 24 bytes
 ;
 			ALIGN	1
-NFA_DOT_S		FHEADER, ".S", NFA_DOT_RS, COMPILE
+NFA_DOT_S		FHEADER, ".S", FTOOLS_PREV_NFA, COMPILE
 CFA_DOT_S		DW	CF_DOT_S
 			;Print header 
 CF_DOT_S		PRINT_LINE_BREAK		;(SSTACK: 11 bytes)
@@ -257,7 +186,7 @@ CF_DOT_S_1		PRINT_LINE_BREAK		;(SSTACK: 11 bytes)
 			LDAB	#":"			;print colon
 			PRINT_CHAR
 			;Calculate width of output (current index in Y)
-			LDX	#$FFFF 			;calculate max. data width
+			LDX	#$8000 			;calculate max. data width
 			LDAB	BASE+1
 			PRINT_SINTCNT			;args: X:integer, B:base
 							;number of digits -> A (SSTACK: 13 bytes)
@@ -392,8 +321,8 @@ CF_DUMP_HEADER		FCS	"______0__1__2__3__4__5__6__7__8__9__A__B__C__D__E__F"
 ;use may corrupt the transient region identified by #>.
 NFA_SEE			EQU	NFA_DUMP
 ;			ALIGN	1
-;NFA_SEE			FHEADER, "SEE", NFA_DUMP, COMPILE
-;CFA_SEE			DW	CF_SEE
+;NFA_SEE		FHEADER, "SEE", NFA_DUMP, COMPILE
+;CFA_SEE		DW	CF_SEE
 ;CF_SEE			NEXT
 
 ;WORDS ( -- )
@@ -433,6 +362,9 @@ CF_WORDS_3		PRINT_LINE_BREAK		;new line (SSTACK: 11 bytes)
 			JOB	CF_WORDS_2
 
 CF_WORDS_LINE_WIDTH	EQU	75
+
+;#Programming-Tools extension words (TOOLS EXT):
+; ==============================================
 	
 ;;CODE 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -671,7 +603,80 @@ CF_BRACKET_THEN		COMPILE_ONLY	CF_BRACKET_THEN_COMPONLY	;ensure that compile mode
 			NEXT
 			
 CF_BRACKET_THEN_COMPONLY	JOB	FTOOLS_THROW_COMPONLY
-
+	
+;.RS ( -- ) !!! Not part of the ANS Forth standard !!!
+;Copy and display the values currently on the data stack. The format of the
+;display is implementation-dependent.
+;.S may be implemented using pictured numeric output words. Consequently, its
+;use may corrupt the transient region identified by #>.
+;	
+;S12CForth implementation details:
+; SSTACK: 24 bytes
+;
+			ALIGN	1
+NFA_DOT_RS		FHEADER, ".RS", NFA_BRACKET_THEN, COMPILE
+CFA_DOT_RS		DW	CF_DOT_RS
+			;Print header 
+CF_DOT_RS		PRINT_LINE_BREAK		;(SSTACK: 11 bytes)
+			LDX	#CF_DOT_RS_HEAD1
+			PRINT_STR			;(SSTACK: 14 bytes)
+			;Determine the number of RS entries
+			LDD	#RS_EMPTY
+			SUBD	RSP
+			;BEQ	CF_DOT_RS_2 		;RS is empty
+			BLS	CF_DOT_RS_2 		;RS is empty
+			LSRD				;number of RS entries -> D
+			TFR	D, Y			;current index -> Y
+			;Print the rest of the header 
+			LDX	#CF_DOT_RS_HEAD2
+			PRINT_STR			;(SSTACK: 14 bytes)
+			;Print line break
+CF_DOT_RS_1		PRINT_LINE_BREAK		;(SSTACK: 11 bytes)	
+			;Print current RS index (highest index in D, current index in Y)
+			TFR	D, X 			;calculate max. index width
+			LDAB	#10
+			;LDAB	BASE+1
+			PRINT_UINTCNT			;args: X:integer, B:base
+							;number of digits -> A (SSTACK: 13 bytes)
+			TFR	Y, X			;print current index
+			PRINT_RUINT			;args: X:integer, A:width, B:base (SSTACK: 24 bytes)
+			LDAB	#":"			;print colon
+			PRINT_CHAR
+			;Calculate width of output (current index in Y)
+			LDX	#$FFFF 			;calculate max. data width
+			;LDAB	BASE+1
+			LDAB	#16
+			PRINT_UINTCNT			;args: X:integer, B:base
+							;number of digits -> A (SSTACK: 13 bytes)
+			INCA				;additional whitespace			
+			;INCA				;additional whitespace
+			;Print current RS cell (current index in Y, BASE in B, output width in A)
+			TFR	Y, X			;calculate current stack address
+			EXG	X, D
+			SUBD	#1
+			LSLD
+			ADDD	RSP
+			EXG	D, X
+			LDX	0,X                     ;read current cell
+			PRINT_RUINT			;args: X:integer, A:width, B:base (SSTACK: 24 bytes)
+			;Prepare next iteration (current index in Y)
+			DBEQ	Y, CF_DOT_RS_3 		;done
+			LDD	#RS_EMPTY		;determine width of RS index
+			SUBD	RSP
+			LSRD				;number of RS entries -> D
+			JOB	CF_DOT_RS_1
+			;RS is empty 
+CF_DOT_RS_2		LDX	#CF_DOT_RS_EMPTY
+			PRINT_STR 			;args: X:string			
+			;Done 
+CF_DOT_RS_3		;PRINT_LINE_BREAK		;new line (SSTACK: 11 bytes)
+			NEXT
+	
+CF_DOT_RS_HEAD1		FCS	"Return stack"
+;CF_DOT_RS_HEAD2	FCS	":"
+CF_DOT_RS_HEAD2		EQU	CF_DOT_S_HEAD2
+;CF_DOT_RS_EMPTY	FCS	" is empty!"
+CF_DOT_RS_EMPTY		EQU	CF_DOT_S_EMPTY
 	
 FTOOLS_WORDS_END		EQU	*
-FTOOLS_LAST_NFA			EQU	NFA_BRACKET_THEN
+FTOOLS_LAST_NFA			EQU	NFA_DOT_RS

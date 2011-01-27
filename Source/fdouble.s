@@ -664,7 +664,7 @@ CF_D_NEGATE_1		LDD	0,Y 				;invert MSW
 CF_D_NEGATE_PSUF	JOB	FDOUBLE_THROW_PSUF
 	
 ;
-;M*/ ( d1 n1 +n2 -- d2 )
+;M*/ ( d1 n1 +n2 -- d2 ) CHECK!
 ;Multiply d1 by n1 producing the triple-cell intermediate result t. Divide t by
 ;+n2 giving the double-cell quotient d2. An ambiguous condition exists if +n2 is
 ;zero or negative, or the quotient lies outside of the range of a
@@ -694,44 +694,42 @@ CF_M_STAR_SLASH		PS_CHECK_UF	4, CF_M_STAR_SLASH_PSUF ;check for underflow (PSP -
 			;Allocate temporary memory (PSP in Y)
 			SSTACK_ALLOC	6		;allocate 6 bytes
 			;+--------+--------+
-			;|   Result (MSW)  | <-SSTACK_SP (in X)
+			;|   Result (MSW)  | <-SP
 			;+--------+--------+
 			;|   Result        | +2
 			;+--------+--------+
 			;|   Result (LSW)  | +4
 			;+--------+--------+
-			LDX	SSTACK_SP
-			MOVW	#$0000, 0,X
-			;Multiply LSW (SP in X, PSP in Y)
+			MOVW	#$0000, 0,SP
+			;Multiply LSW (PSP in Y)
 			LDD	2,Y 				;n1      -> D
 			LDY	6,Y				;d1(LSW) -> Y
 			EMULS					;Y * D => Y:D
 			BPL	CF_M_STAR_SLASH_1		;result is positive
-			MOVW	#$FFFF, 0,X
-CF_M_STAR_SLASH_1	STY	2,X				;n1      -> D
-			STD	4,X				;d1(LSW) -> Y
-			;Multiply LSW (SP in X)
+			MOVW	#$FFFF, 0,SP
+CF_M_STAR_SLASH_1	STY	2,SP				;n1      -> D
+			STD	4,SP				;d1(LSW) -> Y
+			;Multiply LSW
 			LDY	PSP
 			LDD	2,Y 				;n1      -> D
 			LDY	4,Y				;d1(MSW) -> Y
 			EMULS					;Y * D => Y:D
-			ADDD	2,X
-			STD	2,X
+			ADDD	2,SP
+			STD	2,SP
 			EXG	Y, D
-			ADCB	1,X
-			ADCA	0,X
-			STD	0,X
+			ADCB	1,SP
+			ADCA	0,SP
+			STD	0,SP
 			EXG	Y, D
-			;Divide MSW by +n2 (SP in X, Result (MSW) in Y:D)
+			;Divide MSW by +n2 (Result (MSW) in Y:D)
 			LDX	[PSP]		 		;+n2 -> X
 			EDIVS					;Y:D/X=>Y; remainder=>D
 			BVS	CF_M_STAR_SLASH_3 		;result is out of range
 			LDX	PSP
-			STY	4,X
+			STY	4,SP
 			;Divide LSW by +n2 (Remainder in D)
 			TFR	D, Y
-			LDX	SSTACK_SP
-			LDD	4,X
+			LDD	4,SP
 			LDX	[PSP]		 		;+n2 -> X	
 			EDIVS					;Y:D/X=>Y; remainder=>D
 			LDX	PSP
@@ -771,6 +769,10 @@ CF_M_PLUS		PS_CHECK_UF 3, CF_M_PLUS_PSUF 	;check for underflow (PSP -> Y)
 			NEXT
 
 CF_M_PLUS_PSUF		JOB	FDOUBLE_THROW_PSUF
+
+
+;#Double-Number extension words (DOUBLE):
+; =======================================
 	
 ;2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 )
 ;Rotate the top three cell pairs on the stack bringing cell pair x1 x2 to the

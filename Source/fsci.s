@@ -84,9 +84,8 @@ FSCI_CONVERT	EQU	*
 			;32-bit dividend (dividend in D:X)
 			;Allocate temporary memory (dividend in D:X)
 			SSTACK_ALLOC	8 			;allocate 4 additional words
-			LDY	SSTACK_SP
-;  	                +--------------+--------------+
-;           SSTACK_SP-> |        divisor (MSW)        | +$00
+			+--------------+--------------+
+;                  SP-> |        divisor (MSW)        | +$00
 ;  	                +--------------+--------------+
 ;                       |        divisor (LSW)        | +$02
 ;  	                +--------------+--------------+
@@ -106,76 +105,76 @@ FSCI_CONVERT_DIVIDEND_LSW	EQU	$04
 FSCI_CONVERT_DIVIDEND_MSW	EQU	$06
 FSCI_CONVERT_SHIFTER		EQU	$08
 FSCI_CONVERT_RESULT		EQU	$0A
-			;Initialize temporary registers (SP in Y, dividend in D:X)
-			MOVW	#$0000, FSCI_CONVERT_SHIFTER,Y
-			MOVW	#$0000, FSCI_CONVERT_RESULT,Y
-			MOVW	#(FSCI_DIVISOR>>16), FSCI_CONVERT_DIVISOR_MSW,Y
-			MOVW	#FSCI_DIVISOR,       FSCI_CONVERT_DIVISOR_LSW,Y
-			MOVW	#$0000, FSCI_CONVERT_DIVIDEND_MSW,Y
-			MOVW	#$0000, FSCI_CONVERT_DIVIDEND_LSW,Y
-			;Check if shifted dividend is greater than the divisor (SP in Y, shifted dividend in D:X)
-FSCI_CONVERT_1		CPD	FSCI_CONVERT_DIVISOR_MSW,Y	
+			;Initialize temporary registers (dividend in D:X)
+			MOVW	#$0000, FSCI_CONVERT_SHIFTER,SP
+			MOVW	#$0000, FSCI_CONVERT_RESULT,SP
+			MOVW	#(FSCI_DIVISOR>>16), FSCI_CONVERT_DIVISOR_MSW,SP
+			MOVW	#FSCI_DIVISOR,       FSCI_CONVERT_DIVISOR_LSW,SP
+			MOVW	#$0000, FSCI_CONVERT_DIVIDEND_MSW,SP
+			MOVW	#$0000, FSCI_CONVERT_DIVIDEND_LSW,SP
+			;Check if shifted dividend is greater than the divisor (shifted dividend in D:X)
+FSCI_CONVERT_1		CPD	FSCI_CONVERT_DIVISOR_MSW,SP	
 			BHI	FSCI_CONVERT_4 			;shifted dividend > divisor
 			BLO	FSCI_CONVERT_2			;shifted dividend < divisor
-			CPX	FSCI_CONVERT_DIVISOR_LSW,Y
+			CPX	FSCI_CONVERT_DIVISOR_LSW,SP
 			BHI	FSCI_CONVERT_4 			;dividend > divisor
-			;Shifted dividend < divisor (SP in Y, shifted dividend in D:X)
-FSCI_CONVERT_2		STD	FSCI_CONVERT_DIVIDEND_MSW,Y 	;store shifted dividend
-			STX	FSCI_CONVERT_DIVIDEND_LSW,Y
-			LDD	FSCI_CONVERT_SHIFTER,Y 		;update shifter
+			;Shifted dividend < divisor (shifted dividend in D:X)
+FSCI_CONVERT_2		STD	FSCI_CONVERT_DIVIDEND_MSW,SP 	;store shifted dividend
+			STX	FSCI_CONVERT_DIVIDEND_LSW,SP
+			LDD	FSCI_CONVERT_SHIFTER,SP 	;update shifter
 			LSLD
 			BNE	FSCI_CONVERT_3
 			LDD	#$0001
-FSCI_CONVERT_3		STD	FSCI_CONVERT_SHIFTER,Y
+FSCI_CONVERT_3		STD	FSCI_CONVERT_SHIFTER,SP
 			TFR	X,D 				;left-shift dividend
 			LSLD
 			TFR	D,X
-			LDD	FSCI_CONVERT_DIVIDEND_MSW,Y
+			LDD	FSCI_CONVERT_DIVIDEND_MSW,SP
 			ROLB
 			ROLA
 			BCC	FSCI_CONVERT_1
-			;Shifted dividend > divisor (SP in Y)
-FSCI_CONVERT_4		LDD	FSCI_CONVERT_RESULT,Y 		;add shifter to result
-			ADDD	FSCI_CONVERT_SHIFTER,Y
-			STD	FSCI_CONVERT_RESULT,Y
-			LDD	FSCI_CONVERT_DIVISOR_LSW,Y 	;subtract dividend from divisor
-			SUBD	FSCI_CONVERT_DIVIDEND_LSW,Y
-			LDD	FSCI_CONVERT_DIVISOR_MSW,Y
-			SBCB	FSCI_CONVERT_DIVIDEND_MSW+1,Y
-			SBCA	FSCI_CONVERT_DIVIDEND_MSW,Y
-			STD	FSCI_CONVERT_DIVISOR_MSW,Y
-			LDD	FSCI_CONVERT_DIVIDEND_MSW,Y 	;dividend -> D:X
-			LDX	FSCI_CONVERT_DIVIDEND_LSW,Y
-			;Right-shift dividend (SP in Y, dividend in D:X) 
+			;Shifted dividend > divisor
+FSCI_CONVERT_4		LDD	FSCI_CONVERT_RESULT,SP 		;add shifter to result
+			ADDD	FSCI_CONVERT_SHIFTER,SP
+			STD	FSCI_CONVERT_RESULT,SP
+			LDD	FSCI_CONVERT_DIVISOR_LSW,SP 	;subtract dividend from divisor
+			SUBD	FSCI_CONVERT_DIVIDEND_LSW,SP
+			LDD	FSCI_CONVERT_DIVISOR_MSW,SP
+			SBCB	FSCI_CONVERT_DIVIDEND_MSW+1,SP
+			SBCA	FSCI_CONVERT_DIVIDEND_MSW,SP
+			STD	FSCI_CONVERT_DIVISOR_MSW,SP
+			LDD	FSCI_CONVERT_DIVIDEND_MSW,SP 	;dividend -> D:X
+			LDX	FSCI_CONVERT_DIVIDEND_LSW,SP
+			;Right-shift dividend (dividend in D:X) 
 FSCI_CONVERT_5		LSRD					;shift MSW
-			STD	FSCI_CONVERT_DIVIDEND_MSW,Y	;store MSW
+			STD	FSCI_CONVERT_DIVIDEND_MSW,SP	;store MSW
 			TFR	X,D				;shift LSW
 			RORA
 			RORB
 			TFR	D,X
-			STX	FSCI_CONVERT_DIVIDEND_LSW,Y	;store LSW
-			LDD	FSCI_CONVERT_SHIFTER,Y		;update shifter
+			STX	FSCI_CONVERT_DIVIDEND_LSW,SP	;store LSW
+			LDD	FSCI_CONVERT_SHIFTER,SP		;update shifter
 			LSRD
-			STD	FSCI_CONVERT_SHIFTER,Y
-			LDD	FSCI_CONVERT_DIVIDEND_MSW,Y
-			;Terminate if shifted dividend is zero (SP in Y, dividend in D:X)
+			STD	FSCI_CONVERT_SHIFTER,SP
+			LDD	FSCI_CONVERT_DIVIDEND_MSW,SP
+			;Terminate if shifted dividend is zero (dividend in D:X)
 			TBNE	D, FSCI_CONVERT_6		;dividend is not zero
 			TBEQ	X, FSCI_CONVERT_7		;dividend is zero
-			;Check if dividend < divisor (SP in Y, dividend in D:X)
-FSCI_CONVERT_6		CPD	FSCI_CONVERT_DIVISOR_MSW,Y
+			;Check if dividend < divisor (dividend in D:X)
+FSCI_CONVERT_6		CPD	FSCI_CONVERT_DIVISOR_MSW,SP
 			BLO	FSCI_CONVERT_4 			;shifted dividend < divisor
 			BHI	FSCI_CONVERT_5			;shifted dividend > divisor
-			CPX	FSCI_CONVERT_DIVISOR_MSW,Y
+			CPX	FSCI_CONVERT_DIVISOR_MSW,SP
 			BHI	FSCI_CONVERT_5			;shifted dividend > divisor
 			JOB	FSCI_CONVERT_4 			;shifted dividend <= divisor
-			;Prepare result (SP in Y)
-FSCI_CONVERT_7		;MOVW	#$0000, FSCI_CONVERT_SHIFTER,Y	
+			;Prepare result
+FSCI_CONVERT_7		;MOVW	#$0000, FSCI_CONVERT_SHIFTER,SP	
 			SSTACK_DEALLOC	8 				;free temporary variables
 			JOB	FSCI_CONVERT_9	
 				
 			;16-bit dividend (dividend in X)
 ;  	                +--------------+--------------+          
-;            SSTACK_SP->|     D (dividend/result MSW) | +$00       
+;                   SP->|     D (dividend/result MSW) | +$00       
 ;  	                +--------------+--------------+	     
 ;                       |     X (dividend/result LSW) | +$02         
 ;  	                +--------------+--------------+	     
@@ -189,22 +188,19 @@ FSCI_CONVERT_8		TBEQ	X, FSCI_CONVERT_10 		;division by zero (return zero)
 			;1st division: divisor(MSB)/dividend => result(MSB) 
 			LDD	#(FSCI_DIVISOR>>16)
 			IDIV					;D/X=>X; remainder=D
-			LDY	SSTACK_SP
-			STX	FSCI_CONVERT_D,Y
+			STX	FSCI_CONVERT_D,SP
 			;2nd division: remainder:divisor(LSB)/dividend => result(LSB) 
-			LDX	FSCI_CONVERT_X,Y	
+			LDX	FSCI_CONVERT_X,SP	
 			TFR	D,Y
 			LDD	#FSCI_DIVISOR
 			EDIV					;Y:D/X=>Y; remainder=>D
-			LDX	SSTACK_SP
-			STY	FSCI_CONVERT_X,X
+			STY	FSCI_CONVERT_X,SP
 			;Restore registers 
 FSCI_CONVERT_9		SSTACK_PULDXY
 			SSTACK_RTS
 			;Division by zero
-FSCI_CONVERT_10		LDY	SSTACK_SP
-			MOVW	#$FFFF, FSCI_CONVERT_D,Y
-			MOVW	#$FFFF, FSCI_CONVERT_X,Y
+FSCI_CONVERT_10		MOVW	#$FFFF, FSCI_CONVERT_D,SP
+			MOVW	#$FFFF, FSCI_CONVERT_X,SP
 			JOB	FSCI_CONVERT_9
 
 ;Exceptions:
@@ -213,7 +209,8 @@ FSCI_CONVERT_10		LDY	SSTACK_SP
 FSCI_THROW_PSOF		EQU	FMEM_THROW_PSOF			;stack overflow
 FSCI_THROW_PSUF		EQU	FMEM_THROW_PSUF			;stack underflow
 FSCI_THROW_INVALNUM	EQU	FCORE_THROW_INVALNUM		;invalid numeric argument
-FSCI_THROW_COMERR	EQU	FCORE_THROW_COMERR		;communication problem
+;FSCI_THROW_COMERR	EQU	FCORE_THROW_COMERR		;invalid RX data
+;FSCI_THROW_COMOF	EQU	FCORE_THROW_COMOF		;RX buffer overflow
 	
 FSCI_CODE_END		EQU	*
 	
@@ -230,145 +227,6 @@ FSCI_TABS_END		EQU	*
 ;# Forth words                                                                 #
 ;###############################################################################
 			ORG	FSCI_WORDS_START
-
-;TXW ( u -- ) S12CForth extension CHECK!
-;Send a word
-;u:      transmit data
-;Throws:
-;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_TXW			FHEADER, "TXW", FSCI_PREV_NFA, COMPILE
-CFA_TXW			DW	CF_TXW
-CF_TXW			PS_CHECK_UF	1, CF_TXW_PSUF ;check for underflow (PSP -> Y)
-			;Transmit data (PSP -> Y) 
-			LDD	2,Y+
-			STY	PSP
-			SCI_TX
-			;Done 
-			NEXT
-	
-CF_TXW_PSUF		JOB	FSCI_THROW_PSUF
-
-;TXB ( char -- ) S12CForth extension CHECK!
-;Send a byte
-;char:      transmit data
-;Throws:
-;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_TXB			FHEADER, "TXB", NFA_TXW, COMPILE
-CFA_TXB			DW	CF_TXB
-CF_TXB			PS_CHECK_UF	1, CF_TXB_PSUF ;check for underflow (PSP -> Y)
-			;Transmit data (PSP -> Y) 
-			LDD	2,Y+
-			STY	PSP
-			EXG	A,B
-			SCI_TX
-			EXG	A,B
-			SCI_TX
-			;Done 
-			NEXT
-	
-CF_TXB_PSUF		JOB	FSCI_THROW_PSUF
-
-;RXW ( -- u ) S12CForth extension CHECK!
-;Receive a word (big endian) 
-;u:         transmit data
-;Throws:
-;"Parameter stack overflow"
-;"Transmission error"
-;
-			ALIGN	1
-NFA_RXW			FHEADER, "RXW", NFA_TXB, COMPILE
-CFA_RXW			DW	CF_RXW
-CF_RXW			PS_CHECK_OF	1, CF_RXW_PSOF ;check for underflow (PSP-2 -> Y)
-			;Receive data (PSP-2 -> Y) 
-			SCI_RX
-			BITA	#(NF|FE|PE)		;transmission error has occured
-			BNE	CF_RXW_COMERR	
-			EXG	B,X
-			SCI_RX
-			BITA	#(NF|FE|PE)		;transmission error has occured
-			BNE	CF_RXW_COMERR	
-			EXG	X,A
-			;Push data onto stack (PSP-2 in Y)
-			STD	0,Y
-			STY	PSP
-			;Done 
-			NEXT
-	
-CF_RXW_PSOF		JOB	FSCI_THROW_PSOF
-CF_RXW_COMERR		JOB	FSCI_THROW_COMERR
-
-;RXB ( -- c ) S12CForth extension CHECK!
-;Receive a wordbytea (big endian)
-;u:         transmit data
-;Throws:
-;"Parameter stack overflow"
-;"Transmission error"
-;
-			ALIGN	1
-NFA_RXB			FHEADER, "RXB", NFA_TXB, COMPILE
-CFA_RXB			DW	CF_RXB
-CF_RXB			PS_CHECK_OF	1, CF_RXB_PSOF ;check for underflow (PSP-2 -> Y)
-			;Receive data (PSP-2 -> Y) 
-			SCI_RX
-			BITA	#(NF|FE|PE)		;transmission error has occured
-			BNE	CF_RXB_COMERR	
-			EXG	B,X
-			SCI_RX
-			BITA	#(NF|FE|PE)		;transmission error has occured
-			BNE	CF_RXB_COMERR	
-			EXG	X,A
-			;Push data onto stack (PSP-2 in Y)
-			STD	0,Y
-			STY	PSP
-			;Done 
-			NEXT
-	
-CF_RXB_PSOF		JOB	FSCI_THROW_PSOF
-CF_RXB_COMERR		JOB	FSCI_THROW_COMERR
-
-;TX-READY ( -- u ) S12CForth extension CHECK!
-;Check if SCI is ready to transmit data
-;u:         remaining space in the TX queue [bytes]
-;Throws:
-;"Parameter stack overflow"
-;
-			ALIGN	1
-NFA_TX_READY		FHEADER, "TX-READY", NFA_RXB, COMPILE
-CFA_TX_READY		DW	CF_TX_READY
-CF_TX_READY		PS_CHECK_OF	1, CF_TX_READY_PSOF ;check for underflow (PSP-2 -> Y)
-			;Check RX queue (PSP-2 -> Y) 
-			;SCI_TX_READY
-			;Push result onto stack (PSP-2 in Y)
-			STD	0,Y
-			STY	PSP
-			;Done 
-			NEXT
-
-CF_TX_READY_PSOF	JOB	FSCI_THROW_PSOF
-
-;RX-READY ( -- u ) S12CForth extension CHECK!
-;Check if read data is available
-;u:         number of available data bytes
-;Throws:
-;"Parameter stack overflow"
-;
-			ALIGN	1
-NFA_RX_READY		FHEADER, "RX-READY", NFA_TX_READY, COMPILE
-CFA_RX_READY		DW	CF_RX_READY
-CF_RX_READY		PS_CHECK_OF	1, CF_RX_READY_PSOF ;check for underflow (PSP-2 -> Y)
-			;Check RX queue (PSP-2 -> Y) 
-			;SCI_RX_READY
-			;Push result onto stack (PSP-2 in Y)
-			STD	0,Y
-			STY	PSP
-			;Done 
-			NEXT
-
-CF_RX_READY_PSOF	JOB	FSCI_THROW_PSOF
 	
 ;BAUD! ( ud " " -- ) S12CForth extension CHECK!
 ;Sets the baud RATE to ud. As soon as the word is executed, it expects to
@@ -380,7 +238,7 @@ CF_BAUD_STORE_PSUF	JOB	FSCI_THROW_PSUF
 CF_BAUD_STORE_INVALNUM	JOB	FSCI_THROW_INVALNUM
 
 			ALIGN	1
-NFA_BAUD_STORE		FHEADER, "BAUD!", NFA_RX_READY, COMPILE
+NFA_BAUD_STORE		FHEADER, "BAUD!", FSCI_PREV_NFA, COMPILE
 CFA_BAUD_STORE		DW	CF_BAUD_STORE
 CF_BAUD_STORE		PS_CHECK_UF	2, CF_BAUD_STORE_PSUF ;check for underflow (PSP -> Y)
 			;Pull baud rate from PSP
@@ -400,7 +258,7 @@ CF_BAUD_STORE		PS_CHECK_UF	2, CF_BAUD_STORE_PSUF ;check for underflow (PSP -> Y)
 			LDX	#FSCI_INSTR_MSG
 			PRINT_STR
 			;Change baud rate (SCIBD value in D)
-			SCI_BAUD
+			SCI_SET_BAUD
 			;Wait until a " " (space) has been correctly received
 CF_BAUD_STORE_1		SCI_RX				;get one byte
 			BITA	#(NF|FE|PE) 		;check for: noise, frame errors, parity errors
