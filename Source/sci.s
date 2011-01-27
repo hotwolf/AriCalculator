@@ -249,8 +249,8 @@ SCI_INIT_3	STX	SCIBDH			;set baud rate
 ; result: A: number of entries left in TX queue
 ; SSTACK: 3 bytes
 ;         X, Y, and B are preserved 
-#macro	SCI_TX_PEAK, 0
-		SSTACK_JOBSR	SCI_TX_PEAK
+#macro	SCI_TX_PEEK, 0
+		SSTACK_JOBSR	SCI_TX_PEEK
 #emac
 	
 ;#Wait until the TX buffer is empty (convinience macro to call the SCI_TBE subroutine)
@@ -277,17 +277,16 @@ SCI_INIT_3	STX	SCIBDH			;set baud rate
 ; result: X: number of entries in RX queue
 ;         D: oldest queue entry (random value if X is zero)
 ; SSTACK: 2 bytes
-;         X and Y are preserved 
-#macro	SCI_RX_PEAK, 0
-		SSTACK_JOBSR	SCI_RX_PEAK
+;         Y is preserved 
+#macro	SCI_RX_PEEK, 0
+		SSTACK_JOBSR	SCI_RX_PEEK
 #emac
 	
 ;#Remove the oldest entry from the RX queue (convinience macro to call the SCI_RX subroutine)
 ; args:   none
-; result: A: error flags 
-;         B: received data 
+; result: none
 ; SSTACK: 4 bytes
-;         X and Y are preserved 
+;         X, Y and D are preserved 
 #macro	SCI_RX_DROP, 0
 		SSTACK_JOBSR	SCI_RX_DROP
 #emac
@@ -357,21 +356,23 @@ DONE		EQU	*
 ; SSTACK: 16 bytes
 ;         X, Y, and D are preserved 
 SCI_TX		EQU	*
-		;Save registers (TX data in B)
+		;Save registers (data in B)
 		SSTACK_PSHYA			;push Y and A onto the SSTACK
-		;Check if there is still room for one entry (data in B)
+		;Write data into the TX buffer (data in B)
+		LDY	#SCI_TXBUF
 		LDAA	SCI_TXBUF_IN
+		STAB	A,Y
+		;Check if there is room for this entry (data in B, in-index in A, TX buffer pointer in Y)
 		INCA				;increment index
 		ANDA	#SCI_TXBUF_MASK
-	        CMPA	SCI_TXBUF_OUT
+		CMPA	SCI_TXBUF_OUT
 		BEQ	SCI_TX_2 		;buffer is full (wait loop implementation)
-		;Write TX data into the buffer (data in B, new in-index in A)
-SCI_TX_1	LDY	#SCI_TXBUF	 	;copy data into TX buffer
-		STAB	A,Y
-		STAA	SCI_TXBUF_IN
+		;Update buffer
+SCI_TX_1	STAA	SCI_TXBUF_IN
 		;Enable interrupts 
 		;BSET	SCICR2, #TXIE
 		MOVB	#(TXIE|RIE|TE|RE), SCICR2
+		CLI
 		;Restore registers
 		SSTACK_PULAY			;pull A and Y from the SSTACK
 		;Done
@@ -379,10 +380,8 @@ SCI_TX_1	LDY	#SCI_TXBUF	 	;copy data into TX buffer
 		;Wait loop (data in B, new in-index in A)
 SCI_TX_2	SEI
 		CMPA	SCI_TXBUF_OUT
-		BEQ	SCI_TX_3 		;TX queue is still full
-		CLI				;leave wait loop
-		JOB	SCI_TX_1 
-SCI_TX_3	ISTACK_WAIT			;wait until any interrupt occurs
+		BNE	SCI_TX_1		;leave wait loop
+		ISTACK_WAIT			;wait until any interrupt occurs
 		JOB	SCI_TX_2		;try again
 	
 ;#Peek into the TX queue and check how much space is left
@@ -420,9 +419,9 @@ SCI_TX_WAIT_1	SEI				;disable interrupts
 		ISTACK_WAIT			;wait for an event
 		JOB	SCI_TX_WAIT_1
 		;Wait until current transmission is complete (I-bit is set)
-SCI_TX_WAIT_2	MOVB	#(TCIE|RIE|TE|RE), SCICR2  ;enable transmission complete interrupt
-		SEI
-		BRSET	SCICR1, #TC, SCI_TX_WAIT_3 ;transmission is over
+SCI_TX_WAIT_2	SEI  				;enable transmission complete interrupt
+		MOVB	#(TCIE|RIE|TE|RE), SCICR2
+		BRSET	SCISR1, #TC, SCI_TX_WAIT_3 ;transmission is over
 		ISTACK_WAIT			;wait for an event
 		JOB	SCI_TX_WAIT_2
 SCI_TX_WAIT_3	MOVB	#(RIE|TE|RE), SCICR2	;disable transmission complete interrupt
@@ -445,7 +444,8 @@ SCI_RX		EQU	*
 		CBA		 		
 		BEQ	SCI_RX_3 		;RX buffer is empty
 		;Pull entry from the RX queue (in-index in A, out-index in B)
-SCI_RX_1	LDY	#SCI_RXBUF
+SCI_RX_1	CLI				;unblock interrupts
+		LDY	#SCI_RXBUF
 		LDX	B,Y
 		ADDB	#$02			;increment out pointer
 		ANDB	#SCI_RXBUF_MASK
@@ -458,8 +458,7 @@ SCI_RX_1	LDY	#SCI_RXBUF
 		CLR	SCI_CTS_STATE		;signal "Clear To Send"
 		CLR	PTM
 		;Return result (RX data in X)
-SCI_RX_2	CLI				;unblock interrupts
-		TFR X, D			;set return value
+SCI_RX_2	TFR X, D			;set return value
 		;Restore registers (RX data in D)	
 		SSTACK_PULXY			;pull index registers from the SSTACK
 		;Done (RX data in X)
@@ -467,11 +466,9 @@ SCI_RX_2	CLI				;unblock interrupts
 		;Wait loop (in-index in A, out-index in B)
 SCI_RX_3	SEI
 		CMPB	SCI_RXBUF_IN
-		BEQ	SCI_RX_4 		;RX buffer is still empty
-		CLI				;leave wait loop
-		JOB	SCI_RX_1	
-SCI_RX_4 	ISTACK_WAIT			;wait until any interrupt occurs
-		JOB	SCI_TX_3		;try again
+		BNE	SCI_RX_1		;leave wait loop
+		ISTACK_WAIT			;wait until any interrupt occurs
+		JOB	SCI_RX_3
 
 ;#Peek into the RX queue and check how bytes have been received
 ; args:   none
@@ -479,11 +476,11 @@ SCI_RX_4 	ISTACK_WAIT			;wait until any interrupt occurs
 ;         D: oldest queue entry (random value if X is zero)
 ; SSTACK: 2 bytes
 ;         X and Y are preserved 
-SCI_RX_PEAK	EQU	*
+SCI_RX_PEEK	EQU	*
 		;Check if RX queue is empty
 		LDD	SCI_RXBUF_IN
 		SBA		 		
-		BEQ	SCI_RX_PEAK_1 		;RX_QUEUE is empty
+		BEQ	SCI_RX_PEEK_1 		;RX_QUEUE is empty
 		;Read oldest RX data entry (in-index - out-index in A, out-index in B)
 		ANDA	#SCI_RXBUF_MASK		;number of RX entries -> A
 		LSLA
@@ -491,7 +488,7 @@ SCI_RX_PEAK	EQU	*
 		LDX	B,X
 		EXG	A, D
 		;Return result (number of RX entries in D, oldest queue entry in X
-SCI_RX_PEAK_1	EXG	D, X
+SCI_RX_PEEK_1	EXG	D, X
 		;Done
 		SSTACK_RTS
 
@@ -499,7 +496,7 @@ SCI_RX_PEAK_1	EXG	D, X
 ; args:   none
 ; result: none
 ; SSTACK: 4 bytes
-;         X and Y are preserved 
+;         X, Y and D are preserved 
 SCI_RX_DROP	EQU	*
 		;Save registers
 		SSTACK_PSHD			;push accu D onto the SSTACK	
@@ -563,7 +560,8 @@ SCI_ISR_TX	EQU	*
 		;Done
 SCI_ISR_TX_1	ISTACK_RTI
 		;TX buffer is empty
-SCI_ISR_TX_2	BCLR	SCICR2, #TXIE	;disable TX interrupts
+SCI_ISR_TX_2	;BCLR	SCICR2, #TXIE	;disable TX interrupts
+		MOVB	#(RIE|TE|RE), SCICR2	;disable transmission complete interrupt
 		JOB	SCI_ISR_TX_1
 
 ;#Transmit/Receive ISR (Common ISR entry point for the SCI)
