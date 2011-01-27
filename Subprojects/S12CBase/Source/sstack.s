@@ -89,7 +89,7 @@ SSTACK_VARS_END		EQU	*
 
 ;#Allocate local memory
 #macro	SSTACK_ALLOC, 1
-			LEAS	-\1,X
+			LEAS	-\1,SP
 			SSTACK_POSTPUSH
 #emac
 
@@ -191,7 +191,7 @@ SSTACK_VARS_END		EQU	*
 
 ;#Deallocate local memory
 #macro	SSTACK_DEALLOC, 1
-			LEAS	\1,X
+			LEAS	\1,SP
 			SSTACK_POSTPULL
 #emac
 	
@@ -301,24 +301,36 @@ SSTACK_VARS_END		EQU	*
 ;#Return from subroutine	
 #macro	SSTACK_RTS, 0
 			CPS	#SSTACK_BOTTOM-2
-			BHI	SSTACK_UF
+			BHI	UF   ;SSTACK_UF
 			RTS
+
+			JOB	DONE
+UF			BGND
+DONE			EQU	*
 #emac
 
 ;#Return from subroutine and flag no error (carry cleared)	
 #macro	SSTACK_RTS_NOERR, 0
 			CPS	#SSTACK_BOTTOM-2
-			BHI	SSTACK_UF
+			BHI	UF   ;SSTACK_UF
 			CLC
 			RTS
+
+			JOB	DONE
+UF			BGND
+DONE			EQU	*
 #emac
 
 ;#Return from subroutine and flag an error (carry set)	
 #macro	SSTACK_RTS_ERR, 0
 			CPS	#SSTACK_BOTTOM-2
-			BHI	SSTACK_UF
+			BHI	UF   ;SSTACK_UF
 			SEC
 			RTS
+
+			JOB	DONE
+UF			BGND
+DONE			EQU	*
 #emac
 
 ;#Conclude push operation	
@@ -330,7 +342,11 @@ SSTACK_VARS_END		EQU	*
 ;#Conclude pull operation	
 #macro	SSTACK_POSTPULL, 0
 			CPS	#SSTACK_BOTTOM
-			BHI	SSTACK_UF
+			BHI	UF   ;SSTACK_UF
+
+			JOB	DONE
+UF			BGND
+DONE			EQU	*
 #emac
 	
 ;###############################################################################
