@@ -381,6 +381,7 @@ SCI_TX_1	STAA	SCI_TXBUF_IN
 SCI_TX_2	SEI
 		CMPA	SCI_TXBUF_OUT
 		BNE	SCI_TX_1		;leave wait loop
+		MOVB	#(TXIE|RIE|TE|RE), SCICR2
 		ISTACK_WAIT			;wait until any interrupt occurs
 		JOB	SCI_TX_2		;try again
 	
@@ -586,7 +587,7 @@ SCI_ISR_RXTX	EQU	*
 SCI_ISR_RX	LDAB	SCIDRL			;load receive data into accu B (clears flags)
 		;Check for RX errors (status flags in A, RX data in B)
 		BITA	#(NF|FE|PE) 		;check for: noise, frame errors, parity errors
-		BEQ	SCI_ISR_RX_4		;RX error
+		BNE	SCI_ISR_RX_4		;RX error
 		SCI_STOP_BD			;stop baud rate detection	
 		;Only maintain relevant error flags (status flags in A, RX data in B)
 SCI_ISR_RX_1	ANDA	#(OR|NF|FE|PE)
