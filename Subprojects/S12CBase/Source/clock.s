@@ -59,11 +59,9 @@ CLOCK_VARS_END		EQU	*
 #macro	CLOCK_INIT, 0
 		MOVB	#$FF, CRGFLG 					;clear all flags
 		MOVW	#CLOCK_PLL_CFG, SYNR				;set PLL frequency (SYNR, REFDV)
-#ifdef	DEBUG
 		MOVW	#(((RTIE|LOCKIE)<<8)|COPWAI), CRGINT
-#else
-		MOVW	#(((RTIE|LOCKIE)<<8)|CWAI|COPWAI), CRGINT
-#endif                                                                  ;CRG configuration:
+		;MOVW	#(((RTIE|LOCKIE)<<8)|CWAI|COPWAI), CRGINT
+                                                                        ;CRG configuration:
 									; real-time interrupt enabled		(RTIE)
 									; PLL lock interrupt enabled		(LOCKIE)
 									; no self-clock mode interrupt		(~SCMIE)
