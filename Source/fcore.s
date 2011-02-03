@@ -373,8 +373,8 @@ FCORE_ACCEPT_6		STY	FCORE_ACCEPT_CHAR_LIMIT,SP
 			LED_BUSY_ON
 			SSTACK_PULDXY
 			SSTACK_RTS
-			;Communication error (char count in Y)
-FCORE_ACCEPT_7		EQU	FCORE_ACCEPT_6
+			;Communication error (char count in Y, error code in X)
+FCORE_ACCEPT_7		EQU	FCORE_ACCEPT_6	
 
 ;#Read a byte character from the SCI
 ; args:   none
@@ -392,10 +392,10 @@ FCORE_EKEY		EQU	*
 			BITA	#(NF|FE|PE)
 			BNE	FCORE_EKEY_3 	;RX error
 			;Return data (data in B)
-FCORE_EKEY_1		CLRA
+			CLRA
 			LDX	#$0000
 			;Done
-			SSTACK_RTS
+FCORE_EKEY_1		SSTACK_RTS
 			;Buffer overflow
 FCORE_EKEY_2		LDX	#FEXCPT_EC_COMOF
 			JOB	FCORE_EKEY_1
@@ -1691,7 +1691,7 @@ CF_DOT_QUOTE_RT		LDX	IP			;print string at IP
 ;"Divide by zero"
 ;
 			ALIGN	1
-NFA_SLASH		FHEADER, "/", NFA_DOT_QUOTE, IMMEDIATE
+NFA_SLASH		FHEADER, "/", NFA_DOT_QUOTE, COMPILE
 CFA_SLASH		DW	CF_SLASH
 CF_SLASH		PS_CHECK_UF	2, CF_SLASH_PSUF ;check for underflow (PSP -> Y)
 			LDD	2,Y			 ;n1   -> D
@@ -3992,8 +3992,14 @@ CF_QUIT_UDEFWORD	LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message
  			;Undefined word (PSP+2 in Y)
 CF_QUIT_DICTOF		LDY	#CF_QUIT_MSG_DICTOF			;print standard error message	
 			JOB	CF_QUIT_ERROR
- 			;Communication problem (PSP+2 in Y)
-CF_QUIT_COMERR		TFR	X, Y					;print standard error message	
+ 			;Communication problem (PSP+2 in Y, error code in X)
+CF_QUIT_COMERR		TFR	X, Y
+			CPX	#-((FEXCPT_MSGTAB_END-FEXCPT_MSGTAB_START)/2) 	;check for standard error code
+			BLO	CF_QUIT_ERROR					;custom error message
+			TFR	X,D
+			LDX     #FEXCPT_MSGTAB_END 				;look-up standard error message
+			LSLD
+			LDY	D,X
 			;JOB	CF_QUIT_ERROR
 CF_QUIT_ERROR		ERROR_PRINT
 			PS_RESET
@@ -6187,7 +6193,7 @@ CFA_BRACKET_COMPILE	DW	CF_POSTPONE
 ;Execution: ( "ccc<eol>"-- )
 ;Parse and discard the remainder of the parse area. \ is an immediate word.
 			ALIGN	1
-NFA_BACKSLASH		FHEADER, "\", NFA_BRACKET_COMPILE, COMPILE ;"
+NFA_BACKSLASH		FHEADER, "\", NFA_BRACKET_COMPILE, IMMEDIATE ;"
 CFA_BACKSLASH		DW	CF_BACKSLASH
 CF_BACKSLASH		MOVW	NUMBER_TIB, TO_IN ;set >IN do the last character 
 			NEXT

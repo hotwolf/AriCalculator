@@ -196,7 +196,7 @@ FEXCPT_THROW		EQU	*
 FEXCPT_THROW_CESF	;Corrupt exception stack frame (error code in D)
 FEXCPT_THROW_1		LDY	#FEXCPT_EC_CESF
 			JOB	FEXCPT_THROW_4 					;print error message
-			;Uncought exception, check for special error codes
+			;Uncought exception, check for special error codes (error code in D)
 FEXCPT_THROW_2		CPD	#FEXCPT_EC_ABORT 				;check for ABORT				
 			BEQ	FEXCPT_THROW_6
 			CPD	#FEXCPT_EC_ABORTQ 				;check for ABORT"				
@@ -442,7 +442,7 @@ CF_CATCH_CESF		JOB	FEXCPT_THROW_CESF		;corrupt exception stack frame
 ;"Parameter stack underflow"
 ;
 			ALIGN	1
-NFA_THROW		FHEADER, "THROW", NFA_CATCH, COMPILE
+NFA_THROW		FHEADER, "THROW", NFA_FATAL_QUOTE, COMPILE
 CFA_THROW		DW	CF_THROW
 CF_THROW		PS_CHECK_UF	1, CF_THROW_PSUF	;PS for underflow (RSP -> Y)
 			LDD	2,Y+				;check if TOS is 0
@@ -475,7 +475,7 @@ CF_THROW_PSUF		JOB	FEXCPT_THROW_PSUF
 ;"Empty message string"
 ;
 			ALIGN	1
-NFA_ERROR_QUOTE		FHEADER, 'ERROR"', NFA_THROW, IMMEDIATE ;"
+NFA_ERROR_QUOTE		FHEADER, 'ERROR"', NFA_CATCH, IMMEDIATE ;"
 CFA_ERROR_QUOTE		DW	CF_ERROR_QUOTE 			
 CF_ERROR_QUOTE		;Parse quote
 			LDAA	#$22 				;double quote
@@ -601,7 +601,7 @@ CF_FATAL_QUOTE_3	ADDD	#1				;check for dictionary overflow
 CF_FATAL_QUOTE_PSOF	JOB	FEXCPT_THROW_PSOF			
 CF_FATAL_QUOTE_DICTOF	JOB	FEXCPT_THROW_DICTOF			
 CF_FATAL_QUOTE_STROF	JOB	FEXCPT_THROW_STROF		
-xsCF_FATAL_QUOTE_NOMSG	JOB	FEXCPT_THROW_NOMSG		
+CF_FATAL_QUOTE_NOMSG	JOB	FEXCPT_THROW_NOMSG		
 
 CFA_FATAL_QUOTE_RT	EQU	CFA_ERROR_QUOTE_RT
 	
