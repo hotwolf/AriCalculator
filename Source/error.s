@@ -152,7 +152,7 @@ ERROR_INIT_UNKNOWN	LDY	#ERROR_MSG_UNKNOWN
 			ERROR_PRINT 			;print error message (SSTACK: 18 bytes)
 			JOB	ERROR_INIT_DONE
 	
-ERROR_INIT_DONE		EQU	*
+ERROR_INIT_DONE		PRINT_WAIT			;wait until message is printed	
 #emac
 	
 ;#Print error message
@@ -166,6 +166,7 @@ ERROR_INIT_DONE		EQU	*
 ;#Perform a reset due to a fatal error
 ;# Args: message pointer	
 #macro	ERROR_RESTART, 1
+			BGND
 			LDD	#\1
 			JOB	ERROR_RESTART
 #emac

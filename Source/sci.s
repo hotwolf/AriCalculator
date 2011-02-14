@@ -485,9 +485,9 @@ SCI_RX_PEEK	EQU	*
 		ANDA	#SCI_RXBUF_MASK				;number of RX entries -> A
 		LSLA
 		LDX	#SCI_RXBUF 				;oldest RX entry -> X
-		LDX	B,X
-SCI_RX_PEEK_1	;Return result (number of RX entries in A, oldest queue entry in X
-		EXG	A, D
+		LDX	B,X 
+   		;Return result (number of RX entries in A, oldest queue entry in X
+SCI_RX_PEEK_1	EXG	A, D
 		EXG	D, X
 		;Done
 		SSTACK_RTS

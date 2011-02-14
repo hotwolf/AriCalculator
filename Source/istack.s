@@ -103,13 +103,18 @@ ISTACK_VARS_END		EQU	*
 #macro	ISTACK_WAIT, 0
 			;Verify SP before runnung ISRs
 			CPS	#ISTACK_TOP+ISTACK_FRAME_SIZE
-			BLO	ISTACK_OF
+			BLO	OF ;ISTACK_OF
 			CPS	#ISTACK_BOTTOM
-			BHI	ISTACK_UF
+			BHI	UF ;ISTACK_UF
 			;Wait for the next interrupt
 			;COP_SERVICE			;already taken care of by WAI
 			CLI		
 			WAI
+
+			JOB	DONE
+OF			BGND	
+UF			BGND
+DONE			EQU	*
 #emac
 	
 ;#Return from interrupt
@@ -121,8 +126,8 @@ ISTACK_VARS_END		EQU	*
 			BHI	UF
 			;End ISR
 			RTI
-OF			JOB	ISTACK_OF	
-UF			JOB	ISTACK_UF	
+OF			BGND ;JOB	ISTACK_OF	
+UF			BGND ;JOB	ISTACK_UF	
 #emac	
 
 ;###############################################################################
