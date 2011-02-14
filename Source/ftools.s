@@ -234,7 +234,7 @@ CF_QUESTION		PS_PULL_X	CF_QUESTION_PSUF ;check for underflow  (PSP -> Y)
 			PRINT_SPC			;print space
 			LDX	0,X			;print variable
 			LDAB	BASE+1
-			PRINT_UINT			;args: X:integer, B:base (SSTACK: 24 bytes)
+			PRINT_SINT			;args: X:integer, B:base (SSTACK: 24 bytes)
 			NEXT
 
 CF_QUESTION_PSUF	JOB	FTOOLS_THROW_PSUF

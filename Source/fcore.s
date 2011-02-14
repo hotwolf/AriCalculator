@@ -373,8 +373,8 @@ FCORE_ACCEPT_6		STY	FCORE_ACCEPT_CHAR_LIMIT,SP
 			LED_BUSY_ON
 			SSTACK_PULDXY
 			SSTACK_RTS
-			;Communication error (char count in Y)
-FCORE_ACCEPT_7		EQU	FCORE_ACCEPT_6
+			;Communication error (char count in Y, error code in X)
+FCORE_ACCEPT_7		EQU	FCORE_ACCEPT_6	
 
 ;#Read a byte character from the SCI
 ; args:   none
@@ -392,10 +392,10 @@ FCORE_EKEY		EQU	*
 			BITA	#(NF|FE|PE)
 			BNE	FCORE_EKEY_3 	;RX error
 			;Return data (data in B)
-FCORE_EKEY_1		CLRA
+			CLRA
 			LDX	#$0000
 			;Done
-			SSTACK_RTS
+FCORE_EKEY_1		SSTACK_RTS
 			;Buffer overflow
 FCORE_EKEY_2		LDX	#FEXCPT_EC_COMOF
 			JOB	FCORE_EKEY_1
@@ -830,11 +830,11 @@ FCORE_PARSE_4		LDX	#$0000
 ;			+--------+--------+
 ; result: Y:	Status (0: everything ok, 2:fill char, 4:not a number) 	
 ;         Stack:        +--------+--------+
-;			|      Base       | SP+2
+;			|      Base       | SP+0
 ;			+--------+--------+
-;			|   Char Pointer  | SP+4
+;			|   Char Pointer  | SP+2
 ;			+--------+--------+
-;			|  New Result MSW | SP+6
+;			|  New Result MSW | SP+4
 ;			+--------+--------+
 ;			|  New Result LSW | SP+8
 ;			+--------+--------+
@@ -976,15 +976,15 @@ FCORE_TO_BODY_1		SSTACK_PULD
 
 ;#Convert a terminated string into a number
 ; args:   Stack:        +--------+--------+
-;			|      Base       | SP+0
+;			|      Base       | SP+2
 ;			+--------+--------+
-;			|   Char Pointer  | SP+2
+;			|   Char Pointer  | SP+4
 ;			+--------+--------+
-;			|    Result MSW   | SP+4
+;			|    Result MSW   | SP+6
 ;			+--------+--------+
-;			|    Result LSW   | SP+6
+;			|    Result LSW   | SP+8
 ;			+--------+--------+
-;			|   String Size   | SP+8
+;			|   String Size   | SP+10
 ;			+--------+--------+
 ; result: Y:     Status (0: everything ok, 2:overflow) 	
 ;         Stack:        +--------+--------+
@@ -1007,7 +1007,9 @@ FCORE_TO_NUMBER_RESHI	EQU	6
 FCORE_TO_NUMBER_RESLO	EQU	8
 FCORE_TO_NUMBER_CHRCNT	EQU	10
 			;Process one character 
-FCORE_TO_NUMBER_1	SSTACK_JOBSR	FCORE_PROC_DIGIT
+FCORE_TO_NUMBER_1	SSTACK_PULX
+			SSTACK_JOBSR	FCORE_PROC_DIGIT
+			SSTACK_PSHX
 			JMP	[FCORE_TO_NUMBER_TAB,Y]
 
 FCORE_TO_NUMBER_TAB	DW	FCORE_TO_NUMBER_2 		;process next digit
@@ -1689,7 +1691,7 @@ CF_DOT_QUOTE_RT		LDX	IP			;print string at IP
 ;"Divide by zero"
 ;
 			ALIGN	1
-NFA_SLASH		FHEADER, "/", NFA_DOT_QUOTE, IMMEDIATE
+NFA_SLASH		FHEADER, "/", NFA_DOT_QUOTE, COMPILE
 CFA_SLASH		DW	CF_SLASH
 CF_SLASH		PS_CHECK_UF	2, CF_SLASH_PSUF ;check for underflow (PSP -> Y)
 			LDD	2,Y			 ;n1   -> D
@@ -3990,8 +3992,14 @@ CF_QUIT_UDEFWORD	LDY	#CF_QUIT_MSG_UDEFWORD			;print standard error message
  			;Undefined word (PSP+2 in Y)
 CF_QUIT_DICTOF		LDY	#CF_QUIT_MSG_DICTOF			;print standard error message	
 			JOB	CF_QUIT_ERROR
- 			;Communication problem (PSP+2 in Y)
-CF_QUIT_COMERR		TFR	X, Y					;print standard error message	
+ 			;Communication problem (PSP+2 in Y, error code in X)
+CF_QUIT_COMERR		TFR	X, Y
+			CPX	#-((FEXCPT_MSGTAB_END-FEXCPT_MSGTAB_START)/2) 	;check for standard error code
+			BLO	CF_QUIT_ERROR					;custom error message
+			TFR	X,D
+			LDX     #FEXCPT_MSGTAB_END 				;look-up standard error message
+			LSLD
+			LDY	D,X
 			;JOB	CF_QUIT_ERROR
 CF_QUIT_ERROR		ERROR_PRINT
 			PS_RESET
@@ -5286,7 +5294,7 @@ CF_AGAIN		EQU	CF_LITERAL
 CFA_AGAIN_RT		DW	CF_AGAIN_RT
 CF_AGAIN_RT		JUMP_NEXT
 
-;C" CHECK!
+;C"
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "ccc<quote>" -- )
 ;Parse ccc delimited by " (double-quote) and append the run-time semantics given
@@ -5303,7 +5311,7 @@ CF_AGAIN_RT		JUMP_NEXT
 ;"Parsed string overflow"
 ;
 			ALIGN	1
-NFA_C_QUOTE		FHEADER, 'C"', NFA_AGAIN, COMPILE ;"
+NFA_C_QUOTE		FHEADER, 'C"', NFA_AGAIN, IMMEDIATE ;"
 CFA_C_QUOTE		DW	CF_C_QUOTE
 CF_C_QUOTE		COMPILE_ONLY	CF_C_QUOTE_COMPONLY ;ensure that compile mode is on
 			;Parse quote
@@ -5431,11 +5439,11 @@ CFA_CONVERT		DW	CF_CONVERT
 CF_CONVERT		PS_CHECK_UF	3, CF_CONVERT_PSUF	;(PSP -> Y)
 			;Allocate temporary memory (PSP in Y)
 			SSTACK_ALLOC	10
-			MOVW	BASE, 0,X
-			MOVW	0,Y,  2,X
-			MOVW	2,Y,  4,X
-			MOVW	4,Y,  6,X
-			MOVW	#$FFFF, 10,X
+			MOVW	BASE,   0,X
+			MOVW	0,Y,    2,X
+			MOVW	2,Y,    4,X
+			MOVW	4,Y,    6,X
+			MOVW	#$FFFF, 8,X
 			;Convert to number
 			SSTACK_JOBSR	FCORE_TO_NUMBER
 			;Return results
@@ -5844,7 +5852,7 @@ CF_QUERY		;Query command line
 
 CF_QUERY_COMERR		JMP	0,X
 	
-;REFILL ( -- flag ) CHECK!
+;REFILL ( -- flag )
 ;Attempt to fill the input buffer from the input source, returning a true flag;if successful.
 ;When the input source is the user input device, attempt to receive input into
 ;the terminal input buffer. If successful, make the result the input buffer, set
@@ -5865,7 +5873,7 @@ CF_REFILL_COMERR	JMP	0,X
 
 NFA_REFILL		FHEADER, "REFILL", NFA_QUERY, COMPILE
 CFA_REFILL		DW	CF_REFILL
-CF_REFILL		PS_CHECK_UF	1, CF_REFILL_PSOF 	;check for PS overflow (PSP-2 -> Y)
+CF_REFILL		PS_CHECK_OF	1, CF_REFILL_PSOF 	;check for PS overflow (PSP-2 -> Y)
 			;Query command line
 			SSTACK_JOBSR	FCORE_QUERY   		;(SSTACK: 18 bytes)
 			TBNE	X, CF_QUERY_COMERR   		;communication error
@@ -6185,7 +6193,7 @@ CFA_BRACKET_COMPILE	DW	CF_POSTPONE
 ;Execution: ( "ccc<eol>"-- )
 ;Parse and discard the remainder of the parse area. \ is an immediate word.
 			ALIGN	1
-NFA_BACKSLASH		FHEADER, "\", NFA_BRACKET_COMPILE, COMPILE ;"
+NFA_BACKSLASH		FHEADER, "\", NFA_BRACKET_COMPILE, IMMEDIATE ;"
 CFA_BACKSLASH		DW	CF_BACKSLASH
 CF_BACKSLASH		MOVW	NUMBER_TIB, TO_IN ;set >IN do the last character 
 			NEXT

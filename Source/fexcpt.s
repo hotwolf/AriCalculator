@@ -196,7 +196,7 @@ FEXCPT_THROW		EQU	*
 FEXCPT_THROW_CESF	;Corrupt exception stack frame (error code in D)
 FEXCPT_THROW_1		LDY	#FEXCPT_EC_CESF
 			JOB	FEXCPT_THROW_4 					;print error message
-			;Uncought exception, check for special error codes
+			;Uncought exception, check for special error codes (error code in D)
 FEXCPT_THROW_2		CPD	#FEXCPT_EC_ABORT 				;check for ABORT				
 			BEQ	FEXCPT_THROW_6
 			CPD	#FEXCPT_EC_ABORTQ 				;check for ABORT"				

@@ -189,7 +189,7 @@ CF_EKEY_TO_CHAR_1	STX	0,Y
 CF_EKEY_TO_CHAR_PSUF	JOB	FFACIL_THROW_PSUF
 CF_EKEY_TO_CHAR_PSOF	JOB	FFACIL_THROW_PSOF
 	
-;EKEY? ( -- flag ) CHECK!
+;EKEY? ( -- flag )
 ;If a keyboard event is available, return true. Otherwise return false. The
 ;event shall be returned by the next execution of EKEY. After EKEY? returns with
 ;a value of true, subsequent executions of EKEY? prior to the execution of KEY,
