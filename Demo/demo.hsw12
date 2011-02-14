@@ -2,98 +2,64 @@ $session = {
              'gui' => {
                         'source_code' => {
                                            'scrollpos_x' => '0',
-                                           'search_string' => 'MAIN_CODE_START',
-                                           'goto_string' => 'MAIN_CODE_START',
-                                           'scrollpos_y' => '0.0187196341811946',
-                                           'follow_pc' => '1',
-                                           'geometry' => '641x263+382+182',
+                                           'search_string' => '',
+                                           'goto_string' => '',
+                                           'scrollpos_y' => '0',
+                                           'follow_pc' => '0',
+                                           'geometry' => '295x508+2277+441',
                                            'state' => 'normal'
                                          },
                         'terminal' => {
-                                        'input_string' => '  ',
+                                        'input_string' => '',
                                         'macro5' => {
-                                                      'sequence' => 'stop
-load
-[upload paged]
-usehbr
-nobr
-',
-                                                      'name' => 'Load RAM'
+                                                      'sequence' => '',
+                                                      'name' => 'Macro 5'
                                                     },
                                         'macro7' => {
                                                       'sequence' => '',
-                                                      'name' => ''
+                                                      'name' => 'Macro 7'
                                                     },
                                         'macro6' => {
                                                       'sequence' => '',
-                                                      'name' => ''
+                                                      'name' => 'Macro 6'
                                                     },
                                         'macro3' => {
-                                                      'sequence' => 'stop
-mdw [e VEC_RESET_EXT 2h]
-PC [l VEC_RESET_EXT 2h]
-usehbr
-nobr',
-                                                      'name' => 'Restart'
+                                                      'sequence' => '',
+                                                      'name' => 'Macro 3'
                                                     },
                                         'state' => 'normal',
                                         'macro2' => {
-                                                      'sequence' => 'stop
-[recompile]
-load
-[upload paged]
-usehbr
-nobr
-',
-                                                      'name' => 'Update'
+                                                      'sequence' => '',
+                                                      'name' => 'Macro 2'
                                                     },
                                         'macro4' => {
-                                                      'sequence' => 'usehbr
-nobr
-',
-                                                      'name' => 'NOBR'
+                                                      'sequence' => '',
+                                                      'name' => 'Macro 4'
                                                     },
-                                        'geometry' => '383x688+-1+38',
+                                        'geometry' => '295x508+1970+441',
                                         'macro8' => {
                                                       'sequence' => '',
-                                                      'name' => ''
+                                                      'name' => 'Macro 8'
                                                     },
                                         'macro1' => {
-                                                      'sequence' => 'fbulk
-fload
-[upload linear]
-',
-                                                      'name' => 'Program flash'
+                                                      'sequence' => '',
+                                                      'name' => 'Macro 1'
                                                     }
                                       },
                         'variables' => {
-                                         'width_string' => '2',
+                                         'width_string' => '',
                                          'scrollpos_x' => '0',
-                                         'format' => 'Stacks:
-=======
-SSTACK:  20:[l SSTACK_BOTTOM-20 1h] ([e SSTACK_BOTTOM-20 2h])<-FTMP3  SP=[l SSTACK_SP 2h]
-         19:[l SSTACK_BOTTOM-19 1h] ([e SSTACK_BOTTOM-19 2h])<-FTMP2
-         18:[l SSTACK_BOTTOM-18 1h] ([e SSTACK_BOTTOM-18 2h])<-FTMP1
-         17:[l SSTACK_BOTTOM-17 1h] ([e SSTACK_BOTTOM-17 2h])<-FTMP0
-         16:[l SSTACK_BOTTOM-16 1h] ([e SSTACK_BOTTOM-16 2h])<-RTMP5
-         15:[l SSTACK_BOTTOM-15 1h] ([e SSTACK_BOTTOM-15 2h])<-RTMP4
-         14:[l SSTACK_BOTTOM-14 1h] ([e SSTACK_BOTTOM-14 2h])<-RTMP3
-         13:[l SSTACK_BOTTOM-13 1h] ([e SSTACK_BOTTOM-13 2h])<-RTMP2 <-TMP3
-         12:[l SSTACK_BOTTOM-12 1h] ([e SSTACK_BOTTOM-12 2h])<-RTMP1 <-TMP2
-         11:[l SSTACK_BOTTOM-11 1h] ([e SSTACK_BOTTOM-11 2h])<-RTMP0 <-TMP1
-         10:[l SSTACK_BOTTOM-10 1h] ([e SSTACK_BOTTOM-10 2h])<-CNT   <-TMP0
-          9:[l SSTACK_BOTTOM-09 1h] ([e SSTACK_BOTTOM-09 2h])<-BASE
-          8:[l SSTACK_BOTTOM-08 1h] ([e SSTACK_BOTTOM-08 2h])<-A     <-CNT
-          7:[l SSTACK_BOTTOM-07 1h] ([e SSTACK_BOTTOM-07 2h])<-B
-          6:[l SSTACK_BOTTOM-06 1h] ([e SSTACK_BOTTOM-06 2h])<-X
-          5:[l SSTACK_BOTTOM-05 1h] ([e SSTACK_BOTTOM-05 2h])
-          4:[l SSTACK_BOTTOM-04 1h] ([e SSTACK_BOTTOM-04 2h])<-Y
-          3:[l SSTACK_BOTTOM-03 1h] ([e SSTACK_BOTTOM-03 2h])
-          2:[l SSTACK_BOTTOM-02 1h] ([e SSTACK_BOTTOM-02 2h])<-Return address
-          1:[l SSTACK_BOTTOM-01 1h] ([e SSTACK_BOTTOM-01 2h])
-
-ISTACK: IDLE=[e ISTACK_SP_IDLE 2h] RUN=[e ISTACK_SP_RUN 2h] ISR=[e ISTACK_SP_ISR 2h]
-
+                                         'format' => '
+Parameter stack:
+================
+8:[l PS_EMPTY-08 1h] ([e PS_EMPTY-08 2h])  PSP=[l PSP 2h]
+7:[l PS_EMPTY-07 1h] ([e PS_EMPTY-07 2h])
+6:[l PS_EMPTY-06 1h] ([e PS_EMPTY-06 2h])
+5:[l PS_EMPTY-05 1h] ([e PS_EMPTY-05 2h])
+4:[l PS_EMPTY-04 1h] ([e PS_EMPTY-04 2h])
+3:[l PS_EMPTY-03 1h] ([e PS_EMPTY-03 2h])
+2:[l PS_EMPTY-02 1h] ([e PS_EMPTY-02 2h])
+1:[l PS_EMPTY-01 1h] ([e PS_EMPTY-01 2h])
 
 IO:
 ===
@@ -116,11 +82,6 @@ TIMER: PT:[l PTIT 1b]
   RX_NE---------+|
   RX_PE----------+
 
-Setup:
-======
-MODE=[l MODE  1b]
-INITRG=[l INITRG  1h]
-INITRM=[l INITRM  1h]
 
 CRG:
 ====
@@ -159,52 +120,52 @@ COPCTL:   [l CRGINT 1b]
 FORBYP:   [l FORBYP 1b]  
   RTIBYP--^
 ',
-                                         'addr_string' => '$FEB3',
-                                         'data_string' => '$E240',
+                                         'addr_string' => '',
+                                         'data_string' => '',
                                          'scrollpos_y' => '0',
-                                         'geometry' => '646x258+382+467',
+                                         'geometry' => '295x150+2584+441',
                                          'state' => 'normal'
                                        },
                         'control' => {
                                        'go_addr' => '',
-                                       'bkp2' => '$310c',
+                                       'bkp2' => '',
                                        'ppage1' => '',
                                        'ppage2' => '',
                                        'trace_steps' => '4',
-                                       'geometry' => '326x161+382+952',
-                                       'bkp1' => '$310e',
+                                       'geometry' => '295x150+2584+799',
+                                       'bkp1' => '',
                                        'state' => 'normal'
                                      },
                         'registers' => {
-                                         'ppage_read_string' => '00',
-                                         'ccr_s_write_value' => '1',
-                                         'pc_write_string' => '$d0bd',
-                                         'ccr_x_write_value' => '1',
+                                         'ppage_read_string' => '??',
+                                         'ccr_s_write_value' => '0',
+                                         'pc_write_string' => '',
+                                         'ccr_x_write_value' => '0',
                                          'state' => 'normal',
-                                         'x_read_string' => '0000',
-                                         'a_read_string' => '00',
-                                         'ccr_i_write_value' => '1',
+                                         'x_read_string' => '????',
+                                         'a_read_string' => '??',
+                                         'ccr_i_write_value' => '0',
                                          'ppage_write_string' => '',
-                                         'geometry' => '317x159+708+953',
-                                         'a_write_string' => '$10',
+                                         'geometry' => '295x150+2584+620',
+                                         'a_write_string' => '',
                                          'x_write_string' => '',
                                          'ccr_h_write_value' => '0',
-                                         'b_read_string' => '00',
+                                         'b_read_string' => '??',
                                          'sp_write_string' => '',
-                                         'y_read_string' => '0000',
+                                         'y_read_string' => '????',
                                          'ccr_z_write_value' => '0',
                                          'ccr_v_write_value' => '0',
-                                         'sp_read_string' => '1000',
+                                         'sp_read_string' => '????',
                                          'b_write_string' => '',
                                          'ccr_n_write_value' => '0',
                                          'ccr_c_write_value' => '0',
-                                         'ccr_read_string' => 'SX.I....',
+                                         'ccr_read_string' => '????????',
                                          'y_write_string' => '',
-                                         'pc_read_string' => 'D0BD'
+                                         'pc_read_string' => '????'
                                        },
                         'main' => {
-                                    'geometry' => '379x16+1+0',
-                                    'connect' => '0',
+                                    'geometry' => '909x30+1970+382',
+                                    'connect' => '1',
                                     'state' => 'normal'
                                   }
                       },
