@@ -107,9 +107,9 @@ ISTACK_VARS_END		EQU	*
 			CPS	#ISTACK_BOTTOM
 			BHI	UF ;ISTACK_UF
 			;Wait for the next interrupt
-			;COP_SERVICE			;already taken care of by WAI
+			COP_SERVICE			;already taken care of by WAI
 			CLI		
-			WAI
+			;WAI
 
 			JOB	DONE
 OF			BGND	
