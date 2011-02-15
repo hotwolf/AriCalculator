@@ -92,7 +92,7 @@ FFACIL_TABS_END		EQU	*
 ;cannot be performed on the user output device with the specified parameters.
 NFA_AT_X_Y	EQU	FFACIL_PREV_NFA
 
-;KEY? ( -- flag ) CHECK!
+;KEY? ( -- flag )
 ;If a character is available, return true. Otherwise, return false. If
 ;non-character keyboardevents are available before the first valid character,
 ;they are discarded and are subsequently unavailable. The character shall be
