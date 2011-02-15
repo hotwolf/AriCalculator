@@ -465,7 +465,8 @@ SCI_RX_2	TFR X, D					;set return value
 		SSTACK_RTS
 		;Wait loop (in-index in A, out-index in B)
 SCI_RX_3	SEI
-		CMPB	SCI_RXBUF_IN
+		LDAA	SCI_RXBUF_IN
+		CBA
 		BNE	SCI_RX_1				;leave wait loop
 		ISTACK_WAIT					;wait until any interrupt occurs
 		JOB	SCI_RX_3
@@ -483,7 +484,7 @@ SCI_RX_PEEK	EQU	*
 		BEQ	SCI_RX_PEEK_1 				;RX_QUEUE is empty
 		;Read oldest RX data entry (in-index - out-index in A, out-index in B)
 		ANDA	#SCI_RXBUF_MASK				;number of RX entries -> A
-		LSLA
+		LSRA
 		LDX	#SCI_RXBUF 				;oldest RX entry -> X
 		LDX	B,X 
    		;Return result (number of RX entries in A, oldest queue entry in X
@@ -504,9 +505,17 @@ SCI_RX_DROP	EQU	*
 		LDD	SCI_RXBUF_IN
 		CBA		 		
 		BEQ	SCI_RX_DROP_1 				;RX_QUEUE is empty
-		;Incremaent out-index (out-index in B) 
+		;Incremaent out-index (in-index in A, out-index in B) 
 		ADDB	#2
+		ANDB	#SCI_RXBUF_MASK	
 		STAB	SCI_RXBUF_OUT
+		;CTS handshake  (in-index in A, new out-index in B)
+		SBA
+		ANDA	#SCI_RXBUF_MASK
+		CMPA	#SCI_CTS_FREE
+		BHS	SCI_RX_DROP_1 				;buffer still to full
+		CLR	SCI_CTS_STATE				;signal "Clear To Send"
+		CLR	PTM
 		;Restore registers	
 SCI_RX_DROP_1	SSTACK_PULD					;pull accu D from the SSTACK
 		;Done (RX data in X)
