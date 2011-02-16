@@ -597,6 +597,7 @@ SCI_ISR_RX	LDAB	SCIDRL					;load receive data into accu B (clears flags)
 		TFR	D, X					;flags:data -> X
 		LDD	SCI_RXBUF_IN	
 		TFR	D, Y					;in:out -> Y
+		SBA
 		ANDA	#SCI_RXBUF_MASK
 		CMPA	#SCI_CTS_FULL
 		BLO	SCI_ISR_RX_1 				;signal clear to send 
