@@ -6,8 +6,9 @@ body {
 	margin:  0;
 	padding: 0;
 	z-index: 0;
-	overflow: scroll;
-}
+	overflow: auto;
+	font-family: "Synchro LET", "OCR A Extended", "Agency FB", Consolas, "Helvetica Neue", Arial, Helvetica, Geneva, sans-serif;
+ }
 
 #background1 {
 	/* Background gradient for Webkit browsers */
@@ -69,7 +70,6 @@ body {
 	text-shadow: #fff 0 0 100px;
 	overflow: hidden;
 	font-weight: bold;
-	font-family: "Synchro LET", "Helvetica Neue", Arial, Helvetica, Geneva, sans-serif;
 }
 
 #header h1 {
@@ -77,24 +77,20 @@ body {
 }
 
 #main {
-	width: 80%;
- /*	height: 100%; */
+	width: 75%;
 	margin:  0;
-	padding: 0;
-	display: block;
-	position: absolute;
+	padding: 20px;
+	display: inline;
+	position: fixed;
 	z-index: 3;
 	top: 80px;
-	overflow: auto;
-    left: 0;
-	color: #c1fff4;
+ 	color: #c1fff4;
 	text-shadow: #fff 0 0 100px;
-	overflow: hidden;
 	font-weight: bold;
-	font-family: "Synchro LET", "Helvetica Neue", Arial, Helvetica, Geneva, sans-serif;
-	font-size: 12px;
+	font-size: 18px;
 	text-align: center;
 	right: 0;
+	height: auto;
 }
 
 #main h1 {
@@ -102,23 +98,30 @@ body {
 	text-align: center;
 }
 
+#video {
+	width: 480px;
+	position: static;
+	right: 0;
+	display: inline;
+	bottom: 0;
+	padding: 10px;
+}
+
 #index {
-	width: 40%;
-    height: 45%;
+	width: 25%;
 	margin:  0;
-	padding: 10;
+	padding: 0;
 	display: block;
 	position: absolute;
 	z-index: 3;
-	top: 30px;
-	right: 0;
+	bottom: 0px;
+    left: 0;
 	color: #c1fff4;
 	text-shadow: #fff 0 0 100px;
 	overflow: hidden;
 	font-weight: bold;
-	font-family: "Synchro LET", "Helvetica Neue", Arial, Helvetica, Geneva, sans-serif;
 	font-size: 12px;
-	text-align: right;
+	text-align: left;
 }
 
 #index h1 {
@@ -127,6 +130,13 @@ body {
 
 #index h2 {
 	font-size: 18px;
+}
+
+#index a {
+	color: #c1fff4;
+	font-size: 16px;
+	text-decoration: none;
+	list-style-type: none;
 }
 
 #news {
@@ -143,7 +153,6 @@ body {
 	text-shadow: #fff 0 0 100px;
 	overflow: hide;
 	font-weight: bold;
-	font-family: "Synchro LET", "Helvetica Neue", Arial, Helvetica, Geneva, sans-serif;
 	font-size: 12px;
 	text-align: right;
 }
