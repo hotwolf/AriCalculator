@@ -705,7 +705,7 @@ SCI_ISR_PST_1	TST	0,Y	     				;check if lower boundary exists
 SCI_ISR_PST_2	EXG	X, D	 				;apply search result to the set of valid baud rates
 		ANDA	SCI_BDLST
 		BEQ	SCI_ISR_PST_4				;no valid baud rate found, start all over
-		STAB	SCI_BDLST 				;save valid Baud rates
+		STAA	SCI_BDLST 				;save valid Baud rates
 			
 		;Check if baud rate has been determined (valid baud rates are stored in accu A)
 		TAB						;save baude rates in accu B
