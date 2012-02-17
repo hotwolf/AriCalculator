@@ -22,7 +22,7 @@
 ;#    The module controls the timer. The eight timer channes are used as       #
 ;#    follows:                                                                 #
 ;#      IC0:     SCI (capture edges on RX pin)                                 #
-;#      OC1:     SCI (timeout)                                                 #
+;#      OC1:     unused                                                        #
 ;#      OC2:     unused                                                        #
 ;#      OC3:     unused                                                        #
 ;#      OC4:     unused                                                        #
@@ -62,12 +62,12 @@ TIM_VARS_END		EQU	*
 ;#Initialization
 #macro	TIM_INIT, 0		 ;7 6 5 4 3 2 1 0
 			MOVB	#%0_0_1_1_1_1_1_0, TIOS 	;select input capture (0)
-				 ;B B B       S S 		; or output compare (1) feature
-				 ;D D D       C C
-				 ;M M M       I I
-				 ;| | |       | |
-				 ;B R T       T R 
-				 ;K E O       O X 
+				 ;B B B         S 		; or output compare (1) feature
+				 ;D D D         C
+				 ;M M M         I
+				 ;| | |         |
+				 ;B R T         R 
+				 ;K E O         X 
 				 ;G S            
 				 ;D E            
 				 ;  T             
@@ -81,24 +81,24 @@ TIM_VARS_END		EQU	*
 	
 				 ;7 6 5 4 3 2 1 0
 			MOVW	#%0000000000000000, TCTL1 	;disable all OC actions
-				 ;B B B       S S 	        ;00 - no compare
-				 ;D D D       C C               ;01 - toggle
-				 ;M M M       I I		;10 - clear
-				 ;| | |       | |		;11 - set
-				 ;B R T       T R 
-				 ;K E O       O X 
+				 ;B B B         S 	        ;00 - no compare
+				 ;D D D         C               ;01 - toggle
+				 ;M M M         I		;10 - clear
+				 ;| | |         |		;11 - set
+				 ;B R T         R 
+				 ;K E O         X 
 				 ;G S            
 				 ;D E            
 				 ;  T             
 
 			 	 ;7 6 5 4 3 2 1 0
 			MOVW	#%1011000000000011, TCTL3 	;set capture edges
-				 ;B B B       S S 		;00 - disable 
-				 ;D D D       C C		;01 - posedge
-				 ;M M M       I I		;10 - negedge
-				 ;| | |       | |		;11 - any edge
-				 ;B R T       T R 
-				 ;K E O       O X 
+				 ;B B B         S 		;00 - disable 
+				 ;D D D         C		;01 - posedge
+				 ;M M M         I		;10 - negedge
+				 ;| | |         |		;11 - any edge
+				 ;B R T         R 
+				 ;K E O         X 
 				 ;G S            
 				 ;D E            
 				 ;  T             
@@ -119,13 +119,13 @@ TIM_VARS_END		EQU	*
 				;DLYCT
 	
 				 ;7 6 5 4 3 2 1 0
-			MOVB	#%1_1_0_0_0_0_0_1, ICOVW 	;set IC to one shot
-				 ;B B B       S S 		
-				 ;D D D       C C		
-				 ;M M M       I I		
-				 ;| | |       | |		
-				 ;B R T       T R 
-				 ;K E O       O X 
+			MOVB	#%0_0_0_0_0_0_0_0, ICOVW 	;DON'T set IC to one shot
+				 ;B B B         S 		;=====
+				 ;D D D         C		;-> buggy ECT
+				 ;M M M         I		
+				 ;| | |         |		
+				 ;B R T         R 
+				 ;K E O         X 
 				 ;G S            
 				 ;D E            
 				 ;  T             
@@ -134,12 +134,12 @@ TIM_VARS_END		EQU	*
 
 				 ;7 6 5 4 3 2 1 0
 			MOVB	#%1_1_1_0_0_0_1_1, OCPD 	;disconnect output compares from pins
-				 ;B B B       S S 		
-				 ;D D D       C C		
-				 ;M M M       I I		
-				 ;| | |       | |		
-				 ;B R T       T R 
-				 ;K E O       O X 
+				 ;B B B         S 		
+				 ;D D D         C		
+				 ;M M M         I		
+				 ;| | |         |		
+				 ;B R T         R 
+				 ;K E O         X 
 				 ;G S            
 				 ;D E            
 				 ;  T             

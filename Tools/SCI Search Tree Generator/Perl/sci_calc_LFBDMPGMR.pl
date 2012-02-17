@@ -279,42 +279,42 @@ foreach $table (@tables) {
 	    $prev_lo_valids = $lo_valids;
 	}
 
-	#Print comment for high pulse table
-	#----------------------------------
-        printf FILEHANDLE ";###############################################################################\n";
-	print  FILEHANDLE ";# High pulses                                                                 #\n";
-        printf FILEHANDLE ";###############################################################################\n";
-
-	print_ctabs(\%high_tab);
-
-	#Print high pulse table
-	#----------------------
-	print  FILEHANDLE "\n";
-	$count = 0;
-	foreach $boundary_hw (sort keys %high_tab) {
-	    $count++;
-	}
-	printf FILEHANDLE "%s\tEQU\t\$%.2X\n", "SCI_HT_CNT", $count;
-
-	if ($count > 1) {
-	    printf FILEHANDLE "%s\t\tEQU\t*\n", "SCI_HT_LIST";
-	    foreach $boundary_hw (sort keys %high_tab) {
-		my $tree_name = sprintf "SCI_HT%1X", $boundary_hw;  
-		printf FILEHANDLE "\t\tDW\t%s\n", $tree_name;
-	    }
-	}
-
-	print  FILEHANDLE "\n";
-	foreach $boundary_hw (sort keys %high_tab) {
-	    my $tree_name = sprintf "SCI_HT%1X", $boundary_hw;  
-   	
-	    print  FILEHANDLE "\n";
-	    printf FILEHANDLE "%s\t\tEQU\t*\n", $tree_name;
-   	
-	    printf FILEHANDLE "%s", print_st_rec($high_tab{$boundary_hw}, $tree_name, "");
-	    print  FILEHANDLE "\n";
-	    #exit;
-	}
+#	#Print comment for high pulse table
+#	#----------------------------------
+#        printf FILEHANDLE ";###############################################################################\n";
+#	print  FILEHANDLE ";# High pulses                                                                 #\n";
+#        printf FILEHANDLE ";###############################################################################\n";
+#
+#	print_ctabs(\%high_tab);
+#
+#	#Print high pulse table
+#	#----------------------
+#	print  FILEHANDLE "\n";
+#	$count = 0;
+#	foreach $boundary_hw (sort keys %high_tab) {
+#	    $count++;
+#	}
+#	printf FILEHANDLE "%s\tEQU\t\$%.2X\n", "SCI_HT_CNT", $count;
+#
+#	if ($count > 1) {
+#	    printf FILEHANDLE "%s\t\tEQU\t*\n", "SCI_HT_LIST";
+#	    foreach $boundary_hw (sort keys %high_tab) {
+#		my $tree_name = sprintf "SCI_HT%1X", $boundary_hw;  
+#		printf FILEHANDLE "\t\tDW\t%s\n", $tree_name;
+#	    }
+#	}
+#
+#	print  FILEHANDLE "\n";
+#	foreach $boundary_hw (sort keys %high_tab) {
+#	    my $tree_name = sprintf "SCI_HT%1X", $boundary_hw;  
+#   	
+#	    print  FILEHANDLE "\n";
+#	    printf FILEHANDLE "%s\t\tEQU\t*\n", $tree_name;
+#   	
+#	    printf FILEHANDLE "%s", print_st_rec($high_tab{$boundary_hw}, $tree_name, "");
+#	    print  FILEHANDLE "\n";
+#	    #exit;
+#	}
 
 	#Print comment for low pulse table
 	#--------------------------------- 	
