@@ -84,6 +84,7 @@ CLOCK_VARS_END		EQU	*
 ;#Wait for PLL
 #macro	CLOCK_WAIT_FOR_PLL, 0
 LOOP		COP_SERVICE						;service COP
+		MOVB	#(PLLSEL|COPWAI), CLKSEL 			;switch to PLL
 		BRCLR	CLKSEL, #PLLSEL, LOOP 				;wait until the PLL has been selecrt by the ISR
 #emac
 	

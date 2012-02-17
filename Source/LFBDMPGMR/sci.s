@@ -215,7 +215,7 @@ SCI_VARS_END		EQU	*
 			;Check for POR 
 			LDAB	CLOCK_FLGS
 			BITA	#(PORF|LVRF)
-			BNE	SCI_INIT_1
+			BNE	SCI_INIT_2
 	
 			;Check if stored baud rate is still valid
 			LDD	SCI_BVAL 				;SCI_BMUL*baud rate -> D
@@ -356,7 +356,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ;Stop baud rate detection
 #macro	SCI_STOP_BD, 0
 			BRCLR	SCI_BDLST, #$FF, DONE			;baud rate detection already inactive
-			BCLR	TIE, #(SCI_TIM_EDGE|SCI_TIM_TO)		;disable interrupts
+			BCLR	TIE, #(C1I|C0I)				;disable interrupts
 			TIM_DISABLE TIM_SCI				;disable timer
 			CLR	SCI_BDLST				;clear baud rate result register
 			LED_COMERR_OFF					;stop signaling communication errors
@@ -742,8 +742,9 @@ SCI_ISR_TC0_7		LDD	SCI_BTAB,X				;look up divider value
 			STD	SCI_BVAL
 			
 			;Disable monitoring of the RX pin 
-SCI_ISR_TC0_8		BCLR	TIE, #C0I    				;disable interrupts
+SCI_ISR_TC0_8		BCLR	TIE, #(C1I|C0I) 			;disable interrupts
 			TIM_DISABLE TIM_SCI		     		;disable timer	
+			CLR	SCI_BDLST 				;clear baud rate result register
 			LED_COMERR_OFF					;stop signaling communication errors
 			JOB	SCI_ISR_TC0_5	
 			;ISTACK_RTI
