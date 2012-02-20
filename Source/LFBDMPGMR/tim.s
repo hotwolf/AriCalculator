@@ -80,7 +80,7 @@ TIM_VARS_END		EQU	*
 				;TTOV 
 	
 				 ;7 6 5 4 3 2 1 0
-			MOVW	#%0000000000000000, TCTL1 	;disable all OC actions
+			;MOVW	#%0000000000000000, TCTL1 	;disable all OC actions
 				 ;B B B         S 	        ;00 - no compare
 				 ;D D D         C               ;01 - toggle
 				 ;M M M         I		;10 - clear
@@ -92,7 +92,7 @@ TIM_VARS_END		EQU	*
 				 ;  T             
 
 			 	 ;7 6 5 4 3 2 1 0
-			MOVW	#%1011000000000011, TCTL3 	;set capture edges
+			;MOVW	#%0000000000000000, TCTL3 	;set capture edges
 				 ;B B B         S 		;00 - disable 
 				 ;D D D         C		;01 - posedge
 				 ;M M M         I		;10 - negedge
@@ -119,7 +119,7 @@ TIM_VARS_END		EQU	*
 				;DLYCT
 	
 				 ;7 6 5 4 3 2 1 0
-			MOVB	#%0_0_0_0_0_0_0_0, ICOVW 	;DON'T set IC to one shot
+			;MOVB	#%0_0_0_0_0_0_0_0, ICOVW 	;DON'T set IC to one shot
 				 ;B B B         S 		;=====
 				 ;D D D         C		;-> buggy ECT
 				 ;M M M         I		
@@ -157,7 +157,7 @@ TIM_VARS_END		EQU	*
 ; args: 1. module (TIM_SCI or TIM_BDM)
 #macro	TIM_ENABLE, 1
 	BSET	TIM_BUSY, #\1
-	MOVB	#(TEN|TSFRZ|TFFCA), TSCR1	
+	MOVB	#(TEN|TSFRZ), TSCR1	
 #emac
 
 ;#Disable timer

@@ -161,8 +161,8 @@ SCI_RXBUF_MASK		EQU	$1F		;mask for rolling over the RX buffer
 SCI_TXBUF_MASK		EQU	$07		;mask for rolling over the TX buffer
 
 ;#Hardware handshake borders
-SCI_XOFF_LEVEL		EQU	10*2		;RX buffer threshold to send XOFF 
-SCI_XON_LEVEL		EQU	 4*2		;RX buffer threshold to send XON
+SCI_XOFF_LEVEL		EQU	 8*2		;RX buffer threshold to send XOFF 
+SCI_XON_LEVEL		EQU	 2*2		;RX buffer threshold to send XON
 	
 ;#Flag definitions
 SCI_FLG_SWOR		EQU	$01		;software buffer overrun (RX buffer)
@@ -456,12 +456,12 @@ SCI_RX			EQU	*
 			;Save registers
 			SSTACK_PSHYX					;push index registers onto the SSTACK
 			;Check if there is data in the RX queue
+			SEI
 			LDD	SCI_RXBUF_IN
 			CBA		 		
 			BEQ	SCI_RX_3 				;RX buffer is empty
 			;Pull entry from the RX queue (in-index in A, out-index in B)
-SCI_RX_1		CLI						;unblock interrupts
-			LDY	#SCI_RXBUF
+SCI_RX_1		LDY	#SCI_RXBUF
 			LDX	B,Y
 			ADDB	#$02					;increment out pointer
 			ANDB	#SCI_RXBUF_MASK
@@ -471,9 +471,12 @@ SCI_RX_1		CLI						;unblock interrupts
 			ANDA	#SCI_RXBUF_MASK
 			CMPA	#SCI_XON_LEVEL
 			BHS	SCI_RX_2 				;buffer still to full
+			BRCLR	SCI_FLGS, #SCI_FLG_FCRX_BF, SCI_RX_2	
+			BCLR	SCI_FLGS, #SCI_FLG_FCRX_BF		;send XON
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2
 			;Return result (RX data in X)
-SCI_RX_2		TFR X, D					;set return value
+SCI_RX_2		CLI						;unblock interrupts
+			TFR X, D					;set return value
 			;Restore registers (RX data in D)	
 			SSTACK_PULXY					;pull index registers from the SSTACK
 			;Done (RX data in X)
@@ -571,10 +574,10 @@ SCI_ISR_TX		EQU	*
 			BEQ	<SCI_ISR_TX_2 				;check TX flow control
 			BMI	<SCI_ISR_TX_1				;check if XON should be send
 			
-			;Check XOFF should be send (SCI_FLGS in A)
+			;Send XOFF (SCI_FLGS in A)
 			MOVB	#SCI_XOFF, SCIDRL			;send XOFF
 			BSET	SCI_FLGS, #SCI_FLG_FCRX		 	;update flow control status
-			BEQ	<SCI_ISR_TX_5				;done for now
+			JOB	SCI_ISR_TX_5				;done for now
 			
 			;Check XON should be send (SCI_FLGS in A)
 SCI_ISR_TX_1		BITA	#(SCI_FLG_FCRX_BF|SCI_FLG_FCRX_FC)
@@ -629,7 +632,6 @@ SCI_ISR_RX		LDAB	SCIDRL					;load receive data into accu B (clears flags)
 			;Check for RX errors (status flags in A, RX data in B)
 			BITA	#(NF|FE|PF) 				;check for: noise, frame errors, parity errors
 			BNE	<SCI_ISR_RX_6				;check if baud rate detection is running
-			;SCI_STOP_BD					;stop baud rate detection		
 			;Check for XON or XOFF (status flags in A, RX data in B)
 			CMPB	#SCI_XOFF
 			BEQ	<SCI_ISR_RX_4 				;disable transmissions
@@ -673,8 +675,11 @@ SCI_ISR_RX_6		TST	SCI_BDLST 				;check if baud rate detection is running
 			LED_COMERR_ON				        ;signal communication error
 			MOVB	#$FF, SCI_BDLST				;reset BD result registers
 			TIM_ENABLE TIM_SCI		     		;enable timer
-			LDX	TC0					;clear IC interrupt flag
-			BSET	TIE, #C0I				;enable TC0 IRQ
+			MOVW	#((C0F<<8)|TOF), TFLG1			;clear IC0 interrupt flag
+			LDD	TC0
+			LDD	TC0H
+			BSET	TCTL4, #$3 				;enable edge detection (workaround for erratum MUCts04104)
+			BSET	TIE, #C0I				;enable IC0 IRQ
 			JOB	SCI_ISR_RX_1 				;transfer SWOR flag
 			;Buffer is full (flags:data in Y)
 SCI_ISR_RX_7		BSET	SCI_FLGS, #(SCI_FLG_FCRX_BF|SCI_FLG_SWOR)
@@ -685,70 +690,78 @@ SCI_ISR_RX_8		BSET	SCI_FLGS, #SCI_FLG_FCRX_BF
 			
 ;#Edge on RX pin captured
 SCI_ISR_TC0		EQU	*
+			;Disable edge detection
+			BCLR	TCTL4, #$3 				;(workaround for erratum MUCts04104)
 			;Capture length of  pulse
-			BCLR	TCTL4, #$3 				;disable edge detection (workaround for erratum MUCts04104)
-			LDD	TC0					;current timestamp - previous timestamp
+			MOVB	#C0F, TFLG1 				;clear interrupt flag
+			LDD	TC0					;determine the pulse length
 			SUBD	TC0H
-			BRSET	MCFLG, #POLF0, SCI_ISR_TC0_8		;ignore high pulses
-			BSET	TCTL4, #$3 				;enable edge detection (workaround for erratum MUCts04104)			
-			TBEQ	D, SCI_ISR_TC0_4 			;whenever this happens, ignore it
-	
-			;Check if baud rate detection is still enabled (pulse length in D, last timestamp in X)
-			BRCLR	SCI_BDLST, #$FF, SCI_ISR_TC0_7 		;baud rate detection disabled	
+			;Determine tne pulse polarity (pulse length in D)
+			LDY	#SCI_LT0				;Determine the polarity
+			BRSET	MCFLG, #POLF0, SCI_ISR_TC0_1		;enable edge detection
+			LDY	#SCI_HT0				
+			;Enable edge detection (pulse length in D, search tree pointer in Y)
+SCI_ISR_TC0_1		BSET	TCTL4, #$3 				;(workaround for erratum MUCts04104)	
 
-			;#Parse a search tree (search tree pointer in Y, pulse length in D) 
+			;Check if baud rate detection is still enabled (pulse length in D, search tree pointer in Y)
+			BRCLR	SCI_BDLST, #$FF, SCI_ISR_TC0_9 		;baud rate detection disabled	
+
+			;Ignore pulses if a timer overflow has occured (pulse length in D, search tree pointer in Y)
+			BRSET	TFLG2  #TOI, SCI_ISR_TC0_8
+
+			;#Parse a search tree (pulse length in D, search tree pointer in Y) 
 			LDY	#SCI_LT0				;set pointer to the beginning of the low pulse search tree
 			LDX	#$0000					;use index X to store valid baud rates
-SCI_ISR_TC0_1		TST	0,Y	     				;check if lower boundary exists
-			BEQ	SCI_ISR_TC0_2				;search done
+SCI_ISR_TC0_2		TST	0,Y	     				;check if lower boundary exists
+			BEQ	SCI_ISR_TC0_3				;search done
 			CPD	6,Y+					;check if pulse length is shorter than lower boundary
-			BLO	SCI_ISR_TC0_1				;pulse length is shorter than lower boundary
+			BLO	SCI_ISR_TC0_2				;pulse length is shorter than lower boundary
 									; -> try a shorter range
 			LDX	-4,Y					;pulse length is longer or same as lower boundary
 									; -> store valid baud rate field in index X
 			LDY	-2,Y					; -> parse a new branch of the search tree that contains longer ranges
-			BNE	SCI_ISR_TC0_1				;parse branch if it exists
-			
+			BNE	SCI_ISR_TC0_2				;parse branch if it exists			
+
 			;Search is done (valid baud rates in X) 
-SCI_ISR_TC0_2		EXG	X, D	 				;apply search result to the set of valid baud rates
+SCI_ISR_TC0_3		EXG	X, D	 				;apply search result to the set of valid baud rates
 			ANDA	SCI_BDLST
-			BEQ	SCI_ISR_TC0_5				;no valid baud rate found, start all over
-			STAA	SCI_BDLST 				;save valid Baud rates
-				
+			BEQ	SCI_ISR_TC0_6				;no valid baud rate found, start all over
+			STAA	SCI_BDLST 				;save valid Baud rates				
 			;Check if baud rate has been determined (valid baud rates in A)
 			TAB						;save baude rates in accu B
 			LDX	#$FFFE					;use index X as index counter
-SCI_ISR_TC0_3		LEAX	2,X					;increment index counter
+SCI_ISR_TC0_4		LEAX	2,X					;increment index counter
 			LSRA						;check if only one bit is set in accu A
-			BCC	SCI_ISR_TC0_3				;shift until a "1" ends up in the carry bit
-			BEQ	SCI_ISR_TC0_6				;baud rate has been determined
-			
+			BCC	SCI_ISR_TC0_4				;shift until a "1" ends up in the carry bit
+			BEQ	SCI_ISR_TC0_7				;baud rate has been determined			
+
 			;Baud rate has not been determined yet (valid baud rates in accu B)
-SCI_ISR_TC0_4		ISTACK_RTI					;wait for the next pulse
-			
+SCI_ISR_TC0_5		ISTACK_RTI					;wait for the next pulse			
+
 			;No valid baud rate found, start all over
-SCI_ISR_TC0_5		MOVB	#$FF, SCI_BDLST
-			JOB	SCI_ISR_TC0_4				;done
-			
+SCI_ISR_TC0_6		MOVB	#$FF, SCI_BDLST
+			JOB	SCI_ISR_TC0_5				;done			
+
 			;Baud rate has been validated (index of baud rate table in index X)
-SCI_ISR_TC0_6		LDD	SCI_BTAB,X				;look up divider value
+SCI_ISR_TC0_7		LDD	SCI_BTAB,X				;look up divider value
 			STD	SCIBDH					;set baud rate
 			LDY	#SCI_BMUL				;save baud rate for next warmstart
 			EMUL						;D*Y -> Y:D
-			STD	SCI_BVAL
-			
+			STD	SCI_BVAL	
+
+			;Ignore pulses if timer overflow has occured
+SCI_ISR_TC0_8		BSET	TCTL4, #$3 				;enable edge detection (workaround for erratum MUCts04104)
+			MOVB	#TOF, TFLG2 				;clear interrupt flag			
+			JOB	SCI_ISR_TC0_5 				;done
+	
 			;Disable monitoring of the RX pin 
-SCI_ISR_TC0_7		BCLR	TIE, #C0I 				;disable interrupts
+SCI_ISR_TC0_9		BCLR	TIE, #C0I 				;disable interrupts
 			TIM_DISABLE TIM_SCI		     		;disable timer	
+			BCLR	TCTL4, #$3 				;disable edge detection (workaround for erratum MUCts04104)
 			CLR	SCI_BDLST 				;clear baud rate result register
 			LED_COMERR_OFF					;stop signaling communication errors
-			JOB	SCI_ISR_TC0_4				;done
+			JOB	SCI_ISR_TC0_5				;done
 
-			;Ignore high pulses
-SCI_ISR_TC0_8		BSET	TCTL4, #$3 				;enable edge detection (workaround for erratum MUCts04104)
-			BRCLR	SCI_BDLST, #$FF, SCI_ISR_TC0_7 		;baud rate detection disabled	
-			JOB	SCI_ISR_TC0_4 				;done
-	
 SCI_CODE_END		EQU	*
 	
 ;###############################################################################

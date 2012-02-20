@@ -19,14 +19,11 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module controls the LED on the OpenBDM Pod.                         #
+;#    This module monitors the target voltage on the LFMPGMR pod.              #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    April 4, 2010                                                            #
+;#    February 13, 2012                                                        #
 ;#      - Initial release                                                      #
-;#    January 2, 2012                                                          #
-;#      - the LFBDMPGMR has enough LEDs.                                       #
-;# 	  Sequential patterns ane not necessary.                               #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#                                                                             #
@@ -139,14 +136,14 @@ TVMON_ISR		EQU	*
 			LED_BICOLOR_RED				;flag missing target Vdd
 			MOVB	#(30*$FF)/50, ATDDR0		;set threshold value (3V)
 			MOVB	#$01, ATDCMPHT+$1		;target Vdd must be higher than threshold
-			CLR	PTM				;disable target interface
+			MOVB	#PM7, PTM			;disable target interface
 			JOB	TVMON_ISR_2			;done
 			
 			;Target Vdd detected
 TVMON_ISR_1		LED_BICOLOR_GREEN			;flag detected target Vdd
 			MOVB	#(25*$FF)/50, ATDDR0		;set threshold value (2,5V)
-			CLR	ATDCMPHT+$1		;	target Vdd must be lower or same as threshold
-			MOVB	#PM7, PTM			;enable target interface
+			CLR	ATDCMPHT+$1			;target Vdd must be lower or same as threshold
+			CLR	PTM				;enable target interface
 			;Done 
 TVMON_ISR_2		ISTACK_RTS	
 

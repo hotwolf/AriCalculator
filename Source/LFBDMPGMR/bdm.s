@@ -135,6 +135,9 @@
 RESET			EQU	$40 	;PT6
 ;MODC			EQU	$80	;PT7
 BKGD			EQU	$80	;PT7
+
+;Reset monitor counter 
+BDM_RMCNT_FLG		EQU	$01
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -452,6 +455,7 @@ BDM_START_RM		EQU	*
 			LDD	TC6
 			;Increment reset monitor count (reset monitor count in X)
 BDM_START_RM_1		IBEQ	X, BDM_START_RM_3	;monitors nested too deeply
+			IBEQ	X, BDM_START_RM_3	;monitors nested too deeply
 			STX	BDM_RMCNT
 			LDX	#$0000
 			;Done
@@ -471,6 +475,9 @@ BDM_START_RM_3		MOVW	#$0000, BDM_RMCNT	;terminate all monitors
 ; SSTACK: 2 bytes
 ;         D and Y are preserved
 BDM_END_RM		EQU	*
+			
+
+	
 			;Decrement reset monitor count
 			LDX	BDM_RMCNT
 			BEQ	BDM_END_RM_2 			;mismatching monitors
@@ -515,40 +522,33 @@ BDM_TERM_ALL_RMS_2	LEAX	2,X
 ;         X, Y and D are preserved
 BDM_RESET		EQU	*
 			;Save registers (run mode in B)
-			SSTACK_PSHXD				;save index X, index Y, and accu D
-	
+			SSTACK_PSHXD				;save index X, index Y, and accu D	
 			;Check if reset monitor is enabled (run mode in B)
 			LDX	BDM_RMCNT
-			BEQ	BDM_RESET_ 			;reset monitor has been disabled
+			BEQ	BDM_RESET_1 			;reset monitor has been disabled
 			;Check if previous reset has been detected (run mode in B)
-			BRSET	TFLG1, #C6F, BDM_RESET_		;reset has been detected
-
+			BRSET	TFLG1, #C6F, BDM_RESET_4		;reset has been detected
 			;Drive MODE on BKGD pin (run mode in B)
-			BCLR	PTT, #PT7
+BDM_RESET_1		BCLR	PTT, #PT7
 			TSTB
-			BEQ	BDM_RESSET_1 			;SSC mode
+			BEQ	BDM_RESSET_2 			;SSC mode
 			BSET	PTT, #PT7
-BDM_RESET_1		BSET	DDRT, #PT7	
-	
+BDM_RESET_2		BSET	DDRT, #PT7		
 			;Drive RESET low 
-			BSET	DDRT, PT6 
-			
+			BSET	DDRT, PT6 			
 			;Wait for at least 2^16 TC 
 			SEI
 			MOVW	TCNT, TC5 			;set delay and clear interrupt flag
 			BSET	TIE, #C5I			;enable interrupt
 			;Wait for time out 
-BDM_RESET_2		ISTACK_WAIT
-			BRCLR	TFLG1, #C5F, BDM_RESET_2
-	
+BDM_RESET_3		ISTACK_WAIT
+			BRCLR	TFLG1, #C5F, BDM_RESET_3	
 			;Release RESET 
 			BCLR	DDRT, PT6
-
 			;Release BKGD
-			BCLR	DDRT, #PT7
-	
+			BCLR	DDRT, #PT7	
 			;Done
-			SSTACK_PULDX 			;restore registers
+BDM_RESET_4		SSTACK_PULDX 			;restore registers
 			SSTACK_RTS
 
 ;#Sync
@@ -561,18 +561,29 @@ BDM_RESET_2		ISTACK_WAIT
 ;         D and Y are preserved
 BDM_SYNC		EQU	*
 			;Save registers
-			SSTACK_PSHYD			;save index X, index Y
-			
-			;Step 1
-BDM_SYNC_STEP_1		EQU	*
-			;Quit if reset monitor is enabled
-			;and previous target reset was detected
+			SSTACK_PSHYD				;save index X, index Y			
+			;Check if reset monitor is enabled (run mode in B)
 			LDX	BDM_RMCNT
-			BEQ	BDM_SYNC_STEP_1_1
-			BRSET	PIFP, #RESET, BDM_SYNC_TGTRST
-			;Drive BKGD (PB4) low
-BDM_SYNC_STEP_1_1	CLR	PORTB
-			MOVB	#BKGD, DDRB
+			BEQ	BDM_SYNC_1 			;reset monitor has been disabled
+			;Check if previous reset has been detected (run mode in B)
+			BRSET	TFLG1, #C6F, BDM_SYNC_		;reset has been detected
+			;Drive BKGD pin low
+BDM_SYNC_1		BCLR	PTT, #PT7
+			;Wait for at least 2^16 TC 
+			SEI
+			MOVW	TCNT, TC5 			;set delay and clear interrupt flag
+			BSET	TIE, #C5I			;enable interrupt
+			;Wait for time out 
+BDM_SYNC_2		ISTACK_WAIT
+			
+	
+			BRCLR	TFLG1, #C5F, BDM_SYNC_2	
+
+
+
+
+
+	
 			;Enable timer and set OC7 timeout to $FFFF
 			TIM_ENABLE	TIM_BDM			;enable timer
 			SEI
