@@ -119,9 +119,9 @@ TIM_VARS_END		EQU	*
 				;DLYCT
 	
 				 ;7 6 5 4 3 2 1 0
-			;MOVB	#%0_0_0_0_0_0_0_0, ICOVW 	;DON'T set IC to one shot
-				 ;B B B         S 		;=====
-				 ;D D D         C		;-> buggy ECT
+			MOVB	#%0_0_0_0_0_0_0_1, ICOVW 	;enable one shot
+				 ;B B B         S 		
+				 ;D D D         C		
 				 ;M M M         I		
 				 ;| | |         |		
 				 ;B R T         R 

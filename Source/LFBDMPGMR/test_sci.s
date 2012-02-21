@@ -137,24 +137,23 @@ TEST_VARS_END		EQU	SCI_VARS_END
 TEST_LOOP		SCI_RX
 
 			SCI_TX
-			SCI_TX
-			SCI_TX
-			SCI_TX
-			SCI_TX
-			SCI_TX
-			SCI_TX
-			SCI_TX
-			SCI_TX
-			SCI_TX
-			SCI_TX
-			SCI_TX
-			SCI_TX
-			SCI_TX
-			
-			LDAB	#$0D
-			SCI_TX
-			LDAB	#$0A
-			SCI_TX
+			;SCI_TX
+			;SCI_TX
+			;SCI_TX
+			;SCI_TX
+			;SCI_TX
+			;SCI_TX
+			;SCI_TX
+			;SCI_TX
+			;SCI_TX
+			;SCI_TX
+			;SCI_TX
+			;SCI_TX
+			;SCI_TX
+			;LDAB	#$0D
+			;SCI_TX
+			;LDAB	#$0A
+			;SCI_TX
 
 			JOB	TEST_LOOP
 				

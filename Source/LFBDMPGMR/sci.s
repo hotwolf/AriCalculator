@@ -690,27 +690,28 @@ SCI_ISR_RX_8		BSET	SCI_FLGS, #SCI_FLG_FCRX_BF
 			
 ;#Edge on RX pin captured
 SCI_ISR_TC0		EQU	*
-			;Disable edge detection
-			BCLR	TCTL4, #$3 				;(workaround for erratum MUCts04104)
-			;Capture length of  pulse
-			MOVB	#C0F, TFLG1 				;clear interrupt flag
+			;Determine tne pulse polarity
+			LDY	#SCI_LT0				;Determine the polarity
+			BRCLR	MCFLG, #POLF0, SCI_ISR_TC0_1		;capture pulse length
+			LDY	#SCI_HT0				
+
+			;Capture pulse length (search tree pointer in Y)
+SCI_ISR_TC0_1		MOVB	#C0F, TFLG1 				;clear interrupt flag
+			BCLR	TCTL4, #$3 				;disable edge detection (workaround for erratum MUCts04104)
 			LDD	TC0					;determine the pulse length
 			SUBD	TC0H
-			;Determine tne pulse polarity (pulse length in D)
-			LDY	#SCI_LT0				;Determine the polarity
-			BRSET	MCFLG, #POLF0, SCI_ISR_TC0_1		;enable edge detection
-			LDY	#SCI_HT0				
-			;Enable edge detection (pulse length in D, search tree pointer in Y)
-SCI_ISR_TC0_1		BSET	TCTL4, #$3 				;(workaround for erratum MUCts04104)	
-
-			;Check if baud rate detection is still enabled (pulse length in D, search tree pointer in Y)
-			BRCLR	SCI_BDLST, #$FF, SCI_ISR_TC0_9 		;baud rate detection disabled	
+			BSET	TCTL4, #$3 				;enable (workaround for erratum MUCts04104)	
 
 			;Ignore pulses if a timer overflow has occured (pulse length in D, search tree pointer in Y)
-			BRSET	TFLG2  #TOI, SCI_ISR_TC0_8
+			BRSET	TFLG2  #TOI, SCI_ISR_TC0_9
+
+			;Check if baud rate detection is still enabled (pulse length in D, search tree pointer in Y)
+			BRCLR	SCI_BDLST, #$FF, SCI_ISR_TC0_8 		;baud rate detection disabled	
+
+			;Ignore zero length pulses - happens when debugging (pulse length in D, search tree pointer in Y)
+			TBEQ	D, SCI_ISR_TC0_5
 
 			;#Parse a search tree (pulse length in D, search tree pointer in Y) 
-			LDY	#SCI_LT0				;set pointer to the beginning of the low pulse search tree
 			LDX	#$0000					;use index X to store valid baud rates
 SCI_ISR_TC0_2		TST	0,Y	     				;check if lower boundary exists
 			BEQ	SCI_ISR_TC0_3				;search done
@@ -749,18 +750,18 @@ SCI_ISR_TC0_7		LDD	SCI_BTAB,X				;look up divider value
 			EMUL						;D*Y -> Y:D
 			STD	SCI_BVAL	
 
-			;Ignore pulses if timer overflow has occured
-SCI_ISR_TC0_8		BSET	TCTL4, #$3 				;enable edge detection (workaround for erratum MUCts04104)
-			MOVB	#TOF, TFLG2 				;clear interrupt flag			
-			JOB	SCI_ISR_TC0_5 				;done
-	
 			;Disable monitoring of the RX pin 
-SCI_ISR_TC0_9		BCLR	TIE, #C0I 				;disable interrupts
+SCI_ISR_TC0_8		BCLR	TIE, #C0I 				;disable interrupts
 			TIM_DISABLE TIM_SCI		     		;disable timer	
 			BCLR	TCTL4, #$3 				;disable edge detection (workaround for erratum MUCts04104)
 			CLR	SCI_BDLST 				;clear baud rate result register
 			LED_COMERR_OFF					;stop signaling communication errors
 			JOB	SCI_ISR_TC0_5				;done
+
+				;Ignore pulses if timer overflow has occured
+SCI_ISR_TC0_9		MOVB	#TOF, TFLG2 				;clear interrupt flag			
+			JOB	SCI_ISR_TC0_5 				;done
+	
 
 SCI_CODE_END		EQU	*
 	
