@@ -176,8 +176,8 @@ VEC_SPI0	DW	ERROR_ISR		;vector base + $D8
 VEC_ECT_PAIE	DW	ERROR_ISR		;vector base + $DA
 VEC_ECT_PAOV	DW	ERROR_ISR		;vector base + $DC
 VEC_ECT_TOV	DW	ERROR_ISR		;vector base + $DE
-VEC_ECT_TC7	DW	ERROR_ISR		;vector base + $E0
-VEC_ECT_TC6	DW	ERROR_ISR		;vector base + $E2
+VEC_ECT_TC7	DW	BDM_ISR_TC7		;vector base + $E0
+VEC_ECT_TC6	DW	BDM_ISR_TC6		;vector base + $E2
 VEC_ECT_TC5	DW	ERROR_ISR		;vector base + $E4
 VEC_ECT_TC4	DW	ERROR_ISR		;vector base + $E6
 VEC_ECT_TC3	DW	ERROR_ISR		;vector base + $E8

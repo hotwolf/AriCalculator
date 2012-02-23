@@ -165,11 +165,13 @@ SCI_XOFF_LEVEL		EQU	 8*2		;RX buffer threshold to send XOFF
 SCI_XON_LEVEL		EQU	 2*2		;RX buffer threshold to send XON
 	
 ;#Flag definitions
-SCI_FLG_SWOR		EQU	$01		;software buffer overrun (RX buffer)
-SCI_FLG_FCTX		EQU	$10		;don't transmit (XOFF received)
-SCI_FLG_FCRX_BF		EQU	$20		;request to stop incomming data (buffer overflow)
-SCI_FLG_FCRX_FC		EQU	$40		;request to stop incomming data (forced flow control)
 SCI_FLG_FCRX		EQU	$80		;don't receive (state of the serial interface)
+SCI_FLG_FCRX_FC		EQU	$40		;request to stop incomming data (forced flow control)
+SCI_FLG_FCRX_BF		EQU	$20		;request to stop incomming data (buffer overflow)
+
+SCI_FLG_SWOR		EQU	$10		;software buffer overrun (RX buffer)
+
+SCI_FLG_FCTX		EQU	$08		;don't transmit (XOFF received)
 	
 ;#XON/XOFF characters
 SCI_XON			EQU	$11
@@ -603,8 +605,10 @@ SCI_ISR_TX_3		LDD	SCI_TXBUF_IN
 			STAB	SCI_TXBUF_OUT
 			CBA
 			BNE	<SCI_ISR_TX_5 				;done
+
 			;Disable transmission
 SCI_ISR_TX_4		MOVB	#(RIE|TE|RE), SCICR2			;disable transmission complete interrupt
+
 			;Done
 SCI_ISR_TX_5		ISTACK_RTI			
 
@@ -637,11 +641,13 @@ SCI_ISR_RX		LDAB	SCIDRL					;load receive data into accu B (clears flags)
 			BEQ	<SCI_ISR_RX_4 				;disable transmissions
 			CMPB	#SCI_XON
 			BEQ	<SCI_ISR_RX_5 				;enable transmissions
+
 			;Transfer SWOR flag to current error flags (status flags in A, RX data in B)
 SCI_ISR_RX_1		ANDA	#(OR|NF|FE|PF)				;only maintain relevant error flags
 			BRCLR	SCI_FLGS, #SCI_FLG_SWOR, SCI_ISR_RX_2	;SWOR bit not set
 			ORAA	#SCI_FLG_SWOR				;set SWOR bit in accu A
 			BCLR	SCI_FLGS, #SCI_FLG_SWOR 		;clear SWOR bit in variable	
+
 			;Place data into RX queue (status flags in A, RX data in B) 
 SCI_ISR_RX_2		TFR	D, Y					;flags:data -> Y
 			LDX	#SCI_RXBUF
@@ -657,12 +663,15 @@ SCI_ISR_RX_2		TFR	D, Y					;flags:data -> Y
 			ANDA	#SCI_RXBUF_MASK
 			CMPA	#SCI_XOFF_LEVEL
 			BHS	<SCI_ISR_RX_8 				;signal XOFF
+
 			;Done
 SCI_ISR_RX_3		ISTACK_RTI			
+
 			;Disable transmissions
 SCI_ISR_RX_4		BSET	SCI_FLGS, #SCI_FLG_FCTX
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2 		;enable TX interrupts	
 			JOB	SCI_ISR_RX_3 				;done
+
 			;Enable transmissions
 SCI_ISR_RX_5		BCLR	SCI_FLGS, #SCI_FLG_FCTX
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2 		;enable TX interrupts
@@ -675,14 +684,16 @@ SCI_ISR_RX_6		TST	SCI_BDLST 				;check if baud rate detection is running
 			LED_COMERR_ON				        ;signal communication error
 			MOVB	#$FF, SCI_BDLST				;reset BD result registers
 			TIM_ENABLE TIM_SCI		     		;enable timer
-			MOVW	#((C0F<<8)|TOF), TFLG1			;clear IC0 interrupt flag
+			MOVW	#((C0F<<8)|TOF), TFLG1			;clear interrupt flags
 			LDD	TC0
 			LDD	TC0H
 			BSET	TCTL4, #$3 				;enable edge detection (workaround for erratum MUCts04104)
 			BSET	TIE, #C0I				;enable IC0 IRQ
 			JOB	SCI_ISR_RX_1 				;transfer SWOR flag
+
 			;Buffer is full (flags:data in Y)
-SCI_ISR_RX_7		BSET	SCI_FLGS, #(SCI_FLG_FCRX_BF|SCI_FLG_SWOR)
+SCI_ISR_RX_7		BSET	SCI_FLGS, #SCI_FLG_SWOR
+
 			;Signal XOFF (flags:data in Y)
 SCI_ISR_RX_8		BSET	SCI_FLGS, #SCI_FLG_FCRX_BF
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2 		;enable interrupts
@@ -691,7 +702,7 @@ SCI_ISR_RX_8		BSET	SCI_FLGS, #SCI_FLG_FCRX_BF
 ;#Edge on RX pin captured
 SCI_ISR_TC0		EQU	*
 			;Determine tne pulse polarity
-			LDY	#SCI_LT0				;Determine the polarity
+			LDY	#SCI_LT0				;determine the polarity
 			BRCLR	MCFLG, #POLF0, SCI_ISR_TC0_1		;capture pulse length
 			LDY	#SCI_HT0				
 			;Ignore pulses if a timer overflow has occured (search tree pointer in Y)
@@ -699,10 +710,10 @@ SCI_ISR_TC0		EQU	*
 
 			;Capture pulse length (search tree pointer in Y)
 SCI_ISR_TC0_1		MOVW	#((C0F<<8)|TOF), TFLG1 			;clear interrupt flags
-			BCLR	TCTL4, #$3 				;disable edge detection (workaround for erratum MUCts04104)
+			BCLR	TCTL4, #$03 				;disable edge detection (workaround for erratum MUCts04104)
 			LDD	TC0					;determine the pulse length
 			SUBD	TC0H
-			BSET	TCTL4, #$3 				;enable (workaround for erratum MUCts04104)	
+			BSET	TCTL4, #$03 				;enable (workaround for erratum MUCts04104)	
 
 			;Check if baud rate detection is still enabled (pulse length in D, search tree pointer in Y)
 			BRCLR	SCI_BDLST, #$FF, SCI_ISR_TC0_8 		;baud rate detection disabled	
@@ -710,30 +721,30 @@ SCI_ISR_TC0_1		MOVW	#((C0F<<8)|TOF), TFLG1 			;clear interrupt flags
 			;Ignore zero length pulses - happens when debugging (pulse length in D, search tree pointer in Y)
 			TBEQ	D, SCI_ISR_TC0_5
 
-			;#Parse a search tree (pulse length in D, search tree pointer in Y) 
+			;Parse a search tree (pulse length in D, search tree pointer in Y) 
 			LDX	#$0000					;use index X to store valid baud rates
 SCI_ISR_TC0_2		TST	0,Y	     				;check if lower boundary exists
-			BEQ	SCI_ISR_TC0_3				;search done
+			BEQ	<SCI_ISR_TC0_3				;search done
 			CPD	6,Y+					;check if pulse length is shorter than lower boundary
-			BLO	SCI_ISR_TC0_2				;pulse length is shorter than lower boundary
+			BLO	<SCI_ISR_TC0_2				;pulse length is shorter than lower boundary
 									; -> try a shorter range
 			LDX	-4,Y					;pulse length is longer or same as lower boundary
 									; -> store valid baud rate field in index X
 			LDY	-2,Y					; -> parse a new branch of the search tree that contains longer ranges
-			BNE	SCI_ISR_TC0_2				;parse branch if it exists			
+			BNE	<SCI_ISR_TC0_2				;parse branch if it exists			
 
 			;Search is done (valid baud rates in X) 
 SCI_ISR_TC0_3		EXG	X, D	 				;apply search result to the set of valid baud rates
 			ANDA	SCI_BDLST
-			BEQ	SCI_ISR_TC0_6				;no valid baud rate found, start all over
+			BEQ	<SCI_ISR_TC0_6				;no valid baud rate found, start all over
 			STAA	SCI_BDLST 				;save valid Baud rates				
 			;Check if baud rate has been determined (valid baud rates in A)
 			TAB						;save baude rates in accu B
 			LDX	#$FFFE					;use index X as index counter
 SCI_ISR_TC0_4		LEAX	2,X					;increment index counter
 			LSRA						;check if only one bit is set in accu A
-			BCC	SCI_ISR_TC0_4				;shift until a "1" ends up in the carry bit
-			BEQ	SCI_ISR_TC0_7				;baud rate has been determined			
+			BCC	<SCI_ISR_TC0_4				;shift until a "1" ends up in the carry bit
+			BEQ	<SCI_ISR_TC0_7				;baud rate has been determined			
 
 			;Baud rate has not been determined yet (valid baud rates in accu B)
 SCI_ISR_TC0_5		ISTACK_RTI					;wait for the next pulse			
@@ -752,7 +763,7 @@ SCI_ISR_TC0_7		LDD	SCI_BTAB,X				;look up divider value
 			;Disable monitoring of the RX pin 
 SCI_ISR_TC0_8		BCLR	TIE, #C0I 				;disable interrupts
 			TIM_DISABLE TIM_SCI		     		;disable timer	
-			BCLR	TCTL4, #$3 				;disable edge detection (workaround for erratum MUCts04104)
+			BCLR	TCTL4, #$03 				;disable edge detection (workaround for erratum MUCts04104)
 			CLR	SCI_BDLST 				;clear baud rate result register
 			LED_COMERR_OFF					;stop signaling communication errors
 			JOB	SCI_ISR_TC0_5				;done

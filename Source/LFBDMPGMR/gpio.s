@@ -143,7 +143,7 @@
 ;#     PM4 - unused                       (output       low      )             #
 ;#     PM5 - unused                       (output       low      )             #
 ;#     PM6 - Switch                       (input        no pull  )             #
-;#     PM7 - Target interface enable      (output       low      )             #
+;#     PM7 - Target interface enable      (open-drain   no-pull  )             #
 ;#    Port L:                                                                  #
 ;#     PL0 - NC                           (input        pull-up  )             #
 ;#     PL1 - NC                           (input        pull-up  )             #
@@ -251,7 +251,8 @@ GPIO_VARS_END	EQU	*
 		;#Port M
 		;CLR	PTM
 		MOVW	#$BFFF, DDRM
-		;CLR	PERM	
+		;CLR	PERM
+		MOVB	#$80, WOMM
 		;#Port L
 		;CLR	DDRL
 		;MOVW	$#FF00, PERL

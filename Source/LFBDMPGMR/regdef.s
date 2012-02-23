@@ -879,7 +879,6 @@ TC3H            EQU     $007E
 ECT_TC3H        EQU     $007E
 
 ATD1CTL0        EQU     $0080
-ATDCTL1         EQU     $0081
 WRAP3    	EQU    	$08
 WRAP2    	EQU    	$04
 WRAP1    	EQU    	$02
@@ -3506,13 +3505,14 @@ CAN4TXTSRH      EQU     $02BE
 CAN4TXTSRL      EQU     $02BF
 
 ATD0CTL0        EQU     $02C0
-ATDCTL1         EQU     $0081
+ATDCTL0         EQU     $02C0
 WRAP3    	EQU    	$08
 WRAP2    	EQU    	$04
 WRAP1    	EQU    	$02
 WRAP0    	EQU    	$01
 
 ATD0CTL1        EQU     $02C1
+ATDCTL1         EQU     $02C1
 ETRIGSEL  	EQU    	$80
 SRES1     	EQU    	$40
 SRES0     	EQU    	$20
@@ -3523,6 +3523,7 @@ ETRIGCH1  	EQU    	$02
 ETRIGCH0  	EQU    	$01
 
 ATD0CTL2        EQU     $02C2
+ATDCTL2         EQU     $02C2
 AFFC            EQU     $40
 ICLKSTP         EQU     $20
 ETRIGLE         EQU     $10
@@ -3532,6 +3533,7 @@ ASCIE           EQU     $02
 ASCIF           EQU     $01
 
 ATD0CTL3        EQU     $02C3
+ATDCTL3         EQU     $02C3
 DJM             EQU     $80
 S8C             EQU     $40
 S4C             EQU     $20
@@ -3542,6 +3544,7 @@ FRZ1            EQU     $02
 FRZ0            EQU     $01
 
 ATD0CTL4        EQU     $02C4
+ATDCTL4         EQU     $02C4
 SMP2	        EQU     $80
 SMP1            EQU     $40
 SMP0            EQU     $20
@@ -3552,6 +3555,7 @@ PRS1            EQU     $02
 PRS0            EQU     $01
 
 ATD0CTL5        EQU     $02C5
+ATDCTL5         EQU     $02C5
 SC              EQU     $40
 SCAN            EQU     $20
 MULT            EQU     $10
@@ -3560,7 +3564,8 @@ CC              EQU     $04
 CB              EQU     $02
 CA              EQU     $01
 
-AT0STAT0        EQU     $02C6
+ATD0STAT0       EQU     $02C6
+ATDSTAT0        EQU     $02C6
 SCF             EQU     $80
 ETORF           EQU     $20
 FIFOR           EQU     $10
@@ -3571,6 +3576,7 @@ CC0             EQU     $01
 ;$02C7 reserved
 
 ATD0CMPEH       EQU    	$02C8
+ATDCMPEH        EQU    	$02C8
 CMPE15   	EQU    	$80
 CMPE14   	EQU    	$40
 CMPE13   	EQU    	$20
@@ -3581,6 +3587,7 @@ CMPE9    	EQU    	$02
 CMPE8    	EQU    	$01
 
 ATD0CMPEL       EQU     $02C9
+ATDCMPEL        EQU     $02C9
 CMPE7    	EQU     $80
 CMPE6    	EQU     $40
 CMPE5    	EQU     $20
@@ -3591,6 +3598,7 @@ CMPE1    	EQU     $02
 CMPE0    	EQU     $01
 
 ATD0STAT2H      EQU    	$02CA
+ATDSTAT2H       EQU    	$02CA
 CCF15   	EQU    	$80
 CCF14   	EQU    	$40
 CCF13   	EQU    	$20
@@ -3601,6 +3609,7 @@ CCF9    	EQU    	$02
 CCF8    	EQU    	$01
 
 ATD0STAT2L      EQU    	$02CB
+ATDSTAT2L       EQU    	$02CB
 CCF7    	EQU    	$80
 CCF6    	EQU    	$40
 CCF5    	EQU    	$20
@@ -3611,6 +3620,7 @@ CCF1    	EQU    	$02
 CCF0    	EQU    	$01
 
 ATD0DIENH       EQU    	$02CC
+ATDDIENH        EQU    	$02CC
 IEN15    	EQU    	$80
 IEN14    	EQU    	$40
 IEN13    	EQU    	$20
@@ -3621,6 +3631,7 @@ IEN9     	EQU    	$02
 IEN8     	EQU    	$01
 
 ATD0DIENL       EQU    	$02CD
+ATDDIENL        EQU    	$02CD
 IEN7     	EQU    	$80
 IEN6     	EQU    	$40
 IEN5     	EQU    	$20
@@ -3631,6 +3642,7 @@ IEN1     	EQU    	$02
 IEN0     	EQU    	$01
 
 ATD0CMPHTH      EQU    	$02CE
+ATDCMPHTH       EQU    	$02CE
 CMPHT15  	EQU    	$80
 CMPHT14  	EQU    	$40
 CMPHT13  	EQU    	$20
@@ -3641,6 +3653,7 @@ CMPHT9   	EQU    	$02
 CMPHT8   	EQU    	$01
 		       	
 ATD0CMPHTL      EQU    	$02CF
+ATDCMPHTL       EQU    	$02CF
 CMPHT0  	EQU    	$01
 CMPHT1  	EQU    	$02
 CMPHT2  	EQU    	$04
@@ -3651,66 +3664,82 @@ CMPHT6  	EQU    	$40
 CMPHT7  	EQU    	$80
 
 ATD0DR0         EQU    	$02D0
+ATDDR0          EQU    	$02D0
 ATD0DR0H        EQU    	$02D0
 ATD0DR0L        EQU    	$02D1
 
 ATD0DR1         EQU    	$02D2
+ATDDR1          EQU    	$02D2
 ATD0DR1H        EQU    	$02D2
 ATD0DR1L        EQU    	$02D3
 		       	
 ATD0DR2         EQU    	$02D4
+ATDDR2          EQU    	$02D4
 ATD0DR2H        EQU    	$02D4
 ATD0DR2L        EQU    	$02D5
 		       	
 ATD0DR3         EQU    	$02D6
+ATDDR3          EQU    	$02D6
 ATD0DR3H        EQU    	$02D6
 ATD0DR3L        EQU    	$02D7
 		       	
 ATD0DR4         EQU    	$02D8
+ATDDR4          EQU    	$02D8
 ATD0DR4H        EQU    	$02D8
 ATD0DR4L        EQU    	$02D9
 		       	
 ATD0DR5         EQU    	$02DA
+ATDDR5          EQU    	$02DA
 ATD0DR5H        EQU    	$02DA
 ATD0DR5L        EQU    	$02DB
 		       	
 ATD0DR6         EQU    	$02DC
+ATDDR6          EQU    	$02DC
 ATD0DR6H        EQU    	$02DC
 ATD0DR6L        EQU    	$02DD
 		       	
 ATD0DR7         EQU    	$02DE
+ATDDR7          EQU    	$02DE
 ATD0DR7H        EQU    	$02DE
 ATD0DR7L        EQU    	$02DF
 		       	
 ATD0DR8         EQU    	$02E0
+ATDDR8          EQU    	$02E0
 ATD0DR8H        EQU    	$02E0
 ATD0DR8L        EQU    	$02E1
 		       	
 ATD0DR9         EQU    	$02E2
+ATDDR9          EQU    	$02E2
 ATD0DR9H        EQU    	$02E2
 ATD0DR9L        EQU    	$02E3
 		       	
 ATD0DR10        EQU    	$02E3
+ATDDR10         EQU    	$02E3
 ATD0DR10H       EQU    	$02E3
 ATD0DR10L       EQU    	$02E5
 		       	
 ATD0DR11        EQU    	$02E6
+ATDDR11         EQU    	$02E6
 ATD0DR11H       EQU    	$02E6
 ATD0DR11L       EQU    	$02E7
 		       	
 ATD0DR12        EQU    	$02E8
+ATDDR12         EQU    	$02E8
 ATD0DR12H       EQU    	$02E8
 ATD0DR12L       EQU    	$02E9
 		       	
 ATD0DR13        EQU    	$02EA
+ATDDR13         EQU    	$02EA
 ATD0DR13H       EQU    	$02EA
 ATD0DR13L       EQU    	$02EB
 		       	
 ATD0DR14        EQU    	$02EC
+ATDDR14         EQU    	$02EC
 ATD0DR14H       EQU    	$02EC
 ATD0DR14L       EQU    	$02ED
 		       	
 ATD0DR15        EQU    	$02EE
+ATDDR15         EQU    	$02EE
 ATD0DR15H       EQU    	$02EE
 ATD0DR15L       EQU    	$02EF
 

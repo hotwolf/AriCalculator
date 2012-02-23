@@ -34,7 +34,9 @@
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-	
+TVMON_UPPER_THRESHOLD	EQU	(30*$FFFF)/100 ;3V
+TVMON_LOWER_THRESHOLD	EQU	(20*$FFFF)/100 ;2V
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -46,18 +48,18 @@ TVMON_VARS_END		EQU	*
 ;###############################################################################
 ;#Initialization
 #macro	TVMON_INIT, 0
-			;MOVB	#%00000000, ADCCTL0
+			MOVB	#%00000000, ATDCTL0
 			;             ^  ^
 			;    WRAP-----+--+ 
 	
-			;MOVB	#%00000000, ADCCTL1
+			MOVB	#%01000000, ATDCTL1
 			;         ^^^^^  ^
 			;ETRIGSEL-+||||  | 
 			;    SRES--++||  | 
 			; SMP_DIS----+|  | 
 			; ETRIGCH-----+--+ 
 
-			MOVB	#%01000001, ADCCTL2
+			MOVB	#%01000001, ATDCTL2
 			;          ^^^^^^^
 			;    AFFC--+|||||| 
 			; ICLKSTP---+||||| 
@@ -67,7 +69,7 @@ TVMON_VARS_END		EQU	*
 			;   ASCIE-------+| 
 			;  ACMPIE--------+ 
 
-			MOVB	#%00001011, ADCCTL3
+			MOVB	#%00010011, ATDCTL3
 			;         ^^^^^^^^
 			;     DJM-+||||||| 
 			;     S8C--+|||||| 
@@ -77,31 +79,21 @@ TVMON_VARS_END		EQU	*
 			;    FIFO------+|| 
 			;     FRZ-------++ 
 
-			MOVB	#%11111111, ADCCTL4
+			MOVB	#%11111111, ATDCTL4
 			;         ^ ^^   ^
 			;     SMP-+-+|   | 
 			;     PRS----+---+ 
 
-			MOVB	#%00011011, ADCCTL5
-			;          ^^^^^^^
-			;      SC--+|||||| 
-			;    SCAN---+||||| 
-			;    MULT----+|||| 
-			;      CD-----+||| 
-			;      CC------+|| 
-			;      CB-------+| 
-			;      CA--------+
-
 			;ATDSTAT0
 
-			MOVB	#$01, ATDCMPE+$1
+			MOVB	#$01, ATDCMPEL
 
 			;ATDSTAT2
 			;ATDIEN
 
-			MOVB	#$01, ATDCMPHT+$1
+			MOVB	#$01, ATDCMPHTL
 
-			MOVB	#(30*$FF)/50, ATDDR0
+			MOVW	#TVMON_UPPER_THRESHOLD, ATDDR0
 			
 			;ATDDR1
 			;ATDDR2
@@ -122,6 +114,18 @@ TVMON_VARS_END		EQU	*
 
 			;Initially flag missing target
 			LED_BICOLOR_RED
+
+			;Start ATD conversions
+			MOVB	#%00101011, ATDCTL5
+			;          ^^^^^^^
+			;      SC--+|||||| 
+			;    SCAN---+||||| 
+			;    MULT----+|||| 
+			;      CD-----+||| 
+			;      CC------+|| 
+			;      CB-------+| 
+			;      CA--------+
+
 #emac
 
 ;###############################################################################
@@ -130,22 +134,34 @@ TVMON_VARS_END		EQU	*
 			ORG	TVMON_CODE_START
 
 TVMON_ISR		EQU	*
-			BRSET	ATDCMPHT+$1, #$01, TVMON_ISR_1 	;target Vdd detected
+			BRSET	ATDCMPHTH+$1, #$01, TVMON_ISR_1 ;target Vdd detected
 
 			;Target Vdd missing
 			LED_BICOLOR_RED				;flag missing target Vdd
-			MOVB	#(30*$FF)/50, ATDDR0		;set threshold value (3V)
-			MOVB	#$01, ATDCMPHT+$1		;target Vdd must be higher than threshold
-			MOVB	#PM7, PTM			;disable target interface
-			JOB	TVMON_ISR_2			;done
+			BSET	ATDCMPHTL, #$01			;target Vdd must be higher than threshold			
+			MOVW	#TVMON_UPPER_THRESHOLD, ATDDR0	;set threshold value (3V)
+			CLR	PTM				;disable target interface
+			JOB	TVMON_ISR_2			;restart ADC conversion
 			
 			;Target Vdd detected
 TVMON_ISR_1		LED_BICOLOR_GREEN			;flag detected target Vdd
-			MOVB	#(25*$FF)/50, ATDDR0		;set threshold value (2,5V)
-			CLR	ATDCMPHT+$1			;target Vdd must be lower or same as threshold
-			CLR	PTM				;enable target interface
+			BCLR	ATDCMPHTL, #$01			;target Vdd must be lower than threshold			
+			MOVW	#TVMON_LOWER_THRESHOLD, ATDDR0	;set threshold value (2,5V)
+			MOVB	#PM7, PTM			;enable target interface
+
+			;Restart ATD conversions
+TVMON_ISR_2		MOVB	#%00101011, ATDCTL5
+			;          ^^^^^^^
+			;      SC--+|||||| 
+			;    SCAN---+||||| 
+			;    MULT----+|||| 
+			;      CD-----+||| 
+			;      CC------+|| 
+			;      CB-------+| 
+			;      CA--------+
+	
 			;Done 
-TVMON_ISR_2		ISTACK_RTS	
+			ISTACK_RTI	
 
 TVMON_CODE_END		EQU	*
 
