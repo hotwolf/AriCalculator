@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CBase - TIM - Timer Driver                                               #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -23,7 +23,7 @@
 ;#    follows:                                                                 #
 ;#      IC0:     SCI (capture posedges on RX pin)                              #
 ;#      IC1:     SCI (capture negedges on RX pin)                              #
-;#      OC2:     SCI (timeout)                                                 #
+;#      OC2:     unused                                                        #
 ;#      OC3:     unused                                                        #
 ;#      OC4:     unused                                                        #
 ;#      IC5:     BDM (capture posedges on BKGD pin)                            #
@@ -33,6 +33,8 @@
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
+;#    February 22, 2012                                                        #
+;#      - Back-ported LFBDMPGMR updates                                        #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    REGDEF - Register Definitions                                            #
@@ -62,44 +64,60 @@ TIM_VARS_END		EQU	*
 ;#Initialization
 #macro	TIM_INIT, 0		 ;7 6 5 4 3 2 1 0
 			MOVB	#%1_0_0_1_1_1_0_0, TIOS 	;select input capture (0)
-				 ;B B B     S S S 		; or output compare (1) feature
-				 ;D D D     C C C
-				 ;M M M     I I I
-				 ;T N P     T N P
-				 ;O E E     O E E
+				 ;B B B       S S 		; or output compare (1) feature
+				 ;D D D       C C
+				 ;M M M       I I
+				 ;T N P       N P
+				 ;O E E       E E
+
+				;CFORC
+				;OC7M 
+
+				;7 6 5 4 3 2 1 0
+			;MOVB	#%0_1_0_0_0_0_0_0, TOC7D	;OC7 output compares drive
+				 ;B B B       S S 		; posedges on TC6 	
+				 ;D D D       C C
+				 ;M M M       I I
+				 ;T N P       N P
+				 ;O E E       E E
+
+				;TCNT 
+				;TSCR1 
+				;TTOV 
 	
 				 ;7 6 5 4 3 2 1 0
-			;MOVB	#%0_1_0_0_0_0_0_0, TOC7D	;OC7 output compares drive
-				 ;B B B     S S S 		; posedges on TC6 	
-				 ;D D D     C C C
-				 ;M M M     I I I
-				 ;T N P     T N P
-				 ;O E E     O E E
-
-				 ;7 6 5 4 3 2 1 0
-			MOVW	#%0010000000000000, TCTL1 	;OC6 output compares drive
-				 ;B B B     S S S		; negedges (=10) on TC6
-				 ;D D D     C C C
-				 ;M M M     I I I
-				 ;T N P     T N P
-				 ;O E E     O E E
+			;MOVW	#%0000000000000000, TCTL1 	;OC6 output compares drive
+				 ;B B B       S S		; negedges (=10) on TC6
+				 ;D D D       C C
+				 ;M M M       I I
+				 ;T N P       N P
+				 ;O E E       E E
 
 			 	 ;7 6 5 4 3 2 1 0
-			MOVW	#%0010010000001001, TCTL3 	;set capture edges
-				 ;B B B     S S S	
-				 ;D D D     C C C
-				 ;M M M     I I I
-				 ;T N P     T N P
-				 ;O E E     O E E
+			;MOVW	#%0000010000001000, TCTL3 	;set capture edges
+				 ;B B B       S S	
+				 ;D D D       C C
+				 ;M M M       I I
+				 ;T N P       N P
+				 ;O E E       E E
 
-			MOVB	#(VEC_TC2&$FE), HPRIO ;TC2 gets highest interrupt priority
+			;MOVB	#(VEC_TC2&$FE), HPRIO ;TC2 gets highest interrupt priority
+
+				;TIE
+				;TSCR2
+				;TFLG1
+				;TFLG2
+				;TC0 ... TC7
+				;PACTL
+				;PAFLG
+				;PACN0 ... PACN3
 #emac
 
 ;#Enable timer
 ; args: 1. module (TIM_SCI or TIM_BDM)
 #macro	TIM_ENABLE, 1
 	BSET	TIM_BUSY, #\1
-	MOVB	#(TEN|TSFRZ|TFFCA), TSCR1	
+	MOVB	#(TEN|TSFRZ), TSCR1	
 #emac
 
 ;#Disable timer

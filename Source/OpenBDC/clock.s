@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CBase - CLOCK - Clock Driver                                             #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -25,6 +25,8 @@
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
+;#    February 22, 2012                                                        #
+;#      - Back-ported LFBDMPGMR updates                                        #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    REGDEF - Register Definitions                                            #
@@ -50,6 +52,7 @@ CLOCK_PLL_CFG	EQU	$2305 ;(35+1/5+1) => 49.152MHz (24.576MHz bus clock)
 ;# Variables                                                                   #
 ;###############################################################################
 			ORG	CLOCK_VARS_START
+CLOCK_FLGS		DB	1
 CLOCK_VARS_END		EQU	*
 
 ;###############################################################################
@@ -57,6 +60,7 @@ CLOCK_VARS_END		EQU	*
 ;###############################################################################
 ;#Initialization
 #macro	CLOCK_INIT, 0
+		MOVB	CRGFLG, CLOCK_FLGS 				;save all status flags
 		MOVB	#$FF, CRGFLG 					;clear all flags
 		MOVW	#CLOCK_PLL_CFG, SYNR				;set PLL frequency (SYNR, REFDV)
 		MOVW	#(((RTIE|LOCKIE)<<8)|COPWAI), CRGINT
@@ -82,6 +86,7 @@ CLOCK_VARS_END		EQU	*
 ;#Wait for PLL
 #macro	CLOCK_WAIT_FOR_PLL, 0
 LOOP		COP_SERVICE						;service COP
+		MOVB	#(PLLSEL|CWAI|COPWAI), CLKSEL 			;switch to PLL
 		BRCLR	CLKSEL, #PLLSEL, LOOP 				;wait until the PLL has been selecrt by the ISR
 #emac
 	
