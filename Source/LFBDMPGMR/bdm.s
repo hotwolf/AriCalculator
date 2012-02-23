@@ -171,9 +171,7 @@ BDM_VARS_END		EQU	*
 		STD	BDM_DLY_4						
 		MOVW	#BDM_RP_DUMMY, BDM_RP_CODE
 		STD	BDM_RP_CODE
-		MOVW	#BDM_STEP_IDLE, BDM_STEP			
 		STD	BDM_RMCNT
-		STAB	BDM_FLGS
 #emac
 
 ;Convert BDM cycles into timer counts
@@ -452,7 +450,7 @@ BDM_START_RM		EQU	*
 			LDX	BDM_RMCNT		
 			BNE	BDM_START_RM_1 ;increment reset monitor count
 			;Clear interrupt flag (reset monitor count in X)
-			LDD	TC6
+			LDD	OC6
 			;Increment reset monitor count (reset monitor count in X)
 BDM_START_RM_1		IBEQ	X, BDM_START_RM_3	;monitors nested too deeply
 			IBEQ	X, BDM_START_RM_3	;monitors nested too deeply
@@ -527,11 +525,11 @@ BDM_RESET		EQU	*
 			LDX	BDM_RMCNT
 			BEQ	BDM_RESET_1 			;reset monitor has been disabled
 			;Check if previous reset has been detected (run mode in B)
-			BRSET	TFLG1, #C6F, BDM_RESET_4		;reset has been detected
+			BRSET	TFLG1, #C6F, BDM_RESET_4	;reset has been detected
 			;Drive MODE on BKGD pin (run mode in B)
 BDM_RESET_1		BCLR	PTT, #PT7
 			TSTB
-			BEQ	BDM_RESSET_2 			;SSC mode
+			BEQ	BDM_RESET_2 			;SSC mode
 			BSET	PTT, #PT7
 BDM_RESET_2		BSET	DDRT, #PT7		
 			;Drive RESET low 

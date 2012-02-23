@@ -35,7 +35,7 @@
 ;# Constants                                                                   #
 ;###############################################################################
 TVMON_UPPER_THRESHOLD	EQU	(30*$FFFF)/100 ;3V
-TVMON_LOWER_THRESHOLD	EQU	(20*$FFFF)/100 ;2V
+TVMON_LOWER_THRESHOLD	EQU	( 5*$FFFF)/100 ;0.5V
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -139,14 +139,14 @@ TVMON_ISR		EQU	*
 			;Target Vdd missing
 			LED_BICOLOR_RED				;flag missing target Vdd
 			BSET	ATDCMPHTL, #$01			;target Vdd must be higher than threshold			
-			MOVW	#TVMON_UPPER_THRESHOLD, ATDDR0	;set threshold value (3V)
+			MOVW	#TVMON_UPPER_THRESHOLD, ATDDR0	;set upper threshold value
 			CLR	PTM				;disable target interface
 			JOB	TVMON_ISR_2			;restart ADC conversion
 			
 			;Target Vdd detected
 TVMON_ISR_1		LED_BICOLOR_GREEN			;flag detected target Vdd
 			BCLR	ATDCMPHTL, #$01			;target Vdd must be lower than threshold			
-			MOVW	#TVMON_LOWER_THRESHOLD, ATDDR0	;set threshold value (2,5V)
+			MOVW	#TVMON_LOWER_THRESHOLD, ATDDR0	;set lower threshold value
 			MOVB	#PM7, PTM			;enable target interface
 
 			;Restart ATD conversions
