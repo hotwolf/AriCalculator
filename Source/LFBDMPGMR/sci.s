@@ -236,8 +236,11 @@ SCI_INIT_2		LDX	#SCI_BDEF	 			;default baud rate
 			;Match 
 SCI_INIT_3		STX	SCIBDH					;set baud rate
 
+			;Transmit XON 
+			BCLR	SCI_FLGS, #SCI_FLG_FCRX_FC			;request transmission of XON
+	
 			;Set format and enable RX interrupts 
-			MOVW	#((SCI_FORMAT<<8)|RIE|TE|RE), SCICR1
+			MOVW	#((SCI_FORMAT<<8)|TXIE|RIE|TE|RE), SCICR1
 #emac
 
 ;#Transmit one byte (convinience macro to call the SCI_TX subroutine)
@@ -334,6 +337,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ;         X, Y, and D are preserved 
 #macro	SCI_SET_CTS, 0
 			BCLR	SCI_FLGS, #SCI_FLG_FCRX_FC			;request transmission of XON
+			MOVB	#(TXIE|RIE|TE|RE), SCICR2		   	;enable TX IRQ
 #emac
 
 ;Clear CTS signal -> forbid incomming data ("Clear To Send")
@@ -343,6 +347,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ;         X, Y, and D are preserved 
 #macro	SCI_CLR_CTS, 0
 			BSET	SCI_FLGS, #SCI_FLG_FCRX_FC			;request transmission of XOFF
+			MOVB	#(TXIE|RIE|TE|RE), SCICR2		   	;enable TX IRQ
 #emac
 
 ;Branch if RTS is cleared ("Ready To Send")

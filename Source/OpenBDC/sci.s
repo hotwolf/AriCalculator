@@ -167,8 +167,8 @@ SCI_CTS_FREE		EQU	 8*2		;Boundary to set CTS
 ;#Flag definitions
 SCI_FLG_SWOR		EQU	$10		;software buffer overrun (RX buffer)
 ;SCI_FLG_FCRX		EQU	$08		;don't receive (state of the serial interface)
-;SCI_FLG_FCRX_FC	EQU	$04		;request to stop incomming data (forced flow control)
-;SCI_FLG_FCRX_BF	EQU	$02		;request to stop incomming data (buffer overflow)
+SCI_FLG_FCRX_FC		EQU	$04		;request to stop incomming data (forced flow control)
+SCI_FLG_FCRX_BF		EQU	$02		;request to stop incomming data (buffer overflow)
 ;SCI_FLG_FCTX		EQU	$01		;don't transmit (XOFF received)
 
 ;#CTS state
@@ -325,11 +325,15 @@ SCI_INIT_3		STX	SCIBDH		;set baud rate
 	
 ;Set CTS signal -> allow incomming data ("Clear To Send")
 #macro	SCI_SET_CTS, 0
-		MOVB	SCI_CTS_STATE, PTM
+			BCLR	SCI_FLGS, SCI_FLG_FCRX_FC
+			BRSET	SCI_FLGS, SCI_FLG_FCRX_BF, DONE
+			MOVB	#SCI_CTS_CLEARED, PTM
+DONE			EQU	*
 #emac
 
 ;Clear CTS signal -> forbid incomming data ("Clear To Send")
 #macro	SCI_CLR_CTS, 0
+			BSET	SCI_FLGS, SCI_FLG_FCRX_FC
 			MOVB	#SCI_CTS_CLEARED, PTM
 #emac
 
@@ -340,10 +344,10 @@ SCI_INIT_3		STX	SCIBDH		;set baud rate
 	
 ;Stop baud rate detection
 #macro	SCI_STOP_BD, 0
-			BRCLR	SCI_FLGS, #SCI_FLG_BDCNT, DONE		;baud rate detection already inactive
-			BCLR	TIE, #SCI_TIMCH				;disable interrupts
+			BRCLR	SCI_BDLST, #$FF, DONE			;baud rate detection already inactive
+			BCLR	TIE, #(C1I|C0I)				;disable interrupts
 			TIM_DISABLE TIM_SCI				;disable timer
-			BCLR	SCI_FLGS, #(SCI_FLG_BDCNT|SCI_FLG_BDIGN);reset status flags
+			CLR	SCI_BDLST				;reset status flags
 			LED_COMERR_OFF					;stop signaling communication errors
 DONE			EQU	*
 #emac
@@ -462,7 +466,8 @@ SCI_RX_1		CLI						;unblock interrupts
 			ANDA	#SCI_RXBUF_MASK
 			CMPA	#SCI_CTS_FREE
 			BHS	SCI_RX_2 				;buffer still to full
-			CLR	SCI_CTS_STATE				;signal "Clear To Send"
+			BCLR	SCI_FLGS, #SCI_FLG_FCRX_BF		;unlock CTS
+			BRSER	SCI_FLGS, #SCI_FLG_FCRX_FC, SCI_RX_2
 			CLR	PTM
 			;Return result (RX data in X)
 SCI_RX_2		TFR X, D					;set return value
@@ -521,7 +526,7 @@ SCI_RX_DROP		EQU	*
 			ANDA	#SCI_RXBUF_MASK
 			CMPA	#SCI_CTS_FREE
 			BHS	SCI_RX_DROP_1 				;buffer still to full
-			CLR	SCI_CTS_STATE				;signal "Clear To Send"
+			;CLR	SCI_CTS_STATE				;signal "Clear To Send"
 			CLR	PTM
 			;Restore registers	
 SCI_RX_DROP_1		SSTACK_PULD					;pull accu D from the SSTACK
@@ -647,7 +652,8 @@ SCI_ISR_RX_4		TST	SCI_BDLST 				;check if baud rate detection is running
 SCI_ISR_RX_5		BSET	SCI_FLGS, #SCI_FLG_SWOR
 
 			;Clear CTS (flags:data in Y)
-SCI_ISR_RX_6		SCI_CLR_CTS	
+SCI_ISR_RX_6		BSET	SCI_FLGS, #
+			SCI_CLR_CTS	
 			JOB	SCI_ISR_RX_3 				;done
 				
 ;#Edge on RX pin captured 
