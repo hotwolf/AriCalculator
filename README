@@ -1,0 +1,11 @@
+AriCalculator
+=======
+A homemade and fully customizable calculator.
+
+The initial design is based on the S12G Micro EVB (https://github.com/hotwolf/S12G-Micro-EVB).
+
+Files:
+"Enclosure and Board.svg"  - Enclosure design (laser cutting or milling) and PCB design (isolation milling)
+
+
+This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License (http://creativecommons.org/licenses/by-nc-sa/3.0/).
