@@ -2,10 +2,15 @@ AriCalculator
 =============
 A homemade and fully customizable calculator.
 
-The initial design is based on the S12G Micro EVB (https://github.com/hotwolf/S12G-Micro-EVB).
+This design is based on the S12G Micro EVB (https://github.com/hotwolf/S12G-Micro-EVB).
 
 Files:
-"Enclosure and Board.svg"  - Enclosure design (for laser cutting or milling) and 
-                             PCB design (for isolation milling)
+"Enclosure and Board RevA.svg"  - First version of the enclosure (for laser 
+                                  cutting or milling) and the PCB (for isolation
+                                  milling) -> Inkscape SVG file 
+
+"Enclosure and Board RevB.svg"  - Updated version of the enclosure (for laser
+                                  cutting or milling) and the (PCB (for isolation
+                                  milling) -> Inkscape SVG file 
 
 This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License (http://creativecommons.org/licenses/by-nc-sa/3.0/).
