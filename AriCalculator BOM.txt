@@ -1,0 +1,26 @@
+Bill of Materials for the AriCalculator:
+========================================
+
+MCU:
+
+1x      S12G Micro EVB
+
+Display:
+
+1x      Electronic Assembly DOGL128L-6
+
+Capacitors:
+
+9x	 1uF		
+
+Keys:
+
+30x      2-pin (pin distance 5.08 mm)
+
+Power Switch:
+
+1x       3-pin angled DIP-switch 
+
+Battery Holders:
+
+2x	 Size AAA

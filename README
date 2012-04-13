@@ -5,6 +5,8 @@ A homemade and fully customizable calculator.
 This design is based on the S12G Micro EVB (https://github.com/hotwolf/S12G-Micro-EVB).
 
 Files:
+"AriCalculator BOM.txt"         - Bill of materials
+
 "Enclosure and Board RevA.svg"  - First version of the enclosure (for laser 
                                   cutting or milling) and the PCB (for isolation
                                   milling) -> Inkscape SVG file 
