@@ -1,0 +1,92 @@
+<!doctype html>
+<!-- The Time Machine GitHub pages theme was designed and developed by Jon Rohan, on Feb 7, 2012. -->
+<!-- Follow him for fun. http://twitter.com/jonrohan. Tail his code on http://github.com/jonrohan -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  <link rel="stylesheet" href="stylesheets/stylesheet.css" media="screen"/>
+  <link rel="stylesheet" href="stylesheets/pygment_trac.css"/>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+  <script type="text/javascript" src="javascripts/script.js"></script>
+
+  <title>Aricalculator</title>
+  <meta name="description" content="A homemade pocket calculator">
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+</head>
+
+<body>
+
+  <div class="wrapper">
+    <header>
+      <h1 class="title">Aricalculator</h1>
+    </header>
+    <div id="container">
+      <p class="tagline">A homemade pocket calculator</p>
+      <div id="main" role="main">
+        <div class="download-bar">
+        <div class="inner">
+          <a href="https://github.com/hotwolf/AriCalculator/tarball/master" class="download-button tar"><span>Download</span></a>
+          <a href="https://github.com/hotwolf/AriCalculator/zipball/master" class="download-button zip"><span>Download</span></a>
+          <a href="https://github.com/hotwolf/AriCalculator" class="code">View Aricalculator on GitHub</a>
+        </div>
+        <span class="blc"></span><span class="trc"></span>
+        </div>
+        <article class="markdown-body">
+          <h1>AriCalculator</h1>
+
+<p>AriCalculator is a project I plan to do with my daughter. The plan is to build a decent pocket calculator, by the time she is allowed to use one in school. Let's see how we'll do.</p>
+
+<h2>Hardware</h2>
+
+<p>The current hardware is based on the <a href="https://github.com/hotwolf/S12G-Micro-EVB">S12G Micro EVB</a> using a MC9S12G128 micro controller from Freescale. However this board can be easily by an Arduino Mini or anything similar. The micro controller board is mounted on a isolation milled main board, which also holds a 5x7 key matrix and a 128x64 dot matrix reflective LCD.</p>
+
+<h3>Current status 26 May 2012</h3>
+
+<p>I've build the first prototype (RevA) and identified a number of bugs and difficulties for assembly. All of the bug fixes and design improvements have been included in RevB. 
+I plan to build RevB at a later point in time. For now I will start the software development on my RevA prototype. Here are some pictures:</p>
+
+<p>Front view:
+<img src="/images/AriCalculator%20RevA%20front.png" alt="Aricalculator RevA front"></p>
+
+<p>Side view:
+<img src="/images/AriCalculator%20RevA%20side.png" alt="Aricalculator RevA side"></p>
+
+<p>Back view:
+<img src="/images/AriCalculator%20RevA%20back.png" alt="Aricalculator RevA back"></p>
+
+<h2>Software</h2>
+
+<p>The software for the AriCalculator will be written in Forth (<a href="https://github.com/hotwolf/S12CForth">S12CForth</a>). Forth has the advantage, that... </p>
+
+<ul>
+<li>the software can be run on any platform (running a compatible Forth)</li>
+<li>it is a great language to teach programming </li>
+<li>compiler and IDE are running on the MCU itself. All we need on the PC side is a terminal emulator and an editor.</li>
+</ul><h3>Current status 26 May 2012</h3>
+
+<p>Implemented the low level LCD driver.</p>
+        </article>
+      </div>
+    </div>
+    <footer>
+      <div class="owner">
+      <p><a href="https://github.com/hotwolf" class="avatar"><img src="https://secure.gravatar.com/avatar/500fc9ba85f6069edce882331781b14b?s=30&amp;d=https://a248.e.akamai.net/assets.github.com%2Fimages%2Fgravatars%2Fgravatar-140.png" width="48" height="48"/></a> <a href="https://github.com/hotwolf">hotwolf</a> maintains <a href="https://github.com/hotwolf/AriCalculator">Aricalculator</a></p>
+      </div>
+      <div class="creds">
+        <small>This page generated using <a href="https://pages.github.com/">GitHub Pages</a><br/>theme by <a href="http://twitter.com/jonrohan/">Jon Rohan</a></small>
+      </div>
+    </footer>
+  </div>
+  <div class="current-section">
+    <a href="#top">Scroll to top</a>
+    <a href="https://github.com/hotwolf/AriCalculator/tarball/master" class="tar">tar</a><a href="https://github.com/hotwolf/AriCalculator/zipball/master" class="zip">zip</a><a href="" class="code">source code</a>
+    <p class="name"></p>
+  </div>
+
+  
+</body>
+</html>
