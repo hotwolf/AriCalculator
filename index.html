@@ -36,7 +36,40 @@
         <span class="blc"></span><span class="trc"></span>
         </div>
         <article class="markdown-body">
-          <p>Coming soon!</p>
+<h1>AriCalculator</h1>
+
+<p>AriCalculator is a project I plan to do with my daughter. The plan is to build a decent pocket calculator, by the time she is allowed to use one in school. Let's see how we'll do.</p>
+
+<h2>Hardware</h2>
+
+<p>The current hardware is based on the <a href="https://github.com/hotwolf/S12G-Micro-EVB">S12G Micro EVB</a> using a MC9S12G128 micro controller from Freescale. However this board can be easily by an Arduino Mini or anything similar. The micro controller board is mounted on a isolation milled main board, which also holds a 5x7 key matrix and a 128x64 dot matrix reflective LCD.</p>
+
+<h3>Current status 26 May 2012</h3>
+
+<p>I've build the first prototype (RevA) and identified a number of bugs and difficulties for assembly. All of the bug fixes and design improvements have been included in RevB. 
+I plan to build RevB at a later point in time. For now I will start the software development on my RevA prototype. Here are some pictures:</p>
+
+<p>Front view:
+<img src="/images/AriCalculator%20RevA%20front.png" alt="Aricalculator RevA front"></p>
+
+<p>Side view:
+<img src="/images/AriCalculator%20RevA%20side.png" alt="Aricalculator RevA side"></p>
+
+<p>Back view:
+<img src="/images/AriCalculator%20RevA%20back.png" alt="Aricalculator RevA back"></p>
+
+<h2>Software</h2>
+
+<p>The software for the AriCalculator will be written in Forth (<a href="https://github.com/hotwolf/S12CForth">S12CForth</a>). Forth has the advantage, that... </p>
+
+<ul>
+<li>the software can be run on any platform (running a compatible Forth)</li>
+<li>it is a great language to teach programming </li>
+<li>compiler and IDE are running on the MCU itself. All we need on the PC side is a terminal emulator and an editor.</li>
+</ul><h3>Current status 26 May 2012</h3>
+
+<p>Implemented the low level LCD driver.</p>
+>>>>>>> 9e64ef6f07207fa7ad05c39f55266231ae16358b
         </article>
       </div>
     </div>
