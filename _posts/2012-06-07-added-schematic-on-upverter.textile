@@ -1,0 +1,9 @@
+---
+layout: post
+title: Added Schematic on Upverter.com
+---
+
+I drew a schematic for the *AriCalculator*'s main board on "upverter.com":http://upverter.com/hotwolf/6c30097c68aae7af/AriCalculator :
+
+<iframe title="AriCalculator" width="800" height="600" scrolling="no" frameborder="0" name="AriCalculator" class="eda_tool" src="http://upverter.com/eda/embed/6c30097c68aae7af/"></iframe>
+
