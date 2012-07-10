@@ -20,37 +20,46 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#    This module implements various print routines for the SCI driver:        #
-;#    PRINT_STR        - print an unformated   string                          #
-;#    PRINT_LSTR       - print a left aligned  string                          #
-;#    PRINT_RSTR       - print a right aligned string                          #
-;#    PRINT_UINT       - print an unformated   unsigned integer value          #
-;#    PRINT_LUINT      - print a left aligned  unsigned integer value          #
-;#    PRINT_RUINT      - print a right aligned unsigned integer value          #
-;#    PRINT_SINT       - print an unformated   signed   integer value          #
-;#    PRINT_LSINT      - print a left aligned  signed   integer value          #
-;#    PRINT_RSINT      - print a right aligned signed   integer value          #
-;#    PRINT_UDBL       - print an unformated   unsigned double  value          #
-;#    PRINT_LUDBL      - print a left aligned  unsigned double  value          #
-;#    PRINT_RUDBL      - print a right aligned unsigned double  value          #
-;#    PRINT_SDBL       - print an unformated   signed   double  value          #
-;#    PRINT_LSDBL      - print a left aligned  signed   double  value          #
-;#    PRINT_RSDBL      - print a right aligned signed   double  value          #
-;#    PRINT_STRCNT     - count the characters of a string                      #
-;#    PRINT_UINTCNT    - count the digits of an unsigned integer value         #
-;#    PRINT_SINTCNT    - count the digits of a  signed   integer value         #
-;#    PRINT_UDBLCNT    - count the digits of an unsigned double  value         #
-;#    PRINT_SDBLCNT    - count the digits of a  signed   double  value         #
-;#    PRINT_LINE_BREAK - prints the line break sequence                        #
-;#    PRINT_SPCS       - prints a number of space characters                   #
-;#    PRINT_SPC        - prints a space character                              #
-;#    PRINT_BEEP       - sends a beep                                          #
-;#    PRINT_BYTE       - prints a 2-digit hexadecimal number                   #
-;#    PRINT_WORD       - prints a 4-digit hexadecimal number                   #
-;#    PRINT_BITS       - prints a 8-digit binary number                        #
-;#    PRINT_CHAR       - prints a ASCII character                              #
-;#    PRINT_UPPER_B    - converts an ASCII character to upper case             #
-;#    PRINT_LOWER_B    - converts an ASCII character to lower case             #
-;#    PRINT_WAIT       - wait until output has been printed                    #
+;#    PRINT_STRCNT           - count the characters of a string                #
+;#    PRINT_UINTCNT          - count the digits of an unsigned integer value   #
+;#    PRINT_SINTCNT          - count the digits of a  signed   integer value   #
+;#    PRINT_UDBLCNT          - count the digits of an unsigned double  value   #
+;#    PRINT_SDBLCNT          - count the digits of a  signed   double  value   #
+;#    PRINT_UPPER_B          - converts an ASCII character to upper case       #
+;#    PRINT_LOWER_B          - converts an ASCII character to lower case       #
+;#    PRINT_WAIT             - wait until output has been printed              #
+;#    PRINT_CHAR_BL/NB       - prints a ASCII character                        #
+;#    PRINT_BEEP_BL/NB       - sends a beep                                    #
+
+
+
+
+
+
+
+
+
+;#    PRINT_STR_BL/NB        - print an unformated   string                    #
+;#    PRINT_LSTR_BL/NB       - print a left aligned  string                    #
+;#    PRINT_RSTR_BL/NB       - print a right aligned string                    #
+;#    PRINT_UINT_BL/NB       - print an unformated   unsigned integer value    #
+;#    PRINT_LUINT_BL/NB      - print a left aligned  unsigned integer value    #
+;#    PRINT_RUINT_BL/NB      - print a right aligned unsigned integer value    #
+;#    PRINT_SINT_BL/NB       - print an unformated   signed   integer value    #
+;#    PRINT_LSINT_BL/NB      - print a left aligned  signed   integer value    #
+;#    PRINT_RSINT_BL/NB      - print a right aligned signed   integer value    #
+;#    PRINT_UDBL_BL/NB       - print an unformated   unsigned double  value    #
+;#    PRINT_LUDBL_BL/NB      - print a left aligned  unsigned double  value    #
+;#    PRINT_RUDBL_BL/NB      - print a right aligned unsigned double  value    #
+;#    PRINT_SDBL_BL/NB       - print an unformated   signed   double  value    #
+;#    PRINT_LSDBL_BL/NB      - print a left aligned  signed   double  value    #
+;#    PRINT_RSDBL_BL/NB      - print a right aligned signed   double  value    #
+;#    PRINT_LINE_BREAK_BL/NB - prints the line break sequence                  #
+;#    PRINT_SPCS_BL/NB       - prints a number of space characters             #
+;#    PRINT_SPC_BL/NB        - prints a space character                        #
+;#    PRINT_BYTE_BL/NB       - prints a 2-digit hexadecimal number             #
+;#    PRINT_WORD_BL/NB       - prints a 4-digit hexadecimal number             #
+;#    PRINT_BITS_BL/NB       - prints a 8-digit binary number                  #
 ;#                                                                             #
 ;#    Each of these functions has a coresponding macro definition              #
 ;###############################################################################
@@ -68,6 +77,9 @@
 ;#      - Added macros "PRINT_UPPER_B" and "PRINT_LOWER_B"                     #
 ;#    Jul 29, 2010                                                             #
 ;#      - fixed PRINT_SINTCNT                                                  #
+;#    July 2, 2012                                                             #
+;#      - Added support for linear PC                                          #
+;#      - Added non-blocking functions                                         #
 ;###############################################################################
 	
 ;###############################################################################
@@ -102,6 +114,133 @@ PRINT_VARS_END		EQU	*
 ;#Initialization
 #macro	PRINT_INIT, 0
 #emac	
+
+;#Count characters of a string
+; args:   X: start of the string
+; result: A: character count (saturated at 255)
+; SSTACK: 2 bytes
+;         X, Y and B are preserved
+#macro	PRINT_STRCNT, 0
+			SSTACK_JOBSR	PRINT_STRCNT
+#emac
+	
+;#Count digits of an unsigned integer value
+; args:   X: unsigned integer value
+; 	  B: base   (2<=base<=16)
+; result: A: number of digits
+; SSTACK: 13 bytes
+;         X, Y and B are preserved
+#macro	PRINT_UINTCNT, 0
+			SSTACK_JOBSR	PRINT_UINTCNT
+#emac	
+
+;#Count digits of a signed double value
+; args:   X: signed double value
+; 	  B: base   (2<=base<=16)
+; result: A: number of digits
+; SSTACK: 13 bytes
+;         X, Y and B are preserved
+#macro	PRINT_SINTCNT, 0
+			SSTACK_JOBSR	PRINT_SINTCNT
+#emac	
+
+;#Count digits of an unsigned double value
+; args:   Y:X: unsigned double value
+; 	  B: base   (2<=base<=16)
+; result: A: number of digits
+; SSTACK: 13 bytes
+;         X, Y and B are preserved
+#macro	PRINT_UDBLCNT, 0
+			SSTACK_JOBSR	PRINT_UDBLCNT
+#emac	
+
+;#Count digits of a signed double value
+; args:   Y:X: signed double value
+; 	  B: base   (2<=base<=16)
+; result: A: number of digits
+; SSTACK: 13 bytes
+;         X, Y and B are preserved
+#macro	PRINT_SDBLCNT, 0
+			SSTACK_JOBSR	PRINT_SDBLCNT
+#emac	
+
+;#Convert a upper case character to upper case
+; args:   B: ASCII character (w/ or w/out termination)
+; result: B: upper case character 
+; SSTACK: 2 bytes
+;         X, Y, and A are preserved 
+#macro	PRINT_UPPER, 0
+			SSTACK_JOBSR	PRINT_UPPER_B
+#emac
+	
+;#Convert an upper case character to lower case
+; args:   B: ASCII character (w/ or w/out termination)
+; result: B: lower case character 
+; SSTACK: 2 bytes
+;         X, Y, and A are preserved 
+#macro	PRINT_LOWER, 0
+			SSTACK_JOBSR	PRINT_LOWER_B
+#emac
+	
+;#Wait until all output has been printed
+; args:   none
+; result: none
+; SSTACK: 4 bytes
+;         X, Y, and D are preserved 
+#macro	PRINT_WAIT, 0
+	SCI_TX_WAIT
+#emac
+
+;#Transmit one byte (non-blocking)
+; args:   B: data to be send
+; result: C-flag: set if successful
+; SSTACK: 5 bytes
+;         X, Y, and D are preserved 
+#macro	PRINT_CHAR_NB, 0
+		SCI_TX_NB
+#emac
+
+;#Transmit one byte (blocking)
+; args:   B: data to be send
+; result: none
+; SSTACK: 7 bytes
+;         X, Y, and D are preserved 
+#macro	PRINT_CHAR_BL, 0
+		SCI_TX_NB_BL
+#emac
+
+;#Send a beep to the SCI (non-blocking)
+; args:   none
+; result: none
+; SSTACK: bytes
+;         X, Y and D are preserved
+#macro	PRINT_BEEP_NB, 0
+	SSTACK_JOBSR	PRINT_BEEP_NB
+#emac	
+
+;#Send a beep to the SCI
+; args:   none
+; result: none
+; SSTACK: bytes
+;         X, Y and D are preserved
+#macro	PRINT_BEEP_BL, 0
+	SSTACK_JOBSR	PRINT_BEEP_BL
+#emac	
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
 
 ;#Print a signed integer value
 ; args:   X: signed integer value
@@ -239,46 +378,6 @@ PRINT_VARS_END		EQU	*
 	SSTACK_JOBSR	PRINT_RSINT
 #emac	
 
-;#Count digits of an unsigned double value
-; args:   Y:X: unsigned double value
-; 	  B: base   (2<=base<=16)
-; result: A: number of digits
-; SSTACK: 13 bytes
-;         X, Y and B are preserved
-#macro	PRINT_UDBLCNT, 0
-	SSTACK_JOBSR	PRINT_UDBLCNT
-#emac	
-
-;#Count digits of a signed double value
-; args:   Y:X: signed double value
-; 	  B: base   (2<=base<=16)
-; result: A: number of digits
-; SSTACK: 13 bytes
-;         X, Y and B are preserved
-#macro	PRINT_SDBLCNT, 0
-	SSTACK_JOBSR	PRINT_SDBLCNT
-#emac	
-
-;#Count digits of an unsigned integer value
-; args:   X: unsigned integer value
-; 	  B: base   (2<=base<=16)
-; result: A: number of digits
-; SSTACK: 13 bytes
-;         X, Y and B are preserved
-#macro	PRINT_UINTCNT, 0
-	SSTACK_JOBSR	PRINT_UINTCNT
-#emac	
-
-;#Count digits of a signed double value
-; args:   X: signed double value
-; 	  B: base   (2<=base<=16)
-; result: A: number of digits
-; SSTACK: 13 bytes
-;         X, Y and B are preserved
-#macro	PRINT_SINTCNT, 0
-	SSTACK_JOBSR	PRINT_SINTCNT
-#emac	
-
 ;#Print spaces
 ; args:   A: character count
 ; result: none
@@ -297,15 +396,6 @@ PRINT_VARS_END		EQU	*
 	SSTACK_JOBSR	PRINT_SPC
 #emac	
 
-;#Count characters of a string
-; args:   X: start of the string
-; result: A: character count (saturated at 255)
-; SSTACK: 2 bytes
-;         X, Y and B are preserved
-#macro	PRINT_STRCNT, 0
-	SSTACK_JOBSR	PRINT_STRCNT
-#emac
-	
 ;#Print a right aligned string to the SCI
 ; args:   X: start of the string
 ;         A: minimum lenght of the output
@@ -342,15 +432,6 @@ PRINT_VARS_END		EQU	*
 	SSTACK_JOBSR	PRINT_LINE_BREAK
 #emac	
 
-;#Send a beep to the SCI
-; args:   none
-; result: none
-; SSTACK: 11 bytes
-;         X, Y and D are preserved
-#macro	PRINT_BEEP, 0
-	SSTACK_JOBSR	PRINT_BEEP
-#emac	
-
 ;#Print an 8-bit value to the SCI
 ; args:   B: 8-bit value
 ; result: none
@@ -377,64 +458,215 @@ PRINT_VARS_END		EQU	*
 	SSTACK_JOBSR	PRINT_BITS
 #emac	
 
-;#Transmit one byte (convinience macro to call the SCI_TX subroutine)
-; args:   B: data to be send
-; result: none
-; SSTACK: 8 bytes
-;         X, Y, and D are preserved 
-#macro	PRINT_CHAR, 0
-		SCI_TX
-#emac
 
-;#Convert a lower case character to upper case
-; args:   B: ASCII character (w/ or w/out termination)
-; result: none
-; SSTACK: 8 bytes
-;         X, Y, and D are preserved 
-#macro	PRINT_UPPER_B, 0
-	CMPB	#$61		;"a"
-	BLO	DONE
-	CMPB	#$7A		;"z"
-	BLS	ADJUST
-	CMPB	#$EA		;"a"+$80
-	BLO	DONE
-	CMPB	#$FA		;"z"+$80
-	BHI	DONE
-ADJUST	SUBB	#$20		;"a"-"A"	
-DONE	EQU	*
-#emac
-
-;#Convert an upper case character to lower case
-; args:   B: ASCII character (w/ or w/out termination)
-; result: none
-; SSTACK: 8 bytes
-;         X, Y, and D are preserved 
-#macro	PRINT_LOWER_B, 0
-	CMPB	#$41		;"A"
-	BLO	DONE
-	CMPB	#$5A		;"Z"
-	BLS	ADJUST
-	CMPB	#$C1		;"A"+$80
-	BLO	DONE
-	CMPB	#$DA		;"Z"+$80
-	BHI	DONE
-ADJUST	ADDB	#$20		;"a"-"A"	
-DONE	EQU	*
-#emac
-	
-;#Wait until all output has been printed
-; args:   none
-; result: none
-; SSTACK: 4 bytes
-;         X, Y, and D are preserved 
-#macro	PRINT_WAIT, 0
-	SCI_TX_WAIT
-#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
 			ORG	PRINT_CODE_START
+
+;#Count characters of a string
+; args:   X: start of the string
+; result: A: character count (saturated at 255)
+; SSTACK: 2 bytes
+;         X, Y and B are preserved
+PRINT_STRCNT		EQU	*
+			;Count loop (string pointer in X)
+			CLRA				;clear counter
+PRINT_STRCNT_1		TST	A,X			;check for string termination
+			BMI	PRINT_STRCNT_3		;last char
+			INCA				;increment count
+			BNE	PRINT_STRCNT_1		;no overflow 
+PRINT_STRCNT_2		COMA				;overflow -> keep value at maximum
+			SSTACK_RTS
+PRINT_STRCNT_3		INCA				;count last char
+			BEQ	PRINT_STRCNT_2		;overflow
+			SSTACK_RTS
+
+;#Count digits of an unsigned integer value
+; args:   X: unsigned integer value
+; 	  B: base   (2<=base<=16)
+; result: A: number of digits
+; SSTACK: 13 bytes
+;         X, Y and B are preserved
+PRINT_UINTCNT		EQU	*
+			;Save registers (value in X, base in B)
+			SSTACK_PSHYXD			;save index X, index Y, and accu D
+			;Count digits of double value (value in X, base in B)
+PRINT_UINTCNT_1		LDY	#$0000
+			JOB	PRINT_UINTCNT_2
+PRINT_UINTCNT_2		EQU	PRINT_UDBLCNT_1
+
+;#Count digits of a signed double value
+; args:   X: signed double value
+; 	  B: base   (2<=base<=16)
+; result: A: number of digits
+; SSTACK: 13 bytes
+;         X, Y and B are preserved
+PRINT_SINTCNT		EQU	*
+			;Save registers (value in X, base in B)
+			SSTACK_PSHYXD			;save index X, index Y, and accu D
+			;Check if value is plsitive (value in X, base in B)
+PRINT_SINTCNT_1		CPX	#$0000
+			BPL	PRINT_SINTCNT_3
+			;Value is negative (value in X, base in B)
+			LDY	#$FFFF 			;sign extend value
+			JOB	PRINT_SINTCNT_2
+PRINT_SINTCNT_2		EQU	PRINT_SDBLCNT_1
+PRINT_SINTCNT_3		EQU	PRINT_UINTCNT_1
+	
+;#Count digits of an unsigned double value
+; args:   Y:X: unsigned double value
+; 	  B: base   (2<=base<=16)
+; result: A: number of digits
+; SSTACK: 13 bytes
+;         X, Y and B are preserved
+PRINT_UDBLCNT		EQU	*
+PRINT_UDBLCNT_TMP3	EQU	$0
+PRINT_UDBLCNT_TMP2	EQU	$1
+PRINT_UDBLCNT_TMP1	EQU	$2
+PRINT_UDBLCNT_TMP0	EQU	$3
+PRINT_UDBLCNT_BASE	EQU	$4
+PRINT_UDBLCNT_CNT	EQU	$5
+PRINT_UDBLCNT_B		EQU	$6
+PRINT_UDBLCNT_X		EQU	$7
+PRINT_UDBLCNT_Y		EQU	$9	
+			;Save registers (value in Y:X, base in B)
+			SSTACK_PSHYXD			;save index X, index Y, and accu D
+			;Set count offset to zero (value in Y:X, base in B) 
+PRINT_UDBLCNT_1		CLRA
+			;Fix base (value in Y:X, base in B, count offset in A)
+PRINT_UDBLCNT_2		SSTACK_JOBSR	PRINT_FIX_BASE	;adjust base value (SSTACK: 2 bytes)
+			;Allocate and initialize local variables (value in Y:X, base in B, count offset in A)
+			SSTACK_ALLOC,5			;allocate local variables
+			STAA	PRINT_UDBLCNT_CNT,SP
+			STAB	PRINT_UDBLCNT_BASE,SP
+			STY	PRINT_UDBLCNT_TMP3,SP
+			STX	PRINT_UDBLCNT_TMP1,SP
+			;Division loop (value in Y:X, base in B)		
+PRINT_UDBLCNT_3		LDAA	PRINT_UDBLCNT_CNT,SP 	;increment and saturate the counter
+			ADDA	#$01
+			SBCA	#$00
+			STAA	PRINT_UDBLCNT_CNT,SP
+			;Byte 3/Byte 2
+			LDX	PRINT_UDBLCNT_TMP3,SP	;tmp3:tmp2 => X
+			BEQ	PRINT_UDBLCNT_4		;division step can be skipped
+			CLRA				;base => D
+			LDAB	PRINT_UDBLCNT_BASE,SP
+			EXG	X, D
+			IDIV				;D / X => X,  D % X => D 
+			STX	PRINT_UDBLCNT_TMP3,SP	;result => tmp3:tmp2
+			;Byte 1/Byte 0 (prev remainder in D)
+			TFR	D, X			;remainder => X
+PRINT_UDBLCNT_4		CLRA				;base => D
+			LDAB	PRINT_UDBLCNT_BASE,SP
+			LDY	PRINT_UDBLCNT_TMP1,SP	;tmp1:tmp0 => Y
+			EXG	X, Y
+			EXG	X, D
+			EDIV				;Y:D / X => Y,  Y:D % X => D
+			STY	PRINT_UDBLCNT_TMP1,SP	;result => tmp1:tmp0
+			BNE	PRINT_UDBLCNT_3		;result is not zero, yet
+			LDX	PRINT_UDBLCNT_TMP3,SP	;tmp3:tmp2 => X
+			BNE	PRINT_UDBLCNT_3		;result is not zero, yet
+			;Deallocate local memory and restore registers
+			SSTACK_DEALLOC,5		;deallocate local variables
+			SSTACK_PULDXY			;RESTORE index X, index Y, and accu D
+			SSTACK_RTS
+
+;#Count digits of a signed double value
+; args:   Y:X: signed double value
+; 	  B: base   (2<=base<=16)
+; result: A: number of digits
+; SSTACK: 13 bytes
+;         X, Y and B are preserved
+PRINT_SDBLCNT		EQU	*
+			;Save registers (value in Y:X, base in B)
+			SSTACK_PSHYXD			;save index X, index Y, and accu D			
+			;Check if number is negative (value in Y:X, base in B)
+PRINT_SDBLCNT_1		CPY	#$0000
+			BPL	PRINT_SDBLCNT_2		;number is positive
+			;Set char count to 1 (value in Y:X, base in B)
+			LDAA	#$01
+			;Calculate 2's complement (value in Y:X, char count in A, base in B)
+			EXG	D, Y
+			COMA
+			COMB
+			EXG	D, X
+			COMA
+			COMB
+			ADDD	#1
+			EXG	D, X
+			ADCB	#0
+			ADCA	#0
+			EXG	D, Y
+			JOB	PRINT_SDBLCNT_3	;jump to UDBLCNT division loop
+PRINT_SDBLCNT_2		EQU	PRINT_UDBLCNT_1
+PRINT_SDBLCNT_3		EQU	PRINT_UDBLCNT_2
+	
+;#Convert a lower case character to upper case
+; args:   B: ASCII character (w/ or w/out termination)
+; result: B: upper case character 
+; SSTACK: 2 bytes
+;         X, Y, and A are preserved 
+PRINT_UPPER		EQU	*
+			CMPB	#$61		;"a"
+			BLO	DONE
+			CMPB	#$7A		;"z"
+			BLS	ADJUST
+			CMPB	#$EA		;"a"+$80
+			BLO	DONE
+			CMPB	#$FA		;"z"+$80
+			BHI	DONE
+ADJUST			SUBB	#$20		;"a"-"A"	
+DONE			SSTACK_RTS
+
+;#Convert an upper case character to lower case
+; args:   B: ASCII character (w/ or w/out termination)
+; result: B: lower case character
+; SSTACK: 8 bytes
+;         X, Y, and A are preserved 
+PRINT_LOWER		EQU	*
+			CMPB	#$41		;"A"
+			BLO	DONE
+			CMPB	#$5A		;"Z"
+			BLS	ADJUST
+			CMPB	#$C1		;"A"+$80
+			BLO	DONE
+			CMPB	#$DA		;"Z"+$80
+			BHI	DONE
+			ADDB	#$20		;"a"-"A"	
+DONE			SSTACK_RTS
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ;#Print a signed integer value
 ; args:   X: signed integer value
@@ -840,182 +1072,77 @@ PRINT_RSINT_2		CLRA				;set output width to zero
 			JOB	PRINT_RSINT_3
 PRINT_RSINT_3		EQU	PRINT_LSINT_1
 
-;#Count digits of an unsigned double value
-; args:   Y:X: unsigned double value
-; 	  B: base   (2<=base<=16)
-; result: A: number of digits
-; SSTACK: 13 bytes
+;#Print spaces (non-blocking)
+; args:   A: character count
+; result: A: remaining character count
+;    C-flag: set if successful
+; SSTACK: 11 bytes
 ;         X, Y and B are preserved
-PRINT_UDBLCNT		EQU	*
-PRINT_UDBLCNT_TMP3	EQU	$0
-PRINT_UDBLCNT_TMP2	EQU	$1
-PRINT_UDBLCNT_TMP1	EQU	$2
-PRINT_UDBLCNT_TMP0	EQU	$3
-PRINT_UDBLCNT_BASE	EQU	$4
-PRINT_UDBLCNT_CNT	EQU	$5
-PRINT_UDBLCNT_B		EQU	$6
-PRINT_UDBLCNT_X		EQU	$7
-PRINT_UDBLCNT_Y		EQU	$9	
-			;Save registers (value in Y:X, base in B)
-			SSTACK_PSHYXD			;save index X, index Y, and accu D
-			;Set count offset to zero (value in Y:X, base in B) 
-PRINT_UDBLCNT_1		CLRA
-			;Fix base (value in Y:X, base in B, count offset in A)
-PRINT_UDBLCNT_2		SSTACK_JOBSR	PRINT_FIX_BASE	;adjust base value (SSTACK: 2 bytes)
-			;Allocate and initialize local variables (value in Y:X, base in B, count offset in A)
-			SSTACK_ALLOC,5			;allocate local variables
-			STAA	PRINT_UDBLCNT_CNT,SP
-			STAB	PRINT_UDBLCNT_BASE,SP
-			STY	PRINT_UDBLCNT_TMP3,SP
-			STX	PRINT_UDBLCNT_TMP1,SP
-			;Division loop (value in Y:X, base in B)		
-PRINT_UDBLCNT_3		LDAA	PRINT_UDBLCNT_CNT,SP 	;increment and saturate the counter
-			ADDA	#$01
-			SBCA	#$00
-			STAA	PRINT_UDBLCNT_CNT,SP
-			;Byte 3/Byte 2
-			LDX	PRINT_UDBLCNT_TMP3,SP	;tmp3:tmp2 => X
-			BEQ	PRINT_UDBLCNT_4		;division step can be skipped
-			CLRA				;base => D
-			LDAB	PRINT_UDBLCNT_BASE,SP
-			EXG	X, D
-			IDIV				;D / X => X,  D % X => D 
-			STX	PRINT_UDBLCNT_TMP3,SP	;result => tmp3:tmp2
-			;Byte 1/Byte 0 (prev remainder in D)
-			TFR	D, X			;remainder => X
-PRINT_UDBLCNT_4		CLRA				;base => D
-			LDAB	PRINT_UDBLCNT_BASE,SP
-			LDY	PRINT_UDBLCNT_TMP1,SP	;tmp1:tmp0 => Y
-			EXG	X, Y
-			EXG	X, D
-			EDIV				;Y:D / X => Y,  Y:D % X => D
-			STY	PRINT_UDBLCNT_TMP1,SP	;result => tmp1:tmp0
-			BNE	PRINT_UDBLCNT_3		;result is not zero, yet
-			LDX	PRINT_UDBLCNT_TMP3,SP	;tmp3:tmp2 => X
-			BNE	PRINT_UDBLCNT_3		;result is not zero, yet
-			;Deallocate local memory and restore registers
-			SSTACK_DEALLOC,5		;deallocate local variables
-			SSTACK_PULDXY			;RESTORE index X, index Y, and accu D
-			SSTACK_RTS
+PRINT_SPCS_NB		EQU	*
+			;Save registers (char count in A)
+			SSTACK_PSHB 			;save  accu B
+			;Print loop (char count in A)
+			TBEQ	A, PRINT_SPCS_NB_2 	;don't print anything if A=0 ;'
+			LDAB	#PRINT_SYM_SPACE
+PRINT_SPCS_NB_1		SCI_TX_NB			;print character (SSTACK: 8 bytes)
+			BCC	PRINT_SPCS_NB_3
+			DBNE	A, PRINT_SPCS_NB_1
+			;Restore registers
+PRINT_SPCS_NB_2		SSTACK_PULB_RST_NOERR 		;restore accu B 
+PRINT_SPCS_NB_3		SSTACK_PULB_RST_ERR 		;restore accu B 
 
-;#Count digits of a signed double value
-; args:   Y:X: signed double value
-; 	  B: base   (2<=base<=16)
-; result: A: number of digits
-; SSTACK: 13 bytes
-;         X, Y and B are preserved
-PRINT_SDBLCNT		EQU	*
-			;Save registers (value in Y:X, base in B)
-			SSTACK_PSHYXD			;save index X, index Y, and accu D			
-			;Check if number is negative (value in Y:X, base in B)
-PRINT_SDBLCNT_1		CPY	#$0000
-			BPL	PRINT_SDBLCNT_2		;number is positive
-			;Set char count to 1 (value in Y:X, base in B)
-			LDAA	#$01
-			;Calculate 2's complement (value in Y:X, char count in A, base in B)
-			EXG	D, Y
-			COMA
-			COMB
-			EXG	D, X
-			COMA
-			COMB
-			ADDD	#1
-			EXG	D, X
-			ADCB	#0
-			ADCA	#0
-			EXG	D, Y
-			JOB	PRINT_SDBLCNT_3	;jump to UDBLCNT division loop
-PRINT_SDBLCNT_2		EQU	PRINT_UDBLCNT_1
-PRINT_SDBLCNT_3		EQU	PRINT_UDBLCNT_2
-	
-;#Count digits of an unsigned integer value
-; args:   X: unsigned integer value
-; 	  B: base   (2<=base<=16)
-; result: A: number of digits
-; SSTACK: 13 bytes
-;         X, Y and B are preserved
-PRINT_UINTCNT		EQU	*
-			;Save registers (value in X, base in B)
-			SSTACK_PSHYXD			;save index X, index Y, and accu D
-			;Count digits of double value (value in X, base in B)
-PRINT_UINTCNT_1		LDY	#$0000
-			JOB	PRINT_UINTCNT_2
-PRINT_UINTCNT_2		EQU	PRINT_UDBLCNT_1
-
-;#Count digits of a signed double value
-; args:   X: signed double value
-; 	  B: base   (2<=base<=16)
-; result: A: number of digits
-; SSTACK: 13 bytes
-;         X, Y and B are preserved
-PRINT_SINTCNT		EQU	*
-			;Save registers (value in X, base in B)
-			SSTACK_PSHYXD			;save index X, index Y, and accu D
-			;Check if value is plsitive (value in X, base in B)
-PRINT_SINTCNT_1		CPX	#$0000
-			BPL	PRINT_SINTCNT_3
-			;Value is negative (value in X, base in B)
-			LDY	#$FFFF 			;sign extend value
-			JOB	PRINT_SINTCNT_2
-PRINT_SINTCNT_2		EQU	PRINT_SDBLCNT_1
-PRINT_SINTCNT_3		EQU	PRINT_UINTCNT_1
-	
-;#Print spaces
+;#Print spaces (blocking)
 ; args:   A: character count
 ; result: none
-; SSTACK: 12 bytes
+; SSTACK: 14 bytes
 ;         X, Y and D are preserved
-PRINT_SPCS		EQU	*
+PRINT_SPCS_BL		EQU	*
 			;Save registers (char count in A)
-			SSTACK_PSHD 			;save  accu D
-			;Print loop (char count in A)
-			TBEQ	A, PRINT_SPCS_2 	;don't print anything if A=0 ;'
-			LDAB	#PRINT_SYM_SPACE
-PRINT_SPCS_1		SCI_TX				;print character (SSTACK: 8 bytes)
-			DBNE	A, PRINT_SPCS_1
+			SSTACK_PSHA 			;save  accu A
+			;Print spaces 
+PRINT_SPCS_BL_1		SEI
+			PRINT_SPCS_NB
+			BCS	PRINT_SPCS_BL_2	
+			ISTACK_WAIT
+			JOB	PRINT_SPCS_BL_1
+			;Complete
+PRINT_SPCS_BL_1		CLI
 			;Restore registers
-PRINT_SPCS_2		SSTACK_PULD 			;restore accu D
-			SSTACK_RTS
-
-;#Count characters of a string
-; args:   X: start of the string
-; result: A: character count (saturated at 255)
-; SSTACK: 2 bytes
-;         X, Y and B are preserved
-PRINT_STRCNT		EQU	*
-			;Count loop (string pointer in X)
-			CLRA				;clear counter
-PRINT_STRCNT_1		TST	A,X			;check for string termination
-			BMI	PRINT_STRCNT_3		;last char
-			INCA				;increment count
-			BNE	PRINT_STRCNT_1		;no overflow 
-PRINT_STRCNT_2		COMA				;overflow -> keep value at maximum
-			SSTACK_RTS
-PRINT_STRCNT_3		INCA				;count last char
-			BEQ	PRINT_STRCNT_2		;overflow
-			SSTACK_RTS
-
+			SSTACK_PULA_RTS			;restore accu A
+	
 ;#Print a right aligned string to the SCI
 ; args:   X: start of the string
 ;         A: minimum lenght of the output
-; result: none
-; SSTACK: 18 bytes
-;         X, Y and D are preserved
+; result: X: pointer to remaining string
+;         A: minimum lenght of the remaining output
+;    C-flag: set if successful
+; SSTACK: 16 bytes
+;         Y and B are preserved
 PRINT_RSTR		EQU	*
 			;Save registers (string pointer in X, min. width in A)
-			SSTACK_PSHXD 			;save index Y and accu D
+			SSTACK_PSHYB 			;save index Y and accu B
 			;Count characters (string pointer in X, min. width in A)
 PRINT_RSTR_1		TAB
 			SSTACK_JOBSR	PRINT_STRCNT 	;char count => A  (SSTACK: 2 bytes)
 			EXG	A, B
 			SBA				;output length - chars => A
 			BCS	PRINT_RSTR_2
-			SSTACK_JOBSR	PRINT_SPCS 	;print padding (SSTACK: 12 bytes)
+			SSTACK_JOBSR_NB	PRINT_SPCS 	;print padding (SSTACK: 11 bytes)
+
+
+
+
+
+	
 			;Print left aligned string (string pointer in X)	
 PRINT_RSTR_2		CLRA						
 			JOB	PRINT_RSTR_3
 PRINT_RSTR_3		EQU	PRINT_LSTR_1
 		
+
+
+
+
 ;#Print a left aligned string to the SCI
 ; args:   X: start of the string
 ;         A: minimum lenght of the output

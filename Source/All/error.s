@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CBase - ERROR - Error Handler                                            #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -25,13 +25,6 @@
 ;#    The reset handler also provides routines for triggering system resets    #
 ;#    from software.                                                           #
 ;###############################################################################
-;# Required Modules:                                                           #
-;#    PRINT  - SCI output routines                                             #
-;#    COP    - Watchdog handler                                                #
-;#                                                                             #
-;# Requirements to Software Using this Module:                                 #
-;#    - none                                                                   #
-;###############################################################################
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
@@ -44,8 +37,27 @@
 ;#      - compined error messages "Unknown cause" and "Unknown error" to       #
 ;#        "Unknown problem"                                                    #
 ;#      - changed error codes                                                  #
+;#    June 29, 2012                                                            #
+;#      - Added support for linear PC                                          #
+;#      - Added option to only use one shared reset vector                     #
+;###############################################################################
+;# Required Modules:                                                           #
+;#    PRINT  - SCI output routines                                             #
+;#    COP    - Watchdog handler                                                #
+;#                                                                             #
+;# Requirements to Software Using this Module:                                 #
+;#    - none                                                                   #
 ;###############################################################################
 
+;###############################################################################
+;# Configuration                                                               #
+;###############################################################################
+;Single reset vector (D-Bug12X bootloader)
+;ERROR_SINGLE_VECTOR	EQU	1 
+
+;Welcome message
+;MAIN_WELCOME_STRING	FCS	"Hello, this is S12CBase!"
+	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
@@ -55,104 +67,58 @@ ERROR_LEVEL_WARNING	EQU	(ERROR_STRINGTAB_WARNING-ERROR_STRINGTAB)>>1
 ERROR_LEVEL_ERROR	EQU	(ERROR_STRINGTAB_ERROR-ERROR_STRINGTAB)>>1
 ERROR_LEVEL_FATAL	EQU	(ERROR_STRINGTAB_FATAL-ERROR_STRINGTAB)>>1
 
-;#Reset entry codes
-ERROR_ENTRYCODE_EXT	EQU	$00
-ERROR_ENTRYCODE_COP	EQU	$01
-ERROR_ENTRYCODE_CM	EQU	$02
-
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	ERROR_VARS_START
-ERROR_MSG		DS	2 ;Reset message to be displayed
-ERROR_MSG_CHECK		DS	1 ;Checksum to determine if the reset message
-ERROR_ENTRYCODE		DS	1 ;Register to remember the entry point
+#ifdef ERROR_VARS_START_LIN
+			ORG 	ERROR_VARS_START, ERROR_VARS_START_LIN
+#else
+			ORG 	ERROR_VARS_START
+#endif	
+
+ERROR_AUTO_LOC1		EQU	* 		;1st auto-place location
+			ALIGN	1
+	
+ERROR_MSG		DS	2 		;Reset message to be displayed
+
+ERROR_AUTO_LOC2		EQU	1		;2nd auto-place location
+
+ERROR_MSG_CHECK		EQU	((ERROR_VARS_START&1)*ERROR_AUTO_LOC1)+((~ERROR_VARS_START_LOC1&1)*ERROR_AUTO_LOC2)
+
+			UNALIGN	(~ERROR_VARS_START_LOC1&1)
+
 ERROR_VARS_END		EQU	*
+ERROR_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Reset entries
-#macro	ERROR_ENTRY_EXT, 0
-			CLR	ERROR_ENTRYCODE
-			;MOVB	#ERROR_ENTRYCODE_EXT, ERROR_ENTRYCODE
-#emac	
-#macro	ERROR_ENTRY_COP, 0
-			MOVB	#ERROR_ENTRYCODE_COP, ERROR_ENTRYCODE
-#emac	
-#macro	ERROR_ENTRY_CM, 0
-			MOVB	#ERROR_ENTRYCODE_CM, ERROR_ENTRYCODE
-#emac	
-
 ;#Initialization
 #macro	ERROR_INIT, 0
-			;Check entry code
-			LDAB	ERROR_ENTRYCODE
-			BEQ	ERROR_INIT_EXT
-			DECB
-			BEQ	ERROR_INIT_COP
-			DECB
-			BEQ	ERROR_INIT_CM
-			;Illegal entry code
-			BRA	ERROR_INIT_UNKNOWN ;throw fatal error
-
-			;Clock monitor reset
-ERROR_INIT_CM		LDY	#ERROR_MSG_CM 
-			ERROR_PRINT 			;print error message (SSTACK: 18 bytes)
-			JOB	ERROR_INIT_DONE
-
-			;COP or software reset
-ERROR_INIT_COP		LDD	ERROR_MSG 		;check for valid error message
-			TFR	D, Y
-			ABA
-			COMA
-			CMPA	ERROR_MSG_CHECK
-			BNE	ERROR_INIT_COP_1	;checksum is invalid
-        		LEAX	1,Y
-			PRINT_STRCNT 			;chack if error message has a valid format
-			CMPA	#$FF
-			BNE	ERROR_INIT_COP_2	;message is correctly terminated		
-ERROR_INIT_COP_1	LDY	#ERROR_MSG_COP		;complain ablut COP instead
-ERROR_INIT_COP_2	ERROR_PRINT 			;print error message (SSTACK: 18 bytes)
-			JOB	ERROR_INIT_DONE
+#emac
 	
-			;External reset
-ERROR_INIT_EXT		LDAA	CRGFLG 			;determine the cause of the external reset
+;#Print error message
+; args:   Y: pointer to the error message
+; SSTACK: 18 bytes
+;         X, Y, and D are preserved 
+#macro	ERROR_PRINT, 0
+			SSTACK_JOBSR	ERROR_PRINT
+#emac
 
-			;Low voltage reset
-			BITA	#LVRF 			;check for low voltage reset
-			BEQ	ERROR_INIT_EXT_1	;no low voltage reset
-			LDY	#ERROR_MSG_LV
-			ERROR_PRINT 			;print error message (SSTACK: 18 bytes)
-			JOB	ERROR_INIT_DONE
-
-			;Power-on reset 
-ERROR_INIT_EXT_1	;BITA	#PORF 			;check for power-on reset ;treat external reset as POR!
-			;BEQ	ERROR_INIT_EXT_2	;no power-on reset
-			LDX	#ERROR_WELCOME_STRING	;print welcome message
-			PRINT_LINE_BREAK 		;print line break sequence (SSTACK:11 bytes)
-			PRINT_STR 			;print string (SSTACK: 13 bytes)
-			LDX	#MAIN_NAME_STRING	;print firmware name
-			PRINT_STR 			;print string (SSTACK: 13 bytes)
-			LDX	#MAIN_VERSION_STRING	;print firmware version
-			LDAB	#" "			;print a space character
-			PRINT_CHAR 			;print character (SSTACK:8 bytes)
-			PRINT_STR 			;print string (SSTACK: 13 bytes)
-			LDAB	#"!"			;print exclamation mark
-			PRINT_CHAR 			;print character (SSTACK:8 bytes)
-			JOB	ERROR_INIT_DONE
+;#Perform a reset due to a fatal error
+;# Args: message pointer	
+#macro	ERROR_RESTART, 1
+			BGND
+			LDD	#\1
+			JOB	ERROR_RESTART
+#emac
 	
-			;External reset
-ERROR_INIT_EXT_2	;LDY	#ERROR_MSG_EXT
-			;ERROR_PRINT 			;print error message (SSTACK: 18 bytes)
-			;JOB	ERROR_INIT_DONE
-
-			;Unknown error 
-ERROR_INIT_UNKNOWN	LDY	#ERROR_MSG_UNKNOWN
-			ERROR_PRINT 			;print error message (SSTACK: 18 bytes)
-			JOB	ERROR_INIT_DONE
+;Error Message Definition
+#macro	ERROR_MSG, 2
+			DB	\1
+			FCS	\2
+#emac
 	
-ERROR_INIT_DONE		PRINT_WAIT			;wait until message is printed	
 #emac
 	
 ;#Print error message
@@ -180,7 +146,46 @@ ERROR_INIT_DONE		PRINT_WAIT			;wait until message is printed
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	ERROR_CODE_START
+#ifdef ERROR_CODE_START_LIN
+			ORG 	ERROR_CODE_START, ERROR_CODE_START_LIN
+#else
+			ORG 	ERROR_CODE_START
+#endif
+
+;#COP reset entry point
+ERROR_COP_RESET_ENTRY	EQU	*
+			;COP or fatal error
+			LDD	ERROR_MSG 		;check for valid error message
+			TFR	D, Y			;calculate checksum
+			ABA
+			COMA
+			CMPA	ERROR_MSG_CHECK		;compare checksum
+#ifdef	ERROR_SINGLE_VECTOR
+			BNE	ERROR_DEF_RESET_ENTRY
+#else
+			BNE	ERROR_COP_RESET_ENTRY_1
+#endif
+			LEAX	1,Y 			;check if error message has a valid format
+			PRINT_STRCNT
+			CMPA	#$FF
+ #ifdef	ERROR_SINGLE_VECTOR
+			BEQ	ERROR_DEF_RESET_ENTRY
+#else
+			BNE	ERROR_COP_RESET_ENTRY_2
+ERROR_COP_RESET_ENTRY_1	LDY	ERROR_MSG_COP
+#endif
+			;Print ettor message
+ERROR_COP_RESET_ENTRY_2	JOB	ERROR_DEF_RESET_ENTRY_1
+
+;#Default reset entry point
+ERROR_DEF_RESET_ENTRY	EQU	*
+			;No error
+			PRINT_LINE_BREAK_BL 		;print line break sequence (SSTACK:11 bytes)
+			LDX	#ERROR_WELCOME_STRING	;print welcome message
+			PRINT_STR_BL 			;print string (SSTACK: 13 bytes)
+			;Wait for string to be printed before continuing
+ERROR_DEF_RESET_ENTRY_1	PRINT_WAIT
+			JOB	START_OF_CODE
 
 ;#Print error message
 ; args:   Y: pointer to the error message
@@ -197,23 +202,22 @@ ERROR_PRINT		EQU	*
 			LDX	#ERROR_STRINGTAB
 			LSLB
 			LDX	B,X
-			PRINT_LINE_BREAK 		;print line break sequence (SSTACK:11 bytes)
-			PRINT_STR 			;print string (SSTACK: 13 bytes)
+			PRINT_LINE_BREAK_BL 		;print line break sequence (SSTACK:11 bytes)
+			PRINT_STR_BL 			;print string (SSTACK: 13 bytes)
 	
 			;Print error message
                         LEAX	1,Y
 			PRINT_STRCNT 			;chack if error message has a valid format
 			CMPA	#$FF
 			BEQ	ERROR_PRINT_1 		;message too long (probably not terminated)	
-			PRINT_STR 			;print string (SSTACK:13 bytes)
+			PRINT_STR_BL 			;print string (SSTACK:13 bytes)
 
 			;Print error message
  			LDAB	#"!"	   		;print exclamation mark
-			PRINT_CHAR 			;print character (SSTACK:8 bytes)
+			PRINT_CHAR_BL 			;print character (SSTACK:8 bytes)
 			
 			;Restore registers 
-			SSTACK_PULBXY			;restore registers
-			SSTACK_RTS
+			SSTACK_PULBXY_RTS		;restore registers abd return
 
 			;Throw a fatal error
 ERROR_PRINT_1		ERROR_RESTART	ERROR_MSG_UNKNOWN		
@@ -233,11 +237,17 @@ ERROR_ISR		EQU	*
 			JOB	ERROR_RESTART
 
 ERROR_CODE_END		EQU	*	
+ERROR_CODE_END_LIN	EQU	@	
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	ERROR_TABS_START
+#ifdef ERROR_TABS_START_LIN
+			ORG 	ERROR_TABS_START, ERROR_TABS_START_LIN
+#else
+			ORG 	ERROR_TABS_START
+#endif	
+
 ;#Error strings
 ERROR_STRING_INFO	FCS	"Info! "
 ERROR_STRING_WARNING	FCS	"Warning! "
@@ -253,15 +263,15 @@ ERROR_STRINGTAB_FATAL	DW	ERROR_STRING_FATAL
 ERROR_STRINGTAB_END	EQU	*
 
 ;#Welcome strings
-ERROR_WELCOME_STRING	FCS	"Hello, this is "
+#ifdef	MAIN_WELCOME_STRING
+ERROR_WELCOME_STRING	EQU	MAIN_WELCOME_STRING
+#else
+ERROR_WELCOME_STRING	FCS	"Hello!"
+#endif
 
 ;#Error messages
-ERROR_MSG_SOFT		ERROR_MSG	ERROR_LEVEL_INFO,  "Software reset"
 ERROR_MSG_COP		ERROR_MSG	ERROR_LEVEL_FATAL, "Watchdog timeout"
-ERROR_MSG_CM		ERROR_MSG	ERROR_LEVEL_FATAL, "Clock failure"
-ERROR_MSG_LV		ERROR_MSG	ERROR_LEVEL_FATAL, "Power failure"
-ERROR_MSG_UNKNOWN	ERROR_MSG	ERROR_LEVEL_FATAL, "Unknown problem"
 ERROR_MSG_UEXPIRQ	ERROR_MSG	ERROR_LEVEL_FATAL, "Unexpected interrupt"
-ERROR_MSG_EXT		ERROR_MSG	ERROR_LEVEL_INFO,  "External reset"
 	
 ERROR_TABS_END		EQU	*
+ERROR_TABS_END_LIN	EQU	@

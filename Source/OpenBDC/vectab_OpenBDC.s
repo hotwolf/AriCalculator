@@ -1,7 +1,7 @@
 ;###############################################################################
-;# S12CBase - VECTAB - Vector Table                                            #
+;# S12CBase - VECTAB - Vector Table (OpenBDC)                                  #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -37,13 +37,81 @@
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
+;#    July 9, 2012                                                             #
+;#      - Added support for linear PC                                          #
+;#      - Added dummy vectors                                                  #
 ;###############################################################################
 
 ;###############################################################################
+;# Constants                                                                   #
+;###############################################################################
+VECTAB_START		EQU	$FF80
+VECTAB_START_LIN	EQU	$FFF80
+
+;###############################################################################
+;# Undefined ISRs                                                              #
+;###############################################################################
+;#BDM
+#ifndef	BDM_ISR_TGTRST
+BDM_ISR_TGTRST		EQU	ERROR_ISR
+#endif
+#ifndef	BDM_ISR_TC5
+BDM_ISR_TC5		EQU	ERROR_ISR
+#endif
+#ifndef	BDM_ISR_TC6
+BDM_ISR_TC6		EQU	ERROR_ISR
+#endif
+#ifndef	BDM_ISR_TC7
+BDM_ISR_TC7		EQU	ERROR_ISR
+#endif
+	
+;#CLOCK
+#ifndef	CLOCK_ISR
+CLOCK_ISR		EQU	ERROR_ISR
+#endif
+
+;#SCI
+#ifndef	SCI_ISR_RXTX
+SCI_ISR_RXTX		EQU	ERROR_ISR
+#endif
+#ifndef	SCI_ISR_TC0
+SCI_ISR_TC0		EQU	ERROR_ISR
+#endif
+#ifndef	SCI_ISR_TC1
+SCI_ISR_TC1		EQU	ERROR_ISR
+#endif
+#ifndef	SCI_ISR_TC2
+SCI_ISR_TC2		EQU	ERROR_ISR
+#endif
+
+;#LED
+#ifndef	LED_ISR
+LED_ISR			EQU	ERROR_ISR
+#endif
+
+;#ERROR
+#ifndef	ERROR_RESET_COP
+ERROR_RESET_COP		EQU	START_OF_CODE
+#endif
+#ifndef	ERROR_RESET_CM
+ERROR_RESET_CM		EQU	ERROR_RESET_COP	
+#endif
+#ifndef	ERROR_RESET_EXT
+ERROR_RESET_EXT		EQU	ERROR_RESET_COP	
+#endif
+	
+;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	VECTAB_VARS_START
+#ifdef VECTAB_VARS_START_LIN
+			ORG 	VECTAB_VARS_START, VECTAB_VARS_START_LIN
+#else
+			ORG 	VECTAB_VARS_START
+VECTAB_VARS_START_LIN	EQU	@			
+#endif	
+
 VECTAB_VARS_END		EQU	*
+VECTAB_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -55,19 +123,39 @@ VECTAB_VARS_END		EQU	*
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	VECTAB_CODE_START
+#ifdef VECTAB_CODE_START_LIN
+			ORG 	VECTAB_CODE_START, VECTAB_CODE_START_LIN
+#else
+			ORG 	VECTAB_CODE_START
+VECTAB_VARS_START_LIN	EQU	@			
+#endif	
+
+;#Dummy ISR
+#ifndef	ERROR_ISR
+ERROR_ISR		BGND
+			JOB	ERROR_ISR
+#endif
+	
 VECTAB_CODE_END		EQU	*	
+VECTAB_CODE_END_LIN	EQU	@	
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	VECTAB_TABS_START
-VECTAB_TABS_END		EQU	*
+#ifdef VECTAB_TABS_START_LIN
+			ORG 	VECTAB_TABS_START, VECTAB_TABS_START_LIN
+#else
+			ORG 	VECTAB_TABS_START
+VECTAB_VARS_START_LIN	EQU	@			
+#endif	
+
+VECTAB_TABS_END		EQU	*	
+VECTAB_TABS_END_LIN	EQU	@	
 
 ;###############################################################################
 ;# S12G128 Vector Table                                                        #
 ;###############################################################################
-		ORG	$FF80
+		ORG	VECTAB_START, VECTAB_START_LIN 	
 VEC_RESERVED80	DW	ERROR_ISR
 VEC_RESERVED82	DW	ERROR_ISR
 VEC_RESERVED84	DW	ERROR_ISR
@@ -129,6 +217,6 @@ VEC_IRQ		DW	ERROR_ISR
 VEC_XIRQ	DW	ERROR_ISR
 VEC_SWI		DW	ERROR_ISR
 VEC_TRAP	DW	ERROR_ISR
-VEC_RESET_COP	DW	BASE_ENTRY_COP
-VEC_RESET_CM	DW	BASE_ENTRY_CM
-VEC_RESET_EXT	DW	BASE_ENTRY_EXT
+VEC_RESET_COP	DW	ERROR_RESET_COP
+VEC_RESET_CM	DW	ERROR_RESET_CM
+VEC_RESET_EXT	DW	ERROR_RESET_EXT

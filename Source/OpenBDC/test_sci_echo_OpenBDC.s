@@ -1,7 +1,7 @@
 ;###############################################################################
-;# S12CBase - Demo of the S12CBase Framework                                   #
+;# S12CBase - SCI Test (OpenBDC Pod)                                           #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -19,42 +19,30 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#   This demo application receives ASCII characters via the RS232 interface   #
-;#   and returs various numeric representaions of the received character       #
+;#    This demo application echoes ASCII characters it receives over the       #
+;#    RS232 interface.                                                         #
+;#                                                                             #
+;# Usage:                                                                      #
+;#    1. Place the RAM onto the vector space                                   #
+;#       $FF -> INITRM                                                         #
+;#    2. Upload S-Record                                                       #
+;#    3. Execute code at address "START_OF_CODE"                               #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    April 4, 2010                                                            #
+;#    July 3, 2012                                                             #
 ;#      - Initial release                                                      #
-;###############################################################################
-;# Global Defines:                                                             #
-;#    DEBUG - Turns off functionality tha hinders debugging.                   #
 ;###############################################################################
 
 ;###############################################################################
-;# Global Parameters                                                           #
+;# Configuration                                                               #
 ;###############################################################################
-DEBUG                  EQU     1 ;enable debug code
+;# Memory map:
+MMAP_RAM		EQU	1 		;use RAM memory map
+MMAP_RAM_SIZE		EQU	$1000		;4K RAM
+;MMAP_RAM_SIZE		EQU	$800		;2K RAM
+MMAP_FLASH_SIZE		EQU	$20000 		;128K Flash
+;MMAP_FLASH_SIZE	EQU	$8000 		;32K Flash
 	
-;###############################################################################
-;# Memory Map                                                                  #
-;###############################################################################
-;        	 +-------------+ $0000
-;  		 |  Registers  |
-;  		 +-------------+ $0400
-;  		 |/////////////|
-;  		 +-------------+ $3000
-;  		 |  Variables  |
-;  		 +-------------+ $4000
-;  		 |/////////////|
-;  		 +-------------+ $C000
-;  		 |             |
-;  		 |    Code     |
-;  		 |             |
-;  		 +-------------+ $E000 
-;  		 |   Tables    |
-;  		 +-------------+ $FF80
-;  		 |  Vectors    |
-;  		 +-------------+ 
 
 ;###############################################################################
 ;# Code                                                                        #
@@ -110,4 +98,4 @@ MAIN_TABS_END		EQU	*
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ../Source/base.s         ;framework bundle
+#include ../Source/base_simhc12.s         ;framework bundle

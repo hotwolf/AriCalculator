@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - LED - LED Driver                                                 #
+;# S12CBase - LED - LED Driver (OpenBDC)                                       #
 ;###############################################################################
 ;#    Copyright 2010 Dirk Heisswolf                                            #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -24,6 +24,8 @@
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
+;#    July 9, 2012                                                             #
+;#      - Added support for linear PC                                          #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    ISTACK - Interrupt Stack Handler                                         #
@@ -46,10 +48,18 @@ LED_FLG_BUSY_NXT	EQU	$02	;next BUSY state
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	LED_VARS_START
+#ifdef LED_VARS_START_LIN
+			ORG 	LED_VARS_START, LED_VARS_START_LIN
+#else
+			ORG 	LED_VARS_START
+LED_VARS_START_LIN	EQU	@			
+#endif	
+
 LED_FLGS		DS	1 		;State that is currently signaled
 LED_PAT			DS	1 		;State of the current pattern (MSB will be displayed next)
+
 LED_VARS_END		EQU	*
+LED_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -96,7 +106,12 @@ LED_VARS_END		EQU	*
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	LED_CODE_START
+#ifdef LED_CODE_START_LIN
+			ORG 	LED_CODE_START, LED_CODE_START_LIN
+#else
+			ORG 	LED_CODE_START
+LED_VARS_START_LIN	EQU	@			
+#endif	
 	
 ;#Interrupt Service Routine
 LED_ISR			EQU	*
@@ -147,12 +162,20 @@ LED_ISR_ADVANCE_5	LSLA				;Rotate LED pattern left
 
 			ISTACK_RTI
 	
-LED_CODE_END		EQU	*
+LED_CODE_END		EQU	*	
+LED_CODE_END_LIN	EQU	@	
+
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	LED_TABS_START
+#ifdef LED_TABS_START_LIN
+			ORG 	LED_TABS_START, LED_TABS_START_LIN
+#else
+			ORG 	LED_TABS_START
+LED_VARS_START_LIN	EQU	@			
+#endif	
+
 ;#Jump table to evaluate flag transitions
 ;						BUSY_NXT----. 	
 ;						BUSY-------.| 	
@@ -175,4 +198,6 @@ LED_JMPTAB		EQU	*    			;VVVV
 			DW	LED_ISR_ADVANCE 	;1101 advance pattern
 			DW	LED_ISR_ADVANCE 	;1110 advance pattern
 			DW	LED_ISR_ADVANCE 	;1111 advance pattern
-LED_TABS_END		EQU	*
+
+LED_TABS_END		EQU	*	
+LED_TABS_END_LIN	EQU	@	

@@ -1,7 +1,7 @@
 ;###############################################################################
-;# S12CBase - SSTACK - Subroutine Stack Handler                                #
+;# S12CBase - ISTACK - Interrupt Stack Handler                                 #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -28,7 +28,7 @@
 ;#       temporary RAM storage.                                                #
 ;#                                                                             #
 ;#    All of the stacking functions check the upper and lower boundaries of    #
-;#    the stack. Fatel errors are thrown if the stacking space is exceeded.    #
+;#    the stack. Fatal errors are thrown if the stacking space is exceeded.    #
 ;#                                                                             #
 ;#    The ISTACK module no longer implements an idle loop. Instead it offers   #
 ;#    the macro ISTACK_WAIT to build local idle loops for drivers which        #
@@ -39,9 +39,14 @@
 ;#      - Initial release                                                      #
 ;#    January 8, 2011                                                          #
 ;#      - Combined ISTACK and SSTACK                                           #
+;#    June 29, 2012                                                            #
+;#      - Added support for linear PC                                          #
+;#      - Added debug option "ISTACK_DEBUG"                                    #
+;#      - Added option to disable stack range checks "ISTACK_NO_CHECK"         #
+;#      - Added support for multiple interrupt nesting levels                  #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    ISTACK - Interrupt Stack Handler                                         #
+;#    SSTACK - Subroutine Stack Handler                                        #
 ;#    ERROR  - Error Handler                                                   #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
@@ -66,308 +71,163 @@
 ;     SSTACK_BOTTOM,   |                   |
 ;     ISTACK_BOTTOM,   +-------------------+
 ;   ISTACK_VARS_END ->
+;
+
+;###############################################################################
+;# Configuration                                                               #
+;###############################################################################
+;Debug option for stack over/underflows
+;ISTACK_DEBUG		EQU	1 
+	
+;Disable stack range checks
+;ISTACK_NO_CHECK	EQU	1 
+
+;Interrupt nesting levels
+#ifndef	ISTACK_LEVELS
+ISTACK_LEVELS		EQU	1	 	;default is 1
+#endif
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-SSTACK_DEPTH		EQU	24
-SSTACK_TOP		EQU	ISTACK_TOP+ISTACK_FRAME_SIZE
-SSTACK_BOTTOM		EQU	ISTACK_BOTTOM
+ISTACK_CCR		EQU	%0100_0000
+ISTACK_FRAME_SIZE	EQU	9
 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	SSTACK_VARS_START
-SSTACK_VARS_END		EQU	*
+#ifdef ISTACK_VARS_START_LIN
+			ORG 	ISTACK_VARS_START, ISTACK_VARS_START_LIN
+#else
+			ORG 	ISTACK_VARS_START
+ISTACK_VARS_START_LIN	EQU	@
+#endif	
+
+ISTACK_TOP		EQU	*
+			DS	ISTACK_FRAME_SIZE*ISTACK_LEVELS
+#ifdef	SSTACK_DEPTH
+			DS	SSTACK_DEPTH
+#endif	
+ISTACK_BOTTOM		EQU	*
+
+ISTACK_VARS_END		EQU	*
+ISTACK_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	SSTACK_INIT, 0
-#emac
+#macro	ISTACK_INIT, 0
+			;Set stack pointer
+			LDS	#ISTACK_BOTTOM	
+			;Enable interrupts
+			CLI
+#emac	
 
-;#Allocate local memory
-#macro	SSTACK_ALLOC, 1
-			LEAS	-\1,SP
-			SSTACK_POSTPUSH
-#emac
-
-;#Push accu A onto stack
-#macro	SSTACK_PSHA, 0
-			PSHA
-			SSTACK_POSTPUSH
-#emac
-
-;#Push accu B onto stack
-#macro	SSTACK_PSHB, 0
-			PSHB
-			SSTACK_POSTPUSH
-#emac
-
-;#Push accu D onto stack
-#macro	SSTACK_PSHD, 0
-			PSHD
-			SSTACK_POSTPUSH
-#emac
-
-;#Push index X onto stack
-#macro	SSTACK_PSHX, 0
-			PSHX
-			SSTACK_POSTPUSH
-#emac
-
-;#Push index X and accu B onto stack
-#macro	SSTACK_PSHXB, 0
-			PSHX
-			PSHB
-			SSTACK_POSTPUSH
-#emac
-
-;#Push index X and accu D onto stack
-#macro	SSTACK_PSHXD, 0
-			PSHX
-			PSHD
-			SSTACK_POSTPUSH
-#emac
-
-;#Push index Y onto stack
-#macro	SSTACK_PSHY, 0
-			PSHY
-			SSTACK_POSTPUSH
-#emac
-
-;#Push index Y and accu A onto the stack
-#macro	SSTACK_PSHYA, 0
-			PSHY
-			PSHA
-			SSTACK_POSTPUSH
-#emac
-
-;#Push index Y and accu B onto the stack
-#macro	SSTACK_PSHYB, 0
-			PSHY
-			PSHB
-			SSTACK_POSTPUSH
-#emac
-
-;#Push index Y and accu D onto the stack
-#macro	SSTACK_PSHYD, 0
-			PSHY
-			PSHD
-			SSTACK_POSTPUSH
-#emac
-
-;#Push index X and Y onto the stack
-#macro	SSTACK_PSHYX, 0
-			PSHY
-			PSHX
-			SSTACK_POSTPUSH
-#emac
-
-;#Push index X, Y and accu A onto the stack
-#macro	SSTACK_PSHYXA, 0
-			PSHY
-			PSHX
-			PSHA
-			SSTACK_POSTPUSH
-#emac
-
-;#Push index X, Y and accu B onto the stack
-#macro	SSTACK_PSHYXB, 0
-			PSHY
-			PSHX
-			PSHB
-			SSTACK_POSTPUSH
-#emac
-
-;#Push index X, Y and accu D onto the stack
-#macro	SSTACK_PSHYXD, 0
-			PSHY
-			PSHX
-			PSHD
-			SSTACK_POSTPUSH
-#emac
-
-;#Deallocate local memory
-#macro	SSTACK_DEALLOC, 1
-			LEAS	\1,SP
-			SSTACK_POSTPULL
-#emac
-	
-;#Pull accu A from stack
-#macro	SSTACK_PULA, 0
-			PULA
-			SSTACK_POSTPULL
-#emac
-
-;#Pull accu A, index X and Y from the stack
-#macro	SSTACK_PULAXY, 0
-			PULA
-			PULX
-			PULY
-			SSTACK_POSTPULL
-#emac
-
-;#Pull accu A and index Y from the stack
-#macro	SSTACK_PULAY, 0
-			PULA
-			PULY
-			SSTACK_POSTPULL
-#emac
-
-;#Pull accu B from stack
-#macro	SSTACK_PULB, 0
-			PULB
-			SSTACK_POSTPULL
-#emac
-
-;#Pull accu B and index X from stack
-#macro	SSTACK_PULBX, 0
-			PULB
-			PULX
-			SSTACK_POSTPULL
-#emac
-
-;#Pull accu B, index X and Y from the stack
-#macro	SSTACK_PULBXY, 0
-			PULB
-			PULX
-			PULY
-			SSTACK_POSTPULL
-#emac
-
-;#Pull index Y and accu B from the stack
-#macro	SSTACK_PULBY, 0
-			PULB
-			PULY
-			SSTACK_POSTPULL
-#emac
-
-;#Pull accu D from stack
-#macro	SSTACK_PULD, 0
-			PULD
-			SSTACK_POSTPULL
-#emac
-
-;#Pull accu D and index X from the stack
-#macro	SSTACK_PULDX, 0
-			PULD
-			PULX
-			SSTACK_POSTPULL
-#emac
-
-;#Pull accu D, index X and Y from the stack
-#macro	SSTACK_PULDXY, 0
-			PULD
-			PULX
-			PULY
-			SSTACK_POSTPULL
-#emac
-
-;#Pull index Y and accu D from the stack
-#macro	SSTACK_PULDY, 0
-			PULD
-			PULY
-			SSTACK_POSTPULL
-#emac
-
-;#Pull index X from stack
-#macro	SSTACK_PULX, 0
-			PULX
-			SSTACK_POSTPULL
-#emac
-
-;#Pull index X and Y from the stack
-#macro	SSTACK_PULXY, 0
-			PULX
-			PULY
-			SSTACK_POSTPULL
-#emac
-
-;#Pull index Y from stack
-#macro	SSTACK_PULY, 0
-			PULY
-			SSTACK_POSTPULL
-#emac
-
-;#Call subroutine	
-#macro	SSTACK_JOBSR, 1
-			CPS	#SSTACK_TOP+2
-			BLO	SSTACK_OF
-			JOBSR	\1
-#emac
-
-;#Return from subroutine	
-#macro	SSTACK_RTS, 0
-			CPS	#SSTACK_BOTTOM-2
-			BHI	UF   ;SSTACK_UF
-			RTS
-
+;#Wait until any interrupt has been serviced
+#macro	ISTACK_WAIT, 0
+#ifndef	ISTACK_NO_CHECK
+			;Verify SP before runnung ISRs
+			CPS	#ISTACK_TOP+ISTACK_FRAME_SIZE
+			BLO	OF ;ISTACK_OF
+			CPS	#ISTACK_BOTTOM
+			BHI	UF ;ISTACK_UF
+#endif
+			;Wait for the next interrupt
+			COP_SERVICE			;already taken care of by WAI
+			CLI		
+#ifndef	ISTACK_DEBUG
+			WAI
+#endif
+#ifndef	ISTACK_NO_CHECK
+#ifdef	ISTACK_DEBUG
 			JOB	DONE
+OF			BGND	
 UF			BGND
-DONE			EQU	*
-#emac
-
-;#Return from subroutine and flag no error (carry cleared)	
-#macro	SSTACK_RTS_NOERR, 0
-			CPS	#SSTACK_BOTTOM-2
-			BHI	UF   ;SSTACK_UF
-			CLC
-			RTS
-
-			JOB	DONE
-UF			BGND
-DONE			EQU	*
-#emac
-
-;#Return from subroutine and flag an error (carry set)	
-#macro	SSTACK_RTS_ERR, 0
-			CPS	#SSTACK_BOTTOM-2
-			BHI	UF   ;SSTACK_UF
-			SEC
-			RTS
-
-			JOB	DONE
-UF			BGND
-DONE			EQU	*
-#emac
-
-;#Conclude push operation	
-#macro	SSTACK_POSTPUSH, 0
-			CPS	#SSTACK_TOP
-			BLO	SSTACK_OF
-#emac
-
-;#Conclude pull operation	
-#macro	SSTACK_POSTPULL, 0
-			CPS	#SSTACK_BOTTOM
-			BHI	UF   ;SSTACK_UF
-
-			JOB	DONE
-UF			BGND
+#else
+OF			EQU	ISTACK_OF	
+UF			EQU	ISTACK_UF
+#endif
+#endif
 DONE			EQU	*
 #emac
 	
+;#Return from interrupt
+#macro	ISTACK_RTI, 0
+#ifndef	ISTACK_NO_CHECK
+			;Verify SP at the end of each ISR
+			CPS	#ISTACK_TOP
+			BLO	OF
+			CPS	#ISTACK_BOTTOM-ISTACK_FRAME_SIZE
+			BHI	UF
+#endif
+			;End ISR
+			RTI
+#ifndef	ISTACK_NO_CHECK
+#ifdef	ISTACK_DEBUG
+OF			BGND	
+UF			BGND
+#else
+OF			JOB	ISTACK_OF	
+UF			JOB	ISTACK_UF
+#endif
+#endif
+#emac	
+
+;#Clear I-flag is there is still room on the stack
+#macro	CHECK_AND_CLI, 0
+			CPS	#ISTACK_BOTTOM-ISTACK_FRAME_SIZE
+			BHI	DONE
+			CLI
+DONE			EQU	*
+#emac	
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	SSTACK_CODE_START
+#ifdef ISTACK_CODE_START_LIN
+			ORG 	ISTACK_CODE_START, ISTACK_CODE_START_LIN
+#else
+			ORG 	ISTACK_CODE_START
+ISTACK_CODE_START_LIN	EQU	@
+#endif
 
-;#Stack overflow detected	
-SSTACK_OF		EQU	ISTACK_OF
+;#Handle stack overflows
+#ifndef	ISTACK_NO_CHECK
+#ifndef	ISTACK_DEBUG
+ISTACK_OF		EQU	*
+			ERROR_RESTART	ISTACK_MSG_OF ;throw a fatal error
+#endif
+#endif
 
-;#Stack underflow detected	
-SSTACK_UF		EQU	ISTACK_UF
+;#Handle stack underflows
+#ifndef	ISTACK_NO_CHECK
+#ifndef	ISTACK_DEBUG
+ISTACK_UF		EQU	*
+			ERROR_RESTART	ISTACK_MSG_UF ;throw a fatal error
+#endif
+#endif
 	
-SSTACK_CODE_END		EQU	*
+ISTACK_CODE_END		EQU	*
+ISTACK_CODE_END_LIN	EQU	@
 	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	SSTACK_TABS_START
-;#Error Messages
-SSTACK_MSG_OF		EQU	ISTACK_MSG_OF
-SSTACK_MSG_UF		EQU	ISTACK_MSG_UF
+#ifdef ISTACK_TABS_START_LIN
+			ORG 	ISTACK_TABS_START, ISTACK_TABS_START_LIN
+#else
+			ORG 	ISTACK_TABS_START
+ISTACK_TABS_START_LIN	EQU	@
+#endif	
 
-SSTACK_TABS_END		EQU	*
+;#Error Messages
+#ifndef	ISTACK_NO_CHECK 
+#ifndef	ISTACK_DEBUG
+ISTACK_MSG_OF		ERROR_MSG	ERROR_LEVEL_FATAL, "System stack overflow"
+ISTACK_MSG_UF		ERROR_MSG	ERROR_LEVEL_FATAL, "System stack underflow"
+#endif
+#endif
+	
+ISTACK_TABS_END		EQU	*
+ISTACK_TABS_END_LIN	EQU	@

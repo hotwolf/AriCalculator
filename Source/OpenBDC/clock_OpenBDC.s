@@ -1,7 +1,7 @@
 ;###############################################################################
-;# S12CBase - RTI - Real-Time Interrupt Handler                                #
+;# S12CBase - CLOCK - Clock Driver (OpenBDC)                                   #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -19,66 +19,117 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    The module handles the real-time interrupt.                              #
+;#    The module controls the PLL and all clock related features.              #
+;#    The PLL will be set to 4.096MHz*6 = 49.152MHz (24.576MHz bus clock)      #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
+;#    February 22, 2012                                                        #
+;#      - Back-ported LFBDMPGMR updates                                        #
+;#    July 9, 2012                                                             #
+;#      - Added support for linear PC                                          #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    REGDEF - Register Definitions                                            #
-;#    CLOCK  - Clock driver                                                    #
+;#    ISTACK - Reset Handler                                                   #
+;#    VECMAP - Vector Map                                                      #
+;#    COP    - Watchdog Handler                                                #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
+;###############################################################################
+;# Global Defines:                                                             #
+;#    DEBUG - Keeps core clock running in WAIT mode.                           #
 ;###############################################################################
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-RTI_CFG			EQU	$6F 	;RTI occurs every .512s
-
+CLOCK_OSC_FREQ	EQU	 4096000 	;oscillator runs at 4.096 MHz
+CLOCK_BUS_FREQ	EQU	24576000	;bus frequency is 24.576 MHz
+CLOCK_PLL_CFG	EQU	$2305 ;(35+1/5+1) => 49.152MHz (24.576MHz bus clock)
+	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	RTI_VARS_START
-RTI_VARS_END		EQU	*
+#ifdef CLOCK_VARS_START_LIN
+			ORG 	CLOCK_VARS_START, CLOCK_VARS_START_LIN
+#else
+			ORG 	CLOCK_VARS_START
+CLOCK_VARS_START_LIN	EQU	@			
+#endif	
+
+CLOCK_FLGS		DB	1
+
+CLOCK_VARS_END		EQU	*
+CLOCK_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	RTI_INIT, 0
-			;RTI_DISABLE
-#emac
+#macro	CLOCK_INIT, 0
+		MOVB	CRGFLG, CLOCK_FLGS 				;save all status flags
+		MOVB	#$FF, CRGFLG 					;clear all flags
+		MOVW	#CLOCK_PLL_CFG, SYNR				;set PLL frequency (SYNR, REFDV)
+		MOVW	#(((RTIE|LOCKIE)<<8)|COPWAI), CRGINT
+		;MOVW	#(((RTIE|LOCKIE)<<8)|CWAI|COPWAI), CRGINT
+                                                                        ;CRG configuration:
+									; real-time interrupt enabled		(RTIE)
+									; PLL lock interrupt enabled		(LOCKIE)
+									; no self-clock mode interrupt		(~SCMIE)
+									; no pseudo-stop			(~PSTP)
+									; system/bus clock in wait mode		(~SYSWAI)
+									; no reduced oscillator amplitude	(~ROAWAI)
+									; PLL in wait mode			(~PLLWAI)
+									; core/CPU clock stops in wait mode	(CWAI)
+									; CLOCK keeps running in wait mode	(~CLOCKWAI)
+									; COP stops in wait mode		(COPWAI)
+		MOVW	#((CME|PLLON|AUTO)<<8), PLLCTL 			; clock monitor enabled			(CME)
 
-;#Enable RTI
-#macro	RTI_ENABLE, 0
-			BRSET	RTICTL, #RTI_CFG, LABEL
-			MOVB	#RTI_CFG, RTICTL
-			BSET	CRGINT, #RTIE
-LABEL			EQU	*
-#emac
+				; PLL enabled				(PLLON)
+									; automatic bandwith control		(AUTO)
+									; no self-clock mode			(~SCME)
+#emac	
 
-;#Disable RTI
-#macro	RTI_DISABLE, 0
-			CLR	RTICTL
-			BCLR	CRGINT, #RTIE
-#emac
-
-;#Clear interrupt flag
-#macro	RTI_CLRIF, 0
-			MOVB	#RTIF, CRGFLG
+;#Wait for PLL
+#macro	CLOCK_WAIT_FOR_PLL, 0
+LOOP		SEI	
+		BRSET	CLKSEL, #PLLSEL, DONE 				;PLL is locked
+		ISTACK_WAIT
+		JOB	LOOP
+DONE		EQU	*	
 #emac
 	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	RTI_CODE_START
-RTI_CODE_END		EQU	*
+#ifdef CLOCK_CODE_START_LIN
+			ORG 	CLOCK_CODE_START, CLOCK_CODE_START_LIN
+#else
+			ORG 	CLOCK_CODE_START
+CLOCK_VARS_START_LIN	EQU	@			
+#endif	
 
+;#Service routine for the PLL lock interrupt
+CLOCK_ISR		EQU	*
+			MOVB	#(PLLSEL|CWAI|COPWAI), CLKSEL 	;switch to PLL
+			MOVB	#LOCKIF, CRGFLG 		;clear interrupt flag
+			ISTACK_RTI
+	
+CLOCK_CODE_END		EQU	*	
+CLOCK_CODE_END_LIN	EQU	@	
+	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	RTI_TABS_START
-RTI_TABS_END		EQU	*
+#ifdef CLOCK_TABS_START_LIN
+			ORG 	CLOCK_TABS_START, CLOCK_TABS_START_LIN
+#else
+			ORG 	CLOCK_TABS_START
+CLOCK_VARS_START_LIN	EQU	@			
+#endif	
+
+CLOCK_TABS_END		EQU	*	
+CLOCK_TABS_END_LIN	EQU	@	

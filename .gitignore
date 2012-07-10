@@ -13,6 +13,7 @@ Desktop DB
 #Ignore temporary editor files
 *~
 *.bak
+*#
 
 #Ignore S-records and files
 *.s19

@@ -1,7 +1,7 @@
 ;###############################################################################
-;# S12CBase - REGDEF - Register Definitions                                    #
+;# S12CBase - REGDEF - Register Definitions (OpenBDC)                          #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
