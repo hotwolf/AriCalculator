@@ -48,6 +48,8 @@ ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 
+;# Vector table
+VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 	
 ;###############################################################################
 ;# Resource mapping                                                            #
@@ -79,8 +81,8 @@ RTI_CODE_START_LIN	EQU	COP_CODE_END_LIN
 LED_CODE_START		EQU	RTI_CODE_END
 LED_CODE_START_LIN	EQU	RTI_CODE_END_LIN
 
-VECTAB_CODE_START	EQU	RTI_CODE_END
-VECTAB_CODE_START_LIN	EQU	RTI_CODE_END_LIN
+VECTAB_CODE_START	EQU	LED_CODE_END
+VECTAB_CODE_START_LIN	EQU	LED_CODE_END_LIN
 
 ;Variables
 TEST_VARS_START		EQU	VECTAB_CODE_END
@@ -107,8 +109,8 @@ RTI_VARS_START_LIN	EQU	COP_VARS_END_LIN
 LED_VARS_START		EQU	RTI_VARS_END
 LED_VARS_START_LIN	EQU	RTI_VARS_END_LIN
 
-VECTAB_VARS_START	EQU	RTI_VARS_END
-VECTAB_VARS_START_LIN	EQU	RTI_VARS_END_LIN
+VECTAB_VARS_START	EQU	LED_VARS_END
+VECTAB_VARS_START_LIN	EQU	LED_VARS_END_LIN
 
 ;Tables
 TEST_TABS_START		EQU	VECTAB_VARS_END
@@ -135,8 +137,8 @@ RTI_TABS_START_LIN	EQU	COP_TABS_END_LIN
 LED_TABS_START		EQU	RTI_TABS_END
 LED_TABS_START_LIN	EQU	RTI_TABS_END_LIN
 
-VECTAB_TABS_START	EQU	RTI_TABS_END
-VECTAB_TABS_START_LIN	EQU	RTI_TABS_END_LIN
+VECTAB_TABS_START	EQU	LED_TABS_END
+VECTAB_TABS_START_LIN	EQU	LED_TABS_END_LIN
 
 ;###############################################################################
 ;# Includes                                                                    #
@@ -160,6 +162,16 @@ TEST_VARS_END		EQU	*
 TEST_VARS_END_LIN	EQU	@
 
 ;###############################################################################
+;# Macros                                                                      #
+;###############################################################################
+#macro DELAY, 0
+			LDX	#$0200
+OUTER_LOOP		LDY	#$0000
+INNER_LOOP		DBNE	Y, INNER_LOOP
+			DBNE	X, OUTER_LOOP
+#emac
+
+;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
 			ORG 	TEST_CODE_START, TEST_CODE_START_LIN
@@ -176,19 +188,15 @@ TEST_VARS_END_LIN	EQU	@
 			CLOCK_WAIT_FOR_PLL
 
 ;Application code
-TEST_1			LED_BUSY_ON 		;Signal busy state
-			
-			LDD	#128 		;Wait for 128 RTI cycles
-TEST_2			ISTACK_WAIT
-			DBNE	D, TEST_2
-
-			LED_COMERR_ON 		;Signal communication error
-			LDD	#128		;Wait for 128 RTI cycles
-TEST_3			ISTACK_WAIT
-			DBNE	D, TEST_3
-			LED_COMERR_OFF 		;Stop signaling communication error
-	
-			JOB	TEST_1
+TEST_LOOP		DELAY
+			LED_BUSY_ON
+			DELAY
+			LED_COMERR_ON
+			DELAY
+			LED_COMERR_OFF
+			DELAY
+			LED_BUSY_OFF
+			JOB	TEST_LOOP
 	
 TEST_CODE_END		EQU	*	
 TEST_CODE_END_LIN	EQU	@	

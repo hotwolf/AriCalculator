@@ -99,7 +99,7 @@ LOOP		SEI
 		BRSET	CLKSEL, #PLLSEL, DONE 				;PLL is locked
 		ISTACK_WAIT
 		JOB	LOOP
-DONE		EQU	*	
+DONE		CLI	
 #emac
 	
 ;###############################################################################

@@ -10,17 +10,19 @@ Desktop DB
 .syncinfo
 .TemporaryItems
 
-#Ignore temporary editor files
+#Ignore temporary files and backups
 *~
 *.bak
 *#
+*.tmp
 
-#Ignore S-records and files
+#Ignore S-records, list files, and symbol files
 *.s19
 *.s28
 *.s37
 *.sx
 *.lst
+*.sym
 
 #Ignore temporary build files
 *.o
