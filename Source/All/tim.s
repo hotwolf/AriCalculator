@@ -23,9 +23,9 @@
 ;#    follows:                                                                 #
 ;#      IC0:     SCI (capture posedges on RX pin)                              #
 ;#      IC1:     SCI (capture negedges on RX pin)                              #
-;#      OC2:     unused                                                        #
-;#      OC3:     unused                                                        #
-;#      OC4:     unused                                                        #
+;#      OC2:     SCI (timeout)                                                 #
+;#      OC3:     SCI (timeout)                                                 #
+;#      OC4:     unasigned                                                     #
 ;#      IC5:     BDM (capture posedges on BKGD pin)                            #
 ;#      IC6/OC5: BDM (capture negedges on BKGD pin/toggle BKGD pin)            #
 ;#      OC7:     BDM (toggle BKGD pin/timeouts)                                #
@@ -44,12 +44,32 @@
 ;###############################################################################
 
 ;###############################################################################
+;# Configuration                                                               #
+;###############################################################################
+;Clock divider
+;-------------
+#ifndef	TIM_DIV2_ON
+#ifndef	TIM_DIV2_OFF
+TIM_DIV2_OFF		EQU	1 	;default no clock divider
+#endif
+#endif
+
+;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-TIM_SCI			EQU	$01 	;indicates that the timer is currently
-					; by the SCI 
-TIM_BDM			EQU	$02 	;indicates that the timer is currently
-					; by the BDM
+;#SCI channels defaults
+TIM_SCI			EQU	$07	;all channels		 
+TIM_SCIPE		EQU	$01	;posedge/toggle detection
+TIM_SCINE		EQU	$02	;negedge detection 
+TIM_SCIBD		EQU	$04	;Baud rate detection
+TIM_SCIFC		EQU	$08	;XON/XOFF reminders
+TIM_SCIWA		EQU	$10	;SCI bug workaround
+
+;#BDM channel defaults	
+TIM_BDM			EQU	$E0	;all channels		  
+TIM_BDMPE		EQU	$20	;posedge/toggle detection 
+TIM_BDMNE		EQU	$40	;negedge detection  
+TIM_BDMTO		EQU	$80	;SCI bug workaround 
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -64,69 +84,71 @@ TIM_VARS_END		EQU	*
 ;#Initialization
 #macro	TIM_INIT, 0		 ;7 6 5 4 3 2 1 0
 			MOVB	#%1_0_0_1_1_1_0_0, TIOS 	;select input capture (0)
-				 ;B B B       S S 		; or output compare (1) feature
-				 ;D D D       C C
-				 ;M M M       I I
-				 ;T N P       N P
-				 ;O E E       E E
+				 ;B B B S S S S S 		;   or output compare (1) feature
+				 ;D D D C C C C C
+				 ;M M M I I I I I
+				 ;T N P W F B N P
+				 ;O E E A C D E E
 
-				;CFORC
-				;OC7M 
+			;CFORC
+			;OC7M 
 
-				;7 6 5 4 3 2 1 0
+			 	 ;7 6 5 4 3 2 1 0
 			;MOVB	#%0_1_0_0_0_0_0_0, TOC7D	;OC7 output compares drive
-				 ;B B B       S S 		; posedges on TC6 	
-				 ;D D D       C C
-				 ;M M M       I I
-				 ;T N P       N P
-				 ;O E E       E E
+				 ;B B B S S S S S 		; posedges on TC6 	
+				 ;D D D C C C C C
+				 ;M M M I I I I I
+				 ;T N P W F B N P
+				 ;O E E A C D E E
 
-				;TCNT 
-				;TSCR1 
-				;TTOV 
+			;TCNT 
+
+#ifndef	TIM_DIV2_ON
+			MOVB	$01, TSCR2 			;run on half bus frequency
+#endif
+
+			;TTOV 
 	
 				 ;7 6 5 4 3 2 1 0
 			;MOVW	#%0000000000000000, TCTL1 	;OC6 output compares drive
-				 ;B B B       S S		; negedges (=10) on TC6
-				 ;D D D       C C
-				 ;M M M       I I
-				 ;T N P       N P
-				 ;O E E       E E
+				 ;B B B S S S S S		; negedges (=10) on TC6
+				 ;D D D C C C C C
+				 ;M M M I I I I I
+				 ;T N P W F B N P
+				 ;O E E A C D E E
 
 			 	 ;7 6 5 4 3 2 1 0
 			;MOVW	#%0000010000001000, TCTL3 	;set capture edges
-				 ;B B B       S S	
-				 ;D D D       C C
-				 ;M M M       I I
-				 ;T N P       N P
-				 ;O E E       E E
+				 ;B B B S S S S S	
+				 ;D D D C C C C C
+				 ;M M M I I I I I
+				 ;T N P W F B N P
+				 ;O E E A C D E E
 
-			;MOVB	#(VEC_TC2&$FE), HPRIO ;TC2 gets highest interrupt priority
-
-				;TIE
-				;TSCR2
-				;TFLG1
-				;TFLG2
-				;TC0 ... TC7
-				;PACTL
-				;PAFLG
-				;PACN0 ... PACN3
+			;TIE
+			;TSCR2
+			;TFLG1
+			;TFLG2
+			;TC0 ... TC7
+			;PACTL
+			;PAFLG
+			;PACN0 ... PACN3
 #emac
 
 ;#Enable timer
-; args: 1. module (TIM_SCI or TIM_BDM)
+; args: 1. channels
 #macro	TIM_ENABLE, 1
-	BSET	TIM_BUSY, #\1
-	MOVB	#(TEN|TSFRZ), TSCR1	
+			BSET	TIM_BUSY, #\1
+			MOVB	#(TEN|TSFRZ), TSCR1	
 #emac
 
 ;#Disable timer
-; args: 1. module (TIM_SCI or TIM_BDM)
+; args: 1. channels
 #macro	TIM_DISABLE, 1
-	BCLR	TIM_BUSY, #\1
-	BNE	DONE
-	CLR	TSCR1
-DONE	EQU	*
+			BCLR	TIM_BUSY, #\1
+			BNE	DONE
+			CLR	TSCR1
+DONE			EQU	*
 #emac
 	
 ;###############################################################################

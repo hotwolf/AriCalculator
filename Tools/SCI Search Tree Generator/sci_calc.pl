@@ -1,8 +1,23 @@
 #!/usr/bin/env perl
 ###############################################################################
-#             Search Tree Generator for the OpenBDM SCI Driver                #
+# S12CBase - Search Tree Generator for the SCI Driver                         #
 ###############################################################################
-#    Copyright 2009 Dirk Heisswolf                                            #
+#    Copyright 2009-2012 Dirk Heisswolf                                       #
+#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
+#    family.                                                                  #
+#                                                                             #
+#    S12CBase is free software: you can redistribute it and/or modify         #
+#    it under the terms of the GNU General Public License as published by     #
+#    the Free Software Foundation, either version 3 of the License, or        #
+#    (at your option) any later version.                                      #
+#                                                                             #
+#    S12CBase is distributed in the hope that it will be useful,              #
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of           #
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #
+#    GNU General Public License for more details.                             #
+#                                                                             #
+#    You should have received a copy of the GNU General Public License        #
+#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ###############################################################################
 # Description:                                                                #
 #    This perl script generates the assembler source for two search trees,    #
@@ -35,7 +50,35 @@
 # Version History:                                                            #
 #    14 May, 2009                                                             #
 #      - Initial release                                                      #
+#    18 July, 2012                                                            #
+#      - Added command line parameters                                        #
+#      - Reworked boundary calulation                                         #
+#      - Reworked search tree balancing                                       #
 ###############################################################################
+
+#################
+# Perl settings #
+#################
+use 5.005;
+#use warnings;
+use File::Basename;
+use FindBin qw($RealBin);
+use lib $RealBin;
+
+###############
+# global vars #
+###############
+$need_help       = 0;
+$arg_type        = "C";
+$clock_freq      = 25000000;
+$prescaler       = 1;
+$frame_format    = "8N1";
+$low_bit_counts  = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+$year += 1900;
+@months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec");
+@days   = ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat");
 
 @tables = ({'file'       => "sci_bdtab.s",
 	   #'baud_masks' => {  '4800' => 0x01,
@@ -46,14 +89,6 @@
 	   #		      '76800' => 0x20,
 	   #		     '115200' => 0x40,
 	   #		     '153600' => 0x80},
-	   #'baud_divs'  => {  '4800' =>  320,
-	   #		       '9600' =>  160,
-	   #		      '19200' =>   80,
-	   #		      '38400' =>   40,
-	   #		      '57600' =>   27,
-	   #		      '76800' =>   20,
-	   #		     '115200' =>   13,
-	   #		     '153600' =>   10}
 	    'baud_masks' => {  '4800' => 0x01,
 			       '7200' => 0x02,
 			       '9600' => 0x04,
@@ -62,30 +97,355 @@
 			      '28800' => 0x20,
 			      '38400' => 0x40,
 			      '57600' => 0x80},
-	    'baud_divs'  => {  '4800' =>  320,
-			       '7200' =>  213,
-			       '9600' =>  160,
-			      '14400' =>  107,
-			      '19200' =>   80,
-			      '28800' =>   53,
-			      '38400' =>   40,
-			      '57600' =>   27}
 	   });
 
-#Table loop
-#---------- 
-foreach $table (@tables) {
-    $file       = $table->{'file'};
+##########################
+# read command line args #
+##########################
+#printf "parsing args: count: %s\n", $#ARGV + 1;
+foreach $arg (@ARGV) {
+    #printf "  arg: %s\n", $arg;
+
+    #Help
+    if ($arg =~ /^\s*-*(?|help|h)\s*$/i) {
+	$need_help = 1;
+    } 
+
+    #Arg type	
+    elsif ($arg =~ /^\s*-(C|F|T)\s*$/i) {
+	$arg_type = $1;
+    }
+
+    #Args	
+    elsif (($arg_type =~ /^C$/i) && ($arg =~ /^\s(\d+)\s*$/i)) {
+	$clock_freq = int($1);
+    }
+    elsif (($arg_type =~ /^T$/i) && ($arg =~ /^\s(\d+)\s*$/i)) {
+	$prescaler = int($1);
+    }
+    elsif (($arg_type =~ /^F$/i) && ($arg =~ /^\s(7E1|7O1|7N2|8N1|8E1|8O1|8N2|9N1)\s*$/i)) {
+	$frame_format = $1;
+    }
+
+    #Wrong args	
+    else {
+	$need_help = 1;
+    } 
+}
+
+###################
+# print help text #
+###################
+if ($need_help) {
+    printf "usage: %s [-C bus clock frequency in Hz] [-F 7E1|7O1|7N2|8N1|8E1|8O1|8N2|9N1] [-T timer prescaler]\n", $0;
+    print  "\n";
+    exit;
+}
+
+################
+# divide clock #
+################
+$clock_freq = $clock_freq / $prescaler;
+
+########################################
+# determine maximum number of low bits #
+########################################
+for ($frame_format) {
+    ############
+    # 7O1, 7N2 #
+    ############
+    /^\s(7O1|7N2)\s*$/i && do {
+        $low_bit_counts  = [1, 2, 3, 4, 5, 6, 7, 8];
+        last;};
+    #######
+    # 7E1 #
+    #######
+    /^\s(7E1)\s*$/i && do {
+        $low_bit_counts  = [1, 2, 3, 4, 5, 6, 7, 9]; #8 consecutive low bits not possible
+	last;};
+    #################
+    # 8O1, 8N1, 8N2 #
+    #################
+    /^\s(8O1|8N1|8N2)\s*$/i && do {
+        $low_bit_counts  = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+	last;};
+    #######
+    # 8E1 #
+    #######
+    /^\s(8E1)\s*$/i && do {
+        $low_bit_counts  = [1, 2, 3, 4, 5, 6, 7, 8, 10]; #9 consecutive low bits not possible
+	last;};
+    #######
+    # 9N1 #
+    #######
+    /^\s(9N1)\s*$/i && do {
+        $low_bit_counts  = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+	last;};
+}
+
+###################################
+# calculate RT clock $prescalers  #
+###################################
+foreach my $table (@tables) {
     $baud_masks = $table->{'baud_masks'};
     $baud_divs  = $table->{'baud_divs'};
+
+    foreach $baud_mask (keys %$baud_masks) {
+	$table->{'baud_divs'}->{$baud_mask} = ($clock_freq/(16*$baud_mask))+(((2*$clock_freq)/(16*$baud_mask))&1);
+    }
+}
+
+########################
+# calculate boundaries #
+########################
+foreach my $table (@tables) {
+    my $baud_masks = $table->{'baud_masks'};
+    my $baud_divs  = $table->{'baud_divs'};
+    my $lower_boundary;
+    my $upper_boundary;
+
+    foreach my $baud (keys %$baud_divs) {
+	$baud_div  = $baud_divs->{$baud};
+	$baud_mask = $baud_masks->{$baud};
+	
+	#print "baud      = $baud\n";
+	#print "baud_div  = $baud_div\n";
+	#print "baud_mask = $baud_mask\n";
+	
+	#low pulse boundaries:  
+	#  for each valid bit length n:              n*16-6  <=  RT cycles < (            n*16+7 ) + 1
+	#                                baud_div * (n*16-6) <= TIM cycles < (baud_div * (n*16+7)) + 1 
+	foreach $n (@$low_bit_counts) {
+	    $lower_boundary      = int( $baud_div*((16*$n)-6));
+	    $upper_boundary      = int(($baud_div*((16*$n)+7))+1);
+	    
+	    $table->{'low_pulse_boundaries'}->{$lower_boundary}->{lower}->{$baud_mask} = $n;
+	    $table->{'low_pulse_boundaries'}->{$upper_boundary}->{upper}->{$baud_mask} = $n;
+	}
+	
+	#shortest high pulse length:  
+	#  allow 5% tolerance:                      16 * 0.95 <=  RT cycles
+	#                                baud_div * 16 * 0.95 <= TIM cycles
+	$lower_boundary = int(($baud_div*16)*0.95);
+	
+	$table->{'high_pulse_boundaries'}->{$lower_boundary}->{lower}->{$baud_mask} = $n;
+    }   
+}
+
+################
+# build tables #
+################
+foreach my $table (@tables) {
+    my $baud_masks;
+    my $accumulated_baud_mask;
+    my $comment;
+    my $boundary;
+ 
+    #low pulse table
+    $baud_mask;
+    $accumulated_baud_mask;
+    $comment = [".", ".", ".", ".", ".", ".", ".", "."];
+    @low_pulse_table = ();
+    $accumulated_baud_mask = 0;
+    foreach $boundary (sort {$a <=> $b} keys %{$table->{'low_pulse_boundaries'}}) {
+	if (exists $table->{'low_pulse_boundaries'}->{$boundary}->{lower}) {
+	    foreach $baud_mask (keys %{$table->{'low_pulse_boundaries'}->{$boundary}->{lower}}) {
+		#printf STDOUT "%4X: accumulated_baud_mask=%X baud_mask=%X -> new accumulated_baud_mask=%X\n", $boundary, $accumulated_baud_mask, $baud_mask, $accumulated_baud_mask | $baud_mask;
+		$accumulated_baud_mask = $accumulated_baud_mask | $baud_mask;
+		if ($baud_mask & 0x80) {$comment->[0] = $table->{'low_pulse_boundaries'}->{$boundary}->{lower}->{$baud_mask};}
+		if ($baud_mask & 0x40) {$comment->[1] = $table->{'low_pulse_boundaries'}->{$boundary}->{lower}->{$baud_mask};}
+		if ($baud_mask & 0x20) {$comment->[2] = $table->{'low_pulse_boundaries'}->{$boundary}->{lower}->{$baud_mask};}
+		if ($baud_mask & 0x10) {$comment->[3] = $table->{'low_pulse_boundaries'}->{$boundary}->{lower}->{$baud_mask};}
+		if ($baud_mask & 0x08) {$comment->[4] = $table->{'low_pulse_boundaries'}->{$boundary}->{lower}->{$baud_mask};}
+		if ($baud_mask & 0x04) {$comment->[5] = $table->{'low_pulse_boundaries'}->{$boundary}->{lower}->{$baud_mask};}
+		if ($baud_mask & 0x02) {$comment->[6] = $table->{'low_pulse_boundaries'}->{$boundary}->{lower}->{$baud_mask};}
+		if ($baud_mask & 0x01) {$comment->[7] = $table->{'low_pulse_boundaries'}->{$boundary}->{lower}->{$baud_mask};}
+	    }
+	}
+	if (exists $table->{'low_pulse_boundaries'}->{$boundary}->{upper}) {
+	    foreach $baud_mask (keys %{$table->{'low_pulse_boundaries'}->{$boundary}->{upper}}) {
+		#printf STDOUT "%4X: accumulated_baud_mask=%X baud_mask=%X ~baud_mask=%X -> new accumulated_baud_mask=%X\n", $boundary, $accumulated_baud_mask, $baud_mask, ($baud_mask^0xff), $accumulated_baud_mask & ($baud_mask^0xff);
+		$accumulated_baud_mask = $accumulated_baud_mask & ($baud_mask^0xff);
+		if ($baud_mask & 0x80) {$comment->[0] = ".";}
+		if ($baud_mask & 0x40) {$comment->[1] = ".";}
+		if ($baud_mask & 0x20) {$comment->[2] = ".";}
+		if ($baud_mask & 0x10) {$comment->[3] = ".";}
+		if ($baud_mask & 0x08) {$comment->[4] = ".";}
+		if ($baud_mask & 0x04) {$comment->[5] = ".";}
+		if ($baud_mask & 0x02) {$comment->[6] = ".";}
+		if ($baud_mask & 0x01) {$comment->[7] = ".";}
+	    } 
+	}
+	
+	$low_pulse_table_entry = {"mask"     => $accumulated_baud_mask,
+	 	                  "boundary" => $boundary,
+			          "comment"  => join(" ", @$comment),
+				  "weight"   => 1,
+                                  "depth"    => 1};
+	push @low_pulse_table, $low_pulse_table_entry;
+    }
+    $table->{'low_pulse_table'} = [@low_pulse_table];
+
+    #high pulse table
+    $baud_mask;
+    $accumulated_baud_mask;
+    $comment = [".", ".", ".", ".", ".", ".", ".", "."];
+    @high_pulse_table = ();
+    $accumulated_baud_mask = 0;
+    foreach $boundary (sort {$a <=> $b} keys %{$table->{'high_pulse_boundaries'}}) {
+	if (exists $table->{'high_pulse_boundaries'}->{$boundary}->{lower}) {
+	#printf STDOUT "High_pulse_table exists.\n";
+	    foreach $baud_mask (keys %{$table->{'high_pulse_boundaries'}->{$boundary}->{lower}}) {
+		$accumulated_baud_mask = $accumulated_baud_mask | $baud_mask;
+		if ($baud_mask & 0x80) {$comment->[0] = "1";}
+		if ($baud_mask & 0x40) {$comment->[1] = "1";}
+		if ($baud_mask & 0x20) {$comment->[2] = "1";}
+		if ($baud_mask & 0x10) {$comment->[3] = "1";}
+		if ($baud_mask & 0x08) {$comment->[4] = "1";}
+		if ($baud_mask & 0x04) {$comment->[5] = "1";}
+		if ($baud_mask & 0x02) {$comment->[6] = "1";}
+		if ($baud_mask & 0x01) {$comment->[7] = "1";}
+	    }
+	}
+	
+	$high_pulse_table_entry = {"mask"     => $accumulated_baud_mask,
+	  	                   "boundary" => $boundary,
+			           "comment"  => join(" ", @$comment),
+				   "weight"   => 1,
+                                   "depth"    => 1};
+	#printf STDOUT "New high_pulse_table entry./n";
+	push @high_pulse_table, $high_pulse_table_entry;
+    }
+    $table->{'high_pulse_table'} = [@high_pulse_table];
+}
+
+#####################
+# calculate weights #
+#####################
+foreach $table (@tables) {
+    $low_pulse_table  = $table->{'low_pulse_table'};
+    $high_pulse_table = $table->{'high_pulse_table'};    
+    $low_pulse_table_entry;
+    $high_pulse_table_entry;
+
+    $min_pulse       = 0xffff;
+    $max_pulse       = 0;
+    $average_sum     = 0;
+    $average_count   = 0;
+    $average_pulse;
+
+   #low pulse table
+   #calculate average pulse length and set preliminary weights based on occurance
+    foreach $low_pulse_table_entry (@$low_pulse_table) {
+	#calculate min/max
+	if ($low_pulse_table_entry->{'boundary'} < $min_pulse) {$min_pulse = $low_pulse_table_entry->{'boundary'};}
+	if ($low_pulse_table_entry->{'boundary'} > $max_pulse) {$max_pulse = $low_pulse_table_entry->{'boundary'};}
+	#printf STDOUT "Min pulse    = %X (%X)\n",  $min_pulse, $low_pulse_table_entry->{'boundary'};
+
+	#count mask bits
+	my $mask       = $low_pulse_table_entry->{'mask'};
+	my $mask_count = 0;
+	foreach my $i (1..8) {
+	    $mask_count += ($mask & 1) ? 1 : 0;
+	    $mask >>= 1;
+	}
+	#calculate average
+	$average_sum    += $low_pulse_table_entry->{'boundary'} * $mask_count;
+	$average_count  += $mask_count;
+	#set preliminary weight
+	$low_pulse_table_entry->{'weight'} = $mask_count;
+    }
+    $average_pulse = $average_sum/$average_count;
+    #printf STDOUT "Average pulse= %X\n",  $average_pulse;
+    #printf STDOUT "Min pulse    = %X\n",  $min_pulse;
+
+    #give shorter pulses a more weight
+    foreach $low_pulse_table_entry (@$low_pulse_table) {
+	if ($low_pulse_table_entry->{'boundary'} < $average_pulse) {
+	    
+	   #my $relative_weight = (((($average_pulse - $low_pulse_table_entry->{'boundary'}) / ($average_pulse - $min_pulse)) ** 20) *1000) + 1; #good result
+	    my $relative_weight = (((($average_pulse - $low_pulse_table_entry->{'boundary'}) / ($average_pulse - $min_pulse)) ** 40) *2000) + 1;
+	    $low_pulse_table_entry->{'weight'} *= $relative_weight;	
+	}
+    }
+
+    #high pulse table
+    #calculate average pulse length and set preliminary weights based on occurance
+    $min_pulse       = 0xffff;
+    $max_pulse       = 0;
+    $average_sum     = 0;
+    $average_count   = 0;
+    $average_pulse;
+
+    #calculate average pulse length and set preliminary weights based on occurance
+    foreach $high_pulse_table_entry (@$high_pulse_table) {
+	#calculate min/max
+	if ($high_pulse_table_entry->{'boundary'} < $min_pulse) {$min_pulse = $high_pulse_table_entry->{'boundary'};}
+	if ($high_pulse_table_entry->{'boundary'} > $max_pulse) {$max_pulse = $high_pulse_table_entry->{'boundary'};}
+	#printf STDOUT "Min pulse    = %X (%X)\n",  $min_pulse, $high_pulse_table_entry->{'boundary'};
+
+	#count mask bits
+	my $mask       = $high_pulse_table_entry->{'mask'};
+	my $mask_count = 0;
+	foreach my $i (1..8) {
+	    $mask_count += ($mask & 1) ? 1 : 0;
+	    $mask >>= 1;
+	}
+	#calculate average
+	$average_sum    += $high_pulse_table_entry->{'boundary'} * $mask_count;
+	$average_count  += $mask_count;
+	#set preliminary weight
+	$high_pulse_table_entry->{'weight'} = $mask_count;
+    }
+    $average_pulse = $average_sum/$average_count;
+    #printf STDOUT "Average pulse= %X\n",  $average_pulse;
+    #printf STDOUT "Min pulse    = %X\n",  $min_pulse;
+
+    #give shorter pulses a more weight
+    foreach $high_pulse_table_entry (@$high_pulse_table) {
+	if ($high_pulse_table_entry->{'boundary'} < $average_pulse) {
+	    
+	    my $relative_weight = (((($average_pulse - $high_pulse_table_entry->{'boundary'}) / ($average_pulse - $min_pulse)) ** 2) *10) + 1;
+	    $high_pulse_table_entry->{'weight'} *= $relative_weight;	
+	}
+    }
+}
+
+#############################
+# build binary search trees #
+#############################
+foreach my $table (@tables) {
+    $low_pulse_table  = $table->{'low_pulse_table'};
+    $high_pulse_table = $table->{'high_pulse_table'};    
+    $low_pulse_tree   = build_tree($low_pulse_table);
+    $high_pulse_tree  = build_tree($high_pulse_table);
     
-    %boundaries  = ();
+    $table->{'low_pulse_tree'}  = $low_pulse_tree;
+    $table->{'high_pulse_tree'} = $high_pulse_tree;
+}
+
+###################
+# print ASM files #
+###################
+foreach $table (@tables) {
+    $file             = $table->{'file'};
+    $baud_masks       = $table->{'baud_masks'};
+    $baud_divs        = $table->{'baud_divs'};
+    $low_pulse_table  = $table->{'low_pulse_table'};
+    $high_pulse_table = $table->{'high_pulse_table'};
+
+    %low_pulse_boundaries   = ();
+    %high_pulse_boundaries  = ();
+    @low_pulse_table        = ();
+    @high_pulse_table       = ();
+    $low_pulse_table_entry;
+    $high_pulse_table_entry;
+    $low_pulse_tree_list;
+    $high_pulse_tree_list;
+    $lower_boundary;
+    $upper_boundary;
     $boundary;
     
-    %high_tab    = ();
-    %low_tab     = ();
-
-
     #Open file
     #--------- 
     if (open (FILEHANDLE, sprintf(">%s", $file))) {
@@ -139,273 +499,359 @@ foreach $table (@tables) {
         printf FILEHANDLE ";#                      +--------+--------+                                    #\n";
         printf FILEHANDLE ";#                                                                             #\n";
         printf FILEHANDLE ";###############################################################################\n";
-        printf FILEHANDLE ";# Version History:                                                            #\n";
-        printf FILEHANDLE ";#    14 May, 2009                                                             #\n";
-        printf FILEHANDLE ";#      - Initial release                                                      #\n";
+        printf FILEHANDLE ";# Generated on %3s, %3s %.2d %4d                                               #\n", $days[$wday], $months[$mon], $mday, $year;
         printf FILEHANDLE ";###############################################################################\n";
-        printf FILEHANDLE "\n";
-
-	#Calculate boundaries
-	#-------------------- 
-	
-	foreach my $baud (keys %$baud_divs) {
-	    $baud_div  = $baud_divs->{$baud};
-	    $baud_mask = $baud_masks->{$baud};
-
-	    #print "baud      = $baud\n";
-	    #print "baud_div  = $baud_div\n";
-	    #print "baud_mask = $baud_mask\n";
-
-	    
-	    #Check minimum high pulse ranges
-	    #-------------------------------
-	    #A baud rate is valid if: pulse_length >= 16 * divider * (77/80)
-	    
-	    $boundary = ($baud_div *77)/5;
-	    $boundary = int($boundary);
-	    
-	    if (exists $boundaries{$boundary}->{high_min}) {
-		$boundaries{$boundary}->{high_min} = $boundaries{$boundary}->{high_min} | $baud_mask;
-	    } else {
-		$boundaries{$boundary}->{high_min} = $baud_mask;
-	    }
-	
-	    #printf "boundary: %s %s\n", $boundary, $boundaries{$boundary}->{high_min};
-	    
-	    #Check minimum idle pulse ranges
-	    #-------------------------------
-	    #A idle pulse is detected if: pulse_length >= 8*16 * divider * (151/144)
-	    # --> Too much overhead  
-	    
-	    #Check low pulse ranges
-	    #----------------------
-	    #A baud rate is valid if: pulse_length >= n*16 * divider * (77/80)   for n=[1..9]
-	    #                         pulse_length <= n*16 * divider * (151/144)
-	    
-	    foreach $n (1..9) {
-		$boundary = ($n* $baud_div * 77)/5;
-		$boundary = int($boundary);
-		
-		if (exists $boundaries{$boundary}->{low_min}) {
-		    $boundaries{$boundary}->{low_min} = $boundaries{$boundary}->{low_min} | $baud_mask;
-		} else {
-		    $boundaries{$boundary}->{low_min} = $baud_mask;
-		}
-		
-		$boundary = ($n* $baud_div *151)/9;  
-		#$boundary = (int($boundary) < $boundary) ? int($boundary)+1 : int($boundary);
-		$boundary = int($boundary)+1;
-			     
-		if (exists $boundaries{$boundary}->{low_max}) {
-		    $boundaries{$boundary}->{low_max} = $boundaries{$boundary}->{low_max} | $baud_mask;
-		} else {
-		    $boundaries{$boundary}->{low_max} = $baud_mask;
-		}
-	    }
+        printf FILEHANDLE ";# Bus clock:              %4.2f MHz %30s            #\n", ($clock_freq/1000000), ($$prescaler > 1) ? sprintf("divided by %2d", $$prescaler) : "";
+        printf FILEHANDLE ";# Frame format:           %3s                                                 #\n", $frame_format;
+        printf FILEHANDLE ";# Supported baud rates:                                                       #\n";
+	foreach my $baud (sort {$a <=> $b} keys %$baud_divs) {
+	    printf FILEHANDLE ";#                      %6.d (%4X)                                          #\n", $baud, $baud_divs->{$baud};
 	}
-	          
-	#Calculate tables
-	#---------------- 
-	$hi_valids      = 0;
-	$lo_valids      = 0;
-	$prev_hi_valids = 0;
-	$prev_lo_valids = 0;
-	$prev_boundary  = 0;
-	
-	foreach $boundary (sort {$a <=> $b} keys %boundaries) {
-	    $boundary_hw = ($boundary >>16) & 0xffff;
-	    $boundary_lw =  $boundary       & 0xffff;
-	    	    
-	    if (exists $boundaries{$boundary}->{high_min}) {
-		$hi_valids |= $boundaries{$boundary}->{high_min};
-	    }
-	    if (exists $boundaries{$boundary}->{low_min}) {
-		$lo_valids |= $boundaries{$boundary}->{low_min};
-	    }
-	    if (exists $boundaries{$boundary}->{low_max}) {
-		$lo_valids &= ~$boundaries{$boundary}->{low_max};
-	    }
-	    
-	    #High pulse table
-	    if (exists $boundaries{$boundary}->{high_min}) {
-		if (!exists $high_tab{$boundary_hw}) {
-		    $high_tab{$boundary_hw} = [];
-		    if ($prev_hi_valids != 0) {
-		    	 push @{$high_tab{$boundary_hw}}, [($#{$high_tab{$boundary_hw}}+1),
-		    					   0,
-		    					   $hi_valids];
-		    }
-		}
-		push @{$high_tab{$boundary_hw}}, [($#{$high_tab{$boundary_hw}}+1),
-						  $boundary,
-						  #sprintf("%%%s_%s", bin2str($hi_valids, 8), bin2str($hi_valids, 8))];
-						 $hi_valids];
-		
-	    }
-		
-	    #Low pulse table
-	    if ((exists $boundaries{$boundary}->{low_min}) ||
-		(exists $boundaries{$boundary}->{low_max})) {
-		if (!exists $low_tab{$boundary_hw}) {
-		    $low_tab{$boundary_hw} = [];
-		    if ($prev_lo_valids != 0) {
-			push @{$low_tab{$boundary_hw}}, [($#{$low_tab{$boundary_hw}}+1),
-							  0,
-							  $lo_valids];
-		    }
-		}
-		push @{$low_tab{$boundary_hw}}, [($#{$low_tab{$boundary_hw}}+1),
-						 $boundary,
-						 $lo_valids];	   
-	    }
-	    $prev_boundary  = $boundary;
-	    $prev_hi_valids = $hi_valids;
-	    $prev_lo_valids = $lo_valids;
-	}
-
-	#Print comment for high pulse table
-	#----------------------------------
         printf FILEHANDLE ";###############################################################################\n";
-	print  FILEHANDLE ";# High pulses                                                                 #\n";
-        printf FILEHANDLE ";###############################################################################\n";
-
-	print_ctabs(\%high_tab);
-
-	#Print high pulse table
-	#----------------------
-	print  FILEHANDLE "\n";
-	$count = 0;
-	foreach $boundary_hw (sort keys %high_tab) {
-	    $count++;
-	}
-	printf FILEHANDLE "%s\tEQU\t\$%.2X\n", "SCI_HT_CNT", $count;
-
-	if ($count > 1) {
-	    printf FILEHANDLE "%s\t\tEQU\t*\n", "SCI_HT_LIST";
-	    foreach $boundary_hw (sort keys %high_tab) {
-		my $tree_name = sprintf "SCI_HT%1X", $boundary_hw;  
-		printf FILEHANDLE "\t\tDW\t%s\n", $tree_name;
-	    }
-	}
-
-	print  FILEHANDLE "\n";
-	foreach $boundary_hw (sort keys %high_tab) {
-	    my $tree_name = sprintf "SCI_HT%1X", $boundary_hw;  
-   	
-	    print  FILEHANDLE "\n";
-	    printf FILEHANDLE "%s\t\tEQU\t*\n", $tree_name;
-   	
-	    printf FILEHANDLE "%s", print_st_rec($high_tab{$boundary_hw}, $tree_name, "");
-	    print  FILEHANDLE "\n";
-	    #exit;
-	}
-
-	#Print comment for low pulse table
-	#--------------------------------- 	
-        printf FILEHANDLE ";###############################################################################\n";
-	print  FILEHANDLE ";# Low pulses                                                                  #\n";
-        printf FILEHANDLE ";###############################################################################\n";
-
-	print_ctabs(\%low_tab);
+	printf FILEHANDLE "\n";
 
 	#Print low pulse table
-	#---------------------
-	print  FILEHANDLE "\n";
-	$count = 0;
-	foreach $boundary_hw (sort keys %low_tab) {
-	    $count++;
-	}
-	printf FILEHANDLE "%s\tEQU\t\$%.2X\n", "SCI_LT_CNT",  $count;
+	#--------------------- 	
+        printf FILEHANDLE ";###############################################################################\n";
+	print  FILEHANDLE ";# Low pulse search tree                                                       #\n";
+        printf FILEHANDLE ";###############################################################################\n";
+	print  FILEHANDLE "#macro SCI_BD_LOW_PULSE_TREE, 0\n";
+	print  FILEHANDLE print_table($baud_divs, $low_pulse_table);
+	#Print low pulse tree
+        printf FILEHANDLE ";#\n";
+	$low_pulse_tree_list = [$table->{'low_pulse_tree'}];
+	printf FILEHANDLE print_tree($low_pulse_tree_list);
+        printf FILEHANDLE ";#\n";
+	#Print ASM code
+	printf FILEHANDLE print_asm($table->{'low_pulse_tree'}, "00");
+	print  FILEHANDLE "#emac\n";
+        printf FILEHANDLE "\n";
+	
+	#Print high pulse table
+	#---------------------- 	
+        printf FILEHANDLE ";###############################################################################\n";
+	print  FILEHANDLE ";# High pulse search tree                                                      #\n";
+        printf FILEHANDLE ";###############################################################################\n";
+	print  FILEHANDLE "#macro SCI_BD_HIGH_PULSE_TREE, 0\n";
+	#Print low pulse tree
+ 	print  FILEHANDLE print_table($baud_divs, $high_pulse_table);
+	printf FILEHANDLE ";#\n";
+	$high_pulse_tree_list = [$table->{'high_pulse_tree'}];
+	printf FILEHANDLE print_tree($high_pulse_tree_list);
+        printf FILEHANDLE ";#\n";
+	#Print ASM code
+	printf FILEHANDLE print_asm($table->{'high_pulse_tree'}, "00");
+	print  FILEHANDLE "#emac\n";
+        printf FILEHANDLE "\n";
 
-	if ($count > 1) {
-	    printf FILEHANDLE "%s\t\tEQU\t*\n", "SCI_LT_LIST";
-	    foreach $boundary_hw (sort keys %low_tab) {
-		my $tree_name = sprintf "SCI_LT%1X", $boundary_hw;  
-		printf FILEHANDLE "\t\tDW\t%s\n", $tree_name;
+	#Print parse routine
+	#------------------- 	
+
+        printf FILEHANDLE ";###############################################################################\n";
+	print  FILEHANDLE ";# Parse routine                                                               #\n";
+        printf FILEHANDLE ";###############################################################################\n";
+	printf FILEHANDLE ";#Parse search tree for detected pulse length\n";
+	printf FILEHANDLE "; args:   1: root of the search tree\n";
+	printf FILEHANDLE ";         D: pulse length\n";
+	printf FILEHANDLE "; result: X: list of matching baud rates (mirrored in high and low byte)\n";
+	printf FILEHANDLE "; SSTACK: 0 bytes\n";
+	printf FILEHANDLE ";         D is preserved\n"; 
+        printf FILEHANDLE "#macro	SCI_BD_PARSE, 1\n";
+        printf FILEHANDLE "		LDX	#\$0000				;initialize X\n";
+        printf FILEHANDLE "		LDY	#\\1				;initialize Y\n";
+        printf FILEHANDLE "LOOP		TST	0,Y	     			;check if lower boundary exists\n";
+        printf FILEHANDLE "		BEQ	DONE				;search done\n";
+        printf FILEHANDLE "		CPD	6,Y+				;check if pulse length is shorter than lower boundary\n";
+        printf FILEHANDLE "		BLO	LOOP				;pulse length is shorter than lower boundary -> try a shorter range\n";
+        printf FILEHANDLE "		LDX	-4,Y				;new lowest boundary found -> store valid baud rate field in index X\n";
+        printf FILEHANDLE "		LDY	-2,Y				;switch to the branch with higher compare values\n";
+        printf FILEHANDLE "		BNE	LOOP				;parse branch if it exists\n";
+        printf FILEHANDLE "DONE		EQU	*				;done, result in X\n" 
+    }
+    close FILEHANDLE
+}
+
+sub build_tree {
+    my $pulse_table = shift @_;
+    my $pulse_table_entry;
+    my $sum_of_weights;
+    my $center_of_weight = 0;
+    my @lower_table      = ();
+    my @higher_table     = (@$pulse_table);
+    my $tree_node;
+    my $tree_node_width  = 1;
+    my $higher_child_node;
+    my $lower_child_node;
+
+    #calculate sum of weights
+    $sum_of_weights;
+    foreach $pulse_table_entry (@$pulse_table) {
+	$sum_of_weights += $pulse_table_entry->{'weight'} ;
+    }
+ 
+    #split table at center of weight
+    while (($#higher_table >= 0) && ($center_of_weight < ($sum_of_weights/2))) {
+	$pulse_table_entry = shift @higher_table;
+	push @lower_table, $pulse_table_entry;
+	$center_of_weight += $pulse_table_entry->{'weight'} ;
+	#printf STDOUT "split: low: %d  high: %d pulse: %4X   %d/%d\n", $#lower_table, $#higher_table, $pulse_table_entry->{'boundary'}, $center_of_weight, $sum_of_weights/2;
+    }
+    #in case the loop was never executed
+    if ($#lower_table  < 0) {
+	$pulse_table_entry = shift @higher_table;
+    } else {
+	$pulse_table_entry = pop @lower_table;
+    }
+    #printf STDOUT "low: %d  high: %d\n", $#lower_table, $#higher_table;
+
+    #increment depth of subtrees
+    foreach $pulse_table_entry (@lower_table, @higher_table) {
+	$pulse_table_entry->{'depth'} += 1;
+    }
+
+    #No children
+    if (($#lower_table  < 0) &&
+	($#higher_table < 0)) {
+	
+	$tree_node = {"lower_branch"     => 0,
+		      "higher_branch"    => 0,
+		      "table_entry"      => $pulse_table_entry,
+		      "width"            => 2,
+		      "position"         => 0,
+		      "lower_connector"  => 0,
+		      "higher_connector" => 0};
+
+        #printf STDOUT "node %4X: no children (%d/%d)\n", $pulse_table_entry->{'boundary'}, $tree_node->{'width'}, $tree_node->{'position'};
+	return $tree_node;
+    }
+    #Lower child only
+    if ($#higher_table < 0) {
+	#build lower branch
+	$lower_child_node = build_tree(\@lower_table);
+
+	$tree_node = {"lower_branch"     => $lower_child_node,
+		      "higher_branch"    => 0,
+		      "table_entry"      => $pulse_table_entry,
+		      "width"            => $lower_child_node->{'width'},
+		      "position"         => $lower_child_node->{'position'},
+		      "lower_connector"  => $lower_child_node->{'position'},
+		      "higher_connector" => $lower_child_node->{'position'}};
+
+        #printf STDOUT "node %4X: lower child %4X (%d/%d)\n", $pulse_table_entry->{'boundary'}, $lower_child_node->{'table_entry'}->{'boundary'}, $tree_node->{'width'}, $tree_node->{'position'};
+	return $tree_node;
+    }
+    #higher child only
+    if ($#lower_table < 0) {
+	#build higher branch
+	$higher_child_node = build_tree(\@higher_table);
+
+	$tree_node = {"lower_branch"     => 0,
+		      "higher_branch"    => $higher_child_node,
+		      "table_entry"      => $pulse_table_entry,
+		      "width"            => $higher_child_node->{'width'},
+		      "position"         => $higher_child_node->{'position'},
+		      "lower_connector"  => $higher_child_node->{'position'},
+		      "higher_connector" => $higher_child_node->{'position'}};
+
+        #printf STDOUT "node %4X: higher child %4X (%d/%d)\n", $pulse_table_entry->{'boundary'}, $higher_child_node->{'table_entry'}->{'boundary'}, $tree_node->{'width'}, $tree_node->{'position'};
+	return $tree_node;
+    }
+    #both childrwn
+    #build both branches
+    $lower_child_node  = build_tree(\@lower_table);
+    $higher_child_node = build_tree(\@higher_table);
+    
+    $tree_node = {"lower_branch"     => $lower_child_node,
+		  "higher_branch"    => $higher_child_node,
+		  "table_entry"      => $pulse_table_entry,
+		  "width"            => $lower_child_node->{'width'}+$higher_child_node->{'width'},
+		  "position"         => $lower_child_node->{'position'}+((($lower_child_node->{'width'}+$higher_child_node->{'position'})-$lower_child_node->{'position'})/2),
+		  "lower_connector"  => $lower_child_node->{'position'},
+		  "higher_connector" => $lower_child_node->{'width'}+$higher_child_node->{'position'}};
+    
+    #printf STDOUT "node %4X: lower child %4X, higher child %4X (%d/%d)\n", $pulse_table_entry->{'boundary'},  $lower_child_node->{'table_entry'}->{'boundary'}, $higher_child_node->{'table_entry'}->{'boundary'}, $tree_node->{'width'}, $tree_node->{'position'};
+    return $tree_node;
+}
+
+sub print_tree {
+    my $current_tree_level = shift @_;
+ 
+    my @next_tree_level   = ();    
+    my @branch_line1;
+    my @branch_line2;
+    my @branch_line3;
+    my @branch_line4;
+    my @branch_line5;
+    my @branch_label;
+    my @level_line1       = ();
+    my @level_line2       = ();
+    my @level_line3       = ();
+    my @level_line4       = ();
+    my @level_line5       = ();
+    my $next_level_exists = 0,
+    my $pulse_table_entry,
+    my $tree_node,
+    my $dummy_tree_node,
+    my $current_line,
+    my $output_string,
+    my $label;
+    my $width;
+    my $position;
+    my $lower_connector;
+    my $higher_connector;
+    my $col;
+
+    #clear next level
+    $next_tree_level = [];
+    #printf STDOUT "new tree level\n";
+
+    #parse current level
+    foreach $tree_node (@$current_tree_level) {
+	$label             = int($tree_node->{'table_entry'}->{'boundary'});	 
+	$width             = int($tree_node->{'width'});			 
+	$position          = int($tree_node->{'position'});			 
+	$lower_connector   = int($tree_node->{'lower_connector'});		 
+	$higher_connector  = int($tree_node->{'higher_connector'});              
+	#printf STDOUT "print node %4X: (%d/%d/%d/%d)\n", $label, $width, $position, $lower_connector, $higher_connector;
+
+	#update next level
+	if ($tree_node->{'lower_branch'}) {
+	    $next_level_exists = 1;
+	    push @next_tree_level, $tree_node->{'lower_branch'};
+	}
+	if ($tree_node->{'higher_branch'}) {
+	    $next_level_exists = 1;
+	    push @next_tree_level, $tree_node->{'higher_branch'};
+	}
+	if ((! $tree_node->{'lower_branch'}) &&
+	    (! $tree_node->{'higher_branch'})) {
+	    $dummy_table_entry = {"lower_branch"     => 0,
+				  "higher_branch"    => 0,
+				  "table_entry"      => 0,
+				  "width"            => $width,
+				  "position"         => -1,
+				  "lower_connector"  => -1,
+				  "higher_connector" => -1};
+	    push @next_tree_level, $dummy_table_entry;
+	}
+
+	#split branch label
+	if (exists $tree_node->{'table_entry'}->{'boundary'}) {
+	    @branch_label = reverse split("", sprintf("%X", $label));
+	    while ($#branch_label < 4) {
+		push @branch_label, "|";
+	    }
+	} else {
+	    @branch_label = ();
+	}
+
+	#Print branch
+	@branch_line1 = ();
+	@branch_line2 = ();
+	@branch_line3 = ();
+	@branch_line4 = ();
+	@branch_line5 = ();
+	for ($col=0; $col<$width; $col++) {
+	    #printf STDOUT "i=%d (%s)\n", $col, join(",", @branch_label);
+
+	    #fill lines with spaces
+	    @branch_line1[$col] = " ";
+	    @branch_line2[$col] = " ";
+	    @branch_line3[$col] = " ";
+	    @branch_line4[$col] = " ";
+	    @branch_line5[$col] = " ";
+	    #draw connectors
+	    if (($lower_connector  >= 0) &&
+		($higher_connector >= 0)) {
+		if (($lower_connector  < $col) &&
+		    ($higher_connector > $col)) {
+		    #printf STDOUT "print connector line (%d-%d/%d)\n", $col, $lower_connector, $higher_connector;
+		    @branch_line5[$col] = "-";
+		}
+		if (($lower_connector  == $col) ||
+		    ($higher_connector == $col)) {
+		    #printf STDOUT "print connector ends (%d/%d)\n", $lower_connector, $higher_connector;
+		    @branch_line5[$col] = "+";
+		}
+	    }
+	    #draw label
+	    if (($#branch_label == 4) &&
+		($position == $col)) {
+		    #printf STDOUT "print label (%d)\n", $position;
+		@branch_line1[$col] = $branch_label[4];
+		@branch_line2[$col] = $branch_label[3];
+		@branch_line3[$col] = $branch_label[2];
+		@branch_line4[$col] = $branch_label[1];		
+		@branch_line5[$col] = $branch_label[0];		
 	    }
 	}
+	#add branch to level
+	push @level_line1, @branch_line1;
+	push @level_line2, @branch_line2;
+	push @level_line3, @branch_line3;
+	push @level_line4, @branch_line4;
+	push @level_line5, @branch_line5;
+    }
 
-	print  FILEHANDLE "\n";
-	foreach $boundary_hw (sort keys %low_tab) {
-	    my $tree_name = sprintf "SCI_LT%1X", $boundary_hw;  
-     	
-	    print  FILEHANDLE "\n";
-	    printf FILEHANDLE "%s\t\tEQU\t*\n", $tree_name;
-   	
-	    printf FILEHANDLE "%s", print_st_rec($low_tab{$boundary_hw}, $tree_name, "");
- 	    print  FILEHANDLE "\n";
-	    #exit;
-	}
+    #print current level
+    $output_string = "";
 
-    } else {
-	printf STDERR "Cannot open list file \"%s\"\n", $file;
-	exit;
+    $current_line  = join("", @level_line1);
+    $current_line  =~ s/\s+$//g; #remove spaces at the end of the line
+    $output_string .= ";#" . $current_line . "\n";
+ 
+    $current_line  = join("", @level_line2);
+    $current_line  =~ s/\s+$//g; #remove spaces at the end of the line
+    $output_string .= ";#" . $current_line ."\n";
+  
+    $current_line  = join("", @level_line3);
+    $current_line  =~ s/\s+$//g; #remove spaces at the end of the line
+    $output_string .= ";#" . $current_line ."\n";
+  
+    $current_line  = join("", @level_line4);
+    $current_line  =~ s/\s+$//g; #remove spaces at the end of the line
+    $output_string .= ";#" . $current_line ."\n";
+  
+    $current_line  = join("", @level_line5);
+    $current_line  =~ s/\s+$//g; #remove spaces at the end of the line
+    $output_string .= ";#" . $current_line ."\n";
+
+    #print next level
+    if ($next_level_exists) {
+    	$output_string .= print_tree([@next_tree_level]);
+    }
+    return $output_string;
+}
+
+sub print_space {
+    my $file  = shift @_;
+    my $count = shift @_;
+    #printf STDOUT "print %d spaces to %s\n",$count, $file;
+    for (my $i=0; $i<$count; $i++) {
+	print $file " ";
     }
 }
 
- sub print_st_rec {
-    my $table = shift @_;
-    my $label = shift @_;
-    my $str   = shift @_;
-    
-    my $count;
-    my $boundary;
-    my $valids;
-
-    my $pos    = ($#$table&1)+($#$table>>1);
-    #my @ltab   = @$table;
-    #my @rtab   = splice @ltab, $pos;
-    #shift @rtab;
-    my @rtab   = @$table;
-    my @ltab   = splice @rtab, $pos;
-    shift @ltab;
-    my $llab;
-    
-    #print "table = $#$table ($table->[0]->[0] - $table->[$#$table]->[0])\n";
-    #print "pos   = $pos ($table->[$pos]->[0], $table->[$pos]->[1], $table->[$pos]->[2])\n";
-    #print "rtab  = $#rtab\n";
-    #print "ltab  = $#ltab\n";
-    #exit;
-    
-    if ($#ltab >= 0) {
-	my $lpos = ($#ltab&1)+($#ltab>>1);
-	$llab = sprintf("%s_%.2X", $label, $ltab[$lpos]->[0]);
-    } else {
-	$llab = "\$0000\t";
+sub print_table {
+    my $bauds_divs     = shift @_;
+    my $table          = shift @_;
+    my $table_entry;
+    my $output_string  = "";
+    #print header
+    $output_string .= print_table_header([sort {$b <=> $a} keys %$baud_divs]);
+    #print table
+    foreach $table_entry (@$table) {
+	$output_string .= sprintf   ";# %6d (%4X)      %s (%2X)  %4d   %4d\n", $table_entry->{'boundary'},  
+	                                                                       $table_entry->{'boundary'},  
+                                                                               $table_entry->{'comment'},
+	                                                                       $table_entry->{'mask'},
+	                                                                       $table_entry->{'weight'},
+ 	                                                                       $table_entry->{'depth'} ;
     }
-    
-    #print "llab  = $llab\n";
-    #exit;
-
-    $count    = $table->[$pos]->[0];
-    $boundary = $table->[$pos]->[1] & 0xffff;
-    $valids   = sprintf("%%%s_%s", bin2str($table->[$pos]->[2], 8), bin2str($table->[$pos]->[2], 8));
-
-    $str .= sprintf("%s_%.2X\tDW\t\$%.4X %s %s\t;pulse >=%6d cycs\n",
-		    $label,
-		    $count,
-		    $boundary,
-		    $valids,
-		    $llab,
-		    $boundary);
-    #exit;  
-    
-    #print "rtab  = $#rtab\n";
-    if ($#rtab >= 0) {
-	$str .= print_st_rec(\@rtab, $label);
-    } else {
-	$str .= "\t\tDW\t\$0000\n"
-	} 
-    #exit;
-    
-    #print "ltab  = $#ltab\n";
-    if ($#ltab >= 0) {
-	$str .= print_st_rec(\@ltab, $label);
-    }
-    return $str;
+    return $output_string;
 }
 
-sub print_ctab_header {
+sub print_table_header {
     my $bauds          = shift @_;
     my @baud_chars;
     my $baud_chars_max = 0;
@@ -426,80 +872,30 @@ sub print_ctab_header {
 	}
     }
     
-    foreach $j (0..($baud_chars_max-1)) {
-	$str .= sprintf ";# %-50s ", "";
+    foreach $j (0..($baud_chars_max)) {
+	if ($j < $baud_chars_max) {
+	    $str .= sprintf ";# %-18s ", "";
+	} else {
+	    $str .= sprintf ";# %-18s ", "pulse length >=";
+	}
 	foreach $i (0..$#$bauds) {
 	    if (exists $baud_matrix->{$i}->{$j}) {
 		$str .= $baud_matrix->{$i}->{$j};
-	    } else {
 		$str .= " ";
+	    } else {
+		$str .= "  ";
 	    }
 	}
-	$str .= "\n";
-    }
-    $str .= sprintf ";# %-50s ", "Range";
-    foreach $i (0..$#$bauds) {
-	if (exists $baud_matrix->{$i}->{$baud_chars_max}) {
-	    $str .= $baud_matrix->{$i}->{$baud_chars_max};
+	if ($j < $baud_chars_max) {
+	    $str .= "\n";
 	} else {
-	    $str .= " ";
+	    $str .= "      weight  depth\n";
 	}
     }
-    $str .= "\n";
     
-    $str .= ";# ---------------------------------------------------";
-    foreach $i (0..$#$bauds) {
-	$str .= "-";
-    }
-    $str .= "\n";
-
+    $str .= ";# ------------------------------------------------------\n";
     return $str;
 }
-
-sub print_ctabs {
-    my $tab            = shift @_;
-    my $str            = "";
-
-    my $boundary_hw;   
-    my $tab_entry;
-    my $count;
-    my $boundary;
-    my $valids;
-    my $prev_boundary;
-    my $prev_valids;
-
-
-    foreach $boundary_hw (sort keys %$tab) {
-	#printf FILEHANDLE ";# Table %d:\n", $boundary_hw;
-	print  FILEHANDLE ";#\n";
-	print  FILEHANDLE print_ctab_header([sort {$baud_masks->{$b} <=> $baud_masks->{$a}} keys %$baud_masks]);
-
-	$prev_boundary = undef;
-	$prev_valids   = undef;	
-	foreach $entry (@{$tab->{$boundary_hw}}) {
-	    $count    = $entry->[0];
-	    $boundary = $entry->[1];
-	    $valids   = $entry->[2];
-
-	    if (defined $prev_boundary) {
-		printf FILEHANDLE ";# %-50s %s\n", sprintf("%6d <= pulse < %6d [%6X,%6X]", $prev_boundary, 
-							                                   $boundary, 
-							                                   $prev_boundary, 
-							                                   $boundary), 
-		                                   bin2str_x($prev_valids, 8);
-	    }
-	    $prev_boundary = $boundary;
-	    $prev_valids   = $valids;
-	}
-	printf FILEHANDLE ";# %-50s %s\n", sprintf("%6d <= pulse   %6s [%6X,%6s] ", $prev_boundary, 
-						   "", 
-						   $prev_boundary,
-						   "..."), 
-	                                           bin2str_x($prev_valids, 8);
-	print  FILEHANDLE "\n";
-    }
-}
-
 
 sub bin2str {
    my $bin   = shift @_;
@@ -531,4 +927,94 @@ sub bin2str_x {
       $bin = $bin >> 1;
    }
    return $str;
+}
+
+sub print_asm {
+    my $tree           = shift @_;
+    my $prev_mask      = shift @_;
+    my $label          = $tree->{'table_entry'}->{'boundary'};	 
+    my $mask           = $tree->{'table_entry'}->{'mask'};	 
+    my $lower_label    = $tree->{'lower_branch'}->{'table_entry'}->{'boundary'};		 
+    my $higher_label   = $tree->{'higher_branch'}->{'table_entry'}->{'boundary'};              
+    my $lower_branch   = $tree->{'lower_branch'};		 
+    my $higher_branch  = $tree->{'higher_branch'};              
+    my $output_string  = "";
+
+    #fix label strings
+    my $label_name     =  sprintf("N_%4X", $label);
+       $label_name     =~ s/\ /_/g;
+    my $label_boundary =  sprintf("%4X", $label);
+       $label_boundary =~ s/\ /0/g;
+       $mask           =  sprintf("%2X", $mask);
+       $mask           =~ s/\ /0/g;
+    my $lower_name     =  sprintf("N_%4X", $lower_label);
+       $lower_name     =~ s/\ /_/g;
+    my $higher_name    =  sprintf("N_%4X", $higher_label);
+       $higher_name    =~ s/\ /_/g;
+    #printf STDOUT "print asm %s %s %s: (%s/%s)\n", $label_name, $label_boundary, $mask, $lower_label, $higher_label;
+
+    #two children
+    if (($lower_branch) &&
+	($higher_branch)) {
+	#print node entry
+	$output_string .= sprintf("%s\t\tDW\t\$%s\t\$%s%s\t%s\t\t;if pulse >= %d then check %s else check %s\n", $label_name, 
+				                                                                                 $label_boundary, 
+                                                                                                                 $mask, $mask, 
+                                                                                                                 $higher_name,
+                                                                                                                 $label,
+                                                                                                                 $higher_name,
+                                                                                                                 $lower_name);
+	#print lower branch
+	#printf STDOUT "print asm lower %s\n", $lower_label;
+	$output_string .= print_asm($lower_branch, $prev_mask);
+	#print higher branch
+   	#printf STDOUT "print asm higher %s\n", $higher_label;
+   	$output_string .= print_asm($higher_branch, $mask);
+	return $output_string;
+    }
+
+    #only lower child
+    if ($lower_branch) {
+	#print node entry
+	$output_string .= sprintf("%s\t\tDW\t\$%s\t\$%s%s\t\$0000\t\t;if pulse >= %d then the result is %s else check %s\n", $label_name, 
+				                                                                                             $label_boundary, 
+                                                                                                                             $mask, $mask, 
+                                                                                                                             $label,
+                                                                                                                             $mask,
+                                                                                                                             $lower_name);
+	#print lower branch
+	#printf STDOUT "print asm lower %s\n", $lower_label;
+	$output_string .= print_asm($lower_branch, $prev_mask);
+	return $output_string;
+    }
+
+    #only higher child
+    if ($higher_branch) {
+	#print node entry
+	$output_string .= sprintf("%s\t\tDW\t\$%s\t\$%s%s\t%s\t\t;if pulse >= %d then check %s else the result is %s\n", $label_name, 
+				                                                                                         $label_boundary, 
+                                                                                                                         $mask, $mask, 
+                                                                                                                         $higher_name,
+                                                                                                                         $label,
+                                                                                                                         $higher_name,
+                                                                                                                         $prev_mask);
+	#print lower branch
+	$output_string .= sprintf("\t\tDW\t\$0000\n");
+	#print higher branch
+   	#printf STDOUT "print asm higher %s\n", $higher_label;
+   	$output_string .= print_asm($higher_branch, $mask);
+	return $output_string;
+    }
+
+    #no children
+    #print node entry
+    $output_string .= sprintf("%s\t\tDW\t\$%s\t\$%s%s\t\$0000\t\t;if pulse >= %d then the result is %s else the result is %s %s\n", $label_name, 
+				                                                                                                    $label_boundary, 
+                                                                                                                                    $mask, $mask, 
+                                                                                                                                    $label,
+                                                                                                                                    $mask,
+                                                                                                                                    $prev_mask);
+    #print lower branch
+    $output_string .= sprintf("\t\tDW\t\$0000\n");
+    return $output_string;
 }
