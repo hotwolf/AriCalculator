@@ -179,6 +179,7 @@ VECTAB_TABS_START_LIN	EQU	SCI_TABS_END_LIN
 #include ./rti_OpenBDC.s		;RTI setup
 #include ./led_OpenBDC.s		;LED driver
 #include ../All/tim.s			;TIM driver
+#include ./sci_bdtab_OpenBDC.s		;Search tree for SCI baud rate detection
 #include ../All/sci.s			;SCI driver
 #include ./vectab_OpenBDC.s		;S12C128 vector table
 	
