@@ -68,12 +68,17 @@ use lib $RealBin;
 ###############
 # global vars #
 ###############
-$need_help       = 0;
-$arg_type        = "C";
-$clock_freq      = 25000000;
-$prescaler       = 1;
-$frame_format    = "8N1";
-$low_bit_counts  = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+$need_help         = 0;
+$arg_type          = "C";
+$clock_freq        = 25000000;
+$prescaler         = 1;
+$frame_format      = "8N1";
+$low_bit_counts    = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+$fixed_parse_time  = 4;
+$lower_step_time   = 10;
+$higher_step_time  = 17;
+$lower_term_time   = 6;
+$higher_term_time  = 15;
 
 ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
 $year += 1900;
@@ -117,13 +122,13 @@ foreach $arg (@ARGV) {
     }
 
     #Args	
-    elsif (($arg_type =~ /^C$/i) && ($arg =~ /^\s(\d+)\s*$/i)) {
+    elsif (($arg_type =~ /^C$/i) && ($arg =~ /^\s*(\d+)\s*$/i)) {
 	$clock_freq = int($1);
     }
-    elsif (($arg_type =~ /^T$/i) && ($arg =~ /^\s(\d+)\s*$/i)) {
+    elsif (($arg_type =~ /^T$/i) && ($arg =~ /^\s*(\d+)\s*$/i)) {
 	$prescaler = int($1);
     }
-    elsif (($arg_type =~ /^F$/i) && ($arg =~ /^\s(7E1|7O1|7N2|8N1|8E1|8O1|8N2|9N1)\s*$/i)) {
+    elsif (($arg_type =~ /^F$/i) && ($arg =~ /^\s*(7E1|7O1|7N2|8N1|8E1|8O1|8N2|9N1)\s*$/i)) {
 	$frame_format = $1;
     }
 
@@ -277,11 +282,12 @@ foreach my $table (@tables) {
 	    } 
 	}
 	
-	$low_pulse_table_entry = {"mask"     => $accumulated_baud_mask,
-	 	                  "boundary" => $boundary,
-			          "comment"  => join(" ", @$comment),
-				  "weight"   => 1,
-                                  "depth"    => 1};
+	$low_pulse_table_entry = {"mask"        => $accumulated_baud_mask,
+	 	                  "boundary"    => $boundary,
+			          "comment"     => join(" ", @$comment),
+				  "weight"      => 1,
+                                  "depth"       => 1,
+                                  "parse_time"  => $fixed_parse_time};
 	push @low_pulse_table, $low_pulse_table_entry;
     }
     $table->{'low_pulse_table'} = [@low_pulse_table];
@@ -308,11 +314,12 @@ foreach my $table (@tables) {
 	    }
 	}
 	
-	$high_pulse_table_entry = {"mask"     => $accumulated_baud_mask,
-	  	                   "boundary" => $boundary,
-			           "comment"  => join(" ", @$comment),
-				   "weight"   => 1,
-                                   "depth"    => 1};
+	$high_pulse_table_entry = {"mask"        => $accumulated_baud_mask,
+	  	                   "boundary"    => $boundary,
+			           "comment"     => join(" ", @$comment),
+				   "weight"      => 1,
+                                   "depth"       => 1,
+                                   "parse_time"  => $fixed_parse_time};
 	#printf STDOUT "New high_pulse_table entry./n";
 	push @high_pulse_table, $high_pulse_table_entry;
     }
@@ -557,16 +564,17 @@ foreach $table (@tables) {
 	printf FILEHANDLE "; SSTACK: 0 bytes\n";
 	printf FILEHANDLE ";         D is preserved\n"; 
         printf FILEHANDLE "#macro	SCI_BD_PARSE, 1\n";
-        printf FILEHANDLE "		LDX	#\$0000				;initialize X\n";
-        printf FILEHANDLE "		LDY	#\\1				;initialize Y\n";
-        printf FILEHANDLE "LOOP		TST	0,Y	     			;check if lower boundary exists\n";
-        printf FILEHANDLE "		BEQ	DONE				;search done\n";
-        printf FILEHANDLE "		CPD	6,Y+				;check if pulse length is shorter than lower boundary\n";
-        printf FILEHANDLE "		BLO	LOOP				;pulse length is shorter than lower boundary -> try a shorter range\n";
-        printf FILEHANDLE "		LDX	-4,Y				;new lowest boundary found -> store valid baud rate field in index X\n";
-        printf FILEHANDLE "		LDY	-2,Y				;switch to the branch with higher compare values\n";
-        printf FILEHANDLE "		BNE	LOOP				;parse branch if it exists\n";
-        printf FILEHANDLE "DONE		EQU	*				;done, result in X\n" 
+        printf FILEHANDLE "		LDX	#\$0000		;  2 cycs	;initialize X\n";
+        printf FILEHANDLE "		LDY	#\\1		;  2 cycs	;initialize Y\n";
+        printf FILEHANDLE "LOOP		TST	0,Y	     	;  3 cycs	;check if lower boundary exists\n";
+        printf FILEHANDLE "		BEQ	DONE		;1/3 cycs	;search done\n";
+        printf FILEHANDLE "		CPD	6,Y+		;  3 cycs	;check if pulse length is shorter than lower boundary\n";
+        printf FILEHANDLE "		BLO	LOOP		;1/3 cycs	;pulse length is shorter than lower boundary -> try a shorter range\n";
+        printf FILEHANDLE "		LDX	-4,Y		;  3 cycs	;new lowest boundary found -> store valid baud rate field in index X\n";
+        printf FILEHANDLE "		LDY	-2,Y		;  3 cycs	;switch to the branch with higher compare values\n";
+        printf FILEHANDLE "		BNE	LOOP		;1/3 cycs	;parse branch if it exists\n";
+        printf FILEHANDLE "DONE		EQU	*				;done, result in X\n";
+	print  FILEHANDLE "#emac\n";
     }
     close FILEHANDLE
 }
@@ -582,6 +590,7 @@ sub build_tree {
     my $tree_node_width  = 1;
     my $higher_child_node;
     my $lower_child_node;
+    my $count_table_entry;
 
     #calculate sum of weights
     $sum_of_weights;
@@ -605,13 +614,22 @@ sub build_tree {
     #printf STDOUT "low: %d  high: %d\n", $#lower_table, $#higher_table;
 
     #increment depth of subtrees
-    foreach $pulse_table_entry (@lower_table, @higher_table) {
-	$pulse_table_entry->{'depth'} += 1;
+    foreach $count_table_entry (@lower_table, @higher_table) {
+    	$count_table_entry->{'depth'} += 1;
+    }
+    #add step to parse time of subtrees
+    foreach $count_table_entry (@lower_table) {
+    	$count_table_entry->{'parse_time'} += $lower_step_time;
+    }
+    foreach $count_table_entry (@higher_table) {
+    	$count_table_entry->{'parse_time'} += $higher_step_time;
     }
 
     #No children
     if (($#lower_table  < 0) &&
 	($#higher_table < 0)) {
+	#adjust parse time
+	$pulse_table_entry->{'parse_time'} += $higher_term_time;
 	
 	$tree_node = {"lower_branch"     => 0,
 		      "higher_branch"    => 0,
@@ -628,6 +646,9 @@ sub build_tree {
     if ($#higher_table < 0) {
 	#build lower branch
 	$lower_child_node = build_tree(\@lower_table);
+  
+	#adjust parse time
+	$pulse_table_entry->{'parse_time'} += $higher_term_time;
 
 	$tree_node = {"lower_branch"     => $lower_child_node,
 		      "higher_branch"    => 0,
@@ -645,6 +666,9 @@ sub build_tree {
 	#build higher branch
 	$higher_child_node = build_tree(\@higher_table);
 
+	#adjust parse time
+	$pulse_table_entry->{'parse_time'} +=  ($higher_step_time + get_lower_term_parse_time($higher_child_node));
+
 	$tree_node = {"lower_branch"     => 0,
 		      "higher_branch"    => $higher_child_node,
 		      "table_entry"      => $pulse_table_entry,
@@ -661,6 +685,9 @@ sub build_tree {
     $lower_child_node  = build_tree(\@lower_table);
     $higher_child_node = build_tree(\@higher_table);
     
+    #adjust parse time
+    $pulse_table_entry->{'parse_time'} +=  ($higher_step_time + get_lower_term_parse_time($higher_child_node));
+
     $tree_node = {"lower_branch"     => $lower_child_node,
 		  "higher_branch"    => $higher_child_node,
 		  "table_entry"      => $pulse_table_entry,
@@ -671,6 +698,15 @@ sub build_tree {
     
     #printf STDOUT "node %4X: lower child %4X, higher child %4X (%d/%d)\n", $pulse_table_entry->{'boundary'},  $lower_child_node->{'table_entry'}->{'boundary'}, $higher_child_node->{'table_entry'}->{'boundary'}, $tree_node->{'width'}, $tree_node->{'position'};
     return $tree_node;
+}
+
+sub get_lower_term_parse_time {
+    my $tree = shift @_;
+    if ($tree->{'lower_branch'}) {
+	return ($lower_step_time + get_lower_term_parse_time($tree->{'lower_branch'}));
+    } else {
+	return $lower_term_time;
+    }
 }
 
 sub print_tree {
@@ -841,12 +877,14 @@ sub print_table {
     $output_string .= print_table_header([sort {$b <=> $a} keys %$baud_divs]);
     #print table
     foreach $table_entry (@$table) {
-	$output_string .= sprintf   ";# %6d (%4X)      %s (%2X)  %4d   %4d\n", $table_entry->{'boundary'},  
-	                                                                       $table_entry->{'boundary'},  
-                                                                               $table_entry->{'comment'},
-	                                                                       $table_entry->{'mask'},
-	                                                                       $table_entry->{'weight'},
- 	                                                                       $table_entry->{'depth'} ;
+	$parse_time = 5 + (5 * $table_entry->{'lower_steps'}) + (5 * $table_entry->{'higher_steps'});
+	$output_string .= sprintf   ";# %6d (%4X)      %s (%2X) %6d %6d   %6d\n", $table_entry->{'boundary'},  
+	                                                                          $table_entry->{'boundary'},  
+                                                                                  $table_entry->{'comment'},
+	                                                                          $table_entry->{'mask'},
+	                                                                          $table_entry->{'weight'},
+ 	                                                                          $table_entry->{'depth'},
+										  $table_entry->{'parse_time'};
     }
     return $output_string;
 }
@@ -889,11 +927,11 @@ sub print_table_header {
 	if ($j < $baud_chars_max) {
 	    $str .= "\n";
 	} else {
-	    $str .= "      weight  depth\n";
+	    $str .= "      weight  depth  parse time\n";
 	}
     }
     
-    $str .= ";# ------------------------------------------------------\n";
+    $str .= ";# ------------------------------------------------------------------\n";
     return $str;
 }
 
