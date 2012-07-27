@@ -74,7 +74,7 @@ $clock_freq        = 25000000;
 $prescaler         = 1;
 $frame_format      = "8N1";
 $low_bit_counts    = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-$fixed_parse_time  = 4;
+$fixed_parse_time  = 2;
 $lower_step_time   = 10;
 $higher_step_time  = 17;
 $lower_term_time   = 6;
@@ -553,24 +553,22 @@ foreach $table (@tables) {
 
 	#Print parse routine
 	#------------------- 	
-
         printf FILEHANDLE ";###############################################################################\n";
 	print  FILEHANDLE ";# Parse routine                                                               #\n";
         printf FILEHANDLE ";###############################################################################\n";
 	printf FILEHANDLE ";#Parse search tree for detected pulse length\n";
-	printf FILEHANDLE "; args:   1: root of the search tree\n";
-	printf FILEHANDLE ";         D: pulse length\n";
-	printf FILEHANDLE "; result: X: list of matching baud rates (mirrored in high and low byte)\n";
+	printf FILEHANDLE "; args:   Y: root of the search tree\n";
+	printf FILEHANDLE ";         X: pulse length\n";
+	printf FILEHANDLE "; result: D: list of matching baud rates (mirrored in high and low byte)\n";
 	printf FILEHANDLE "; SSTACK: 0 bytes\n";
-	printf FILEHANDLE ";         D is preserved\n"; 
-        printf FILEHANDLE "#macro	SCI_BD_PARSE, 1\n";
-        printf FILEHANDLE "		LDX	#\$0000		;  2 cycs	;initialize X\n";
-        printf FILEHANDLE "		LDY	#\\1		;  2 cycs	;initialize Y\n";
+	printf FILEHANDLE ";         X is preserved\n"; 
+        printf FILEHANDLE "#macro	SCI_BD_PARSE, 0\n";
+        printf FILEHANDLE "		LDD	#\$0000		;  2 cycs	;initialize X\n";
         printf FILEHANDLE "LOOP		TST	0,Y	     	;  3 cycs	;check if lower boundary exists\n";
         printf FILEHANDLE "		BEQ	DONE		;1/3 cycs	;search done\n";
-        printf FILEHANDLE "		CPD	6,Y+		;  3 cycs	;check if pulse length is shorter than lower boundary\n";
+        printf FILEHANDLE "		CPX	6,Y+		;  3 cycs	;check if pulse length is shorter than lower boundary\n";
         printf FILEHANDLE "		BLO	LOOP		;1/3 cycs	;pulse length is shorter than lower boundary -> try a shorter range\n";
-        printf FILEHANDLE "		LDX	-4,Y		;  3 cycs	;new lowest boundary found -> store valid baud rate field in index X\n";
+        printf FILEHANDLE "		LDD	-4,Y		;  3 cycs	;new lowest boundary found -> store valid baud rate field in index X\n";
         printf FILEHANDLE "		LDY	-2,Y		;  3 cycs	;switch to the branch with higher compare values\n";
         printf FILEHANDLE "		BNE	LOOP		;1/3 cycs	;parse branch if it exists\n";
         printf FILEHANDLE "DONE		EQU	*				;done, result in X\n";

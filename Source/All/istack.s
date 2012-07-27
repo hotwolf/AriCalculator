@@ -44,6 +44,8 @@
 ;#      - Added debug option "ISTACK_DEBUG"                                    #
 ;#      - Added option to disable stack range checks "ISTACK_NO_CHECK"         #
 ;#      - Added support for multiple interrupt nesting levels                  #
+;#    July 27, 2012                                                            #
+;#      - Added macro "ISTACK_CALL_ISR"                                        #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    SSTACK - Subroutine Stack Handler                                        #
@@ -87,12 +89,25 @@
 ISTACK_LEVELS		EQU	1	 	;default is 1
 #endif
 
+;CPU
+#ifndef	ISTACK_S12
+#ifndef	ISTACK_S12X
+ISTACK_S12		EQU	1 		;default is S12
+#endif
+#endif
+	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
 ISTACK_CCR		EQU	%0100_0000
+#ifdef	ISTACK_S12
 ISTACK_FRAME_SIZE	EQU	9
-	
+#endif
+
+#ifdef	ISTACK_S12X
+ISTACK_FRAME_SIZE	EQU	10
+#endif
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -175,13 +190,47 @@ UF			JOB	ISTACK_UF
 #emac	
 
 ;#Clear I-flag is there is still room on the stack
-#macro	CHECK_AND_CLI, 0
+#macro	ISTACK_CHECK_AND_CLI, 0
 			CPS	#ISTACK_BOTTOM-ISTACK_FRAME_SIZE
 			BHI	DONE
 			CLI
 DONE			EQU	*
 #emac	
 
+;#Call ISR from application code
+#macro	ISTACK_CALL_ISR, 1
+			SEI	
+#ifndef	ISTACK_NO_CHECK 
+			CPS	#ISTACK_TOP-ISTACK_FRAME_SIZE
+			BLO	OF
+			CPS	#ISTACK_BOTTOM
+			BHS	UF
+#ifdef	ISTACK_DEBUG
+			JOB	DONE
+UF			BGND
+OF			BGND
+DONE			EQU	*	
+#else
+UF			EQU	ISTACK_UF
+OF			EQU	ISTACK_OF
+#endif
+#endif
+			MOVW	#DONE, 2,-SP
+			PSHY
+			PSHX
+			PSHD
+#ifdef	ISTACK_S12	
+			PSHC
+#endif
+#ifdef	ISTACK_S12X	
+			EXG	CCRW, D
+			PSHD
+			EXG	CCRW, D
+#endif
+			JOB	\1
+DONE			EQU	*
+#emac	
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
