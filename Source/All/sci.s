@@ -133,7 +133,7 @@
 ;#      - stop baud rate detection when receiving a corret character           #
 ;#      - stop baud rate detection when manually setting the baud rate         #
 ;#    January 2, 2012                                                          #
-;#      - Mini-BDM-Pod uses XN/XOFF flow control instead of RTS/CTS               #
+;#      - Mini-BDM-Pod uses XN/XOFF flow control instead of RTS/CTS            #
 ;#                                                                             #
 ;###############################################################################
 
@@ -209,16 +209,16 @@ SCI_IGNORE_SUSPEND	EQU	1 		;default is to ignore suspend chars
 ;Interrupt workaround for MC9S12DP256 devices
 ;-------------------------------------------- 
 ;Enable interrupt workaround
-#ifndef	SCI_WORKAROUND_ON
-#ifndef	SCI_WORKAROUND_OFF
-SCI_WORKAROUND_OFF		EQU	1 		;default is no workaround
+#ifndef	SCI_IRQWA_ON
+#ifndef	SCI_IRQWA_OFF
+SCI_IRQWA_OFF		EQU	1 		;default is no workaround
 #endif
 #endif
 
-#ifdef	SCI_WORKAROUND_ON
-#ifndef	SCI_TIM_ICTO
-SCI_TIM_ICWA		EQU	$10		;default is IC4			
-SCI_TIM_TCWA		EQU	$TC4		;default is TC4
+#ifdef	SCI_IRQWA_ON
+#ifndef	SCI_IRQWA_OC
+SCI_IRQWA_OC		EQU	$10		;default is IC4			
+SCI_IRQWA_TC		EQU	$TC4		;default is TC4
 #endif
 #endif
 	
@@ -264,10 +264,14 @@ SCI_BD_ECT_TCTL_CLR	EQU	$EDG0B|EDG0A	;default is EDG0B|EDG0A
 #endif
 
 ;Output compare channels 
+#ifndef	SCI_BD_TIM_OCTO
 #ifdef	SCI_BD_TIM
-#ifndef	SCI_BD_TIM_ICTO
-SCI_BD_TIM_ICTO		EQU	$04		;default is IC2			
-SCI_BD_TIM_TCTO		EQU	$TC2		;default is TC2
+SCI_BD_OCTO		EQU	$04		;default is OC2			
+SCI_BD_TCTO		EQU	$TC2		;default is TC2
+#endif
+#ifdef	SCI_BD_ECT
+SCI_BD_OCTO		EQU	$02		;default is OC1			
+SCI_BD_TCTO		EQU	$TC1		;default is TC1
 #endif
 #endif
 
@@ -378,7 +382,12 @@ SCI_BDPREV		DS	2		;timestamp of previous edge
 #endif
 SCI_BDLST		DS	1		;list of potential baud rates
 #endif
-			
+
+
+SCI_IRQWA_CNT
+
+
+	
 SCI_VARS_END		EQU	*
 SCI_VARS_END_LIN	EQU	@
 	
@@ -1128,13 +1137,166 @@ SCI_ISR_RX_		EQU	*
 
 
 
+
+#ifdef SCI_BD_TIM	
+			;RX negedge ISR  (default IC1)
+SCI_ISR_BD_NE		EQU	*
+	
+			;Capture the pulse length
+SCI_ISR_BD_NE_1		LDD	SCI_BD_TIM_TCNE				;capture time of this negedge
+			STD	SCI_BD_TCTO				;reset timeout
+			SUBD	SCI_BD_TIM_TCPE				;calculate pulse length -> D
+			LDX	TFLG1 					;capture flags -> X
+			MOVB	#(SCI_BD_TIM_ICPE|SCI_BD_TIM_ICNE|SCI_BD_OCTO), TFLG1 ;clear flags
+	
+			;Release interrupts (pulse length in D, flags in X)
+			ISTACK_CLI 					;allow interrupts if there is enough room on the stack
+
+			;Check for overrun and timeout (pulse length in D, flags in X)
+			EXG	X, D
+			BITA	#(SCI_BD_TIM_ICNE|SCI_BD_OCTO)
+			BNE	SCI_ISR_BD_NE_ 				;overrun or timeout has occured (done)
+
+			;Look up pulse length in search tree (pulse length in X, flags in D)
+			LDY	#SCI_BD_HIGH_PULSE_TREE
+			JOB	SCI_ISR_BD_NE_
+
+SCI_ISR_BD_NE_		EQU	SCI_ISR_BD_PE_				;done
+SCI_ISR_BD_NE_		EQU	SCI_ISR_BD_PE_				;parse high pulse search tree
+
+	
+			;RX posedge ISR  (default IC0)
+SCI_ISR_BD_PE		EQU	*
+	
+			;Capture the pulse length
+SCI_ISR_BD_PE_1		LDD	SCI_BD_TIM_TCPE				;capture time of this posedge
+			STD	SCI_BD_TCTO				;reset timeout
+			SUBD	SCI_BD_TIM_TCNE				;calculate pulse length -> D
+			LDX	TFLG1 					;capture flags -> X
+			MOVB	#(SCI_BD_TIM_ICPE|SCI_BD_TIM_ICNE|SCI_BD_OCTO), TFLG1 ;clear flags
+	
+			;Release interrupts (pulse length in D, flags in X)
+			ISTACK_CLI 					;allow interrupts if there is enough room on the stack
+
+			;Check for overrun and timeout (pulse length in D, flags in X)
+			EXG	X, D
+			BITA	#(SCI_BD_TIM_ICNE|SCI_BD_OCTO)
+			BNE	SCI_ISR_BD_PE_ 				;overrun or timeout has occured (done)
+
+			;Look up pulse length in search tree (pulse length in X, flags in D)
+			LDY	 #SCI_BD_LOW_PULSE_TREE
+SCI_ISR_BD_PE_		SCI_BD_PARSE 					;determine matching baud rates -> D
+
+			;Update list of potential batd rates (matching baud rates in D)
+			SEI						;prevent interrupts
+			ANDB	SCI_BDLST 				;remove mismatching baud rates from the list
+			BEQ	SCI_ISR_BD_PE_ 				;no valid baud rate found
+			STAB	SCI_BDLST 
+
+			;Check if baud rate has been determined (potential baud rates in B (not zero))
+			CLRA
+SCI_ISR_BD_PE_		INCA
+			LSRB
+			BCC	SCI_ISR_BD_PE_
+			BEQ	SCI_ISR_BD_PE_ 				;new baud rate found (index in A)
+			
+			;Done (baud rate detection not finished)
+SCI_ISR_BD_PE_		ISTACK_RTI
+
+			;Check if baud rate detection is over
+SCI_ISR_BD_PE_		BRCLR	SCI_BDLST, #$FF, SCI_ISR_BD_PE_		;done
+
+			;Restart baud rate detection 
+			MOVB	$#FF, SCI_BDLST
+			JOB	SCI_ISR_BD_PE_ 				;done
+	
+			;New baud rate found (index in A, $00 in B)
+SCI_ISR_BD_PE_		BCLR	TIE, #(SCI_BD_TIM_ICPE|SCI_BD_TIM_ICNE)	;disable timer interrupts
+			LSLA						;index -> addess offset
+			LDX	SCI_BD_BTAB 				;look up prescaler value
+			LDD	SCI_BD_BTAB,X				;look up divider value
+			STD	SCIBDH					;set baud rate
+			LDY	#SCI_BMUL				;save baud rate for next warmstart
+			EMUL						;D*Y -> Y:D
+			STD	SCI_BVAL
+			TIM_DISABLE	(SCI_BD_TIM_ICPE|SCI_BD_TIM_ICNE|SCI_BD_OCTO)
+			JOB	SCI_ISR_BD_PE_ 				`;done
+#endif	
+			
+#ifdef SCI_BD_EXT
+			;RX toggle ISR  (default IC0)
+SCI_ISR_BD_TOG		EQU	*
+			
+			;Capture the pulse length
+SCI_ISR_DB_TOG_		LDD	TC0					;determine time of most recent edge
+			STD	SCI_BD_TCTO				;reset timeout
+			SUBD	TC0H					;calculate pulse length -> D
+
+			;Determine tne pulse polarity (pulse length in D)
+			LDY	#SCI_BD_LOW_PULSE_TREE			;determine the polarity
+			BRCLR	MCFLG, #POLF0, SCI_ISR_DB_TOG_		;check for time out
+			LDY	#SCI_BD_HIGH_PULSE_TREE				
+			
+			;Check timeout (pulse length in D, tree root in Y)
+SCI_ISR_DB_TOG_		BRSET	TFLG1, $SCI_BD_OCTO, SCI_ISR_DB_TOG_ 	;time out has occured
+
+			;Clear interrupt flags 
+			MOVB	#(SCI_BD_ECT_IC|SCI_BD_OCTO), TFLG1 	;clear flags
+	
+			;Release interrupts (pulse length in D, tree root in Y)
+			ISTACK_CLI 					;allow interrupts if there is enough room on the stack
+
+			;Look up pulse length in search tree (pulse length in D, tree root in Y)
+			TFR	D, X
+			SCI_BD_PARSE 					;determine matching baud rates -> D
+
+			;Update list of potential batd rates (matching baud rates in D)
+			SEI						;prevent interrupts
+			ANDB	SCI_BDLST 				;remove mismatching baud rates from the list
+			BEQ	SCI_ISR_BD_TOG_ 			;no valid baud rate found
+			STAB	SCI_BDLST 
+
+			;Check if baud rate has been determined (potential baud rates in B (not zero))
+			CLRA
+SCI_ISR_BD_TOG_		INCA
+			LSRB
+			BCC	SCI_ISR_BD_TOG_
+			BEQ	SCI_ISR_BD_TOG_ 			;new baud rate found (index in A)
+			
+			;Done (baud rate detection not finished)
+SCI_ISR_BD_TOG_		ISTACK_RTI
+
+			;Time out occurred 
+			MOVB	#(SCI_BD_ECT_IC|SCI_BD_OCTO), TFLG1 	;clear flags
+			JOB	SCI_ISR_BD_TOG_				;done
+	
+			;Check if baud rate detection is over
+SCI_ISR_BD_PE_		BRCLR	SCI_BDLST, #$FF, SCI_ISR_BD_PE_		;done
+
+			;Restart baud rate detection 
+			MOVB	$#FF, SCI_BDLST
+			JOB	SCI_ISR_BD_PE_ 				;done
+	
+			;New baud rate found (index in A, $00 in B)
+SCI_ISR_BD_PE_		BCLR	TIE, #(SCI_BD_TIM_ICPE|SCI_BD_TIM_ICNE)	;disable timer interrupts
+			LSLA						;index -> addess offset
+			LDX	SCI_BD_BTAB 				;look up prescaler value
+			LDD	SCI_BD_BTAB,X				;look up divider value
+			STD	SCIBDH					;set baud rate
+			LDY	#SCI_BMUL				;save baud rate for next warmstart
+			EMUL						;D*Y -> Y:D
+			STD	SCI_BVAL
+			TIM_DISABLE	(SCI_BD_TIM_ICPE|SCI_BD_TIM_ICNE|SCI_BD_OCTO)
+			JOB	SCI_ISR_BD_PE_ 				`;done
+#endif	
+	
 	
 
 
 
 
 
-	
+
 ;#Edge on RX pin captured
 SCI_ISR_TC0		EQU	*
 			;Determine tne pulse polarity
@@ -1215,24 +1377,32 @@ SCI_ISR_TC0_9		MOVW	#((C0F<<8)|TOF), TFLG1 			;clear interrupt flags
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+#ifdef	SCI_IRQWA_ON
+;###############################################################################
+;# Workaround for the MC9S12DP256 SCI interrupt bug (MUCts00510)               #
+;###############################################################################
+;# The will only request interrupts if an odd number of interrupt flags is     #
+;# This will cause disabled and spourious interrupts.                          #
+;# -> The RX/TX ISR must be periodically triggered by a timer interrupt.       #
+;#    The timer period should be about as long as two SCI frames:              #
+;#    RT cycle = SCIBD * bus cycles                                            #
+;#    bit time = 16 * RT cycles = 16 * SCIBD * bus cycles                      #
+;#    frame time = 10 * bit times = 160 RT cycles = 160 * SCIBD * bus cycles   #
+;#    2 * frame times = 320 * SCIBD * bus cycles = 0x140 * SCIBD * bus cycles  #
+;#    Simplification:                                                          #
+;#    TIM period = 0x100 * SCIBD * bus cycles                                  #
+;###############################################################################
+;;#      #
+;#      #
 
 
 
 ;#Interrupt workaround for old .25u devices
-#ifdef	SCI_INTWA_ON
-SCI_INT_INTWA		EQU	*
+SCI_ISR_IRQWA		EQU	*
+			;Decrement and  
+
+
+			EQU	*
 			;Setup next timer delay
 			LDD	SCIBDH 					;get baud rate (clock cycles per bit)
 			LSLD						;multiply by eight (10 bit per frame)
@@ -1258,20 +1428,26 @@ SCI_CODE_END_LIN	EQU	@
 			ORG 	SCI_TABS_START
 #endif	
 
-;Baud rate table
-SCI_BTAB		EQU	*	
-			DW	SCI_4800  
-			DW	SCI_7200  
-			DW	SCI_9600  
-			DW	SCI_14400 
-			DW	SCI_19200 
-			DW	SCI_28800 
-			DW	SCI_38400 
-			DW	SCI_57600 
-SCI_BTAB_END		EQU	*
+#ifdef	SCI_BD_ON
+			ALIGN	1
 
-;Baud rate detection search tree
-			BD_TREE
+			;List of prescaler values
+SCI_BD_BTAB		EQU	*
+			DW	SCI_4800 	
+			DW	SCI_7200 	
+			DW	SCI_9600 	
+			DW	SCI_14400	
+			DW	SCI_19200	
+			DW	SCI_28800	
+			DW	SCI_38400	
+			DW	SCI_57600	
+
+			;Search tree for low pulses
+SCI_BD_LOW_PULSE_TREE	SCI_BD_LOW_PULSE_TREE
+
+			;Search tree for high pulses
+SCI_BD_HIGH_PULSE_TREE	SCI_BD_HIGH_PULSE_TREE		
+#endif	
 
 SCI_TABS_END		EQU	*
 SCI_TABS_END_LIN	EQU	@

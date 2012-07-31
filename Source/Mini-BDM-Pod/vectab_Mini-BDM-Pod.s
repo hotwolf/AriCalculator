@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - VECTAB - Vector Table (LFBDMPGMR port)                           #
+;# S12CBase - VECTAB - Vector Table (Mini-BDM-Pod)                             #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -37,7 +37,35 @@
 ;# Version History:                                                            #
 ;#    December 14, 2011                                                        #
 ;#      - Initial release                                                      #
+;#    July 31, 2012                                                             #
+;#      - Added support for linear PC                                          #
+;#      - Added dummy vectors                                                  #
 ;###############################################################################
+
+
+;###############################################################################
+;# Configuration                                                               #
+;###############################################################################
+;RAM or flash
+#ifndef	VECTAB_RAM
+#ifndef	VECTAB_FLASH
+#ifdef	MMAP_RAM
+VECTAB_RAM		EQU	1 		;reuse MMAP configuration
+#else
+VECTAB_FLASH		EQU	1 		;default is flash
+#endif
+#endif
+#endif
+
+;Make each unused interrupt point to a separate BGND instruction
+;VECTAB_DEBUG		EQU	1 
+
+;###############################################################################
+;# Constants                                                                   #
+;###############################################################################
+VECTAB_START		EQU	$EF10
+VECTAB_START_LIN	EQU	$FEF10
+
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -51,7 +79,7 @@ VECTAB_VARS_END		EQU	*
 ;#Initialization
 #macro	VECTAB_INIT, 0
 			;Set vector base address
-			MOVB	#(VECTAB>>8), IVBR
+			MOVB	#(VECTAB_START>>8), IVBR
 			;Disable XGATE interrupts
 			CLR	XGPRIO	
 #emac	
@@ -59,19 +87,39 @@ VECTAB_VARS_END		EQU	*
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	VECTAB_CODE_START
+#ifdef VECTAB_CODE_START_LIN
+			ORG 	VECTAB_CODE_START, VECTAB_CODE_START_LIN
+#else
+			ORG 	VECTAB_CODE_START
+VECTAB_VARS_START_LIN	EQU	@			
+#endif	
+	
 VECTAB_CODE_END		EQU	*	
+VECTAB_CODE_END_LIN	EQU	@	
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	VECTAB_TABS_START
-VECTAB_TABS_END		EQU	*
+#ifdef VECTAB_TABS_START_LIN
+			ORG 	VECTAB_TABS_START, VECTAB_TABS_START_LIN
+#else
+			ORG 	VECTAB_TABS_START
+VECTAB_VARS_START_LIN	EQU	@			
+#endif	
+
+#ifdef VECTAB_DEBUG
+
+
+
+	
+VECTAB_TABS_END		EQU	*	
+VECTAB_TABS_END_LIN	EQU	@	
+
 	
 ;###############################################################################
 ;# S12XEP100 Vector Table                                                      #
 ;###############################################################################
-		ORG	VECTAB  
+		ORG	VECTAB_START, VECTAB_START_LIN 	
 VEC_SPURIOUS	DW	ERROR_ISR		;vector base + $10
 VEC_SYS		DW	ERROR_ISR		;vector base + $12
 VEC_MPU		DW	ERROR_ISR		;vector base + $14

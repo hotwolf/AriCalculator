@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - MMAP - Memory Map (LFBDMPGMR port)                               #
+;# S12CBase - MMAP - Memory Map (Mini-BDM-Pod)                                 #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -31,7 +31,16 @@
 ;# Version History:                                                            #
 ;#    December 14, 2011                                                        #
 ;#      - Initial release                                                      #
+;#    July 31, 2012                                                            #
+;#      - Added support for linear PC                                          #
+;#      - Updated memory mapping                                               #
+;#      - Moved vector table to tables section                                 #
 ;###############################################################################
+;  Flash Memory Map:
+;  -----------------  
+;                   S12XEP100                            S12XEQ512
+;                +-------------+ $0000                +-------------+ $0000             
+;                |  Registers  |                      |  Registers  |	       
 ;  Memory Map:
 ;  -----------  
 ;        	 +-------------+ $0000

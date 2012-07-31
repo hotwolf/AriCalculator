@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - GPIO - GPIO Handler (LFBDMPGMR port)                             #
+;# S12CBase - GPIO - GPIO Handler (Mini-BDM-Pod)                               #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -199,6 +199,8 @@
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
+;#    July 31, 2012                                                            #
+;#      - Added support for linear PC                                          #
 ;###############################################################################
 
 ;###############################################################################
@@ -208,8 +210,15 @@
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-		ORG	GPIO_VARS_START
-GPIO_VARS_END	EQU	*
+#ifdef GPIO_VARS_START_LIN
+			ORG 	GPIO_VARS_START, GPIO_VARS_START_LIN
+#else
+			ORG 	GPIO_VARS_START
+GPIO_VARS_START_LIN	EQU	@			
+#endif	
+
+GPIO_VARS_END		EQU	*
+GPIO_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -278,11 +287,25 @@ GPIO_VARS_END	EQU	*
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-		ORG	GPIO_CODE_START
-GPIO_CODE_END	EQU	*
+#ifdef GPIO_CODE_START_LIN
+			ORG 	GPIO_CODE_START, GPIO_CODE_START_LIN
+#else
+			ORG 	GPIO_CODE_START
+GPIO_CODE_START_LIN	EQU	@			
+#endif	
+
+GPIO_CODE_END		EQU	*	
+GPIO_CODE_END_LIN	EQU	@	
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-		ORG	GPIO_TABS_START
-GPIO_TABS_END	EQU	*
+#ifdef GPIO_TABS_START_LIN
+			ORG 	GPIO_TABS_START, GPIO_TABS_START_LIN
+#else
+			ORG 	GPIO_TABS_START
+GPIO_CODE_START_LIN	EQU	@			
+#endif	
+
+GPIO_TABS_END		EQU	*	
+GPIO_TABS_END_LIN	EQU	@	

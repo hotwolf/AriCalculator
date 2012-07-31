@@ -34,6 +34,8 @@
 ;#    July 9, 2012                                                             #
 ;#      - Added support for linear PC                                          #
 ;#      - Updated memory mapping                                               #
+;#    July 31, 2012                                                            #
+;#      - Moved vector table to tables section                                 #
 ;###############################################################################
 ;  Flash Memory Map:
 ;  -----------------  

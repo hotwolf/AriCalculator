@@ -40,6 +40,8 @@
 ;#    July 9, 2012                                                             #
 ;#      - Added support for linear PC                                          #
 ;#      - Added dummy vectors                                                  #
+;#    July 31, 2012                                                            #
+;#      - Moved vedctor table to table section                                 #
 ;###############################################################################
 
 ;###############################################################################
@@ -133,6 +135,19 @@ VECTAB_VARS_END_LIN	EQU	@
 			ORG 	VECTAB_CODE_START, VECTAB_CODE_START_LIN
 #else
 			ORG 	VECTAB_CODE_START
+VECTAB_VARS_START_LIN	EQU	@			
+#endif	
+	
+VECTAB_CODE_END		EQU	*	
+VECTAB_CODE_END_LIN	EQU	@	
+
+;###############################################################################
+;# Tables                                                                      #
+;###############################################################################
+#ifdef VECTAB_TABS_START_LIN
+			ORG 	VECTAB_TABS_START, VECTAB_TABS_START_LIN
+#else
+			ORG 	VECTAB_TABS_START
 VECTAB_VARS_START_LIN	EQU	@			
 #endif	
 
@@ -262,19 +277,6 @@ VECTAB_DUMMY_SWI    	EQU	ERROR_ISR
 VECTAB_DUMMY_TRAP   	EQU	ERROR_ISR
 #endif
 	
-VECTAB_CODE_END		EQU	*	
-VECTAB_CODE_END_LIN	EQU	@	
-
-;###############################################################################
-;# Tables                                                                      #
-;###############################################################################
-#ifdef VECTAB_TABS_START_LIN
-			ORG 	VECTAB_TABS_START, VECTAB_TABS_START_LIN
-#else
-			ORG 	VECTAB_TABS_START
-VECTAB_VARS_START_LIN	EQU	@			
-#endif	
-
 VECTAB_TABS_END		EQU	*	
 VECTAB_TABS_END_LIN	EQU	@	
 

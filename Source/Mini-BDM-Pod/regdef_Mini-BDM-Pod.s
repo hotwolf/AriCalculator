@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - REGDEF - Register Definitions (LFBDMPGMR port)                   #
+;# S12CBase - REGDEF - Register Definitions (Mini-BDM-Pod)                     #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
