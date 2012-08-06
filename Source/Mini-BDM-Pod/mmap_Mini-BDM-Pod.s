@@ -34,34 +34,62 @@
 ;#    July 31, 2012                                                            #
 ;#      - Added support for linear PC                                          #
 ;#      - Updated memory mapping                                               #
-;#      - Moved vector table to tables section                                 #
 ;###############################################################################
 ;  Flash Memory Map:
 ;  -----------------  
-;                   S12XEP100                            S12XEQ512
-;                +-------------+ $0000                +-------------+ $0000             
-;                |  Registers  |                      |  Registers  |	       
-;  Memory Map:
-;  -----------  
+;                     S12XE                
 ;        	 +-------------+ $0000
 ;  		 |  Registers  |
 ;  		 +-------------+ $0800
-;  		 |/////////////|
-;  		 +-------------+ $1000
-;  		 |  Variables  |
-;  		 +-------------+ $4000
-;  		 |             |
-;  		 |    Code     |
-;  		 |             |
-;  		 +-------------+ $D000 
-;  		 |   Tables    |
-;  		 +-------------+ $E002
-;  		 |  Init Code  |
-;  		 +-------------+ $EF10
-;  		 |   Vectors   |
-;  		 +-------------+ $F000
+;                |/////////////|	     
+;   	  RAM->+ +-------------+ $1000
+;  	       | |  Variables  |
+;  	       + +-------------+
+;                |/////////////|	     
+;  	Flash->+ +-------------+ $4000
+;  	       | |    Code     |
+;  	       | +-------------+ 
+;  	       | |   Tables    |
+;  	       | +-------------+
+;              | |/////////////|	     
+;  	       | +-------------+ $DF10
+;  	       | |   Vectors   |
+;  	       | +-------------+ $E000
+;  	       | | BootLoader  |
+;  	       + +-------------+ 
+; 
+;  RAM Memory Map:
+;  ---------------  
+;                     S12XE                
+;        	 +-------------+ $0000
+;  		 |  Registers  |
+;  		 +-------------+ $0800
+;                |/////////////|	     
+;  	  RAM->+ +-------------+ $1000
+;  	       | |  Variables  |
+;  	       | +-------------+
+;  	       | |    Code     |
+;  	       | +-------------+ 
+;  	       | |   Tables    |
+;  	       | +-------------+
+;              | |/////////////|	     
+;  	       | +-------------+ $3F10
+;  	       | |   Vectors   |
+;  	       + +-------------+ $4000
+;                |/////////////|	     
+;  		 +-------------+ $E000
 ;  		 | BootLoader  |
 ;  		 +-------------+ 
+
+;###############################################################################
+;# Configuration                                                               #
+;###############################################################################
+;RAM or flash
+#ifndef	MMAP_RAM
+#ifndef	MMAP_FLASH
+MMAP_FLASH		EQU	1 		;default is flash
+#endif
+#endif
 
 ;###############################################################################
 ;# Security and Protection                                                     #
@@ -89,14 +117,21 @@ RAM_START		EQU	$1000
 RAM_END			EQU	$4000
 
 FLASH_START		EQU	$C000
-FLASH_END		EQU	$10000
+FLASH_END		EQU	$E000
 
 ;# Init code
-INIT_CODE		EQU	$E002
+;INIT_CODE		EQU	$E002
 	
 ;# Vector table
-#ifndef VECTAB
-	VECTAB			EQU	$EF10    
+#ifndef VECTAB_START
+#ifdef	MMAP_RAM
+VECTAB_START		EQU	$3F10    
+VECTAB_START_LIN	EQU	$0FFF10    
+#endif
+#ifdef	MMAP_FLASH
+VECTAB_START		EQU	$EF10    
+VECTAB_START_LIN	EQU	$7FEF10    
+#endif
 #endif
 	
 ;###############################################################################
