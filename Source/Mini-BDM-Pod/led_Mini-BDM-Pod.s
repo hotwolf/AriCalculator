@@ -1,9 +1,9 @@
 ;###############################################################################
-;# S12CBase - LED - LED Driver (LFBDMPGMR port)                                #
+;# S12CBase - LED - LED Driver (Mini-BDM-Port)                                 #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    This file is part of the S12CBase framework for Freescale's S12C(X) MCU  #
+;#    families.                                                                #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -25,8 +25,9 @@
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
 ;#    January 2, 2012                                                          #
-;#      - the LFBDMPGMR has enough LEDs.                                       #
-;# 	  Sequential patterns ane not necessary.                               #
+;#      - Removed sequential patterns                                          #
+;#    August 7, 2012                                                           #
+;#      - Added support for linear PC                                          #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#                                                                             #
@@ -53,8 +54,15 @@ LED_COMERR		EQU	LED_RED
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	LED_VARS_START
+#ifdef LED_VARS_START_LIN
+			ORG 	LED_VARS_START, LED_VARS_START_LIN
+#else
+			ORG 	LED_VARS_START
+LED_VARS_START_LIN	EQU	@			
+#endif	
+
 LED_VARS_END		EQU	*
+LED_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -115,11 +123,25 @@ LED_VARS_END		EQU	*
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	LED_CODE_START
-LED_CODE_END		EQU	*
+#ifdef LED_CODE_START_LIN
+			ORG 	LED_CODE_START, LED_CODE_START_LIN
+#else
+			ORG 	LED_CODE_START
+LED_CODE_START_LIN	EQU	@			
+#endif	
+	
+LED_CODE_END		EQU	*	
+LED_CODE_END_LIN	EQU	@	
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	LED_TABS_START
-LED_TABS_END		EQU	*
+#ifdef LED_TABS_START_LIN
+			ORG 	LED_TABS_START, LED_TABS_START_LIN
+#else
+			ORG 	LED_TABS_START
+LED_TABS_START_LIN	EQU	@			
+#endif	
+
+LED_TABS_END		EQU	*	
+LED_TABS_END_LIN	EQU	@	

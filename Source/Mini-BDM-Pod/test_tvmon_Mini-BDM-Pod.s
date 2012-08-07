@@ -1,9 +1,9 @@
 ;###############################################################################
-;# S12CBase - Target Vdd Monitor Test (LFBDMPGMR only)                         #
+;# S12CBase - Target Vdd Monitor Test (Mini-BDM-Pod)                           #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
+;#    families.                                                                #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -51,150 +51,161 @@
 ;###############################################################################
 
 ;###############################################################################
-;# Constants                                                                   #
+;# Configuration                                                               #
 ;###############################################################################
-;  Memory Map:
-;  -----------  
-;        	 +-------------+ $0000
-;  		 |  Registers  |
-;  		 +-------------+ $0800
-;  		 |/////////////|
-;  		 +-------------+ $2000
-;  		 |    Code     |
-;  		 +-------------+ 
-;  		 |   Tables    |
-;  		 +-------------+ 
-;  		 |  Variables  |
-;  		 +-------------+ 
-;  		 |             |
-;  		 +-------------+ $3F10
-;  		 |   Vectors   |
-;  		 +-------------+ $4000
+;# Memory map:
+MMAP_RAM		EQU	1 		;use RAM memory map
 
-TEST_CODE_START		EQU	$2000
-TEST_TABS_START		EQU	TEST_CODE_END
-TEST_VARS_START		EQU	TEST_TABS_END
-VECTAB			EQU	$3F10
+;# Interrupt stack
+ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
+ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 
-ERROR_ISR		EQU	TEST_DUMMY_ISR
-SCI_ISR_RXTX		EQU	TEST_DUMMY_ISR
-SCI_ISR_TC0		EQU	TEST_DUMMY_ISR
-BDM_ISR_TC7		EQU	TEST_DUMMY_ISR
-BDM_ISR_TC6		EQU	TEST_DUMMY_ISR
+;# COP
+COP_DEBUG		EQU	1 		;disable COP
 
-BASE_ENTRY_COP		EQU	TEST_DUMMY_LOOP
-BASE_ENTRY_CM		EQU	TEST_DUMMY_LOOP
-BASE_ENTRY_EXT		EQU	TEST_DUMMY_LOOP
+;# Vector table
+VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
+	
+;###############################################################################
+;# Resource mapping                                                            #
+;###############################################################################
+			ORG	MMAP_RAM_START
+;Code
+START_OF_CODE		EQU	*	
+TEST_CODE_START		EQU	*
+TEST_CODE_START_LIN	EQU	@
+
+GPIO_CODE_START		EQU	TEST_CODE_END
+GPIO_CODE_START_LIN	EQU	TEST_CODE_END_LIN
+
+MMAP_CODE_START		EQU	GPIO_CODE_END	 
+MMAP_CODE_START_LIN	EQU	GPIO_CODE_END_LIN
+
+ISTACK_CODE_START	EQU	MMAP_CODE_END
+ISTACK_CODE_START_LIN	EQU	MMAP_CODE_END_LIN
+
+CLOCK_CODE_START	EQU	ISTACK_CODE_END
+CLOCK_CODE_START_LIN	EQU	ISTACK_CODE_END_LIN
+
+COP_CODE_START		EQU	CLOCK_CODE_END
+COP_CODE_START_LIN	EQU	CLOCK_CODE_END_LIN
+
+LED_CODE_START		EQU	COP_CODE_END
+LED_CODE_START_LIN	EQU	COP_CODE_END_LIN
+
+TVMON_CODE_START	EQU	LED_CODE_END
+TVMON_CODE_START_LIN	EQU	LED_CODE_END_LIN
+
+VECTAB_CODE_START	EQU	TVMON_CODE_END
+VECTAB_CODE_START_LIN	EQU	TVMON_CODE_END_LIN
+
+;Variables
+TEST_VARS_START		EQU	VECTAB_CODE_END
+TEST_VARS_START_LIN	EQU	VECTAB_CODE_END_LIN
+	
+GPIO_VARS_START		EQU	TEST_VARS_END
+GPIO_VARS_START_LIN	EQU	TEST_VARS_END_LIN
+
+MMAP_VARS_START		EQU	GPIO_VARS_END	 
+MMAP_VARS_START_LIN	EQU	GPIO_VARS_END_LIN
+
+ISTACK_VARS_START	EQU	MMAP_VARS_END
+ISTACK_VARS_START_LIN	EQU	MMAP_VARS_END_LIN
+
+CLOCK_VARS_START	EQU	ISTACK_VARS_END
+CLOCK_VARS_START_LIN	EQU	ISTACK_VARS_END_LIN
+
+COP_VARS_START		EQU	CLOCK_VARS_END
+COP_VARS_START_LIN	EQU	CLOCK_VARS_END_LIN
+
+LED_VARS_START		EQU	COP_VARS_END
+LED_VARS_START_LIN	EQU	COP_VARS_END_LIN
+
+TVMON_VARS_START	EQU	LED_VARS_END
+TVMON_VARS_START_LIN	EQU	LED_VARS_END_LIN
+
+VECTAB_VARS_START	EQU	TVMON_VARS_END
+VECTAB_VARS_START_LIN	EQU	TVMON_VARS_END_LIN
+
+;Tables
+TEST_TABS_START		EQU	VECTAB_VARS_END
+TEST_TABS_START_LIN	EQU	VECTAB_VARS_END_LIN
+	
+GPIO_TABS_START		EQU	TEST_TABS_END
+GPIO_TABS_START_LIN	EQU	TEST_TABS_END_LIN
+
+MMAP_TABS_START		EQU	GPIO_TABS_END	 
+MMAP_TABS_START_LIN	EQU	GPIO_TABS_END_LIN
+
+ISTACK_TABS_START	EQU	MMAP_TABS_END
+ISTACK_TABS_START_LIN	EQU	MMAP_TABS_END_LIN
+
+CLOCK_TABS_START	EQU	ISTACK_TABS_END
+CLOCK_TABS_START_LIN	EQU	ISTACK_TABS_END_LIN
+
+COP_TABS_START		EQU	CLOCK_TABS_END
+COP_TABS_START_LIN	EQU	CLOCK_TABS_END_LIN
+
+LED_TABS_START		EQU	COP_TABS_END
+LED_TABS_START_LIN	EQU	COP_TABS_END_LIN
+
+TVMON_TABS_START	EQU	LED_TABS_END
+TVMON_TABS_START_LIN	EQU	LED_TABS_END_LIN
+
+VECTAB_TABS_START	EQU	TVMON_TABS_END
+VECTAB_TABS_START_LIN	EQU	TVMON_TABS_END_LIN
+
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+#include ./regdef_Mini-BDM-Pod.s	;S12XE register map
+#include ./gpio_Mini-BDM-Pod.s		;I/O setup
+#include ./mmap_Mini-BDM-Pod.s		;RAM memory map
+#include ../All/istack.s		;Interrupt stack
+#include ./clock_Mini-BDM-Pod.s		;CRG setup
+#include ../All/cop.s			;COP handler
+#include ./led_Mini-BDM-Pod.s		;LED driver
+#include ./tvmon_Mini-BDM-Pod.s		;Target Vdd monitor
+#include ./vectab_Mini-BDM-Pod.s	;S12XE vector table
 
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	TEST_VARS_START
-	
-MMAP_VARS_START		EQU	*
-VECTAB_VARS_START	EQU	MMAP_VARS_END
-GPIO_VARS_START		EQU	VECTAB_VARS_END
-ISTACK_VARS_START	EQU	GPIO_VARS_END
-CLOCK_VARS_START	EQU	ISTACK_VARS_END
-COP_VARS_START		EQU	CLOCK_VARS_END
-SSTACK_VARS_START	EQU	COP_VARS_END
-LED_VARS_START		EQU	SSTACK_VARS_END
-TVMON_VARS_START	EQU	LED_VARS_END
-	
-TEST_VARS_END		EQU	TVMON_VARS_END
-	
-;PRINT_VARS_START	EQU	SCI_VARS_END
-;ERROR_VARS_START	EQU	PRINT_VARS_END
-;BDM_VARS_START		EQU	ERROR_VARS_END
+			ORG 	TEST_VARS_START, TEST_VARS_START_LIN
+
+TEST_VARS_END		EQU	*
+TEST_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Initialization
-#macro	TEST_INIT, 0
-	MMAP_INIT	;must be done at reset entry
-	VECTAB_INIT
-	GPIO_INIT		
-	ISTACK_INIT 	
-	CLOCK_INIT	
-	COP_INIT		
-	SSTACK_INIT	
-	LED_INIT		
-	TVMON_INIT
 
-	CLOCK_WAIT_FOR_PLL
-	
-#emac
-
-#macro	ERROR_MSG, 2
-#emac
-	
-#macro	ERROR_RESTART, 1
-	BRA	*
-#emac
-	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	TEST_CODE_START
+			ORG 	TEST_CODE_START, TEST_CODE_START_LIN
 
-			TEST_INIT
+;Initialization
+			GPIO_INIT
+			CLOCK_INIT
+			COP_INIT
+			MMAP_INIT
+			VECTAB_INIT
+			ISTACK_INIT
+			LED_INIT
+			TVMON_INIT
+			CLOCK_WAIT_FOR_PLL
 
-TEST_LOOP		COP_SERVICE
+TEST_LOOP		ISTACK_WAIT
 			JOB	TEST_LOOP
-				
-TEST_DUMMY_LOOP		BRA	*
-TEST_DUMMY_ISR		RTI	
 	
-MMAP_CODE_START		EQU	*
-VECTAB_CODE_START	EQU	MMAP_CODE_END
-GPIO_CODE_START		EQU	VECTAB_CODE_END
-ISTACK_CODE_START	EQU	GPIO_CODE_END
-CLOCK_CODE_START	EQU	ISTACK_CODE_END
-COP_CODE_START		EQU	CLOCK_CODE_END
-SSTACK_CODE_START	EQU	COP_CODE_END
-LED_CODE_START		EQU	SSTACK_CODE_END
-TVMON_CODE_START	EQU	LED_CODE_END
+TEST_CODE_END		EQU	*	
+TEST_CODE_END_LIN	EQU	@	
 
-TEST_CODE_END		EQU	TVMON_CODE_END	
-	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	TEST_TABS_START
+			ORG 	TEST_TABS_START, TEST_TABS_START_LIN
 
-MMAP_TABS_START		EQU	*
-VECTAB_TABS_START	EQU	MMAP_TABS_END
-GPIO_TABS_START		EQU	VECTAB_TABS_END
-ISTACK_TABS_START	EQU	GPIO_TABS_END
-CLOCK_TABS_START	EQU	ISTACK_TABS_END
-COP_TABS_START		EQU	CLOCK_TABS_END
-SSTACK_TABS_START	EQU	COP_TABS_END
-LED_TABS_START		EQU	SSTACK_TABS_END
-TVMON_TABS_START	EQU	LED_TABS_END
-
-TEST_TABS_END		EQU	TVMON_TABS_END
-;			ORG	BDM_TABS_END
-;#ifndef	MAIN_NAME_STRING
-;MAIN_NAME_STRING	FCS	"S12CBase for LFBDMPGMR"
-;#endif
-;
-;#ifndef	MAIN_VERSION_STRING
-;MAIN_VERSION_STRING	FCS	"V00.11"
-;#endif
-;	
-;BASE_TABS_END		EQU	*
-	
-;###############################################################################
-;# Includes                                                                    #
-;###############################################################################
-#include regdef.s	;register definitions
-#include mmap.s		;memory map
-#include vectab.s	;vector table
-#include gpio.s		;general purpose I/O driver
-#include istack.s	;interrupt stack
-#include clock.s	;clock driver
-#include cop.s		;watchdog driver
-#include sstack.s	;subroutine stack
-#include led.s		;LED driver
-#include tvmon.s	;target Vdd monitor
+TEST_TABS_END		EQU	*	
+TEST_TABS_END_LIN	EQU	@	

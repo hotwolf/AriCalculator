@@ -104,20 +104,20 @@ MMAP_FLASH		EQU	1 		;default is flash
 ;# Constants                                                                   #
 ;###############################################################################
 ;# Memory Sizes:
-REG_SIZE		EQU	$0800
+MMAP_REG_SIZE		EQU	$0800
 ;S12C128
-RAM_SIZE		EQU	$3000
-FLASH_SIZE		EQU	$20000
+MMAP_RAM_SIZE		EQU	$3000
+MMAP_FLASH_SIZE		EQU	$20000
 
 ;# Memory Locations
-REG_START		EQU	$0000
-REG_END			EQU	$0800
+MMAP_REG_START		EQU	$0000
+MMAP_REG_END		EQU	$0800
 
-RAM_START		EQU	$1000
-RAM_END			EQU	$4000
+MMAP_RAM_START		EQU	$1000
+MMAP_RAM_END		EQU	$4000
 
-FLASH_START		EQU	$C000
-FLASH_END		EQU	$E000
+MMAP_FLASH_START	EQU	$C000
+MMAP_FLASH_END		EQU	$E000
 
 ;# Init code
 ;INIT_CODE		EQU	$E002
@@ -137,8 +137,15 @@ VECTAB_START_LIN	EQU	$7FEF10
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	MMAP_VARS_START
+#ifdef MMAP_VARS_START_LIN
+			ORG 	MMAP_VARS_START, MMAP_VARS_START_LIN
+#else
+			ORG 	MMAP_VARS_START
+MMAP_VARS_START_LIN	EQU	@			
+#endif	
+
 MMAP_VARS_END		EQU	*
+MMAP_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -150,13 +157,26 @@ MMAP_VARS_END		EQU	*
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	MMAP_CODE_START
+#ifdef MMAP_CODE_START_LIN
+			ORG 	MMAP_CODE_START, MMAP_CODE_START_LIN
+#else
+			ORG 	MMAP_CODE_START
+MMAP_CODE_START_LIN	EQU	@			
+#endif	
+
 MMAP_CODE_END		EQU	*	
+MMAP_CODE_END_LIN	EQU	@	
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	MMAP_TABS_START
-MMAP_TABS_END		EQU	*
+#ifdef MMAP_TABS_START_LIN
+			ORG 	MMAP_TABS_START, MMAP_TABS_START_LIN
+#else
+			ORG 	MMAP_TABS_START
+MMAP_TABS_START_LIN	EQU	@			
+#endif	
 
+MMAP_TABS_END		EQU	*	
+MMAP_TABS_END_LIN	EQU	@	
 

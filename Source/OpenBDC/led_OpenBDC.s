@@ -110,7 +110,7 @@ LED_VARS_END_LIN	EQU	@
 			ORG 	LED_CODE_START, LED_CODE_START_LIN
 #else
 			ORG 	LED_CODE_START
-LED_VARS_START_LIN	EQU	@			
+LED_CODE_START_LIN	EQU	@			
 #endif	
 	
 ;#Interrupt Service Routine
@@ -173,7 +173,7 @@ LED_CODE_END_LIN	EQU	@
 			ORG 	LED_TABS_START, LED_TABS_START_LIN
 #else
 			ORG 	LED_TABS_START
-LED_VARS_START_LIN	EQU	@			
+LED_TABS_START_LIN	EQU	@			
 #endif	
 
 ;#Jump table to evaluate flag transitions

@@ -1,9 +1,9 @@
 ;###############################################################################
-;# S12CBase - TVMON - Target Vdd Monitor (LFBDMPGMR only)                      #
+;# S12CBase - TVMON - Target Vdd Monitor (Mini-BDM-Pod)                        #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
+;#    families                                                                 #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -24,8 +24,11 @@
 ;# Version History:                                                            #
 ;#    February 13, 2012                                                        #
 ;#      - Initial release                                                      #
+;#    August 7, 2012                                                           #
+;#      - Added support for linear PC                                          #
 ;###############################################################################
 ;# Required Modules:                                                           #
+;#    LED - LED driver                                                         #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -35,13 +38,20 @@
 ;# Constants                                                                   #
 ;###############################################################################
 TVMON_UPPER_THRESHOLD	EQU	(30*$FFFF)/100 ;3V
-TVMON_LOWER_THRESHOLD	EQU	( 5*$FFFF)/100 ;0.5V
+TVMON_LOWER_THRESHOLD	EQU	 (5*$FFFF)/100 ;0.5V
 
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	TVMON_VARS_START
+#ifdef TVMON_VARS_START_LIN
+			ORG 	TVMON_VARS_START, TVMON_VARS_START_LIN
+#else
+			ORG 	TVMON_VARS_START
+TVMON_VARS_START_LIN	EQU	@			
+#endif	
+
 TVMON_VARS_END		EQU	*
+TVMON_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -131,7 +141,12 @@ TVMON_VARS_END		EQU	*
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	TVMON_CODE_START
+#ifdef TVMON_CODE_START_LIN
+			ORG 	TVMON_CODE_START, TVMON_CODE_START_LIN
+#else
+			ORG 	TVMON_CODE_START
+TVMON_CODE_START_LIN	EQU	@			
+#endif	
 
 TVMON_ISR		EQU	*
 			BRSET	ATDCMPHTH+$1, #$01, TVMON_ISR_1 ;target Vdd detected
@@ -163,10 +178,18 @@ TVMON_ISR_2		MOVB	#%00101011, ATDCTL5
 			;Done 
 			ISTACK_RTI	
 
-TVMON_CODE_END		EQU	*
+TVMON_CODE_END		EQU	*	
+TVMON_CODE_END_LIN	EQU	@	
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	TVMON_TABS_START
-TVMON_TABS_END		EQU	*
+#ifdef TVMON_TABS_START_LIN
+			ORG 	TVMON_TABS_START, TVMON_TABS_START_LIN
+#else
+			ORG 	TVMON_TABS_START
+TVMON_TABS_START_LIN	EQU	@			
+#endif	
+
+TVMON_TABS_END		EQU	*	
+TVMON_TABS_END_LIN	EQU	@	

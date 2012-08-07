@@ -24,7 +24,6 @@
 ;#    handler.                                                                 #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    BASE   - S12CBase Framework bundle                                       #
 ;#    ERROR  - Error handler                                                   #
 ;#    BDM    - BDM driver                                                      #
 ;#    CLOCK  - Clock handler                                                   #
@@ -37,7 +36,7 @@
 ;# Version History:                                                            #
 ;#    December 14, 2011                                                        #
 ;#      - Initial release                                                      #
-;#    July 31, 2012                                                             #
+;#    July 31, 2012                                                            #
 ;#      - Added support for linear PC                                          #
 ;#      - Added dummy vectors                                                  #
 ;###############################################################################
@@ -68,13 +67,21 @@ CLOCK_ISR		EQU	VECTAB_DUMMY_PLLLOCK
 
 ;#SCI
 #ifndef	SCI_ISR_RXTX
-SCI_ISR_RXTX		EQU	VECTAB_DUMMY_SCI
+SCI_ISR_RXTX		EQU	VECTAB_DUMMY_SCI0
 #endif
 #ifndef	SCI_ISR_BD_TOG
-SCI_ISR_BD_TOG             	VECTAB_DUMMY_TC0
+SCI_ISR_BD_TOG          EQU   	VECTAB_DUMMY_ECT_TC0
 #endif
-#ifndef	SCI_ISR_TC1
-SCI_ISR_BD_TO		EQU	VECTAB_DUMMY_TC1
+#ifndef	SCI_ISR_BD_TO
+SCI_ISR_BD_TO		EQU	VECTAB_DUMMY_ECT_TC1
+#endif
+
+;#BDM
+#ifndef	BDM_ISR_TC7
+BDM_ISR_TC7		EQU	VECTAB_DUMMY_ECT_TC7
+#endif
+#ifndef	BDM_ISR_TC6
+BDM_ISR_TC6		EQU   	VECTAB_DUMMY_ECT_TC6
 #endif
 
 ;#ERROR
@@ -479,7 +486,7 @@ VEC_PORTJ	DW	VECTAB_DUMMY_PORTJ		;vector base + $CC
 VEC_ATD1	DW	VECTAB_DUMMY_ATD1		;vector base + $D0
 VEC_ATD0	DW	VECTAB_DUMMY_ATD0		;vector base + $D2
 VEC_SCI1	DW	VECTAB_DUMMY_SCI1		;vector base + $D4
-VEC_SCI0	DW	SCI_ISR_RXTX SCI0		;vector base + $D6
+VEC_SCI0	DW	SCI_ISR_RXTX			;vector base + $D6
 VEC_SPI0	DW	VECTAB_DUMMY_SPI0		;vector base + $D8
 VEC_ECT_PAIE	DW	VECTAB_DUMMY_ECT_PAIE		;vector base + $DA
 VEC_ECT_PAOV	DW	VECTAB_DUMMY_ECT_PAOV		;vector base + $DC
@@ -490,8 +497,8 @@ VEC_ECT_TC5	DW	VECTAB_DUMMY_ECT_TC5		;vector base + $E4
 VEC_ECT_TC4	DW	VECTAB_DUMMY_ECT_TC4		;vector base + $E6
 VEC_ECT_TC3	DW	VECTAB_DUMMY_ECT_TC3		;vector base + $E8
 VEC_ECT_TC2	DW	VECTAB_DUMMY_ECT_TC2		;vector base + $EA
-VEC_ECT_TC1	DW	VECTAB_DUMMY_ECT_TC1		;vector base + $EC
-VEC_ECT_TC0	DW	SCI_ISR_TC0			;vector base + $EE
+VEC_ECT_TC1	DW	SCI_ISR_BD_TO			;vector base + $EC
+VEC_ECT_TC0	DW	SCI_ISR_BD_TOG			;vector base + $EE
 VEC_RTI		DW	VECTAB_DUMMY_RTI		;vector base + $F0
 VEC_IRQ		DW	VECTAB_DUMMY_IRQ		;vector base + $F2
 VEC_XIRQ	DW	VECTAB_DUMMY_XIRQ		;vector base + $F4

@@ -1,9 +1,9 @@
 ;###############################################################################
-;# S12CBase - CLOCK - Clock Driver (LFBDMPGMR port)                            #
+;# S12CBase - CLOCK - Clock Driver (Mini-BDM-Port)                             #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
+;#    families.                                                                #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -25,6 +25,8 @@
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
+;#    August 7, 2012                                                             #
+;#      - Added support for linear PC                                          #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    REGDEF - Register Definitions                                            #
@@ -34,9 +36,6 @@
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
-;###############################################################################
-;# Global Defines:                                                             #
-;#    DEBUG - Keeps core clock running in WAIT mode.                           #
 ;###############################################################################
 
 ;###############################################################################
@@ -52,9 +51,17 @@ CLOCK_PLL_CFG		EQU	(CLOCK_SYNR<<8)|CLOCK_REVDV
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	CLOCK_VARS_START
+#ifdef CLOCK_VARS_START_LIN
+			ORG 	CLOCK_VARS_START, CLOCK_VARS_START_LIN
+#else
+			ORG 	CLOCK_VARS_START
+CLOCK_VARS_START_LIN	EQU	@			
+#endif	
+
 CLOCK_FLGS		DB	1
+
 CLOCK_VARS_END		EQU	*
+CLOCK_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -91,18 +98,31 @@ LOOP		COP_SERVICE						;service COP
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	CLOCK_CODE_START
-
+#ifdef CLOCK_CODE_START_LIN
+			ORG 	CLOCK_CODE_START, CLOCK_CODE_START_LIN
+#else
+			ORG 	CLOCK_CODE_START
+CLOCK_VARS_START_LIN	EQU	@			
+#endif	
+	
 ;#Service routine for the PLL lock interrupt
 CLOCK_ISR		EQU	*
 			MOVB	#(PLLSEL|COPWAI), CLKSEL 	;switch to PLL
 			MOVB	#LOCKIF, CRGFLG 		;clear interrupt flag
 			ISTACK_RTI
 	
-CLOCK_CODE_END		EQU	*
+CLOCK_CODE_END		EQU	*	
+CLOCK_CODE_END_LIN	EQU	@	
 	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	CLOCK_TABS_START
-CLOCK_TABS_END		EQU	*
+#ifdef CLOCK_TABS_START_LIN
+			ORG 	CLOCK_TABS_START, CLOCK_TABS_START_LIN
+#else
+			ORG 	CLOCK_TABS_START
+CLOCK_VARS_START_LIN	EQU	@			
+#endif	
+
+CLOCK_TABS_END		EQU	*	
+CLOCK_TABS_END_LIN	EQU	@	
