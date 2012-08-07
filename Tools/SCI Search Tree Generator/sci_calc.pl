@@ -3,8 +3,8 @@
 # S12CBase - Search Tree Generator for the SCI Driver                         #
 ###############################################################################
 #    Copyright 2009-2012 Dirk Heisswolf                                       #
-#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-#    family.                                                                  #
+#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
+#    families.                                                                #
 #                                                                             #
 #    S12CBase is free software: you can redistribute it and/or modify         #
 #    it under the terms of the GNU General Public License as published by     #
@@ -462,8 +462,9 @@ foreach $table (@tables) {
         printf FILEHANDLE ";###############################################################################\n"; 
         printf FILEHANDLE ";# S12CBase - SCI Baud Detection Search Trees                                  #\n";
         printf FILEHANDLE ";###############################################################################\n";
-        printf FILEHANDLE ";#    Copyright 2010 Dirk Heisswolf                                            #\n";
-        printf FILEHANDLE ";#    This file is part of the OpenBDM BDM pod firmware.                       #\n";
+        printf FILEHANDLE ";#    Copyright 2009-2012 Dirk Heisswolf                                       #\n";
+        printf FILEHANDLE ";#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #\n";
+        printf FILEHANDLE ";#    families.                                                                #\n";
         printf FILEHANDLE ";#                                                                             #\n";
         printf FILEHANDLE ";#    S12CBase is free software: you can redistribute it and/or modify         #\n";
         printf FILEHANDLE ";#    it under the terms of the GNU General Public License as published by     #\n";
