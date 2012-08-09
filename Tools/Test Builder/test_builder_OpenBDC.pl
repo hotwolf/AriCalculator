@@ -62,9 +62,9 @@ $initial_pc;
 ##########################
 # read command line args #
 ##########################
-#printf "parsing args: count: %s\n", $#ARGV + 1;
+#printf "parsing args: count: %s\r\n", $#ARGV + 1;
 foreach $arg (@ARGV) {
-    #printf "  arg: %s\n", $arg;
+    #printf "  arg: %s\r\n", $arg;
     if ($arg =~ /^\s*\-L\s*$/i) {
 	$arg_type = "lib";
     } elsif ($arg =~ /^\s*\-D\s*$/i) {
@@ -94,19 +94,19 @@ foreach $arg (@ARGV) {
 # print help text #
 ###################
 if ($#src_files < 0) {
-    printf "usage: %s [-L <library path>] [-D <define: name=value or name>] <src files> \n", $0;
-    print  "\n";
+    printf "usage: %s [-L <library path>] [-D <define: name=value or name>] <src files> \r\n", $0;
+    print  "\r\n";
     exit;
 }
 
 ###################
 # add default lib #
 ###################
-#printf "libraries:    %s (%s)\n",join("\", \"", @lib_files), $#lib_files;
-#printf "source files: %s (%s)\n",join("\", \"", @src_files), $#src_files;
+#printf "libraries:    %s (%s)\r\n",join("\", \"", @lib_files), $#lib_files;
+#printf "source files: %s (%s)\r\n",join("\", \"", @src_files), $#src_files;
 if ($#lib_files < 0) {
   foreach $src_file (@src_files) {
-    #printf "add library:%s/\n", dirname($src_file);
+    #printf "add library:%s/\r\n", dirname($src_file);
     push @lib_files, sprintf("%s/", dirname($src_file));
   }
 }
@@ -120,16 +120,16 @@ $output_path = dirname($src_files[0], ".s");
 #######################
 # compile source code #
 #######################
-#printf STDERR "src files: \"%s\"\n", join("\", \"", @src_files);  
-#printf STDERR "lib files: \"%s\"\n", join("\", \"", @lib_files);  
-#printf STDERR "defines:   \"%s\"\n", join("\", \"", @defines);  
+#printf STDERR "src files: \"%s\"\r\n", join("\", \"", @src_files);  
+#printf STDERR "lib files: \"%s\"\r\n", join("\", \"", @lib_files);  
+#printf STDERR "defines:   \"%s\"\r\n", join("\", \"", @defines);  
 $code = hsw12_asm->new(\@src_files, \@lib_files, \%defines, "S12", 1);
 
 #####################
 # check code status #
 #####################
 if ($code->{problems}) {
-    printf STDERR "Problem summary: %s\n", $code->{problems};
+    printf STDERR "Problem summary: %s\r\n", $code->{problems};
 } else {
     #####################################
     # read symbol table and address map #
@@ -142,45 +142,46 @@ if ($code->{problems}) {
     ######################
     $command_file_name = sprintf("%s.txt", $prog_name);
     if (open (FILEHANDLE, sprintf("+>%s", $command_file_name))) {
-	printf FILEHANDLE "reset\n";     # reset the target MCU
-	printf FILEHANDLE "nobr\n";      # remove all breakpoints
-	printf FILEHANDLE "mm 10 ff\n";  # remove RAM over the vector table
-	printf FILEHANDLE "load\n";      # load S-Record
+	printf FILEHANDLE "reset\r\n";     # reset the target MCU
+	printf FILEHANDLE "nobr\r\n";      # remove all breakpoints
+	printf FILEHANDLE "mm 10 ff\r\n";  # remove RAM over the vector table
+	printf FILEHANDLE "load\r\n";      # load S-Record
 	$out_string = $code->print_pag_srec(uc($prog_name),
 					    $srec_format,
 					    $srec_data_length,
 					    $srec_add_s5,
 					    $srec_word_entries);
+	$out_string =~ s/\n/\r\n/g;
 	print FILEHANDLE $out_string;
 
-	#printf STDOUT "comp symbpls: %s\n", join(", ", keys %{$self->{comp_symbols}} 
+	#printf STDOUT "comp symbpls: %s\r\n", join(", ", keys %{$self->{comp_symbols}} 
 
 	if (defined $code->{comp_symbols}->{"START_OF_CODE"}) {
 	    $initial_pc = $code->{comp_symbols}->{"START_OF_CODE"};
-	    printf FILEHANDLE "pc %4x\n", $initial_pc;      # set PC
-	    printf FILEHANDLE "g\n";                        # run program
-	    #printf STDOUT "START_OF_CODE found\n";
+	    printf FILEHANDLE "pc %4x\r\n", $initial_pc;      # set PC
+	    printf FILEHANDLE "g";                            # run program
+	    #printf STDOUT "START_OF_CODE found\r\n";
 	} elsif (exists $code->{comp_symbols}->{"START_OF_TEST"}) {
 	    $initial_pc = $code->{comp_symbols}->{"START_OF_TEST"};
-	    printf FILEHANDLE "pc %4x\n", $initial_pc;      # set PC
-	    printf FILEHANDLE "g\n";                        # run program
-	    #printf STDOUT "START_OF_TEST found\n";
+	    printf FILEHANDLE "pc %4x\r\n", $initial_pc;      # set PC
+	    printf FILEHANDLE "g";                            # run program
+	    #printf STDOUT "START_OF_TEST found\r\n";
 	} elsif ((exists $code->{pag_addrspace}->{0xFFFE}) &&
 		 (exists $code->{pag_addrspace}->{0xFFFF})) {
 	    $initial_pc = (($code->{pag_addrspace}->{0xFFFE}->[0]) << 8) + 
 		           ($code->{pag_addrspace}->{0xFFFF}->[0]);
-	    printf FILEHANDLE "pc %4x\n", $initial_pc;      # set PC
-	    printf FILEHANDLE "g\n";                        # run program
+	    printf FILEHANDLE "pc %4x\r\n", $initial_pc;      # set PC
+	    printf FILEHANDLE "g";                            # run program
 	    
 	} else {
-	    #printf STDERR "No start address found\n";
-	    printf FILEHANDLE "device\n";                   # show device info
-	    printf FILEHANDLE "rd\n";                       # show register info
+	    #printf STDERR "No start address found\r\n";
+	    printf FILEHANDLE "device\r\n";                   # show device info
+	    printf FILEHANDLE "rd\r\n";                       # show register info
 	}
 	
 	close FILEHANDLE;
     } else {
-	printf STDERR "Can't open command file \"%s\"\n", $command_file_name;
+	printf STDERR "Can't open command file \"%s\"\r\n", $command_file_name;
 	exit;
     }
 }
