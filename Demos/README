@@ -4,4 +4,7 @@ This directory contains demos and tests for S12CBase components. All testcases
 Available demos and tests:
 |
 +-OpenBDC			;Demos and tests running on the OpenBDC pod
-  +-test_led_OpenBDC.txt	;Toggles between the ON, BUSY, and COMERR signal
+| +-test_led_OpenBDC.txt	;Toggles between the ON, BUSY, and COMERR signal
+|
++-Mini-BDM-Pod			;Demos and tests running on the OpenBDC pod
+  +-test_led_Mini-BDM-Pod.txt	;Toggles between the ON, BUSY, and COMERR signal

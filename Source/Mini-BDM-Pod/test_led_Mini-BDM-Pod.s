@@ -42,7 +42,8 @@ MMAP_RAM		EQU	1 		;use RAM memory map
 ;# Interrupt stack
 ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-
+ISTACK_S12X		EQU	1		;work with 10-byte stack frames
+	
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 
@@ -166,11 +167,11 @@ INNER_LOOP		DBNE	Y, INNER_LOOP
 
 ;Initialization
 			GPIO_INIT
-			CLOCK_INIT
-			COP_INIT
 			MMAP_INIT
 			VECTAB_INIT
 			ISTACK_INIT
+			CLOCK_INIT
+			COP_INIT
 			LED_INIT
 			CLOCK_WAIT_FOR_PLL
 

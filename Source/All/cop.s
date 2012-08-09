@@ -77,10 +77,8 @@ COP_VARS_END_LIN	EQU	@
 
 ;#Service COP
 #macro	COP_SERVICE, 0
-#ifndef	COP_DEBUG
 			MOVB	#$55, ARMCOP
 			MOVB	#$AA, ARMCOP
-#endif
 #emac
 
 ;#COP reset

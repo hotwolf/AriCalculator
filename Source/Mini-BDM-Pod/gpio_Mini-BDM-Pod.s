@@ -156,8 +156,8 @@
 ;#    Port P:                                                                  #
 ;#     PP0 - unused                       (output       low      )             #
 ;#     PP1 - unused                       (output       low      )             #
-;#     PP2 - LED switch                   (output       low      )             #
-;#     PP3 - LED switch                   (output       low      )             #
+;#     PP2 - LED switch                   (output       high     )             #
+;#     PP3 - LED switch                   (output       high     )             #
 ;#     PP4 - LED 4 green                  (output       high     )             #
 ;#     PP5 - LED 3 green                  (output       high     )             #
 ;#     PP6 - LED 2 green                  (output       high     )             #
@@ -266,7 +266,7 @@ GPIO_VARS_END_LIN	EQU	@
 		;CLR	DDRL
 		;MOVW	$#FF00, PERL
 		;#Port P
-		MOVB	#$F0, PTP
+		MOVB	#$F3, PTP
 		MOVB	#$FF, DDRP
 		;CLR	RDRP
 		;#Port R
