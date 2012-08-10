@@ -1,9 +1,9 @@
 ;###############################################################################
-;# S12CBase - REGDEF - Register Definitions (S12G Micro EVB port)              #
+;# S12CBase - REGDEF - Register Definitions (S12G-Micro-EVB)                   #
 ;###############################################################################
-;#    Copyright 2012 Dirk Heisswolf                                            #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
+;#    families.                                                                #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -19,7 +19,7 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module defines the register map of the S12C128.                     #
+;#    This module defines the register map of the S12G-family.                 #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    - none                                                                   #
@@ -31,9 +31,9 @@
 ;#    Apr 1, 2010                                                              #
 ;#      - Initial release                                                      #
 ;###############################################################################
-;################################
-;# S12C128 Register Definitions #
-;################################
+;#############################
+;# S12G Register Definitions #
+;#############################
 PORTA		EQU	$0000
 PTA7		EQU	$80
 PTA6		EQU	$40
