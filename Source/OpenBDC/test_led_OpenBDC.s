@@ -45,6 +45,12 @@ MMAP_S12C128		EQU	1		;complie for S12S128
 ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 
+;# Clock
+CLOCK_CRG		EQU	1		;CRG
+CLOCK_BUS_FREQ		EQU	24576000	;24.576 MHz bus frequency
+CLOCK_OSC_FREQ		EQU  	 4096000 	; 4.096 MHz oscillator frequency
+CLOCK_REF_FREQ		EQU	 1024000 	; 1.024 MHz reference clock frequency
+	
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 
@@ -147,7 +153,7 @@ VECTAB_TABS_START_LIN	EQU	LED_TABS_END_LIN
 #include ./gpio_OpenBDC.s		;I/O setup
 #include ./mmap_OpenBDC.s		;RAM memory map
 #include ../All/istack.s		;Interrupt stack
-#include ./clock_OpenBDC.s		;CRG setup
+#include ../All/clock.s			;CRG setup
 #include ../All/cop.s			;COP handler
 #include ./rti_OpenBDC.s		;RTI setup
 #include ./led_OpenBDC.s		;LED driver

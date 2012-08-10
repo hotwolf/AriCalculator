@@ -43,6 +43,14 @@ MMAP_RAM		EQU	1 		;use RAM memory map
 ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 ISTACK_S12X		EQU	1		;work with 10-byte stack frames
+
+;# Clock
+CLOCK_CRG		EQU	1		;CRG
+CLOCK_BUS_FREQ		EQU	50000000	; 50 MHz bus frequency
+CLOCK_VCOFRQ		EQU	$3		;100 MHz VCO frequency
+CLOCK_OSC_FREQ		EQU	10000000	; 10 MHz oscillator frequency
+CLOCK_REF_FREQ		EQU	10000000	; 10 MHz reference clock frequency
+CLOCK_REFFRQ		EQU	$2		; 10 MHz reference clock frequency
 	
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
@@ -137,7 +145,7 @@ VECTAB_TABS_START_LIN	EQU	LED_TABS_END_LIN
 #include ./gpio_Mini-BDM-Pod.s		;I/O setup
 #include ./mmap_Mini-BDM-Pod.s		;RAM memory map
 #include ../All/istack.s		;Interrupt stack
-#include ./clock_Mini-BDM-Pod.s		;CRG setup
+#include ../All/clock.s			;CRG setup
 #include ../All/cop.s			;COP handler
 #include ./led_Mini-BDM-Pod.s		;LED driver
 #include ./vectab_Mini-BDM-Pod.s	;S12XE vector table

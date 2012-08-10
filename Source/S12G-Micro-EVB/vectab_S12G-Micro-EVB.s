@@ -86,6 +86,17 @@ SCI_ISR_BD_TO		EQU	VECTAB_DUMMY_TIM_TC2	;vector base + $EA
 DISP_ISR		DW	VECTAB_DUMMY_SPI0	;vector base + $D8
 #endif
 
+;#ERROR
+#ifndef	ERROR_RESET_COP
+ERROR_RESET_COP		EQU	START_OF_CODE
+#endif
+#ifndef	ERROR_RESET_CM
+ERROR_RESET_CM		EQU	ERROR_RESET_COP	
+#endif
+#ifndef	ERROR_RESET_EXT
+ERROR_RESET_EXT		EQU	ERROR_RESET_COP	
+#endif
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################

@@ -57,6 +57,17 @@ VECTAB_START_LIN	EQU	$FFFF80
 SCI_ISR_RXTX		EQU	VECTAB_DUMMY_SCI
 #endif
 
+;#ERROR
+#ifndef	ERROR_RESET_COP
+ERROR_RESET_COP		EQU	START_OF_CODE
+#endif
+#ifndef	ERROR_RESET_CM
+ERROR_RESET_CM		EQU	ERROR_RESET_COP	
+#endif
+#ifndef	ERROR_RESET_EXT
+ERROR_RESET_EXT		EQU	ERROR_RESET_COP	
+#endif
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################

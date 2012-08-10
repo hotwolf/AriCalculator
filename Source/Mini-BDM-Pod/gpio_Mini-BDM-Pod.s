@@ -2,8 +2,8 @@
 ;# S12CBase - GPIO - GPIO Handler (Mini-BDM-Pod)                               #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
+;#    families.                                                                #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #

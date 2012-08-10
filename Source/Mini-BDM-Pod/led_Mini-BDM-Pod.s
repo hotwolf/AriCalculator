@@ -2,7 +2,7 @@
 ;# S12CBase - LED - LED Driver (Mini-BDM-Port)                                 #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C(X) MCU  #
+;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
 ;#    families.                                                                #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #

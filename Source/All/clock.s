@@ -47,23 +47,6 @@ CLOCK_CPMU		EQU	1		;default CPMU
 #endif
 #endif
 	
-;#Bus frequency
-#ifndef CLOCK_BUS_FREQ	
-CLOCK_BUS_FREQ		EQU	25000000	;default is 25 MHz
-CLOCK_VCOFRQ		EQU	$1		;0=[ 32MHz.. 48MHz],
-						;2=[>48MHz.. 80MHz],
-						;4=[>80MHz..120MHZ]
-#endif
-
-;#Reference clock frequency 
-#ifndef CLOCK_REF_FREQ
-CLOCK_REF_FREQ		EQU	1000000		;default is 1 MHz
-CLOCK_REFFRQ		EQU	$0		;0=[  1MHz.. 2MHz],
-						;2=[> 2MHz.. 6MHz],
-						;3=[> 6MHz..12MHz],
-						;4=[>12MHz..]
-#endif
-
 ;#Oscillator frequency 
 #ifndef CLOCK_OSC_FREQ	
 CLOCK_IRC		EQU	1		;use IRC if no oscillator
@@ -71,14 +54,45 @@ CLOCK_IRC		EQU	1		;use IRC if no oscillator
 CLOCK_OSC_FREQ		EQU	1000000		;dummy value (1 MHz)
 #endif
 
+;#Bus frequency
+#ifndef CLOCK_BUS_FREQ	
+CLOCK_BUS_FREQ		EQU	25000000	;default is 25 MHz
+#endif
+#ifndef CLOCK_VCOFRQ
+CLOCK_VCOFRQ		EQU	$0		;0=[ 32MHz.. 48MHz],
+						;2=[>48MHz.. 80MHz],
+						;4=[>80MHz..120MHZ]
+#endif
+	
+;#Reference clock frequency 
+#ifndef CLOCK_REF_FREQ
+CLOCK_REF_FREQ		EQU	1000000		;default is 1 MHz
+#endif
+#ifndef CLOCK_REFFRQ
+CLOCK_REFFRQ		EQU	$0		;0=[  1MHz.. 2MHz],
+						;2=[> 2MHz.. 6MHz],
+						;3=[> 6MHz..12MHz],
+						;4=[>12MHz..]
+#endif
+
+;#Reference clock divider
+#ifndef CLOCK_REFDV
+CLOCK_REFDV		EQU	(CLOCK_OSC_FREQ/CLOCK_REF_FREQ)-1
+#endif
+
+;#Reference clock multiplier
+#ifndef CLOCK_SYNR
+CLOCK_SYNR		EQU	(CLOCK_BUS_FREQ/CLOCK_REF_FREQ)-1
+#endif
+
+;#Overall PLL configuration
+#ifndef CLOCK_PLL_CONFIG
+CLOCK_PLL_CONFIG	EQU	(CLOCK_VCOFRQ<<14)|(CLOCK_SYNR<<8)|(CLOCK_REFFRQ<<6)|CLOCK_REFDV
+#endif
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-CLOCK_SYNR		EQU	(CLOCK_BUS_FREQ/CLOCK_REF_FREQ)-1
-CLOCK_REFDV		EQU	(CLOCK_OSC_FREQ/CLOCK_REF_FREQ)-1
-CLOCK_POSTDIV		EQU	$00		;no post divider
-CLOCK_PLL_CONFIG	EQU	(CLOCK_VCOFRQ<<14)|(CLOCK_SYNR<<8)|(CLOCK_REFFRQ<<6)|CLOCK_REFDV
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -141,13 +155,16 @@ CLOCK_VARS_END_LIN	EQU	@
 
 ;#Wait for PLL
 #macro	CLOCK_WAIT_FOR_PLL, 0
-LOOP			COP_SERVICE		
+LOOP		SEI	
 #ifdef	CLOCK_CPMU
-			BRCLR	CPMUFLG, #LOOP, *
+		BRSET	CPMUCLKS, #PLLSEL, DONE 			;PLL is locked
 #endif
 #ifdef	CLOCK_CRG
-			BRCLR	CRGFLG, #LOOP, *
+		BRSET	CLKSEL, #PLLSEL, DONE 				;PLL is locked
 #endif
+		ISTACK_WAIT
+		JOB	LOOP
+DONE		CLI	
 #emac
 
 ;###############################################################################
@@ -171,7 +188,8 @@ CLOCK_VARS_START_LIN	EQU	@
 CLOCK_ISR		EQU	ERROR_ISR
 #endif
 #ifdef	CLOCK_CRG
-			MOVB	#(PLLSEL|CWAI|COPWAI), CLKSEL 	;switch to PLL
+CLOCK_ISR		EQU	*
+			MOVB	#(PLLSEL|RTIWAI|COPWAI), CLKSEL ;switch to PLL
 			MOVB	#LOCKIF, CRGFLG 		;clear interrupt flag
 			ISTACK_RTI
 #endif
