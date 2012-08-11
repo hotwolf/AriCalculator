@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - LED Test (Mini-BDM-Pod)                                          #
+;# S12CBase - LED Test (S12G-Micro-EVB)                                        #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
@@ -29,7 +29,7 @@
 ;#    3. Execute code at address "START_OF_CODE"                               #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    August 7, 2012                                                           #
+;#    August 11, 2012                                                          #
 ;#      - Initial release                                                      #
 ;###############################################################################
 
@@ -45,12 +45,13 @@ ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 ISTACK_S12X		EQU	1		;work with 10-byte stack frames
 
 ;# Clock
-CLOCK_CRG		EQU	1		;CRG
-CLOCK_BUS_FREQ		EQU	50000000	; 50 MHz bus frequency
-CLOCK_VCOFRQ		EQU	$3		;100 MHz VCO frequency
-CLOCK_OSC_FREQ		EQU	10000000	; 10 MHz oscillator frequency
-CLOCK_REF_FREQ		EQU	10000000	; 10 MHz reference clock frequency
-CLOCK_REFFRQ		EQU	$2		; 10 MHz reference clock frequency
+CLOCK_CPMU		EQU	1		;CPMU
+CLOCK_IRC		EQU	1		;use IRC
+CLOCK_OSC_FREQ		EQU	 1000000	; 1 MHz IRC frequency
+CLOCK_BUS_FREQ		EQU	25000000	; 25 MHz bus frequency
+CLOCK_REF_FREQ		EQU	 1000000	; 1 MHz reference clock frequency
+CLOCK_VCOFRQ		EQU	$1		; 10 MHz VCO frequency
+CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
 	
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
@@ -141,14 +142,14 @@ VECTAB_TABS_START_LIN	EQU	LED_TABS_END_LIN
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./regdef_Mini-BDM-Pod.s	;S12XE register map
-#include ./gpio_Mini-BDM-Pod.s		;I/O setup
-#include ./mmap_Mini-BDM-Pod.s		;RAM memory map
+#include ./regdef_S12G-Micro-EVB.s	;S12XE register map
+#include ./gpio_S12G-Micro-EVB.s	;I/O setup
+#include ./mmap_S12G-Micro-EVB.s	;RAM memory map
 #include ../All/istack.s		;Interrupt stack
 #include ../All/clock.s			;CRG setup
 #include ../All/cop.s			;COP handler
-#include ./led_Mini-BDM-Pod.s		;LED driver
-#include ./vectab_Mini-BDM-Pod.s	;S12XE vector table
+#include ./led_S12G-Micro-EVB.s		;LED driver
+#include ./vectab_S12G-Micro-EVB.s	;S12XE vector table
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -162,7 +163,7 @@ TEST_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 #macro DELAY, 0
-			LDX	#$0200
+			LDX	#$0100
 OUTER_LOOP		LDY	#$0000
 INNER_LOOP		DBNE	Y, INNER_LOOP
 			DBNE	X, OUTER_LOOP
