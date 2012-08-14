@@ -8,6 +8,7 @@ Available demos and tests:
 |
 +-Mini-BDM-Pod			;Demos and tests running on the Mini-BDM-Pod
 | +-test_led_Mini-BDM-Pod.txt	;Toggles between the ON, BUSY, and COMERR signal
+| +-test_tvmon_Mini-BDM-Pod.txt	;Target voltage monitor test
 |
 +-S12G-Micro-EVB		;Demos and tests running on the S12G-Micro-EVB
   +-test_led_S12G-Micro-EVB.txt	;Toggles between the ON, BUSY, and COMERR signal
