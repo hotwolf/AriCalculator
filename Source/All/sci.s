@@ -164,17 +164,9 @@ SCI_RXTX_ACTLO		EQU	1 		;default is active low RXD/TXD
 ;Flow control
 ;------------ 
 ;RTS/CTS or XON/XOFF
-#ifndef	SCI_RTS_CTS
-#ifndef	SCI_XON_XOFF
-SCI_RTS_CTS		EQU	1 		;default is SCI_RTS_CTS
-#endif
-#endif
-
-;XON/XOFF timer channel
-#ifdef	SCI_XON_XOFF	
-#ifndef	SCI_TIM_OCTO
-SCI_TIM_OCFC		EQU	$08		;default is OC3			
-SCI_TIM_TCFC		EQU	$TC3		;default is TC3
+#ifndef	SCI_FC_RTS_CTS
+#ifndef	SCI_FC_XON_XOFF
+SCI_FC_RTS_CTS		EQU	1 		;default is SCI_RTS_CTS
 #endif
 #endif
 	
@@ -187,6 +179,36 @@ SCI_RTS_PIN		EQU	PM0		;default is PM0
 #ifndef	SCI_CTS_PORT
 SCI_CTS_PORT		EQU	PTM 		;default is PTM
 SCI_CTS_PIN		EQU	PM1		;default is PM1
+#endif
+#endif
+
+;Interrupt workaround for MC9S12DP256 devices
+;-------------------------------------------- 
+;Enable interrupt workaround
+#ifndef	SCI_IRQWA_ON
+#ifndef	SCI_IRQWA_OFF
+SCI_IRQWA_OFF		EQU	1 		;default is no workaround
+#endif
+#endif
+
+;Output compare for flow control and interrupt workaround
+;-------------------------------------------------------- 
+#ifndef	SCI_OC_OCTO
+#ifndef	SCI_OC_TCTO
+#ifdef	SCI_FC_RTS_CTS
+SCI_OCTO		EQU	$10		;default is IC4			
+SCI_TCTO		EQU	$TC4		;default is TC4
+#else
+#ifdef	SCI_FC_XON_XOFF
+SCI_OCTO		EQU	$10		;default is IC4			
+SCI_TCTO		EQU	$TC4		;default is TC4
+#else
+#ifdef	SCI_IRQWA_ON
+SCI_OCTO		EQU	$10		;default is IC4			
+SCI_TCTO		EQU	$TC4		;default is TC4
+#endif
+#endif
+#endif
 #endif
 #endif
 	
@@ -206,22 +228,6 @@ SCI_IGNORE_SUSPEND	EQU	1 		;default is to ignore suspend chars
 #endif
 #endif
 
-;Interrupt workaround for MC9S12DP256 devices
-;-------------------------------------------- 
-;Enable interrupt workaround
-#ifndef	SCI_IRQWA_ON
-#ifndef	SCI_IRQWA_OFF
-SCI_IRQWA_OFF		EQU	1 		;default is no workaround
-#endif
-#endif
-
-#ifdef	SCI_IRQWA_ON
-#ifndef	SCI_IRQWA_OC
-SCI_IRQWA_OC		EQU	$10		;default is IC4			
-SCI_IRQWA_TC		EQU	$TC4		;default is TC4
-#endif
-#endif
-	
 ;Baud rate detection 
 ;------------------- 
 ;Enable (SCI_BD_ON or SCI_BD_OFF)
@@ -242,18 +248,36 @@ SCI_BD_TIM		EQU	1 		;default is TIM
 
 ;Input capture channels 
 #ifdef	SCI_BD_TIM
-#ifdef	SCI_BD_TIM_ICPE
+#ifndef	SCI_BD_TIM_ICPE
+#ifndef	SCI_BD_TIM_TCPE
 SCI_BD_TIM_ICPE		EQU	$01		;default is IC0			
 SCI_BD_TIM_TCPE		EQU	$TC0		;default is TC0
+#endif
+#endif
+#ifndef	SCI_BD_TIM_ICNE
+#ifndef	SCI_BD_TIM_TCNE
 SCI_BD_TIM_ICNE		EQU	$02		;default is IC1			
 SCI_BD_TIM_TCNE		EQU	$TC1		;default is TC1		
-SCI_BD_ECT_TCTL		EQU	$TCTL4		;default is TCTL4		
-SCI_BD_ECT_TCTL_SET	EQU	$EDG0B|EDG0A	;default is EDG0B|EDG0A		
-SCI_BD_ECT_TCTL_CLR	EQU	$EDG0B|EDG0A	;default is EDG0B|EDG0A
 #endif
 #endif
+#ifndef	SCI_BD_TIM_TCTL	
+#ifndef	SCI_BD_TIM_TCTL_SET
+#ifndef	SCI_BD_TIM_TCTL_CLR
+SCI_BD_TIM_TCTL		EQU	$TCTL4		;default is TCTL4		
+SCI_BD_TIM_TCTL_SET	EQU	$EDG0B|EDG0A	;default is EDG0B|EDG0A		
+SCI_BD_TIM_TCTL_CLR	EQU	$EDG0B|EDG0A	;default is EDG0B|EDG0A
+#endif
+#endif
+#endif
+#endif
+
 #ifdef	SCI_BD_ECT
-#ifdef	SCI_BD_ECT_IC
+#ifndef SCI_BD_ECT_IC	
+#ifndef SCI_BD_ECT_TC
+#ifndef SCI_BD_ECT_TCH		
+#ifndef SCI_BD_ECT_TCTL		
+#ifndef SCI_BD_ECT_TCTL_SET	
+#ifndef SCI_BD_ECT_TCTL_CLR	
 SCI_BD_ECT_IC		EQU	$01		;default is IC0		
 SCI_BD_ECT_TC		EQU	$TC0		;default is TC0		
 SCI_BD_ECT_TCH		EQU	$TC0H		;default is TC0H		
@@ -262,16 +286,21 @@ SCI_BD_ECT_TCTL_SET	EQU	$EDG0B|EDG0A	;default is EDG0B|EDG0A
 SCI_BD_ECT_TCTL_CLR	EQU	$EDG0B|EDG0A	;default is EDG0B|EDG0A		
 #endif
 #endif
+#endif
+#endif
+#endif
+#endif
+#endif
 
 ;Output compare channels 
 #ifndef	SCI_BD_TIM_OCTO
 #ifdef	SCI_BD_TIM
-SCI_BD_OCTO		EQU	$04		;default is OC2			
-SCI_BD_TCTO		EQU	$TC2		;default is TC2
+SCI_BD_TIM_OCTO		EQU	$04		;default is OC2			
+SCI_BD_TIM_TCTO		EQU	$TC2		;default is TC2
 #endif
 #ifdef	SCI_BD_ECT
-SCI_BD_OCTO		EQU	$02		;default is OC1			
-SCI_BD_TCTO		EQU	$TC1		;default is TC1
+SCI_BD_ECT_OCTO		EQU	$02		;default is OC1			
+SCI_BD_ECT_TCTO		EQU	$TC1		;default is TC1
 #endif
 #endif
 
@@ -331,7 +360,7 @@ SCI_EMPTY_LEVEL		EQU	 2*2		;RX buffer threshold to unblock transmissions
 	
 ;#Flag definitions
 SCI_FLG_FCRX_UPDATE	EQU	$80		;transmit XON/XOFF
-SCI_FLG_FCRX_FORCE	EQU	$40		;request to stop incomming data (forced flow control)
+SCI_FLG_FCRX_APP	EQU	$40		;request to stop incomming data (application)
 SCI_FLG_FCRX_BUF	EQU	$20		;request to stop incomming data (buffer overflow)
 SCI_FLG_SWOR		EQU	$10		;software buffer overrun (RX buffer)
 SCI_FLG_FCTX		EQU	$08		;don't transmit (XOFF received)
@@ -450,6 +479,95 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 			BSET	SCI_CTS_PORT, SCI_CTS_PIN
 #endif	
 
+
+
+
+
+	
+
+;#Unblock RX from Application
+; args:   none
+; result: none
+; SSTACK: 0 bytes
+;         All registers are preserved 
+#macro SCI_FC_UNBLOCK_RX_APP
+			BCLR	SCI_FLGS, #SCI_FLG_FCRX_APP 		;update FCRX state
+#ifdef SCI_FC_XON_XOFF
+			BSET	SCI_FLGS, #SCI_FLG_FCRX_UPDATE 		;send XOFF
+#endif
+#ifdef SCI_FC_RTS_CTS
+			BRSET	SCI_FLGS, #SCI_FLG_FCRX_BUF, DONE 	;RX still blocked
+			BSET	SCI_CTS_PORT, SCI_CTS_PIN		;set CTS (allow incomming traffic)
+#endif
+DONE			EQU	*
+#emac
+
+
+
+
+;#Unblock RX from Application
+; args:   none
+; result: none
+; SSTACK: 0 bytes
+;         All registers are preserved 
+#macro SCI_FC_UNBLOCK_RX_APP
+			BCLR	SCI_FLGS, #SCI_FLG_FCRX_APP 		;update FCRX state
+#ifdef SCI_FC_XON_XOFF
+			BSET	SCI_FLGS, #SCI_FLG_FCRX_UPDATE 		;send XOFF
+#endif
+#ifdef SCI_FC_RTS_CTS
+			BRSET	SCI_FLGS, #SCI_FLG_FCRX_BUF, DONE 	;RX still blocked
+			BSET	SCI_CTS_PORT, SCI_CTS_PIN		;set CTS (allow incomming traffic)
+#endif
+DONE			EQU	*
+#emac
+
+;#Unblock RX from SCI ISR
+; args:   none
+; result: none
+; SSTACK: 0 bytes
+;         All registers are preserved 
+#macro SCI_FC_UNBLOCK_RX_BUF
+			BCLR	SCI_FLGS, #SCI_FLG_FCRX_BUF 		;update FCRX state
+#ifdef SCI_FC_XON_XOFF
+			BSET	SCI_FLGS, #SCI_FLG_FCRX_UPDATE 		;send XOFF
+#endif
+#ifdef SCI_FC_RTS_CTS
+			BRSET	SCI_FLGS, #SCI_FLG_FCRX_APP, DONE 	;RX still blocked
+			BSET	SCI_CTS_PORT, SCI_CTS_PIN		;set CTS (allow incomming traffic)
+#endif
+DONE			EQU	*
+#emac
+
+
+;#Check flow control (branch if TX is blocked)
+; args:   address to jump to if TX is blocked
+; result: none
+; SSTACK: 0 bytes
+;         All registers are preserved 
+#macro SCI_FC_CHECK_TX, 1
+#ifdef SCI_FC_XON_XOFF
+			BRSET	SCI_FLGS, #SCI_FLG_FCTX,  \1 ;XOFF received -> TX forbidden
+#endif
+#ifdef SCI_FC_RTS_CTS
+			BRCLR	SCI_RTS_PORT, #SCI_RTS_PIN, \1 ;RTS cleared -> TX forbidden
+#endif
+#emac
+
+
+
+
+
+	
+	
+
+
+
+
+
+
+
+	
 			;Start XON/XOFF repeater and SMC9S12DP256 workaroundtart XON/XOFF repeater 
 #ifdef SCI_XON_XOFF
 #ifdef	SCI_WORKAROUND_ON
@@ -680,6 +798,13 @@ DONE			EQU	*
 			LED_COMERR_OFF					;stop signaling communication errors
 DONE			EQU	*
 #emac
+
+
+
+
+
+
+
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -754,6 +879,10 @@ SCI_TX_BL		EQU	*
 
 
 
+
+
+
+	
 	
 ;#Peek into the TX queue and check how much space is left
 ; args:   none
@@ -916,12 +1045,43 @@ SCI_SET_BAUD		EQU	*
 			SSTACK_PULDY					;pull D and Y from the SSTACK
 			;Done
 			RTS
-	
+
+
+
 ;#Transmit handler
 SCI_ISR_TX		EQU	*
 			;Check if SCI is ready to transmit data (status flags in A)
 			BITA	#TDRE					;check if SCI is ready for new TX data
-			BEQ	<SCI_ISR_TX_5				;done for now
+			BEQ	<SCI_ISR_TX_				;done for now
+
+			;Check if XON/XOFF state must be transmitted
+#ifdef	SCI_FC_XON_XOFF
+			BRSET	SCI_FLGS, #SCI_FLG_FCRX_UPDATE, SCI_ISR_TX_ ;transmit XON/XOFF state
+#endif
+
+			;Check TX flow control
+#ifdef	SCI_FC_XON_XOFF
+			BRSET	SCI_FLGS, SCI_FLG_FCTX, SCI_ISR_TX_	;done for now
+#endif
+#ifdef	SCI_FC_RTS_CTS
+			
+
+	
+	
+	
+			LDAA	SCI_FLGS
+			BITA	#(SCI_FLG_FCRX|SCI_FLG_FCRX_BF|SCI_FLG_FCRX_FC)
+			BEQ	<SCI_ISR_TX_2 				;check TX flow control
+			BMI	<SCI_ISR_TX_1				;check if XON should be send
+			
+
+
+
+
+
+
+
+
 			
 			;Check RX flow control 
 			LDAA	SCI_FLGS

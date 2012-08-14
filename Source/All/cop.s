@@ -43,6 +43,23 @@
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;#Control register
+#ifdef COPCTL
+COP_CTLREG		EQU	COPCTL
+#else
+#ifdef CPMUCOP
+COP_CTLREG		EQU	CPMUCOP
+#endif
+#endif
+	
+;#Restart register
+#ifdef ARMCOP
+COP_ARMREG		EQU	ARMCOP
+#else
+#ifdef CPMUARMCOP
+COP_ARMREG		EQU	CPMUARMCOP
+#endif
+#endif
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -63,30 +80,30 @@ COP_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	COP_INIT, 0
 #ifdef	COP_DEBUG
-			MOVB	#RSBCK, COPCTL		 	;COP configuration:
-								; no window mode			(~WCOP)
-								; COP and RTI stop when BDM is active	(RSBCK)
-								; COP is disabled	(~CR2|~CR1|~CR0)
-#else
-			MOVB	#(RSBCK|CR2|CR1|CR0), COPCTL 	;COP configuration:
-								; no window mode			(~WCOP)
-								; COP and RTI stop when BDM is active	(RSBCK)
-								; 10^24 oscillator cyles timeout =2.44s	(CR2|CR1|CR0)
+			MOVB	#RSBCK, COP_CTLREG			;COP configuration:
+									; no window mode			(~WCOP)
+									; COP and RTI stop when BDM is active	(RSBCK)
+									; COP is disabled	(~CR2|~CR1|~CR0)
+#else									
+			MOVB	#(RSBCK|CR2|CR1|CR0), COP_CTLREG	 ;COP configuration:
+									; no window mode			(~WCOP)
+									; COP and RTI stop when BDM is active	(RSBCK)
+									; 10^24 oscillator cyles timeout =2.44s	(CR2|CR1|CR0)
 #endif
 #emac
 
 ;#Service COP
 #macro	COP_SERVICE, 0
-			MOVB	#$55, ARMCOP
-			MOVB	#$AA, ARMCOP
+			MOVB	#$55, COP_ARMREG
+			MOVB	#$AA, COP_ARMREG
 #emac
 
 ;#COP reset
 #macro	COP_RESET, 0
-#ifdef	DEBUG
+#ifdef	COP_DEBUG
 			JOB	ERROR_COP_RESET_ENTRY
 #else
-			MOVB	#$FF, ARMCOP
+			MOVB	#$FF, COP_ARMREG
 #endif
 #emac
 

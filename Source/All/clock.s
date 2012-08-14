@@ -151,6 +151,7 @@ CLOCK_VARS_END_LIN	EQU	@
 			;BSET	PLLCTL, #(CME|PLLON|AUTO)			; clock monitor enabled			(CME)
 										; PLL enabled				(PLLON)
 										; automatic bandwith control		(AUTO)
+#endif
 #emac	
 
 ;#Wait for PLL

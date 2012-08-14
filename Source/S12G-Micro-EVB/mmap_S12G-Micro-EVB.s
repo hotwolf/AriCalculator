@@ -60,7 +60,8 @@
 ;  		 |             |
 ;  		 |    Code     |
 ;  		 |   Page F    |
-;  		 |             |
+;  	
+	 |             |
 ;  		 +-------------+ $10000 
 ; 
 ;  RAM Memory Map:
@@ -101,6 +102,7 @@ MMAP_S12G128		EQU	1 	;default is S12G128
 #ifndef	MMAP_FLASH
 MMAP_FLASH		EQU	1 	;default is flash
 #endif
+#endif
 	
 ;###############################################################################
 ;# Security and Protection                                                     #
@@ -117,25 +119,25 @@ MMAP_FLASH		EQU	1 	;default is flash
 ;# Constants                                                                   #
 ;###############################################################################
 ;# Memory Sizes:
-#ifdef	S12G32
+#ifdef	MMAP_S12G32
 MMAP_REG_SIZE		EQU	 $0400 	;  1k
 MMAP_EEPROM_SIZE	EQU	 $0400 	;  1k
 MMAP_MMAP_RAM_SIZE	EQU	 $0800 	;  2k
 FLASH_SIZE		EQU	 $8000 	; 32k
 #endif				 	  
-#ifdef	S12G64			 	  
+#ifdef	MMAP_S12G64			 	  
 MMAP_REG_SIZE		EQU	 $0400 	;  1k
 MMAP_EEPROM_SIZE	EQU	 $0800 	;  2k
 MMAP_RAM_SIZE		EQU	 $1000 	;  4k
 MMAP_FLASH_SIZE		EQU	$10000 	; 64k
 #endif					  
-#ifdef	S12G128			 	  
+#ifdef	MMAP_S12G128			 	  
 MMAP_REG_SIZE		EQU	 $0400 	;  1k
 MMAP_EEPROM_SIZE	EQU	 $1000 	;  4k
 MMAP_RAM_SIZE		EQU	 $2000 	;  8k
 MMAP_FLASH_SIZE		EQU	$20000 	;128k
 #endif
-#ifdef	S12G240			 	  
+#ifdef	MMAP_S12G240			 	  
 MMAP_REG_SIZE		EQU	 $0400 	;  1k
 MMAP_EEPROM_SIZE	EQU	 $1000 	;  4k
 MMAP_RAM_SIZE		EQU	 $2C00 	; 11k
@@ -147,12 +149,12 @@ MMAP_REG_START		EQU	$0000
 MMAP_REG_END		EQU	$0400
 
 MMAP_EEPROM_START	EQU	$0400
-MMAP_EEPROM_END		EQU	$0400+EEPROM_SIZE
+MMAP_EEPROM_END		EQU	$0400+MMAP_EEPROM_SIZE
 
-MMAP_RAM_START		EQU	$4000-RAM_SIZE
+MMAP_RAM_START		EQU	$4000-MMAP_RAM_SIZE
 MMAP_RAM_END		EQU	$4000
 
-#ifdef	S12G32
+#ifdef	MMAP_S12G32
 MMAP_FLASH_START	EQU	$8000
 #else
 MMAP_FLASH_START	EQU	$4000

@@ -56,10 +56,10 @@
 ;###############################################################################
 ;#KEYS (keypad controller)
 #ifndef	KEYS_ROW_ISR
-KEYS_ROW_ISR		EQU	VECTAB_DUMMY__PAD	;vector base + $82
+KEYS_ROW_ISR		EQU	VECTAB_DUMMY_PAD	;vector base + $82
 #endif
 #ifndef	KEYS_COL_ISR
-KEYS_COL_ISR		EQU	VECTAB_DUMMY__PORTP	;vector base + $8E
+KEYS_COL_ISR		EQU	VECTAB_DUMMY_PORTP	;vector base + $8E
 #endif
 
 ;#BATMON (battery monitor)
@@ -117,7 +117,7 @@ VECTAB_VARS_END_LIN	EQU	@
 #macro	VECTAB_INIT, 0
 #ifdef	MMAP_RAM
 			;Set vector base address
-			MOVB	#(VECTAB>>8), IVBR
+			MOVB	#(VECTAB_START>>8), IVBR
 #endif
 #emac	
 
@@ -130,7 +130,7 @@ VECTAB_VARS_END_LIN	EQU	@
 			ORG 	VECTAB_CODE_START
 VECTAB_VARS_START_LIN	EQU	@			
 #endif	
-	
+
 VECTAB_CODE_END		EQU	*	
 VECTAB_CODE_END_LIN	EQU	@	
 
@@ -280,10 +280,10 @@ VECTAB_TABS_END_LIN	EQU	@
 VEC_SPURIOUS		DW	VECTAB_DUMMY_SPURIOUS	;vector base + $80
 VEC_PAD			DW	KEYS_ROW_ISR		;vector base + $82
 VEC_ADCCOMP		DW	BATMON_ISR		;vector base + $84
-VEC_RESERVED_86		DW	VECTAB_DUMMY_VEC_RES_86	;vector base + $86
-VEC_API	       		DW	VECTAB_DUMMY_VEC_API	;vector base + $88
-VEC_LVI	       		DW	VECTAB_DUMMY_VEC_LVI	;vector base + $8A
-VEC_RESERVED_8C		DW	VECTAB_DUMMY_VEC_RES_8C	;vector base + $8C
+VEC_RESERVED_86		DW	VECTAB_DUMMY_RES_86	;vector base + $86
+VEC_API	       		DW	VECTAB_DUMMY_API	;vector base + $88
+VEC_LVI	       		DW	VECTAB_DUMMY_LVI	;vector base + $8A
+VEC_RESERVED_8C		DW	VECTAB_DUMMY_RES_8C	;vector base + $8C
 VEC_PORTP		DW	KEYS_COL_ISR		;vector base + $8E
 VEC_RESERVED_90		DW	VECTAB_DUMMY_RES_90	;vector base + $90
 VEC_RESERVED_92		DW	VECTAB_DUMMY_RES_92	;vector base + $92

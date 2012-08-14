@@ -21,9 +21,9 @@
 ;# Description:                                                                #
 ;#    The module controls the timer. The eight timer channes are used as       #
 ;#    follows:                                                                 #
-;#      IC0:     SCI (capture posedges on RX pin)                              #
-;#      IC1:     SCI (capture negedges on RX pin)                              #
-;#      OC2:     SCI (timeout)                                                 #
+;#      IC0:     SCI baud rate detection (capture posedges on RX pin)          #
+;#      IC1:     SCI baud rate detection (capture negedges on RX pin)          #
+;#      OC2:     SCI baud rate detection (timeout)                             #
 ;#      OC3:     SCI (timeout)                                                 #
 ;#      OC4:     unasigned                                                     #
 ;#      IC5:     BDM (capture posedges on BKGD pin)                            #
@@ -58,12 +58,11 @@ TIM_DIV2_OFF		EQU	1 	;default no clock divider
 ;# Constants                                                                   #
 ;###############################################################################
 ;#SCI channels defaults
-TIM_SCI			EQU	$07	;all channels		 
-TIM_SCIPE		EQU	$01	;posedge/toggle detection
-TIM_SCINE		EQU	$02	;negedge detection 
-TIM_SCIBD		EQU	$04	;Baud rate detection
-TIM_SCIFC		EQU	$08	;XON/XOFF reminders
-TIM_SCIWA		EQU	$10	;SCI bug workaround
+TIM_SCI			EQU	$0F	;all channels		 
+TIM_SCIBDPE		EQU	$01	;posedge/toggle detection
+TIM_SCIBDNE		EQU	$02	;negedge detection 
+TIM_SCIBDTO		EQU	$04	;Baud rate detection
+TIM_SCITO		EQU	$08	;XON/XOFF reminders
 
 ;#BDM channel defaults	
 TIM_BDM			EQU	$E0	;all channels		  
@@ -84,22 +83,26 @@ TIM_VARS_END		EQU	*
 ;#Initialization
 #macro	TIM_INIT, 0		 ;7 6 5 4 3 2 1 0
 			MOVB	#%1_0_0_1_1_1_0_0, TIOS 	;select input capture (0)
-				 ;B B B S S S S S 		;   or output compare (1) feature
-				 ;D D D C C C C C
-				 ;M M M I I I I I
-				 ;T N P W F B N P
-				 ;O E E A C D E E
+				 ;B B B   S S S S 		;   or output compare (1) feature
+				 ;D D D   C C C C
+				 ;M M M   I I I I
+				 ;T N P   T B B B
+				 ;O E E   O D D D
+				 ;          T N P
+				 ;          O E E
 
 			;CFORC
 			;OC7M 
 
 			 	 ;7 6 5 4 3 2 1 0
 			;MOVB	#%0_1_0_0_0_0_0_0, TOC7D	;OC7 output compares drive
-				 ;B B B S S S S S 		; posedges on TC6 	
-				 ;D D D C C C C C
-				 ;M M M I I I I I
-				 ;T N P W F B N P
-				 ;O E E A C D E E
+				 ;B B B   S S S S 		; posedges on TC6 	
+				 ;D D D   C C C C
+				 ;M M M   I I I I
+				 ;T N P   T B B B
+				 ;O E E   O D D D
+				 ;          T N P
+				 ;          O E E
 
 			;TCNT 
 
@@ -111,19 +114,23 @@ TIM_VARS_END		EQU	*
 	
 				 ;7 6 5 4 3 2 1 0
 			;MOVW	#%0000000000000000, TCTL1 	;OC6 output compares drive
-				 ;B B B S S S S S		; negedges (=10) on TC6
-				 ;D D D C C C C C
-				 ;M M M I I I I I
-				 ;T N P W F B N P
-				 ;O E E A C D E E
+				 ;B B B   S S S S		; negedges (=10) on TC6
+				 ;D D D   C C C C
+				 ;M M M   I I I I
+				 ;T N P   T B B B
+				 ;O E E   O D D D
+				 ;          T N P
+				 ;          O E E
 
 			 	 ;7 6 5 4 3 2 1 0
 			;MOVW	#%0000010000001000, TCTL3 	;set capture edges
-				 ;B B B S S S S S	
-				 ;D D D C C C C C
-				 ;M M M I I I I I
-				 ;T N P W F B N P
-				 ;O E E A C D E E
+				 ;B B B   S S S S	
+				 ;D D D   C C C C
+				 ;M M M   I I I I
+				 ;T N P   T B B B
+				 ;O E E   O D D D
+				 ;          T N P
+				 ;          O E E
 
 			;TIE
 			;TSCR2

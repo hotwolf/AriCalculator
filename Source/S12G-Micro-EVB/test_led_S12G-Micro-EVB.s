@@ -37,6 +37,7 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;# Memory map:
+MMAP_S12G128		EQU	1 		;S12G128
 MMAP_RAM		EQU	1 		;use RAM memory map
 
 ;# Interrupt stack
@@ -194,6 +195,11 @@ TEST_LOOP		DELAY
 			DELAY
 			LED_BUSY_OFF
 			JOB	TEST_LOOP
+
+#ifndef ERROR_ISR	
+ERROR_ISR		BRA	*
+#endif
+			BRA	*
 	
 TEST_CODE_END		EQU	*	
 TEST_CODE_END_LIN	EQU	@	

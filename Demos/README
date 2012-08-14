@@ -6,5 +6,8 @@ Available demos and tests:
 +-OpenBDC			;Demos and tests running on the OpenBDC pod
 | +-test_led_OpenBDC.txt	;Toggles between the ON, BUSY, and COMERR signal
 |
-+-Mini-BDM-Pod			;Demos and tests running on the OpenBDC pod
-  +-test_led_Mini-BDM-Pod.txt	;Toggles between the ON, BUSY, and COMERR signal
++-Mini-BDM-Pod			;Demos and tests running on the Mini-BDM-Pod
+| +-test_led_Mini-BDM-Pod.txt	;Toggles between the ON, BUSY, and COMERR signal
+|
++-S12G-Micro-EVB		;Demos and tests running on the S12G-Micro-EVB
+  +-test_led_S12G-Micro-EVB.txt	;Toggles between the ON, BUSY, and COMERR signal

@@ -19,35 +19,18 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#   This module bundles the S12CBase framework into a single include file.    #
-;###############################################################################
-;# Required Modules:                                                           #
-;#     REGDEF - Register Definitions                                           #
-;#     VECTAB - Vector Table                                                   #
-;#     GPIO   - GPIO Handler                                                   #
-;#     MMAP   - Memory Map                                                     #
-;#     ISTACK - Interrupt Stack Handler                                        #
-;#     CLOCK  - Clock Driver                                                   #
-;#     COP    - Watchdog Handler                                               #
-;#     SSTACK - Subroutine Stack Handler                                       #
-;#     LED    - LED Driver                                                     #
-;#     TIM    - Timer Driver                                                   #
-;#     SCI    - Serial Communication Interface Driver                          #
-;#     PRINT  - Print Routines                                                 #
-;#     ERROR  - Error Handler                                                  #
+;#    This demo application alterternates between the busy and the error       #
+;#    signal.                                                                  #
 ;#                                                                             #
-;# Requirements to Software Using this Module:                                 #
-;#    - none                                                                   #
+;# Usage:                                                                      #
+;#    1. Place the RAM onto the vector space                                   #
+;#       $FF -> INITRM                                                         #
+;#    2. Upload S-Record                                                       #
+;#    3. Execute code at address "START_OF_CODE"                               #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    April 4, 2010                                                            #
+;#    August 13, 2012                                                           #
 ;#      - Initial release                                                      #
-;#    May 31, 2010                                                             #
-;#      - Call MMAP_INIT right at the reset entry point                        #
-;#      - Changed definittion of BASE_CODE_END                                 #
-;###############################################################################
-;# Global Defines:                                                             #
-;#    DEBUG - Turns off functionality that hinders debugging.                  #
 ;###############################################################################
 
 ;###############################################################################
@@ -59,7 +42,16 @@ MMAP_RAM		EQU	1 		;use RAM memory map
 ;# Interrupt stack
 ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
+ISTACK_S12X		EQU	1		;work with 10-byte stack frames
 
+;# Clock
+CLOCK_CRG		EQU	1		;CRG
+CLOCK_BUS_FREQ		EQU	50000000	; 50 MHz bus frequency
+CLOCK_VCOFRQ		EQU	$3		;100 MHz VCO frequency
+CLOCK_OSC_FREQ		EQU	10000000	; 10 MHz oscillator frequency
+CLOCK_REF_FREQ		EQU	10000000	; 10 MHz reference clock frequency
+CLOCK_REFFRQ		EQU	$2		; 10 MHz reference clock frequency
+	
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 
@@ -162,12 +154,12 @@ VECTAB_TABS_START_LIN	EQU	TVMON_TABS_END_LIN
 #include ./gpio_Mini-BDM-Pod.s		;I/O setup
 #include ./mmap_Mini-BDM-Pod.s		;RAM memory map
 #include ../All/istack.s		;Interrupt stack
-#include ./clock_Mini-BDM-Pod.s		;CRG setup
+#include ../All/clock.s			;CRG setup
 #include ../All/cop.s			;COP handler
 #include ./led_Mini-BDM-Pod.s		;LED driver
 #include ./tvmon_Mini-BDM-Pod.s		;Target Vdd monitor
 #include ./vectab_Mini-BDM-Pod.s	;S12XE vector table
-
+	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -187,15 +179,16 @@ TEST_VARS_END_LIN	EQU	@
 
 ;Initialization
 			GPIO_INIT
-			CLOCK_INIT
-			COP_INIT
 			MMAP_INIT
 			VECTAB_INIT
 			ISTACK_INIT
+			CLOCK_INIT
+			COP_INIT
 			LED_INIT
 			TVMON_INIT
 			CLOCK_WAIT_FOR_PLL
 
+;Application code
 TEST_LOOP		ISTACK_WAIT
 			JOB	TEST_LOOP
 	
@@ -209,3 +202,7 @@ TEST_CODE_END_LIN	EQU	@
 
 TEST_TABS_END		EQU	*	
 TEST_TABS_END_LIN	EQU	@	
+
+
+
+
