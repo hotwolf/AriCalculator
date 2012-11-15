@@ -23,10 +23,8 @@
 ;#    signal.                                                                  #
 ;#                                                                             #
 ;# Usage:                                                                      #
-;#    1. Place the RAM onto the vector space                                   #
-;#       $FF -> INITRM                                                         #
-;#    2. Upload S-Record                                                       #
-;#    3. Execute code at address "START_OF_CODE"                               #
+;#    1. Upload S-Record                                                       #
+;#    2. Execute code at address "START_OF_CODE"                               #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    August 11, 2012                                                          #
@@ -36,15 +34,6 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Memory map:
-MMAP_S12G128		EQU	1 		;S12G128
-MMAP_RAM		EQU	1 		;use RAM memory map
-
-;# Interrupt stack
-ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
-ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-ISTACK_S12X		EQU	1		;work with 10-byte stack frames
-
 ;# Clock
 CLOCK_CPMU		EQU	1		;CPMU
 CLOCK_IRC		EQU	1		;use IRC
@@ -53,6 +42,15 @@ CLOCK_BUS_FREQ		EQU	25000000	; 25 MHz bus frequency
 CLOCK_REF_FREQ		EQU	 1000000	; 1 MHz reference clock frequency
 CLOCK_VCOFRQ		EQU	$1		; 10 MHz VCO frequency
 CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
+
+;# Memory map:
+MMAP_S12G128		EQU	1 		;S12G128
+MMAP_RAM		EQU	1 		;use RAM memory map
+
+;# Interrupt stack
+ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
+ISTACK_DEBUG		EQU	1 		;don't enter wait mode
+ISTACK_S12X		EQU	1		;work with 10-byte stack frames
 	
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
@@ -199,7 +197,6 @@ TEST_LOOP		DELAY
 #ifndef ERROR_ISR	
 ERROR_ISR		BRA	*
 #endif
-			BRA	*
 	
 TEST_CODE_END		EQU	*	
 TEST_CODE_END_LIN	EQU	@	

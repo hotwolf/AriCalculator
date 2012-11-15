@@ -687,11 +687,11 @@ CCF2		EQU	$04
 CCF1		EQU	$02
 CCF0		EQU	$01
 
-;$008c reserved
+;$008C reserved
 
 ATDDIEN		EQU	$008D
 
-;$0083 reserved
+;$008E reserved
 
 PORTAD		EQU	$008F
 PTAD07		EQU	$80

@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - SCI Test (Mini-BDM-Pod)                                          #
+;# S12CBase - SCI Test (S12G-Micro-EVB)                                        #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -26,28 +26,29 @@
 ;#    2. Execute code at address "START_OF_CODE"                               #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    November 14, 2012                                                        #
+;#    November 15, 2012                                                        #
 ;#      - Initial release                                                      #
 ;###############################################################################
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Clocks
-CLOCK_CRG		EQU	1		;CPMU
-CLOCK_OSC_FREQ		EQU	10000000	;10 MHz
-CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
-CLOCK_REF_FREQ		EQU	10000000	;10 MHz
-CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
-CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
-
+;# Clock
+CLOCK_CPMU		EQU	1		;CPMU
+CLOCK_IRC		EQU	1		;use IRC
+CLOCK_OSC_FREQ		EQU	 1000000	; 1 MHz IRC frequency
+CLOCK_BUS_FREQ		EQU	25000000	; 25 MHz bus frequency
+CLOCK_REF_FREQ		EQU	 1000000	; 1 MHz reference clock frequency
+CLOCK_VCOFRQ		EQU	$1		; 10 MHz VCO frequency
+CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
+	
 ;# Memory map:
+MMAP_S12G128		EQU	1 		;S12G128
 MMAP_RAM		EQU	1 		;use RAM memory map
 
 ;# Interrupt stack
-ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
+ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-ISTACK_S12X		EQU	1	 	;S12X interrupt handling
 
 ;# Subroutine stack
 SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
@@ -58,14 +59,20 @@ COP_DEBUG		EQU	1 		;disable COP
 
 ;# Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
-	
+
 ;# SCI
-SCI_FC_XON_XOFF		EQU	1 		;XON/XOFF flow control
+SCI_RXTX_ACTHI		EQU	1 		;RXD/TXD are inverted (active high)
+SCI_FC_RTS_CTS		EQU	1 		;RTS/CTS flow control
+SCI_RTS_PORT		EQU	PTM 		;PTM
+SCI_RTS_PIN		EQU	PM0		;PM0
+SCI_CTS_PORT		EQU	PTM 		;PTM
+SCI_CTS_PIN		EQU	PM1		;PM1
 SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
 SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
 SCI_BD_ON		EQU	1 		;use baud rate detection
-SCI_BD_ECT		EQU	1 		;TIM
-SCI_BD_IC		EQU	0		;IC0
+SCI_BD_TIM		EQU	1 		;TIM
+SCI_BD_ICPE		EQU	0		;IC0
+SCI_BD_ICNE		EQU	1		;IC1			
 SCI_BD_OC		EQU	2		;OC2			
 SCI_DLY_OC		EQU	3		;OC3
 SCI_ERRSIG_ON		EQU	1 		;signal errors
@@ -97,7 +104,7 @@ CLOCK_CODE_START_LIN	EQU	ISTACK_CODE_END_LIN
 COP_CODE_START		EQU	CLOCK_CODE_END
 COP_CODE_START_LIN	EQU	CLOCK_CODE_END_LIN
 
-LED_CODE_START		EQU	COP_CODE_END	
+LED_CODE_START		EQU	COP_CODE_END
 LED_CODE_START_LIN	EQU	COP_CODE_END_LIN
 
 TIM_CODE_START		EQU	LED_CODE_END
@@ -180,19 +187,18 @@ VECTAB_TABS_START_LIN	EQU	SCI_TABS_END_LIN
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-			CPU	S12X
-#include ./regdef_Mini-BDM-Pod.s	;S12XEP100 register map
-#include ./gpio_Mini-BDM-Pod.s		;I/O setup
-#include ./mmap_Mini-BDM-Pod.s		;RAM memory map
+#include ./regdef_S12G-Micro-EVB.s	;S12C128 register map
+#include ./gpio_S12G-Micro-EVB.s	;I/O setup
+#include ./mmap_S12G-Micro-EVB.s	;RAM memory map
 #include ../All/sstack.s		;Subroutine stack
 #include ../All/istack.s		;Interrupt stack
 #include ../All/clock.s			;CRG setup
 #include ../All/cop.s			;COP handler
-#include ./led_Mini-BDM-Pod.s		;LED driver
+#include ./led_S12G-Micro-EVB.s		;LED driver
 #include ../All/tim.s			;TIM driver
-#include ./sci_bdtab_Mini-BDM-Pod.s	;Search tree for SCI baud rate detection
+#include ./sci_bdtab_S12G-Micro-EVB.s	;Search tree for SCI baud rate detection
 #include ../All/sci.s			;SCI driver
-#include ./vectab_Mini-BDM-Pod.s	;S12XEP100 vector table
+#include ./vectab_S12G-Micro-EVB.s	;S12G vector table
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -224,7 +230,6 @@ INNER_LOOP		DBNE	Y, INNER_LOOP
 			MMAP_INIT
 			VECTAB_INIT
 			ISTACK_INIT
-			SSTACK_INIT
 			TIM_INIT
 			CLOCK_WAIT_FOR_PLL
 			SCI_INIT	
@@ -245,6 +250,9 @@ TEST_LOOP		SCI_RX_BL
 			LED_BUSY_OFF
 #emac
 
+#ifndef ERROR_ISR	
+ERROR_ISR		BRA	*
+#endif
 	
 TEST_CODE_END		EQU	*	
 TEST_CODE_END_LIN	EQU	@	

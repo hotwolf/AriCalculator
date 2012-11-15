@@ -140,6 +140,9 @@ ISTACK_VARS_END_LIN	EQU	@
 #emac	
 
 ;#Wait until any interrupt has been serviced
+; args:   none 
+; ISTACK: none
+;         X, Y, and D are preserved 
 #macro	ISTACK_WAIT, 0
 #ifndef	ISTACK_NO_CHECK
 			;Verify SP before runnung ISRs
@@ -168,6 +171,9 @@ DONE			EQU	*
 #emac
 	
 ;#Return from interrupt
+; args:   none 
+; ISTACK: -9 (S12)/-10 (S12X)
+;         X, Y, and D are pulled from the interrupt stack
 #macro	ISTACK_RTI, 0
 #ifndef	ISTACK_NO_CHECK
 			;Verify SP at the end of each ISR
@@ -190,14 +196,25 @@ UF			JOB	ISTACK_UF
 #emac	
 
 ;#Clear I-flag is there is still room on the stack
-#macro	ISTACK_CHECK_AND_CLI, 0
+; args:   none
+; ISTACK: none
+;         X, Y and B are preserved
+#macro	ISTACK_CHECK_AND_CLI, 0 
 			CPS	#ISTACK_BOTTOM-ISTACK_FRAME_SIZE
 			BHI	DONE
 			CLI
+#ifdef ISTACK_S12X	
+			;LDAA	#$80
+			LDAA	#$81
+			TFR	A, CCRH
+#endif
 DONE			EQU	*
 #emac	
 
 ;#Call ISR from application code
+; args:   none 
+; ISTACK:  -9 (S12)/-10 (S12X)
+;         X, Y, and D are pudhed onto the interrupt stack
 #macro	ISTACK_CALL_ISR, 1
 			SEI	
 #ifndef	ISTACK_NO_CHECK 

@@ -1003,6 +1003,9 @@ PF             	EQU     $01
 
 SCISR2          EQU     $00CD
 SCI0SR2         EQU     $00CD
+AMAP		EQU	$08
+TXPOL		EQU	$10
+RXPOL		EQU	$08	
 BRK13          	EQU     $04
 TXDIR          	EQU     $02
 RAF            	EQU     $01

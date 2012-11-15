@@ -172,7 +172,9 @@ SCI_RXTX_ACTLO		EQU	1 		;default is active low RXD/TXD
 ;RTS/CTS or XON/XOFF
 #ifndef	SCI_FC_RTS_CTS
 #ifndef	SCI_FC_XON_XOFF
+#ifndef SCI_FC_NONE	
 SCI_FC_RTS_CTS		EQU	1 		;default is SCI_RTS_CTS
+#endif
 #endif
 #endif
 
@@ -182,6 +184,7 @@ SCI_XON_XOFF_REMINDER	EQU	(10*CLOCK_BUS_FREQ)/65536
 #endif
 	
 ;RTS/CTS pins
+#ifdef	SCI_FC_RTS_CTS
 #ifndef	SCI_RTS_PORT
 SCI_RTS_PORT		EQU	PTM 		;default is PTM
 SCI_RTS_PIN		EQU	PM0		;default is PM0
@@ -189,6 +192,7 @@ SCI_RTS_PIN		EQU	PM0		;default is PM0
 #ifndef	SCI_CTS_PORT
 SCI_CTS_PORT		EQU	PTM 		;default is PTM
 SCI_CTS_PIN		EQU	PM1		;default is PM1
+#endif
 #endif
 
 ;Delay counter
@@ -388,8 +392,11 @@ SCI_VARS_END_LIN	EQU	@
 			LDD	#$0000
 			STD	SCI_TXBUF_IN 				;reset in and out pointer of the TX buffer
 			STD	SCI_RXBUF_IN 				;reset in and out pointer of the RX buffer
+#ifdef SCI_XON_XOFF
+			MOVB	#SCI_FLG_SEND_XONXOFF,	SCI_FLGS 	;request transmission of XON/XOFF
+#else
 			LDAA	SCI_FLGS
-
+#endif
 			;Initialize baud rate detection
 #ifdef SCI_BD_ON	
 			STD	SCI_BDLST 				;reset baud rate check list
@@ -442,14 +449,16 @@ DLY_TIOS_VAL		EQU	0
 	
 			;Invert RXD/TXD polarity
 #ifdef	SCI_RXTX_ACTHI
-			MOVB	#(TXPOL|RXPOL), SCISR
+			MOVB	#(TXPOL|RXPOL), SCISR2
 #endif
 	
 			;Set baud rate
-			;Check for POR 
+			;Check for POR
+#ifdef	CLOCK_FLGS
 			LDAB	CLOCK_FLGS
 			BITA	#(PORF|LVRF)
-			BNE	SCI_INIT_2	
+			BNE	SCI_INIT_2
+#endif
 			;Check if stored baud rate is still valid
 			LDD	SCI_BVAL 				;SCI_BMUL*baud rate -> D
 			BEQ	SCI_INIT_2				;use default value if zero
@@ -458,10 +467,10 @@ DLY_TIOS_VAL		EQU	0
 			CPD	#$0000					;check if the remainder is 0
 			BNE	SCI_INIT_2				;stored baud rate is invalid
 			;Check if baud rate is listed 
-			LDY	#SCI_BD_BTAB				;start of baud table -> Y
+			LDY	#SCI_BTAB				;start of baud table -> Y
 SCI_INIT_1		CPX     2,Y+					;compare table entry with X	
 			BEQ	SCI_INIT_3				;match
-			CPY	#SCI_BD_BTAB_END			;check if the end of the table has been reached
+			CPY	#SCI_BTAB_END			;check if the end of the table has been reached
 			BNE	SCI_INIT_1				;loop
 			;No match use default
 SCI_INIT_2		LDX	#SCI_BDEF	 			;default baud rate
@@ -470,8 +479,11 @@ SCI_INIT_2		LDX	#SCI_BDEF	 			;default baud rate
 SCI_INIT_3		STX	SCIBDH					;set baud rate
 
 			;Set frame format and enable transmission
-			MOVW	#((SCI_8N1<<8)|TXIE|RIE|TE|RE), SCICR1 	;8N1
-
+#ifdef	SCI_FC_XON_XOFF	
+			MOVW	#((SCI_8N1<<8)|TXIE|RIE|TE|RE), SCICR1 	;8N1 (transmit XON)
+#else
+			MOVW	#((SCI_8N1<<8)|RIE|TE|RE), SCICR1 	;8N1 (keep TX IRQs disabled)
+#endif	
 			;Initialize CTS 
 			SCI_ASSERT_CTS
 	
@@ -564,10 +576,11 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ;#Set baud rate
 ; args:   D: new SCIBD value
 ; result: none
-; SSTACK: 14 bytes
+; SSTACK: 6 bytes
 ;         X, Y, and D are preserved 
 #macro	SCI_SET_BAUD, 0
-			SSTACK_JOBSR	SCI_SET_BAUD
+			SSTACK_PREPUSH	6
+			JOBSR	SCI_SET_BAUD
 #emac
 
 ;# Macros for internal use
@@ -973,7 +986,7 @@ SCI_ISR_DELAY		SCI_ISR_DELAY_RETRIGGER						;retrigger delay
 			JOB	SCI_ISR_RXTX						;jump to RXTX ISR
 #else
 			;no RTS, no XONXOFF, no Workaround
-SCI_ISR_DELAY		EQU	ERROR_ISR 						;Error
+;SCI_ISR_DELAY		EQU	ERROR_ISR						;Error
 #endif
 #endif
 #endif
@@ -1089,7 +1102,6 @@ SCI_ISR_RX_1		EQU	*
 			BITA	#(NF|FE|PF) 				;check for: noise, frame errors, parity errors
 			BNE	<SCI_ISR_RX_3				;RX error detected -> put data into RX queue
 #else
-#else
 #ifdef	SCI_HANDLE_BREAK						;BREAK handler requires error checking
 			BITA	#(NF|FE|PF) 				;check for: noise, frame errors, parity errors
 			BNE	<SCI_ISR_RX_3				;RX error detected -> put data into RX queue
@@ -1103,7 +1115,7 @@ SCI_ISR_RX_1		EQU	*
 #endif
 #endif
 			;No RX error detected (status flags in A, RX data in B)
-			LED_COMERR_OFF					;clear error signal 
+			SCI_ERRSIG_OFF					;clear error signal 
 			SCI_STOP_BD					;disable baud rate detection
 			;Check for control characters (status flags in A, RX data in B)
 #ifdef	SCI_HANDLE_SUSPEND
@@ -1201,12 +1213,14 @@ SCI_ISR_RX_11		BSET	SCI_FLGS, #SCI_FLG_SWOR 		;set overflow flag
 			JOB	SCI_ISR_RX_4 				;done
 	
 SCI_ISR_RX_12		EQU	*
+#ifdef	SCI_HANDLE_BREAK
 			;Check for BREAK (status flags in A, RX data in B)
 			CMPB	#SCI_BREAK
 			BNE	<SCI_ISR_RX_13				;determine control signal
 			SCI_BREAK_ACTION
 			JOB	SCI_ISR_RX_4 				;done
 SCI_ISR_RX_13		EQU	*
+#endif
 			;Check for escape character (status flags in A, RX data in B)
 #ifdef	SCI_HANDLE_SUSPEND
 			CMPB	#SCI_DLE
@@ -1248,53 +1262,57 @@ SCI_ISR_RX_13		EQU	*
 ;			JOB	SCI_ISR_RX_1 				;continue (transfer SWOR flag)
 ;#
 
-#ifndef	SCI_BD_ON
+#ifdef	SCI_BD_ON
 #ifdef SCI_BD_TIM	
 ;#BD negedge ISR (default IC1)
 SCI_ISR_BD_NE		EQU	*
 			;Capture time stamps and interrupt flags
 			LDY	(TC0+(2*SCI_BD_ICPE))			;capture previous edge (posedge)
 			LDX	(TC0+(2*SCI_BD_ICNE))			;capture current edge (negedge)
-			LDAA	TFLG1 					;capture interrupt flags	
-			;Reset timeout (previous edge in Y, current edge in X, flags in A)
+			LDAB	TFLG1 					;capture interrupt flags	
+			;Reset timeout (previous edge in Y, current edge in X, flags in B)
 			STX	(TC0+(2*SCI_BD_OC))
-			;Clear interrupt flags (previous edge in Y, current edge in X, flags in A)
+			;Clear interrupt flags (previous edge in Y, current edge in X, flags in B)
 			TIM_MULT_CLRIF	(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)
-			;Allow nested interrupts (previous edge in Y, current edge in X, flags in A)
+			;Allow nested interrupts (previous edge in Y, current edge in X, flags in B)
 			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
-			;Check flags (previous edge in Y, current edge in X, flags in A)
-			BITA	#((1<<SCI_BD_ICPE)|(1<<SCI_BD_OC)) 	;check for overrun or missed negedge
-			BNE	<SCI_ISR_BD_NE_2 				;done
+			;Check flags (previous edge in Y, current edge in X, flags in B)
+			BITB	#((1<<SCI_BD_ICPE)|(1<<SCI_BD_OC)) 	;check for overrun or missed negedge
+			BNE	<SCI_ISR_BD_NE_2 			;done
+			;Allow nested interrupts (previous edge in Y, current edge in X)
+			;ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
 			;Calculate pulse length (previous edge in Y, current edge in X)
 			LDD	#$FFFF 					;D=-previous edge
 			EMULS
-			LDX	D,X 					;X=current edge - previous edge
+			LEAX	D,X 					;X=current edge - previous edge
 			;Select search tree tree (pulse length in X)
 			LDY	#SCI_BD_HIGH_PULSE_TREE
 			;Parse tree  (pulse length in X, search tree in Y)
 			JOB	SCI_ISR_BD_NE_1
 SCI_ISR_BD_NE_1		EQU	SCI_ISR_BD_PE_1
-SCI_ISR_BD_NE_2		EQU	SCI_ISR_BD_PE_3
+SCI_ISR_BD_NE_2		EQU	SCI_ISR_BD_PE_3 			;done
 	
 ;#BD posedge ISR (default IC0)
 SCI_ISR_BD_PE		EQU	*
 			;Capture time stamps and interrupt flags
 			LDY	(TC0+(2*SCI_BD_ICNE))			;capture previous edge (negedge)
 			LDX	(TC0+(2*SCI_BD_ICPE))			;capture current edge (posedge)
-			LDAA	TFLG1 					;capture interrupt flags	
-			;Reset timeout (previous edge in Y, current edge in X, flags in A)
+			LDAB	TFLG1 					;capture interrupt flags	
+			;Reset timeout (previous edge in Y, current edge in X, flags in B)
 			STX	(TC0+(2*SCI_BD_OC))
-			;Clear interrupt flags (previous edge in Y, current edge in X, flags in A)
+			;Clear interrupt flags (previous edge in Y, current edge in X, flags in B)
 			TIM_MULT_CLRIF	(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)
-			;Allow nested interrupts (previous edge in Y, current edge in X, flags in A)
+			;Allow nested interrupts (previous edge in Y, current edge in X)
 			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
-			;Check flags (previous edge in Y, current edge in X, flags in A)
-			BITA	#((1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)) 	;check for overrun or missed negedge
-			BNE	SCI_ISR_BD_NE_ 				;done
+			;Check flags (previous edge in Y, current edge in X, flags in B)
+			BITB	#((1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)) 	;check for overrun or missed negedge
+			BNE	SCI_ISR_BD_PE_3 			;done
+			;Allow nested interrupts (previous edge in Y, current edge in X, flags in B)
+			;ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
 			;Calculate pulse length (previous edge in Y, current edge in X)
 			LDD	#$FFFF 					;D=-previous edge
 			EMULS
-			LDX	D,X 					;X=current edge - previous edge
+			LEAX	D,X 					;X=current edge - previous edge
 			;Select search tree tree (pulse length in X)
 			LDY	#SCI_BD_HIGH_PULSE_TREE
 			;Parse tree  (pulse length in X, search tree in Y)
@@ -1315,14 +1333,14 @@ SCI_ISR_BD_PE_3		ISTACK_RTI
 			;No valid baud rate found
 SCI_ISR_BD_PE_4		BRCLR	SCI_BDLST, #$FF, SCI_ISR_BD_PE_3	;done
 			;Restart baud rate detection 
-			MOVB	$#FF, SCI_BDLST
+			MOVB	#$FF, SCI_BDLST
 			JOB	SCI_ISR_BD_PE_3 			;done
 			;New baud rate found (index in A, $00 in B)
-SCI_ISR_BD_PE_5		TIM_MULT_DIS	(SCI_BD_ICPE|SCI	_BD_ICNE|SCI_BD_OC) ;disable baud rate detection
+SCI_ISR_BD_PE_5		TIM_MULT_DIS	(SCI_BD_ICPE|SCI_BD_ICNE|SCI_BD_OC) ;disable baud rate detection
 			CLR	SCI_BDLST
 			;Set baud rate (index in A, $00 in B)
 			LSLA						;index -> addess offset
-			LDX	SCI_BD_BTAB 				;look up prescaler value
+			LDX	SCI_BTAB 				;look up prescaler value
 			LDD	A,X					;look up divider value
 			SCI_SET_BAUD
 			SCI_ERRSIG_OFF
@@ -1330,7 +1348,7 @@ SCI_ISR_BD_PE_5		TIM_MULT_DIS	(SCI_BD_ICPE|SCI	_BD_ICNE|SCI_BD_OC) ;disable baud
 #endif	
 #endif	
 
-#ifndef	SCI_BD_ON
+#ifdef	SCI_BD_ON
 #ifdef SCI_BD_ECT	
 ;#Edge on RX pin captured (default IC0)
 SCI_ISR_BD_NEPE		EQU	*
@@ -1343,50 +1361,56 @@ SCI_ISR_BD_NEPE		EQU	*
 			STX	(TC0+(2*SCI_BD_OC))
 			;Clear interrupt flags (previous edge in Y, current edge in X, interrupt flags in A, polarity flags in B)
 			TIM_MULT_CLRIF	((1<<SCI_BD_IC)|(1<<SCI_BD_OC))
-			;Allow nested interrupts (previous edge in Y, current edge in X, interrupt flags in A, polarity flags in B)
-			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
 			;Check interropt flags (previous edge in Y, current edge in X, interrupt flags in A, polarity flags in B)
 			BITA	#(1<<SCI_BD_OC)			 	;check for overrun or missed negedge
-			BNE	<SCI_ISR_BD_NEPE_3 			;done
-			;Calculate pulse length (previous edge in Y, current edge in X, polarity flags in B)
-			LDD	#$FFFF 					;D=-previous edge
-			EMULS
-			LDX	D,X 					;X=current edge - previous edge
+			BNE	<SCI_ISR_BD_NEPE_4 			;done
+			;Allow nested interrupts (previous edge in Y, current edge in X, polarity flags in B)
+			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
 			;Select search tree tree (pulse length in X, polarity flags in B)
 			LDY	#SCI_BD_LOW_PULSE_TREE
 			BITB	(1<<SCI_BD_IC)
 			BEQ	SCI_ISR_BD_NEPE_1
+			;Calculate high pulse length (previous edge in Y, current edge in X)
+			LDD	#$FFFF 					;D=-previous edge
+			EMULS
+			LEAX	D,X 					;X=current edge - previous edge
 			LDY	#SCI_BD_HIGH_PULSE_TREE
+			JOB	SCI_ISR_BD_NEPE_2			;Parse tree 
+			;Calculate low pulse length (previous edge in Y, current edge in X)
+SCI_ISR_BD_NEPE_1	LDD	#$FFFF 					;D=-previous edge
+			EMULS
+			LEAX	D,X 					;X=current edge - previous edge
+			LDY	#SCI_BD_LOW_PULSE_TREE
 			;Parse tree  (pulse length in X, search tree in Y)
-SCI_ISR_BD_NEPE_1	SCI_BD_PARSE			
+SCI_ISR_BD_NEPE_2	SCI_BD_PARSE			
 			;Update list of potential batd rates (matching baud rates in D)
 			SEI
 			ANDB	SCI_BDLST 				;remove mismatching baud rates from the list
-			BEQ	SCI_ISR_BD_NEPE_4	 		;no valid baud rate found
+			BEQ	SCI_ISR_BD_NEPE_5	 		;no valid baud rate found
 			STAB	SCI_BDLST 
 			;Check if baud rate has been determined (potential baud rates in B (not zero))
 			CLRA
-SCI_ISR_BD_NEPE_2	INCA
+SCI_ISR_BD_NEPE_3	INCA
 			LSRB
-			BCC	SCI_ISR_BD_NEPE_2
-			BEQ	SCI_ISR_BD_NEPE_5 			;new baud rate found (index in A)
+			BCC	SCI_ISR_BD_NEPE_3
+			BEQ	SCI_ISR_BD_NEPE_6 			;new baud rate found (index in A)
 			;Done
-SCI_ISR_BD_NEPE_3	ISTACK_RTI
+SCI_ISR_BD_NEPE_4	ISTACK_RTI
 			;No valid baud rate found
-SCI_ISR_BD_NEPE_4	BRCLR	SCI_BDLST, #$FF, SCI_ISR_BD_PE_3	;done
+SCI_ISR_BD_NEPE_5	BRCLR	SCI_BDLST, #$FF, SCI_ISR_BD_NEPE_4	;done
 			;Restart baud rate detection 
-			MOVB	$#FF, SCI_BDLST
-			JOB	SCI_ISR_BD_NEPE_3 			;done
+			MOVB	#$FF, SCI_BDLST
+			JOB	SCI_ISR_BD_NEPE_4 			;done
 			;New baud rate found (index in A, $00 in B)
-SCI_ISR_BD_NEPE_5	TIM_MULT_DIS	(SCI_BD_ICPE|SCI_BD_ICNE|SCI_BD_OC) ;disable baud rate detection
+SCI_ISR_BD_NEPE_6	TIM_MULT_DIS	(SCI_BD_ICPE|SCI_BD_ICNE|SCI_BD_OC) ;disable baud rate detection
 			CLR	SCI_BDLST
 			;Set baud rate (index in A, $00 in B)
 			LSLA						;index -> addess offset
-			LDX	SCI_BD_BTAB 				;look up prescaler value
+			LDX	SCI_BTAB 				;look up prescaler value
 			LDD	A,X					;look up divider value
 			SCI_SET_BAUD
 			SCI_ERRSIG_OFF
-			JOB	SCI_ISR_NEBD_PE_3 			;done
+			JOB	SCI_ISR_BD_NEPE_4 			;done
 #endif	
 #endif	
 
@@ -1402,11 +1426,10 @@ SCI_CODE_END_LIN	EQU	@
 			ORG 	SCI_TABS_START
 #endif	
 
-#ifdef	SCI_BD_ON
 			ALIGN	1
 
 			;List of prescaler values
-SCI_BD_BTAB		EQU	*
+SCI_BTAB		EQU	*
 			DW	SCI_4800 	
 			DW	SCI_7200 	
 			DW	SCI_9600 	
@@ -1415,8 +1438,9 @@ SCI_BD_BTAB		EQU	*
 			DW	SCI_28800	
 			DW	SCI_38400	
 			DW	SCI_57600	
-SCI_BD_BTAB_END		EQU	*
+SCI_BTAB_END		EQU	*
 
+#ifdef	SCI_BD_ON
 			;Search tree for low pulses
 SCI_BD_LOW_PULSE_TREE	SCI_BD_LOW_PULSE_TREE
 

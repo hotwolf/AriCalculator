@@ -118,7 +118,10 @@ VECTAB_VARS_END_LIN	EQU	@
 			MOVB	#(VECTAB_START>>8), IVBR
 #endif
 			;Disable XGATE interrupts
-			CLR	XGPRIO	
+			CLR	XGPRIO
+			;Give TC0 high priority
+			MOVB	#(VEC_ECT_TC0&$F0), CFADDR
+			MOVB	#$07, (CFDATA0+((VEC_ECT_TC0&$000E)>>1))
 #emac	
 
 ;###############################################################################

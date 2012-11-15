@@ -23,10 +23,8 @@
 ;#    signal.                                                                  #
 ;#                                                                             #
 ;# Usage:                                                                      #
-;#    1. Place the RAM onto the vector space                                   #
-;#       $FF -> INITRM                                                         #
-;#    2. Upload S-Record                                                       #
-;#    3. Execute code at address "START_OF_CODE"                               #
+;#    1. Upload S-Record                                                       #
+;#    2. Execute code at address "START_OF_CODE"                               #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    August 7, 2012                                                           #
@@ -48,9 +46,9 @@ CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
 MMAP_RAM		EQU	1 		;use RAM memory map
 
 ;# Interrupt stack
-ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
+ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-ISTACK_S12X		EQU	1		;work with 10-byte stack frames
+ISTACK_S12X		EQU	1	 	;S12X interrupt handling
 
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
