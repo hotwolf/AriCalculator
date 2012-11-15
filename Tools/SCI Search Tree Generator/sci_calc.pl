@@ -54,6 +54,8 @@
 #      - Added command line parameters                                        #
 #      - Reworked boundary calulation                                         #
 #      - Reworked search tree balancing                                       #
+#    15 November, 2012                                                        #
+#      - Fixed prescaler option                                               #
 ###############################################################################
 
 #################
@@ -71,6 +73,7 @@ use lib $RealBin;
 $need_help         = 0;
 $arg_type          = "C";
 $clock_freq        = 25000000;
+$div_clock_freq    = 25000000;
 $prescaler         = 1;
 $frame_format      = "8N1";
 $low_bit_counts    = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -150,7 +153,7 @@ if ($need_help) {
 ################
 # divide clock #
 ################
-$clock_freq = $clock_freq / $prescaler;
+$div_clock_freq = $clock_freq / $prescaler;
 
 ########################################
 # determine maximum number of low bits #
@@ -194,9 +197,11 @@ for ($frame_format) {
 foreach my $table (@tables) {
     $baud_masks = $table->{'baud_masks'};
     $baud_divs  = $table->{'baud_divs'};
+    $bit_cycs   = $table->{'bit_cycs'};
 
     foreach $baud_mask (keys %$baud_masks) {
 	$table->{'baud_divs'}->{$baud_mask} = ($clock_freq/(16*$baud_mask))+(((2*$clock_freq)/(16*$baud_mask))&1);
+	$table->{'bit_cycs'}->{$baud_mask}  = ($div_clock_freq/(16*$baud_mask))+(((2*$div_clock_freq)/(16*$baud_mask))&1);
     }
 }
 
@@ -206,23 +211,26 @@ foreach my $table (@tables) {
 foreach my $table (@tables) {
     my $baud_masks = $table->{'baud_masks'};
     my $baud_divs  = $table->{'baud_divs'};
+    my $bit_cycs   = $table->{'bit_cycs'};
     my $lower_boundary;
     my $upper_boundary;
 
     foreach my $baud (keys %$baud_divs) {
 	$baud_div  = $baud_divs->{$baud};
+	$bit_cyc   = $bit_cycs->{$baud};
 	$baud_mask = $baud_masks->{$baud};
 	
 	#print "baud      = $baud\n";
 	#print "baud_div  = $baud_div\n";
+	#print "bit_cyc   = $bit_cyc\n";
 	#print "baud_mask = $baud_mask\n";
 	
 	#low pulse boundaries:  
-	#  for each valid bit length n:              n*16-6  <=  RT cycles < (            n*16+7 ) + 1
-	#                                baud_div * (n*16-6) <= TIM cycles < (baud_div * (n*16+7)) + 1 
+	#  for each valid bit length n:              n*16-6  <=  RT cycles < (           n*16+7 ) + 1
+	#                                 bit_cyc * (n*16-6) <= TIM cycles < (bit_cyc * (n*16+7)) + 1 
 	foreach $n (@$low_bit_counts) {
-	    $lower_boundary      = int( $baud_div*((16*$n)-6));
-	    $upper_boundary      = int(($baud_div*((16*$n)+7))+1);
+	    $lower_boundary      = int( $bit_cyc*((16*$n)-6));
+	    $upper_boundary      = int(($bit_cyc*((16*$n)+7))+1);
 	    
 	    $table->{'low_pulse_boundaries'}->{$lower_boundary}->{lower}->{$baud_mask} = $n;
 	    $table->{'low_pulse_boundaries'}->{$upper_boundary}->{upper}->{$baud_mask} = $n;
@@ -230,8 +238,8 @@ foreach my $table (@tables) {
 	
 	#shortest high pulse length:  
 	#  allow 5% tolerance:                      16 * 0.95 <=  RT cycles
-	#                                baud_div * 16 * 0.95 <= TIM cycles
-	$lower_boundary = int(($baud_div*16)*0.95);
+	#                                 bit_cyc * 16 * 0.95 <= TIM cycles
+	$lower_boundary = int(($bit_cyc*16)*0.95);
 	
 	$table->{'high_pulse_boundaries'}->{$lower_boundary}->{lower}->{$baud_mask} = $n;
     }   
@@ -509,7 +517,7 @@ foreach $table (@tables) {
         printf FILEHANDLE ";###############################################################################\n";
         printf FILEHANDLE ";# Generated on %3s, %3s %.2d %4d                                               #\n", $days[$wday], $months[$mon], $mday, $year;
         printf FILEHANDLE ";###############################################################################\n";
-        printf FILEHANDLE ";# Bus clock:              %4.2f MHz %30s            #\n", ($clock_freq/1000000), ($$prescaler > 1) ? sprintf("divided by %2d", $$prescaler) : "";
+        printf FILEHANDLE ";# Bus clock:              %4.2f MHz %-30s            #\n", ($clock_freq/1000000), ($prescaler > 1) ? sprintf("divided by %2d", $prescaler) : "";
         printf FILEHANDLE ";# Frame format:           %3s                                                 #\n", $frame_format;
         printf FILEHANDLE ";# Supported baud rates:                                                       #\n";
 	foreach my $baud (sort {$a <=> $b} keys %$baud_divs) {
