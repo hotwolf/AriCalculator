@@ -1032,13 +1032,8 @@ SCI_ISR_TX_1		LDD	SCI_TXBUF_IN
 			;Stop transmitting
 SCI_ISR_TX_2		MOVB	#(RIE|TE|RE), SCICR2 			;disable TX interrupts	
 			;Done
-#ifdef	SCI_IRQ_WORKAROUND_ON
 SCI_ISR_TX_3		ISTACK_RTI
-#else
-			JOB	SCI_ISR_TX_3
-SCI_ISR_TX_3		EQU	SCI_ISR_RX_4	
-#endif
-#ifdef SCI_XON_XOFF
+#ifdef SCI_FC_XON_XOFF
 			;Transmit XON
 SCI_ISR_TX_4		MOVB	#SCI_XON, SCIDRL
 			JOB	SCI_ISR_TX_6				;schedule reminder	
@@ -1071,7 +1066,7 @@ SCI_ISR_RXTX		EQU	*
 #else	
 			BITA	#(RDRF|OR) 				;go to receive handler if receive buffer
 #endif
-			BEQ	<SCI_ISR_TX				; is full or if an overrun has occured
+			BEQ	SCI_ISR_TX				; is full or if an overrun has occured
 			
 ;#Receive ISR (status flags in A)
 SCI_ISR_RX		LDAB	SCIDRL					;load receive data into accu B (clears flags)
@@ -1183,11 +1178,11 @@ SCI_ISR_RX_7		EQU	*
 SCI_ISR_RX_8		EQU	*
 			;Check for XON/XOFF (status flags in A, RX data in B)
 #ifdef	SCI_FC_XON_XOFF
-			CMPB	#SCI_OFF
+			CMPB	#SCI_XOFF
 			BNE	<SCI_ISR_RX_9				;determine control signal
 			BCLR	SCI_FLGS, #SCI_FLG_ESC 			;set TX block
 			JOB	SCI_ISR_RX_4 				;done
-SCI_ISR_RX_9		CMPB	#SCI_ON
+SCI_ISR_RX_9		CMPB	#SCI_XON
 			BNE	<SCI_ISR_RX_10				;determine control signal
 			BCLR	SCI_FLGS, #SCI_FLG_ESC 			;clear TX block
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2 		;enable TX interrupt

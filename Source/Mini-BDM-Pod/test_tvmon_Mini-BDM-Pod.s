@@ -29,13 +29,21 @@
 ;#    3. Execute code at address "START_OF_CODE"                               #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    August 13, 2012                                                           #
+;#    August 13, 2012                                                          #
 ;#      - Initial release                                                      #
 ;###############################################################################
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;# Clocks
+CLOCK_CRG		EQU	1		;CPMU
+CLOCK_OSC_FREQ		EQU	10000000	;10 MHz
+CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
+CLOCK_REF_FREQ		EQU	10000000	;10 MHz
+CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
+CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
+
 ;# Memory map:
 MMAP_RAM		EQU	1 		;use RAM memory map
 
@@ -44,14 +52,6 @@ ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 ISTACK_S12X		EQU	1		;work with 10-byte stack frames
 
-;# Clock
-CLOCK_CRG		EQU	1		;CRG
-CLOCK_BUS_FREQ		EQU	50000000	; 50 MHz bus frequency
-CLOCK_VCOFRQ		EQU	$3		;100 MHz VCO frequency
-CLOCK_OSC_FREQ		EQU	10000000	; 10 MHz oscillator frequency
-CLOCK_REF_FREQ		EQU	10000000	; 10 MHz reference clock frequency
-CLOCK_REFFRQ		EQU	$2		; 10 MHz reference clock frequency
-	
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 

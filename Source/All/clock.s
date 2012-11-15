@@ -60,8 +60,8 @@ CLOCK_BUS_FREQ		EQU	25000000	;default is 25 MHz
 #endif
 #ifndef CLOCK_VCOFRQ
 CLOCK_VCOFRQ		EQU	$0		;0=[ 32MHz.. 48MHz],
-						;2=[>48MHz.. 80MHz],
-						;4=[>80MHz..120MHZ]
+						;1=[>48MHz.. 80MHz],
+						;3=[>80MHz..120MHZ]
 #endif
 	
 ;#Reference clock frequency 
@@ -70,9 +70,9 @@ CLOCK_REF_FREQ		EQU	1000000		;default is 1 MHz
 #endif
 #ifndef CLOCK_REFFRQ
 CLOCK_REFFRQ		EQU	$0		;0=[  1MHz.. 2MHz],
-						;2=[> 2MHz.. 6MHz],
-						;3=[> 6MHz..12MHz],
-						;4=[>12MHz..]
+						;1=[> 2MHz.. 6MHz],
+						;2=[> 6MHz..12MHz],
+						;3=[>12MHz..]
 #endif
 
 ;#Reference clock divider
