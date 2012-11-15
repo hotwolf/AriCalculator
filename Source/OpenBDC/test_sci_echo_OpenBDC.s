@@ -35,7 +35,13 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Memory map:
+;# Clocks
+CLOCK_CRG		EQU	1		;old CRG
+CLOCK_OSC_FREQ		EQU	4096000		;4,096 MHz
+CLOCK_BUS_FREQ		EQU	25000000	;25 MHz
+CLOCK_REF_FREQ		EQU	4096000		;4,096 MHz
+
+;# Memory map
 MMAP_RAM		EQU	1 		;use RAM memory map
 MMAP_S12C128		EQU	1		;complie for S12S128
 ;MMAP_S12C32		EQU	1		;complile for S12C32
@@ -44,12 +50,32 @@ MMAP_S12C128		EQU	1		;complie for S12S128
 ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 
+;# Subroutine stack
+SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
+SSTACK_DEBUG		EQU	1 		;debug behavior
+
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 
 ;# Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
-	
+
+;# SCI
+SCI_FC_RTS_CTS		EQU	1 		;RTS/CTS flow control
+SCI_RTS_PORT		EQU	PTM 		;PTM
+SCI_RTS_PIN		EQU	PM0		;PM0
+SCI_CTS_PORT		EQU	PTM 		;PTM
+SCI_CTS_PIN		EQU	PM1		;PM1
+SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
+SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
+SCI_BD_ON		EQU	1 		;use baud rate detection
+SCI_BD_TIM		EQU	1 		;TIM
+SCI_BD_ICPE		EQU	0		;IC0
+SCI_BD_ICNE		EQU	1		;IC1			
+SCI_BD_OC		EQU	2		;OC2			
+SCI_DLY_OC		EQU	3		;OC3
+SCI_ERRSIG_ON		EQU	1 		;signal errors
+
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
@@ -174,7 +200,7 @@ VECTAB_TABS_START_LIN	EQU	SCI_TABS_END_LIN
 #include ./mmap_OpenBDC.s		;RAM memory map
 #include ../All/sstack.s		;Subroutine stack
 #include ../All/istack.s		;Interrupt stack
-#include ./clock_OpenBDC.s		;CRG setup
+#include ../All/clock.s			;CRG setup
 #include ../All/cop.s			;COP handler
 #include ./rti_OpenBDC.s		;RTI setup
 #include ./led_OpenBDC.s		;LED driver
@@ -195,7 +221,7 @@ TEST_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 #macro DELAY, 0
-			LDX	#$0200
+			LDX	#$0010
 OUTER_LOOP		LDY	#$0000
 INNER_LOOP		DBNE	Y, INNER_LOOP
 			DBNE	X, OUTER_LOOP
@@ -220,26 +246,19 @@ INNER_LOOP		DBNE	Y, INNER_LOOP
 
 	
 ;Application code
-TEST_LOOP		DELAY
-			LED_BUSY_ON
+TEST_LOOP		SCI_RX_BL
 			DELAY
-			LED_COMERR_ON
-			DELAY
-			LED_COMERR_OFF
-			DELAY
-			LED_BUSY_OFF
+			SCI_TX_BL
 			JOB	TEST_LOOP
-
-
-
-
 ;Break handler
-
-
+#macro	SCI_BREAK_ACTION, 0
+			LED_BUSY_ON
+#emac
 	
 ;Suspend handler
-
-
+#macro	SCI_SUSPEND_ACTION, 0
+			LED_BUSY_OFF
+#emac
 
 	
 TEST_CODE_END		EQU	*	

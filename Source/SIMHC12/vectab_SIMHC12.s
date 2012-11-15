@@ -241,7 +241,7 @@ VECTAB_TABS_END		EQU	*
 VECTAB_TABS_END_LIN	EQU	@	
 
 ;###############################################################################
-;# S12G128 Vector Table                                                        #
+;# HC12A4 Vector Table                                                         #
 ;###############################################################################
 		ORG	VECTAB_START, VECTAB_START_LIN 	
 VEC_RESERVED80	DW	VECTAB_DUMMY_RES80			;$FF80
@@ -283,7 +283,7 @@ VEC_RESERVEDC6	DW	VECTAB_DUMMY_RESC5			;$FFC6
 VEC_RESERVEDC8	DW	VECTAB_DUMMY_RESC8			;$FFC8
 VEC_RESERVEDCA	DW	VECTAB_DUMMY_RESCA			;$FFCA
 VEC_RESERVEDCC	DW	VECTAB_DUMMY_RESCC			;$FFCC
-VEC_PORTH     	DW	VECTAB_DUMMY_PORTH     			;$FFCC
+VEC_PORTH     	DW	VECTAB_DUMMY_PORTH     			;$FFCE
 VEC_PORTJ	DW	VECTAB_DUMMY_PORTJ			;$FFD0
 VEC_ATD	      	DW	VECTAB_DUMMY_ATD	      		;$FFD2
 VEC_SCI1	DW	VECTAB_DUMMY_SCI1			;$FFD4

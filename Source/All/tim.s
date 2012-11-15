@@ -35,6 +35,8 @@
 ;#      - Initial release                                                      #
 ;#    February 22, 2012                                                        #
 ;#      - Back-ported LFBDMPGMR updates                                        #
+;#    November 14, 2012                                                        #
+;#      - Total redo                                                           #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    REGDEF - Register Definitions                                            #
@@ -73,18 +75,25 @@ TIM_BDMTO		EQU	$80	;SCI bug workaround
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	TIM_VARS_START
-TIM_BUSY		DS	1 	;flags to indicate who is using the timer
+#ifdef TIM_VARS_START_LIN
+			ORG 	TIM_VARS_START, TIM_VARS_START_LIN
+#else
+			ORG 	TIM_VARS_START
+TIM_VARS_START_LIN	EQU	@			
+#endif	
+
 TIM_VARS_END		EQU	*
+TIM_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
 #macro	TIM_INIT, 0		 ;7 6 5 4 3 2 1 0
-			MOVB	#%1_0_0_1_1_1_0_0, TIOS 	;select input capture (0)
-				 ;B B B   S S S S 		;   or output compare (1) feature
-				 ;D D D   C C C C
+			;MOVB	#%1_0_0_1_1_1_0_0, TIOS 	;default setup
+			;MOVB	#%0_0_0_0_0_0_0_0, TIOS 	;keep at zero, for configuration with BSET
+				 ;B B B   S S S S 		;  0=input capture
+				 ;D D D   C C C C 		;  1=output compare
 				 ;M M M   I I I I
 				 ;T N P   T B B B
 				 ;O E E   O D D D
@@ -95,8 +104,9 @@ TIM_VARS_END		EQU	*
 			;OC7M 
 
 			 	 ;7 6 5 4 3 2 1 0
-			;MOVB	#%0_1_0_0_0_0_0_0, TOC7D	;OC7 output compares drive
-				 ;B B B   S S S S 		; posedges on TC6 	
+			;MOVB	#%0_1_0_0_0_0_0_0, TOC7D	;default setup
+			;MOVB	#%0_0_0_0_0_0_0_0, TOC7D	;keep at zero, for configuration with BSET
+				 ;B B B   S S S S
 				 ;D D D   C C C C
 				 ;M M M   I I I I
 				 ;T N P   T B B B
@@ -113,21 +123,21 @@ TIM_VARS_END		EQU	*
 			;TTOV 
 	
 				 ;7 6 5 4 3 2 1 0
-			;MOVW	#%0000000000000000, TCTL1 	;OC6 output compares drive
-				 ;B B B   S S S S		; negedges (=10) on TC6
-				 ;D D D   C C C C
-				 ;M M M   I I I I
-				 ;T N P   T B B B
+			;MOVW	#%0000000000000000, TCTL1 	;keep at zero, for configuration with BSET
+				 ;B B B   S S S S		;  00=no OC
+				 ;D D D   C C C C		;  01=toggle
+				 ;M M M   I I I I		;  10=clear
+				 ;T N P   T B B B		;  11=set
 				 ;O E E   O D D D
 				 ;          T N P
 				 ;          O E E
 
 			 	 ;7 6 5 4 3 2 1 0
-			;MOVW	#%0000010000001000, TCTL3 	;set capture edges
-				 ;B B B   S S S S	
-				 ;D D D   C C C C
-				 ;M M M   I I I I
-				 ;T N P   T B B B
+			;MOVW	#%0000000000000000, TCTL3 	;keep at zero, for configuration with BSET
+				 ;B B B   S S S S		;  00=no capture	
+				 ;D D D   C C C C		;  01=posedge
+				 ;M M M   I I I I		;  10=negedge
+				 ;T N P   T B B B		;  11=any edge
 				 ;O E E   O D D D
 				 ;          T N P
 				 ;          O E E
@@ -142,32 +152,121 @@ TIM_VARS_END		EQU	*
 			;PACN0 ... PACN3
 #emac
 
-;#Enable timer
-; args: 1. channels
-#macro	TIM_ENABLE, 1
-			BSET	TIM_BUSY, #\1
-			MOVB	#(TEN|TSFRZ), TSCR1	
+;#Enable multiple timer channels
+; args: 1: channels  mask
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_MULT_EN, 1
+			MOVB	#\1, TFLG1 		;clear interrupt flags
+			BSET	TIE, #\1		;enable interrupts
+			MOVB	#(TEN|TSFRZ), TSCR1	;enable timer
 #emac
 
-;#Disable timer
-; args: 1. channels
-#macro	TIM_DISABLE, 1
-			BCLR	TIM_BUSY, #\1
+;#Enable one timer channel
+; args: 1: channel number
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_EN, 1
+			TIM_MULT_EN	($1<<\1)
+#emac
+
+;#Disable multiple timer channels
+; args: 1: channel mask
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_MULT_DIS, 1
+			BCLR	TIE, #\1
 			BNE	DONE
 			CLR	TSCR1
 DONE			EQU	*
+#emac
+
+;#Disable one timer channel
+; args: 1: channel number
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_DIS, 1
+			TIM_MULT_DIS	(1<<\1)
+#emac
+
+;#Clear multiple interrupt flags
+; args: 1: channel mask
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_MULT_CLRIF, 1
+			MOVB	#\1, TFLG1
+#emac
+
+;#Clear one interrupt flag
+; args: 1: channel number
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_CLRIF, 1
+			TIM_MULT_CLRIF	(1<<\1)
+#emac
+
+	
+;#Setup timer delay
+; args: 1: channel number
+;       2: delay (in bus cycles)
+; SSTACK: none
+;         X, and Y are preserved 
+#macro	TIM_SET_DLY_IMM, 2
+#ifdef	TIM_DIV2_ON
+			LDD	#(\2>>1)
+#else
+			LDD	#\2		
+#endif
+			ADDD	(TC0+(2*\1)) ;RPO
+			STD	(TC0+(2*\1)) ;PWO
+#emac
+
+;#Setup timer delay
+; args: 1: channel number
+;       D: delay (in bus cycles)
+; SSTACK: none
+;         X, and Y are preserved 
+#macro	TIM_SET_DLY_D, 1
+#ifdef	TIM_DIV2_ON
+			LSRD
+#endif
+			ADDD	(TC0+(2*\1))
+			STD	(TC0+(2*\1))
+#emac
+
+;#Setup timer delay if timer channel is inactive
+; args: 1: channel number
+;       D: delay (in bus cycles)
+; SSTACK: none
+;         X, and Y are preserved 
+#macro	TIM_START_DLY, 1
+			BRSET	TIE, #(1<<\1), DONE ;skip if timer channel is already active
+			TIM_SET_DLY	\1
+			BSET	TIE, #(1<<\1)		;enable interrupts
+			MOVB	#(TEN|TSFRZ), TSCR1	;enable timer
+DONE			EQU		*
 #emac
 	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	TIM_CODE_START
+#ifdef TIM_CODE_START_LIN
+			ORG 	TIM_CODE_START, TIM_CODE_START_LIN
+#else
+			ORG 	TIM_CODE_START
+#endif
+
 TIM_CODE_END		EQU	*
+TIM_CODE_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	TIM_TABS_START
+#ifdef TIM_TABS_START_LIN
+			ORG 	TIM_TABS_START, TIM_TABS_START_LIN
+#else
+			ORG 	TIM_TABS_START
+#endif	
+
 TIM_TABS_END		EQU	*
-
-
+TIM_TABS_END_LIN	EQU	@

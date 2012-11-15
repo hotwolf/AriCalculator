@@ -240,7 +240,7 @@ DONE			EQU	*
 			ORG 	ISTACK_CODE_START
 ISTACK_CODE_START_LIN	EQU	@
 #endif
-
+	
 ;#Handle stack overflows
 #ifndef	ISTACK_NO_CHECK
 #ifndef	ISTACK_DEBUG
@@ -273,8 +273,8 @@ ISTACK_TABS_START_LIN	EQU	@
 ;#Error Messages
 #ifndef	ISTACK_NO_CHECK 
 #ifndef	ISTACK_DEBUG
-ISTACK_MSG_OF		ERROR_MSG	ERROR_LEVEL_FATAL, "System stack overflow"
-ISTACK_MSG_UF		ERROR_MSG	ERROR_LEVEL_FATAL, "System stack underflow"
+ISTACK_MSG_OF		ERROR_MSG	ERROR_LEVEL_FATAL, "Interrupt stack overflow"
+ISTACK_MSG_UF		ERROR_MSG	ERROR_LEVEL_FATAL, "Interrupt stack underflow"
 #endif
 #endif
 	

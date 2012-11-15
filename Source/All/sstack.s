@@ -45,9 +45,11 @@
 ;#      - Added new stacking macros                                            #
 ;#      - Switched from post-checks to pre-checks                              #
 ;#      - Added option to disable stack range checks "SSTACK_NO_CHECK"         #
+;#    November 14, 2012                                                        #
+;#      - Removed PSH/PUL macros                                               #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    SSTACK - Interrupt Stack Handler                                         #
+;#    ISTACK - Interrupt Stack Handler                                         #
 ;#    ERROR  - Error Handler                                                   #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
@@ -72,6 +74,8 @@
 ;     SSTACK_BOTTOM,   |                   |
 ;     ISTACK_BOTTOM,   +-------------------+
 ;   ISTACK_VARS_END ->
+;
+;The SSTACK is checked once before every JOBSR and once before every RTS.
 
 ;###############################################################################
 ;# Configuration                                                               #
@@ -80,12 +84,16 @@
 ;SSTACK_DEBUG		EQU	1 
 	
 ;Disable stack range checks
-;ISTACK_NO_CHECK	EQU	1 
+;SSTACK_NO_CHECK	EQU	1 
+
+;Stack depth 
+#ifndef SSTACK_DEPTH
+SSTACK_DEPTH		EQU	24
+#endif
 	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-SSTACK_DEPTH		EQU	24
 SSTACK_TOP		EQU	ISTACK_TOP+ISTACK_FRAME_SIZE
 SSTACK_BOTTOM		EQU	ISTACK_BOTTOM
 	
@@ -104,272 +112,15 @@ SSTACK_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Initialization
+;#Initialization (initialization done by ISTACK module)
 #macro	SSTACK_INIT, 0
 #emac
 
-;#Allocate local memory
-#macro	SSTACK_ALLOC, 1
-			SSTACK_PREPUSH	\1
-			LEAS	-\1,SP
-#emac
-
-;#Push accu A onto stack
-#macro	SSTACK_PSHA, 0
-			SSTACK_PREPUSH	1
-			PSHA
-#emac
-
-;#Push accu B onto stack
-#macro	SSTACK_PSHB, 0
-			SSTACK_PREPUSH	1
-			PSHB
-#emac
-
-;#Push accu D onto stack
-#macro	SSTACK_PSHD, 0
-			SSTACK_PREPUSH	2
-			PSHD
-#emac
-
-;#Push index X onto stack
-#macro	SSTACK_PSHX, 0
-			SSTACK_PREPUSH	2
-			PSHX
-#emac
-
-;#Push index X and accu B onto stack
-#macro	SSTACK_PSHXB, 0
-			SSTACK_PREPUSH	3
-			PSHX
-			PSHB
-#emac
-
-;#Push index X and accu D onto stack
-#macro	SSTACK_PSHXD, 0
-			SSTACK_PREPUSH	4
-			PSHX
-			PSHD
-#emac
-
-;#Push index Y onto stack
-#macro	SSTACK_PSHY, 0
-			SSTACK_PREPUSH	2
-			PSHY
-#emac
-
-;#Push index Y and accu A onto the stack
-#macro	SSTACK_PSHYA, 0
-			SSTACK_PREPUSH	3
-			PSHY
-			PSHA
-#emac
-
-;#Push index Y and accu B onto the stack
-#macro	SSTACK_PSHYB, 0
-			SSTACK_PREPUSH	3
-			PSHY
-			PSHB
-#emac
-
-;#Push index Y and accu D onto the stack
-#macro	SSTACK_PSHYD, 0
-			SSTACK_PREPUSH	4
-			PSHY
-			PSHD
-#emac
-
-;#Push index X and Y onto the stack
-#macro	SSTACK_PSHYX, 0
-			SSTACK_PREPUSH	4
-			PSHY
-			PSHX
-#emac
-
-;#Push index X, Y and accu A onto the stack
-#macro	SSTACK_PSHYXA, 0
-			SSTACK_PREPUSH	5
-			PSHY
-			PSHX
-			PSHA
-#emac
-
-;#Push index X, Y and accu B onto the stack
-#macro	SSTACK_PSHYXB, 0
-			SSTACK_PREPUSH	5
-			PSHY
-			PSHX
-			PSHB
-#emac
-
-;#Push index X, Y and accu D onto the stack
-#macro	SSTACK_PSHYXD, 0
-			SSTACK_PREPUSH	6
-			PSHY
-			PSHX
-			PSHD
-#emac
-
-;#Deallocate local memory
-#macro	SSTACK_DEALLOC, 1
-			SSTACK_PREPULL	\1
-			LEAS	\1,SP
-#emac
-	
-;#Pull accu A from stack
-#macro	SSTACK_PULA, 0
-			SSTACK_PREPULL	1
-			PULA
-#emac
-
-;#Pull accu A from stack and return
-#macro	SSTACK_PULA_RTS, 0
-			SSTACK_PREPULL	3
-			PULA
-			RTS
-#emac
-
-;#Pull accu A, index X and Y from the stack
-#macro	SSTACK_PULAXY, 0
-			SSTACK_PREPULL	5
-			PULA
-			PULX
-			PULY
-#emac
-
-;#Pull accu A and index Y from the stack
-#macro	SSTACK_PULAY, 0
-			SSTACK_PREPULL	3
-			PULA
-			PULY
-#emac
-
-;#Pull accu B from stack
-#macro	SSTACK_PULB, 0
-			SSTACK_PREPULL	1
-			PULB
-#emac
-
-;#Pull accu B from stack and return without error
-#macro	SSTACK_PULB_RTS_NOERR, 0
-			SSTACK_PREPULL	3
-			SEC
-			PULB
-#emac
-
-;#Pull accu B from stack and return with error
-#macro	SSTACK_PULB_RTS_ERR, 0
-			SSTACK_PREPULL	3
-			CLC
-			PULB
-#emac
-
-;#Pull accu B and index X from stack
-#macro	SSTACK_PULBX, 0
-			SSTACK_PREPULL	3
-			PULB
-			PULX
-#emac
-
-;#Pull accu B, index X and Y from the stack
-#macro	SSTACK_PULBXY, 0
-			SSTACK_PREPULL	5
-			PULB
-			PULX
-			PULY
-#emac
-
-;#Pull accu B, index X and Y from the stack and return
-#macro	SSTACK_PULBXY_RTS, 0
-			SSTACK_PREPULL	7
-			PULB
-			PULX
-			PULY
-			RTS
-#emac
-
-;#Pull index Y and accu B from the stack
-#macro	SSTACK_PULBY, 0
-			SSTACK_PREPULL	3
-			PULB
-			PULY
-#emac
-
-;#Pull accu D from stack
-#macro	SSTACK_PULD, 0
-			SSTACK_PREPULL	2
-			PULD
-#emac
-
-;#Pull accu D and index X from the stack
-#macro	SSTACK_PULDX, 0
-			PULD
-			PULX
-			SSTACK_PREPULL	4
-#emac
-
-;#Pull accu D, index X and Y from the stack
-#macro	SSTACK_PULDXY, 0
-			SSTACK_PREPULL	6
-			PULD
-			PULX
-			PULY
-#emac
-
-;#Pull index Y and accu D from the stack
-#macro	SSTACK_PULDY, 0
-			SSTACK_PREPULL	4
-			PULD
-			PULY
-#emac
-
-;#Pull index X from stack
-#macro	SSTACK_PULX, 0
-			SSTACK_PREPULL	2
-			PULX
-#emac
-
-;#Pull index X and Y from the stack
-#macro	SSTACK_PULXY, 0
-			SSTACK_PREPULL	4
-			PULX
-			PULY
-#emac
-
-;#Pull index Y from stack
-#macro	SSTACK_PULY, 0
-			SSTACK_PREPULL	2
-			PULY
-#emac
-
-;#Call subroutine	
-#macro	SSTACK_JOBSR, 1
-			SSTACK_PREPUSH	2
-			JOBSR	\1
-#emac
-
-;#Return from subroutine	
-#macro	SSTACK_RTS, 0
-			SSTACK_PREPULL	2
-			RTS
-#emac
-
-;#Return from subroutine and flag no error (carry cleared)	
-#macro	SSTACK_RTS_NOERR, 0
-			SSTACK_PREPULL	2
-			SEC
-			RTS
-#emac
-
-;#Return from subroutine and flag an error (carry set)	
-#macro	SSTACK_RTS_ERR, 0
-			SSTACK_PREPULL	2
-			CLC
-			RTS
-#emac
-
-;#Internal macros 
 ;#Check stack before push operation	
+; args:   required stack capacity (bytes)
+; result: none 
+; SSTACK: none
+;         X, Y, and D are preserved 
 #macro	SSTACK_PREPUSH 1 //number of bytes to push
 #ifndef	SSTACK_NO_CHECK 
 			CPS	#SSTACK_TOP-\1
@@ -388,7 +139,11 @@ OF			EQU	SSTACK_OF
 #endif
 #emac
 
-;#Check stack before push operation	
+;#Check stack before pull operation	
+; args:   required stack content (bytes)
+; result: none 
+; SSTACK: none
+;         X, Y, and D are preserved 
 #macro	SSTACK_PREPULL 1 //number of bytes to push
 #ifndef	SSTACK_NO_CHECK 
 			CPS	#SSTACK_TOP
@@ -406,6 +161,38 @@ OF			EQU	SSTACK_OF
 #endif
 #endif
 #emac
+	
+;#Check stack and call subroutine	
+; args:   required stack capacity (bytes)
+; result: 1: subroutine
+;         2: required stack space 
+; SSTACK: arg 2
+;         register content may be changed by the subroutine
+; args:   1: Number of bytes to be allocated (args + local vars)
+#macro	SSTACK_JOBSR, 2
+			SSTACK_PREPUSH	\2
+			JOBSR	\1
+#emac
+	
+;#Allocate
+; args:   1: Number of bytes
+; result: none
+; SSTACK: arg 1
+;         X, Y, and D are preserved 
+#macro	SSTACK_ALLOC, 1
+			SSTACK_PREPUSH	\1
+			LEAS	-\1,SP
+#emac
+
+;#Deallocate
+; args:   1: Number of bytes
+; result: none
+; SSTACK: 0 bytes
+;         X, Y, and D are preserved 
+#macro	SSTACK_DEALLOC, 1
+			SSTACK_PREPULL	\1
+			LEAS	\1,SP
+#emac
 
 ;###############################################################################
 ;# Code                                                                        #
@@ -416,12 +203,22 @@ OF			EQU	SSTACK_OF
 			ORG 	SSTACK_CODE_START
 #endif
 
-;#Stack overflow detected	
-SSTACK_OF		EQU	ISTACK_OF
+;#Handle stack overflows
+#ifndef	ISTACK_NO_CHECK
+#ifndef	ISTACK_DEBUG
+SSTACK_OF		EQU	*
+			ERROR_RESTART	SSTACK_MSG_OF ;throw a fatal error
+#endif
+#endif
 
-;#Stack underflow detected	
-SSTACK_UF		EQU	ISTACK_UF
-	
+;#Handle stack underflows
+#ifndef	ISTACK_NO_CHECK
+#ifndef	ISTACK_DEBUG
+SSTACK_UF		EQU	*
+			ERROR_RESTART	SSTACK_MSG_UF ;throw a fatal error
+#endif
+#endif
+		
 SSTACK_CODE_END		EQU	*
 SSTACK_CODE_END_LIN	EQU	@
 	
@@ -435,12 +232,10 @@ SSTACK_CODE_END_LIN	EQU	@
 #endif	
 
 ;#Error Messages
-#ifdef	ISTACK_NO_CHECK 
-SSTACK_MSG_OF		EQU	ISTACK_MSG_OF
-SSTACK_MSG_UF		EQU	ISTACK_MSG_UF
-#else
-ISTACK_MSG_OF		ERROR_MSG	ERROR_LEVEL_FATAL, "System stack overflow"
-ISTACK_MSG_UF		ERROR_MSG	ERROR_LEVEL_FATAL, "System stack underflow"
+#ifndef	SSTACK_NO_CHECK 
+#ifndef	SSTACK_DEBUG
+SSTACK_MSG_OF		ERROR_MSG	ERROR_LEVEL_FATAL, "Subroutine stack overflow"
+SSTACK_MSG_UF		ERROR_MSG	ERROR_LEVEL_FATAL, "Subroutine stack underflow"
 #endif
 #endif
 
