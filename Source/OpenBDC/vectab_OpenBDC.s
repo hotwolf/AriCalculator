@@ -24,9 +24,7 @@
 ;#    handler.                                                                 #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    BASE   - S12CBase Framework bundle                                       #
 ;#    ERROR  - Error handler                                                   #
-;#    BDM    - BDM driver                                                      #
 ;#    CLOCK  - Clock handler                                                   #
 ;#    SCI    - UART driver                                                     #
 ;#    LED    - LED driver                                                      #
@@ -42,6 +40,8 @@
 ;#      - Added dummy vectors                                                  #
 ;#    July 31, 2012                                                            #
 ;#      - Moved vector table to table section                                  #
+;#    November 16, 2012                                                        #
+;#      - Restructured table                                                   #
 ;###############################################################################
 
 ;###############################################################################
@@ -55,58 +55,6 @@
 ;###############################################################################
 VECTAB_START		EQU	$FF80
 VECTAB_START_LIN	EQU	$FFF80
-
-;###############################################################################
-;# Undefined ISRs                                                              #
-;###############################################################################
-;#BDM
-#ifndef	BDM_ISR_TGTRST
-BDM_ISR_TGTRST		EQU	VECTAB_DUMMY_PORTP
-#endif
-#ifndef	BDM_ISR_TC5
-BDM_ISR_TC5		EQU	VECTAB_DUMMY_TC5
-#endif
-#ifndef	BDM_ISR_TC6
-BDM_ISR_TC6		EQU	VECTAB_DUMMY_TC6
-#endif
-#ifndef	BDM_ISR_TC7
-BDM_ISR_TC7		EQU	VECTAB_DUMMY_TC7
-#endif
-	
-;#CLOCK
-#ifndef	CLOCK_ISR
-CLOCK_ISR		EQU	VECTAB_DUMMY_PLLLOCK
-#endif
-
-;#SCI
-#ifndef	SCI_ISR_RXTX
-SCI_ISR_RXTX		EQU	VECTAB_DUMMY_SCI
-#endif
-#ifndef	SCI_ISR_TC0
-SCI_ISR_TC0		EQU	VECTAB_DUMMY_TC0
-#endif
-#ifndef	SCI_ISR_TC1
-SCI_ISR_TC1		EQU	VECTAB_DUMMY_TC1
-#endif
-#ifndef	SCI_ISR_TC2
-SCI_ISR_TC2		EQU	VECTAB_DUMMY_TC2
-#endif
-
-;#LED
-#ifndef	LED_ISR
-LED_ISR			EQU	VECTAB_DUMMY_RTI
-#endif
-
-;#ERROR
-#ifndef	ERROR_RESET_COP
-ERROR_RESET_COP		EQU	START_OF_CODE
-#endif
-#ifndef	ERROR_RESET_CM
-ERROR_RESET_CM		EQU	ERROR_RESET_COP	
-#endif
-#ifndef	ERROR_RESET_EXT
-ERROR_RESET_EXT		EQU	ERROR_RESET_COP	
-#endif
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -126,6 +74,10 @@ VECTAB_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	VECTAB_INIT, 0
+#ifdef	SCI_ISR_BD_PE
+			;Give SCI_ISR_BD_PE high priority 
+			MOVB	#(VEC_TC0&$FF), HPRIO	
+#endif
 #emac	
 
 ;###############################################################################
@@ -151,200 +103,269 @@ VECTAB_CODE_END_LIN	EQU	@
 VECTAB_VARS_START_LIN	EQU	@			
 #endif	
 
+;#Interrupt service routines
+;#--------------------------
 #ifdef VECTAB_DEBUG
-VECTAB_DUMMY_RES80   	BGND					;$FF80
-VECTAB_DUMMY_RES82   	BGND					;$FF82
-VECTAB_DUMMY_RES84   	BGND					;$FF84
-VECTAB_DUMMY_RES86   	BGND					;$FF86
-VECTAB_DUMMY_RES88   	BGND					;$FF88
-VECTAB_DUMMY_LVI     	BGND      				;$FF8A
-VECTAB_DUMMY_PWM     	BGND      				;$FF8C
-VECTAB_DUMMY_PORTP   	BGND					;$FF8E
-VECTAB_DUMMY_RES90   	BGND					;$FF90
-VECTAB_DUMMY_RES92   	BGND					;$FF92
-VECTAB_DUMMY_RES94   	BGND					;$FF94
-VECTAB_DUMMY_RES96   	BGND					;$FF96
-VECTAB_DUMMY_RES98   	BGND					;$FF98
-VECTAB_DUMMY_RES9A   	BGND					;$FF9A
-VECTAB_DUMMY_RES9C   	BGND					;$FF9C
-VECTAB_DUMMY_RES9E   	BGND					;$FF9E
-VECTAB_DUMMY_RESA0   	BGND					;$FFA0
-VECTAB_DUMMY_RESA2   	BGND					;$FFA2
-VECTAB_DUMMY_RESA4   	BGND					;$FFA4
-VECTAB_DUMMY_RESA6   	BGND					;$FFA6
-VECTAB_DUMMY_RESA8   	BGND					;$FFA8
-VECTAB_DUMMY_RESAA   	BGND					;$FFAA
-VECTAB_DUMMY_RESAC   	BGND					;$FFAC
-VECTAB_DUMMY_RESAE   	BGND					;$FFAE
-VECTAB_DUMMY_CANTX   	BGND					;$FFA0
-VECTAB_DUMMY_CANRX   	BGND					;$FFB2
-VECTAB_DUMMY_CANERR  	BGND					;$FFB4
-VECTAB_DUMMY_CANWUP  	BGND					;$FFB6
-VECTAB_DUMMY_FLASH   	BGND					;$FFB8
-VECTAB_DUMMY_RESBA   	BGND					;$FFBA
-VECTAB_DUMMY_RESBC   	BGND					;$FFBC
-VECTAB_DUMMY_RESBE   	BGND					;$FFBE
-VECTAB_DUMMY_RESC0   	BGND					;$FFC0
-VECTAB_DUMMY_RESC2   	BGND					;$FFC2
-VECTAB_DUMMY_SCM     	BGND      				;$FFC4
-VECTAB_DUMMY_PLLLOCK 	BGND					;$FFC6
-VECTAB_DUMMY_RESC8  	BGND					;$FFC8
-VECTAB_DUMMY_RESCA  	BGND					;$FFCA
-VECTAB_DUMMY_RESCC  	BGND					;$FFCC
-VECTAB_DUMMY_PORTJ  	BGND					;$FFCC
-VECTAB_DUMMY_RESD0  	BGND					;$FFD0
-VECTAB_DUMMY_ATD    	BGND					;$FFD2
-VECTAB_DUMMY_RESD4  	BGND					;$FFD4
-VECTAB_DUMMY_SCI    	BGND					;$FFD6
-VECTAB_DUMMY_SPI    	BGND					;$FFD8
-VECTAB_DUMMY_PAIE   	BGND					;$FFDA
-VECTAB_DUMMY_PAOV   	BGND					;$FFDC
-VECTAB_DUMMY_TOV    	BGND					;$FFDE
-VECTAB_DUMMY_TC7    	BGND					;$FFE0
-VECTAB_DUMMY_TC6    	BGND					;$FFE2
-VECTAB_DUMMY_TC5    	BGND					;$FFE4
-VECTAB_DUMMY_TC4    	BGND					;$FFE6
-VECTAB_DUMMY_TC3    	BGND					;$FFE8
-VECTAB_DUMMY_TC2    	BGND					;$FFEA
-VECTAB_DUMMY_TC1    	BGND					;$FFEC
-VECTAB_DUMMY_TC0    	BGND					;$FFEE
-VECTAB_DUMMY_RTI    	BGND					;$FFF0
-VECTAB_DUMMY_IRQ    	BGND					;$FFF2
-VECTAB_DUMMY_XIRQ   	BGND					;$FFF4
-VECTAB_DUMMY_SWI    	BGND					;$FFF6
-VECTAB_DUMMY_TRAP   	BGND					;$FFF8
-#else								
-VECTAB_DUMMY_RES80   	EQU	ERROR_ISR			;$FF80
-VECTAB_DUMMY_RES82   	EQU	ERROR_ISR			;$FF82
-VECTAB_DUMMY_RES84   	EQU	ERROR_ISR			;$FF84
-VECTAB_DUMMY_RES86   	EQU	ERROR_ISR			;$FF86
-VECTAB_DUMMY_RES88   	EQU	ERROR_ISR			;$FF88
-VECTAB_DUMMY_LVI     	EQU	ERROR_ISR      			;$FF8A
-VECTAB_DUMMY_PWM     	EQU	ERROR_ISR      			;$FF8C
-VECTAB_DUMMY_PORTP   	EQU	ERROR_ISR			;$FF8E
-VECTAB_DUMMY_RES90   	EQU	ERROR_ISR			;$FF90
-VECTAB_DUMMY_RES92   	EQU	ERROR_ISR			;$FF92
-VECTAB_DUMMY_RES94   	EQU	ERROR_ISR			;$FF94
-VECTAB_DUMMY_RES96   	EQU	ERROR_ISR			;$FF96
-VECTAB_DUMMY_RES98   	EQU	ERROR_ISR			;$FF98
-VECTAB_DUMMY_RES9A   	EQU	ERROR_ISR			;$FF9A
-VECTAB_DUMMY_RES9C   	EQU	ERROR_ISR			;$FF9C
-VECTAB_DUMMY_RES9E   	EQU	ERROR_ISR			;$FF9E
-VECTAB_DUMMY_RESA0   	EQU	ERROR_ISR			;$FFA0
-VECTAB_DUMMY_RESA2   	EQU	ERROR_ISR			;$FFA2
-VECTAB_DUMMY_RESA4   	EQU	ERROR_ISR			;$FFA4
-VECTAB_DUMMY_RESA6   	EQU	ERROR_ISR			;$FFA6
-VECTAB_DUMMY_RESA8   	EQU	ERROR_ISR			;$FFA8
-VECTAB_DUMMY_RESAA   	EQU	ERROR_ISR			;$FFAA
-VECTAB_DUMMY_RESAC   	EQU	ERROR_ISR			;$FFAC
-VECTAB_DUMMY_RESAE   	EQU	ERROR_ISR			;$FFAE
-VECTAB_DUMMY_CANTX   	EQU	ERROR_ISR			;$FFA0
-VECTAB_DUMMY_CANRX   	EQU	ERROR_ISR			;$FFB2
-VECTAB_DUMMY_CANERR  	EQU	ERROR_ISR			;$FFB4
-VECTAB_DUMMY_CANWUP  	EQU	ERROR_ISR			;$FFB6
-VECTAB_DUMMY_FLASH   	EQU	ERROR_ISR			;$FFB8
-VECTAB_DUMMY_RESBA   	EQU	ERROR_ISR			;$FFBA
-VECTAB_DUMMY_RESBC   	EQU	ERROR_ISR			;$FFBC
-VECTAB_DUMMY_RESBE   	EQU	ERROR_ISR			;$FFBE
-VECTAB_DUMMY_RESC0   	EQU	ERROR_ISR			;$FFC0
-VECTAB_DUMMY_RESC2   	EQU	ERROR_ISR			;$FFC2
-VECTAB_DUMMY_SCM     	EQU	ERROR_ISR      			;$FFC4
-VECTAB_DUMMY_PLLLOCK 	EQU	ERROR_ISR			;$FFC6
-VECTAB_DUMMY_RESC8  	EQU	ERROR_ISR			;$FFC8
-VECTAB_DUMMY_RESCA  	EQU	ERROR_ISR			;$FFCA
-VECTAB_DUMMY_RESCC  	EQU	ERROR_ISR			;$FFCC
-VECTAB_DUMMY_PORTJ  	EQU	ERROR_ISR			;$FFCC
-VECTAB_DUMMY_RESD0  	EQU	ERROR_ISR			;$FFD0
-VECTAB_DUMMY_ATD    	EQU	ERROR_ISR			;$FFD2
-VECTAB_DUMMY_RESD4  	EQU	ERROR_ISR			;$FFD4
-VECTAB_DUMMY_SCI    	EQU	ERROR_ISR			;$FFD6
-VECTAB_DUMMY_SPI    	EQU	ERROR_ISR			;$FFD8
-VECTAB_DUMMY_PAIE   	EQU	ERROR_ISR			;$FFDA
-VECTAB_DUMMY_PAOV   	EQU	ERROR_ISR			;$FFDC
-VECTAB_DUMMY_TOV    	EQU	ERROR_ISR			;$FFDE
-VECTAB_DUMMY_TC7    	EQU	ERROR_ISR			;$FFE0
-VECTAB_DUMMY_TC6    	EQU	ERROR_ISR			;$FFE2
-VECTAB_DUMMY_TC5    	EQU	ERROR_ISR			;$FFE4
-VECTAB_DUMMY_TC4    	EQU	ERROR_ISR			;$FFE6
-VECTAB_DUMMY_TC3    	EQU	ERROR_ISR			;$FFE8
-VECTAB_DUMMY_TC2    	EQU	ERROR_ISR			;$FFEA
-VECTAB_DUMMY_TC1    	EQU	ERROR_ISR			;$FFEC
-VECTAB_DUMMY_TC0    	EQU	ERROR_ISR			;$FFEE
-VECTAB_DUMMY_RTI    	EQU	ERROR_ISR			;$FFF0
-VECTAB_DUMMY_IRQ    	EQU	ERROR_ISR			;$FFF2
-VECTAB_DUMMY_XIRQ   	EQU	ERROR_ISR			;$FFF4
-VECTAB_DUMMY_SWI    	EQU	ERROR_ISR			;$FFF6
-VECTAB_DUMMY_TRAP   	EQU	ERROR_ISR			;$FFF8
+ISR_RES80   		BGND				;vector base + $80
+ISR_RES82   		BGND				;vector base + $82
+ISR_RES84   		BGND				;vector base + $84
+ISR_RES86   		BGND				;vector base + $86
+ISR_RES88   		BGND				;vector base + $88
+ISR_LVI     		BGND      			;vector base + $8A
+ISR_PWM     		BGND      			;vector base + $8C
+ISR_PORTP   		BGND				;vector base + $8E
+ISR_RES90   		BGND				;vector base + $90
+ISR_RES92   		BGND				;vector base + $92
+ISR_RES94   		BGND				;vector base + $94
+ISR_RES96   		BGND				;vector base + $96
+ISR_RES98   		BGND				;vector base + $98
+ISR_RES9A   		BGND				;vector base + $9A
+ISR_RES9C   		BGND				;vector base + $9C
+ISR_RES9E   		BGND				;vector base + $9E
+ISR_RESA0   		BGND				;vector base + $A0
+ISR_RESA2   		BGND				;vector base + $A2
+ISR_RESA4   		BGND				;vector base + $A4
+ISR_RESA6   		BGND				;vector base + $A6
+ISR_RESA8   		BGND				;vector base + $A8
+ISR_RESAA   		BGND				;vector base + $AA
+ISR_RESAC   		BGND				;vector base + $AC
+ISR_RESAE   		BGND				;vector base + $AE
+ISR_CANTX   		BGND				;vector base + $A0
+ISR_CANRX   		BGND				;vector base + $B2
+ISR_CANERR  		BGND				;vector base + $B4
+ISR_CANWUP  		BGND				;vector base + $B6
+ISR_FLASH   		BGND				;vector base + $B8
+ISR_RESBA   		BGND				;vector base + $BA
+ISR_RESBC   		BGND				;vector base + $BC
+ISR_RESBE   		BGND				;vector base + $BE
+ISR_RESC0   		BGND				;vector base + $C0
+ISR_RESC2   		BGND				;vector base + $C2
+ISR_SCM     		BGND      			;vector base + $C4
+#ifdef	CLOCK_ISR					;vector base + $C6
+ISR_PLLLOCK		EQU	CLOCK_ISR
+#else
+ISR_PLLLOCK		BGND
+#endif
+ISR_RESC8  		BGND				;vector base + $C8
+ISR_RESCA  		BGND				;vector base + $CA
+ISR_RESCC  		BGND				;vector base + $CC
+ISR_PORTJ  		BGND				;vector base + $CC
+ISR_RESD0  		BGND				;vector base + $D0
+ISR_ATD    		BGND				;vector base + $D2
+ISR_RESD4  		BGND				;vector base + $D4
+#ifdef	SCI_ISR_RXTX					;vector base + $D6
+ISR_SCI			EQU	SCI_ISR_RXTX
+#else
+ISR_SCI			BGND
+#endif
+ISR_SCI    		BGND				;vector base + $D6
+ISR_SPI    		BGND				;vector base + $D8
+ISR_TIM_PAIE   		BGND				;vector base + $DA
+ISR_TIM_PAOV   		BGND				;vector base + $DC
+ISR_TIM_TOV    		BGND				;vector base + $DE
+ISR_TIM_TC7    		BGND				;vector base + $E0
+ISR_TIM_TC6    		BGND				;vector base + $E2
+ISR_TIM_TC5    		BGND				;vector base + $E4
+ISR_TIM_TC4    		BGND				;vector base + $E6
+#ifdef	SCI_ISR_DELAY					;vector base + $E8
+ISR_TIM_TC3		EQU	SCI_ISR_DELAY
+#else
+ISR_TIM_TC3		BGND
+#endif
+ISR_TIM_TC2    		BGND				;vector base + $EA
+#ifdef	SCI_ISR_BD_NE					;vector base + $EC
+ISR_TIM_TC1		EQU	SCI_ISR_BD_NE
+#else
+ISR_TIM_TC1		BGND
+#endif
+#ifdef	SCI_ISR_BD_PE					;vector base + $EE
+ISR_TIM_TC0		EQU	SCI_ISR_BD_PE
+#else
+ISR_TIM_TC0		BGND
+#endif
+#ifdef	LED_ISR						;vector base + $F0
+ISR_RTI			EQU	LED_ISR
+#else
+ISR_RTI			BGND
+#endif
+ISR_IRQ    		BGND				;vector base + $F2
+ISR_XIRQ   		BGND				;vector base + $F4
+ISR_SWI    		BGND				;vector base + $F6
+ISR_TIM_TRAP   		BGND				;vector base + $F8
+#else
+ISR_RES80   		EQU	ERROR_ISR		;vector base + $80
+ISR_RES82   		EQU	ERROR_ISR		;vector base + $82
+ISR_RES84   		EQU	ERROR_ISR		;vector base + $84
+ISR_RES86   		EQU	ERROR_ISR		;vector base + $86
+ISR_RES88   		EQU	ERROR_ISR		;vector base + $88
+ISR_LVI     		EQU	ERROR_ISR      		;vector base + $8A
+ISR_PWM     		EQU	ERROR_ISR      		;vector base + $8C
+ISR_PORTP   		EQU	ERROR_ISR		;vector base + $8E
+ISR_RES90   		EQU	ERROR_ISR		;vector base + $90
+ISR_RES92   		EQU	ERROR_ISR		;vector base + $92
+ISR_RES94   		EQU	ERROR_ISR		;vector base + $94
+ISR_RES96   		EQU	ERROR_ISR		;vector base + $96
+ISR_RES98   		EQU	ERROR_ISR		;vector base + $98
+ISR_RES9A   		EQU	ERROR_ISR		;vector base + $9A
+ISR_RES9C   		EQU	ERROR_ISR		;vector base + $9C
+ISR_RES9E   		EQU	ERROR_ISR		;vector base + $9E
+ISR_RESA0   		EQU	ERROR_ISR		;vector base + $A0
+ISR_RESA2   		EQU	ERROR_ISR		;vector base + $A2
+ISR_RESA4   		EQU	ERROR_ISR		;vector base + $A4
+ISR_RESA6   		EQU	ERROR_ISR		;vector base + $A6
+ISR_RESA8   		EQU	ERROR_ISR		;vector base + $A8
+ISR_RESAA   		EQU	ERROR_ISR		;vector base + $AA
+ISR_RESAC   		EQU	ERROR_ISR		;vector base + $AC
+ISR_RESAE   		EQU	ERROR_ISR		;vector base + $AE
+ISR_CANTX   		EQU	ERROR_ISR		;vector base + $A0
+ISR_CANRX   		EQU	ERROR_ISR		;vector base + $B2
+ISR_CANERR  		EQU	ERROR_ISR		;vector base + $B4
+ISR_CANWUP  		EQU	ERROR_ISR		;vector base + $B6
+ISR_FLASH   		EQU	ERROR_ISR		;vector base + $B8
+ISR_RESBA   		EQU	ERROR_ISR		;vector base + $BA
+ISR_RESBC   		EQU	ERROR_ISR		;vector base + $BC
+ISR_RESBE   		EQU	ERROR_ISR		;vector base + $BE
+ISR_RESC0   		EQU	ERROR_ISR		;vector base + $C0
+ISR_RESC2   		EQU	ERROR_ISR		;vector base + $C2
+ISR_SCM     		EQU	ERROR_ISR      		;vector base + $C4
+#ifdef	CLOCK_ISR					;vector base + $C6
+ISR_PLLLOCK		EQU	CLOCK_ISR
+#else
+ISR_PLLLOCK		BGND
+#endif
+ISR_RESC8  		EQU	ERROR_ISR		;vector base + $C8
+ISR_RESCA  		EQU	ERROR_ISR		;vector base + $CA
+ISR_RESCC  		EQU	ERROR_ISR		;vector base + $CC
+ISR_PORTJ  		EQU	ERROR_ISR		;vector base + $CC
+ISR_RESD0  		EQU	ERROR_ISR		;vector base + $D0
+ISR_ATD    		EQU	ERROR_ISR		;vector base + $D2
+ISR_RESD4  		EQU	ERROR_ISR		;vector base + $D4
+#ifdef	SCI_ISR_RXTX					;vector base + $D6
+ISR_SCI			EQU	SCI_ISR_RXTX
+#else
+ISR_SCI			EQU	ERROR_ISR
+#endif
+ISR_SPI    		EQU	ERROR_ISR		;vector base + $D8
+ISR_TIM_PAIE   		EQU	ERROR_ISR		;vector base + $DA
+ISR_TIM_PAOV   		EQU	ERROR_ISR		;vector base + $DC
+ISR_TIM_TOV    		EQU	ERROR_ISR		;vector base + $DE
+ISR_TIM_TC7    		EQU	ERROR_ISR		;vector base + $E0
+ISR_TIM_TC6    		EQU	ERROR_ISR		;vector base + $E2
+ISR_TIM_TC5    		EQU	ERROR_ISR		;vector base + $E4
+ISR_TIM_TC4    		EQU	ERROR_ISR		;vector base + $E6
+#ifdef	SCI_ISR_DELAY					;vector base + $E8
+ISR_TIM_TC3		EQU	SCI_ISR_DELAY
+#else
+ISR_TIM_TC3		EQU	ERROR_ISR
+#endif
+ISR_TIM_TC2    		EQU	ERROR_ISR		;vector base + $EA
+#ifdef	SCI_ISR_BD_NE					;vector base + $EC
+ISR_TIM_TC1		EQU	SCI_ISR_BD_NE
+#else
+ISR_TIM_TC1		EQU	ERROR_ISR
+#endif
+#ifdef	SCI_ISR_BD_PE					;vector base + $EE
+ISR_TIM_TC0		EQU	SCI_ISR_BD_PE
+#else
+ISR_TIM_TC0		EQU	ERROR_ISR
+#endif
+#ifdef	LED_ISR						;vector base + $F0
+ISR_RTI			EQU	LED_ISR
+#else
+ISR_RTI			EQU	ERROR_ISR
+#endif
+ISR_IRQ    		EQU	ERROR_ISR		;vector base + $F2
+ISR_XIRQ   		EQU	ERROR_ISR		;vector base + $F4
+ISR_SWI    		EQU	ERROR_ISR		;vector base + $F6
+ISR_TRAP   		EQU	ERROR_ISR		;vector base + $F8
 #endif					
 					
+;#Code entry points
+;#-----------------
+#ifdef	ERROR_RESET_COP					;vector base + $FA
+RES_COP			EQU	ERROR_RESET_COP
+#else
+RES_COP			EQU	RES_EXT
+#endif
+#ifdef	ERROR_RESET_CM					;vector base + $FC
+RES_CM			EQU	ERROR_RESET_CM
+#else
+RES_CM			EQU	RES_EXT
+#endif
+#ifdef	ERROR_RESET_EXT					;vector base + $FE
+RES_EXT			EQU	ERROR_RESET_COP
+#else
+RES_EXT			EQU	START_OF_CODE
+#endif
+	
 VECTAB_TABS_END		EQU	*	
 VECTAB_TABS_END_LIN	EQU	@	
 
 ;###############################################################################
 ;# S12G128 Vector Table                                                        #
 ;###############################################################################
-		ORG	VECTAB_START, VECTAB_START_LIN		 	
-VEC_RESERVED80	DW	VECTAB_DUMMY_RES80			;$FF80
-VEC_RESERVED82	DW	VECTAB_DUMMY_RES82			;$FF82
-VEC_RESERVED84	DW	VECTAB_DUMMY_RES84			;$FF84
-VEC_RESERVED86	DW	VECTAB_DUMMY_RES86			;$FF86
-VEC_RESERVED88	DW	VECTAB_DUMMY_RES88			;$FF88
-VEC_LVI	      	DW	VECTAB_DUMMY_LVI	      		;$FF8A
-VEC_PWM	      	DW	VECTAB_DUMMY_PWM	      		;$FF8C
-VEC_PORTP	DW	BDM_ISR_TGTRST				;$FF8E
-VEC_RESERVED90	DW	VECTAB_DUMMY_RES90			;$FF90
-VEC_RESERVED92	DW	VECTAB_DUMMY_RES92			;$FF92
-VEC_RESERVED94	DW	VECTAB_DUMMY_RES94			;$FF94
-VEC_RESERVED96	DW	VECTAB_DUMMY_RES96			;$FF96
-VEC_RESERVED98	DW	VECTAB_DUMMY_RES98			;$FF98
-VEC_RESERVED9A	DW	VECTAB_DUMMY_RES9A			;$FF9A
-VEC_RESERVED9C	DW	VECTAB_DUMMY_RES9C			;$FF9C
-VEC_RESERVED9E	DW	VECTAB_DUMMY_RES9E			;$FF9E
-VEC_RESERVEDA0	DW	VECTAB_DUMMY_RESA0			;$FFA0
-VEC_RESERVEDA2	DW	VECTAB_DUMMY_RESA2			;$FFA2
-VEC_RESERVEDA4	DW	VECTAB_DUMMY_RESA4			;$FFA4
-VEC_RESERVEDA6	DW	VECTAB_DUMMY_RESA6			;$FFA6
-VEC_RESERVEDA8	DW	VECTAB_DUMMY_RESA8			;$FFA8
-VEC_RESERVEDAA	DW	VECTAB_DUMMY_RESAA			;$FFAA
-VEC_RESERVEDAC	DW	VECTAB_DUMMY_RESAC			;$FFAC
-VEC_RESERVEDAE	DW	VECTAB_DUMMY_RESAE			;$FFAE
-VEC_CANTX     	DW	VECTAB_DUMMY_CANTX     			;$FFA0
-VEC_CANRX     	DW	VECTAB_DUMMY_CANRX     			;$FFB2
-VEC_CANERR    	DW	VECTAB_DUMMY_CANERR    			;$FFB4
-VEC_CANWUP    	DW	VECTAB_DUMMY_CANWUP    			;$FFB6
-VEC_FLASH     	DW	VECTAB_DUMMY_FLASH     			;$FFB8
-VEC_RESERVEDBA	DW	VECTAB_DUMMY_RESBA			;$FFBA
-VEC_RESERVEDBC	DW	VECTAB_DUMMY_RESBC			;$FFBC
-VEC_RESERVEDBE	DW	VECTAB_DUMMY_RESBE			;$FFBE
-VEC_RESERVEDC0	DW	VECTAB_DUMMY_RESC0			;$FFC0
-VEC_RESERVEDC2	DW	VECTAB_DUMMY_RESC2			;$FFC2
-VEC_SCM	      	DW	VECTAB_DUMMY_SCM	      		;$FFC4
-VEC_PLLLOCK	DW	CLOCK_ISR				;$FFC6
-VEC_RESERVEDC8	DW	VECTAB_DUMMY_RESC8			;$FFC8
-VEC_RESERVEDCA	DW	VECTAB_DUMMY_RESCA			;$FFCA
-VEC_RESERVEDCC	DW	VECTAB_DUMMY_RESCC			;$FFCC
-VEC_PORTJ     	DW	VECTAB_DUMMY_PORTJ     			;$FFCC
-VEC_RESERVEDD0	DW	VECTAB_DUMMY_RESD0			;$FFD0
-VEC_ATD	      	DW	VECTAB_DUMMY_ATD	      		;$FFD2
-VEC_RESERVEDD4	DW	VECTAB_DUMMY_RESD4			;$FFD4
-VEC_SCI		DW	SCI_ISR_RXTX				;$FFD6
-VEC_SPI		DW	VECTAB_DUMMY_SPI			;$FFD8
-VEC_PAIE	DW	VECTAB_DUMMY_PAIE			;$FFDA
-VEC_PAOV	DW	VECTAB_DUMMY_PAOV			;$FFDC
-VEC_TOV		DW	VECTAB_DUMMY_TOV			;$FFDE
-VEC_TC7		DW	BDM_ISR_TC7				;$FFE0
-VEC_TC6		DW	BDM_ISR_TC6				;$FFE2
-VEC_TC5		DW	BDM_ISR_TC5				;$FFE4
-VEC_TC4		DW	VECTAB_DUMMY_TC4			;$FFE6
-VEC_TC3		DW	VECTAB_DUMMY_TC3			;$FFE8
-VEC_TC2		DW	VECTAB_DUMMY_TC2			;$FFEA
-VEC_TC1		DW	SCI_ISR_TC1				;$FFEC
-VEC_TC0		DW	SCI_ISR_TC0				;$FFEE
-VEC_RTI		DW	LED_ISR					;$FFF0
-VEC_IRQ		DW	VECTAB_DUMMY_IRQ			;$FFF2
-VEC_XIRQ	DW	VECTAB_DUMMY_XIRQ			;$FFF4
-VEC_SWI		DW	VECTAB_DUMMY_SWI			;$FFF6
-VEC_TRAP	DW	VECTAB_DUMMY_TRAP			;$FFF8
-VEC_RESET_COP	DW	ERROR_RESET_COP				;$FFFA
-VEC_RESET_CM	DW	ERROR_RESET_CM				;$FFFC
-VEC_RESET_EXT	DW	ERROR_RESET_EXT				;$FFFE
+			ORG	VECTAB_START, VECTAB_START_LIN		 	
+VEC_RES80    		DW	VEC_RES80    		;vector base + $80
+VEC_RES82    		DW	VEC_RES82    		;vector base + $82
+VEC_RES84    		DW	VEC_RES84    		;vector base + $84
+VEC_RES86    		DW	VEC_RES86    		;vector base + $86
+VEC_RES88    		DW	VEC_RES88    		;vector base + $88
+VEC_LVI	      		DW	VEC_LVI	           	;vector base + $8A
+VEC_PWM	      		DW	VEC_PWM	           	;vector base + $8C
+VEC_PORTP    		DW	VEC_PORTP    		;vector base + $8E
+VEC_RES90    		DW	VEC_RES90    		;vector base + $90
+VEC_RES92    		DW	VEC_RES92    		;vector base + $92
+VEC_RES94    		DW	VEC_RES94    		;vector base + $94
+VEC_RES96    		DW	VEC_RES96    		;vector base + $96
+VEC_RES98    		DW	VEC_RES98    		;vector base + $98
+VEC_RES9A    		DW	VEC_RES9A    		;vector base + $9A
+VEC_RES9C    		DW	VEC_RES9C    		;vector base + $9C
+VEC_RES9E    		DW	VEC_RES9E    		;vector base + $9E
+VEC_RESA0    		DW	VEC_RESA0    		;vector base + $A0
+VEC_RESA2    		DW	VEC_RESA2    		;vector base + $A2
+VEC_RESA4    		DW	VEC_RESA4    		;vector base + $A4
+VEC_RESA6    		DW	VEC_RESA6    		;vector base + $A6
+VEC_RESA8    		DW	VEC_RESA8    		;vector base + $A8
+VEC_RESAA    		DW	VEC_RESAA    		;vector base + $AA
+VEC_RESAC    		DW	VEC_RESAC    		;vector base + $AC
+VEC_RESAE    		DW	VEC_RESAE    		;vector base + $AE
+VEC_CANTX     		DW	VEC_CANTX        	;vector base + $A0
+VEC_CANRX     		DW	VEC_CANRX        	;vector base + $B2
+VEC_CANERR    		DW	VEC_CANERR       	;vector base + $B4
+VEC_CANWUP    		DW	VEC_CANWUP       	;vector base + $B6
+VEC_FLASH     		DW	VEC_FLASH        	;vector base + $B8
+VEC_RESBA    		DW	VEC_RESBA    		;vector base + $BA
+VEC_RESBC    		DW	VEC_RESBC    		;vector base + $BC
+VEC_RESBE    		DW	VEC_RESBE    		;vector base + $BE
+VEC_RESC0    		DW	VEC_RESC0    		;vector base + $C0
+VEC_RESC2    		DW	VEC_RESC2    		;vector base + $C2
+VEC_SCM	      		DW	VEC_SCM	           	;vector base + $C4
+VEC_PLLLOCK  		DW	VEC_PLLLOCK  		;vector base + $C6
+VEC_RESC8    		DW	VEC_RESC8    		;vector base + $C8
+VEC_RESCA    		DW	VEC_RESCA    		;vector base + $CA
+VEC_RESCC    		DW	VEC_RESCC    		;vector base + $CC
+VEC_PORTJ     		DW	VEC_PORTJ        	;vector base + $CC
+VEC_RESD0    		DW	VEC_RESD0    		;vector base + $D0
+VEC_ATD	      		DW	VEC_ATD	           	;vector base + $D2
+VEC_RED4     		DW	VEC_RED4     		;vector base + $D4
+VEC_SCI	     		DW	VEC_SCI	     		;vector base + $D6
+VEC_SPI	     		DW	VEC_SPI	     		;vector base + $D8
+VEC_TIM_PAIE     	DW	VEC_TIM_PAIE     	;vector base + $DA
+VEC_TIM_PAOV     	DW	VEC_TIM_PAOV     	;vector base + $DC
+VEC_TIM_TOV	     	DW	VEC_TIM_TOV	     	;vector base + $DE
+VEC_TIM_TC7	     	DW	VEC_TIM_TC7	     	;vector base + $E0
+VEC_TIM_TC6	     	DW	VEC_TIM_TC6	     	;vector base + $E2
+VEC_TIM_TC5	     	DW	VEC_TIM_TC5	     	;vector base + $E4
+VEC_TIM_TC4	     	DW	VEC_TIM_TC4	     	;vector base + $E6
+VEC_TIM_TC3	     	DW	VEC_TIM_TC3	     	;vector base + $E8
+VEC_TIM_TC2	     	DW	VEC_TIM_TC2	     	;vector base + $EA
+VEC_TIM_TC1	     	DW	VEC_TIM_TC1	     	;vector base + $EC
+VEC_TIM_TC0	     	DW	VEC_TIM_TC0	     	;vector base + $EE
+VEC_RTI	     		DW	VEC_RTI	     		;vector base + $F0
+VEC_IRQ	     		DW	VEC_IRQ	     		;vector base + $F2
+VEC_XIRQ     		DW	VEC_XIRQ     		;vector base + $F4
+VEC_SWI	     		DW	VEC_SWI	     		;vector base + $F6
+VEC_TRAP     		DW	VEC_TRAP     		;vector base + $F8
+VEC_RESET_COP		DW	RES_COP			;vector base + $FA
+VEC_RESET_CM 		DW	RES_CM 			;vector base + $FC
+VEC_RESET_EXT		DW	RES_EXT			;vector base + $FE

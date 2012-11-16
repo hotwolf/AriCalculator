@@ -115,7 +115,7 @@
 ;# XON/XOFF:                                                                   #
 ;#          Remember the last received XON/XOFF                                #
 ;#          Only transmit if XON was received last                             #
-;#          Forbid incoming data                                                                    #
+;#          Forbid incoming data                                               #
 ;#                                                                             #
 ;###############################################################################
 ;# Required Modules:                                                           #
@@ -1275,12 +1275,12 @@ SCI_ISR_BD_NE		EQU	*
 			;Clear interrupt flags (previous edge in Y, current edge in X, flags in B)
 			TIM_MULT_CLRIF	(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)
 			;Allow nested interrupts (previous edge in Y, current edge in X, flags in B)
-			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
+			;ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
 			;Check flags (previous edge in Y, current edge in X, flags in B)
 			BITB	#((1<<SCI_BD_ICPE)|(1<<SCI_BD_OC)) 	;check for overrun or missed negedge
 			BNE	<SCI_ISR_BD_NE_2 			;done
 			;Allow nested interrupts (previous edge in Y, current edge in X)
-			;ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
+			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
 			;Calculate pulse length (previous edge in Y, current edge in X)
 			LDD	#$FFFF 					;D=-previous edge
 			EMULS
@@ -1303,12 +1303,12 @@ SCI_ISR_BD_PE		EQU	*
 			;Clear interrupt flags (previous edge in Y, current edge in X, flags in B)
 			TIM_MULT_CLRIF	(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)
 			;Allow nested interrupts (previous edge in Y, current edge in X)
-			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
+			;ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
 			;Check flags (previous edge in Y, current edge in X, flags in B)
 			BITB	#((1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)) 	;check for overrun or missed negedge
 			BNE	SCI_ISR_BD_PE_3 			;done
 			;Allow nested interrupts (previous edge in Y, current edge in X, flags in B)
-			;ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
+			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
 			;Calculate pulse length (previous edge in Y, current edge in X)
 			LDD	#$FFFF 					;D=-previous edge
 			EMULS
