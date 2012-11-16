@@ -173,7 +173,7 @@
 ;#     PR7 - NC                           (input        pull-up  )             #
 ;#    Port S:                                                                  #
 ;#     PS0 - SCI RX                       (input        no pull  )             #
-;#     PS1 - SCI TX                       (output       no_pull  )             #
+;#     PS1 - SCI TX                       (output       high     )             #
 ;#     PS2 - NC                           (input        pull-up  )             #
 ;#     PS3 - NC                           (input        pull-up  )             #
 ;#     PS4 - NC                           (input        pull-up  )             #
@@ -274,9 +274,10 @@ GPIO_VARS_END_LIN	EQU	@
 		MOVB	#$FF, PERR
 		;CLR	PPSR	
 		;#Port S
-		MOVB	#$80, PTS
-		MOVW	#$7002, DDRS
-		;MOVW	#$1C00, PERS
+		MOVB	#$82, PTS
+		MOVB	#$70, DDRS
+		MOVB	#$1C, PERS
+		;CLR	PPSS	
 		;#Port T
 		;CLR	DDRT
 		;CLR	RDRT
