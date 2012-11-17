@@ -518,7 +518,7 @@ PORF            EQU     $40
 LVRF            EQU     $20
 LOCKIF          EQU     $10
 LOCK            EQU     $08
-ILA	        EQU     $04
+ILAF	        EQU     $04
 SCMIF           EQU     $02
 SCM             EQU     $01
 

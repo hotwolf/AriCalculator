@@ -264,7 +264,7 @@ SCI_ERRSIG_OFF		EQU	1 		;default is no error signaling
 ;Enable blocking functions
 #ifndef	SCI_BLOCKING_ON
 #ifndef	SCI_BLOCKING_OFF
-SCI_BLOCKING_ON		EQU	1 		;blocking functions enabled by default
+SCI_BLOCKING_OFF		EQU	1 		;blocking functions disabled by default
 #endif
 #endif
 
@@ -310,7 +310,7 @@ SCI_153600		EQU	(CLOCK_BUS_FREQ/(16*153600))+(((2*CLOCK_BUS_FREQ)/(16*153600))&1
 SCI_BDEF		EQU	SCI_9600 			;default baud rate
 SCI_BMUL		EQU	$FFFF/SCI_153600	 	;Multiplicator for storing the baud rate
 		
-;#Frame format
+SUM;#Frame format
 SCI_8N1			EQU	  ILT		;8N1
 SCI_8E1			EQU	  ILT|PE	;8E1
 SCI_8O1			EQU	  ILT|PE|PT	;8O1
@@ -753,7 +753,7 @@ SCI_TX_NB_1		SSTACK_PREPULL	5
 			;Done
 			RTS
 			
-;#Transmit one byte - blocking	;OK!
+;#Transmit one byte - blocking
 ; args:   B: data to be send
 ; result: none
 ; SSTACK: 7 bytes
@@ -799,10 +799,8 @@ SCI_TX_CHECK_2		SSTACK_PREPULL	4
 ; result: none
 ; SSTACK: 6 bytes
 ;         X, Y, and D are preserved 
-#ifdef	SCI_BLOCKING_ON
 SCI_TX_WAIT		EQU	*
 			SCI_MAKE_BL	SCI_TX_CHECK, 4
-#endif
 		
 ;#Receive one byte - non-blocking ;OK!
 ; args:   none
@@ -986,7 +984,7 @@ SCI_ISR_DELAY		SCI_ISR_DELAY_RETRIGGER						;retrigger delay
 			JOB	SCI_ISR_RXTX						;jump to RXTX ISR
 #else
 			;no RTS, no XONXOFF, no Workaround
-;SCI_ISR_DELAY		EQU	ERROR_ISR						;Error
+;SCI_ISR_DELAY		EQU	RESET_ISR_FATAL						;Error
 #endif
 #endif
 #endif

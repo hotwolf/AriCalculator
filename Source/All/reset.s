@@ -56,20 +56,49 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Single reset vector (D-Bug12X bootloader)
-;ERROR_SINGLE_VECTOR	EQU	1 
+;Error detection
+;---------------
+;COP detection
+#ifndef	RESET_COP_ON
+#ifndef	RESET_COP_OFF
+RESET_COP_ON		EQU	1 		;default is RESET_COP_ON
+#endif
+#endif
+
+;Clock failure detection
+#ifndef	RESET_CLKFAIL_ON
+#ifndef	RESET_CLKFAIL_OFF
+RESET_CLKFAIL_ON	EQU	1 		;default is RESET_CLKFAIL_ON
+#endif
+#endif
+
+;Power failure detection
+#ifndef	RESET_POWFAIL_ON
+#ifndef	RESET_POWFAIL_OFF
+RESET_POWFAIL_ON	EQU	1 		;default is RESET_POWFAIL_ON
+#endif
+#endif
+
+;Code runaway detection
+#ifndef	RESET_CODERUN_ON
+#ifndef	RESET_CODERUN_OFF
+RESET_CODERUN_ON	EQU	1 		;default is RESET_CODERUN_ON
+#endif
+#endif
 
 ;Welcome message
-;MAIN_WELCOME_STRING	FCS	"Hello, this is S12CBase!"
+;---------------
+;RESET_WELCOME	FCS	"Hello, this is S12CBase!"
 	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Severity levels
-RESET_LEVEL_INFO	EQU	(RESET_STRINGTAB_INFO-RESET_STRINGTAB)>>1
-RESET_LEVEL_WARNING	EQU	(RESET_STRINGTAB_WARNING-RESET_STRINGTAB)>>1
-RESET_LEVEL_ERROR	EQU	(RESET_STRINGTAB_ERROR-RESET_STRINGTAB)>>1
-RESET_LEVEL_FATAL	EQU	(RESET_STRINGTAB_FATAL-RESET_STRINGTAB)>>1
+;Flags
+RESET_FLG_POWON		EQU	$40 		;power on     (PORF)
+RESET_FLG_POWFAIL	EQU	$20 		;power loss   (LVRF)
+RESET_FLG_CODERUN	EQU	$04 		;code runaway (ILAF)
+RESET_FLG_COP		EQU	$02		;watchdog timeout
+RESET_FLG_CLKFAIL	EQU	$01		;clock faiure
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -83,13 +112,13 @@ RESET_LEVEL_FATAL	EQU	(RESET_STRINGTAB_FATAL-RESET_STRINGTAB)>>1
 RESET_AUTO_LOC1		EQU	* 		;1st auto-place location
 			ALIGN	1
 	
-RESET_MSG		DS	2 		;Reset message to be displayed
+RESET_MSG		DS	2 		;error message to be displayed
+RESET_MSG_CHKSUM	DS	1		;checksum for the errormessage
+	
+RESET_AUTO_LOC2		EQU	*		;2nd auto-place location
 
-RESET_AUTO_LOC2		EQU	1		;2nd auto-place location
-
-RESET_MSG_CHECK		EQU	((RESET_VARS_START&1)*RESET_AUTO_LOC1)+((~RESET_VARS_START_LOC1&1)*RESET_AUTO_LOC2)
-
-			UNALIGN	(~RESET_VARS_START_LOC1&1)
+RESET_FLGS		EQU	((RESET_VARS_START&1)*RESET_AUTO_LOC1)+((~(RESET_VARS_START_LOC1)&1)*RESET_AUTO_LOC2)
+			DS	(~(RESET_VARS_START_LOC1)&1)
 
 RESET_VARS_END		EQU	*
 RESET_VARS_END_LIN	EQU	@
@@ -99,52 +128,22 @@ RESET_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	RESET_INIT, 0
+
+
+
+
+
+
+
+	
 #emac
 	
-;#Print error message
-; args:   Y: pointer to the error message
-; SSTACK: 18 bytes
-;         X, Y, and D are preserved 
-#macro	RESET_PRINT, 0
-			SSTACK_JOBSR	RESET_PRINT
-#emac
-
 ;#Perform a reset due to a fatal error
-;# Args: message pointer	
-#macro	RESET_RESTART, 1
-			BGND
+;# args: 1: message pointer	
+#macro	RESET_FATAL, 1
+			;BGND
 			LDD	#\1
 			JOB	RESET_RESTART
-#emac
-	
-;Error Message Definition
-#macro	RESET_MSG, 2
-			DB	\1
-			FCS	\2
-#emac
-	
-#emac
-	
-;#Print error message
-; args:   Y: pointer to the error message
-; SSTACK: 18 bytes
-;         X, Y, and D are preserved 
-#macro	RESET_PRINT, 0
-			SSTACK_JOBSR	RESET_PRINT
-#emac
-
-;#Perform a reset due to a fatal error
-;# Args: message pointer	
-#macro	RESET_RESTART, 1
-			BGND
-			LDD	#\1
-			JOB	RESET_RESTART
-#emac
-	
-;Error Message Definition
-#macro	RESET_MSG, 2
-			DB	\1
-			FCS	\2
 #emac
 	
 ;###############################################################################
@@ -156,13 +155,45 @@ RESET_VARS_END_LIN	EQU	@
 			ORG 	RESET_CODE_START
 #endif
 
-
-	
 ;#COP reset entry point
+;----------------------
+#ifdef	RESET_COP_ON
 RESET_COP_ENTRY		EQU	*
+			;Capture COP  
+			MOVB	#RESET_FLG_COP, RESET_FLGS	
+			JOB	START_OF_CODE
+#else
+RESET_COP_ENTRY		EQU	RESET_EXT_ENTRY
+#enfif
 
+;#Clock monitor reset entry point
+;--------------------------------
+#ifdef	RESET_CLKFAIL_ON
+RESET_CM_ENTRY		EQU	*
+			;Capture clock failure
+			MOVB	#RESET_FLG_CLKFAIL, RESET_FLGS	
+			JOB	START_OF_CODE
+#else
+RESET_CM_ENTRY		EQU	RESET_EXT_ENTRY
+#endif
+	
+;#External reset entry point
+;---------------------------
+RESET_EXT_ENTRY		EQU	*
+			;Capture CRG/CPMU flags
+#ifdef	CRGFLG
+			MOVB	CRGFLG, RESET_FLGS
+#else
+#ifdef	CPMUFLG
+			MOVB	CPMUFLG, RESET_FLGS
+#endif
+#endif
+			JOB	START_OF_CODE
+	
 
-
+;#Perform a reset due to a fatal error
+;# args: D: message pointer	
+RESET_FATAL		EQU	*
 	
 
 
@@ -248,9 +279,8 @@ RESET_RESTART		EQU	*
 			COP_RESET
 
 ;#Trigger a fatal error if a reset accurs
-RESET_ISR		EQU	*
-			LDD	#RESET_MSG_UEXPIRQ	;Unexpected interrupt
-			JOB	RESET_RESTART
+RESET_ISR_FATAL		EQU	*
+			RESET_FATAL	ILLIRQ	
 
 RESET_CODE_END		EQU	*	
 RESET_CODE_END_LIN	EQU	@	
@@ -264,30 +294,28 @@ RESET_CODE_END_LIN	EQU	@
 			ORG 	RESET_TABS_START
 #endif	
 
-;#Error strings
-RESET_STRING_INFO	FCS	"Info! "
-RESET_STRING_WARNING	FCS	"Warning! "
-RESET_STRING_ERROR	FCS	"Error! "
-RESET_STRING_FATAL	FCS	"Fatal Error! "
-
-;#Error string table
-RESET_STRINGTAB		EQU	*
-RESET_STRINGTAB_INFO	DW	RESET_STRING_INFO
-RESET_STRINGTAB_WARNING	DW	RESET_STRING_WARNING
-RESET_STRINGTAB_ERROR	DW	RESET_STRING_ERROR
-RESET_STRINGTAB_FATAL	DW	RESET_STRING_FATAL
-RESET_STRINGTAB_END	EQU	*
-
-;#Welcome strings
-#ifdef	MAIN_WELCOME_STRING
-RESET_WELCOME_STRING	EQU	MAIN_WELCOME_STRING
-#else
-RESET_WELCOME_STRING	FCS	"Hello!"
+;#Welcome string
+#ifndef	RESET_WELCOME
+RESET_WELCOME       	FCS	"Hello, this is S12CBase!"
 #endif
 
+;#Error indicator
+RESET_STR_FATAL		FCS	"Fatal! "
+
 ;#Error messages
-RESET_MSG_COP		RESET_MSG	RESET_LEVEL_FATAL, "Watchdog timeout"
-RESET_MSG_UEXPIRQ	RESET_MSG	RESET_LEVEL_FATAL, "Unexpected interrupt"
+#ifndef	RESET_COP_ON
+RESET_STR_COP		FCS	"Watchdog timeout!"
+#endif
+#ifdef	RESET_CLKFAIL_ON
+RESET_STR_CLKFAIL	FCS	"Clock failure!"
+#endif
+#ifdef	RESET_POWFAIL_ON
+RESET_STR_POWFAIL	FCS	"Power loss!"
+#endif
+#ifndef	RESET_CODERUN_ON
+RESET_STR_CODERUN	FCS	"Code runaway!"
+#endif
+RESET_STR_ILLIRQ	FCS	"Illegal interrupt!"
 	
 RESET_TABS_END		EQU	*
 RESET_TABS_END_LIN	EQU	@

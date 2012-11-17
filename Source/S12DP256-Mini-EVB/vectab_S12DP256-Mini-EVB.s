@@ -181,103 +181,103 @@ ISR_SWI			BGND
 ISR_TRAP		BGND				;vector base + $F8
 #endif
 #else								
-ISR_RES80		EQU	ERROR_ISR		;vector base + $80
-ISR_RES82		EQU	ERROR_ISR		;vector base + $82
-ISR_RES84		EQU	ERROR_ISR		;vector base + $84
-ISR_RES86		EQU	ERROR_ISR		;vector base + $86
-ISR_RES88		EQU	ERROR_ISR		;vector base + $88
-ISR_RES8A		EQU	ERROR_ISR		;vector base + $8A
-ISR_PWMSDN 		EQU	ERROR_ISR		;vector base + $8C
-ISR_PORTP  		EQU	ERROR_ISR		;vector base + $8E
-ISR_CAN4TX 		EQU	ERROR_ISR		;vector base + $90
-ISR_CAN4RX 		EQU	ERROR_ISR		;vector base + $92
-ISR_CAN4ERR		EQU	ERROR_ISR		;vector base + $94
-ISR_CAN4WUP		EQU	ERROR_ISR		;vector base + $96
-ISR_CAN3TX 		EQU	ERROR_ISR		;vector base + $98
-ISR_CAN3RX 		EQU	ERROR_ISR		;vector base + $9A
-ISR_CAN3ERR		EQU	ERROR_ISR		;vector base + $9C
-ISR_CAN3WUP		EQU	ERROR_ISR		;vector base + $9E
-ISR_CAN2TX 		EQU	ERROR_ISR		;vector base + $A0
-ISR_CAN2RX 		EQU	ERROR_ISR		;vector base + $A2
-ISR_CAN2ERR		EQU	ERROR_ISR		;vector base + $A4
-ISR_CAN2WUP		EQU	ERROR_ISR		;vector base + $A6
-ISR_CAN1TX    		EQU	ERROR_ISR		;vector base + $A8
-ISR_CAN1RX    		EQU	ERROR_ISR		;vector base + $AA
-ISR_CAN1ERR   		EQU	ERROR_ISR		;vector base + $AC
-ISR_CAN1WUP   		EQU	ERROR_ISR		;vector base + $AE
-ISR_CAN0TX    		EQU	ERROR_ISR		;vector base + $A0
-ISR_CAN0RX    		EQU	ERROR_ISR		;vector base + $B2
-ISR_CAN0ERR   		EQU	ERROR_ISR		;vector base + $B4
-ISR_CAN0WUP   		EQU	ERROR_ISR		;vector base + $B6
-ISR_FLASH     		EQU	ERROR_ISR		;vector base + $B8
-ISR_EEPROM  		EQU	ERROR_ISR		;vector base + $BA
-ISR_SPI2      		EQU	ERROR_ISR		;vector base + $BC
-ISR_SPI1      		EQU	ERROR_ISR		;vector base + $BE
-ISR_IIC0      		EQU	ERROR_ISR		;vector base + $C0
-ISR_SBDLC     		EQU	ERROR_ISR		;vector base + $C2
-ISR_SCM			EQU	ERROR_ISR		;vector base + $C4
+ISR_RES80		EQU	RESET_ISR_FATAL		;vector base + $80
+ISR_RES82		EQU	RESET_ISR_FATAL		;vector base + $82
+ISR_RES84		EQU	RESET_ISR_FATAL		;vector base + $84
+ISR_RES86		EQU	RESET_ISR_FATAL		;vector base + $86
+ISR_RES88		EQU	RESET_ISR_FATAL		;vector base + $88
+ISR_RES8A		EQU	RESET_ISR_FATAL		;vector base + $8A
+ISR_PWMSDN 		EQU	RESET_ISR_FATAL		;vector base + $8C
+ISR_PORTP  		EQU	RESET_ISR_FATAL		;vector base + $8E
+ISR_CAN4TX 		EQU	RESET_ISR_FATAL		;vector base + $90
+ISR_CAN4RX 		EQU	RESET_ISR_FATAL		;vector base + $92
+ISR_CAN4ERR		EQU	RESET_ISR_FATAL		;vector base + $94
+ISR_CAN4WUP		EQU	RESET_ISR_FATAL		;vector base + $96
+ISR_CAN3TX 		EQU	RESET_ISR_FATAL		;vector base + $98
+ISR_CAN3RX 		EQU	RESET_ISR_FATAL		;vector base + $9A
+ISR_CAN3ERR		EQU	RESET_ISR_FATAL		;vector base + $9C
+ISR_CAN3WUP		EQU	RESET_ISR_FATAL		;vector base + $9E
+ISR_CAN2TX 		EQU	RESET_ISR_FATAL		;vector base + $A0
+ISR_CAN2RX 		EQU	RESET_ISR_FATAL		;vector base + $A2
+ISR_CAN2ERR		EQU	RESET_ISR_FATAL		;vector base + $A4
+ISR_CAN2WUP		EQU	RESET_ISR_FATAL		;vector base + $A6
+ISR_CAN1TX    		EQU	RESET_ISR_FATAL		;vector base + $A8
+ISR_CAN1RX    		EQU	RESET_ISR_FATAL		;vector base + $AA
+ISR_CAN1ERR   		EQU	RESET_ISR_FATAL		;vector base + $AC
+ISR_CAN1WUP   		EQU	RESET_ISR_FATAL		;vector base + $AE
+ISR_CAN0TX    		EQU	RESET_ISR_FATAL		;vector base + $A0
+ISR_CAN0RX    		EQU	RESET_ISR_FATAL		;vector base + $B2
+ISR_CAN0ERR   		EQU	RESET_ISR_FATAL		;vector base + $B4
+ISR_CAN0WUP   		EQU	RESET_ISR_FATAL		;vector base + $B6
+ISR_FLASH     		EQU	RESET_ISR_FATAL		;vector base + $B8
+ISR_EEPROM  		EQU	RESET_ISR_FATAL		;vector base + $BA
+ISR_SPI2      		EQU	RESET_ISR_FATAL		;vector base + $BC
+ISR_SPI1      		EQU	RESET_ISR_FATAL		;vector base + $BE
+ISR_IIC0      		EQU	RESET_ISR_FATAL		;vector base + $C0
+ISR_SBDLC     		EQU	RESET_ISR_FATAL		;vector base + $C2
+ISR_SCM			EQU	RESET_ISR_FATAL		;vector base + $C4
 #ifdef	CLOCK_ISR					;vector base + $C6
 ISR_PLLLOCK		EQU	CLOCK_ISR
 #else
-ISR_PLLLOCK		EQU	ERROR_ISR
+ISR_PLLLOCK		EQU	RESET_ISR_FATAL
 #endif
-ISR_ECT_PBOV  		EQU	ERROR_ISR		;vector base + $C8
-ISR_ECT_MODCNT		EQU	ERROR_ISR		;vector base + $CA
-ISR_PORTH		EQU	ERROR_ISR		;vector base + $CC
-ISR_PORTJ		EQU	ERROR_ISR		;vector base + $CE
-ISR_ATD1		EQU	ERROR_ISR		;vector base + $D0
-ISR_ATD0		EQU	ERROR_ISR		;vector base + $D2
-ISR_SCI1		EQU	ERROR_ISR		;vector base + $D4
+ISR_ECT_PBOV  		EQU	RESET_ISR_FATAL		;vector base + $C8
+ISR_ECT_MODCNT		EQU	RESET_ISR_FATAL		;vector base + $CA
+ISR_PORTH		EQU	RESET_ISR_FATAL		;vector base + $CC
+ISR_PORTJ		EQU	RESET_ISR_FATAL		;vector base + $CE
+ISR_ATD1		EQU	RESET_ISR_FATAL		;vector base + $D0
+ISR_ATD0		EQU	RESET_ISR_FATAL		;vector base + $D2
+ISR_SCI1		EQU	RESET_ISR_FATAL		;vector base + $D4
 #ifdef	SCI_ISR_RXTX					;vector base + $D6
 ISR_SCI0		EQU	SCI_ISR_RXTX
 #else
-ISR_SCI0		EQU	ERROR_ISR
+ISR_SCI0		EQU	RESET_ISR_FATAL
 #endif
-ISR_SPI0		EQU	ERROR_ISR		;vector base + $D8
-ISR_ECT_PAIE		EQU	ERROR_ISR		;vector base + $DA
-ISR_ECT_PAOV		EQU	ERROR_ISR		;vector base + $DC
-ISR_ECT_TOV		EQU	ERROR_ISR		;vector base + $DE
-ISR_ECT_TC7		EQU	ERROR_ISR		;vector base + $E0
-ISR_ECT_TC6		EQU	ERROR_ISR		;vector base + $E2
-ISR_ECT_TC5		EQU	ERROR_ISR		;vector base + $E4
-ISR_ECT_TC4		EQU	ERROR_ISR		;vector base + $E6
+ISR_SPI0		EQU	RESET_ISR_FATAL		;vector base + $D8
+ISR_ECT_PAIE		EQU	RESET_ISR_FATAL		;vector base + $DA
+ISR_ECT_PAOV		EQU	RESET_ISR_FATAL		;vector base + $DC
+ISR_ECT_TOV		EQU	RESET_ISR_FATAL		;vector base + $DE
+ISR_ECT_TC7		EQU	RESET_ISR_FATAL		;vector base + $E0
+ISR_ECT_TC6		EQU	RESET_ISR_FATAL		;vector base + $E2
+ISR_ECT_TC5		EQU	RESET_ISR_FATAL		;vector base + $E4
+ISR_ECT_TC4		EQU	RESET_ISR_FATAL		;vector base + $E6
 #ifdef	SCI_ISR_DELAY					;vector base + $E8
 ISR_ECT_TC3		EQU	SCI_ISR_DELAY
 #else
-ISR_ECT_TC3		EQU	ERROR_ISR
+ISR_ECT_TC3		EQU	RESET_ISR_FATAL
 #endif
-ISR_ECT_TC2		EQU	ERROR_ISR		;vector base + $EA
-ISR_ECT_TC1		EQU	ERROR_ISR		;vector base + $EC
+ISR_ECT_TC2		EQU	RESET_ISR_FATAL		;vector base + $EA
+ISR_ECT_TC1		EQU	RESET_ISR_FATAL		;vector base + $EC
 #ifdef	SCI_ISR_BD_NEPE					;vector base + $EE
 ISR_ECT_TC0		EQU	SCI_ISR_BD_NEPE
 #else
-ISR_ECT_TC0		EQU	ERROR_ISR
+ISR_ECT_TC0		EQU	RESET_ISR_FATAL
 #endif
-ISR_RTI			EQU	ERROR_ISR		;vector base + $F0
-ISR_IRQ			EQU	ERROR_ISR		;vector base + $F2
-ISR_XIRQ		EQU	ERROR_ISR		;vector base + $F4
+ISR_RTI			EQU	RESET_ISR_FATAL		;vector base + $F0
+ISR_IRQ			EQU	RESET_ISR_FATAL		;vector base + $F2
+ISR_XIRQ		EQU	RESET_ISR_FATAL		;vector base + $F4
 #ifdef	SCI_ISR_RXTX					;vector base + $F6
 ISR_SWI			EQU	SCI_ISR_RXTX
 #else
-ISR_SWI			EQU	ERROR_ISR
+ISR_SWI			EQU	RESET_ISR_FATAL
 #endif
-ISR_TRAP		EQU	ERROR_ISR		;vector base + $F8
+ISR_TRAP		EQU	RESET_ISR_FATAL		;vector base + $F8
 #endif
 
 ;#Code entry points
 ;#-----------------
 #ifdef	ERROR_RESET_COP					;vector base + $FA
-RES_COP			EQU	ERROR_RESET_COP
+RES_COP			EQU	RESET_COP_ENTRY
 #else
 RES_COP			EQU	RES_EXT
 #endif
 #ifdef	ERROR_RESET_CM					;vector base + $FC
-RES_CM			EQU	ERROR_RESET_CM
+RES_CM			EQU	RESET_CM_ENTRY
 #else
 RES_CM			EQU	RES_EXT
 #endif
 #ifdef	ERROR_RESET_EXT					;vector base + $FE
-RES_EXT			EQU	ERROR_RESET_COP
+RES_EXT			EQU	RESET_EXT_ENTRY
 #else
 RES_EXT			EQU	START_OF_CODE
 #endif
