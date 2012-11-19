@@ -271,13 +271,37 @@ RESET_PRINT_1		RESET_RESTART	RESET_MSG_UNKNOWN
 	
 ;#Perform a reset due to a fatal error
 ;# Args: D: message pointer	
-RESET_RESTART		EQU	*
+
+;#Trigger a fatal error with a custom error message
+; args:   X: pointer to error message
+; SSTACK: no stack usage (stacks may be corrupt at this point)
+;         Triggers a system reset
+RESET_FATAL		EQU	*
 			STD	RESET_MSG 	;save error message
 			ABA			;calculate checksum
 			COMA	
 			STAA	RESET_MSG_CHECK	;save checksum
 			COP_RESET
 
+;#Validate the error message string and generate a checksum
+; args:   X: pointer to error message
+;	  Y: return address			
+; SSTACK: no stack usage (stacks may be corrupt at this point)
+;         X, Y, and D are preserved 
+RESET_CHECK_MSG		EQU	*
+			
+	
+;#Transmit one byte - blocking
+; args:   D: pointer to error message
+; SSTACK: none
+;         X, Y, and D are preserved 
+RESET_FATAL	EQU	*
+
+
+		
+			
+
+	
 ;#Trigger a fatal error if a reset accurs
 RESET_ISR_FATAL		EQU	*
 			RESET_FATAL	ILLIRQ	

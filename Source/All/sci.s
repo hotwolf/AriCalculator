@@ -492,7 +492,6 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 			SCI_ISR_DELAY_RETRIGGER 
 #endif
 #emac
-
 	
 ;#Functions	
 ;#Transmit one byte - non-blocking
