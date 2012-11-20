@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - PRINT - Print routines                                           #
+;# S12CBase - STRING - String Printing routines                                #
 ;###############################################################################
 ;#    Copyright 2010 Dirk Heisswolf                                            #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -61,7 +61,8 @@ STRING_SYM_BACKSPACE	EQU	$08 	;backspace symbol
 STRING_SYM_TAB		EQU	$09 	;tab symbol
 STRING_SYM_LF		EQU	$0A 	;line feed symbol
 STRING_SYM_CR		EQU	$0D 	;carriage return symbol
-STRING_SYM_SPACE	EQU	$20 	;space symbol
+STRING_SYM_SPACE	EQU	$20 	;space (first printable ASCII character)
+STRING_SYM_TILDE	EQU	$7E 	;"~" (last printable ASCII character)
 STRING_SYM_DEL		EQU	$7F 	;delete symbol
 
 ;#String ternination 
@@ -114,16 +115,16 @@ STRING_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         X, Y, and A are preserved 
 #macro	STRING_UPPER_B, 0
-	CMPB	#$61		;"a"
-	BLO	DONE
-	CMPB	#$7A		;"z"
-	BLS	ADJUST
-	CMPB	#$EA		;"a"+$80
-	BLO	DONE
-	CMPB	#$FA		;"z"+$80
-	BHI	DONE
-ADJUST	SUBB	#$20		;"a"-"A"	
-DONE	EQU	*
+			CMPB	#$61		;"a"
+			BLO	DONE
+			CMPB	#$7A		;"z"
+			BLS	ADJUST
+			CMPB	#$EA		;"a"+$80
+			BLO	DONE
+			CMPB	#$FA		;"z"+$80
+			BHI	DONE
+ADJUST			SUBB	#$20		;"a"-"A"	
+DONE			EQU	*
 #emac
 
 ;#Convert an upper case character to lower case
@@ -132,16 +133,28 @@ DONE	EQU	*
 ; SSTACK: none
 ;         X, Y, and B are preserved 
 #macro	STRING_LOWER_B, 0
-	CMPB	#$41		;"A"
-	BLO	DONE
-	CMPB	#$5A		;"Z"
-	BLS	ADJUST
-	CMPB	#$C1		;"A"+$80
-	BLO	DONE
-	CMPB	#$DA		;"Z"+$80
-	BHI	DONE
-ADJUST	ADDB	#$20		;"a"-"A"	
-DONE	EQU	*
+			CMPB	#$41		;"A"
+			BLO	DONE
+			CMPB	#$5A		;"Z"
+			BLS	ADJUST
+			CMPB	#$C1		;"A"+$80
+			BLO	DONE
+			CMPB	#$DA		;"Z"+$80
+			BHI	DONE
+ADJUST			ADDB	#$20		;"a"-"A"	
+DONE			EQU	*
+#emac
+
+;#Terminated line break
+#macro	STRING_NL_TERM, 0
+			DB	STRING_SYM_CR	
+			DB	(STRING_SYM_LF|$80)	
+#emac
+
+;#Non-terminated line break
+#macro	STRING_NL_NONTERM, 0
+			DB	STRING_SYM_CR	
+			DB	STRING_SYM_LF	
 #emac
 	
 ;###############################################################################
@@ -246,6 +259,10 @@ STRING_CODE_END_LIN	EQU	@
 #else
 			ORG 	STRING_TABS_START
 #endif	
+
+;Common strings 
+STRING_STR_EXCLAM_NL	DB	"!" 	;exclamation mark + new line
+STRING_STR_NL		STRING_NL_TERM	;new line
 
 STRING_TABS_END		EQU	*
 STRING_TABS_END_LIN	EQU	@
