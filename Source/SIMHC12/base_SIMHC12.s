@@ -52,7 +52,7 @@ SCI_BD_OFF		EQU	1 		;no baud rate detection
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./regdef_SIMHC12.s		;S12C128 register map
+#include ./regdef_SIMHC12.s		;HC12A4 register map
 #include ./gpio_SIMHC12.s		;I/O setup
 #include ./mmap_SIMHC12.s		;RAM memory map
 #include ../All/sstack.s		;Subroutine stack
@@ -62,6 +62,7 @@ SCI_BD_OFF		EQU	1 		;no baud rate detection
 #include ../All/string.s		;String printing routines
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
+#include ./nvm_SIMHC12.s		;NVM driver
 #include ./vectab_SIMHC12.s		;HC12A4 vector table
 	
 ;###############################################################################
@@ -100,8 +101,11 @@ RESET_VARS_START_LIN	EQU	STRING_VARS_END_LIN
 NUM_VARS_START		EQU	RESET_VARS_END
 NUM_VARS_START_LIN	EQU	RESET_VARS_END_LIN
 	
-VECTAB_VARS_START	EQU	NUM_VARS_END
-VECTAB_VARS_START_LIN	EQU	NUM_VARS_END_LIN
+NVM_VARS_START		EQU	NUM_VARS_END
+NVM_VARS_START_LIN	EQU	NUM_VARS_END_LIN
+	
+VECTAB_VARS_START	EQU	NVM_VARS_END
+VECTAB_VARS_START_LIN	EQU	NVM_VARS_END_LIN
 
 BASE_VARS_END		EQU	VECTAB_VARS_START	
 BASE_VARS_END_LIN	EQU	VECTAB_VARS_START_LIN
@@ -153,8 +157,11 @@ RESET_CODE_START_LIN	EQU	STRING_CODE_END_LIN
 NUM_CODE_START		EQU	RESET_CODE_END
 NUM_CODE_START_LIN	EQU	RESET_CODE_END_LIN
 	
-VECTAB_CODE_START	EQU	NUM_CODE_END
-VECTAB_CODE_START_LIN	EQU	NUM_CODE_END_LIN
+NVM_CODE_START		EQU	NUM_CODE_END
+NVM_CODE_START_LIN	EQU	NUM_CODE_END_LIN
+	
+VECTAB_CODE_START	EQU	NVM_CODE_END
+VECTAB_CODE_START_LIN	EQU	NVM_CODE_END_LIN
 
 BASE_CODE_END		EQU	VECTAB_CODE_START	
 BASE_CODE_END_LIN	EQU	VECTAB_CODE_START_LIN
@@ -195,8 +202,11 @@ RESET_TABS_START_LIN	EQU	STRING_TABS_END_LIN
 NUM_TABS_START		EQU	RESET_TABS_END
 NUM_TABS_START_LIN	EQU	RESET_TABS_END_LIN
 	
-VECTAB_TABS_START	EQU	NUM_TABS_END
-VECTAB_TABS_START_LIN	EQU	NUM_TABS_END_LIN
+NVM_TABS_START		EQU	NUM_TABS_END
+NVM_TABS_START_LIN	EQU	NUM_TABS_END_LIN
+	
+VECTAB_TABS_START	EQU	NVM_TABS_END
+VECTAB_TABS_START_LIN	EQU	NVM_TABS_END_LIN
 
 BASE_TABS_END		EQU	VECTAB_TABS_START	
 BASE_TABS_END_LIN	EQU	VECTAB_TABS_START_LIN

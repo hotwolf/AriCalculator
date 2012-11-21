@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - PRINT - Print routines                                           #
+;# S12CBase - NUM - Number printing routines                                   #
 ;###############################################################################
 ;#    Copyright 2010 Dirk Heisswolf                                            #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -1227,26 +1227,26 @@ PRINT_SYMTAB		DB	"0"
 			DB	"D"
 			DB	"E"
 			DB	"F"
-			DB	"G"
-			DB	"H"
-			DB	"I"
-			DB	"J"
-			DB	"K"
-			DB	"L"
-			DB	"M"
-			DB	"N"
-			DB	"O"
-			DB	"P"
-			DB	"Q"
-			DB	"R"
-			DB	"S"
-			DB	"T"
-			DB	"U"
-			DB	"V"
-			DB	"W"
-			DB	"X"
-			DB	"Y"
-			DB	"Z"
+			;DB	"G"
+			;DB	"H"
+			;DB	"I"
+			;DB	"J"
+			;DB	"K"
+			;DB	"L"
+			;DB	"M"
+			;DB	"N"
+			;DB	"O"
+			;DB	"P"
+			;DB	"Q"
+			;DB	"R"
+			;DB	"S"
+			;DB	"T"
+			;DB	"U"
+			;DB	"V"
+			;DB	"W"
+			;DB	"X"
+			;DB	"Y"
+			;DB	"Z"
 PRINT_SYMTAB_END	DB	*
 
 PRINT_TABS_END		EQU	*
