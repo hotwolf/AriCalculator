@@ -104,8 +104,6 @@ CLOCK_PLL_CONFIG	EQU	(CLOCK_VCOFRQ<<14)|(CLOCK_SYNR<<8)|(CLOCK_REFFRQ<<6)|CLOCK_
 CLOCK_VARS_START_LIN	EQU	@			
 #endif	
 
-CLOCK_FLGS		DB	1
-
 CLOCK_VARS_END		EQU	*
 CLOCK_VARS_END_LIN	EQU	@
 
@@ -115,7 +113,6 @@ CLOCK_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	CLOCK_INIT, 0
 #ifdef	CLOCK_CPMU
-			MOVB	CPMUFLG, CLOCK_FLGS 				;save all status flags
 			MOVB	#$FF, CPMUFLG 					;clear all flags
 			MOVW	#CLOCK_PLL_CONFIG, CPMUSYNR 			;setup PLL
 			CLR	CPMUPOSTDIV 					;disable POSTDIV divider
@@ -132,7 +129,6 @@ CLOCK_VARS_END_LIN	EQU	@
 			MOVB	#PROT, CPMUPROT					;lock CPMU configuration
 #endif
 #ifdef	CLOCK_CRG
-			MOVB	CRGFLG, CLOCK_FLGS 				;save all status flags
 			MOVB	#$FF, CRGFLG 					;clear all flags
 			MOVW	#CLOCK_PLL_CONFIG, SYNR				;set PLL frequency (SYNR, REFDV)
 			MOVW	#(((RTIE|LOCKIE)<<8)|COPWAI), CRGINT
