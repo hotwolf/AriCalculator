@@ -20,12 +20,14 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#    This module implements various print routines for the SCI driver:        #
-;#    NUM_REVERSE    - calculate a number of reverse digit order               #
-;#    NUM_RPRINT_NB  - print a reverse number (non-blocking)                   #
+;#    NUM_REVERSE     - calculate a number of reverse digit order              #
+;#    NUM_REVPRINT_NB - print a reverse number (non-blocking)                  #
+;#    NUM_REVPRINT_BL - print a reverse number (blocking)                      #
 ;#                                                                             #
 ;#    Each of these functions has a coresponding macro definition              #
 ;###############################################################################
 ;# Required Modules:                                                           #
+;#    STRING    - String printing routines                                     #
 ;#    SCI    - SCI driver                                                      #
 ;#    SSTACK - Subroutine Stack Handler                                        #
 ;#                                                                             #
@@ -35,13 +37,6 @@
 ;# Version History:                                                            #
 ;#    Apr  4, 2010                                                             #
 ;#      - Initial release                                                      #
-;#    Apr 29, 2010                                                             #
-;#      - Added macros "PRINT_UPPER_B" and "PRINT_LOWER_B"                     #
-;#    Jul 29, 2010                                                             #
-;#      - fixed PRINT_SINTCNT                                                  #
-;#    July 2, 2012                                                             #
-;#      - Added support for linear PC                                          #
-;#      - Added non-blocking functions                                         #
 ;#    November 21, 2012                                                        #
 ;#      - Total rewrite (now called NUM)                                       #
 ;###############################################################################
@@ -49,6 +44,12 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;Enable blocking subroutines
+#ifndef	NUM_BLOCKING_ON
+#ifndef	NUM_BLOCKING_OFF
+NUM_BLOCKING_OFF		EQU	1 		;blocking functions disabled by default
+#endif
+#endif
 	
 ;###############################################################################
 ;# Constants                                                                   #
@@ -97,14 +98,27 @@ NUM_VARS_END_LIN	EQU	@
 ;#Print a reserse number digit - non-blocking
 ; args:   Y:      pointer to reverse number
 ; 	  B:      base   (2<=base<=16)
-; result: Y:      pointer to the updated reverse number
+; result: [Y]:    updated reverse number
 ;         C-flag: set if successful
 ; SSTACK: 19 bytes
 ;         X, Y and D are preserved 
-#macro	NUM_RPRINT_NB, 0
-			SSTACK_PREPUSH	19
-			JOBSR	NUM_RPRINT_NB
+#macro	NUM_REVPRINT_NB, 0
+			SSTACK_PREPUSH	(19-6)
+			JOBSR	NUM_REVPRINT_NB
 #emac
+	
+;#Print a reserse number digit - blocking
+; args:   Y:      pointer to reverse number
+; 	  B:      base   (2<=base<=16)
+; result: [Y]:    remaining reverse number is 1 
+; SSTACK: 21 bytes
+;         X, Y and D are preserved 
+#ifdef	NUM_BLOCKING_ON
+#macro	NUM_REVPRINT_BL, 0
+			SSTACK_PREPUSH	21
+			JOBSR	NUM_REVPRINT_NB
+#emac
+#endif
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -246,54 +260,54 @@ NUM_REVERSE_3		SSTACK_PREPULL	18
 ;         C-flag: set if successful
 ; SSTACK: 19 bytes
 ;         X, Y and D are preserved 
-NUM_RPRINT_NB	EQU	*
+NUM_REVPRINT_NB	EQU	*
 	
 ;Stack layout:
-NUM_RPRINT_NB_RHW	EQU	$0C ;SP+ 0: MSB   
+NUM_REVPRINT_NB_RHW	EQU	$0C ;SP+ 0: MSB   
 				    ;SP+ 1:  |copy    
-NUM_RPRINT_NB_RMW       EQU	$0E ;SP+ 2:  |of
+NUM_REVPRINT_NB_RMW     EQU	$0E ;SP+ 2:  |of
 				    ;SP+ 3:  |reverse
-NUM_RPRINT_NB_RLW	EQU	$10 ;SP+ 4:  |number   
+NUM_REVPRINT_NB_RLW	EQU	$10 ;SP+ 4:  |number   
 				    ;SP+ 5: LSB
-NUM_RPRINT_NB_COUNT	EQU	$04 ;SP+ 6: A
-NUM_RPRINT_NB_BASE	EQU	$05 ;SP+ 7: base -> B
-NUM_RPRINT_NB_Y		EQU	$06 ;SP+ 8: +pointer to            
+NUM_REVPRINT_NB_COUNT	EQU	$04 ;SP+ 6: A
+NUM_REVPRINT_NB_BASE	EQU	$05 ;SP+ 7: base -> B
+NUM_REVPRINT_NB_Y	EQU	$06 ;SP+ 8: +pointer to            
 				    ;SP+ 9: +reverse number -> Y  
-NUM_RPRINT_NB_X		EQU	$08 ;SP+10: +X
+NUM_REVPRINT_NB_X	EQU	$08 ;SP+10: +X
 				    ;SP+12: +
-NUM_RPRINT_NB_RTN	EQU	$0A ;SP+13: +return address
+NUM_REVPRINT_NB_RTN	EQU	$0A ;SP+13: +return address
 				    ;SP+14: +
 
 			;Setup stack (pointer in Y:X, base in B)
 			PSHX					;store X at SP+8
 			PSHY					;store Y at SP+6			
 			PSHD					;store count:base at SP+4
-			MOVW	NUM_RPRINT_NB_RLW,Y, 2,-SP 	;copy reverse number
-			MOVW	NUM_RPRINT_NB_RMW,Y, 2,-SP
-			MOVW	NUM_RPRINT_NB_RHW,Y, 2,-SP
+			MOVW	NUM_REVPRINT_NB_RLW,Y, 2,-SP 	;copy reverse number
+			MOVW	NUM_REVPRINT_NB_RMW,Y, 2,-SP
+			MOVW	NUM_REVPRINT_NB_RHW,Y, 2,-SP
 
 			;Divide RHW by base
-NUM_RPRINT_NB_1		LDY	NUM_RPRINT_NB_RHW,SP	;RHW => Y
-			BEQ	NUM_RPRINT_NB_2		;skip division step
+NUM_REVPRINT_NB_1		LDY	NUM_REVPRINT_NB_RHW,SP	;RHW => Y
+			BEQ	NUM_REVPRINT_NB_2		;skip division step
 			TFR	Y, X
 			CLRA				;base => D
-			LDAB	NUM_RPRINT_NB_BASE,SP
+			LDAB	NUM_REVPRINT_NB_BASE,SP
 			EXG	X, D
 			IDIV				;D / X => X,  D % X => D 
-			STX	NUM_RPRINT_NB_RHW,SP	;result => RHW
+			STX	NUM_REVPRINT_NB_RHW,SP	;result => RHW
 
 			;Divide RMW by base (prev remainder in D)
 			TFR	D, Y			;remainder => Y
-NUM_RPRINT_NB_2		CLRA				;base => D
-			LDAB	NUM_RPRINT_NB_BASE,SP
-			LDX	NUM_RPRINT_NB_RMW,SP	;RMW => Y
+NUM_REVPRINT_NB_2		CLRA				;base => D
+			LDAB	NUM_REVPRINT_NB_BASE,SP
+			LDX	NUM_REVPRINT_NB_RMW,SP	;RMW => Y
 			EXG	D, X
 			EDIV				;Y:D / X => Y,  Y:D % X => D 
-			STY	NUM_RPRINT_NB_RMW,SP	;result => RMW
+			STY	NUM_REVPRINT_NB_RMW,SP	;result => RMW
 
 			;Divide RLW by base (prev remainder in D, base in X)
 			TFR	D, Y 			;remainder => Y
-			LDD	NUM_RPRINT_NB_RLW,SP 	;RLW => D
+			LDD	NUM_REVPRINT_NB_RLW,SP 	;RLW => D
 			EDIV				;Y:D / X => Y,  Y:D % X => D 
 			STY	NUM_RPRINR_NB_RLW,SP	;result => RLW
 
@@ -301,36 +315,53 @@ NUM_RPRINT_NB_2		CLRA				;base => D
 			LDY	#NUM_SYMTAB
 			LDAB	B,Y
 			SCI_TX_NB			;print character (SSTACK: 5 bytes)
-			BCC	>NUM_RPRINT_NB_	4	;TX unsuccessful
+			BCC	>NUM_REVPRINT_NB_4	;TX unsuccessful
 
 			;Copy updated reverse value
-			LDY	NUM_RPRINT_NB_Y,SP
-			MOVW	NUM_RPRINT_NB_RLW,SP, NUM_RPRINT_NB_RLW,Y
-			MOVW	NUM_RPRINT_NB_RMW,SP, NUM_RPRINT_NB_RMW,Y
-			MOVW	NUM_RPRINT_NB_RHW,SP, NUM_RPRINT_NB_RHW,Y
+			LDY	NUM_REVPRINT_NB_Y,SP
+			MOVW	NUM_REVPRINT_NB_RLW,SP, NUM_REVPRINT_NB_RLW,Y
+			MOVW	NUM_REVPRINT_NB_RMW,SP, NUM_REVPRINT_NB_RMW,Y
+			MOVW	NUM_REVPRINT_NB_RHW,SP, NUM_REVPRINT_NB_RHW,Y
 			
 			;Repeat until the reverse value is $1
-			LDD	NUM_RPRINT_NB_RLW,SP
-			DBNE	D, NUM_RPRINT_NB_1 	;RLW is not 1
-			LDD	NUM_RPRINT_NB_RMW,SP
-			BNE	NUM_RPRINT_NB_1 	;RMW is not 0
-			LDD	NUM_RPRINT_NB_RHW,SP
-			BNE	NUM_RPRINT_NB_1 	;RMW is not 0
+			LDD	NUM_REVPRINT_NB_RLW,SP
+			DBNE	D, NUM_REVPRINT_NB_1 	;RLW is not 1
+			LDD	NUM_REVPRINT_NB_RMW,SP
+			BNE	NUM_REVPRINT_NB_1 	;RMW is not 0
+			LDD	NUM_REVPRINT_NB_RHW,SP
+			BNE	NUM_REVPRINT_NB_1 	;RMW is not 0
 			
 			;Printing complete 
 			SSTACK_PREPULL	14
 			SEC
-NUM_RPRINT_NB_3		PULD				;
+NUM_REVPRINT_NB_3		PULD				;
 			PULY
 			PULX
 			;Done
 			RTS
 
 			;Printing incomplete 
-NUM_RPRINT_NB_4		SSTACK_PREPULL	14
+NUM_REVPRINT_NB_4		SSTACK_PREPULL	14
 			CLC
-			JOB	NUM_RPRINT_NB_3
-		
+			JOB	NUM_REVPRINT_NB_3
+
+;#Print a reserse number digit blocking
+; args:   Y:      pointer to reverse number
+; 	  B:      base   (2<=base<=16)
+; result: [Y]:    remaining reverse number is 1 
+; SSTACK: 19 bytes
+;         X, Y and D are preserved 
+#ifdef	NUM_BLOCKING_ON
+NUM_REVPRINT_BL		EQU	*
+			SCI_MAKE_BL	NUM_REVPRINT_NB, 19
+#endif
+
+
+
+
+
+
+	
 NUM_CODE_END		EQU	*
 NUM_CODE_END_LIN	EQU	@
 			

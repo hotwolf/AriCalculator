@@ -259,9 +259,9 @@ SCI_ERRSIG_OFF		EQU	1 		;default is no error signaling
 #endif
 #endif
 
-;Blocking functions
-;------------------ 
-;Enable blocking functions
+;Blocking subroutines
+;-------------------- 
+;Enable blocking subroutines
 #ifndef	SCI_BLOCKING_ON
 #ifndef	SCI_BLOCKING_OFF
 SCI_BLOCKING_OFF		EQU	1 		;blocking functions disabled by default
@@ -584,7 +584,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 
 ;# Macros for internal use
 
-;#Turn a non-blocking function into ablocking function	
+;#Turn a non-blocking subroutine into a blocking subroutine	
 ; args:   1: non-blocking function
 ;         2: subroutine stack usage of non-blocking function 
 ; SSTACK: stack usage of non-blocking function + 2
@@ -608,6 +608,26 @@ WAIT			ISTACK_WAIT
 			JOB	LOOP	
 #emac
 
+;#Run a non-blocking subroutine as if it was blocking	
+; args:   1: non-blocking function
+;         2: subroutine stack usage of non-blocking function 
+; SSTACK: stack usage of non-blocking function + 2
+;         rgister output of the non-blocking function is preserved 
+#macro	SCI_MAKE_BL, 2
+			;Disable interrupts
+LOOP			SEI
+			;Call non-blocking function
+			SSTACK_PREPUSH	\2
+			JOBSR	\1
+			BCS	DONE 		;function successful
+			;Wait for next interrupt 
+			ISTACK_WAIT
+			;Try again
+			JOB	LOOP
+			;Enable interrupts
+DONE			CLI
+#emac
+	
 ;#Assert CTS (allow incoming data)
 ; args:   none 
 ; SSTACK: none
