@@ -1,0 +1,17 @@
+Aricalculator - Tools
+=====================
+This is the tool chain for the AriCalculator project.
+
+HSW12
+-----
+Assembler and IDE 
+
+Test Builder
+------------
+A set of Perl scripts to compile the source code and wrap the resulting S-Record
+into command files which can be executed by a D-Bug12(X) debugger.
+
+Image Converter
+---------------
+This Perl script converts a grayscale image into a sequence of B/W frames and
+generates ASM tables and compressed command sequences for the DISP module.
