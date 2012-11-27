@@ -15,3 +15,7 @@ Test Builder
 ------------
 A set of Perl scripts to compile the source code and wrap the resulting S-Record
 into command files which can be executed by a D-Bug12(X) debugger.
+
+Update Subprojects
+------------------
+A shell script to keep all subprojects up to date.
