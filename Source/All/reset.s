@@ -117,8 +117,8 @@ RESET_MSG_CHKSUM	DS	1		;checksum for the errormessage
 	
 RESET_AUTO_LOC2		EQU	*		;2nd auto-place location
 
-RESET_FLGS		EQU	((RESET_VARS_START&1)*RESET_AUTO_LOC1)+((~(RESET_VARS_START_LOC1)&1)*RESET_AUTO_LOC2)
-			DS	(~(RESET_VARS_START_LOC1)&1)
+RESET_FLGS		EQU	((RESET_VARS_START&1)*RESET_AUTO_LOC1)+((~(RESET_VARS_START)&1)*RESET_AUTO_LOC2)
+			DS	(~(RESET_VARS_START)&1)
 
 RESET_VARS_END		EQU	*
 RESET_VARS_END_LIN	EQU	@
@@ -193,7 +193,7 @@ RESET_INIT_4		STRING_PRINT_BL
 #emac
 	
 ;#Perform a reset due to a fatal error
-;# args: 1: message pointer	
+; args: 1: message pointer	
 #macro	RESET_FATAL, 1
 			;BGND
 			LDX	#\1
@@ -201,8 +201,23 @@ RESET_INIT_4		STRING_PRINT_BL
 #emac
 
 ;#Check error message string and calculate checksum
-;# args: 1: 	
-macro	RESET_CALC_CHECKSUM, 1
+; args:   X:      error message
+; result: A:      checksum
+;         C-flag: set if message is valid
+;         none of the registers are preserved 
+#macro	RESET_CALC_CHECKSUM, 1
+			LDY	#DONE
+			JOB	RESET_CALC_CHECKSUM
+DONE			EQU	*
+#emac
+
+;#Calculate the checksum of the custom error message
+; args:   X:      error message	
+;         Y:      return address	
+; result: A:      checksum
+;         C-flag: set if message is valid
+;         none of the registers are preserved 
+
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -222,7 +237,7 @@ RESET_COP_ENTRY		EQU	*
 			JOB	START_OF_CODE
 #else
 RESET_COP_ENTRY		EQU	RESET_EXT_ENTRY
-#enfif
+#endif
 
 ;#Clock monitor reset entry point
 ;--------------------------------
@@ -295,7 +310,7 @@ RESET_CALC_CHECKSUM_3	CLC
 ;#Perform a reset due to a fatal error...continued
 			;Check if message is valid (checksum in A, valid/invalid in C-flag)  
 RESET_FATAL_1		BCC	RESET_FATAL_3		;clear message
-			STA	RESET_MSG_CHKSUM
+			STAA	RESET_MSG_CHKSUM
 			;Trigger COP 	
 RESET_FATAL_2		COP_RESET
 			;Clear message
@@ -307,7 +322,7 @@ RESET_FATAL_3		CLRA
 
 ;#Trigger a fatal error if a reset accurs
 RESET_ISR_FATAL		EQU	*
-			RESET_FATAL	ILLIRQ	
+			RESET_FATAL	RESET_STR_ILLIRQ	
 
 RESET_CODE_END		EQU	*	
 RESET_CODE_END_LIN	EQU	@	
@@ -330,7 +345,7 @@ RESET_WELCOME       	FCS	"Hello, this is S12CBase"
 RESET_STR_FATAL		FCS	"Fatal! "
 
 ;#Error messages
-#ifndef	RESET_COP_ON
+#ifdef	RESET_COP_ON
 RESET_STR_COP		FCS	"Watchdog timeout"
 #endif
 #ifdef	RESET_CLKFAIL_ON
@@ -339,7 +354,7 @@ RESET_STR_CLKFAIL	FCS	"Clock failure"
 #ifdef	RESET_POWFAIL_ON
 RESET_STR_POWFAIL	FCS	"Power loss"
 #endif
-#ifndef	RESET_CODERUN_ON
+#ifdef	RESET_CODERUN_ON
 RESET_STR_CODERUN	FCS	"Code runaway"
 #endif
 RESET_STR_ILLIRQ	FCS	"Illegal interrupt"

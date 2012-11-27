@@ -530,12 +530,10 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; result: A: number of entries left in TX queue
 ; SSTACK: 6 bytes
 ;         X, Y, and D are preserved 
-#ifdef	SCI_BLOCKING_ON
 #macro	SCI_TX_WAIT, 0
 			SSTACK_PREPUSH	6
 			JOBSR	SCI_TX_WAIT
 #emac
-#endif
 		
 ;#Receive one byte - non-blocking
 ; args:   none
@@ -613,7 +611,7 @@ WAIT			ISTACK_WAIT
 ;         2: subroutine stack usage of non-blocking function 
 ; SSTACK: stack usage of non-blocking function + 2
 ;         rgister output of the non-blocking function is preserved 
-#macro	SCI_MAKE_BL, 2
+#macro	SCI_CALL_BL, 2
 			;Disable interrupts
 LOOP			SEI
 			;Call non-blocking function
@@ -1019,7 +1017,6 @@ SCI_ISR_DELAY		SCI_ISR_DELAY_RETRIGGER						;retrigger delay
 			TIM_EN		SCI_DLY_OC
 DONE			EQU	*
 #emac
-
 ;#Transmit ISR (status flags in A)
 SCI_ISR_TX		EQU	*
 			BITA	#TDRE					;check if SCI is ready for new TX data

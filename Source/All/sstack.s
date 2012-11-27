@@ -123,10 +123,10 @@ SSTACK_VARS_END_LIN	EQU	@
 ;         X, Y, and D are preserved 
 #macro	SSTACK_PREPUSH 1 //number of bytes to push
 #ifndef	SSTACK_NO_CHECK 
-			CPS	#SSTACK_TOP-\1
+			CPS	#SSTACK_TOP+\1
 			BLO	OF
 			CPS	#SSTACK_BOTTOM
-			BHS	UF
+			BHI	UF
 #ifdef	SSTACK_DEBUG
 			JOB	DONE
 UF			BGND
@@ -148,8 +148,8 @@ OF			EQU	SSTACK_OF
 #ifndef	SSTACK_NO_CHECK 
 			CPS	#SSTACK_TOP
 			BLO	OF
-			CPS	#SSTACK_BOTTOM+\1
-			BHS	UF
+			CPS	#SSTACK_BOTTOM-\1
+			BHI	UF
 #ifdef	SSTACK_DEBUG
 			JOB	DONE
 UF			BGND

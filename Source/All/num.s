@@ -95,6 +95,21 @@ NUM_VARS_END_LIN	EQU	@
 			JOBSR	NUM_REVERSE
 #emac
 
+;#Clean-up stack space for reverse unsigned double word
+; args:   SP+0: MSB   
+;         SP+1:  |    
+;         SP+2:  |reverse  
+;         SP+3:  |number  
+;         SP+4:  |    
+;         SP+5: LSB   
+; result: none
+; SSTACK: 18 bytes
+;         X, Y and B are preserved
+#macro	NUM_CLEAN_REVERSE, 0
+			SSTACK_PREPULL	6
+			LEAS	6,SP
+#emac
+
 ;#Print a reserse number digit - non-blocking
 ; args:   Y:      pointer to reverse number
 ; 	  B:      base   (2<=base<=16)
@@ -103,7 +118,7 @@ NUM_VARS_END_LIN	EQU	@
 ; SSTACK: 19 bytes
 ;         X, Y and D are preserved 
 #macro	NUM_REVPRINT_NB, 0
-			SSTACK_PREPUSH	(19-6)
+			SSTACK_PREPUSH	19
 			JOBSR	NUM_REVPRINT_NB
 #emac
 	
@@ -209,7 +224,7 @@ NUM_REVERSE_2		CLRA				;base => D
 			INC	NUM_REVERSE_COUNT,SP
 	
 			;Check if the calculation is finished
-			LDD	NUM_REVERSE_LHW,SP
+			LDD	NUM_REVERSE_FHW,SP
 			BNE	<NUM_REVERSE_3 		;reverse value has been generated
 			LDD	NUM_REVERSE_FHW,SP
 			BEQ	<NUM_REVERSE_3		;reverse value has been generated
@@ -219,7 +234,7 @@ NUM_REVERSE_2		CLRA				;base => D
 			CLRA
 			LDAB	NUM_REVERSE_BASE,SP
 			EMUL				;Y * D => Y:D
-			STD	NUM_REVERSE_RTMP1,SP
+			STD	NUM_REVERSE_RLW,SP
 			
 			;Multiply RMW by base (carry-over in Y)
 			LDD	NUM_REVERSE_RMW,SP
@@ -263,20 +278,20 @@ NUM_REVERSE_3		SSTACK_PREPULL	18
 NUM_REVPRINT_NB	EQU	*
 	
 ;Stack layout:
-NUM_REVPRINT_NB_RHW	EQU	$0C ;SP+ 0: MSB   
+NUM_REVPRINT_NB_RHW	EQU	$00 ;SP+ 0: MSB   
 				    ;SP+ 1:  |copy    
-NUM_REVPRINT_NB_RMW     EQU	$0E ;SP+ 2:  |of
+NUM_REVPRINT_NB_RMW     EQU	$02 ;SP+ 2:  |of
 				    ;SP+ 3:  |reverse
-NUM_REVPRINT_NB_RLW	EQU	$10 ;SP+ 4:  |number   
+NUM_REVPRINT_NB_RLW	EQU	$04 ;SP+ 4:  |number   
 				    ;SP+ 5: LSB
-NUM_REVPRINT_NB_COUNT	EQU	$04 ;SP+ 6: A
-NUM_REVPRINT_NB_BASE	EQU	$05 ;SP+ 7: base -> B
-NUM_REVPRINT_NB_Y	EQU	$06 ;SP+ 8: +pointer to            
+NUM_REVPRINT_NB_COUNT	EQU	$06 ;SP+ 6: A
+NUM_REVPRINT_NB_BASE	EQU	$07 ;SP+ 7: base -> B
+NUM_REVPRINT_NB_Y	EQU	$08 ;SP+ 8: +pointer to            
 				    ;SP+ 9: +reverse number -> Y  
-NUM_REVPRINT_NB_X	EQU	$08 ;SP+10: +X
-				    ;SP+12: +
-NUM_REVPRINT_NB_RTN	EQU	$0A ;SP+13: +return address
-				    ;SP+14: +
+NUM_REVPRINT_NB_X	EQU	$0A ;SP+10: +X
+				    ;SP+11: +
+NUM_REVPRINT_NB_RTN	EQU	$0C ;SP+12: +return address
+				    ;SP+13: +
 
 			;Setup stack (pointer in Y:X, base in B)
 			PSHX					;store X at SP+8
@@ -309,7 +324,7 @@ NUM_REVPRINT_NB_2		CLRA				;base => D
 			TFR	D, Y 			;remainder => Y
 			LDD	NUM_REVPRINT_NB_RLW,SP 	;RLW => D
 			EDIV				;Y:D / X => Y,  Y:D % X => D 
-			STY	NUM_RPRINR_NB_RLW,SP	;result => RLW
+			STY	NUM_REVPRINT_NB_RLW,SP	;result => RLW
 
 			;Print remainder (prev, remainder in D)
 			LDY	#NUM_SYMTAB
@@ -349,18 +364,12 @@ NUM_REVPRINT_NB_4		SSTACK_PREPULL	14
 ; args:   Y:      pointer to reverse number
 ; 	  B:      base   (2<=base<=16)
 ; result: [Y]:    remaining reverse number is 1 
-; SSTACK: 19 bytes
+; SSTACK: 21 bytes
 ;         X, Y and D are preserved 
 #ifdef	NUM_BLOCKING_ON
 NUM_REVPRINT_BL		EQU	*
 			SCI_MAKE_BL	NUM_REVPRINT_NB, 19
 #endif
-
-
-
-
-
-
 	
 NUM_CODE_END		EQU	*
 NUM_CODE_END_LIN	EQU	@
@@ -391,6 +400,6 @@ NUM_SYMTAB		DB	"0"
 			DB	"E"
 			DB	"F"
 NUM_SYMTAB_END	DB	*
-
+	
 NUM_TABS_END		EQU	*
 NUM_TABS_END_LIN	EQU	@

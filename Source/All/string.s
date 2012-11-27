@@ -94,7 +94,7 @@ STRING_VARS_END_LIN	EQU	@
 ;         C-flag: set if successful	
 ; SSTACK: 8 bytes
 ;         Y and D are preserved
-#macro	STRING_PRINT_NB
+#macro	STRING_PRINT_NB, 0
 			SSTACK_PREPUSH	8
 			JOBSR	STRING_PRINT_NB
 #emac	
@@ -104,11 +104,33 @@ STRING_VARS_END_LIN	EQU	@
 ; result: X;      points to the byte after the string
 ; SSTACK: 10 bytes
 ;         Y and D are preserved
-#macro	STRING_PRINT_BL
+#macro	STRING_PRINT_BL, 0
 			SSTACK_PREPUSH	10
 			JOBSR	STRING_PRINT_BL
 #emac	
 
+;#Print spaces - non-blocking
+; args:   A: number of space characters to be printed
+; result: A: remaining space characters to be printed (0 if successfull)
+;         C-flag: set if successful	
+; result: none
+; SSTACK: 8 bytes
+;         X, Y and B are preserved
+#macro	STRING_SPACES_NB, 0
+			SSTACK_PREPUSH	8
+			JOBSR	STRING_SPACES_NB
+#emac	
+
+;#Print spaces - blocking
+; args:   A: number of space characters to be printed
+; result: A: $00
+; SSTACK: 10 bytes
+;         Y and D are preserved
+#macro	STRING_SPACES_BL, 0
+			SSTACK_PREPUSH	10
+			JOBSR	STRING_SPACES_BL
+#emac	
+	
 ;#Convert a lower case character to upper case
 ; args:   B: ASCII character (w/ or w/out termination)
 ; result: B: lower case ASCII character 
@@ -131,7 +153,7 @@ DONE			EQU	*
 ; args:   B: ASCII character (w/ or w/out termination)
 ; result: B: upper case ASCII character
 ; SSTACK: none
-;         X, Y, and B are preserved 
+;         X, Y, and A are preserved 
 #macro	STRING_LOWER_B, 0
 			CMPB	#$41		;"A"
 			BLO	DONE
@@ -142,6 +164,22 @@ DONE			EQU	*
 			CMPB	#$DA		;"Z"+$80
 			BHI	DONE
 ADJUST			ADDB	#$20		;"a"-"A"	
+DONE			EQU	*
+#emac
+
+;#Make ASCII character printable
+; args:   B: ASCII character (w/out termination)
+; result: B: printable ASCII character or "."
+; SSTACK: none
+;         X, Y, and A are preserved 
+#macro	STRING_MAKE_PRINTABLE_B, 0
+			
+	
+			CMPB	#$20		;" "
+			BLO	ADJUST
+			CMPB	#$7E		;"~"
+			BLS	DONE
+ADJUST			LDAB	#$2E		;"."	
 DONE			EQU	*
 #emac
 
@@ -224,7 +262,7 @@ STRING_SPACES_NB	EQU	*
 			TBEQ	A, STRING_SPACES_NB_2	;nothing to do
 STRING_SPACES_NB_1	SCI_TX_NB			;print character non blocking (SSTACK: 5 bytes)
 			BCC	STRING_SPACES_NB_3	;unsuccessful
-			DBNE	STRING_PRINT_NB_1
+			DBNE	A, STRING_PRINT_NB_1
 			;Restore registers (remaining spaces in A)
 STRING_SPACES_NB_2	SSTACK_PREPULL	8
 			PULB

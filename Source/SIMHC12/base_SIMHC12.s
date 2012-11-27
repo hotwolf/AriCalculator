@@ -35,6 +35,8 @@ CLOCK_BUS_FREQ		EQU	8000000		;8 MHz
 #endif
 
 ;# SCI
+
+	
 #ifndef	SCI_FC_RTS_CTS
 #ifndef	SCI_FC_XON_XOFF
 #ifndef SCI_FC_NONE	
@@ -49,22 +51,6 @@ SCI_BD_OFF		EQU	1 		;no baud rate detection
 #endif
 #endif
 
-;###############################################################################
-;# Includes                                                                    #
-;###############################################################################
-#include ./regdef_SIMHC12.s		;HC12A4 register map
-#include ./gpio_SIMHC12.s		;I/O setup
-#include ./mmap_SIMHC12.s		;RAM memory map
-#include ../All/sstack.s		;Subroutine stack
-#include ../All/istack.s		;Interrupt stack
-#include ../All/tim.s			;TIM driver
-#include ../All/sci.s			;SCI driver
-#include ../All/string.s		;String printing routines
-#include ../All/reset.s			;Reset driver
-#include ../All/num.s	   		;Number printing routines
-#include ./nvm_SIMHC12.s		;NVM driver
-#include ./vectab_SIMHC12.s		;HC12A4 vector table
-	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -113,6 +99,21 @@ BASE_VARS_END_LIN	EQU	VECTAB_VARS_START_LIN
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Initialization
+#macro	BASE_INIT, 0
+			GPIO_INIT
+			MMAP_INIT
+			VECTAB_INIT
+			ISTACK_INIT
+			SSTACK_INIT
+			TIM_INIT
+			STRING_INIT
+			NUM_INIT
+			NVM_INIT
+			SCI_INIT
+			RESET_INIT
+#emac
+
 ;# COP replacement macros
 #macro COP_SERVICE, 0
 #emac
@@ -211,6 +212,21 @@ VECTAB_TABS_START_LIN	EQU	NVM_TABS_END_LIN
 BASE_TABS_END		EQU	VECTAB_TABS_START	
 BASE_TABS_END_LIN	EQU	VECTAB_TABS_START_LIN
 
-
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+#include ./regdef_SIMHC12.s		;HC12A4 register map
+#include ./gpio_SIMHC12.s		;I/O setup
+#include ./mmap_SIMHC12.s		;RAM memory map
+#include ../All/sstack.s		;Subroutine stack
+#include ../All/istack.s		;Interrupt stack
+#include ../All/tim.s			;TIM driver
+#include ../All/sci.s			;SCI driver
+#include ../All/string.s		;String printing routines
+#include ../All/reset.s			;Reset driver
+#include ../All/num.s	   		;Number printing routines
+#include ./nvm_SIMHC12.s		;NVM driver
+#include ./vectab_SIMHC12.s		;HC12A4 vector table
+	
 
 

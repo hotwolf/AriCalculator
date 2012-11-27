@@ -104,7 +104,7 @@ ISR_RES86   		BGND				;vector base + $86
 ISR_RES88   		BGND				;vector base + $88
 ISR_RES8A    		BGND      			;vector base + $8A
 ISR_RES8C    		BGND      			;vector base + $8C
-ISR_RES8P   		BGND				;vector base + $8E
+ISR_RES8E   		BGND				;vector base + $8E
 ISR_RES90   		BGND				;vector base + $90
 ISR_RES92   		BGND				;vector base + $92
 ISR_RES94   		BGND				;vector base + $94
@@ -172,9 +172,9 @@ ISR_RES82   		EQU	RESET_ISR_FATAL		;vector base + $82
 ISR_RES84   		EQU	RESET_ISR_FATAL		;vector base + $84
 ISR_RES86   		EQU	RESET_ISR_FATAL		;vector base + $86
 ISR_RES88   		EQU	RESET_ISR_FATAL		;vector base + $88
-ISR_RES8A    		EQU	RESET_ISR_FATAL      		;vector base + $8A
-ISR_RES8C    		EQU	RESET_ISR_FATAL      		;vector base + $8C
-ISR_RES8P   		EQU	RESET_ISR_FATAL		;vector base + $8E
+ISR_RES8A    		EQU	RESET_ISR_FATAL      	;vector base + $8A
+ISR_RES8C    		EQU	RESET_ISR_FATAL      	;vector base + $8C
+ISR_RES8E   		EQU	RESET_ISR_FATAL		;vector base + $8E
 ISR_RES90   		EQU	RESET_ISR_FATAL		;vector base + $90
 ISR_RES92   		EQU	RESET_ISR_FATAL		;vector base + $92
 ISR_RES94   		EQU	RESET_ISR_FATAL		;vector base + $94
