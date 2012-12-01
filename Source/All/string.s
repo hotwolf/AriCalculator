@@ -216,12 +216,12 @@ STRING_PRINT_NB		EQU	*
 			;Print characters (string pointer in X)
 STRING_PRINT_NB_1	LDAB	1,X+ 			;get next ASCII character
 			BMI	STRING_PRINT_NB_3	;last character
-			SCI_TX_NB			;print character non blocking (SSTACK: 5 bytes)
+			JOBSR	SCI_TX_NB		;print character non blocking (SSTACK: 5 bytes)
 			BCS	STRING_PRINT_NB_1
 			;Adjust string pointer (next string pointer in X)
 STRING_PRINT_NB_2	LEAX	-1,X
 			;Restore registers (string pointer in X)
-			SSTACK_PREPULL	8
+			SSTACK_PREPULL	3
 			PULB
 			;Signal failure (string pointer in X)
 			CLC
@@ -229,10 +229,10 @@ STRING_PRINT_NB_2	LEAX	-1,X
 			RTS
 			;Print last character (next string pointer in X, last char in B)
 STRING_PRINT_NB_3	ANDB	#$7F 			;remove termination bit
-			SCI_TX_NB			;print character non blocking (SSTACK: 5 bytes)
+			JOBSR	SCI_TX_NB		;print character non blocking (SSTACK: 5 bytes)
 			BCC	STRING_PRINT_NB_2
 			;Restore registers (next string pointer in X)
-			SSTACK_PREPULL	8
+			SSTACK_PREPULL	3
 			PULB
 			;Signal success (next string pointer in X)
 			SEC
@@ -260,18 +260,18 @@ STRING_SPACES_NB	EQU	*
 			;Print characters (requested spaces in A)
 			LDAB	#STRING_SYM_SPACE 	;preload space character
 			TBEQ	A, STRING_SPACES_NB_2	;nothing to do
-STRING_SPACES_NB_1	SCI_TX_NB			;print character non blocking (SSTACK: 5 bytes)
+STRING_SPACES_NB_1	JOBSR	SCI_TX_NB		;print character non blocking (SSTACK: 5 bytes)
 			BCC	STRING_SPACES_NB_3	;unsuccessful
 			DBNE	A, STRING_PRINT_NB_1
 			;Restore registers (remaining spaces in A)
-STRING_SPACES_NB_2	SSTACK_PREPULL	8
+STRING_SPACES_NB_2	SSTACK_PREPULL	3
 			PULB
 			;Signal success (remaining spaces in A)
 			SEC
 			;Done
 			RTS
 			;Restore registers (remaining spaces in A)
-STRING_SPACES_NB_3	SSTACK_PREPULL	8
+STRING_SPACES_NB_3	SSTACK_PREPULL	3
 			PULB
 			;Signal failure (remaining spaces in A)
 			CLC
@@ -284,7 +284,7 @@ STRING_SPACES_NB_3	SSTACK_PREPULL	8
 ; SSTACK: 10 bytes
 ;         Y and D are preserved
 STRING_SPACES_BL	EQU	*
-			SCI_MAKE_BL	STRING_SPACES_NB, 10
+			SCI_MAKE_BL	STRING_SPACES_NB, 8
 	
 STRING_CODE_END		EQU	*	
 STRING_CODE_END_LIN	EQU	@	

@@ -53,10 +53,8 @@ ISTACK_S12X		EQU	1	 	;S12X interrupt handling
 SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
 SSTACK_DEBUG		EQU	1 		;debug behavior
 
-;# COP
-COP_DEBUG		EQU	1 		;disable COP
-
 ;# RESET
+RESET_CLKFAIL_OFF	EQU	1 		;no clock monitor reset
 RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
 	
 ;# Vector table
@@ -76,7 +74,15 @@ NUM_BLOCKING_ON		EQU	1		;enable blocking subroutines
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_EXT_START
+			ORG	MMAP_RAM_START
+;Variables
+DEMO_VARS_START		EQU	*
+DEMO_VARS_START_LIN	EQU	@
+	
+BASE_VARS_START		EQU	DEMO_VARS_END
+BASE_VARS_START_LIN	EQU	DEMO_VARS_END_LIN
+
+			ORG	MMAP_EEPROM_START
 ;Code
 START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*
@@ -85,16 +91,9 @@ DEMO_CODE_START_LIN	EQU	@
 BASE_CODE_START		EQU	DEMO_CODE_END
 BASE_CODE_START_LIN	EQU	DEMO_CODE_END_LIN
 
-;Variables
-DEMO_VARS_START		EQU	BASE_CODE_END
-DEMO_VARS_START_LIN	EQU	BASE_CODE_END_LIN
-	
-BASE_VARS_START		EQU	DEMO_VARS_END
-BASE_VARS_START_LIN	EQU	DEMO_VARS_END_LIN
-
 ;Tables
-DEMO_TABS_START		EQU	BASE_VARS_END
-DEMO_TABS_START_LIN	EQU	BASE_VARS_END_LIN
+DEMO_TABS_START		EQU	BASE_CODE_END
+DEMO_TABS_START_LIN	EQU	BASE_CODE_END_LIN
 	
 BASE_TABS_START		EQU	DEMO_TABS_END
 BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
@@ -205,7 +204,7 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the Mini-BDM-Pod"
+DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the SIMHC12 simulator!"
 			STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"

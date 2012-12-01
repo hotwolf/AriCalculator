@@ -842,7 +842,7 @@ SCI_RX_NB_1		LDX	#SCI_RXBUF
 			ADDB	#$02					;increment out pointer
 			ANDB	#SCI_RXBUF_MASK
 			STAB	SCI_RXBUF_OUT
-			MOVB	#(TXIE|RIE|TE|RE), SCICR2				;trigger RXTX ISR
+			;MOVB	#(TXIE|RIE|TE|RE), SCICR2		;trigger RXTX ISR
 			TFR	X, D 
 			;Restore registers
 			SSTACK_PREPULL	2
@@ -1055,7 +1055,7 @@ SCI_ISR_TX_1		LDD	SCI_TXBUF_IN
 			ANDB	#SCI_TXBUF_MASK
 			STAB	SCI_TXBUF_OUT
 			CBA
-			BEQ	<SCI_ISR_TX_3 				;done	
+			BNE	<SCI_ISR_TX_3 				;done	
 			;Stop transmitting
 SCI_ISR_TX_2		MOVB	#(RIE|TE|RE), SCICR2 			;disable TX interrupts	
 			;Done

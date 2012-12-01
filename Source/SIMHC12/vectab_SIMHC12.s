@@ -238,24 +238,6 @@ ISR_SWI    		EQU	RESET_ISR_FATAL		;vector base + $F6
 ISR_TRAP   		EQU	RESET_ISR_FATAL		;vector base + $F8
 #endif
 	
-;#Code entry points
-;#-----------------
-#ifdef	ERROR_RESET_COP					;vector base + $FA
-RES_COP			EQU	RESET_COP_ENTRY
-#else
-RES_COP			EQU	RES_EXT
-#endif
-#ifdef	ERROR_RESET_CM					;vector base + $FC
-RES_CM			EQU	RESET_CM_ENTRY
-#else
-RES_CM			EQU	RES_EXT
-#endif
-#ifdef	ERROR_RESET_EXT					;vector base + $FE
-RES_EXT			EQU	RESET_EXT_ENTRY
-#else
-RES_EXT			EQU	START_OF_CODE
-#endif
-	
 VECTAB_TABS_END		EQU	*	
 VECTAB_TABS_END_LIN	EQU	@	
 
@@ -324,6 +306,6 @@ VEC_IRQ	     		DW	ISR_IRQ	     		;vector base + $F2
 VEC_XIRQ     		DW	ISR_XIRQ     		;vector base + $F4
 VEC_SWI	     		DW	ISR_SWI	     		;vector base + $F6
 VEC_TRAP     		DW	ISR_TRAP     		;vector base + $F8
-VEC_RESET_COP		DW	RES_COP			;vector base + $FA
-VEC_RESET_CM 		DW	RES_CM 			;vector base + $FC
-VEC_RESET_EXT		DW	RES_EXT			;vector base + $FE
+VEC_RESET_COP		DW	RESET_COP_ENTRY		;vector base + $FA
+VEC_RESET_CM 		DW	RESET_CM_ENTRY 		;vector base + $FC
+VEC_RESET_EXT		DW	RESET_EXT_ENTRY		;vector base + $FE

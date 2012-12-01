@@ -131,7 +131,7 @@ RESET_VARS_END_LIN	EQU	@
 			;Check for POR
 			LDAA	RESET_FLGS
 			BITA	#RESET_FLG_POR
-			BNE	<RESET_INIT_2		 ;print welcome message	
+			BNE	<RESET_INIT_3		 ;print welcome message	
 			;Check for power failure (flags in A)
 #ifdef	RESET_POWFAIL_ON
 	
@@ -154,7 +154,7 @@ RESET_VARS_END_LIN	EQU	@
 			;Check for COP reset (flags in A)
 #ifdef	RESET_COP_ON
 			BITA	#RESET_FLG_COP
-			BEQ	<RESET_INIT_2		 ;print welcome message
+			BEQ	<RESET_INIT_3		 ;print welcome message
 #endif
 			;Check custom error
 			LDX	RESET_MSG

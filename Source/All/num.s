@@ -329,7 +329,7 @@ NUM_REVPRINT_NB_2		CLRA				;base => D
 			;Print remainder (prev, remainder in D)
 			LDY	#NUM_SYMTAB
 			LDAB	B,Y
-			SCI_TX_NB			;print character (SSTACK: 5 bytes)
+			JOBSR	SCI_TX_NB		;print character (SSTACK: 5 bytes)
 			BCC	>NUM_REVPRINT_NB_4	;TX unsuccessful
 
 			;Copy updated reverse value
@@ -349,7 +349,7 @@ NUM_REVPRINT_NB_2		CLRA				;base => D
 			;Printing complete 
 			SSTACK_PREPULL	14
 			SEC
-NUM_REVPRINT_NB_3		PULD				;
+NUM_REVPRINT_NB_3	PULD				;
 			PULY
 			PULX
 			;Done

@@ -34,8 +34,11 @@
 CLOCK_BUS_FREQ		EQU	8000000		;8 MHz
 #endif
 
-;# SCI
+;# COP
+COP_DEBUG		EQU	1 		;disable COP
 
+;# RESET
+RESET_COP_OFF		EQU	1 		;no COP reset
 	
 #ifndef	SCI_FC_RTS_CTS
 #ifndef	SCI_FC_XON_XOFF
@@ -101,6 +104,7 @@ BASE_VARS_END_LIN	EQU	VECTAB_VARS_START_LIN
 ;###############################################################################
 ;#Initialization
 #macro	BASE_INIT, 0
+			CLR	COPCTL ;disable COP
 			GPIO_INIT
 			MMAP_INIT
 			VECTAB_INIT
