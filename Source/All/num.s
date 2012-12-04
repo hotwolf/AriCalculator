@@ -179,8 +179,8 @@ NUM_REVERSE_RLW		EQU	$10 ;SP+16:  |      +return address at
 
 			;Setup stack (double value in Y:X, base in B)
 			CLRA
-			MOVW	0,SP, 6,SP 	;move return address to SP+10
-			LDD	2,SP-		;initialize reverse number
+			MOVW	0,SP, -6,SP 	;move return address to SP+10
+			STD	2,SP-		;initialize reverse number
 			MOVW	#$0000, 2,SP-   ;  reverse number = base
 			MOVW	#$0000, 2,SP-
 			PSHX			;store X at SP+8
@@ -224,13 +224,13 @@ NUM_REVERSE_2		CLRA				;base => D
 			INC	NUM_REVERSE_COUNT,SP
 	
 			;Check if the calculation is finished
+			LDD	NUM_REVERSE_FLW,SP
+			BNE	<NUM_REVERSE_3 		;reverse value incomplete
 			LDD	NUM_REVERSE_FHW,SP
-			BNE	<NUM_REVERSE_3 		;reverse value has been generated
-			LDD	NUM_REVERSE_FHW,SP
-			BEQ	<NUM_REVERSE_3		;reverse value has been generated
+			BEQ	<NUM_REVERSE_4		;reverse value has been generated
 
 			;Multiply RLW by base
-			LDY	NUM_REVERSE_RLW,SP
+NUM_REVERSE_3		LDY	NUM_REVERSE_RLW,SP
 			CLRA
 			LDAB	NUM_REVERSE_BASE,SP
 			EMUL				;Y * D => Y:D
@@ -260,7 +260,7 @@ NUM_REVERSE_2		CLRA				;base => D
 			JOB	NUM_REVERSE_1
 
 			;Clean up
-NUM_REVERSE_3		SSTACK_PREPULL	18
+NUM_REVERSE_4		SSTACK_PREPULL	18
 			LEAS	4,SP 			;release temporary space for forward number
 			PULD				;
 			PULY
@@ -349,7 +349,8 @@ NUM_REVPRINT_NB_2		CLRA				;base => D
 			;Printing complete 
 			SSTACK_PREPULL	14
 			SEC
-NUM_REVPRINT_NB_3	PULD				;
+NUM_REVPRINT_NB_3	LEAS	6,SP
+			PULD
 			PULY
 			PULX
 			;Done

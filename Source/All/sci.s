@@ -395,7 +395,7 @@ SCI_VARS_END_LIN	EQU	@
 #ifdef SCI_XON_XOFF
 			MOVB	#SCI_FLG_SEND_XONXOFF,	SCI_FLGS 	;request transmission of XON/XOFF
 #else
-			LDAA	SCI_FLGS
+			STAA	SCI_FLGS
 #endif
 			;Initialize baud rate detection
 #ifdef SCI_BD_ON	
@@ -470,7 +470,7 @@ DLY_TIOS_VAL		EQU	0
 			LDY	#SCI_BTAB				;start of baud table -> Y
 SCI_INIT_1		CPX     2,Y+					;compare table entry with X	
 			BEQ	SCI_INIT_3				;match
-			CPY	#SCI_BTAB_END			;check if the end of the table has been reached
+			CPY	#SCI_BTAB_END				;check if the end of the table has been reached
 			BNE	SCI_INIT_1				;loop
 			;No match use default
 SCI_INIT_2		LDX	#SCI_BDEF	 			;default baud rate
@@ -845,12 +845,14 @@ SCI_RX_NB_1		LDX	#SCI_RXBUF
 			;MOVB	#(TXIE|RIE|TE|RE), SCICR2		;trigger RXTX ISR
 			TFR	X, D 
 			;Restore registers
-			SSTACK_PREPULL	2
+			SSTACK_PREPULL	4
+			PULX
 			;Done
 			SEC
 			RTS
 			;RX buffer is empty (CCR in X)
-SCI_RX_NB_2		SSTACK_PREPULL	2
+SCI_RX_NB_2		SSTACK_PREPULL	4
+			PULX
 			SEC
 			;Done
 			CLC

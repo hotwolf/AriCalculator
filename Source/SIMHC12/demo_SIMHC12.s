@@ -50,7 +50,7 @@ ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 ISTACK_S12X		EQU	1	 	;S12X interrupt handling
 
 ;# Subroutine stack
-SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
+SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
 SSTACK_DEBUG		EQU	1 		;debug behavior
 
 ;# RESET
@@ -136,14 +136,18 @@ DEMO_VARS_END_LIN	EQU	@
 	
 ;Application code
 DEMO_LOOP		SCI_RX_BL
-			;Ignore RX errors 
+			;Ignore RX errors
+			;ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
+			;BNE	DEMO_LOOP
 			TBNE	A, DEMO_LOOP
 
 			;Print ASCII character (char in B)
-			LDAA	#4
-			STRING_SPACES_BL
-			CLRA
 			TFR	D, X
+			LDAA	#4
+			LDAB	#" "
+			STRING_FILL_BL
+			TFR	X, D
+			CLRA
 			STRING_MAKE_PRINTABLE_B
 			SCI_TX_BL
 
@@ -154,7 +158,9 @@ DEMO_LOOP		SCI_RX_BL
 			TFR	SP, Y
 			NEGA
 			ADDA	#5
-			STRING_SPACES_BL
+			LDAB	#" "
+			STRING_FILL_BL
+			LDAB	#16
 			NUM_REVPRINT_BL
 			NUM_CLEAN_REVERSE
 	
@@ -165,7 +171,9 @@ DEMO_LOOP		SCI_RX_BL
 			TFR	SP, Y
 			NEGA
 			ADDA	#5
-			STRING_SPACES_BL
+			LDAB	#" "
+			STRING_FILL_BL
+			LDAB	#10
 			NUM_REVPRINT_BL
 			NUM_CLEAN_REVERSE
 	
@@ -176,7 +184,9 @@ DEMO_LOOP		SCI_RX_BL
 			TFR	SP, Y
 			NEGA
 			ADDA	#5
-			STRING_SPACES_BL
+			LDAB	#" "
+			STRING_FILL_BL
+			LDAB	#8
 			NUM_REVPRINT_BL
 			NUM_CLEAN_REVERSE
 	
@@ -187,7 +197,9 @@ DEMO_LOOP		SCI_RX_BL
 			TFR	SP, Y
 			NEGA
 			ADDA	#10
-			STRING_SPACES_BL
+			LDAB	#"0"
+			STRING_fill_BL
+			LDAB	#2
 			NUM_REVPRINT_BL
 			NUM_CLEAN_REVERSE
 	
@@ -209,7 +221,8 @@ DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the SIMHC12 simulator!"
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM
-			FCS	"------------------------------"
+			FCC	"------------------------------"
+			STRING_NL_TERM
 
 DEMO_TABS_END		EQU	*	
 DEMO_TABS_END_LIN	EQU	@	

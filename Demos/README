@@ -11,4 +11,7 @@ Available demos and tests:
 | +-test_tvmon_Mini-BDM-Pod.txt	;Target voltage monitor test
 |
 +-S12G-Micro-EVB		;Demos and tests running on the S12G-Micro-EVB
-  +-test_led_S12G-Micro-EVB.txt	;Toggles between the ON, BUSY, and COMERR signal
+| +-test_led_S12G-Micro-EVB.txt	;Toggles between the ON, BUSY, and COMERR signal
+|
++-SIMCH12			;Demos and tests running on the SIMHC12 simulator
+  +-demo_SIMHC12.s19		;Reads SCI input and prints the read value

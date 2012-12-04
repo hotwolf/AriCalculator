@@ -22,8 +22,8 @@
 ;#    This module implements various print routines for the SCI driver:        #
 ;#    STRING_PRINT_NB  - print a string (non-blocking)                         #
 ;#    STRING_PRINT_BL  - print a string (blocking)                             #
-;#    STRING_SPACES_NB - print a number of spaces (non-blocking)               #
-;#    STRING_SPACES_BL - print a number of spaces (blocking)                   #
+;#    STRING_FILL_NB   - print a number of filler characters (non-blocking)    #
+;#    STRING_FILL_BL   - print a number of filler characters (blocking)        #
 ;#    STRING_UPPER_B   - convert a character to upper case                     #
 ;#    STRING_LOWER_B   - convert a character to lower case                     #
 ;#                                                                             #
@@ -109,26 +109,28 @@ STRING_VARS_END_LIN	EQU	@
 			JOBSR	STRING_PRINT_BL
 #emac	
 
-;#Print spaces - non-blocking
-; args:   A: number of space characters to be printed
+;#Print a number of filler characters - non-blocking
+; args:   A: number of characters to be printed
+;         B: filler character
 ; result: A: remaining space characters to be printed (0 if successfull)
 ;         C-flag: set if successful	
 ; result: none
-; SSTACK: 8 bytes
+; SSTACK: 7 bytes
 ;         X, Y and B are preserved
-#macro	STRING_SPACES_NB, 0
-			SSTACK_PREPUSH	8
-			JOBSR	STRING_SPACES_NB
+#macro	STRING_FILL_NB, 0
+			SSTACK_PREPUSH	7
+			JOBSR	STRING_FILL_NB
 #emac	
 
-;#Print spaces - blocking
-; args:   A: number of space characters to be printed
+;#Print a number of filler characters - blocking
+; args:   A: number of characters to be printed
+;         B: filler character
 ; result: A: $00
-; SSTACK: 10 bytes
+; SSTACK: 9 bytes
 ;         Y and D are preserved
-#macro	STRING_SPACES_BL, 0
-			SSTACK_PREPUSH	10
-			JOBSR	STRING_SPACES_BL
+#macro	STRING_FILL_BL, 0
+			SSTACK_PREPUSH	9
+			JOBSR	STRING_FILL_BL
 #emac	
 	
 ;#Convert a lower case character to upper case
@@ -247,44 +249,42 @@ STRING_PRINT_NB_3	ANDB	#$7F 			;remove termination bit
 STRING_PRINT_BL		EQU	*
 			SCI_MAKE_BL	STRING_PRINT_NB, 10
 	
-;#Print spaces - non-blocking
-; args:   A: number of space characters to be printed
+;#Print a number of filler characters - non-blocking
+; args:   A: number of characters to be printed
+;         B: filler character
 ; result: A: remaining space characters to be printed (0 if successfull)
 ;         C-flag: set if successful	
 ; result: none
-; SSTACK: 8 bytes
+; SSTACK: 7 bytes
 ;         X, Y and B are preserved
-STRING_SPACES_NB	EQU	*
-			;Save registers (requested spaces in A)
-			PSHB				;save B	
+STRING_FILL_NB	EQU	*
 			;Print characters (requested spaces in A)
 			LDAB	#STRING_SYM_SPACE 	;preload space character
-			TBEQ	A, STRING_SPACES_NB_2	;nothing to do
-STRING_SPACES_NB_1	JOBSR	SCI_TX_NB		;print character non blocking (SSTACK: 5 bytes)
-			BCC	STRING_SPACES_NB_3	;unsuccessful
-			DBNE	A, STRING_PRINT_NB_1
+			TBEQ	A, STRING_FILL_NB_2	;nothing to do
+STRING_FILL_NB_1	JOBSR	SCI_TX_NB		;print character non blocking (SSTACK: 5 bytes)
+			BCC	STRING_FILL_NB_3	;unsuccessful
+			DBNE	A, STRING_FILL_NB_1
 			;Restore registers (remaining spaces in A)
-STRING_SPACES_NB_2	SSTACK_PREPULL	3
-			PULB
+STRING_FILL_NB_2	SSTACK_PREPULL	2
 			;Signal success (remaining spaces in A)
 			SEC
 			;Done
 			RTS
 			;Restore registers (remaining spaces in A)
-STRING_SPACES_NB_3	SSTACK_PREPULL	3
-			PULB
+STRING_FILL_NB_3	SSTACK_PREPULL	2
 			;Signal failure (remaining spaces in A)
 			CLC
 			;Done
 			RTS
 
-;#Print spaces - blocking
-; args:   A: number of space characters to be printed
+;#Print a number of filler characters - blocking
+; args:   A: number of characters to be printed
+;         B: filler character
 ; result: A: $00
-; SSTACK: 10 bytes
+; SSTACK: 9 bytes
 ;         Y and D are preserved
-STRING_SPACES_BL	EQU	*
-			SCI_MAKE_BL	STRING_SPACES_NB, 8
+STRING_FILL_BL	EQU	*
+			SCI_MAKE_BL	STRING_FILL_NB, 7
 	
 STRING_CODE_END		EQU	*	
 STRING_CODE_END_LIN	EQU	@	
