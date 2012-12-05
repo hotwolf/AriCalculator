@@ -76,7 +76,7 @@ VECTAB_VARS_END_LIN	EQU	@
 #macro	VECTAB_INIT, 0
 #ifdef	SCI_ISR_BD_PE
 			;Give SCI_ISR_BD_PE high priority 
-			MOVB	#(VEC_TC0&$FF), HPRIO	
+			MOVB	#(VEC_TIM_TC0&$FF), HPRIO	
 #endif
 #emac	
 
@@ -158,7 +158,6 @@ ISR_SCI			EQU	SCI_ISR_RXTX
 #else
 ISR_SCI			BGND
 #endif
-ISR_SCI    		BGND				;vector base + $D6
 ISR_SPI    		BGND				;vector base + $D8
 ISR_TIM_PAIE   		BGND				;vector base + $DA
 ISR_TIM_PAOV   		BGND				;vector base + $DC

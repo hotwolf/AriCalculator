@@ -76,27 +76,6 @@ SCI_ERRSIG_ON		EQU	1 		;signal errors
 #endif
 
 ;###############################################################################
-;# Includes                                                                    #
-;###############################################################################
-#include ./regdef_OpenBDC.s		;S12C128 register map
-#include ./gpio_OpenBDC.s		;I/O setup
-#include ./mmap_OpenBDC.s		;RAM memory map
-#include ../All/sstack.s		;Subroutine stack
-#include ../All/istack.s		;Interrupt stack
-#include ../All/clock.s			;CRG setup
-#include ../All/cop.s			;COP handler
-#include ./rti_OpenBDC.s		;RTI setup
-#include ./led_OpenBDC.s		;LED driver
-#include ../All/tim.s			;TIM driver
-#include ./sci_bdtab_OpenBDC.s		;Search tree for SCI baud rate detection
-#include ../All/sci.s			;SCI driver
-#include ../All/string.s		;String printing routines
-#include ../All/reset.s			;Reset driver
-#include ../All/num.s	   		;Number printing routines
-#include ./nvm_OpenBDC.s		;NVM driver
-#include ./vectab_OpenBDC.s		;S12C128 vector table
-	
-;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 #ifdef BASE_VARS_START_LIN
@@ -156,6 +135,25 @@ BASE_VARS_END_LIN	EQU	VECTAB_VARS_START_LIN
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Initialization
+#macro	BASE_INIT, 0
+			GPIO_INIT
+			CLOCK_INIT
+			COP_INIT
+			RTI_INIT
+			MMAP_INIT
+			VECTAB_INIT
+			ISTACK_INIT
+			RTI_INIT
+			TIM_INIT
+			STRING_INIT
+			NUM_INIT
+			NVM_INIT
+			LED_INIT
+			CLOCK_WAIT_FOR_PLL
+			SCI_INIT	
+			RESET_INIT
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -205,8 +203,11 @@ RESET_CODE_START_LIN	EQU	STRING_CODE_END_LIN
 NUM_CODE_START		EQU	RESET_CODE_END
 NUM_CODE_START_LIN	EQU	RESET_CODE_END_LIN
 	
-VECTAB_CODE_START	EQU	NUM_CODE_END
-VECTAB_CODE_START_LIN	EQU	NUM_CODE_END_LIN
+NVM_CODE_START		EQU	NUM_CODE_END
+NVM_CODE_START_LIN	EQU	NUM_CODE_END_LIN
+	
+VECTAB_CODE_START	EQU	NVM_CODE_END
+VECTAB_CODE_START_LIN	EQU	NVM_CODE_END_LIN
 
 BASE_CODE_END		EQU	VECTAB_CODE_START	
 BASE_CODE_END_LIN	EQU	VECTAB_CODE_START_LIN
@@ -259,8 +260,33 @@ RESET_TABS_START_LIN	EQU	STRING_TABS_END_LIN
 NUM_TABS_START		EQU	RESET_TABS_END
 NUM_TABS_START_LIN	EQU	RESET_TABS_END_LIN
 	
-VECTAB_TABS_START	EQU	NUM_TABS_END
-VECTAB_TABS_START_LIN	EQU	NUM_TABS_END_LIN
+NVM_TABS_START		EQU	NUM_TABS_END
+NVM_TABS_START_LIN	EQU	NUM_TABS_END_LIN
+	
+VECTAB_TABS_START	EQU	NVM_TABS_END
+VECTAB_TABS_START_LIN	EQU	NVM_TABS_END_LIN
 
 BASE_TABS_END		EQU	VECTAB_TABS_START	
 BASE_TABS_END_LIN	EQU	VECTAB_TABS_START_LIN
+
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+#include ./regdef_OpenBDC.s		;S12C128 register map
+#include ./gpio_OpenBDC.s		;I/O setup
+#include ./mmap_OpenBDC.s		;RAM memory map
+#include ../All/sstack.s		;Subroutine stack
+#include ../All/istack.s		;Interrupt stack
+#include ../All/clock.s			;CRG setup
+#include ../All/cop.s			;COP handler
+#include ./rti_OpenBDC.s		;RTI setup
+#include ./led_OpenBDC.s		;LED driver
+#include ../All/tim.s			;TIM driver
+#include ./sci_bdtab_OpenBDC.s		;Search tree for SCI baud rate detection
+#include ../All/sci.s			;SCI driver
+#include ../All/string.s		;String printing routines
+#include ../All/reset.s			;Reset driver
+#include ../All/num.s	   		;Number printing routines
+#include ./nvm_OpenBDC.s		;NVM driver
+#include ./vectab_OpenBDC.s		;S12C128 vector table
+	

@@ -262,7 +262,7 @@ ISTACK_CODE_START_LIN	EQU	@
 #ifndef	ISTACK_NO_CHECK
 #ifndef	ISTACK_DEBUG
 ISTACK_OF		EQU	*
-			ERROR_RESTART	ISTACK_MSG_OF ;throw a fatal error
+			RESET_FATAL	ISTACK_MSG_OF ;throw a fatal error
 #endif
 #endif
 
@@ -270,7 +270,7 @@ ISTACK_OF		EQU	*
 #ifndef	ISTACK_NO_CHECK
 #ifndef	ISTACK_DEBUG
 ISTACK_UF		EQU	*
-			ERROR_RESTART	ISTACK_MSG_UF ;throw a fatal error
+			RESET_FATAL	ISTACK_MSG_UF ;throw a fatal error
 #endif
 #endif
 	
@@ -290,8 +290,8 @@ ISTACK_TABS_START_LIN	EQU	@
 ;#Error Messages
 #ifndef	ISTACK_NO_CHECK 
 #ifndef	ISTACK_DEBUG
-ISTACK_MSG_OF		ERROR_MSG	ERROR_LEVEL_FATAL, "Interrupt stack overflow"
-ISTACK_MSG_UF		ERROR_MSG	ERROR_LEVEL_FATAL, "Interrupt stack underflow"
+ISTACK_MSG_OF		FCS	"Interrupt stack overflow"
+ISTACK_MSG_UF		FCS	"Interrupt stack underflow"
 #endif
 #endif
 	

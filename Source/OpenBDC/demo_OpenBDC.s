@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - Demo (SIMHC12)                                                   #
+;# S12CBase - Demo (OpenBDC)                                              #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -34,38 +34,48 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;# Clocks
-CLOCK_CRG		EQU	1		;CPMU
-CLOCK_OSC_FREQ		EQU	10000000	;10 MHz
-CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
-CLOCK_REF_FREQ		EQU	10000000	;10 MHz
-CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
-CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
+CLOCK_CRG		EQU	1		;old CRG
+CLOCK_OSC_FREQ		EQU	4096000		;4,096 MHz
+CLOCK_BUS_FREQ		EQU	25000000	;25 MHz
+CLOCK_REF_FREQ		EQU	4096000		;4,096 MHz
 
-;# Memory map:
+;# Memory map
 MMAP_RAM		EQU	1 		;use RAM memory map
+MMAP_S12C128		EQU	1		;complie for S12S128
+;MMAP_S12C32		EQU	1		;complile for S12C32
 
 ;# Interrupt stack
-ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
-;ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-ISTACK_S12X		EQU	1	 	;S12X interrupt handling
+ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
+ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 
 ;# Subroutine stack
-SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
-;SSTACK_DEBUG		EQU	1 		;debug behavior
+SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
+SSTACK_DEBUG		EQU	1 		;debug behavior
+
+;# COP
+COP_DEBUG		EQU	1 		;disable COP
 
 ;# RESET
-RESET_CLKFAIL_OFF	EQU	1 		;no clock monitor reset
 RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
 	
 ;# Vector table
-;VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
+VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 	
 ;# SCI
-SCI_FC_NONE		EQU	1 		;no flow control
+SCI_FC_RTS_CTS		EQU	1 		;RTS/CTS flow control
+SCI_RTS_PORT		EQU	PTM 		;PTM
+SCI_RTS_PIN		EQU	PM0		;PM0
+SCI_CTS_PORT		EQU	PTM 		;PTM
+SCI_CTS_PIN		EQU	PM1		;PM1
 SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
 SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
-SCI_BD_OFF		EQU	1 		;no baud rate detection
-SCI_ERRSIG_OFF		EQU	1 		;don't signal errors
+SCI_BD_ON		EQU	1 		;use baud rate detection
+SCI_BD_TIM		EQU	1 		;TIM
+SCI_BD_ICPE		EQU	0		;IC0
+SCI_BD_ICNE		EQU	1		;IC1			
+SCI_BD_OC		EQU	2		;OC2			
+SCI_DLY_OC		EQU	3		;OC3
+SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 
 ;# NUM
@@ -75,14 +85,6 @@ NUM_BLOCKING_ON		EQU	1		;enable blocking subroutines
 ;# Resource mapping                                                            #
 ;###############################################################################
 			ORG	MMAP_RAM_START
-;Variables
-DEMO_VARS_START		EQU	*
-DEMO_VARS_START_LIN	EQU	@
-	
-BASE_VARS_START		EQU	DEMO_VARS_END
-BASE_VARS_START_LIN	EQU	DEMO_VARS_END_LIN
-
-			ORG	MMAP_EEPROM_START
 ;Code
 START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*
@@ -91,9 +93,16 @@ DEMO_CODE_START_LIN	EQU	@
 BASE_CODE_START		EQU	DEMO_CODE_END
 BASE_CODE_START_LIN	EQU	DEMO_CODE_END_LIN
 
+;Variables
+DEMO_VARS_START		EQU	BASE_CODE_END
+DEMO_VARS_START_LIN	EQU	BASE_CODE_END_LIN
+	
+BASE_VARS_START		EQU	DEMO_VARS_END
+BASE_VARS_START_LIN	EQU	DEMO_VARS_END_LIN
+
 ;Tables
-DEMO_TABS_START		EQU	BASE_CODE_END
-DEMO_TABS_START_LIN	EQU	BASE_CODE_END_LIN
+DEMO_TABS_START		EQU	BASE_VARS_END
+DEMO_TABS_START_LIN	EQU	BASE_VARS_END_LIN
 	
 BASE_TABS_START		EQU	DEMO_TABS_END
 BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
@@ -101,7 +110,7 @@ BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./base_SIMHC12.s	;S12CBase bundle
+#include ./base_OpenBDC.s		;S12CBase bundle
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -114,14 +123,15 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
-;###############################################################################;Break handler
+;###############################################################################
+;Break handler
 #macro	SCI_BREAK_ACTION, 0
-			MOVB	#$A0, PORTT
+			LED_BUSY_ON
 #emac
 	
 ;Suspend handler
 #macro	SCI_SUSPEND_ACTION, 0
-			MOVB	#$50, PORTT
+			LED_BUSY_OFF
 #emac
 
 ;###############################################################################
@@ -131,14 +141,10 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;Initialization
 			BASE_INIT
-
-			MOVB	#$C0, DDRT
 	
 ;Application code
 DEMO_LOOP		SCI_RX_BL
-			;Ignore RX errors
-			;ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
-			;BNE	DEMO_LOOP
+			;Ignore RX errors 
 			TBNE	A, DEMO_LOOP
 
 			;Print ASCII character (char in B)
@@ -216,13 +222,12 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the SIMHC12 simulator!"
+DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the OpenBDC pod"
 			STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM
-			FCC	"------------------------------"
-			STRING_NL_TERM
+			FCS	"------------------------------"
 
 DEMO_TABS_END		EQU	*	
 DEMO_TABS_END_LIN	EQU	@	

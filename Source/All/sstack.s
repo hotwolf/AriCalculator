@@ -204,18 +204,18 @@ OF			EQU	SSTACK_OF
 #endif
 
 ;#Handle stack overflows
-#ifndef	ISTACK_NO_CHECK
-#ifndef	ISTACK_DEBUG
+#ifndef	SSTACK_NO_CHECK
+#ifndef	SSTACK_DEBUG
 SSTACK_OF		EQU	*
-			ERROR_RESTART	SSTACK_MSG_OF ;throw a fatal error
+			RESET_FATAL	SSTACK_MSG_OF ;throw a fatal error
 #endif
 #endif
 
 ;#Handle stack underflows
-#ifndef	ISTACK_NO_CHECK
-#ifndef	ISTACK_DEBUG
+#ifndef	SSTACK_NO_CHECK
+#ifndef	SSTACK_DEBUG
 SSTACK_UF		EQU	*
-			ERROR_RESTART	SSTACK_MSG_UF ;throw a fatal error
+			RESET_FATAL	SSTACK_MSG_UF ;throw a fatal error
 #endif
 #endif
 		
@@ -234,8 +234,8 @@ SSTACK_CODE_END_LIN	EQU	@
 ;#Error Messages
 #ifndef	SSTACK_NO_CHECK 
 #ifndef	SSTACK_DEBUG
-SSTACK_MSG_OF		ERROR_MSG	ERROR_LEVEL_FATAL, "Subroutine stack overflow"
-SSTACK_MSG_UF		ERROR_MSG	ERROR_LEVEL_FATAL, "Subroutine stack underflow"
+SSTACK_MSG_OF		FCS	"Subroutine stack overflow"
+SSTACK_MSG_UF		FCS	"Subroutine stack underflow"
 #endif
 #endif
 
