@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - Demo (Mini-BDM-Pod)                                              #
+;# S12CBase - Demo (S12G-Micro-EVB)                                              #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -34,23 +34,24 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;# Clocks
-CLOCK_CRG		EQU	1		;CPMU
-CLOCK_OSC_FREQ		EQU	10000000	;10 MHz
-CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
-CLOCK_REF_FREQ		EQU	10000000	;10 MHz
-CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
-CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
+CLOCK_CPMU		EQU	1		;CPMU
+CLOCK_IRC		EQU	1		;use IRC
+CLOCK_OSC_FREQ		EQU	 1000000	; 1 MHz IRC frequency
+CLOCK_BUS_FREQ		EQU	25000000	; 25 MHz bus frequency
+CLOCK_REF_FREQ		EQU	 1000000	; 1 MHz reference clock frequency
+CLOCK_VCOFRQ		EQU	$1		; 10 MHz VCO frequency
+CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
 
 ;# Memory map:
+MMAP_S12G128		EQU	1 		;S12G128
 MMAP_RAM		EQU	1 		;use RAM memory map
 
 ;# Interrupt stack
 ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-ISTACK_S12X		EQU	1	 	;S12X interrupt handling
 
 ;# Subroutine stack
-SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
+SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
 SSTACK_DEBUG		EQU	1 		;debug behavior
 
 ;# COP
@@ -63,14 +64,9 @@ RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 	
 ;# SCI
-SCI_FC_XON_XOFF		EQU	1 		;XON/XOFF flow control
+SCI_RXTX_ACTHI		EQU	1 		;RXD/TXD are inverted (active high)
 SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
 SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
-SCI_BD_ON		EQU	1 		;use baud rate detection
-SCI_BD_ECT		EQU	1 		;TIM
-SCI_BD_IC		EQU	0		;IC0
-SCI_BD_OC		EQU	2		;OC2			
-SCI_DLY_OC		EQU	3		;OC3
 SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 
@@ -106,7 +102,7 @@ BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./base_Mini-BDM-Pod.s		;S12CBase bundle
+#include ./base_S12G-Micro-EVB.s		;S12CBase bundle
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -218,7 +214,7 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the Mini-BDM-Pod"
+DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the S12G-Micro-EVB"
 			STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"

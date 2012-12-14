@@ -378,6 +378,7 @@ VEC_IRQ			DW	ISR_IRQ			;vector base + $F2
 VEC_XIRQ		DW	ISR_XIRQ		;vector base + $F4
 VEC_SWI			DW	ISR_SWI			;vector base + $F6
 VEC_TRAP		DW	ISR_TRAP		;vector base + $F8
-VEC_RESET_COP		DW	RESCOP			;vector base + $FA
-VEC_RESET_CM		DW	RESCM			;vector base + $FC
-VEC_RESET_EXT		DW	RESEXT			;vector base + $FE
+VEC_RESET_COP		DW	RES_COP			;vector base + $FA
+VEC_RESET_CM		DW	RES_CM			;vector base + $FC
+VEC_RESET_EXT		DW	RES_EXT			;vector base + $FE
+V

@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - Demo (Mini-BDM-Pod)                                              #
+;# S12CBase - Demo (S12DP256-Mini-EVB)                                              #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -47,10 +47,9 @@ MMAP_RAM		EQU	1 		;use RAM memory map
 ;# Interrupt stack
 ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-ISTACK_S12X		EQU	1	 	;S12X interrupt handling
 
 ;# Subroutine stack
-SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
+SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
 SSTACK_DEBUG		EQU	1 		;debug behavior
 
 ;# COP
@@ -63,15 +62,6 @@ RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 	
 ;# SCI
-SCI_FC_XON_XOFF		EQU	1 		;XON/XOFF flow control
-SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
-SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
-SCI_BD_ON		EQU	1 		;use baud rate detection
-SCI_BD_ECT		EQU	1 		;TIM
-SCI_BD_IC		EQU	0		;IC0
-SCI_BD_OC		EQU	2		;OC2			
-SCI_DLY_OC		EQU	3		;OC3
-SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 
 ;# NUM
@@ -106,7 +96,7 @@ BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./base_Mini-BDM-Pod.s		;S12CBase bundle
+#include ./base_S12DP256-Mini-EVB.s		;S12CBase bundle
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -120,15 +110,6 @@ DEMO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;Break handler
-#macro	SCI_BREAK_ACTION, 0
-			LED_BUSY_ON
-#emac
-	
-;Suspend handler
-#macro	SCI_SUSPEND_ACTION, 0
-			LED_BUSY_OFF
-#emac
 
 ;###############################################################################
 ;# Code                                                                        #
@@ -218,7 +199,7 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the Mini-BDM-Pod"
+DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the S12DP256-Mini-EVB"
 			STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"

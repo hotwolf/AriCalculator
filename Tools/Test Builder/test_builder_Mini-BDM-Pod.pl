@@ -37,6 +37,7 @@ use 5.005;
 use File::Basename;
 use FindBin qw($RealBin);
 use lib $RealBin;
+use Data::Dumper;
 use lib "$RealBin/../HSW12/Perl";
 require hsw12_asm;
 
@@ -54,6 +55,7 @@ $srec_data_length  = $hsw12_asm::srec_def_data_length;
 $srec_add_s5       = $hsw12_asm::srec_def_add_s5;
 $srec_word_entries = 1;
 $command_file_name = "";
+$symbols           = {};
 $code              = {};
 $comp_symbols      = {};
 $pag_addrspace     = {};
@@ -117,13 +119,54 @@ if ($#lib_files < 0) {
 $prog_name   = basename($src_files[0], ".s");
 $output_path = dirname($src_files[0], ".s");
 
+###################
+# add default lib #
+###################
+#printf "libraries:    %s (%s)\n",join("\", \"", @lib_files), $#lib_files;
+#printf "source files: %s (%s)\n",join("\", \"", @src_files), $#src_files;
+if ($#lib_files < 0) {
+  foreach $src_file (@src_files) {
+    #printf "add library:%s/\n", dirname($src_file);
+    push @lib_files, sprintf("%s/", dirname($src_file));
+  }
+}
+
+####################
+# load symbol file #
+####################
+$symbol_file_name = sprintf("%s/%s.sym", $output_path, $prog_name);
+printf STDERR "Loading: %s\n",  $symbol_file_name;
+if (open (FILEHANDLE, sprintf("<%s", $symbol_file_name))) {
+    $data = join "", <FILEHANDLE>;
+    eval $data;
+    close FILEHANDLE;
+}
+#printf STDERR $data;
+#printf STDERR "Importing %s\n",  join(",\n", keys %{$symbols});
+#exit;
+
 #######################
 # compile source code #
 #######################
 #printf STDERR "src files: \"%s\"\r\n", join("\", \"", @src_files);  
 #printf STDERR "lib files: \"%s\"\r\n", join("\", \"", @lib_files);  
 #printf STDERR "defines:   \"%s\"\r\n", join("\", \"", @defines);  
-$code = hsw12_asm->new(\@src_files, \@lib_files, \%defines, "S12", 1);
+$code = hsw12_asm->new(\@src_files, \@lib_files, \%defines, "S12", 1, $symbols);
+
+###################
+# write list file #
+###################
+$list_file_name = sprintf("%s/%s.lst", $output_path, $prog_name);
+if (open (FILEHANDLE, sprintf("+>%s", $list_file_name))) {
+    $out_string = $code->print_listing();
+    print FILEHANDLE $out_string;
+    #print STDOUT     $out_string;
+    #printf "output: %s\n", $list_file_name;
+    close FILEHANDLE;
+} else {
+    printf STDERR "Can't open list file \"%s\"\n", $list_file_name;
+    exit;
+}
 
 #####################
 # check code status #
@@ -137,6 +180,20 @@ if ($code->{problems}) {
     $comp_symbols  = $code->{comp_symbols};
     $pag_addrspace = $code->{pag_addrspace};
     
+    #####################
+    # write symbol file #
+    #####################
+    #$symbol_file_name = sprintf("%s/%s.sym", $output_path, $prog_name);
+    if (open (FILEHANDLE, sprintf("+>%s", $symbol_file_name))) {
+	$dump = Data::Dumper->new([$code->{comp_symbols}], ['symbols']);
+	$dump->Indent(2);
+	print FILEHANDLE $dump->Dump;
+ 	close FILEHANDLE;
+    } else {
+	printf STDERR "Can't open symbol file \"%s\"\n", $symbol_file_name;
+	exit;
+    }
+
     ######################
     # write command file #
     ######################
@@ -156,7 +213,12 @@ if ($code->{problems}) {
 
 	#printf STDOUT "comp symbpls: %s\r\n", join(", ", keys %{$self->{comp_symbols}} 
 
-	if (defined $code->{comp_symbols}->{"START_OF_CODE"}) {
+	if (defined $code->{comp_symbols}->{"RESET_EXT_ENTRY"}) {
+	    $initial_pc = $code->{comp_symbols}->{"RESET_EXT_ENTRY"};
+	    printf FILEHANDLE "pc %4x\r\n", $initial_pc;      # set PC
+	    printf FILEHANDLE "g";                            # run program
+	    #printf STDOUT "START_OF_CODE found\r\n";
+	} elsif (defined $code->{comp_symbols}->{"START_OF_CODE"}) {
 	    $initial_pc = $code->{comp_symbols}->{"START_OF_CODE"};
 	    printf FILEHANDLE "pc %4x\r\n", $initial_pc;      # set PC
 	    printf FILEHANDLE "g";                            # run program

@@ -853,7 +853,6 @@ SCI_RX_NB_1		LDX	#SCI_RXBUF
 			;RX buffer is empty (CCR in X)
 SCI_RX_NB_2		SSTACK_PREPULL	4
 			PULX
-			SEC
 			;Done
 			CLC
 			RTS

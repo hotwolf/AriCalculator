@@ -72,6 +72,7 @@ SCI_BD_ICPE		EQU	0		;IC0
 SCI_BD_ICNE		EQU	1		;IC1			
 SCI_BD_OC		EQU	2		;OC2	#endif
 #endif
+#endif
 
 #ifndef	SCI_DLY_OC
 SCI_DLY_OC		EQU	3		;OC3
@@ -82,25 +83,6 @@ SCI_DLY_OC		EQU	3		;OC3
 SCI_ERRSIG_ON		EQU	1 		;signal errors
 #endif
 #endif
-
-;###############################################################################
-;# Includes                                                                    #
-;###############################################################################
-#include ./regdef_S12G-Micro-EVB.s	;S12G register map
-#include ./gpio_S12G-Micro-EVB.s	;I/O setup
-#include ./mmap_S12G-Micro-EVB.s	;RAM memory map
-#include ../All/sstack.s		;Subroutine stack
-#include ../All/istack.s		;Interrupt stack
-#include ../All/clock.s			;CRG setup
-#include ../All/cop.s			;COP handler
-#include ../All/tim.s			;TIM driver
-#include ./sci_bdtab_S12G-Micro-EVB.s	;Search tree for SCI baud rate detection
-#include ../All/sci.s			;SCI driver
-#include ../All/string.s		;String printing routines
-#include ../All/reset.s			;Reset driver
-#include ../All/num.s	   		;Number printing routines
-#include ./nvm_S12G-Micro-EVB.s		;NVM driver
-#include ./vectab_S12G-Micro-EVB.s	;S12G vector table
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -132,8 +114,11 @@ COP_VARS_START_LIN	EQU	CLOCK_VARS_END_LIN
 TIM_VARS_START		EQU	COP_VARS_END
 TIM_VARS_START_LIN	EQU	COP_VARS_END_LIN
 
-SCI_VARS_START		EQU	TIM_VARS_END
-SCI_VARS_START_LIN	EQU	TIM_VARS_END_LIN
+LED_VARS_START		EQU	TIM_VARS_END
+LED_VARS_START_LIN	EQU	TIM_VARS_END_LIN
+
+SCI_VARS_START		EQU	LED_VARS_END
+SCI_VARS_START_LIN	EQU	LED_VARS_END_LIN
 
 STRING_VARS_START	EQU	SCI_VARS_END
 STRING_VARS_START_LIN	EQU	SCI_VARS_END_LIN
@@ -156,6 +141,23 @@ BASE_VARS_END_LIN	EQU	VECTAB_VARS_START_LIN
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Initialization
+#macro	BASE_INIT, 0
+			GPIO_INIT
+			CLOCK_INIT
+			COP_INIT
+			MMAP_INIT
+			VECTAB_INIT
+			ISTACK_INIT
+			TIM_INIT
+			STRING_INIT
+			NUM_INIT
+			NVM_INIT
+			LED_INIT
+			CLOCK_WAIT_FOR_PLL
+			SCI_INIT	
+			RESET_INIT
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -187,8 +189,11 @@ COP_CODE_START_LIN	EQU	CLOCK_CODE_END_LIN
 TIM_CODE_START		EQU	COP_CODE_END
 TIM_CODE_START_LIN	EQU	COP_CODE_END_LIN
 
-SCI_CODE_START		EQU	TIM_CODE_END
-SCI_CODE_START_LIN	EQU	TIM_CODE_END_LIN
+LED_CODE_START		EQU	TIM_CODE_END
+LED_CODE_START_LIN	EQU	TIM_CODE_END_LIN
+
+SCI_CODE_START		EQU	LED_CODE_END
+SCI_CODE_START_LIN	EQU	LED_CODE_END_LIN
 
 STRING_CODE_START	EQU	SCI_CODE_END
 STRING_CODE_START_LIN	EQU	SCI_CODE_END_LIN
@@ -238,8 +243,11 @@ COP_TABS_START_LIN	EQU	CLOCK_TABS_END_LIN
 TIM_TABS_START		EQU	COP_TABS_END
 TIM_TABS_START_LIN	EQU	COP_TABS_END_LIN
 
-SCI_TABS_START		EQU	TIM_TABS_END
-SCI_TABS_START_LIN	EQU	TIM_TABS_END_LIN
+LED_TABS_START		EQU	TIM_TABS_END
+LED_TABS_START_LIN	EQU	TIM_TABS_END_LIN
+
+SCI_TABS_START		EQU	LED_TABS_END
+SCI_TABS_START_LIN	EQU	LED_TABS_END_LIN
 
 STRING_TABS_START	EQU	SCI_TABS_END
 STRING_TABS_START_LIN	EQU	SCI_TABS_END_LIN
@@ -258,3 +266,23 @@ VECTAB_TABS_START_LIN	EQU	NVM_TABS_END_LIN
 
 BASE_TABS_END		EQU	VECTAB_TABS_START	
 BASE_TABS_END_LIN	EQU	VECTAB_TABS_START_LIN
+
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+#include ./regdef_S12G-Micro-EVB.s	;S12G register map
+#include ./gpio_S12G-Micro-EVB.s	;I/O setup
+#include ./mmap_S12G-Micro-EVB.s	;RAM memory map
+#include ../All/sstack.s		;Subroutine stack
+#include ../All/istack.s		;Interrupt stack
+#include ../All/clock.s			;CRG setup
+#include ../All/cop.s			;COP handler
+#include ../All/tim.s			;TIM driver
+#include ./led_S12G-Micro-EVB.s		;LED driver
+#include ./sci_bdtab_S12G-Micro-EVB.s	;Search tree for SCI baud rate detection
+#include ../All/sci.s			;SCI driver
+#include ../All/string.s		;String printing routines
+#include ../All/reset.s			;Reset driver
+#include ../All/num.s	   		;Number printing routines
+#include ./nvm_S12G-Micro-EVB.s		;NVM driver
+#include ./vectab_S12G-Micro-EVB.s	;S12G vector table

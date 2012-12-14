@@ -385,7 +385,7 @@ REFDIV0         EQU     $01
 CPMUPOSTDIV     EQU    	$0036
 POSTDIV         EQU    	$0036
 POSTDIV4   	EQU    	$10
-POSTDIV3   	ExQU    $08
+POSTDIV3   	EQU     $08
 POSTDIV2   	EQU    	$04
 POSTDIV1   	EQU    	$02
 POSTDIV0   	EQU    	$01
