@@ -189,7 +189,7 @@ RESET_INIT_4		STRING_PRINT_BL
 			STD	RESET_MSG
 			STAA	RESET_MSG_CHKSUM
 			;Wait until message has been transmitted
-			SCI_TX_WAIT	
+			SCI_TX_DONE_BL	
 #emac
 	
 ;#Perform a reset due to a fatal error

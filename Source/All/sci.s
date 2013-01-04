@@ -500,8 +500,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; SSTACK: 5 bytes
 ;         X, Y, and D are preserved 
 #macro	SCI_TX_NB, 0
-			SSTACK_PREPUSH	5
-			JOBSR	SCI_TX_NB
+			SSTACK_JOBSR	SCI_TX_NB, 5
 #emac
 	
 ;#Transmit one byte - blocking
@@ -510,19 +509,21 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ;         X, Y, and D are preserved 
 #ifdef	SCI_BLOCKING_ON
 #macro	SCI_TX_BL, 0
-			SSTACK_PREPUSH	7
-			JOBSR	SCI_TX_BL
+			SSTACK_JOBSR	SCI_TX_BL, 7
+#emac
+#else
+#macro	SCI_TX_BL, 0
+			SCI_CALL_BL	SCI_TX_NB, 5
 #emac
 #endif
 	
 ;#Check if a transmission is ongoing
 ; args:   none
 ; result:  C-flag: set if all transmissionsare complete
-; SSTACK: 6 bytes
+; SSTACK: 4 bytes
 ;         X, Y, and D are preserved 
-#macro	SCI_TX_CHECK, 0
-			SSTACK_PREPUSH	6
-			JOBSR	SCI_TX_WAIT
+#macro	SCI_TX_DONE_NB, 0
+			SSTACK_JOBSR	SCI_TX_DONE_NB, 4
 #emac
 	
 ;#Wait until all pending data is sent
@@ -530,45 +531,89 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; result: A: number of entries left in TX queue
 ; SSTACK: 6 bytes
 ;         X, Y, and D are preserved 
-#macro	SCI_TX_WAIT, 0
-			SSTACK_PREPUSH	6
-			JOBSR	SCI_TX_WAIT
+#ifdef	SCI_BLOCKING_ON
+#macro	SCI_TX_DONE_BL, 0
+			SSTACK_JOBSR	SCI_TX_DONE_BL, 6
 #emac
+#else
+#macro	SCI_TX_DONE_BL, 0
+			SCI_CALL_BL 	SCI_TX_DONE_NB, 4
+#emac
+#endif
 		
+;#Check if TX queue can hold further data
+; args:   none
+; result: C-flag: set if successful
+; SSTACK: 4 bytes
+;         X, Y, and D are preserved 
+#macro	SCI_TX_READY_NB, 0
+			SSTACK_JOBSR	SCI_TX_READY_NB, 4
+#emac
+
+;#Wait until TX queue can hold further data
+; args:   none
+; result: none
+; SSTACK: 6 bytes
+;         X, Y, and D are preserved 
+#ifdef	SCI_BLOCKING_ON
+#macro	SCI_TX_READY_BL, 0
+			SSTACK_JOBSR	SCI_TX_READY_BL, 6
+#emac
+#else
+#macro	SCI_TX_READY_BL, 0
+			SCI_CALL_BL	SCI_TX_READY_NB, 4
+#emac
+#endif
+
 ;#Receive one byte - non-blocking
 ; args:   none
 ; result: A:      error flags 
 ;         B:      received data 
 ;         C-flag: set if successful
-; SSTACK: 2 bytes
+; SSTACK: 4 bytes
 ;         X and Y are preserved 
 #macro	SCI_RX_NB, 0
-			SSTACK_PREPUSH	2
-			JOBSR	SCI_RX_NB
+			SSTACK_JOBSR	SCI_RX_NB, 4
 #emac
 
 ;#Receive one byte - blocking
 ; args:   none
 ; result: A: error flags 
 ;         B: received data
-; SSTACK: 4 bytes
+; SSTACK: 6 bytes
 ;         X and Y are preserved 
 #ifdef	SCI_BLOCKING_ON
 #macro	SCI_RX_BL, 0
-			SSTACK_PREPUSH	4
-			JOBSR	SCI_RX_BL
+			SSTACK_JOBSR	SCI_RX_BL, 6
+#emac
+#else
+#macro	SCI_RX_BL, 0
+			SCI_CALL_BL 	SCI_RX_NB, 4
 #emac
 #endif
 
-;#Return the number of bytes in the RX queue
+;#Check if there is data in the RX queue
 ; args:   none
-; result: A: number 
-; SSTACK: 3 bytes
+; result: C-flag: set if successful
+; SSTACK: 4 bytes
 ;         X, Y and B are preserved 
-#macro	SCI_RX_PEEK, 0
-			SSTACK_PREPUSH	3
-			JOBSR	SCI_RX_PEEK
+#macro	SCI_RX_READY_NB, 0
+			SSTACK_JOBSR	SCI_RX_READY_NB, 4
 #emac
+
+;#Wait until there is data in the RX queue
+; args:   none
+; result: C-flag: set if successful
+; SSTACK: 6 bytes
+;         X, Y and B are preserved 
+#ifdef	SCI_BLOCKING_ON
+#macro	SCI_RX_READY_BL, 0
+			SSTACK_JOBSR	SCI_RX_READY_BL, 6
+#else
+#macro	SCI_RX_READY_BL, 0
+			SCI_CALL_BL 	SCI_RX_READY_NB, 4
+#emac
+#endif
 	
 ;#Set baud rate
 ; args:   D: new SCIBD value
@@ -576,8 +621,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; SSTACK: 6 bytes
 ;         X, Y, and D are preserved 
 #macro	SCI_SET_BAUD, 0
-			SSTACK_PREPUSH	6
-			JOBSR	SCI_SET_BAUD
+			SSTACK_JOBSR	SCI_SET_BAUD, 6
 #emac
 
 ;# Macros for internal use
@@ -615,8 +659,7 @@ WAIT			ISTACK_WAIT
 			;Disable interrupts
 LOOP			SEI
 			;Call non-blocking function
-			SSTACK_PREPUSH	\2
-			JOBSR	\1
+			SSTACK_JOBSR	\1, \2
 			BCS	DONE 		;function successful
 			;Wait for next interrupt 
 			ISTACK_WAIT
@@ -785,18 +828,18 @@ SCI_TX_BL		EQU	*
 ; result:  C-flag: set if all transmissionsare complete
 ; SSTACK: 4 bytes
 ;         X, Y, and D are preserved 
-SCI_TX_CHECK		EQU	*
+SCI_TX_DONE_NB		EQU	*
 			;Save registers
 			PSHD
 			;Check TX queue
 			LDD	SCI_TXBUF_IN
 			CBA
-			BNE	SCI_TX_CHECK_1 ;transmissions queued
+			BNE	SCI_TX_DONE_NB_1 ;transmissions queued
 			;Check SCI status
-			BRSET	SCISR1, #(TDRE|TC), SCI_TX_CHECK_2 ;all transmissionscomplete
+			BRSET	SCISR1, #(TDRE|TC), SCI_TX_DONE_NB_2 ;all transmissionscomplete
 			;Transmissions ongoing
 			;Restore registers	
-SCI_TX_CHECK_1		SSTACK_PREPULL	4
+SCI_TX_DONE_NB_1	SSTACK_PREPULL	4
 			PULD
 			;Signal failure
 			CLC
@@ -804,7 +847,7 @@ SCI_TX_CHECK_1		SSTACK_PREPULL	4
 			RTS
 			;All transmissions complete
 			;Restore registers	
-SCI_TX_CHECK_2		SSTACK_PREPULL	4
+SCI_TX_DONE_NB_2	SSTACK_PREPULL	4
 			PULD
 			;Signal failure
 			SEC
@@ -816,15 +859,54 @@ SCI_TX_CHECK_2		SSTACK_PREPULL	4
 ; result: none
 ; SSTACK: 6 bytes
 ;         X, Y, and D are preserved 
-SCI_TX_WAIT		EQU	*
-			SCI_MAKE_BL	SCI_TX_CHECK, 4
-		
+#ifdef	SCI_BLOCKING_ON
+SCI_TX_DONE_BL		EQU	*
+			SCI_MAKE_BL	SCI_TX_DONE_NB, 4	
+#endif
+
+;#Check if TX queue can hold further data
+; args:   none
+; result: C-flag: set if successful
+; SSTACK: 4 bytes
+;         X, Y, and D are preserved 
+SCI_TX_READY_NB		EQU	*
+			;Save registers
+			PSHD
+			;Check if there is room for this entry
+			LDD	SCI_TXBUF_IN 		;in-index in A, out-index in B
+			INCA
+			ANDA	#SCI_TXBUF_MASK
+			CMPA	SCI_TXBUF_OUT
+			BEQ	SCI_TX_READYNB_1 				;buffer is full			
+			;Restore registers
+			SSTACK_PREPULL	4
+			PULD
+			;Done
+			SEC
+			RTS
+			;TX buffer is full
+SCI_TX_READY_NB_1	SSTACK_PREPULL	4
+			PULD
+			;Done
+			CLC
+			RTS
+
+;#Wait until TX queue can hold further data
+; args:   none
+; result: none
+; SSTACK: 6 bytes
+;         X, Y, and D are preserved 
+#ifdef	SCI_BLOCKING_ON
+SCI_TX_READY_BL		EQU	*
+			SCI_MAKE_BL	SCI_TX_READY_NB, 4	
+#endif
+
 ;#Receive one byte - non-blocking ;OK!
 ; args:   none
 ; result: A:      error flags 
 ;         B:      received data
 ;	  C-flag: set if successful
-; SSTACK: 2 bytes
+; SSTACK: 4 bytes
 ;         X and Y are preserved 
 SCI_RX_NB		EQU	*
 			;Save registers
@@ -867,26 +949,47 @@ SCI_RX_NB_3		EQU	*
 ; result: A:      error flags 
 ;         B:      received data
 ;	  C-flag: set if successful
-; SSTACK: 4 bytes
+; SSTACK: 6 bytes
 ;         X and Y are preserved 
 #ifdef	SCI_BLOCKING_ON
 SCI_RX_BL		EQU	*
 			SCI_MAKE_BL	SCI_RX_NB, 4
 #endif
 
-;#Return the number of bytes in the RX queue
+;#Check if there is data in the RX queue
 ; args:   none
-; result: A: number 
-; SSTACK: 3 bytes
-;         X, Y and B are preserved 
-SCI_RX_PEEK		EQU	*
+; result: C-flag: set if successful
+; SSTACK: 4 bytes
+;         X, Y and D are preserved 
+SCI_RX_READY_NB		EQU	*
+			;Save registers
+			PSHD
 			;Check if there is data in the RX queue
-			LDAA	SCI_RXBUF_IN 				;A:B=in:out
-			SUBA	SCI_RXBUF_OUT
-			ANDA	#SCI_RXBUF_MASK
+			LDAD	SCI_RXBUF_IN 		;A:B=in:out
+			CBA
+			BEQ	SCI_RX_READY_NB_1
+			;RX buffer holds data
+			SSTACK_PREPULL	4
+			PULD
 			;Done
-			SSTACK_PREPULL	2
+			SEC
 			RTS
+			;RX buffer is empty
+SCI_RX_READY_NB_1	SSTACK_PREPULL	4
+			PULD
+			;Done
+			CLC
+			RTS
+
+;#Wait until there is data in the RX queue
+; args:   none
+; result: C-flag: set if successful
+; SSTACK: 4 bytes
+;         X, Y and D are preserved 
+#ifdef	SCI_BLOCKING_ON
+SCI_RX_READY_BL		EQU	*
+			SCI_MAKE_BL	SCI_RX_READY_BL, 4
+#endif
 	
 ;#Set baud rate
 ; args:   D: new SCIBD value

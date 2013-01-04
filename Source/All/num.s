@@ -91,8 +91,7 @@ NUM_VARS_END_LIN	EQU	@
 ; SSTACK: 18 bytes
 ;         X, Y and B are preserved
 #macro	NUM_REVERSE, 0
-			SSTACK_PREPUSH	18
-			JOBSR	NUM_REVERSE
+			SSTACK_JOBSR	NUM_REVERSE, 18
 #emac
 
 ;#Clean-up stack space for reverse unsigned double word
@@ -118,8 +117,7 @@ NUM_VARS_END_LIN	EQU	@
 ; SSTACK: 19 bytes
 ;         X, Y and D are preserved 
 #macro	NUM_REVPRINT_NB, 0
-			SSTACK_PREPUSH	19
-			JOBSR	NUM_REVPRINT_NB
+			SSTACK_JOBSR	NUM_REVPRINT_NB, 19
 #emac
 	
 ;#Print a reserse number digit - blocking
@@ -130,10 +128,39 @@ NUM_VARS_END_LIN	EQU	@
 ;         X, Y and D are preserved 
 #ifdef	NUM_BLOCKING_ON
 #macro	NUM_REVPRINT_BL, 0
-			SSTACK_PREPUSH	21
-			JOBSR	NUM_REVPRINT_NB
+			SSTACK_JOBSR	NUM_REVPRINT_BL, 21
+#emac
+#else
+#macro	NUM_REVPRINT_BL, 0
+			NUM_CALL_BL	NUM_REVPRINT_NB, 19
 #emac
 #endif
+
+;#Turn a non-blocking subroutine into a blocking subroutine	
+; args:   1: non-blocking function
+;         2: subroutine stack usage of non-blocking function (min. 4)
+; SSTACK: stack usage of non-blocking function + 2
+;         rgister output of the non-blocking function is preserved 
+#macro	NUM_MAKE_BL, 2
+			;Call non-blocking subroutine as if it was blocking
+			NUM_CALL_BL	\1, \2
+			;Done
+			SSTACK_PREPULL	2
+			RTS
+#emac
+
+;#Run a non-blocking subroutine as if it was blocking	
+; args:   1: non-blocking function
+;         2: subroutine stack usage of non-blocking function (min. 4)
+; SSTACK: stack usage of non-blocking function + 2
+;         rgister output of the non-blocking function is preserved 
+#macro	NUM_CALL_BL
+LOOP			;Wait until TX buffer accepts new data
+			SCI_TX_READY_BL
+			;Call non-blocking function
+			SSTACK_JOBSR	\1, \2
+			BCC	LOOP 		;function unsuccessful
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -267,6 +294,107 @@ NUM_REVERSE_4		SSTACK_PREPULL	18
 			PULX
 			;Done
 			RTS
+
+;#Print a reserse number digit - non-blocking
+; args:   B:    base (2<=base<=16)
+;         SP+0: MSB   
+;         SP+1:  |    
+;         SP+2:  |reverse  
+;         SP+3:  |number  
+;         SP+4:  |    
+;         SP+5: LSB   
+; result: SP+0: MSB   
+;         SP+1:  |remaining    
+;         SP+2:  | digits of
+;         SP+3:  |reverse 
+;         SP+4:  |number      
+;         SP+5: LSB   
+;         C-flag: set if successful
+; SSTACK: 8 bytes
+;         X, Y and D are preserved 
+NUM_REVPRINT_NB	EQU	*
+	
+;Stack layout:
+NUM_REVPRINT_NB_COUNT	EQU	$00 ;SP+ 0: A
+NUM_REVPRINT_NB_BASE	EQU	$01 ;SP+ 1: base -> B
+NUM_REVPRINT_NB_Y	EQU	$02 ;SP+ 2: +Y           
+				    ;SP+ 3: +
+NUM_REVPRINT_NB_X	EQU	$04 ;SP+ 4: +X
+				    ;SP+ 5: +
+NUM_REVPRINT_NB_RTN	EQU	$06 ;SP+ 6: +return address
+				    ;SP+ 7: +
+NUM_REVPRINT_NB_RHW	EQU	$08 ;SP+ 8: MSB   
+				    ;SP+ 9:  |copy    
+NUM_REVPRINT_NB_RMW     EQU	$0A ;SP+10:  |of
+				    ;SP+11:  |reverse
+NUM_REVPRINT_NB_RLW	EQU	$0C ;SP+12:  |number   
+				    ;SP+13: LSB
+
+			;Setup stack (base in B)
+			PSHX					;store X at SP+8
+			PSHY					;store Y at SP+6			
+			PSHD					;store count:base at SP+4
+
+			;Check if TX queue is full already (base in B)
+NUM_REVPRINT_NB_1	SCI_TX_READY_NB
+			BCC	>NUM_REVPRINT_NB_4 	;TX queue is full
+
+			;Divide RHW by base
+			LDY	NUM_REVPRINT_NB_RHW,SP	;RHW => Y
+			BEQ	NUM_REVPRINT_NB_2		;skip division step
+			TFR	Y, X
+			CLRA				;base => D
+			LDAB	NUM_REVPRINT_NB_BASE,SP
+			EXG	X, D
+			IDIV				;D / X => X,  D % X => D 
+			STX	NUM_REVPRINT_NB_RHW,SP	;result => RHW
+
+			;Divide RMW by base (prev remainder in D)
+			TFR	D, Y			;remainder => Y
+NUM_REVPRINT_NB_2	CLRA				;base => D
+			LDAB	NUM_REVPRINT_NB_BASE,SP
+			LDX	NUM_REVPRINT_NB_RMW,SP	;RMW => Y
+			EXG	D, X
+			EDIV				;Y:D / X => Y,  Y:D % X => D 
+			STY	NUM_REVPRINT_NB_RMW,SP	;result => RMW
+
+			;Divide RLW by base (prev remainder in D, base in X)
+			TFR	D, Y 			;remainder => Y
+			LDD	NUM_REVPRINT_NB_RLW,SP 	;RLW => D
+			EDIV				;Y:D / X => Y,  Y:D % X => D 
+			STY	NUM_REVPRINT_NB_RLW,SP	;result => RLW
+
+			;Print remainder (prev, remainder in D, RLW in Y)
+			Ldx	#NUM_SYMTAB
+			LDAB	B,X
+			JOBSR	SCI_TX_NB		;print character (SSTACK: 5 bytes)
+			;BCC	>NUM_REVPRINT_NB_4	;TX unsuccessful -> has already been checked
+			
+			;Repeat until the reverse value is $1 (RLW in Y)
+			DBNE	Y, NUM_REVPRINT_NB_1 	;RLW is not 1
+			LDD	NUM_REVPRINT_NB_RMW,SP
+			BNE	NUM_REVPRINT_NB_1 	;RMW is not 0
+			LDD	NUM_REVPRINT_NB_RHW,SP
+			BNE	NUM_REVPRINT_NB_1 	;RMW is not 0
+	
+			;Printing complete 
+			SSTACK_PREPULL	14
+			SEC
+NUM_REVPRINT_NB_3	LEAS	6,SP
+			PULD
+			PULY
+			PULX
+			;Done
+			RTS
+
+			;Printing incomplete 
+NUM_REVPRINT_NB_4	SSTACK_PREPULL	14
+			CLC
+			JOB	NUM_REVPRINT_NB_3
+
+
+
+
 	
 ;#Print a reserse number digit - non-blocking
 ; args:   Y:      pointer to reverse number
@@ -302,7 +430,7 @@ NUM_REVPRINT_NB_RTN	EQU	$0C ;SP+12: +return address
 			MOVW	NUM_REVPRINT_NB_RHW,Y, 2,-SP
 
 			;Divide RHW by base
-NUM_REVPRINT_NB_1		LDY	NUM_REVPRINT_NB_RHW,SP	;RHW => Y
+NUM_REVPRINT_NB_1	LDY	NUM_REVPRINT_NB_RHW,SP	;RHW => Y
 			BEQ	NUM_REVPRINT_NB_2		;skip division step
 			TFR	Y, X
 			CLRA				;base => D
@@ -313,7 +441,7 @@ NUM_REVPRINT_NB_1		LDY	NUM_REVPRINT_NB_RHW,SP	;RHW => Y
 
 			;Divide RMW by base (prev remainder in D)
 			TFR	D, Y			;remainder => Y
-NUM_REVPRINT_NB_2		CLRA				;base => D
+NUM_REVPRINT_NB_2	CLRA				;base => D
 			LDAB	NUM_REVPRINT_NB_BASE,SP
 			LDX	NUM_REVPRINT_NB_RMW,SP	;RMW => Y
 			EXG	D, X
@@ -357,19 +485,31 @@ NUM_REVPRINT_NB_3	LEAS	6,SP
 			RTS
 
 			;Printing incomplete 
-NUM_REVPRINT_NB_4		SSTACK_PREPULL	14
+NUM_REVPRINT_NB_4	SSTACK_PREPULL	14
 			CLC
 			JOB	NUM_REVPRINT_NB_3
 
-;#Print a reserse number digit blocking
-; args:   Y:      pointer to reverse number
-; 	  B:      base   (2<=base<=16)
-; result: [Y]:    remaining reverse number is 1 
-; SSTACK: 21 bytes
+;#Print a reserse number digit - blocking
+; args:   B:    base (2<=base<=16)
+;         SP+0: MSB   
+;         SP+1:  |    
+;         SP+2:  |reverse  
+;         SP+3:  |number  
+;         SP+4:  |    
+;         SP+5: LSB   
+; result: SP+0: MSB   
+;         SP+1:  |   
+;         SP+2:  |
+;         SP+3:  |
+;         SP+4:  |  
+;         SP+5: LSB   
+;         C-flag: set if successful
+; SSTACK: 10 bytes
 ;         X, Y and D are preserved 
+; args:   Y:      pointer to reverse number
 #ifdef	NUM_BLOCKING_ON
 NUM_REVPRINT_BL		EQU	*
-			SCI_MAKE_BL	NUM_REVPRINT_NB, 19
+			NUM_MAKE_BL	NUM_REVPRINT_NB, 10
 #endif
 	
 NUM_CODE_END		EQU	*

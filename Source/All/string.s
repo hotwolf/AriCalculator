@@ -40,9 +40,9 @@
 ;#    Apr  4, 2010                                                             #
 ;#      - Initial release                                                      #
 ;#    Apr 29, 2010                                                             #
-;#      - Added macros "STRING_UPPER_B" and "STRING_LOWER_B"                     #
+;#      - Added macros "STRING_UPPER_B" and "STRING_LOWER_B"                   #
 ;#    Jul 29, 2010                                                             #
-;#      - fixed STRING_SINTCNT                                                  #
+;#      - fixed STRING_SINTCNT                                                 #
 ;#    July 2, 2012                                                             #
 ;#      - Added support for linear PC                                          #
 ;#      - Added non-blocking functions                                         #
@@ -51,6 +51,14 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;Blocking subroutines
+;-------------------- 
+;Enable blocking subroutines
+#ifndef	STRING_BLOCKING_ON
+#ifndef	STRING_BLOCKING_OFF
+STRING_BLOCKING_OFF	EQU	1 	;blocking functions disabled by default
+#endif
+#endif
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -95,8 +103,7 @@ STRING_VARS_END_LIN	EQU	@
 ; SSTACK: 8 bytes
 ;         Y and D are preserved
 #macro	STRING_PRINT_NB, 0
-			SSTACK_PREPUSH	8
-			JOBSR	STRING_PRINT_NB
+			SSTACK_JOBSR	STRING_PRINT_NB, 8
 #emac	
 
 ;#Basic print function - blocking
@@ -104,11 +111,16 @@ STRING_VARS_END_LIN	EQU	@
 ; result: X;      points to the byte after the string
 ; SSTACK: 10 bytes
 ;         Y and D are preserved
+#ifdef	STRING_BLOCKING_ON
 #macro	STRING_PRINT_BL, 0
-			SSTACK_PREPUSH	10
-			JOBSR	STRING_PRINT_BL
+			SSTACK_JOBSR	STRING_PRINT_BL, 10
 #emac	
-
+#else
+#macro	STRING_PRINT_BL, 0
+			STRING_CALL_NB	STRING_PRINT_NB, 8
+#emac	
+#endif
+	
 ;#Print a number of filler characters - non-blocking
 ; args:   A: number of characters to be printed
 ;         B: filler character
@@ -118,8 +130,7 @@ STRING_VARS_END_LIN	EQU	@
 ; SSTACK: 7 bytes
 ;         X, Y and B are preserved
 #macro	STRING_FILL_NB, 0
-			SSTACK_PREPUSH	7
-			JOBSR	STRING_FILL_NB
+			SSTACK_JOBSR	STRING_FILL_NB, 7
 #emac	
 
 ;#Print a number of filler characters - blocking
@@ -127,11 +138,16 @@ STRING_VARS_END_LIN	EQU	@
 ;         B: filler character
 ; result: A: $00
 ; SSTACK: 9 bytes
-;         Y and D are preserved
+;         X, Y and B are preserved
+#ifdef	STRING_BLOCKING_ON
 #macro	STRING_FILL_BL, 0
-			SSTACK_PREPUSH	9
-			JOBSR	STRING_FILL_BL
+			SSTACK_JOBSR	STRING_FILL_BL, 9
 #emac	
+#else
+#macro	STRING_FILL_BL, 0
+			STRING_CALL_NB	STRING_FILL_NB, 7
+#emac	
+#endif
 	
 ;#Convert a lower case character to upper case
 ; args:   B: ASCII character (w/ or w/out termination)
@@ -196,6 +212,32 @@ DONE			EQU	*
 			DB	STRING_SYM_CR	
 			DB	STRING_SYM_LF	
 #emac
+
+;#Turn a non-blocking subroutine into a blocking subroutine	
+; args:   1: non-blocking function
+;         2: subroutine stack usage of non-blocking function (min. 4)
+; SSTACK: stack usage of non-blocking function + 2
+;         rgister output of the non-blocking function is preserved 
+#macro	STRING_MAKE_BL, 2
+			;Call non-blocking subroutine as if it was blocking
+			STRING_CALL_BL	\1, \2
+			;Done
+			SSTACK_PREPULL	2
+			RTS
+#emac
+
+;#Run a non-blocking subroutine as if it was blocking	
+; args:   1: non-blocking function
+;         2: subroutine stack usage of non-blocking function (min. 4)
+; SSTACK: stack usage of non-blocking function + 2
+;         rgister output of the non-blocking function is preserved 
+#macro	STRING_CALL_BL
+LOOP			;Wait until TX buffer accepts new data
+			SCI_TX_READY_BL
+			;Call non-blocking function
+			SSTACK_JOBSR	\1, \2
+			BCC	LOOP 		;function unsuccessful
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -246,8 +288,10 @@ STRING_PRINT_NB_3	ANDB	#$7F 			;remove termination bit
 ; result: X;      points to the byte after the string
 ; SSTACK: 10 bytes
 ;         Y and D are preserved
+#ifdef	STRING_BLOCKING_ON
 STRING_PRINT_BL		EQU	*
 			SCI_MAKE_BL	STRING_PRINT_NB, 10
+#endif
 	
 ;#Print a number of filler characters - non-blocking
 ; args:   A: number of characters to be printed
@@ -259,7 +303,6 @@ STRING_PRINT_BL		EQU	*
 ;         X, Y and B are preserved
 STRING_FILL_NB	EQU	*
 			;Print characters (requested spaces in A)
-			LDAB	#STRING_SYM_SPACE 	;preload space character
 			TBEQ	A, STRING_FILL_NB_2	;nothing to do
 STRING_FILL_NB_1	JOBSR	SCI_TX_NB		;print character non blocking (SSTACK: 5 bytes)
 			BCC	STRING_FILL_NB_3	;unsuccessful
@@ -282,9 +325,11 @@ STRING_FILL_NB_3	SSTACK_PREPULL	2
 ;         B: filler character
 ; result: A: $00
 ; SSTACK: 9 bytes
-;         Y and D are preserved
+;         X, Y and B are preserved
+#ifdef	STRING_BLOCKING_ON
 STRING_FILL_BL	EQU	*
-			SCI_MAKE_BL	STRING_FILL_NB, 7
+			SCI_MAKE_BL	STRING_FILL_NB, 7	
+#endif
 	
 STRING_CODE_END		EQU	*	
 STRING_CODE_END_LIN	EQU	@	
