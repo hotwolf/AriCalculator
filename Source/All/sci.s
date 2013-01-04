@@ -486,6 +486,18 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 #endif	
 			;Initialize CTS 
 			SCI_ASSERT_CTS
+
+			;Initialize baud rate detection
+#ifdef	SCI_BD_ON
+#ifdef	SCI_BD_TIM
+			;BSET	TCTL3, #(((1<<(2*SCI_BD_ICPE))|(2<<(2*SCI_BD_ICNE)))>>8)
+			BSET	TCTL4, #(((1<<(2*SCI_BD_ICPE))|(2<<(2*SCI_BD_ICNE)))&$00FF)
+#endif
+#ifdef	SCI_BD_ECT
+			;BSET	TCTL3, #((3<<(2*SCI_BD_IC))>>8)
+			BSET	TCTL4, #((3<<(2*SCI_BD_IC))&$00FF)
+#endif
+#endif	
 	
 #ifdef	SCI_IRQ_WORKAROUND_ON
 			;Trigger periodic interrupt
@@ -609,6 +621,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 #ifdef	SCI_BLOCKING_ON
 #macro	SCI_RX_READY_BL, 0
 			SSTACK_JOBSR	SCI_RX_READY_BL, 6
+#emac
 #else
 #macro	SCI_RX_READY_BL, 0
 			SCI_CALL_BL 	SCI_RX_READY_NB, 4
@@ -728,19 +741,20 @@ DONE			CLI
 #ifdef	SCI_BD_ON
 			TST	SCI_BDLST
 			BNE	DONE 					;baud rate detection is already running
+#ifdef	SCI_BD_TIM
+			TIM_MULT_EN	((1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE))
+#endif
+#ifdef	SCI_BD_ECT
+			TIM_MULT_EN	(1<<SCI_BD_IC)
+#endif
 			;Make sure that the timeout bit is set
 			BRSET	TFLG1, #(1<<SCI_BD_OC), SKIP
 			SEI
 			TIM_SET_DLY_IMM	SCI_BD_OC, 6
 			CLI
 SKIP			EQU	*
-#ifdef	SCI_BD_TIM
-			TIM_MULT_EN	(SCI_BD_ICPE|SCI_BD_ICNE)
-#endif
-#ifdef	SCI_BD_ECT
-			TIM_MULT_EN	SCI_BD_IC
-#endif
-			MOVB	#$FF, SCI_BDLST				;reset baud rate list
+			;Reset baud rate list
+			MOVB	#$FF, SCI_BDLST
 DONE			EQU	*
 #endif	
 #emac	
@@ -753,10 +767,10 @@ DONE			EQU	*
 #ifdef	SCI_BD_ON
 			BRCLR	SCI_BDLST, #$FF, DONE			;baud rate detection already inactive
 #ifdef	SCI_BD_TIM
-			TIM_MULT_DIS	(SCI_BD_ICPE|SCI_BD_ICNE|SCI_BD_OC)
+			TIM_MULT_DIS	((1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC))
 #endif
 #ifdef	SCI_BD_ECT
-			TIM_MULT_DIS	(SCI_BD_ICPE|SCI_BD_IC|SCI_BD_IC|SCI_BD_OC)
+			TIM_MULT_DIS	((1<<SCI_BD_ICPE)|(1<<SCI_BD_IC)|(1<<SCI_BD_IC)|(1<<SCI_BD_OC))
 #endif
 			CLR	SCI_BDLST				;baud rate detection already inactive
 DONE			EQU	*
@@ -877,7 +891,7 @@ SCI_TX_READY_NB		EQU	*
 			INCA
 			ANDA	#SCI_TXBUF_MASK
 			CMPA	SCI_TXBUF_OUT
-			BEQ	SCI_TX_READYNB_1 				;buffer is full			
+			BEQ	SCI_TX_READY_NB_1 				;buffer is full			
 			;Restore registers
 			SSTACK_PREPULL	4
 			PULD
@@ -965,7 +979,7 @@ SCI_RX_READY_NB		EQU	*
 			;Save registers
 			PSHD
 			;Check if there is data in the RX queue
-			LDAD	SCI_RXBUF_IN 		;A:B=in:out
+			LDD	SCI_RXBUF_IN 		;A:B=in:out
 			CBA
 			BEQ	SCI_RX_READY_NB_1
 			;RX buffer holds data
@@ -1454,7 +1468,7 @@ SCI_ISR_BD_PE_4		BRCLR	SCI_BDLST, #$FF, SCI_ISR_BD_PE_3	;done
 			MOVB	#$FF, SCI_BDLST
 			JOB	SCI_ISR_BD_PE_3 			;done
 			;New baud rate found (index in A, $00 in B)
-SCI_ISR_BD_PE_5		TIM_MULT_DIS	(SCI_BD_ICPE|SCI_BD_ICNE|SCI_BD_OC) ;disable baud rate detection
+SCI_ISR_BD_PE_5		TIM_MULT_DIS	((1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)) ;disable baud rate detection
 			CLR	SCI_BDLST
 			;Set baud rate (index in A, $00 in B)
 			LSLA						;index -> addess offset
@@ -1484,7 +1498,7 @@ SCI_ISR_BD_NEPE		EQU	*
 			BNE	<SCI_ISR_BD_NEPE_4 			;done
 			;Allow nested interrupts (previous edge in Y, current edge in X, polarity flags in B)
 			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
-			;Select search tree tree (pulse length in X, polarity flags in B)
+			;Select search tree tree (previous edge in Y, current edge in X, polarity flags in B)
 			LDY	#SCI_BD_LOW_PULSE_TREE
 			BITB	(1<<SCI_BD_IC)
 			BEQ	SCI_ISR_BD_NEPE_1
@@ -1520,7 +1534,7 @@ SCI_ISR_BD_NEPE_5	BRCLR	SCI_BDLST, #$FF, SCI_ISR_BD_NEPE_4	;done
 			MOVB	#$FF, SCI_BDLST
 			JOB	SCI_ISR_BD_NEPE_4 			;done
 			;New baud rate found (index in A, $00 in B)
-SCI_ISR_BD_NEPE_6	TIM_MULT_DIS	(SCI_BD_ICPE|SCI_BD_ICNE|SCI_BD_OC) ;disable baud rate detection
+SCI_ISR_BD_NEPE_6	TIM_MULT_DIS	((1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)) ;disable baud rate detection
 			CLR	SCI_BDLST
 			;Set baud rate (index in A, $00 in B)
 			LSLA						;index -> addess offset

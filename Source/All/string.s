@@ -117,7 +117,7 @@ STRING_VARS_END_LIN	EQU	@
 #emac	
 #else
 #macro	STRING_PRINT_BL, 0
-			STRING_CALL_NB	STRING_PRINT_NB, 8
+			STRING_CALL_BL	STRING_PRINT_NB, 8
 #emac	
 #endif
 	
@@ -145,7 +145,7 @@ STRING_VARS_END_LIN	EQU	@
 #emac	
 #else
 #macro	STRING_FILL_BL, 0
-			STRING_CALL_NB	STRING_FILL_NB, 7
+			STRING_CALL_BL	STRING_FILL_NB, 7
 #emac	
 #endif
 	
@@ -231,7 +231,7 @@ DONE			EQU	*
 ;         2: subroutine stack usage of non-blocking function (min. 4)
 ; SSTACK: stack usage of non-blocking function + 2
 ;         rgister output of the non-blocking function is preserved 
-#macro	STRING_CALL_BL
+#macro	STRING_CALL_BL, 2
 LOOP			;Wait until TX buffer accepts new data
 			SCI_TX_READY_BL
 			;Call non-blocking function

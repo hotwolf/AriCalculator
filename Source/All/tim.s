@@ -217,8 +217,8 @@ DONE			EQU	*
 #else
 			LDD	#\2		
 #endif
-			ADDD	(TC0+(2*\1)) ;RPO
-			STD	(TC0+(2*\1)) ;PWO
+			ADDD	TCNT		;RPO
+			STD	(TC0+(2*\1))	;PWO
 #emac
 
 ;#Setup timer delay
@@ -230,7 +230,7 @@ DONE			EQU	*
 #ifdef	TIM_DIV2_ON
 			LSRD
 #endif
-			ADDD	(TC0+(2*\1))
+			ADDD	TCNT
 			STD	(TC0+(2*\1))
 #emac
 

@@ -74,9 +74,6 @@ SCI_DLY_OC		EQU	3		;OC3
 SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 
-;# NUM
-NUM_BLOCKING_ON		EQU	1		;enable blocking subroutines
-	
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
@@ -141,7 +138,9 @@ DEMO_VARS_END_LIN	EQU	@
 ;Application code
 DEMO_LOOP		SCI_RX_BL
 			;Ignore RX errors 
-			TBNE	A, DEMO_LOOP
+			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
+			BNE	DEMO_LOOP
+			;TBNE	A, DEMO_LOOP
 
 			;Print ASCII character (char in B)
 			TFR	D, X
@@ -193,12 +192,15 @@ DEMO_LOOP		SCI_RX_BL
 			NUM_CLEAN_REVERSE
 	
 			;Print binary value (char in X)
+			LDAA	#2
+			LDAB	#" "
+			STRING_FILL_BL
 			LDY	#$0000
 			LDAB	#2
 			NUM_REVERSE
 			TFR	SP, Y
 			NEGA
-			ADDA	#10
+			ADDA	#8
 			LDAB	#"0"
 			STRING_fill_BL
 			LDAB	#2
