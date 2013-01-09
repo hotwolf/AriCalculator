@@ -366,13 +366,13 @@ SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
 #else
 #ifdef	SCI_FC_XON_XOFF
 SCI_SET_TIOS		EQU	1
-SCI_DLY_TIOS_VAL		EQU	(1<<SCI_DLY_OC)
+SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
 #else
 #ifdef	SCI_IRQ_WORKAROUND_ON
 SCI_SET_TIOS		EQU	1
-SCI_DLY_TIOS_VAL		EQU	(1<<SCI_DLY_OC)
+SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
 #else
-SCI_DLY_TIOS_VAL		EQU	0
+SCI_DLY_TIOS_VAL	EQU	0
 #endif
 #endif
 #endif	
@@ -428,7 +428,7 @@ SCI_VARS_END_LIN	EQU	@
 			LDD	#$0000
 			STD	SCI_TXBUF_IN 				;reset in and out pointer of the TX buffer
 			STD	SCI_RXBUF_IN 				;reset in and out pointer of the RX buffer
-#ifdef SCI_XON_XOFF
+#ifdef SCI_FC_XON_XOFF
 			MOVB	#SCI_FLG_SEND_XONXOFF,	SCI_FLGS 	;request transmission of XON/XOFF
 #else
 			STAA	SCI_FLGS
@@ -706,7 +706,7 @@ DONE			CLI
 ; SSTACK: none
 ;         X, Y, and D are preserved 
 #macro	SCI_SEND_XONXOFF, 0
-#ifdef SCI_XON_XOFF
+#ifdef SCI_FC_XON_XOFF
 			BSET	SCI_FLGS, #SCI_FLG_SEND_XONXOFF		;request transmission of XON/XOFF
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2 		;enable TX interrupts	
 #endif	
@@ -1149,13 +1149,13 @@ SCI_ISR_DELAY		SCI_ISR_DELAY_RETRIGGER						;retrigger delay
 ;Retrigger delay
 #macro	SCI_ISR_DELAY_RETRIGGER, 0
 			LDD	SCIBDH 					;retrigger delay
-			TBNE	A, DONE					;max. delay ($FFFF) exceeded
+			TBNE	A, RETRIGGER				;max. delay ($FFFF) exceeded
 			TFR	B, A					;determine delay
 			CLRB
 			TIM_SET_DLY_D	SCI_DLY_OC			;update OC count
-			TIM_CLRIF   	SCI_DLY_OC
+RETRIGGER		TIM_CLRIF   	SCI_DLY_OC
 			TIM_EN		SCI_DLY_OC
-DONE			EQU	*
+			EQU	*
 #emac
 ;#Transmit ISR (status flags in A)
 SCI_ISR_TX		EQU	*
@@ -1172,10 +1172,10 @@ SCI_ISR_TX		EQU	*
 			ANDA	#SCI_RXBUF_MASK
 			;Check XOFF theshold
 			CMPA	#SCI_RX_FULL_LEVEL
-			BHS	<SCI_ISR_TX_6	 			;transmit XOFF
+			BHS	<SCI_ISR_TX_5	 			;transmit XOFF
 			;Check XON theshold
 			CMPA	#SCI_RX_EMPTY_LEVEL
-			BLS	<SCI_ISR_TX_5	 			;transmit XON
+			BLS	<SCI_ISR_TX_4	 			;transmit XON
 			;Check XOFF status
 			BRSET	SCI_FLGS, #SCI_FLG_TX_BLOCKED, SCI_ISR_TX_2 ;stop transmitting
 #endif
@@ -1209,7 +1209,6 @@ SCI_ISR_TX_5		MOVB	#SCI_XOFF, SCIDRL
 			;Schedule reminder
 SCI_ISR_TX_6		MOVW	#SCI_XON_XOFF_REMINDER, SCI_XON_XOFF_DLYCNT
 			SCI_ISR_DELAY_RETRIGGER				;update OC count
-			TIM_EN SCI_DLY_OC 				;enable OC
 			JOB	SCI_ISR_TX_3 				;done	
 #endif	
 
@@ -1378,23 +1377,23 @@ SCI_ISR_RX_13		EQU	*
 			;Check for escape character (status flags in A, RX data in B)
 #ifdef	SCI_HANDLE_SUSPEND
 			CMPB	#SCI_DLE
-			BNE	<SCI_ISR_RX_4				;done
+			BNE	<SCI_ISR_RX_14				;done
 			BSET	SCI_FLGS, #SCI_FLG_ESC 			;set escape marker
-			JOB	SCI_ISR_RX_4 				;done
+SCI_ISR_RX_14		JOB	SCI_ISR_RX_4 				;done
 #else
 #ifdef	SCI_FC_XON_XOFF
 			BRSET	SCI_FLGS, #SCI_FLG_ESC, SCI_ISR_RX_2 	;caracter is escaped 
 			CMPB	#SCI_DLE
-			BNE	<SCI_ISR_RX_4				;done
+			BNE	<SCI_ISR_RX_14				;done
 			BSET	SCI_FLGS, #SCI_FLG_ESC 			;set escape marker	
-			JOB	SCI_ISR_RX_4 				;done
+SCI_ISR_RX_14		JOB	SCI_ISR_RX_4 				;done
 #else
 #ifdef	SCI_HANDLE_BREAK
 			BRSET	SCI_FLGS, #SCI_FLG_ESC, SCI_ISR_RX_2 	;caracter is escaped 
 			CMPB	#SCI_DLE
-			BNE	<SCI_ISR_RX_4				;done
+			BNE	<SCI_ISR_RX_14				;done
 			BSET	SCI_FLGS, #SCI_FLG_ESC 			;set escape marker	
-			JOB	SCI_ISR_RX_4 				;done
+SCI_ISR_RX_14		JOB	SCI_ISR_RX_4 				;done
 #endif
 #endif
 #endif
