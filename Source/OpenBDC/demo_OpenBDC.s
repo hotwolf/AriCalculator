@@ -62,7 +62,7 @@ RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 	
 ;# SCI
-SCI_FC_RTS_CTS		EQU	1 		;RTS/CTS flow control
+SCI_FC_RTSCTS		EQU	1 		;RTS/CTS flow control
 SCI_RTS_PORT		EQU	PTM 		;PTM
 SCI_RTS_PIN		EQU	PM0		;PM0
 SCI_CTS_PORT		EQU	PTM 		;PTM

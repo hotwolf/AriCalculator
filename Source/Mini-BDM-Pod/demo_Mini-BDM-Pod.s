@@ -63,7 +63,7 @@ RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 	
 ;# SCI
-SCI_FC_XON_XOFF		EQU	1 		;XON/XOFF flow control
+SCI_FC_XONXOFF		EQU	1 		;XON/XOFF flow control
 SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
 SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
 SCI_BD_ON		EQU	1 		;use baud rate detection

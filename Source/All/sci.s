@@ -170,21 +170,21 @@ SCI_RXTX_ACTLO		EQU	1 		;default is active low RXD/TXD
 ;Flow control
 ;------------ 
 ;RTS/CTS or XON/XOFF
-#ifndef	SCI_FC_RTS_CTS
-#ifndef	SCI_FC_XON_XOFF
+#ifndef	SCI_FC_RTSCTS
+#ifndef	SCI_FC_XONXOFF
 #ifndef SCI_FC_NONE	
-SCI_FC_RTS_CTS		EQU	1 		;default is SCI_RTS_CTS
+SCI_FC_RTSCTS		EQU	1 		;default is SCI_RTSCTS
 #endif
 #endif
 #endif
 
 ;XON/XOFF reminder intervall
-#ifndef	SCI_XON_XOFF_REMCNT
-SCI_XON_XOFF_REMINDER	EQU	(10*CLOCK_BUS_FREQ)/65536
+#ifndef	SCI_XONXOFF_REMCNT
+SCI_XONXOFF_REMINDER	EQU	(10*CLOCK_BUS_FREQ)/65536
 #endif
 	
 ;RTS/CTS pins
-#ifdef	SCI_FC_RTS_CTS
+#ifdef	SCI_FC_RTSCTS
 #ifndef	SCI_RTS_PORT
 SCI_RTS_PORT		EQU	PTM 		;default is PTM
 SCI_RTS_PIN		EQU	PM0		;default is PM0
@@ -339,7 +339,8 @@ SCI_FLG_SEND_XONXOFF	EQU	$80		;send XON/XOFF symbol asap
 SCI_FLG_POLL_RTS	EQU	$40		;poll RTS input
 SCI_FLG_SWOR		EQU	$10		;software buffer overrun (RX buffer)
 SCI_FLG_TX_BLOCKED	EQU	$08		;don't transmit (XOFF received)
-SCI_FLG_ESC		EQU	$04		;character is to be escaped
+SCI_FLG_RX_ESC		EQU	$04		;character is to be escaped
+SCI_FLG_TX_ESC		EQU	$02		;character is to be escaped
 
 ;#Timer setup
 #ifdef SCI_BD_ON	
@@ -360,11 +361,11 @@ SCI_BD_TIOS_VAL		EQU	0
 #endif	
 #endif	
 #endif	
-#ifdef	SCI_FC_RTS_CTS
+#ifdef	SCI_FC_RTSCTS
 SCI_SET_TIOS		EQU	1
 SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
 #else
-#ifdef	SCI_FC_XON_XOFF
+#ifdef	SCI_FC_XONXOFF
 SCI_SET_TIOS		EQU	1
 SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
 #else
@@ -407,8 +408,8 @@ SCI_FLGS		EQU	((SCI_VARS_START&1)*SCI_AUTO_LOC1)+((~SCI_VARS_START&1)*SCI_AUTO_L
 			UNALIGN	(~SCI_AUTO_LOC1&1)
 
 ;#XON/XOFF reminder count
-#ifdef	SCI_FC_XON_XOFF
-SCI_XON_XOFF_DLYCNT	DS	2		;counter for XON/XOFF reminder
+#ifdef	SCI_FC_XONXOFF
+SCI_XONXOFF_REMCNT	DS	2		;counter for XON/XOFF reminder
 #endif
 	
 ;#Baud rate detection registers
@@ -428,7 +429,7 @@ SCI_VARS_END_LIN	EQU	@
 			LDD	#$0000
 			STD	SCI_TXBUF_IN 				;reset in and out pointer of the TX buffer
 			STD	SCI_RXBUF_IN 				;reset in and out pointer of the RX buffer
-#ifdef SCI_FC_XON_XOFF
+#ifdef SCI_FC_XONXOFF
 			MOVB	#SCI_FLG_SEND_XONXOFF,	SCI_FLGS 	;request transmission of XON/XOFF
 #else
 			STAA	SCI_FLGS
@@ -478,7 +479,7 @@ SCI_INIT_2		LDX	#SCI_BDEF	 			;default baud rate
 SCI_INIT_3		STX	SCIBDH					;set baud rate
 
 			;Set frame format and enable transmission
-#ifdef	SCI_FC_XON_XOFF	
+#ifdef	SCI_FC_XONXOFF	
 			MOVW	#((SCI_8N1<<8)|TXIE|RIE|TE|RE), SCICR1 	;8N1 (transmit XON)
 #else
 			MOVW	#((SCI_8N1<<8)|RIE|TE|RE), SCICR1 	;8N1 (keep TX IRQs disabled)
@@ -686,7 +687,7 @@ DONE			CLI
 ; SSTACK: none
 ;         X, Y, and D are preserved 
 #macro	SCI_ASSERT_CTS, 0
-#ifdef	SCI_FC_RTS_CTS
+#ifdef	SCI_FC_RTSCTS
 			BSET	SCI_CTS_PORT, #SCI_CTS_PIN 		;set CTS (allow RX data)
 #endif	
 #emac	
@@ -696,7 +697,7 @@ DONE			CLI
 ; SSTACK: none
 ;         X, Y, and D are preserved 
 #macro	SCI_DEASSERT_CTS, 0
-#ifdef	SCI_FC_RTS_CTS
+#ifdef	SCI_FC_RTSCTS
 			BCLR	SCI_CTS_PORT, #SCI_CTS_PIN 		;set CTS (allow RX data)
 #endif	
 #emac	
@@ -706,12 +707,58 @@ DONE			CLI
 ; SSTACK: none
 ;         X, Y, and D are preserved 
 #macro	SCI_SEND_XONXOFF, 0
-#ifdef SCI_FC_XON_XOFF
+#ifdef SCI_FC_XONXOFF
 			BSET	SCI_FLGS, #SCI_FLG_SEND_XONXOFF		;request transmission of XON/XOFF
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2 		;enable TX interrupts	
 #endif	
 #emac	
 
+;#Decrement XON/XOFF reminder count
+; args:   1: exit point, in case the XON/XOFF reminder is disabled
+; SSTACK: none
+;         X, and Y are preserved 
+#macro	SCI_DEC_XONXOFF_REMCNT, 1
+			LDD	SCI_XONXOFF_REMCNT
+			BEQ	\1 					;XON/XOFF reminder disabled
+			DBNE	D, STORE_REMCNT				;don't send XON/XOFF yet
+			BSET	SCI_FLGS, #SCI_FLG_SEND_XONXOFF 	;send XON/XOFF asap
+STORE_REMCNT		STD	SCI_XONXOFF_REMCNT
+#emac
+
+;#Start delay (approx. 2 SCI frames)
+; args:   none 
+; SSTACK: none
+;         X, and Y are preserved 
+#macro	SCI_START_DELAY, 0
+			BRSET	TIE, #(1<<SCI_DLY_OC), DONE 		;skip if delay has already been triggered
+			SCI_RESET_DELAY
+			TIM_EN		SCI_DLY_OC
+DONE			EQU	*
+#emac
+
+;#ReSET delay (approx. 2 SCI frames)
+; args:   none 
+; SSTACK: none
+;         X, and Y are preserved 
+#macro	SCI_RESET_DELAY, 0
+			TIM_CLRIF   	SCI_DLY_OC
+			LDD	SCIBDH 					;retrigger delay
+			TBNE	A, MAX_DELAY				;max. delay ($FFFF) exceeded
+			TFR	B, A					;determine delay
+			CLRB
+			TIM_SET_DLY_D	SCI_DLY_OC			;update OC count
+MAX_DELAY		EQU	*
+#emac
+
+;#Stop delay (approx. 2 SCI frames)
+; args:   none 
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	SCI_STOP_DELAY, 0
+			TIM_DIS		SCI_DLY_OC
+			EQU	*
+#emac
+	
 ;#Turn on error signaling
 ; args:   none 
 ; SSTACK: none
@@ -1051,117 +1098,61 @@ SCI_SET_BAUD		EQU	*
 			RTS
 
 ;#Timer delay
-#ifdef	SCI_FC_RTS_CTS
-#ifdef	SCI_FC_XON_XOFF
-#ifdef	SCI_IRQ_WORKAROUND_ON
-			;RTS, XONXOFF, Workaround
-			;Check if XON/XOFF reminder is due
-SCI_ISR_DELAY		LDD	SCI_XON_XOFF_DLYCNT
-			BEQ	SCI_ISR_DELAY_2	 					;XON/XOFF reminder disabled
-			DBNE	D, SCI_ISR_DELAY_1					;don't send XON/XOFF yet
-			BSET	SCI_FLGS, #SCI_FLG_SEND_XONXOFF 			;send XON/XOFF asap
-SCI_ISR_DELAY_1		STD	SCI_XON_XOFF_DLYCNT
-SCI_ISR_DELAY_2		SCI_ISR_DELAY_RETRIGGER						;retrigger delay
-			JOB	SCI_ISR_RXTX						;jump to RXTX ISR
-#else
-			;RTS, XONXOFF, no Workaround
-			;Check if XON/XOFF reminder is due
-SCI_ISR_DELAY		LDD	SCI_XON_XOFF_DLYCNT
-			BEQ	SCI_ISR_DELAY_4	 					;XON/XOFF reminder disabled
-			DBNE	D, SCI_ISR_DELAY_5					;don't send XON/XOFF yet
-			STD	SCI_XON_XOFF_DLYCNT
-			BSET	SCI_FLGS, #SCI_FLG_SEND_XONXOFF 			;send XON/XOFF asap
-SCI_ISR_DELAY_1		BCLR	SCI_FLGS, #SCI_FLG_POLL_RTS 				;reset RTS poll request
-			MOVB	#(TXIE|RIE|TE|RE), SCICR2				;trigger RXTX ISR
-SCI_ISR_DELAY_2		TIM_DIS	SCI_DLY_OC 						;don't retrigger delay
-SCI_ISR_DELAY_3		ISTACK_RTI			
-			;Poll RTS (don't retrigger delay unless required)
-SCI_ISR_DELAY_4		BRCLR	SCI_FLGS, #SCI_FLG_POLL_RTS, SCI_ISR_DELAY_2 		;no polling required	
-			BRSET	SCI_RTS_PORT, #RTS_PIN, SCI_ISR_DELAY_SCI_ISR_DELAY_1 	;RTS is now set
-			;Poll RTS (retrigger delay in any case)
-SCI_ISR_DELAY_5		STD	SCI_XON_XOFF_DLYCNT
-			BRCLR	SCI_FLGS, #SCI_FLG_POLL_RTS, SCI_ISR_DELAY_6 		;no polling required	
-			BRCLR	SCI_RTS_PORT, #RTS_PIN, SCI_ISR_DELAY_SCI_ISR_DELAY_6 	;RTS is still cleared
-			BCLR	SCI_FLGS, #SCI_FLG_POLL_RTS 				;reset RTS poll request
-			MOVB	#(TXIE|RIE|TE|RE), SCICR2				;trigger RXTX ISR
-SCI_ISR_DELAY_6		SCI_ISR_DELAY_RETRIGGER						;retrigger delay
-			JOB	SCI_ISR_DELAY_3		
+; period: approx. 2 SCI frames
+; RTS/CTS:    if RTL polling is requested (SCI_FLG_POLL_RTS) -> enable TX IRQ
+; XON/XOFF:   if reminder count == 1 -> request XON/XOFF reminder, enable TX IRQ
+;	      if reminder count > 1  -> decrement reminder count, retrigger delay
+; workaround: retrigger delay, jump to SCI_ISR_RXTX
+SCI_ISR_DELAY		EQU	*
+#ifndef	SCI_IRQ_WORKAROUND_ON
+			CLC								;don't retrigger
 #endif
-#else
-#ifdef	SCI_IRQ_WORKAROUND_ON
-			;RTS, no XONXOFF, Workaround
-SCI_ISR_DELAY		SCI_ISR_DELAY_RETRIGGER						;retrigger delay
-			JOB	SCI_ISR_RXTX						;jump to RXTX ISR
-#else
-			;RTS, no XONXOFF, no Workaround			
-			;Poll RTS
-SCI_ISR_DELAY		BRCLR	SCI_FLGS, #SCI_FLG_POLL_RTS, SCI_ISR_DELAY_1 		;no polling required	
-			BRCLR	SCI_RTS_PORT, #SCI_RTS_PIN, SCI_ISR_DELAY_3 		;RTS is still cleared
-			;RTS is now set
-			BCLR	SCI_FLGS, #SCI_FLG_POLL_RTS 				;reset RTS poll request
-			MOVB	#(TXIE|RIE|TE|RE), SCICR2				;trigger RXTX ISR
-SCI_ISR_DELAY_1		TIM_DIS	SCI_DLY_OC 						;don't retrigger delay
-SCI_ISR_DELAY_2		ISTACK_RTI
-			;RTS is still cleared 
-SCI_ISR_DELAY_3		SCI_ISR_DELAY_RETRIGGER						;retrigger delay		
-			JOB	SCI_ISR_DELAY_2	
+#ifdef	SCI_FC_RTSCTS
+			;Poll RTS (retrigger request in C-flag)
+        		BRCLR	SCI_FLGS, #SCI_FLG_POLL_RTS, SCI_ISR_DELAY_2 		;no polling required	
+			BRSET	SCI_RTS_PORT, #SCI_RTS_PIN, SCI_ISR_DELAY_1 		;RTS is now set
+#ifndef	SCI_IRQ_WORKAROUND_ON
+			SEC								;retrigger
 #endif
+			JOB	SCI_ISR_DELAY_2
+SCI_ISR_DELAY_1		MOVB	#(TXIE|RIE|TE|RE), SCICR2				;invoke RXTX ISR
+SCI_ISR_DELAY_2		EQU	*
 #endif
-#else
-#ifdef	SCI_FC_XON_XOFF
-#ifdef	SCI_IRQ_WORKAROUND_ON
-			;no RTS, XONXOFF, Workaround
-			;Check if XON/XOFF reminder is due
-SCI_ISR_DELAY		LDD	SCI_XON_XOFF_DLYCNT
-			BEQ	SCI_ISR_DELAY_2	 					;XON/XOFF reminder disabled
-			DBNE	D, SCI_ISR_DELAY_1					;don't send XON/XOFF yet
-			BSET	SCI_FLGS, #SCI_FLG_SEND_XONXOFF 			;send XON/XOFF asap
-SCI_ISR_DELAY_1		STD	SCI_XON_XOFF_DLYCNT
-SCI_ISR_DELAY_2		SCI_ISR_DELAY_RETRIGGER						;retrigger delay
-			JOB	SCI_ISR_RXTX						;jump to RXTX ISR
-#else
-			;no RTS, XONXOFF, no Workaround
-			;Check if XON/XOFF reminder is due
-SCI_ISR_DELAY		LDD	SCI_XON_XOFF_DLYCNT
-			BEQ	SCI_ISR_DELAY_1	 					;XON/XOFF reminder disabled
+#ifdef	SCI_FC_XONXOFF
+			;Check XON/XOFF reminder count (retrigger request in C-flag)
+			LDD	SCI_XONXOFF_REMCNT
+			BEQ	SCI_ISR_DELAY_5	 					;XON/XOFF reminder disabled
 			DBNE	D, SCI_ISR_DELAY_3					;don't send XON/XOFF yet
-			STD	SCI_XON_XOFF_DLYCNT
-			BSET	SCI_FLGS, #SCI_FLG_SEND_XONXOFF 			;send XON/XOFF asap
-			MOVB	#(TXIE|RIE|TE|RE), SCICR2				;trigger RXTX ISR
-SCI_ISR_DELAY_1		TIM_DIS	SCI_DLY_OC 						;don't retrigger delay
-SCI_ISR_DELAY_2		ISTACK_RTI			
-SCI_ISR_DELAY_3		STD	SCI_XON_XOFF_DLYCNT
-			SCI_ISR_DELAY_RETRIGGER						;retrigger delay
-			JOB	SCI_ISR_DELAY_2		
+			BSET	SCI_FLGS, #SCI_FLG_SEND_XONXOFF 			;request XON/XOFF reminder
+			MOVB	#(TXIE|RIE|TE|RE), SCICR2				;invoke RXTX ISR
+			JOB	SCI_ISR_DELAY_4
+SCI_ISR_DELAY_3		EQU	*
+#ifndef	SCI_IRQ_WORKAROUND_ON
+			SEC								;retrigger
 #endif
-#else
+SCI_ISR_DELAY_4		STD	SCI_XONXOFF_REMCNT
+SCI_ISR_DELAY_5		EQU	*
+#endif
 #ifdef	SCI_IRQ_WORKAROUND_ON
-			;no RTS, no XONXOFF, Workaround
-SCI_ISR_DELAY		SCI_ISR_DELAY_RETRIGGER						;retrigger delay
+			;Retrigger and jump to SCI_ISR_RXTX (retrigger request in C-flag)
+			SCI_RESET_DELAY
 			JOB	SCI_ISR_RXTX						;jump to RXTX ISR
 #else
-			;no RTS, no XONXOFF, no Workaround
-;SCI_ISR_DELAY		EQU	RESET_ISR_FATAL						;Error
-#endif
-#endif
+			;Retrigger if required (retrigger request in C-flag)
+			BCC	SCI_ISR_DELAY_7
+			SCI_RESET_DELAY
+SCI_ISR_DELAY_6		ISTACK_RTI			
+SCI_ISR_DELAY_7		SCI_STOP_DELAY
+			JOB	SCI_ISR_DELAY_6	
 #endif
 
-;Retrigger delay
-#macro	SCI_ISR_DELAY_RETRIGGER, 0
-			LDD	SCIBDH 					;retrigger delay
-			TBNE	A, RETRIGGER				;max. delay ($FFFF) exceeded
-			TFR	B, A					;determine delay
-			CLRB
-			TIM_SET_DLY_D	SCI_DLY_OC			;update OC count
-RETRIGGER		TIM_CLRIF   	SCI_DLY_OC
-			TIM_EN		SCI_DLY_OC
-			EQU	*
-#emac
-;#Transmit ISR (status flags in A)
+			;#Transmit ISR (status flags in A)
 SCI_ISR_TX		EQU	*
 			BITA	#TDRE					;check if SCI is ready for new TX data
-			BEQ	<SCI_ISR_TX_3				;done for now
-#ifdef	SCI_FC_XON_XOFF
+			BEQ	<SCI_ISR_TX_4				;done for now
+#ifdef	SCI_FC_XONXOFF
+			;Don't escape any XON/XOFF symbol
+			BRSET	SCI_FLGS, #SCI_FLG_TX_ESC, SCI_ISR_TX_1 ;Don't escape any XON/XOFF symbols
 			;Transmit XON/XOFF symbols
 			BRCLR	SCI_FLGS, #SCI_FLG_SEND_XONXOFF, SCI_ISR_TX_1 ;XON/XOFF not requested
 			;Clear XON/XOFF request
@@ -1172,44 +1163,63 @@ SCI_ISR_TX		EQU	*
 			ANDA	#SCI_RXBUF_MASK
 			;Check XOFF theshold
 			CMPA	#SCI_RX_FULL_LEVEL
-			BHS	<SCI_ISR_TX_5	 			;transmit XOFF
+			BHS	<SCI_ISR_TX_6	 			;transmit XOFF
 			;Check XON theshold
 			CMPA	#SCI_RX_EMPTY_LEVEL
-			BLS	<SCI_ISR_TX_4	 			;transmit XON
+			BLS	<SCI_ISR_TX_5	 			;transmit XON
 			;Check XOFF status
-			BRSET	SCI_FLGS, #SCI_FLG_TX_BLOCKED, SCI_ISR_TX_2 ;stop transmitting
+			BRSET	SCI_FLGS, #SCI_FLG_TX_BLOCKED, SCI_ISR_TX_3 ;stop transmitting
 #endif
-#ifdef	SCI_FC_RTS_CTS
+#ifdef	SCI_FC_RTSCTS
 			;Check RTS status
-			BRCLR	SCI_RTS_PORT, #SCI_RTS_PIN, SCI_ISR_TX_2 ;stop transmitting
+			BRSET	SCI_RTS_PORT, #SCI_RTS_PIN, SCI_ISR_TX_1;check TX buffer
+        		BSET	SCI_FLGS, #SCI_FLG_POLL_RTS		;request RTS polling	
+			SCI_START_DELAY					;start delay
+			JOB	SCI_ISR_TX_3				;stop transmitting
 #endif
 			;Check TX buffer
 SCI_ISR_TX_1		LDD	SCI_TXBUF_IN
 			CBA
-			BEQ	<SCI_ISR_TX_2 				;stop transmitting
+			BEQ	<SCI_ISR_TX_3 				;stop transmitting
 			;Transmit data (in-index in A, out-index in B)
 			LDY	#SCI_TXBUF
+#ifdef	SCI_FC_XONXOFF
+			;Check for DLE
+			BCLR	SCI_FLGS, #SCI_FLG_TX_ESC
+			TFR	D, X
+			LDAB	B,Y
+			CMPB	#SCI_DLE
+			BNE	SCI_ISR_TX_2
+			BSET	SCI_FLGS, #SCI_FLG_TX_ESC
+SCI_ISR_TX_2		STAB	SCIDRL	
+			TFR	X, D
+#else	
 			MOVB	B,Y ,SCIDRL
+#endif
 			;Increment index
 			INCB
 			ANDB	#SCI_TXBUF_MASK
 			STAB	SCI_TXBUF_OUT
 			CBA
-			BNE	<SCI_ISR_TX_3 				;done	
+			BNE	<SCI_ISR_TX_4 				;done	
 			;Stop transmitting
-SCI_ISR_TX_2		MOVB	#(RIE|TE|RE), SCICR2 			;disable TX interrupts	
+SCI_ISR_TX_3		EQU	*
+#ifdef SCI_FC_XONXOFF
+			BRSET	SCI_FLGS, #SCI_FLG_TX_ESC, SCI_ISR_TX_4 ;consider pending XON/XOFF symbols
+#endif	
+			MOVB	#(RIE|TE|RE), SCICR2 			;disable TX interrupts	
 			;Done
-SCI_ISR_TX_3		ISTACK_RTI
-#ifdef SCI_FC_XON_XOFF
+SCI_ISR_TX_4		ISTACK_RTI
+#ifdef SCI_FC_XONXOFF
 			;Transmit XON
-SCI_ISR_TX_4		MOVB	#SCI_XON, SCIDRL
-			JOB	SCI_ISR_TX_6				;schedule reminder	
+SCI_ISR_TX_5		MOVB	#SCI_XON, SCIDRL
+			JOB	SCI_ISR_TX_7				;schedule reminder	
 			;Transmit XOFF
-SCI_ISR_TX_5		MOVB	#SCI_XOFF, SCIDRL
+SCI_ISR_TX_6		MOVB	#SCI_XOFF, SCIDRL
 			;Schedule reminder
-SCI_ISR_TX_6		MOVW	#SCI_XON_XOFF_REMINDER, SCI_XON_XOFF_DLYCNT
-			SCI_ISR_DELAY_RETRIGGER				;update OC count
-			JOB	SCI_ISR_TX_3 				;done	
+SCI_ISR_TX_7		MOVW	#SCI_XONXOFF_REMINDER, SCI_XONXOFF_REMCNT
+			SCI_START_DELAY					;start delay
+			JOB	SCI_ISR_TX_4 				;done	
 #endif	
 
 ;#Receive/Transmit ISR (Common ISR entry point for the SCI)
@@ -1243,48 +1253,31 @@ SCI_ISR_RX		LDAB	SCIDRL					;load receive data into accu B (clears flags)
 			BCLR	SCI_FLGS, #SCI_FLG_SWOR 		;clear SWOR bit in variable	
 SCI_ISR_RX_1		EQU	*
 			;Check for RX errors (status flags in A, RX data in B)
-#ifdef	SCI_ERRSIG_ON							;error signaling handler requires error checking
 			BITA	#(NF|FE|PF) 				;check for: noise, frame errors, parity errors
-			BNE	<SCI_ISR_RX_6				;RX error detected
-#else
-#ifdef	SCI_BD_ON							;baud rate detection handler requires error checking
-			BITA	#(NF|FE|PF) 				;check for: noise, frame errors, parity errors
-			BNE	<SCI_ISR_RX_6				;RX error detected
-#else
-#ifdef	SCI_FC_XON_XOFF							;XON/XOFF flow control requires error checking
-			BITA	#(NF|FE|PF) 				;check for: noise, frame errors, parity errors
-			BNE	<SCI_ISR_RX_3				;RX error detected -> put data into RX queue
-#else
-#ifdef	SCI_HANDLE_BREAK						;BREAK handler requires error checking
-			BITA	#(NF|FE|PF) 				;check for: noise, frame errors, parity errors
-			BNE	<SCI_ISR_RX_3				;RX error detected -> put data into RX queue
-#else
-#ifdef	SCI_HANDLE_SUSPEND						;SUSPEND handler requires error checking
-			BITA	#(NF|FE|PF) 				;check for: noise, frame errors, parity errors
-			BNE	<SCI_ISR_RX_3				;RX error detected -> put data into RX queue
-#endif
-#endif
-#endif
-#endif
-#endif
+			BNE	<SCI_ISR_RX_6				;RX error detected (skip special caracter detection)
 			;No RX error detected (status flags in A, RX data in B)
 			SCI_ERRSIG_OFF					;clear error signal 
 			SCI_STOP_BD					;disable baud rate detection
 			;Check for control characters (status flags in A, RX data in B)
 #ifdef	SCI_HANDLE_SUSPEND
+			BRSET	SCI_FLGS, #SCI_FLG_RX_ESC, SCI_ISR_RX_2	;charakter is escaped (skip detection)
 			CMPB	#SCI_SUSPEND
-			BLE	<SCI_ISR_RX_7				;determine control signal
-SCI_ISR_RX_2		BCLR	SCI_FLGS, #SCI_FLG_ESC 			;clear escape marker
+			BLE	<SCI_ISR_RX_9				;determine control signal
+SCI_ISR_RX_2		BCLR	SCI_FLGS, #SCI_FLG_RX_ESC 		;clear escape marker
 #else
-#ifdef	SCI_FC_XON_XOFF
+#ifdef	SCI_FC_XONXOFF
+			BRSET	SCI_FLGS, #SCI_FLG_RX_ESC, SCI_ISR_RX_2 ;charakter is escaped (skip detection)
 			CMPB	#SCI_XOFF
-			BLE	<SCI_ISR_RX_7				;determine control signal
-SCI_ISR_RX_2		BCLR	SCI_FLGS, #SCI_FLG_ESC 			;clear escape marker
+			BLE	<SCI_ISR_RX_9				;determine control signal
+SCI_ISR_RX_2		BCLR	SCI_FLGS, #SCI_FLG_RX_ESC 		;clear escape marker
 #else
 #ifdef	SCI_HANDLE_BREAK
+			BRSET	SCI_FLGS, #SCI_FLG_RX_ESC, SCI_ISR_RX_2 ;charakter is escaped (skip detection)
 			CMPB	#SCI_DLE
-			BLE	<SCI_ISR_RX_7				;determine control signal
-SCI_ISR_RX_2		BCLR	SCI_FLGS, #SCI_FLG_ESC 			;clear escape marker
+			BLE	<SCI_ISR_RX_9				;determine control signal
+SCI_ISR_RX_2		BCLR	SCI_FLGS, #SCI_FLG_RX_ESC 		;clear escape marker
+#else
+SCI_ISR_RX_2		EQU	*	
 #endif
 #endif
 #endif
@@ -1296,109 +1289,93 @@ SCI_ISR_RX_3		TFR	D, Y					;flags:data -> Y
 			ADDA	#2
 			ANDA	#SCI_RXBUF_MASK		
 			CBA
-                	BEQ	<SCI_ISR_RX_11				;buffer overflow
+                	BEQ	<SCI_ISR_RX_7				;buffer overflow
 			STAA	SCI_RXBUF_IN				;update IN pointer
 			;Check flow control threshold (in:out in D) 
 			SBA
 			ANDA	#SCI_RXBUF_MASK
 			CMPA	#SCI_RX_FULL_LEVEL
-#ifdef	SCI_IRQ_WORKAROUND_ON
-			BLO	<SCI_ISR_RX_RXTX 			;done			
-			;Done
-SCI_ISR_RX_4		EQU	SCI_ISR_RXTX
-#else
-			BHS	<SCI_ISR_RX_5 				;buffer is getting full			
-			;Done
-SCI_ISR_RX_4		ISTACK_RTI
+			BHS	<SCI_ISR_RX_8 				;buffer is getting full			
+SCI_ISR_RX_4		EQU	*
+#ifdef SCI_FC_XONXOFF
+			;Delay reminder in case it is running
+			LDD	SCI_XONXOFF_REMCNT
+			BEQ	SCI_ISR_RX_5 				;done
+			MOVW	#SCI_XONXOFF_REMINDER, SCI_XONXOFF_REMCNT
 #endif
-			;RX buffer is getting full
-SCI_ISR_RX_5		SCI_DEASSERT_CTS
-			SCI_SEND_XONXOFF
-			JOB	SCI_ISR_RX_4 				;done
-
+SCI_ISR_RX_5		EQU	*
+#ifdef	SCI_IRQ_WORKAROUND_ON
+			;Continue with TX 
+			JOB	SCI_ISR_RXTX
+#else
+			;Done
+			ISTACK_RTI
+#endif
 			;RX error detected (status flags in A, RX data in B)
 SCI_ISR_RX_6		SCI_ERRSIG_ON
 			SCI_START_BD
 #ifdef	SCI_ERRSIG_ON	
-			JOB	SCI_ISR_RX_3 				;queue RX data
+			JOB	SCI_ISR_RX_2 				;queue RX data
 #else
 #ifdef	SCI_BD_ON
-			JOB	SCI_ISR_RX_3 				;queue RX data
+			JOB	SCI_ISR_RX_2 				;queue RX data
 #endif
 #endif	
-			;Determine control signal (status flags in A, RX data in B)
-SCI_ISR_RX_7		EQU	*
-			;Check for escape status (status flags in A, RX data in B)
-#ifdef	SCI_HANDLE_SUSPEND
-			BRSET	SCI_FLGS, #SCI_FLG_ESC, SCI_ISR_RX_2 	;caracter is escaped
-#else
-#ifdef	SCI_FC_XON_XOFF
-			BRSET	SCI_FLGS, #SCI_FLG_ESC, SCI_ISR_RX_2 	;caracter is escaped 
-#else
-#ifdef	SCI_HANDLE_BREAK
-			BRSET	SCI_FLGS, #SCI_FLG_ESC, SCI_ISR_RX_2 	;caracter is escaped 
-#endif
-#endif
-#endif
-SCI_ISR_RX_8		EQU	*
-			;Check for XON/XOFF (status flags in A, RX data in B)
-#ifdef	SCI_FC_XON_XOFF
-			CMPB	#SCI_XOFF
-			BNE	<SCI_ISR_RX_9				;determine control signal
-			BCLR	SCI_FLGS, #SCI_FLG_ESC 			;set TX block
+			;Buffer overflow
+SCI_ISR_RX_7		BSET	SCI_FLGS, #SCI_FLG_SWOR 		;set overflow flag
 			JOB	SCI_ISR_RX_4 				;done
-SCI_ISR_RX_9		CMPB	#SCI_XON
+			;RX buffer is getting full
+SCI_ISR_RX_8		SCI_DEASSERT_CTS
+			SCI_SEND_XONXOFF
+			JOB	SCI_ISR_RX_4 				;done
+			;Determine control signal (status flags in A, RX data in B)
+SCI_ISR_RX_9		EQU	*
+#ifdef	SCI_FC_XONXOFF
+			;Check for XON/XOFF (status flags in A, RX data in B)
+			CMPB	#SCI_XOFF
 			BNE	<SCI_ISR_RX_10				;determine control signal
-			BCLR	SCI_FLGS, #SCI_FLG_ESC 			;clear TX block
+			BSET	SCI_FLGS, #SCI_FLG_TX_BLOCKED
+			JOB	SCI_ISR_RX_4 				;done
+SCI_ISR_RX_10		CMPB	#SCI_XON
+			BNE	<SCI_ISR_RX_11				;determine control signal
+			BCLR	SCI_FLGS, #SCI_FLG_TX_BLOCKED		;clear TX block
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2 		;enable TX interrupt
 			JOB	SCI_ISR_RX_4 				;done
+SCI_ISR_RX_11		EQU	*
 #endif
-SCI_ISR_RX_10		EQU	*
-			;Check for SUSPEND (status flags in A, RX data in B)
 #ifdef	SCI_HANDLE_SUSPEND
+			;Check for SUSPEND (status flags in A, RX data in B)
 			CMPB	#SCI_SUSPEND
 			BNE	<SCI_ISR_RX_12				;determine control signal
 			SCI_SUSPEND_ACTION
 			JOB	SCI_ISR_RX_4 				;done
-#endif
-			;Buffer overflow
-SCI_ISR_RX_11		BSET	SCI_FLGS, #SCI_FLG_SWOR 		;set overflow flag
-			JOB	SCI_ISR_RX_4 				;done
-	
 SCI_ISR_RX_12		EQU	*
+#endif
 #ifdef	SCI_HANDLE_BREAK
 			;Check for BREAK (status flags in A, RX data in B)
 			CMPB	#SCI_BREAK
 			BNE	<SCI_ISR_RX_13				;determine control signal
 			SCI_BREAK_ACTION
-			JOB	SCI_ISR_RX_4 				;done
-SCI_ISR_RX_13		EQU	*
-#endif
-			;Check for escape character (status flags in A, RX data in B)
-#ifdef	SCI_HANDLE_SUSPEND
-			CMPB	#SCI_DLE
+SCI_ISR_RX_13		CMPB	#SCI_DLE
 			BNE	<SCI_ISR_RX_14				;done
-			BSET	SCI_FLGS, #SCI_FLG_ESC 			;set escape marker
+			BSET	SCI_FLGS, #SCI_FLG_RX_ESC 		;set escape marker	
 SCI_ISR_RX_14		JOB	SCI_ISR_RX_4 				;done
 #else
-#ifdef	SCI_FC_XON_XOFF
-			BRSET	SCI_FLGS, #SCI_FLG_ESC, SCI_ISR_RX_2 	;caracter is escaped 
+#ifdef	SCI_FC_XONXOFF
 			CMPB	#SCI_DLE
 			BNE	<SCI_ISR_RX_14				;done
-			BSET	SCI_FLGS, #SCI_FLG_ESC 			;set escape marker	
+			BSET	SCI_FLGS, #SCI_FLG_RX_ESC 			;set escape marker	
 SCI_ISR_RX_14		JOB	SCI_ISR_RX_4 				;done
 #else
-#ifdef	SCI_HANDLE_BREAK
-			BRSET	SCI_FLGS, #SCI_FLG_ESC, SCI_ISR_RX_2 	;caracter is escaped 
+#ifdef	SCI_FC_SUSPEND
 			CMPB	#SCI_DLE
 			BNE	<SCI_ISR_RX_14				;done
-			BSET	SCI_FLGS, #SCI_FLG_ESC 			;set escape marker	
+			BSET	SCI_FLGS, #SCI_FLG_RX_ESC 			;set escape marker	
 SCI_ISR_RX_14		JOB	SCI_ISR_RX_4 				;done
 #endif
 #endif
 #endif
-
-
+	
 #ifdef	SCI_BD_ON
 #ifdef SCI_BD_TIM	
 ;#BD negedge ISR (default IC1)
@@ -1406,7 +1383,7 @@ SCI_ISR_BD_NE		EQU	*
 			;Stop edge detection
 			SCI_STOP_EDGE_DETECT
 			;Capture pulse length interrupt flags
-			LDD	TC0+(2*SCI_BD_ICNE))			;capture current edge (negedge)
+			LDD	(TC0+(2*SCI_BD_ICNE))			;capture current edge (negedge)
 			SUBD	(TC0+(2*SCI_BD_ICPE))			;capture previous edge (posedge)
 
 			LDY	(TC0+(2*SCI_BD_ICPE))			;capture previous edge (posedge)
