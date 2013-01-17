@@ -215,10 +215,10 @@ NUM_REVERSE_RLW		EQU	$10 ;SP+16:  |      +return address at
 
 			;Setup stack (double value in Y:X, base in B)
 			CLRA
-			MOVW	0,SP, -6,SP 	;move return address to SP+10
-			STD	2,SP-		;initialize reverse number
-			MOVW	#$0000, 2,SP-   ;  reverse number = base
-			MOVW	#$0000, 2,SP-
+			MOVW	0,SP, 6,-SP 	;move return address to SP+10
+			STD	6,SP		;initialize reverse number
+			MOVW	#$0000, 4,SP    ;  reverse number = base
+			MOVW	#$0000, 2,SP
 			PSHX			;store X at SP+8
 			PSHY			;store Y at SP+6			
 			PSHD			;store count:base at SP+4
@@ -374,7 +374,7 @@ NUM_REVPRINT_NB_2	CLRA				;base => D
 			STY	NUM_REVPRINT_NB_RLW,SP	;result => RLW
 
 			;Print remainder (prev, remainder in D, RLW in Y)
-			Ldx	#NUM_SYMTAB
+			LdX	#NUM_SYMTAB
 			LDAB	B,X
 			JOBSR	SCI_TX_NB		;print character (SSTACK: 5 bytes)
 			;BCC	>NUM_REVPRINT_NB_4	;TX unsuccessful -> has already been checked

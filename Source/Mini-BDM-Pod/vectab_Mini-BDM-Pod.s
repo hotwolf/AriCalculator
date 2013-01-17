@@ -233,14 +233,14 @@ ISR_ECT_TC4		BGND				;vector base + $E6
 #ifdef	SCI_ISR_DELAY					;vector base + $E8
 ISR_ECT_TC3		EQU	SCI_ISR_DELAY
 #else
-ISR_ECT_TC3		EQU	RESET_ISR_FATAL
+ISR_ECT_TC3		BGND
 #endif
 ISR_ECT_TC2		BGND				;vector base + $EA
 ISR_ECT_TC1		BGND				;vector base + $EC
 #ifdef	SCI_ISR_BD_NEPE					;vector base + $EE
 ISR_ECT_TC0		EQU	SCI_ISR_BD_NEPE
 #else
-ISR_ECT_TC0		EQU	RESET_ISR_FATAL
+ISR_ECT_TC0		BGND
 #endif
 ISR_RTI			BGND				;vector base + $F0
 ISR_IRQ			BGND				;vector base + $F2
@@ -250,7 +250,7 @@ ISR_TRAP		BGND				;vector base + $F8
 #else							
 ISR_SPURIOUS  		EQU	RESET_ISR_FATAL		;vector base + $10
 ISR_SYS			EQU	RESET_ISR_FATAL		;vector base + $12
-ISR_MPU			EQU	RESET_ISR_FATAL		;vector base + $14
+ISR_MPU			EQU	MMAP_IRQ_MPU		;vector base + $14
 ISR_XGSWE     		EQU	RESET_ISR_FATAL		;vector base + $16
 ISR_RES18		EQU	RESET_ISR_FATAL		;vector base + $18
 ISR_RES1A		EQU	RESET_ISR_FATAL		;vector base + $1A

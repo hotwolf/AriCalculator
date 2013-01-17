@@ -57,6 +57,7 @@ SSTACK_DEBUG		EQU	1 		;debug behavior
 COP_DEBUG		EQU	1 		;disable COP
 
 ;# RESET
+RESET_CODERUN_OFF	EQU	1 		;don't report code runaways
 RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
 	
 ;# Vector table
@@ -77,7 +78,7 @@ SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_START
+			ORG	MMAP_RAM_START, MMAP_RAM_START_LIN
 ;Code
 START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*
@@ -110,8 +111,10 @@ BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
 ;###############################################################################
 			ORG 	DEMO_VARS_START, DEMO_VARS_START_LIN
 
+;			ALIGN	16
+;DEMO_TRACE		DS	8*64
+
 DEMO_VARS_END		EQU	*
-	
 DEMO_VARS_END_LIN	EQU	@
 
 ;###############################################################################
@@ -134,7 +137,24 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;Initialization
 			BASE_INIT
-	
+
+;;Setup trace buffer
+;			;Configure DBG module
+;			CLR	DBGC1
+;			;MOVB	#$40, DBGTCR  ;trace CPU in normal mode
+;			MOVB	#$4C, DBGTCR  ;trace CPU in pure PC mode
+;			MOVB	#$02, DBGC2   ;Comparators A/B outside range
+;			MOVB	#$02, DBGSCRX ;first match triggers final state
+;			;Comperator A
+;			MOVW	#(((BRK|TAG|COMPE)<<8)|(MMAP_RAM_START_LIN>>16)), DBGXCTL
+;			MOVW	#(MMAP_RAM_START_LIN&$FFFF),                      DBGXAM
+;			;Comperator A
+;			MOVB	#$01, DBGC1
+;			MOVW	#(((BRK|TAG|COMPE)<<8)|(MMAP_RAM_END_LIN>>16)), DBGXCTL
+;			MOVW	#(MMAP_RAM_END_LIN&$FFFF),                      DBGXAM
+;			;Arm DBG module
+;			MOVB	#ARM, DBGC1
+			
 ;Application code
 DEMO_LOOP		SCI_RX_BL
 			;Ignore RX errors 
@@ -211,10 +231,25 @@ DEMO_LOOP		SCI_RX_BL
 			LDX	#STRING_STR_NL
 			STRING_PRINT_BL
 			JOB	DEMO_LOOP
+
+;			;Dump trace buffer
+;DEMO_DUMP_TRACE		CLR	DBGC1
+;			LDD	2*64
+;			LDX	#DEMO_TRACE
+;			STX	DBGTBH
+;DEMO_DUMP_TRACE_1	LDY	DBGTBH
+;			MOVW	DBGTBH, 2,X+
+;			STY	2,X+
+;			DBNE	D, DEMO_DUMP_TRACE_1
+;			BGND
 	
 DEMO_CODE_END		EQU	*	
 DEMO_CODE_END_LIN	EQU	@	
 
+;			;Overwrite SWI interrupt vector
+;			ORG	VEC_SWI
+;			DW	DEMO_DUMP_TRACE
+	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################

@@ -199,8 +199,17 @@ if ($code->{problems}) {
     ######################
     $command_file_name = sprintf("%s.txt", $prog_name);
     if (open (FILEHANDLE, sprintf("+>%s", $command_file_name))) {
-	printf FILEHANDLE "reset\r\n";     # reset the target MCU
-	printf FILEHANDLE "nobr\r\n";      # remove all breakpoints
+	printf FILEHANDLE "reset\r\n";       # reset the target MCU
+	printf FILEHANDLE "nobr\r\n";        # remove all breakpoints
+
+	if (defined $code->{comp_symbols}->{"MMAP_RAM_START_LIN"}) {
+	    $initial_rpage = $code->{comp_symbols}->{"MMAP_RAM_START_LIN"} >> 12;
+	    if ($initial_rpage < 0xfd) {
+		printf FILEHANDLE "mm 0013 0b\r\n";                  #configure large ram $0800-$8000
+		printf FILEHANDLE "mm 0016 %x\r\n", $initial_rpage;  #set RPAGE 
+	    }
+	}
+
 	printf FILEHANDLE "load\r\n";      # load S-Record
 	$out_string = $code->print_pag_srec(uc($prog_name),
 					    $srec_format,
