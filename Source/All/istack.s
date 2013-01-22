@@ -202,12 +202,12 @@ UF			JOB	ISTACK_UF
 #macro	ISTACK_CHECK_AND_CLI, 0 
 			CPS	#ISTACK_BOTTOM-ISTACK_FRAME_SIZE
 			BHI	DONE
-			CLI
 #ifdef ISTACK_S12X	
-			;LDAA	#$80
-			LDAA	#$81
+			;LDAA	#$00
+			LDAA	#$01
 			TFR	A, CCRH
 #endif
+			CLI
 DONE			EQU	*
 #emac	
 
