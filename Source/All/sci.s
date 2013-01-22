@@ -253,7 +253,7 @@ SCI_BD_OC		EQU	$2		;default is OC2
 ;Log captured BD pulse length 
 #ifndef	SCI_BD_LOG_ON
 #ifndef	SCI_BD_LOG_OFF
-SCI_BD_LOG_ON		EQU	1 		;default is SCI_BD_LOG_OFF
+SCI_BD_LOG_OFF		EQU	1 		;default is SCI_BD_LOG_OFF
 #endif
 #endif
 

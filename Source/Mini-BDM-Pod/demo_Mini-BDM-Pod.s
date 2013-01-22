@@ -46,12 +46,12 @@ MMAP_RAM		EQU	1 		;use RAM memory map
 
 ;# Interrupt stack
 ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
-ISTACK_DEBUG		EQU	1 		;don't enter wait mode
+;ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 ISTACK_S12X		EQU	1	 	;S12X interrupt handling
 
 ;# Subroutine stack
 SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
-SSTACK_DEBUG		EQU	1 		;debug behavior
+;SSTACK_DEBUG		EQU	1 		;debug behavior
 
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
@@ -255,7 +255,7 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the Mini-BDM-Pod"
+DEMO_WELCOME		FCC	"This is the S12CBase Demo for the Mini-BDM-Pod"
 			STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
