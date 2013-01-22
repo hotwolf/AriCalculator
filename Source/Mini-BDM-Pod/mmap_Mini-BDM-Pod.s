@@ -77,15 +77,6 @@
 ;  		 | BootLoader  |
 ;  		 +-------------+ 
 ; 
-;  RAM Memory Map:
-;  ---------------  
-
-
-
-
-
-
-
 	
 ;###############################################################################
 ;# Configuration                                                               #
@@ -317,7 +308,7 @@ MMAP_VARS_END_LIN	EQU	@
 			MOVB	#SVSEN, MPUSEL
 ;#ifndef MMAP_RAM			;Don't write to RPAGE while executing code from RAM
 ;			;Initialize RPAGE
-;			MOVB	#(MMAP_RAM_START_LIN>>12), RPAGE
+			MOVB	#(MMAP_RAM_START_LIN>>12), RPAGE
 ;#endif	
 #emac	
 
