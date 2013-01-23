@@ -1453,83 +1453,48 @@ SCI_ISR_BD_NE		EQU	*
 			SCI_BD_STOP_EDGE_DETECT
 			;Capture pulse length and flags
 			LDD	(TC0+(2*SCI_BD_ICNE))			;capture current edge (posedge)
+			STD	(TC0+(2*SCI_BD_OC))			;reset timeout	
 			SUBD	(TC0H+(2*SCI_BD_ICPE))			;capture previous edge (negedge)
 			TFR	D, X 					;keep pulse length in X
 			LDAA	TFLG1 					;capture interrupt flags	
-			;Reset timeout (pulse length in X, interrupt flags in A)
-			STX	(TC0+(2*SCI_BD_OC))
 			;Clear interrupt flags (pulse length in X, flags in A)
 			TIM_MULT_CLRIF	(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)
 			;Restart edge detection (pulse length in X, flags in A)
 			SCI_BD_START_EDGE_DETECT
 			;Allow nested interrupts (pulse length in X, flags in A)
 			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
-			;Check flags (pulse length in X, flags in A)
-			BITA	#((1<<SCI_BD_ICPE)|(1<<SCI_BD_OC)) 	;check for overrun or missed negedge
-			BNE	<SCI_ISR_BD_NE_2 			;done
-			;Select search tree tree (pulse length in X)
+			;Select search tree tree (pulse length in X, flags in A)
 			LDY	#SCI_BD_HIGH_PULSE_TREE
-			;Parse tree  (pulse length in X, search tree in Y)
-			JOB	SCI_ISR_BD_NE_1
-SCI_ISR_BD_NE_1		EQU	SCI_ISR_BD_PE_1
-SCI_ISR_BD_NE_2		EQU	SCI_ISR_BD_PE_3 			;done
-	
+			;Check flags (pulse length in X, search tree in Y, flags in A)
+			BITA	#((1<<SCI_BD_ICPE)|(1<<SCI_BD_OC)) 	;check for overrun or missed negedge
+			BNE	<SCI_ISR_BD_NEPE_3 			;done
+			;Ignore zero lenght pulses (pulse length in X, search tree in Y)
+			TBNE	X, SCI_ISR_BD_NEPE_1 			;log pulse length
+			JOB	X, SCI_ISR_BD_NEPE_3 			;done
 ;#BD posedge ISR (default IC0)
 SCI_ISR_BD_PE		EQU	*
 			;Stop edge detection
 			SCI_BD_STOP_EDGE_DETECT
 			;Capture time stamps and interrupt flags
 			LDD	(TC0+(2*SCI_BD_ICPE))			;capture current edge (posedge)
+			STD	(TC0+(2*SCI_BD_OC))			;reset timeout	
 			SUBD	(TC0+(2*SCI_BD_ICNE))			;capture previous edge (negedge)
 			TFR	D, X 					;keep pulse length in X
 			LDAA	TFLG1 					;capture interrupt flags	
-			;Reset timeout (pulse length in X, interrupt flags in A)
-			STX	(TC0+(2*SCI_BD_OC))
 			;Clear interrupt flags (pulse length in X, flags in A)
 			TIM_MULT_CLRIF	(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)
 			;Restart edge detection (pulse length in X, flags in A)
 			SCI_BD_START_EDGE_DETECT
 			;Allow nested interrupts (pulse length in X, flags in A)
 			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
-			;Check flags (pulse length in X, flags in A)
-			BITB	#((1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)) 	;check for overrun or missed negedge
-			BNE	SCI_ISR_BD_PE_3 			;done
-			;Select search tree tree (pulse length in X)
-			LDY	#SCI_BD_HIGH_PULSE_TREE
-			;Parse tree  (pulse length in X, search tree in Y)
-SCI_ISR_BD_PE_1		SCI_BD_PARSE			
-			;Update list of potential batd rates (matching baud rates in D)
-			SEI
-			ANDB	SCI_BD_LIST 				;remove mismatching baud rates from the list
-			BEQ	SCI_ISR_BD_PE_4	 			;no valid baud rate found
-			STAB	SCI_BD_LIST 
-			;Check if baud rate has been determined (potential baud rates in B (not zero))
-			CLRA
-SCI_ISR_BD_PE_2		INCA
-			LSRB
-			BCC	SCI_ISR_BD_PE_2
-			BEQ	SCI_ISR_BD_PE_5 			;new baud rate found (index in A)
-			;Done
-SCI_ISR_BD_PE_3		ISTACK_RTI
-			;No valid baud rate found
-SCI_ISR_BD_PE_4		BRCLR	SCI_BD_LIST, #$FF, SCI_ISR_BD_PE_3	;done
-			;Restart baud rate detection 
-			MOVB	#$FF, SCI_BD_LIST
-			JOB	SCI_ISR_BD_PE_3 			;done
-			;New baud rate found (index+1 in A, $00 in B)
-SCI_ISR_BD_PE_5		SCI_STOP_BD
-			;Set baud rate (index+1 in A, $00 in B)
-			LSLA						;index -> addess offset
-			LDX	SCI_BTAB-2 				;look up prescaler value
-			LDD	A,X					;look up divider value
-			SCI_SET_BAUD
-			;Clear error signal
-			SCI_ERRSIG_OFF
-			JOB	SCI_ISR_BD_PE_3 			;done
+			;Select search tree tree (pulse length in X, flags in A)
+			LDY	#SCI_BD_LOW_PULSE_TREE
+			;Check flags (pulse length in X, search tree in Y, flags in A)
+			BITA	#((1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)) 	;check for overrun or missed negedge
+			BNE	SCI_ISR_BD_NEPE_3 			;done
+			;Ignore zero lenght pulses (pulse length in X, search tree in Y)
+			TBEQ	X, SCI_ISR_BD_NEPE_3 			;done
 #endif	
-#endif	
-
-#ifdef	SCI_BD_ON
 #ifdef SCI_BD_ECT	
 ;#Edge on RX pin captured (default IC0)
 SCI_ISR_BD_NEPE		EQU	*
@@ -1561,7 +1526,8 @@ SCI_ISR_BD_NEPE		EQU	*
 			BNE	SCI_ISR_BD_NEPE_1
 			;BEQ	SCI_ISR_BD_NEPE_1	;!!!
 			LDY	#SCI_BD_LOW_PULSE_TREE
-			;Log pluse length for debuging
+#endif	
+			;Log pluse length for debuging (pulse length in X, search tree in Y)
 SCI_ISR_BD_NEPE_1	SCI_BD_LOG
 			;Parse tree  (pulse length in X, search tree in Y)
 			SCI_BD_PARSE			
@@ -1593,7 +1559,6 @@ SCI_ISR_BD_NEPE_5	SCI_STOP_BD
 			;Clear error signal
 			SCI_ERRSIG_OFF
 			JOB	SCI_ISR_BD_NEPE_3 			;done
-#endif	
 #endif	
 
 SCI_CODE_END		EQU	*

@@ -46,11 +46,11 @@ MMAP_S12C128		EQU	1		;complie for S12S128
 
 ;# Interrupt stack
 ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
-ISTACK_DEBUG		EQU	1 		;don't enter wait mode
+;ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 
 ;# Subroutine stack
 SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
-SSTACK_DEBUG		EQU	1 		;debug behavior
+;SSTACK_DEBUG		EQU	1 		;debug behavior
 
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
@@ -77,9 +77,6 @@ SCI_BD_OC		EQU	2		;OC2
 SCI_DLY_OC		EQU	3		;OC3
 SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
-
-;# NUM
-NUM_BLOCKING_ON		EQU	1		;enable blocking subroutines
 	
 ;###############################################################################
 ;# Resource mapping                                                            #
