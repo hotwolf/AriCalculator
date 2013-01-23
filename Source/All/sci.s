@@ -1454,7 +1454,7 @@ SCI_ISR_BD_NE		EQU	*
 			;Capture pulse length and flags
 			LDD	(TC0+(2*SCI_BD_ICNE))			;capture current edge (posedge)
 			STD	(TC0+(2*SCI_BD_OC))			;reset timeout	
-			SUBD	(TC0H+(2*SCI_BD_ICPE))			;capture previous edge (negedge)
+			SUBD	(TC0+(2*SCI_BD_ICPE))			;capture previous edge (negedge)
 			TFR	D, X 					;keep pulse length in X
 			LDAA	TFLG1 					;capture interrupt flags	
 			;Clear interrupt flags (pulse length in X, flags in A)
@@ -1470,7 +1470,7 @@ SCI_ISR_BD_NE		EQU	*
 			BNE	<SCI_ISR_BD_NEPE_3 			;done
 			;Ignore zero lenght pulses (pulse length in X, search tree in Y)
 			TBNE	X, SCI_ISR_BD_NEPE_1 			;log pulse length
-			JOB	X, SCI_ISR_BD_NEPE_3 			;done
+			JOB	SCI_ISR_BD_NEPE_3 			;done
 ;#BD posedge ISR (default IC0)
 SCI_ISR_BD_PE		EQU	*
 			;Stop edge detection

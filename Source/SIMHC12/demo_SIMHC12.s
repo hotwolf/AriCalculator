@@ -47,7 +47,6 @@ MMAP_RAM		EQU	1 		;use RAM memory map
 ;# Interrupt stack
 ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
 ;ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-ISTACK_S12X		EQU	1	 	;S12X interrupt handling
 
 ;# Subroutine stack
 SSTACK_DEPTH		EQU	27	 	;no interrupt nesting

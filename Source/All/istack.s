@@ -80,6 +80,7 @@
 ;###############################################################################
 ;Debug option for stack over/underflows
 ;ISTACK_DEBUG		EQU	1 
+;ISTACK_NO_WAI		EQU	1 
 	
 ;Disable stack range checks
 ;ISTACK_NO_CHECK	EQU	1 
@@ -155,7 +156,9 @@ ISTACK_VARS_END_LIN	EQU	@
 			COP_SERVICE			;already taken care of by WAI
 			CLI		
 #ifndef	ISTACK_DEBUG
+#ifndef	ISTACK_NO_WAI
 			WAI
+#endif
 #endif
 #ifndef	ISTACK_NO_CHECK
 #ifdef	ISTACK_DEBUG

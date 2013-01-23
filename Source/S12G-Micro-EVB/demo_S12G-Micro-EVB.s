@@ -64,14 +64,22 @@ RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 	
 ;# SCI
-SCI_RXTX_ACTHI		EQU	1 		;RXD/TXD are inverted (active high)
+SCI_FC_RTSCTS		EQU	1 		;RTS/CTS flow control
+SCI_RTS_PORT		EQU	PTM 		;PTM
+SCI_RTS_PIN		EQU	PM0		;PM0
+SCI_CTS_PORT		EQU	PTM 		;PTM
+SCI_CTS_PIN		EQU	PM1		;PM1
 SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
 SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
+SCI_BD_ON		EQU	1 		;use baud rate detection
+SCI_BD_TIM		EQU	1 		;TIM
+SCI_BD_ICPE		EQU	0		;IC0
+SCI_BD_ICNE		EQU	1		;IC1			
+SCI_BD_OC		EQU	2		;OC2			
+SCI_BD_LOG_ON		EQU	1		;log captured BD pulses			
+SCI_DLY_OC		EQU	3		;OC3
 SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
-
-;# NUM
-NUM_BLOCKING_ON		EQU	1		;enable blocking subroutines
 	
 ;###############################################################################
 ;# Resource mapping                                                            #
@@ -137,7 +145,9 @@ DEMO_VARS_END_LIN	EQU	@
 ;Application code
 DEMO_LOOP		SCI_RX_BL
 			;Ignore RX errors 
-			TBNE	A, DEMO_LOOP
+			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
+			BNE	DEMO_LOOP
+			;TBNE	A, DEMO_LOOP
 
 			;Print ASCII character (char in B)
 			TFR	D, X

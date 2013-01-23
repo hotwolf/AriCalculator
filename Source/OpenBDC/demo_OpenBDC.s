@@ -46,11 +46,11 @@ MMAP_S12C128		EQU	1		;complie for S12S128
 
 ;# Interrupt stack
 ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
-;ISTACK_DEBUG		EQU	1 		;don't enter wait mode
+ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 
 ;# Subroutine stack
 SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
-;SSTACK_DEBUG		EQU	1 		;debug behavior
+SSTACK_DEBUG		EQU	1 		;debug behavior
 
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
@@ -74,6 +74,7 @@ SCI_BD_TIM		EQU	1 		;TIM
 SCI_BD_ICPE		EQU	0		;IC0
 SCI_BD_ICNE		EQU	1		;IC1			
 SCI_BD_OC		EQU	2		;OC2			
+SCI_BD_LOG_ON		EQU	1		;log captured BD pulses			
 SCI_DLY_OC		EQU	3		;OC3
 SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
@@ -142,7 +143,9 @@ DEMO_VARS_END_LIN	EQU	@
 ;Application code
 DEMO_LOOP		SCI_RX_BL
 			;Ignore RX errors 
-			TBNE	A, DEMO_LOOP
+			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
+			BNE	DEMO_LOOP
+			;TBNE	A, DEMO_LOOP
 
 			;Print ASCII character (char in B)
 			TFR	D, X
