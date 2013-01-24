@@ -366,7 +366,9 @@ SCI_SET_ICSYS		EQU	1
 #else
 SCI_BD_TIOS_VAL		EQU	0
 #endif	
-#endif	
+#endif
+#else
+SCI_BD_TIOS_VAL		EQU	0
 #endif	
 #ifdef	SCI_FC_RTSCTS
 SCI_SET_TIOS		EQU	1
@@ -1318,6 +1320,9 @@ SCI_ISR_RX_1		EQU	*
 			BITA	#(NF|FE|PF) 				;check for: noise, frame errors, parity errors
 			BNE	<SCI_ISR_RX_8				;RX error detected (skip special caracter detection)
 			;No RX error detected (status flags in A, RX data in B)
+#ifndef SCI_BD_ON
+			SCI_ERRSIG_OFF					;clear error signal immediately if there is no baud rate detection
+#endif	
 ;			DEC	SCI_BD_RECOVCNT				;decrement recovery count if >$00
 ;			BCS	<SCI_ISR_RX_2 				;keep recovery count at $00
 ;			BNE	<SCI_ISR_RX_3				;baud rate detection is ongoing

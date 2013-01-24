@@ -47,6 +47,7 @@ MMAP_S12C128		EQU	1		;complie for S12S128
 ;# Interrupt stack
 ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
+ISTACK_NO_WAI		EQU	1	 	;keep WAIs out
 
 ;# Subroutine stack
 SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
@@ -69,7 +70,8 @@ SCI_CTS_PORT		EQU	PTM 		;PTM
 SCI_CTS_PIN		EQU	PM1		;PM1
 SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
 SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
-SCI_BD_ON		EQU	1 		;use baud rate detection
+SCI_BD_OFF		EQU	1 		;don't use baud rate detection
+;SCI_BD_ON		EQU	1 		;use baud rate detection
 SCI_BD_TIM		EQU	1 		;TIM
 SCI_BD_ICPE		EQU	0		;IC0
 SCI_BD_ICNE		EQU	1		;IC1			
@@ -222,12 +224,13 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the OpenBDC pod"
+DEMO_WELCOME		FCC	"This is the S12CBase Demo for the OpenBDC pod"
 			STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM
-			FCS	"------------------------------"
+			FCC	"------------------------------"
+			STRING_NL_TERM
 
 DEMO_TABS_END		EQU	*	
 DEMO_TABS_END_LIN	EQU	@	

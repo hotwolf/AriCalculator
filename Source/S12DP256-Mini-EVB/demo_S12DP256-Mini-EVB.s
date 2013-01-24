@@ -199,12 +199,13 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the S12DP256-Mini-EVB"
+DEMO_WELCOME		FCC	"This is the S12CBase Demo for the S12DP256-Mini-EVB"
 			STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM
-			FCS	"------------------------------"
+			FCC	"------------------------------"
+			STRING_NL_TERM
 
 DEMO_TABS_END		EQU	*	
 DEMO_TABS_END_LIN	EQU	@	

@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - Demo (S12G-Micro-EVB)                                              #
+;# S12CBase - Demo (OpenBDC)                                              #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -34,21 +34,20 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;# Clocks
-CLOCK_CPMU		EQU	1		;CPMU
-CLOCK_IRC		EQU	1		;use IRC
-CLOCK_OSC_FREQ		EQU	 1000000	; 1 MHz IRC frequency
-CLOCK_BUS_FREQ		EQU	25000000	; 25 MHz bus frequency
-CLOCK_REF_FREQ		EQU	 1000000	; 1 MHz reference clock frequency
-CLOCK_VCOFRQ		EQU	$1		; 10 MHz VCO frequency
-CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
+CLOCK_CRG		EQU	1		;old CRG
+CLOCK_OSC_FREQ		EQU	4096000		;4,096 MHz
+CLOCK_BUS_FREQ		EQU	25000000	;25 MHz
+CLOCK_REF_FREQ		EQU	4096000		;4,096 MHz
 
-;# Memory map:
-MMAP_S12G128		EQU	1 		;S12G128
-MMAP_RAM		EQU	1 		;use RAM memory map
+;# Memory map
+MMAP_FLASH		EQU	1 		;use Flash memory map
+MMAP_S12C128		EQU	1		;complie for S12S128
+;MMAP_S12C32		EQU	1		;complile for S12C32
 
 ;# Interrupt stack
-ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
+ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
+ISTACK_NO_WAI		EQU	1	 	;keep WAIs out
 
 ;# Subroutine stack
 SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
@@ -71,6 +70,7 @@ SCI_CTS_PORT		EQU	PTM 		;PTM
 SCI_CTS_PIN		EQU	PM1		;PM1
 SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
 SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
+;SCI_BD_OFF		EQU	1 		;don't use baud rate detection
 SCI_BD_ON		EQU	1 		;use baud rate detection
 SCI_BD_TIM		EQU	1 		;TIM
 SCI_BD_ICPE		EQU	0		;IC0
@@ -84,7 +84,7 @@ SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_START
+			ORG	MMAP_FLASH3F_START, MMAP_FLASH3F_START_LIN
 ;Code
 START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*
@@ -93,24 +93,26 @@ DEMO_CODE_START_LIN	EQU	@
 BASE_CODE_START		EQU	DEMO_CODE_END
 BASE_CODE_START_LIN	EQU	DEMO_CODE_END_LIN
 
-;Variables
-DEMO_VARS_START		EQU	BASE_CODE_END
-DEMO_VARS_START_LIN	EQU	BASE_CODE_END_LIN
-	
-BASE_VARS_START		EQU	DEMO_VARS_END
-BASE_VARS_START_LIN	EQU	DEMO_VARS_END_LIN
-
 ;Tables
-DEMO_TABS_START		EQU	BASE_VARS_END
-DEMO_TABS_START_LIN	EQU	BASE_VARS_END_LIN
+DEMO_TABS_START		EQU	BASE_CODE_END
+DEMO_TABS_START_LIN	EQU	BASE_CODE_END_LIN
 	
 BASE_TABS_START		EQU	DEMO_TABS_END
 BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
 
+			ORG	MMAP_RAM_START, unmapped
+;Variables
+DEMO_VARS_START		EQU	*
+DEMO_VARS_START_LIN	EQU	@
+	
+BASE_VARS_START		EQU	DEMO_VARS_END
+BASE_VARS_START_LIN	EQU	DEMO_VARS_END_LIN
+
+
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./base_S12G-Micro-EVB.s		;S12CBase bundle
+#include ./base_OpenBDC.s		;S12CBase bundle
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -224,7 +226,7 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"This is the S12CBase Demo for the S12G-Micro-EVB"
+DEMO_WELCOME		FCC	"This the S12CBase Demo for the OpenBDC pod"
 			STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
