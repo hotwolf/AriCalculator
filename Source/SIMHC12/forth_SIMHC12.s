@@ -20,8 +20,7 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#   This module bundles the S12CForth framework into a single include file    #
-;#   This version of OpenBDC contains modifications to run on the SIM68HC12    #
-;#   simulator.                                                                #
+;#   This version of S12CForth runs on the SIM68HC12 simulator.                #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#     BASE   - S12CBase framework                                             #
@@ -43,42 +42,70 @@
 ;###############################################################################
 
 ;###############################################################################
-;# Constants                                                                   #
+;# Configuration                                                               #
 ;###############################################################################
 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-BASE_VARS_START 	EQU	FORTH_VARS_START
-FCORE_VARS_START	EQU	BASE_VARS_END
-FEXCPT_VARS_START	EQU	FCORE_VARS_END
-FDOUBLE_VARS_START	EQU	FEXCPT_VARS_END
-FTOOLS_VARS_START	EQU	FDOUBLE_VARS_END
-FFACIL_VARS_START	EQU	FTOOLS_VARS_END
-FBDM_VARS_START		EQU	FFACIL_VARS_END
-FSCI_VARS_START		EQU	FBDM_VARS_END
-FMEM_VARS_START		EQU	FSCI_VARS_END	
-FMEM_VARS_END		EQU	FORTH_VARS_END
+#ifdef FORTH_VARS_START_LIN
+			ORG 	FORTH_VARS_START, FORTH_VARS_START_LIN
+#else
+			ORG 	FORTH_VARS_START
+#endif	
+
+BASE_VARS_START		EQU	*
+BASE_VARS_START_LIN	EQU	@
+
+FMEM_VARS_START		EQU	BASE_VARS_END	 
+FMEM_VARS_START_LIN	EQU	BASE_VARS_END_LIN
+
+FCORE_VARS_START	EQU	FMEM_VARS_END	 
+FCORE_VARS_START_LIN	EQU	FMEM_VARS_END_LIN
+
+FORTH_VARS_END		EQU	FCORE_VARS_START	
+FORTH_VARS_END_LIN	EQU	FCORE_VARS_START_LIN
+
+;BASE_VARS_START 	EQU	FORTH_VARS_START
+;FCORE_VARS_START	EQU	BASE_VARS_END
+;FEXCPT_VARS_START	EQU	FCORE_VARS_END
+;FDOUBLE_VARS_START	EQU	FEXCPT_VARS_END
+;FTOOLS_VARS_START	EQU	FDOUBLE_VARS_END
+;FFACIL_VARS_START	EQU	FTOOLS_VARS_END
+;FBDM_VARS_START	EQU	FFACIL_VARS_END
+;FSCI_VARS_START	EQU	FBDM_VARS_END
+;FMEM_VARS_START	EQU	FSCI_VARS_END	
+;FMEM_VARS_END		EQU	FORTH_VARS_END
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
 #macro	FORTH_INIT, 0
-	FCORE_INIT
+	BASE_INIT
 	FMEM_INIT
-	FEXCPT_INIT
-	FDOUBLE_INIT
-	FTOOLS_INIT
-	FFACIL_INIT
-	FBDM_INIT
-	FSCI_INIT
+	FCORE_INIT
+	;FEXCPT_INIT
+	;FDOUBLE_INIT
+	;FTOOLS_INIT
+	;FFACIL_INIT
+	;FBDM_INIT
+	;FSCI_INIT
 #emac
 	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-BASE_CODE_START		EQU	FORTH_CODE_START
+#ifdef FORTH_CODE_START_LIN
+			ORG 	FORTH_CODE_START, FORTH_CODE_START_LIN
+#else
+			ORG 	FORTH_CODE_START
+#endif	
+
+FORTH_CODE_END		EQU	VECTAB_CODE_START	
+FORTH_CODE_END_LIN	EQU	VECTAB_CODE_START_LIN
+
+ASE_CODE_START		EQU	FORTH_CODE_START
 FCORE_CODE_START	EQU	BASE_CODE_END
 FMEM_CODE_START		EQU	FCORE_CODE_END
 FEXCPT_CODE_START	EQU	FMEM_CODE_END
@@ -105,6 +132,19 @@ BASE_APP_END		EQU	FORTH_APP_END
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
+#ifdef FORTH_TABS_START_LIN
+			ORG 	FORTH_TABS_START, FORTH_TABS_START_LIN
+#else
+			ORG 	FORTH_TABS_START
+#endif	
+
+FORTH_TABS_END		EQU	VECTAB_TABS_START	
+FORTH_TABS_END_LIN	EQU	VECTAB_TABS_START_LIN
+
+
+
+
+
 BASE_TABS_START		EQU	FORTH_TABS_START
 FCORE_TABS_START	EQU	BASE_TABS_END
 FMEM_TABS_START		EQU	FCORE_TABS_END

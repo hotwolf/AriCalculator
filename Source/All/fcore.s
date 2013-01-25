@@ -175,33 +175,33 @@ NAME_END
 ;#Common code fragments	
 ;NEXT:	jump to the next instruction
 #macro	NEXT, 0	
-NEXT			LDY	IP			;IP -> Y	        => 3 cycles
-			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles   
-			STY	IP			;	  	  	=> 3 cycles 
-			JMP	[0,X]			;JUMP [CFA]             => 6 cycles
-							;                         ---------
-							;                         15 cycles
+NEXT			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
+			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
+			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
+			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
+							;                         ---------	--------
+							;                         15 cycles	12 bytes
 #emac
 
 ;SKIP_NEXT: skip next instruction and jump to one after
 #macro	SKIP_NEXT, 0	
-SKIP_NEXT		LDY	IP			;IP -> Y	        => 3 cycles
-			LEAY	2,Y			;IP += 2		=> 2 cycles
-			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles    
-			STY	IP			;		  	=> 3 cycles 
-			JMP	[0,X]			;JUMP [CFA]             => 6 cycles
-							;                         ---------
-							;                         17 cycles
+SKIP_NEXT		LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
+			LEAY	2,Y			;IP += 2		=> 2 cycles	 2 bytes
+			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
+			STY	IP			;		  	=> 3 cycles	 3 bytes 
+			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
+							;                         ---------	--------
+							;                         17 cycles	14 bytes
 #emac
 
 ;JUMP_NEXT: Read the next word entry and jump to that instruction 
 #macro	JUMP_NEXT, 0	
-JUMP_NEXT		LDY	[IP]			;[IP] -> Y	        => 6 cycles
-			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles   
-			STY	IP			;	  	  	=> 3 cycles 
-			JMP	[0,X]			;JUMP [CFA]             => 6 cycles
-							;                         ---------
-							;                         18 cycles
+JUMP_NEXT		LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes
+			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
+			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
+			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
+							;                         ---------	--------
+							;                         18 cycles	13 bytes
 #emac
 
 ;EXEC_CFA: Execute a Forth word (CFA) directly from assembler code 
