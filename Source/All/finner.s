@@ -22,14 +22,17 @@
 ;#    This module implements the inner interpreter of the S12CForth virtual    #
 ;#    machine.                                                                 #
 ;#                                                                             #
-;#    The inner interpreter uses two registers:                                #
-;#       W   = Working register. 					       #
+;#    The inner interpreter uses these registers:                              #
+;#         W = Working register. 					       #
 ;#             The W register points to the CFA of the current word, but it    #
 ;#             may be overwritten.	   			               #
 ;#             Used for indexed addressing and arithmetics.		       #
 ;#	       Index Register X is used to implement W.                        #
-;#       IP  = Instruction pointer.					       #
+;#        IP = Instruction pointer.					       #
 ;#             Points to the next execution token.			       #
+;#  IRQ_STAT = IRQ status register.					       #
+;#             The inner interpreter only uses bits 1 and 0. The remaining     #
+;#  	       may be used by the interrupt handler.                           #
 ;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -37,13 +40,12 @@
 ;#      - Initial release                                                      #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    FINT	- Forth interrupt handler                                                                 #
+;#    FRS	- Forth return stack                                           #
+;#    FINT	- Forth interrupt handler                                      #
+;#    FSTART	- Forth start-up procedure                                     #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
-;###############################################################################
-;# Global Defines:                                                             #
-;#    DEBUG - Prevents idle loop from entering WAIT mode.                      #
 ;###############################################################################
 
 ;###############################################################################
@@ -78,7 +80,7 @@ FINNER_INLINE_OFF	EQU	1 			;default is FINNER_INLINE_OFF
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Interrupt requests (bits 7..3 may be used by the interrupt handler)
+;Interrupt requests (bits 15..3 may be used by the interrupt handler)
 FINNER_IRQ_EN		EQU	$01
 FINNER_IRQ		EQU	$02
 	
@@ -92,8 +94,9 @@ FINNER_IRQ		EQU	$02
 FINNER_VARS_START_LIN	EQU	@
 #endif	
 
+IP			DS	2 		;instruction pointer
 #ifdef	FINNER_INT_HANDLER
-FINNER_IRQ_STAT		DS	1 			;IRQ status register
+IRQ_STAT		DS	2 		;IRQ status register
 #endif	
 
 FINNER_VARS_END		EQU	*
@@ -104,6 +107,8 @@ FINNER_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FINNER_INIT, 0
+			;Initialize IRQ status 
+			CLR	FINNER_IRQ_STAT
 #emac
 
 ;FINNER_CHECK_IRQ:	check IRQ status
@@ -113,7 +118,7 @@ FINNER_VARS_END_LIN	EQU	@
 ;        X, Y, and D are preserved 
 #macro	FINNER_CHECK_IRQ, 0	
 #ifdef	FINNER_INT_HANDLER
-			BRSET	FINNER_IRQ_STAT,#(FINNER_IRQ_EN|FINNER_IRQ),FINNER_INT_HANDLER
+			BRSET	(IRQ_STAT+1),#(FINNER_IRQ_EN|FINNER_IRQ),FINNER_INT_HANDLER+1
 #endif	
 #emac
 	
