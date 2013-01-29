@@ -40,8 +40,8 @@
 ;#      - Initial release                                                      #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    FRS	- Forth return stack                                           #
-;#    FINT	- Forth interrupt handler                                      #
+;#    FRAM	- Forth return stack                                           #
+;#    FIRQ	- Forth interrupt handler                                      #
 ;#    FSTART	- Forth start-up procedure                                     #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
@@ -266,6 +266,19 @@ FINNER_JUMP_NEXT	FINNER_CHECK_IRQ 		;			=> 5 cycles      5 bytes
 							;                         ---------	--------
 							;                         23 cycles	18 bytes
 #endif
+
+;Code fields:
+;============ 	
+;CF_INNER   ( -- )
+			;Execute the first execution token after the CFA (CFA in X)
+CF_INNER		EQU		*
+			RS_PUSH_KEEP_X	IP			;IP -> RS		=>22 cycles
+			LEAY		4,X			;CFA+4 -> IP		=> 2 cycles
+			STY		IP			;			=> 3 cycles
+			LDX		2,X			;new CFA -> X		=> 3 cycles
+			JMP		[0,X]			;JUMP [new CFA]         => 6 cycles
+								;                         ---------
+								;                         36 cycles
 	
 FINNER_CODE_END		EQU	*
 FINNER_CODE_END_LIN	EQU	@

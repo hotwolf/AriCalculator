@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CForth - FRS - Return Stack                                              #
+;# S12CForth - S12CForth Bundle                                                #
 ;###############################################################################
 ;#    Copyright 2010-2013 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
@@ -19,117 +19,90 @@
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module implements the return stack of the S12CForth virtual         #
-;#    machine.                                                                 #
-;#                                                                             #
-;#    The return stack uses this register:                                     #
-;#       RSP = Return stack pointer					       #
-;#  	       The RSP points th the most recent stack entry. It points to     #
-;#  	       FRS_BOTTOM if the stack is empty. 			       #
-;#  									       #
+;#    This module bundles all standard S12CForth modules into one.             #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    January 25, 2013                                                         #
+;#    January 29, 2013                                                         #
 ;#      - Initial release                                                      #
 ;###############################################################################
-;# Required Modules:                                                           #
-;#    - none                                                                   #
-;#                                                                             #
-;# Requirements to Software Using this Module:                                 #
-;#    - none                                                                   #
-;###############################################################################
-
-;###############################################################################
-;# Stack layout                                                               #
-;###############################################################################
-;	
-;	
-;                           |                             | 	       
-;          soft boundary->  | --- --- --- --- --- --- --- | 	       
-;                           .                             . <- [FRS_MAX_PTR]	       
-;                           .                             .            
-;                           | --- --- --- --- --- --- --- |            
-;                           |              ^              | <- RSP
-;                           |              |              |
-;                           |        Return Stack         |
-;                           |              |              |
-;          hard boundary->  +--------------+--------------+
-;            FRS_BOTTOM ->                                                                   
 
 ;###############################################################################
 ;# Configuration                                                               #
-;###############################################################################
-;Hard boundary (bottom)
-;FRS_BOTTOM		EQU	FMEM_VARS_END 
-
-;Soft boundary (top)
-;FRS_MAX_PTR		EQU	FMEM_VARS_END 
-	
-;###############################################################################
-;# Constants                                                                   #
 ;###############################################################################
 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef FRS_VARS_START_LIN
-			ORG 	FRS_VARS_START, FRS_VARS_START_LIN
+#ifdef FORTH_VARS_START_LIN
+			ORG 	FORTH_VARS_START, FORTH_VARS_START_LIN
 #else
-			ORG 	FRS_VARS_START
-FRS_VARS_START_LIN	EQU	@
+			ORG 	FORTH_VARS_START
 #endif	
 
-RSP			DS	2 			;return stack pointer
-	
-FRS_VARS_END		EQU	*
-FRS_VARS_END_LIN	EQU	@
+GPIO_VARS_START		EQU	*
+GPIO_VARS_START_LIN	EQU	@
+
+
+FORTH_VARS_END		EQU	VECTAB_VARS_START	
+FORTH_VARS_END_LIN	EQU	VECTAB_VARS_START_LIN
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	FRS_INIT, 0
-			MOVW	#FRS_BOTTOM,	RSP 	;initialize stack pointer
-#emac
+#macro	FORTH_INIT, 0
+			FINNER_INIT
+			FRAM_INIT
+
 	
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef FRS_CODE_START_LIN
-			ORG 	FRS_CODE_START, FRS_CODE_START_LIN
+#ifdef FORTH_CODE_START_LIN
+			ORG 	FORTH_CODE_START, FORTH_CODE_START_LIN
 #else
-			ORG 	FRS_CODE_START
-FRS_CODE_START_LIN	EQU	@
-#endif
+			ORG 	FORTH_CODE_START
+#endif	
 
-	
-FRS_CODE_END		EQU	*
-FRS_CODE_END_LIN	EQU	@
-	
+GPIO_CODE_START		EQU	*
+GPIO_CODE_START_LIN	EQU	@
+
+FORTH_CODE_END		EQU	VECTAB_CODE_START	
+FORTH_CODE_END_LIN	EQU	VECTAB_CODE_START_LIN
+
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef FRS_TABS_START_LIN
-			ORG 	FRS_TABS_START, FRS_TABS_START_LIN
+#ifdef FORTH_TABS_START_LIN
+			ORG 	FORTH_TABS_START, FORTH_TABS_START_LIN
 #else
-			ORG 	FRS_TABS_START
-FRS_TABS_START_LIN	EQU	@
+			ORG 	FORTH_TABS_START
 #endif	
 
-FRS_TABS_END		EQU	*
-FRS_TABS_END_LIN	EQU	@
+GPIO_TABS_START		EQU	*
+GPIO_TABS_START_LIN	EQU	@
+
+
+FORTH_TABS_END		EQU	VECTAB_TABS_START	
+FORTH_TABS_END_LIN	EQU	VECTAB_TABS_START_LIN
 
 ;###############################################################################
 ;# Words                                                                       #
 ;###############################################################################
-#ifdef FRS_WORDS_START_LIN
-			ORG 	FRS_WORDS_START, FRS_WORDS_START_LIN
+#ifdef FORTH_WORDS_START_LIN
+			ORG 	FORTH_WORDS_START, FORTH_WORDS_START_LIN
 #else
-			ORG 	FRS_WORDS_START
-FRS_WORDS_START_LIN	EQU	@
+			ORG 	FORTH_WORDS_START
 #endif	
 
-FRS_WORDS_END		EQU	*
-FRS_WORDS_END_LIN	EQU	@
+FORTH_WORDS_END		EQU	VECTAB_WORDS_START	
+FORTH_WORDS_END_LIN	EQU	VECTAB_WORDS_START_LIN
 
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+#include ./finner.s  			;Inner interpreter
+#include ./fram.s			;Stacks and buffers
 

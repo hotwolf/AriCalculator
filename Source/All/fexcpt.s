@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CForth - FEXCPT - Forth Exception Words                                  #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010-2013 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -19,21 +19,10 @@
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This is a modification of David Armstrong's S12X FIG Forth               #
-;#    implementation (see http://mamoru.tbreesama.googlepages.com/).           #
+;#    This module implements the inner interpreter of the S12CForth virtual    #
+;#    machine.                                                                 #
 ;#                                                                             #
-;#    Forth virtual machine registers are defined as follows:                  #
-;#       W   = Working register. 					       #
-;#             The W register points to the data field of the current word,    #
-;#             but it may be overwritten.				       #
-;#             Used for indexed addressing and arithmetics.		       #
-;#	       Index Register X is used to implement W.                        #
-;#       IP  = Instruction pointer.					       #
-;#             Points to the next execution token.			       #
-;#       PSP = Parameter Stack Pointer.					       #
-;#	       Points one cell beyond the top of the parameter stack           #
-;#       RSP = Return stack pointer.					       #
-;#	       Points one cell beyond the top of the return stack.             #
+;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    June 15, 2009                                                            #
