@@ -213,7 +213,12 @@ if ($code->{problems}) {
 
 	#printf STDOUT "comp symbpls: %s\r\n", join(", ", keys %{$self->{comp_symbols}} 
 
-	if (defined $code->{comp_symbols}->{"START_OF_CODE"}) {
+	if (defined $code->{comp_symbols}->{"RESET_EXT_ENTRY"}) {
+	    $initial_pc = $code->{comp_symbols}->{"RESET_EXT_ENTRY"};
+	    printf FILEHANDLE "pc %4x\r\n", $initial_pc;      # set PC
+	    printf FILEHANDLE "g";                            # run program
+	    #printf STDOUT "START_OF_CODE found\r\n";
+	} elsif (defined $code->{comp_symbols}->{"START_OF_CODE"}) {
 	    $initial_pc = $code->{comp_symbols}->{"START_OF_CODE"};
 	    printf FILEHANDLE "pc %4x\r\n", $initial_pc;      # set PC
 	    printf FILEHANDLE "g";                            # run program

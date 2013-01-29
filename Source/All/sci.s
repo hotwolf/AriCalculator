@@ -712,7 +712,7 @@ DONE			CLI
 ;         X, Y, and D are preserved 
 #macro	SCI_ASSERT_CTS, 0
 #ifdef	SCI_FC_RTSCTS
-			BSET	SCI_CTS_PORT, #SCI_CTS_PIN 		;set CTS (allow RX data)
+			BCLR	SCI_CTS_PORT, #SCI_CTS_PIN 		;clear CTS (allow RX data)
 #endif	
 #emac	
 
@@ -722,7 +722,7 @@ DONE			CLI
 ;         X, Y, and D are preserved 
 #macro	SCI_DEASSERT_CTS, 0
 #ifdef	SCI_FC_RTSCTS
-			BCLR	SCI_CTS_PORT, #SCI_CTS_PIN 		;set CTS (allow RX data)
+			BSET	SCI_CTS_PORT, #SCI_CTS_PIN 		;set CTS (allow RX data)
 #endif	
 #emac	
 
@@ -1174,7 +1174,8 @@ SCI_ISR_DELAY		EQU	*
 #ifdef	SCI_FC_RTSCTS
 			;Poll RTS (retrigger request in C-flag)
         		BRCLR	SCI_FLGS, #SCI_FLG_POLL_RTS, SCI_ISR_DELAY_2 		;no polling required	
-			BRSET	SCI_RTS_PORT, #SCI_RTS_PIN, SCI_ISR_DELAY_1 		;RTS is now set
+			;BRSET	SCI_RTS_PORT, #SCI_RTS_PIN, SCI_ISR_DELAY_1 		;RTS is now set
+			BRCLR	SCI_RTS_PORT, #SCI_RTS_PIN, SCI_ISR_DELAY_1 		;RTS is now set
 #ifndef	SCI_IRQ_WORKAROUND_ON
 			SEC								;retrigger
 #endif
@@ -1236,7 +1237,8 @@ SCI_ISR_TX		EQU	*
 #endif
 #ifdef	SCI_FC_RTSCTS
 			;Check RTS status
-			BRSET	SCI_RTS_PORT, #SCI_RTS_PIN, SCI_ISR_TX_1;check TX buffer
+			;BRSET	SCI_RTS_PORT, #SCI_RTS_PIN, SCI_ISR_TX_1;check TX buffer
+			BRCLR	SCI_RTS_PORT, #SCI_RTS_PIN, SCI_ISR_TX_1;check TX buffer
         		BSET	SCI_FLGS, #SCI_FLG_POLL_RTS		;request RTS polling	
 			SCI_START_DELAY					;start delay
 			JOB	SCI_ISR_TX_3				;stop transmitting

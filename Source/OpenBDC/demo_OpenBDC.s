@@ -36,8 +36,8 @@
 ;# Clocks
 CLOCK_CRG		EQU	1		;old CRG
 CLOCK_OSC_FREQ		EQU	4096000		;4,096 MHz
-CLOCK_BUS_FREQ		EQU	25000000	;25 MHz
-CLOCK_REF_FREQ		EQU	4096000		;4,096 MHz
+CLOCK_BUS_FREQ		EQU	24576000	;24,576 MHz
+CLOCK_REF_FREQ		EQU	4096000/6	;4,096/6 MHz
 
 ;# Memory map
 MMAP_RAM		EQU	1 		;use RAM memory map
@@ -50,7 +50,7 @@ ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 ISTACK_NO_WAI		EQU	1	 	;keep WAIs out
 
 ;# Subroutine stack
-SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
+SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
 SSTACK_DEBUG		EQU	1 		;debug behavior
 
 ;# COP
@@ -58,7 +58,11 @@ COP_DEBUG		EQU	1 		;disable COP
 
 ;# RESET
 RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
-	
+RESET_COP_OFF		EQU	1 		;disable COP detection
+RESET_CLKFAIL_OFF	EQU	1 		;disable clock fail detection
+RESET_POWFAIL_OFF	EQU	1 		;disable power fail detection
+RESET_CODERUN_OFF	EQU	1 		;disable code runaway detection
+
 ;# Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 	
@@ -199,12 +203,15 @@ DEMO_LOOP		SCI_RX_BL
 			NUM_CLEAN_REVERSE
 	
 			;Print binary value (char in X)
+			LDAA	#2
+			LDAB	#" "
+			STRING_FILL_BL
 			LDY	#$0000
 			LDAB	#2
 			NUM_REVERSE
 			TFR	SP, Y
 			NEGA
-			ADDA	#10
+			ADDA	#8
 			LDAB	#"0"
 			STRING_fill_BL
 			LDAB	#2
