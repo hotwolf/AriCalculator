@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CForth - FIRQ - Interrupt Support for the S12CForth Framework            #
+;# S12CForth - FIO - I/O Handler for the S12CForth Framework                   #
 ;###############################################################################
 ;#    Copyright 2011 Dirk Heisswolf                                            #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
@@ -19,12 +19,12 @@
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module provides a method for assembler level drivers to translate   #
+;#    This module provides a method for assemler level drivers to translate    #
 ;#    hardware interrupts into interrupts of the Forth program flow.           #
 ;#                                                                             #
 ;#    Whenever a driver wants to propagate an interrupt to the Forth system,   #
 ;#    it puts the xt of the associated ISR Forth word into a FIFI. This is     #
-;#    accomplished by calling the FIRQ_IRQ subroutine.                         #
+;#    accomplished by calling the FIO_IRQ subroutine.                          #
 ;#                                                                             #
 ;#    The S12CForth inner interpreter and the blocking I/O words are checking  #
 ;#    the content of the FIFO on a regular basis (primary non-blocking         #
@@ -73,14 +73,14 @@
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	FIRQ_VARS_START
-FIRQ_VARS_END		EQU	*
+			ORG	FIO_VARS_START
+FIO_VARS_END		EQU	*
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	FIRQ_INIT, 0
+#macro	FIO_INIT, 0
 #emac
 
 ;FINNER_JUMP_NEXT: Read the next word entry and jump to that instruction 
@@ -99,58 +99,58 @@ FIRQ_VARS_END		EQU	*
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef FIRQ_CODE_START_LIN
-			ORG 	FIRQ_CODE_START, FIRQ_CODE_START_LIN
+#ifdef FIO_CODE_START_LIN
+			ORG 	FIO_CODE_START, FIO_CODE_START_LIN
 #else
-			ORG 	FIRQ_CODE_START
-FIRQ_CODE_START_LIN	EQU	@
+			ORG 	FIO_CODE_START
+FIO_CODE_START_LIN	EQU	@
 #endif
 
 
 
 
-FIRQ_CODE_END		EQU	*
-FIRQ_CODE_END_LIN	EQU	@
+FIO_CODE_END		EQU	*
+FIO_CODE_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef FIRQ_CODE_START_LIN
-			ORG 	FIRQ_CODE_START, FIRQ_CODE_START_LIN
+#ifdef FIO_CODE_START_LIN
+			ORG 	FIO_CODE_START, FIO_CODE_START_LIN
 #else
-			ORG 	FIRQ_CODE_START
-FIRQ_CODE_START_LIN	EQU	@
+			ORG 	FIO_CODE_START
+FIO_CODE_START_LIN	EQU	@
 #endif
 
 
 
 
 
-FIRQ_CODE_END		EQU	*
-FIRQ_CODE_END_LIN	EQU	@
+FIO_CODE_END		EQU	*
+FIO_CODE_END_LIN	EQU	@
 	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef FIRQ_TABS_START_LIN
-			ORG 	FIRQ_TABS_START, FIRQ_TABS_START_LIN
+#ifdef FIO_TABS_START_LIN
+			ORG 	FIO_TABS_START, FIO_TABS_START_LIN
 #else
-			ORG 	FIRQ_TABS_START
-FIRQ_TABS_START_LIN	EQU	@
+			ORG 	FIO_TABS_START
+FIO_TABS_START_LIN	EQU	@
 #endif	
 
-FIRQ_TABS_END		EQU	*
-FIRQ_TABS_END_LIN	EQU	@
+FIO_TABS_END		EQU	*
+FIO_TABS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Words                                                                       #
 ;###############################################################################
-#ifdef FIRQ_WORDS_START_LIN
-			ORG 	FIRQ_WORDS_START, FIRQ_WORDS_START_LIN
+#ifdef FIO_WORDS_START_LIN
+			ORG 	FIO_WORDS_START, FIO_WORDS_START_LIN
 #else
-			ORG 	FIRQ_WORDS_START
-FIRQ_WORDS_START_LIN	EQU	@
+			ORG 	FIO_WORDS_START
+FIO_WORDS_START_LIN	EQU	@
 #endif	
 
-FIRQ_WORDS_END		EQU	*
-FIRQ_WORDS_END_LIN	EQU	@
+FIO_WORDS_END		EQU	*
+FIO_WORDS_END_LIN	EQU	@

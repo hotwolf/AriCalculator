@@ -30,9 +30,6 @@
 ;#	       Index Register X is used to implement W.                        #
 ;#        IP = Instruction pointer.					       #
 ;#             Points to the next execution token.			       #
-;#  IRQ_STAT = IRQ status register.					       #
-;#             The inner interpreter only uses bits 1 and 0. The remaining     #
-;#  	       may be used by the interrupt handler.                           #
 ;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -40,6 +37,7 @@
 ;#      - Initial release                                                      #
 ;###############################################################################
 ;# Required Modules:                                                           #
+;#    SSTACK	- Subroutine stack                                             #
 ;#    FRAM	- Forth return stack                                           #
 ;#    FIRQ	- Forth interrupt handler                                      #
 ;#    FSTART	- Forth start-up procedure                                     #
@@ -52,16 +50,19 @@
 ;# Code Field Structure                                                        #
 ;###############################################################################
 ;	
-;        +-----------+
-;        |    CFA    | -> ASM code	
-;        +-----------+    +-----------+
-;  IP -> | PRIMITIVE | -> |    CFA    | -> ASM code
-;        +-----------+    +-----------+
-;                         | PRIMITIVE |
-;                         +-----------+
-;   IP   = PRIMITIVE        
-;  [IP]  = CFA	
-; [[IP]] = ASM code	
+;        +-------------+
+;        |     CFA     | -> ASM code	
+;        +-------------+    +-------------+
+;  IP -> | Exec. Token | -> |     CFA     | -> ASM code
+;        +-------------+    +-------------+
+;        | Exec. Token |    | Exec. Token |
+;        +-------------+    +-------------+
+;                           | Exec. Token |
+;                           +-------------+
+;	
+;   IP   = next execution token        
+;  [IP]  = CFA of next execution token	
+; [[IP]] = ASM code of next execution token
 ;	
 
 ;###############################################################################
@@ -95,9 +96,6 @@ FINNER_VARS_START_LIN	EQU	@
 #endif	
 
 IP			DS	2 		;instruction pointer
-#ifdef	FINNER_INT_HANDLER
-IRQ_STAT		DS	2 		;IRQ status register
-#endif	
 
 FINNER_VARS_END		EQU	*
 FINNER_VARS_END_LIN	EQU	@
@@ -107,32 +105,21 @@ FINNER_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FINNER_INIT, 0
-			;Initialize IRQ status 
-			CLR	FINNER_IRQ_STAT
 #emac
 
-;FINNER_CHECK_IRQ:	check IRQ status
-; args:   none
-; result: none
-; SSTACK: none
-;        X, Y, and D are preserved 
-#macro	FINNER_CHECK_IRQ, 0	
-#ifdef	FINNER_INT_HANDLER
-			BRSET	(IRQ_STAT+1),#(FINNER_IRQ_EN|FINNER_IRQ),FINNER_INT_HANDLER+1
-#endif	
-#emac
-	
 #ifdef FINNER_INLINE_ON
-;NEXT:	jump to the next instruction
-; args:   IP:  next execution token
-; result: IP:  next execution token
-; 	  W/X: current CFA
-; 	  Y:   IP
+;NEXT: jump to the next instruction
+; args:   IP:  new execution token
+; result: IP:  subsequent execution token
+; 	  W/X: new CFA
+; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;        D is preserved 
 #macro	NEXT, 0	
-NEXT			FINNER_CHECK_IRQ 		;			=> 5 cycles      5 bytes
-			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
+#ifdef	FIRQ_CODE_START					;
+			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+#endif							;
+NEXT			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
 			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
 			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
@@ -141,15 +128,17 @@ NEXT			FINNER_CHECK_IRQ 		;			=> 5 cycles      5 bytes
 #emac
 
 ;SKIP_NEXT: skip next instruction and jump to one after
-; args:   IP:  next execution token
-; result: IP:  next execution token
-; 	  W/X: current CFA
-; 	  Y:   IP
+; args:   IP:  execution token to be skipped
+; result: IP:  subsequent execution token
+; 	  W/X: new CFA
+; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;        D is preserved 
 #macro	SKIP_NEXT, 0	
-SKIP_NEXT		FINNER_CHECK_IRQ 		;			=> 5 cycles      5 bytes
-			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
+#ifdef	FIRQ_CODE_START					;
+			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+#endif							;
+SKIP_NEXT		LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 			LEAY	2,Y			;IP += 2		=> 2 cycles	 2 bytes
 			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
 			STY	IP			;		  	=> 3 cycles	 3 bytes 
@@ -159,15 +148,17 @@ SKIP_NEXT		FINNER_CHECK_IRQ 		;			=> 5 cycles      5 bytes
 #emac
 
 ;JUMP_NEXT: Read the next word entry and jump to that instruction 
-; args:   IP:  next execution token
-; result: IP:  next execution token
-; 	  W/X: current CFA
-; 	  Y:   IP
+; args:   IP:  pointer to the new execution token
+; result: IP:  subsequentexecution token
+; 	  W/X: new CFA
+; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;        D is preserved 
 #macro	JUMP_NEXT, 0	
-JUMP_NEXT		FINNER_CHECK_IRQ 		;			=> 5 cycles      5 bytes
-			LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes
+#ifdef	FIRQ_CODE_START					;
+			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+#endif							;
+JUMP_NEXT		LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes
 			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
 			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
 			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
@@ -208,7 +199,27 @@ SKIP_NEXT		JOB	FINNER_SKIP_NEXT	;                         25 cycles	 3 bytes
 JUMP_NEXT		JOB	FINNER_JUMP_NEXT	;                         26 cycles	 3 bytes
 #emac
 #endif
-	
+
+;EXEC_CFA: Execute a Forth word (CFA) directly from assembler code 
+; args:   1:   new CFA
+; result: none
+; SSTACK: 2 bytes (+ CFA stack usage)
+;        D is preserved 
+#macro	EXEC_CFA, 1
+			;RS_PUSH IP			;IP -> RS
+			SSTACK_PREPUSH, 1
+			MOVW	IP, 2,-SP		;IP -> SSTACK
+			MOVW	#IP_RESUME, IP 		;set next IP
+			LDX	#\1			;set W
+			JMP	[0,X]			;execute CF
+IP_RESUME		DW	CFA_RESUME
+CFA_RESUME		DW	CF_RESUME
+CF_RESUME		EQU	*
+			;RS_PULL IP, 			;RS -> IP
+			SSTACK_PREPULL, 1
+			MOVW	2,SP+, IP 		;SSTACK -> IP
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -220,14 +231,18 @@ FINNER_CODE_START_LIN	EQU	@
 #endif
 
 #ifndef FINNER_INLINE_ON
-;FINNER_NEXT:	jump to the next instruction
-; args:   IP:  next execution token
-; result: IP:  next execution token
-; 	  W/X: current CFA
-; 	  Y:   IP
+;FINNER_NEXT: jump to the next instruction
+;NEXT: jump to the next instruction
+; args:   IP:  new execution token
+; result: IP:  subsequent execution token
+; 	  W/X: new CFA
+; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;        D is preserved 
-FINNER_NEXT		FINNER_CHECK_IRQ 		;			=> 5 cycles      5 bytes
+FINNER_NEXT		EQU	*		
+ifdef	FIRQ_CODE_START					;
+			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+#endif							;
 			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
 			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
@@ -236,13 +251,16 @@ FINNER_NEXT		FINNER_CHECK_IRQ 		;			=> 5 cycles      5 bytes
 							;                         20 cycles	17 bytes
 
 ;FINNER_SKIP_NEXT: skip next instruction and jump to one after
-; args:   IP:  next execution token
-; result: IP:  next execution token
-; 	  W/X: current CFA
-; 	  Y:   IP
+; args:   IP:  execution token to be skipped
+; result: IP:  subsequent execution token
+; 	  W/X: new CFA
+; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;        D is preserved 
-FINNER_SKIP_NEXT	FINNER_CHECK_IRQ 		;			=> 5 cycles      5 bytes
+FINNER_SKIP_NEXT	EQU	*		
+ifdef	FIRQ_CODE_START					;
+			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+#endif							;
 			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 			LEAY	2,Y			;IP += 2		=> 2 cycles	 2 bytes
 			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
@@ -252,13 +270,16 @@ FINNER_SKIP_NEXT	FINNER_CHECK_IRQ 		;			=> 5 cycles      5 bytes
 							;                         22 cycles	19 bytes
 
 ;FINNER_JUMP_NEXT: Read the next word entry and jump to that instruction 
-; args:   IP:  next execution token
-; result: IP:  next execution token
-; 	  W/X: current CFA
-; 	  Y:   IP
+; args:   IP:  pointer to the new execution token
+; result: IP:  subsequentexecution token
+; 	  W/X: new CFA
+; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;        D is preserved 
-FINNER_JUMP_NEXT	FINNER_CHECK_IRQ 		;			=> 5 cycles      5 bytes
+FINNER_JUMP_NEXT	EQU	*
+ifdef	FIRQ_CODE_START					;
+			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+#endif							;
 			LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes
 			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
 			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
@@ -266,19 +287,39 @@ FINNER_JUMP_NEXT	FINNER_CHECK_IRQ 		;			=> 5 cycles      5 bytes
 							;                         ---------	--------
 							;                         23 cycles	18 bytes
 #endif
-
+	
 ;Code fields:
 ;============ 	
-;CF_INNER   ( -- )
-			;Execute the first execution token after the CFA (CFA in X)
+;CF_INNER   ( -- )	Execute the first execution token after the CFA (CFA in X)
+; args:   IP:  next execution token	
+;         W/X: current CFA
+; result: IP:  subsequent execution token
+; 	  W/X: current CFA
+; 	  Y:   IP (= subsequent execution token)
+; SSTACK: none
+;        D is preserved 
 CF_INNER		EQU		*
-			RS_PUSH_KEEP_X	IP			;IP -> RS		=>22 cycles
-			LEAY		4,X			;CFA+4 -> IP		=> 2 cycles
-			STY		IP			;			=> 3 cycles
-			LDX		2,X			;new CFA -> X		=> 3 cycles
-			JMP		[0,X]			;JUMP [new CFA]         => 6 cycles
-								;                         ---------
-								;                         36 cycles
+			RS_PUSH_KEEP_X	IP		;IP -> RS		=>22 cycles
+			LEAY		4,X		;CFA+4 -> IP		=> 2 cycles
+			STY		IP		;			=> 3 cycles
+			LDX		2,X		;new CFA -> X		=> 3 cycles
+			JMP		[0,X]		;JUMP [new CFA]         => 6 cycles
+							;                         ---------
+							;                         36 cycles
+
+;CF_EXIT   ( -- )	End the execution of thhe current word
+; args:   top of RS: next execution token	
+; result: IP:  subsequent execution token
+; 	  W/X: current CFA
+; 	  Y:   IP (= subsequent execution token)
+; SSTACK: none
+;        D is preserved 
+CF_EXIT			RS_PULL_Y			;RS -> Y (= IP)		=>12 cycles
+			LDX		2,Y+		;IP += 2, CFA -> X	=> 3 cycles
+			STY		IP 		;			=> 3 cycles 
+			JMP		[0,X]		;JUMP [CFA]             => 6 cycles
+							;                         ---------
+							;                         24 cycles			
 	
 FINNER_CODE_END		EQU	*
 FINNER_CODE_END_LIN	EQU	@
