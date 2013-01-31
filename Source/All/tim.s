@@ -116,7 +116,7 @@ TIM_VARS_END_LIN	EQU	@
 
 			;TCNT 
 
-#ifndef	TIM_DIV2_ON
+#ifdef	TIM_DIV2_ON
 			MOVB	#$01, TSCR2 			;run on half bus frequency
 #endif
 

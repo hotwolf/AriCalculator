@@ -68,7 +68,7 @@ SCI_BD_OC		EQU	2		;OC2
 SCI_DLY_OC		EQU	3		;OC3
 #endif
 #endif
-;SCI_BD_FAKE		EQU	1 		;for debugging in limited RAM space
+SCI_BD_FAKE		EQU	1 		;for debugging in limited RAM space
 
 	
 #ifndef	SCI_ERRSIG_ON

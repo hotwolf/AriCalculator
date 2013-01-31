@@ -1465,7 +1465,7 @@ SCI_ISR_BD_NE		EQU	*
 			TFR	D, X 					;keep pulse length in X
 			LDAA	TFLG1 					;capture interrupt flags	
 			;Clear interrupt flags (pulse length in X, flags in A)
-			TIM_MULT_CLRIF	(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)
+			TIM_MULT_CLRIF	((1<<SCI_BD_ICNE)|(1<<SCI_BD_OC))
 			;Restart edge detection (pulse length in X, flags in A)
 			SCI_BD_START_EDGE_DETECT
 			;Allow nested interrupts (pulse length in X, flags in A)
@@ -1489,7 +1489,7 @@ SCI_ISR_BD_PE		EQU	*
 			TFR	D, X 					;keep pulse length in X
 			LDAA	TFLG1 					;capture interrupt flags	
 			;Clear interrupt flags (pulse length in X, flags in A)
-			TIM_MULT_CLRIF	(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)
+			TIM_MULT_CLRIF	((1<<SCI_BD_ICPE)|(1<<SCI_BD_OC))
 			;Restart edge detection (pulse length in X, flags in A)
 			SCI_BD_START_EDGE_DETECT
 			;Allow nested interrupts (pulse length in X, flags in A)
