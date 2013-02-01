@@ -46,12 +46,14 @@ MMAP_S12C128		EQU	1		;complie for S12S128
 
 ;# Interrupt stack
 ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
-ISTACK_DEBUG		EQU	1 		;don't enter wait mode
+;ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 ISTACK_NO_WAI		EQU	1	 	;keep WAIs out
+ISTACK_NO_CHECK		EQU	1 		;disable stack range checks
 
 ;# Subroutine stack
 SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
-SSTACK_DEBUG		EQU	1 		;debug behavior
+;SSTACK_DEBUG		EQU	1 		;debug behavior
+SSTACK_NO_CHECK		EQU	1 		;disable stack range checks
 
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
@@ -64,7 +66,7 @@ RESET_POWFAIL_OFF	EQU	1 		;disable power fail detection
 RESET_CODERUN_OFF	EQU	1 		;disable code runaway detection
 
 ;# Vector table
-VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
+;VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 	
 ;# SCI
 SCI_FC_RTSCTS		EQU	1 		;RTS/CTS flow control
@@ -81,6 +83,7 @@ SCI_BD_ICPE		EQU	0		;IC0
 SCI_BD_ICNE		EQU	1		;IC1			
 SCI_BD_OC		EQU	2		;OC2			
 SCI_BD_LOG_ON		EQU	1		;log captured BD pulses			
+;SCI_BD_FAKE		EQU	1 		;for debugging in limited RAM space
 SCI_DLY_OC		EQU	3		;OC3
 SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
