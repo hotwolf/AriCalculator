@@ -80,6 +80,7 @@
 ;###############################################################################
 ;Debug option for stack over/underflows
 ;ISTACK_DEBUG		EQU	1 
+;ISTACK_NO_WAI		EQU	1 
 	
 ;Disable stack range checks
 ;ISTACK_NO_CHECK	EQU	1 
@@ -155,7 +156,9 @@ ISTACK_VARS_END_LIN	EQU	@
 			COP_SERVICE			;already taken care of by WAI
 			CLI		
 #ifndef	ISTACK_DEBUG
+#ifndef	ISTACK_NO_WAI
 			WAI
+#endif
 #endif
 #ifndef	ISTACK_NO_CHECK
 #ifdef	ISTACK_DEBUG
@@ -202,12 +205,12 @@ UF			JOB	ISTACK_UF
 #macro	ISTACK_CHECK_AND_CLI, 0 
 			CPS	#ISTACK_BOTTOM-ISTACK_FRAME_SIZE
 			BHI	DONE
-			CLI
 #ifdef ISTACK_S12X	
-			;LDAA	#$80
-			LDAA	#$81
+			;LDAA	#$00
+			LDAA	#$01
 			TFR	A, CCRH
 #endif
+			CLI
 DONE			EQU	*
 #emac	
 

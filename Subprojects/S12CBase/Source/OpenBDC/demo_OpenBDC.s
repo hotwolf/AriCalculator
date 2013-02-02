@@ -36,8 +36,8 @@
 ;# Clocks
 CLOCK_CRG		EQU	1		;old CRG
 CLOCK_OSC_FREQ		EQU	4096000		;4,096 MHz
-CLOCK_BUS_FREQ		EQU	25000000	;25 MHz
-CLOCK_REF_FREQ		EQU	4096000		;4,096 MHz
+CLOCK_BUS_FREQ		EQU	24576000	;24,576 MHz
+CLOCK_REF_FREQ		EQU	4096000/6	;4,096/6 MHz
 
 ;# Memory map
 MMAP_RAM		EQU	1 		;use RAM memory map
@@ -46,40 +46,47 @@ MMAP_S12C128		EQU	1		;complie for S12S128
 
 ;# Interrupt stack
 ISTACK_LEVELS		EQU	1	 	;no interrupt nesting
-ISTACK_DEBUG		EQU	1 		;don't enter wait mode
+;ISTACK_DEBUG		EQU	1 		;don't enter wait mode
+ISTACK_NO_WAI		EQU	1	 	;keep WAIs out
+ISTACK_NO_CHECK		EQU	1 		;disable stack range checks
 
 ;# Subroutine stack
-SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
-SSTACK_DEBUG		EQU	1 		;debug behavior
+SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
+;SSTACK_DEBUG		EQU	1 		;debug behavior
+SSTACK_NO_CHECK		EQU	1 		;disable stack range checks
 
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 
 ;# RESET
 RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
-	
+RESET_COP_OFF		EQU	1 		;disable COP detection
+RESET_CLKFAIL_OFF	EQU	1 		;disable clock fail detection
+RESET_POWFAIL_OFF	EQU	1 		;disable power fail detection
+RESET_CODERUN_OFF	EQU	1 		;disable code runaway detection
+
 ;# Vector table
-VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
+;VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 	
 ;# SCI
-SCI_FC_RTS_CTS		EQU	1 		;RTS/CTS flow control
+SCI_FC_RTSCTS		EQU	1 		;RTS/CTS flow control
 SCI_RTS_PORT		EQU	PTM 		;PTM
 SCI_RTS_PIN		EQU	PM0		;PM0
 SCI_CTS_PORT		EQU	PTM 		;PTM
 SCI_CTS_PIN		EQU	PM1		;PM1
 SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
 SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
+;SCI_BD_OFF		EQU	1 		;don't use baud rate detection
 SCI_BD_ON		EQU	1 		;use baud rate detection
 SCI_BD_TIM		EQU	1 		;TIM
 SCI_BD_ICPE		EQU	0		;IC0
 SCI_BD_ICNE		EQU	1		;IC1			
 SCI_BD_OC		EQU	2		;OC2			
+SCI_BD_LOG_ON		EQU	1		;log captured BD pulses			
+;SCI_BD_FAKE		EQU	1 		;for debugging in limited RAM space
 SCI_DLY_OC		EQU	3		;OC3
 SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
-
-;# NUM
-NUM_BLOCKING_ON		EQU	1		;enable blocking subroutines
 	
 ;###############################################################################
 ;# Resource mapping                                                            #
@@ -145,7 +152,9 @@ DEMO_VARS_END_LIN	EQU	@
 ;Application code
 DEMO_LOOP		SCI_RX_BL
 			;Ignore RX errors 
-			TBNE	A, DEMO_LOOP
+			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
+			BNE	DEMO_LOOP
+			;TBNE	A, DEMO_LOOP
 
 			;Print ASCII character (char in B)
 			TFR	D, X
@@ -197,12 +206,15 @@ DEMO_LOOP		SCI_RX_BL
 			NUM_CLEAN_REVERSE
 	
 			;Print binary value (char in X)
+			LDAA	#2
+			LDAB	#" "
+			STRING_FILL_BL
 			LDY	#$0000
 			LDAB	#2
 			NUM_REVERSE
 			TFR	SP, Y
 			NEGA
-			ADDA	#10
+			ADDA	#8
 			LDAB	#"0"
 			STRING_fill_BL
 			LDAB	#2
@@ -222,12 +234,13 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"Welcome to the S12CBase Demo for the OpenBDC pod"
+DEMO_WELCOME		FCC	"This is the S12CBase Demo for the OpenBDC pod"
 			STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM
-			FCS	"------------------------------"
+			FCC	"------------------------------"
+			STRING_NL_TERM
 
 DEMO_TABS_END		EQU	*	
 DEMO_TABS_END_LIN	EQU	@	

@@ -35,10 +35,10 @@ CLOCK_CRG		EQU	1		;old CRG
 CLOCK_OSC_FREQ		EQU	4096000		;4,096 MHz
 #endif
 #ifndef CLOCK_BUS_FREQ
-CLOCK_BUS_FREQ		EQU	25000000	;25 MHz
+CLOCK_BUS_FREQ		EQU	24576000	;24,576 MHz
 #endif
 #ifndef CLOCK_REF_FREQ
-CLOCK_REF_FREQ		EQU	CLOCK_OSC_FREQ	;4,096 MHz
+CLOCK_REF_FREQ		EQU	CLOCK_OSC_FREQ/6;4,096/6 MHz
 #endif
 
 ;# SCI
@@ -68,7 +68,7 @@ SCI_BD_OC		EQU	2		;OC2
 SCI_DLY_OC		EQU	3		;OC3
 #endif
 #endif
-
+	
 #ifndef	SCI_ERRSIG_ON
 #ifndef	SCI_ERRSIG_OFF
 SCI_ERRSIG_ON		EQU	1 		;signal errors
@@ -138,12 +138,11 @@ BASE_VARS_END_LIN	EQU	VECTAB_VARS_START_LIN
 ;#Initialization
 #macro	BASE_INIT, 0
 			GPIO_INIT
+			ISTACK_INIT
 			CLOCK_INIT
 			COP_INIT
-			RTI_INIT
 			MMAP_INIT
 			VECTAB_INIT
-			ISTACK_INIT
 			RTI_INIT
 			TIM_INIT
 			STRING_INIT
@@ -154,7 +153,29 @@ BASE_VARS_END_LIN	EQU	VECTAB_VARS_START_LIN
 			SCI_INIT	
 			RESET_INIT
 #emac
-	
+
+;Fake baud rate detection for debugging in limited RAM space
+#ifdef SCI_BD_FAKE
+;Low pulse search tree
+#macro SCI_BD_LOW_PULSE_TREE, 0
+		DS	1
+#emac
+
+;High pulse search tree
+#macro SCI_BD_HIGH_PULSE_TREE, 0
+#emac
+
+;#Parse search tree for detected pulse length
+; args:   Y: root of the search tree
+;         X: pulse length
+; result: D: list of matching baud rates (mirrored in high and low byte)
+; SSTACK: 0 bytes
+;         X is preserved
+#macro	SCI_BD_PARSE, 0
+	LDD	#$FFFF
+#emac
+#endif
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -282,7 +303,9 @@ BASE_TABS_END_LIN	EQU	VECTAB_TABS_START_LIN
 #include ./rti_OpenBDC.s		;RTI setup
 #include ./led_OpenBDC.s		;LED driver
 #include ../All/tim.s			;TIM driver
+#ifndef	SCI_BD_FAKE
 #include ./sci_bdtab_OpenBDC.s		;Search tree for SCI baud rate detection
+#endif
 #include ../All/sci.s			;SCI driver
 #include ../All/string.s		;String printing routines
 #include ../All/reset.s			;Reset driver

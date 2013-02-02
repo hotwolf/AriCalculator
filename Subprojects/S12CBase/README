@@ -36,9 +36,10 @@ Directories:
 |
 +-Tools				;tool chain
   +-HSW12          		;link to the copy of the HSW12 assembler
+  +-Test Builder                ;script to build test cases runnung from RAM
   +-SCI Search Tree Generator	;search tree generator for the SCI baud
   |	       	    		;rate detection
-  +-Test Builder                ;script to build test cases runnung from RAM
+  +-Update Subprojects          ;updates all subprojects
 
 S12CBase is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -51,4 +52,4 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.
+along with S12CBase. If not, see <http://www.gnu.org/licenses/>.

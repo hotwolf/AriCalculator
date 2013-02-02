@@ -63,24 +63,6 @@ SCI_ERRSIG_OFF		EQU	1 		;don't signal errors
 #endif
 
 ;###############################################################################
-;# Includes                                                                    #
-;###############################################################################
-#include ./regdef_S12DP256-Mini-EVB.s	;S12DP256 register map
-#include ./gpio_S12DP256-Mini-EVB.s	;I/O setup
-#include ./mmap_S12DP256-Mini-EVB.s	;RAM memory map
-#include ../All/sstack.s		;Subroutine stack
-#include ../All/istack.s		;Interrupt stack
-#include ../All/clock.s			;CRG setup
-#include ../All/cop.s			;COP handler
-#include ../All/tim.s			;TIM driver
-#include ../All/sci.s			;SCI driver
-#include ../All/string.s		;String printing routines
-#include ../All/reset.s			;Reset driver
-#include ../All/num.s	   		;Number printing routines
-#include ./nvm_S12DP256-Mini-EVB.s	;NVM driver
-#include ./vectab_S12DP256-Mini-EVB.s	;S12DP256 vector table
-	
-;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 #ifdef BASE_VARS_START_LIN
@@ -134,6 +116,22 @@ BASE_VARS_END_LIN	EQU	VECTAB_VARS_START_LIN
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Initialization
+#macro	BASE_INIT, 0
+			GPIO_INIT
+			CLOCK_INIT
+			COP_INIT
+			MMAP_INIT
+			VECTAB_INIT
+			ISTACK_INIT
+			TIM_INIT
+			STRING_INIT
+			NUM_INIT
+			NVM_INIT
+			CLOCK_WAIT_FOR_PLL
+			SCI_INIT	
+			RESET_INIT
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -236,3 +234,22 @@ VECTAB_TABS_START_LIN	EQU	NVM_TABS_END_LIN
 
 BASE_TABS_END		EQU	VECTAB_TABS_START	
 BASE_TABS_END_LIN	EQU	VECTAB_TABS_START_LIN
+
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+#include ./regdef_S12DP256-Mini-EVB.s	;S12DP256 register map
+#include ./gpio_S12DP256-Mini-EVB.s	;I/O setup
+#include ./mmap_S12DP256-Mini-EVB.s	;RAM memory map
+#include ../All/sstack.s		;Subroutine stack
+#include ../All/istack.s		;Interrupt stack
+#include ../All/clock.s			;CRG setup
+#include ../All/cop.s			;COP handler
+#include ../All/tim.s			;TIM driver
+#include ../All/sci.s			;SCI driver
+#include ../All/string.s		;String printing routines
+#include ../All/reset.s			;Reset driver
+#include ../All/num.s	   		;Number printing routines
+#include ./nvm_S12DP256-Mini-EVB.s	;NVM driver
+#include ./vectab_S12DP256-Mini-EVB.s	;S12DP256 vector table
+	

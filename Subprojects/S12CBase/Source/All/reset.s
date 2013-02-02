@@ -82,7 +82,7 @@ RESET_POWFAIL_ON	EQU	1 		;default is RESET_POWFAIL_ON
 ;Code runaway detection
 #ifndef	RESET_CODERUN_ON
 #ifndef	RESET_CODERUN_OFF
-RESET_CODERUN_ON	EQU	1 		;default is RESET_CODERUN_ON
+RESET_CODERUN_OFF	EQU	1 		;default is RESET_CODERUN_OFF
 #endif
 #endif
 
