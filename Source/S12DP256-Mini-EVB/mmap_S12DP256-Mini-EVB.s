@@ -63,7 +63,7 @@
 ;                |  Registers  |               
 ;                +-------------+ $0400         
 ;                |/////////////|               
-;         RAM->+ +-------------+ $C000               
+;         RAM->+ +-------------+ $D000               
 ;              | |  Variables  |               
 ;              | +-------------+               
 ;              | |    Code     |               
@@ -90,7 +90,7 @@ MMAP_FLASH		EQU	1 		;default is flash
 ;###############################################################################
 ;# Memory sizes
 MMAP_REG_SIZE		EQU	$0400 		;  1K
-MMAP_RAM_SIZE		EQU	$F000 		; 12K
+MMAP_RAM_SIZE		EQU	$3000 		; 12K
 MMAP_FLASH_SIZE		EQU	$40000 		;256K
 	
 ;# Memory Locations
