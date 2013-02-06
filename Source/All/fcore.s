@@ -1160,6 +1160,7 @@ FCORE_CODE_END		EQU	*
 ;###############################################################################
 			ORG	FCORE_TABS_START
 ;System prompt
+FCORE_SUSPEND_PROMPT	FCS	"S "
 FCORE_INTERPRET_PROMPT	FCS	"> "
 FCORE_COMPILE_PROMPT	FCS	"+ "
 FCORE_SKIP_PROMPT	FCS	"0 "

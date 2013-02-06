@@ -173,6 +173,25 @@ FRAM_VARS_END_LIN	EQU	@
 			;Initialize return stack
 			MOVW	#PS_EMPTY,	PSP	
 #emac
+
+;#Quit action
+#macro	FRAM_QUIT, 0
+			;Initialize TIB
+			MOVW	#(TIB_START-1),   TO_IN
+			MOVW	#$0000,   	NUMBER_TIB
+
+			;Initialize return stack
+			MOVW	#PS_EMPTY,	PSP	
+#emac
+
+;#Abort action (in case of break or error)
+#macro	FRAM_ABORT, 0
+			;Quit action 
+			FRAM_QUIT
+
+			;Initialize parameter stack
+			MOVW	#PS_EMPTY,	PSP	
+#emac
 	
 ;#User dictionary (DICT) 
 ;DICT_CHECK_OF: check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
@@ -450,6 +469,21 @@ FRAM_VARS_END_LIN	EQU	@
 			LDX	NUMBER_TIB		;=> 3 cycles
 			LEAX	(TIB_START+(2*\1)),X	;=> 2 cycles
 			CPX	RSP			;=> 3 cycles
+			BHI	FRAM_RSOF_HANDLER	;=> 3 cycles/ 4 cycles
+							;  -------------------
+							;  11 cycles/12 cycles
+#emac
+	
+;RS_CHECK_OF_KEEP_X: check if there is room for a number of stack entries (Y modified)
+; args:   1: required stack space (cells)
+; result: none
+; SSTACK: none
+; throws: FEXCPT_EC_RSOF
+;        X and D are preserved 
+#macro	RS_CHECK_OF_KEEP_X, 1
+			LDY	NUMBER_TIB		;=> 3 cycles
+			LEAY	(TIB_START+(2*\1)),Y	;=> 2 cycles
+			CPY	RSP			;=> 3 cycles
 			BHI	FRAM_RSOF_HANDLER	;=> 3 cycles/ 4 cycles
 							;  -------------------
 							;  11 cycles/12 cycles

@@ -53,11 +53,11 @@
 ;        +-------------+
 ;        |     CFA     | -> ASM code	
 ;        +-------------+    +-------------+
-;  IP -> | Exec. Token | -> |     CFA     | -> ASM code
+;  IP -> |     xt      | -> |     CFA     | -> ASM code
 ;        +-------------+    +-------------+
-;        | Exec. Token |    | Exec. Token |
+;        |     xt      |    |     xt      |
 ;        +-------------+    +-------------+
-;                           | Exec. Token |
+;                           |     xt      |
 ;                           +-------------+
 ;	
 ;   IP   = next execution token        
@@ -75,15 +75,17 @@ FINNER_INLINE_OFF	EQU	1 			;default is FINNER_INLINE_OFF
 #endif	
 #endif	
 	
-;Interrupt handler (interrupts are disabled if no handler is defined)
-;FINNER_INT_HANDLER	EQU	FINT_INT_HANDLER 	;
+;Word-aligh variables
+#ifndef FINNER_WALGN_ON
+#ifndef FINNER_WALGN_OFF
+FINNER_INLINE_ON	EQU	1 			;default is FINNER_INLINE_ON
+#endif	
+#endif	
+	
 	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Interrupt requests (bits 15..3 may be used by the interrupt handler)
-FINNER_IRQ_EN		EQU	$01
-FINNER_IRQ		EQU	$02
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -94,7 +96,10 @@ FINNER_IRQ		EQU	$02
 			ORG 	FINNER_VARS_START
 FINNER_VARS_START_LIN	EQU	@
 #endif	
-
+#ifdef 	FINNER_WALGN_ON
+			ALIGN	1
+#endif	
+	
 IP			DS	2 		;instruction pointer
 
 FINNER_VARS_END		EQU	*
@@ -107,6 +112,16 @@ FINNER_VARS_END_LIN	EQU	@
 #macro	FINNER_INIT, 0
 #emac
 
+;#Quit action
+#macro	FINNER_QUIT, 0
+#emac
+	
+;#Abort action (also in case of break or error)
+#macro	FINNER_ABORT, 0
+			;Quit action
+			FINNER_QUIT	
+#emac
+	
 #ifdef FINNER_INLINE_ON
 ;NEXT: jump to the next instruction
 ; args:   IP:  new execution token
@@ -116,11 +131,11 @@ FINNER_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;        D is preserved 
 #macro	NEXT, 0	
-#ifdef	FIRQ_CODE_START					;
+NEXT			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
+#ifdef	FIRQ_ON						;
 			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
 #endif							;
-NEXT			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
-			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
+			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes
 			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
 			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
 							;                         ---------	--------
@@ -135,12 +150,12 @@ NEXT			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 ; SSTACK: none
 ;        D is preserved 
 #macro	SKIP_NEXT, 0	
-#ifdef	FIRQ_CODE_START					;
-			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
-#endif							;
 SKIP_NEXT		LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 			LEAY	2,Y			;IP += 2		=> 2 cycles	 2 bytes
-			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
+#ifdef	FIRQ_ON						;
+			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+#endif							;
+			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes
 			STY	IP			;		  	=> 3 cycles	 3 bytes 
 			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
 							;                         ---------	--------
@@ -155,10 +170,10 @@ SKIP_NEXT		LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 ; SSTACK: none
 ;        D is preserved 
 #macro	JUMP_NEXT, 0	
-#ifdef	FIRQ_CODE_START					;
+JUMP_NEXT		LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes
+#ifdef	FIRQ_ON					;
 			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
 #endif							;
-JUMP_NEXT		LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes
 			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
 			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
 			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
@@ -200,26 +215,41 @@ JUMP_NEXT		JOB	FINNER_JUMP_NEXT	;                         26 cycles	 3 bytes
 #emac
 #endif
 
-;EXEC_CFA: Execute a Forth word (CFA) directly from assembler code 
-; args:   1:   new CFA
-; result: none
-; SSTACK: 2 bytes (+ CFA stack usage)
-;        D is preserved 
+;Execute a CFA directly from assembler code
+; args:   1: CFA
+; result: see CF
+; SSTACK: none
+; PS:     see CF
+; RS:     1+CF usage
+; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CF)
 #macro	EXEC_CFA, 1
-			;RS_PUSH IP			;IP -> RS
-			SSTACK_PREPUSH, 1
-			MOVW	IP, 2,-SP		;IP -> SSTACK
+			RS_PUSH IP			;IP -> RS
 			MOVW	#IP_RESUME, IP 		;set next IP
 			LDX	#\1			;set W
 			JMP	[0,X]			;execute CF
 IP_RESUME		DW	CFA_RESUME
 CFA_RESUME		DW	CF_RESUME
 CF_RESUME		EQU	*
-			;RS_PULL IP, 			;RS -> IP
-			SSTACK_PREPULL, 1
-			MOVW	2,SP+, IP 		;SSTACK -> IP
+			RS_PULL IP, 			;RS -> IP
 #emac
 
+;Execute a CFA directly from assembler code
+; args:   1: CFA
+; result: see CF
+; SSTACK: none
+; PS:     see CF
+; RS:     1+CF usage
+; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CF)
+#macro	EXEC_CF, 1
+			RS_PUSH IP			;IP -> RS
+			MOVW	#IP_RESUME, IP 		;set next IP
+			JOB	\1			;execute CF
+IP_RESUME		DW	CFA_RESUME
+CFA_RESUME		DW	CF_RESUME
+CF_RESUME		EQU	*
+			RS_PULL IP, 			;RS -> IP
+#emac
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -240,7 +270,7 @@ FINNER_CODE_START_LIN	EQU	@
 ; SSTACK: none
 ;        D is preserved 
 FINNER_NEXT		EQU	*		
-ifdef	FIRQ_CODE_START					;
+ifdef	FIRQ_ON					;
 			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
 #endif							;
 			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
@@ -258,7 +288,7 @@ ifdef	FIRQ_CODE_START					;
 ; SSTACK: none
 ;        D is preserved 
 FINNER_SKIP_NEXT	EQU	*		
-ifdef	FIRQ_CODE_START					;
+ifdef	FIRQ_ON						;
 			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
 #endif							;
 			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
@@ -277,7 +307,7 @@ ifdef	FIRQ_CODE_START					;
 ; SSTACK: none
 ;        D is preserved 
 FINNER_JUMP_NEXT	EQU	*
-ifdef	FIRQ_CODE_START					;
+ifdef	FIRQ_ON						;
 			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
 #endif							;
 			LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes

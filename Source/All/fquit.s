@@ -1,7 +1,7 @@
 ;###############################################################################
-;# S12CForth - FIO - I/O Handler for the S12CForth Framework                   #
+;# S12CForth - FQUIT - Text interpreter                                        #
 ;###############################################################################
-;#    Copyright 2011 Dirk Heisswolf                                            #
+;#    Copyright 2011-2013 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -19,13 +19,28 @@
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module is a software layer between the Forth I/O words and the I/O  #
-;#    hardware drivers. It can be replaced/customiced to support other I/O     #
-;#    channels than the default SCI.                                           #
+;#    This module provides a method for assembler level drivers to translate   #
+;#    hardware interrupts into interrupts of the Forth program flow.           #
+;#                                                                             #
+;#    Whenever a driver wants to propagate an interrupt to the Forth system,   #
+;#    it puts the xt of the associated ISR Forth word into a FIFI. This is     #
+;#    accomplished by calling the FIRQ_IRQ subroutine.                         #
+;#                                                                             #
+;#    The S12CForth inner interpreter and the blocking I/O words are checking  #
+;#    the content of the FIFO on a regular basis (primary non-blocking         #
+;#    S12CForth words are not interrupted). If xt's have been queued, then the #
+;#    context of the current program flow is pushed onto the return stack and  #
+;#    all queued ISR xt's are executed. ISR words are not interruptable.       #
+;#                                                                             #
+;#    After all queued ISR xt's have been executed, the previous execution     #
+;#    context is pulled from the return stack and the program flow is resumed. #
+;#                                                                             #
+;#    The IRQ handler uses these registers:                                    #
+;#     	ISTAT = Tell swhich interrupt levels ate currently blocked             #
 ;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    February 3, 2011                                                         #
+;#    February 5, 2013                                                         #
 ;#      - Initial release                                                      #
 ;###############################################################################
 ;# Required Modules:                                                           #
@@ -41,7 +56,7 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-
+	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
@@ -49,173 +64,149 @@
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef FIO_VARS_START_LIN
-			ORG 	FIO_VARS_START, FIO_VARS_START_LIN
+#ifdef FQUIT_VARS_START_LIN
+			ORG 	FQUIT_VARS_START, FQUIT_VARS_START_LIN
 #else
-			ORG 	FIO_VARS_START
-FIO_VARS_START_LIN	EQU	@
-#endif
+			ORG 	FQUIT_VARS_START
+FQUIT_VARS_START_LIN	EQU	@
+#endif	
 
-FIO_VARS_END		EQU	*
-FIO_VARS_END_LIN	EQU	@
+FQUIT_VARS_END		EQU	*
+FQUIT_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	FIO_INIT, 0
+#macro	FQUIT_INIT, 0
 #emac
 
 ;#Quit action
-#macro	FIO_QUIT, 0
+#macro	FQUIT_QUIT, 0
+			FRAM_QUIT
+
+
+	
+#emac
+
+;#Abort action (also in case of break or error)
+#macro	FQUIT_ABORT, 0
+
+
+
+	
 #emac
 	
-;#Abort action (also in case of break or error)
-#macro	FIO_ABORT, 0
-			;Quit action
-			FIO_QUIT	
-#emac
+	
 	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef FIO_CODE_START_LIN
-			ORG 	FIO_CODE_START, FIO_CODE_START_LIN
+#ifdef FQUIT_CODE_START_LIN
+			ORG 	FQUIT_CODE_START, FQUIT_CODE_START_LIN
 #else
-			ORG 	FIO_CODE_START
-FIO_CODE_START_LIN	EQU	@
+			ORG 	FQUIT_CODE_START
+FQUIT_CODE_START_LIN	EQU	@
 #endif
 
-;#Read a byte character from the SCI
-; args:   none
-; result: PSP+0: RX data
-; SSTACK: 6 bytes
-; PS:     1 cell
-; RS:     none
-; throws: FEXCPT_EC_PSOF
-;         FEXCPT_EC_COMERR
-;         FEXCPT_EC_COMOF
-CF_EKEY			EQU	*
-			;Receive one byte
-CF_EKEY_1		SEI				;disable interrupts
-			SCI_RX_NB			;try to read from SCI (SSTACK: 6 bytes)
-			BCS	CF_EKEY_3		;successful
-			FIRQ_CHECK_IRQ	CF_EKEY_2	;check if interrupts are pending
-			ISTACK_WAIT			;wait for next interrupt
-			JOB	CF_EKEY_1		;try again
-			;Execute all pending ISRs
-CF_EKEY_2		CLI				;enable interrupts
-			FIRQ_EXEC_IRQ
-			JOB	CF_EKEY_1		;try again
-			;One byte has been received (flags in A, data in B)
-CF_EKEY_3		CLI				;enable interrupts
-			;Check for RX errors (flags in A, data in B)
-			BITA	#(NF|FE|PE)
-			BNE	FIO_EKEY_4 		;RX error
-			;Check for buffer overflows (flags in A, data in B)
-			BITA	#(SCI_FLG_SWOR|OR)
-			BNE	CF_EKEY_5 		;buffer overflow
-			;Push data onto the parameter stack  (flags in A, data in B)
-			CLRA
-			PS_PUSH_D
-			;Done
-			NEXT
-			;Throw communication error
-CF_EKEY_4		FEXCPT_THROW	FEXCPT_EC_COMERR	
-			;Throw communication overflow error
-CF_EKEY_5		FEXCPT_THROW	FEXCPT_EC_COMOF	
-	
-;#Check if SCI has received data
-; args:   none
-; result: PSP+0: flag (true if data is available)
-; SSTACK: 4 bytes
-; PS:     1 cell
-; RS:     none
-; throws: FEXCPT_EC_PSOF
-CF_EKEY_QUESTION	EQU	*
-			;Push TRUE onto the stack
-			PS_CHECK_OF, 1 			;check parameter stack
-			LDY	PSP
-			MOVW	#$0001, 2,+Y
-			STY	PS
-			;Check if read data is available (PSP in Y)
-			SCI_RX_READY_NB			 
-			BCS	CF_EKEY_QUESTION_1 	;done
-			MOVW	#$0000, 0,Y 		;return false
-			;Done
-CF_EKEY_QUESTION	NEXT
-	
-;#Tansmit a byte character over the SCI
-; args:   PSP+0: RX data
-; result: none
-; SSTACK: 5 bytes
-; PS:     none
-; RS:     none
-; throws: FEXCPT_EC_PSUF
-CF_EMIT			EQU	*
-			;Pull data from parameter stack
-			PS_PULL_D
-			;Teansmit data (data in D)
-CF_EMIT_1		SEI				;disable interrupts
-			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
-			BCS	CF_EMIT_3		;successful
-			FIRQ_CHECK_IRQ	CF_EMIT_2	;check if interrupts are pending
-			ISTACK_WAIT			;wait for next interrupt
-			JOB	CF_EMIT_1		;try again
-			;Execute all pending ISRs
-CF_EMIT_2		CLI				;enable interrupts
-			FIRQ_EXEC_IRQ
-			JOB	CF_EMIT_1		;try again
-			;One byte has been transmittet
-CF_EMIT_3		CLI				;enable interrupts
-			;Done
-			NEXT
 
-;#Check if data can be sent over the SCI
-; args:   none
-; result: PSP+0: flag (true if data is available)
-; SSTACK: 4 bytes
-; PS:     1 cell
-; RS:     none
-; throws: FEXCPT_EC_PSOF
-CF_EMIT_QUESTION	EQU	*
-			;Push TRUE onto the stack
-			PS_CHECK_OF, 1 			;check parameter stack
-			LDY	PSP
-			MOVW	#$0001, 2,+Y
-			STY	PS
-			;Check if read data is available (PSP in Y)
-			SCI_TX_READY_NB			 
-			BCS	CF_EMIT_QUESTION_1 	;done
-			MOVW	#$0000, 0,Y 		;return false
-			;Done
-CF_EMIT_QUESTION	NEXT
-	
-FIO_CODE_END		EQU	*
-FIO_CODE_END_LIN	EQU	@
+;#Get command line input and store it into any buffer
+; args:   D: buffer size
+;         X: buffer pointer
+; result: D: character count	
+;         X: error code (0 if everything goes well)	
+; SSTACK: ?? bytes
+;         Y is preserved
+FQUIT_ACCEPT		EQU	*
+			;Save registers
+			SSTACK_PSHYXD
+			;Stack layout
+			;+--------+--------+
+			;| char limit (D)  | <-SP
+			;+--------+--------+
+			;| buffer ptr (X)  |  +2
+			;+--------+--------+
+			;|        Y        |  +4
+			;+--------+--------+
+			;| Return address  |  +6
+			;+--------+--------+
+FQUIT_ACCEPT_CHAR_LIMIT	EQU	0
+FQUIT_ACCEPT_BUF_PTR	EQU	2	
+			;Signal input request
+			FIO_BUSY_OFF
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+CF_QUIT_XS		EQU	*
+			FQUIT_QUIT
+			FIO_PRINT FIO_NL
+			FIO_PRINT FQUIT_INTERPRET_PROMPT
+
+
+
+
+
+CF_SUSPPEND_XS		EQU	*	
+			FIO_PRINT FIO_NL
+			FIO_PRINT FQUIT_SUSPEND_PROMPT
+
+
+
+
+	
+FQUIT_CODE_END		EQU	*
+FQUIT_CODE_END_LIN	EQU	@
+
+	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef FIO_TABS_START_LIN
-			ORG 	FIO_TABS_START, FIO_TABS_START_LIN
+#ifdef FQUIT_TABS_START_LIN
+			ORG 	FQUIT_TABS_START, FQUIT_TABS_START_LIN
 #else
-			ORG 	FIO_TABS_START
-FIO_TABS_START_LIN	EQU	@
+			ORG 	FQUIT_TABS_START
+FQUIT_TABS_START_LIN	EQU	@
 #endif	
 
-FIO_TABS_END		EQU	*
-FIO_TABS_END_LIN	EQU	@
+;System prompts
+FQUIT_SUSPEND_PROMPT	FCS	"S> "
+FQUIT_INTERPRET_PROMPT	FCS	"> "
+FQUIT_COMPILE_PROMPT	FCS	"+ "
+FQUIT_SKIP_PROMPT	FCS	"0 "
+FQUIT_SYSTEM_PROMPT	FCS	" ok"
+
+
+FQUIT_TABS_END		EQU	*
+FQUIT_TABS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Words                                                                       #
 ;###############################################################################
-#ifdef FIO_WORDS_START_LIN
-			ORG 	FIO_WORDS_START, FIO_WORDS_START_LIN
+#ifdef FQUIT_WORDS_START_LIN
+			ORG 	FQUIT_WORDS_START, FQUIT_WORDS_START_LIN
 #else
-			ORG 	FIO_WORDS_START
-FIO_WORDS_START_LIN	EQU	@
+			ORG 	FQUIT_WORDS_START
+FQUIT_WORDS_START_LIN	EQU	@
 #endif	
 
-FIO_WORDS_END		EQU	*
-FIO_WORDS_END_LIN	EQU	@
+
+
+
+
+FQUIT_WORDS_END		EQU	*
+FQUIT_WORDS_END_LIN	EQU	@
