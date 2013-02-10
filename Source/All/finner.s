@@ -133,7 +133,7 @@ FINNER_VARS_END_LIN	EQU	@
 #macro	NEXT, 0	
 NEXT			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 #ifdef	FIRQ_ON						;
-			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+			FIRQ_CHECK_AT_NEXT		;			=> 5 cycles      5 bytes
 #endif							;
 			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes
 			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
@@ -153,7 +153,7 @@ NEXT			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 SKIP_NEXT		LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 			LEAY	2,Y			;IP += 2		=> 2 cycles	 2 bytes
 #ifdef	FIRQ_ON						;
-			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+			FIRQ_CHECK_AT_NEXT		;			=> 5 cycles      5 bytes
 #endif							;
 			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes
 			STY	IP			;		  	=> 3 cycles	 3 bytes 
@@ -172,7 +172,7 @@ SKIP_NEXT		LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 #macro	JUMP_NEXT, 0	
 JUMP_NEXT		LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes
 #ifdef	FIRQ_ON					;
-			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+			FIRQ_CHECK_AT_NEXT		;			=> 5 cycles      5 bytes
 #endif							;
 			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
 			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
@@ -215,6 +215,24 @@ JUMP_NEXT		JOB	FINNER_JUMP_NEXT	;                         26 cycles	 3 bytes
 #emac
 #endif
 
+
+;Execute a CFA directly from assembler code
+; args:   X: CFA
+; result: see CF
+; SSTACK: none
+; PS:     see CF
+; RS:     1+CF usage
+; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CF)
+#macro	EXEC_CFA_X, 0
+			RS_PUSH_KEEP_X IP		;IP -> RS
+			MOVW	#IP_RESUME, IP 		;set next IP
+			JMP	[0,X]			;execute CF
+IP_RESUME		DW	CFA_RESUME
+CFA_RESUME		DW	CF_RESUME
+CF_RESUME		EQU	*
+			RS_PULL IP 			;RS -> IP
+#emac
+	
 ;Execute a CFA directly from assembler code
 ; args:   1: CFA
 ; result: see CF
@@ -223,18 +241,29 @@ JUMP_NEXT		JOB	FINNER_JUMP_NEXT	;                         26 cycles	 3 bytes
 ; RS:     1+CF usage
 ; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CF)
 #macro	EXEC_CFA, 1
-			RS_PUSH IP			;IP -> RS
-			MOVW	#IP_RESUME, IP 		;set next IP
 			LDX	#\1			;set W
-			JMP	[0,X]			;execute CF
+			EXEC_CFA_X
+#emac
+
+;Execute a CF directly from assembler code
+; args:   X: CF
+; result: see CF
+; SSTACK: none
+; PS:     see CF
+; RS:     1+CF usage
+; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CF)
+#macro	EXEC_CF_X, 1
+			RS_PUSH_KEEP_X IP		;IP -> RS
+			MOVW	#IP_RESUME, IP 		;set next IP
+			JOB	0,X			;execute CF
 IP_RESUME		DW	CFA_RESUME
 CFA_RESUME		DW	CF_RESUME
 CF_RESUME		EQU	*
 			RS_PULL IP, 			;RS -> IP
 #emac
-
-;Execute a CFA directly from assembler code
-; args:   1: CFA
+	
+;Execute a CF directly from assembler code
+; args:   1: CF
 ; result: see CF
 ; SSTACK: none
 ; PS:     see CF
@@ -271,7 +300,7 @@ FINNER_CODE_START_LIN	EQU	@
 ;        D is preserved 
 FINNER_NEXT		EQU	*		
 ifdef	FIRQ_ON					;
-			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+			FIRQ_CHECK_AT_NEXT		;			=> 5 cycles      5 bytes
 #endif							;
 			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
@@ -289,7 +318,7 @@ ifdef	FIRQ_ON					;
 ;        D is preserved 
 FINNER_SKIP_NEXT	EQU	*		
 ifdef	FIRQ_ON						;
-			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+			FIRQ_CHECK_AT_NEXT		;			=> 5 cycles      5 bytes
 #endif							;
 			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 			LEAY	2,Y			;IP += 2		=> 2 cycles	 2 bytes
@@ -308,7 +337,7 @@ ifdef	FIRQ_ON						;
 ;        D is preserved 
 FINNER_JUMP_NEXT	EQU	*
 ifdef	FIRQ_ON						;
-			FIRQ_HANDLE_IRQS		;			=> 5 cycles      5 bytes
+			FIRQ_CHECK_AT_NEXT		;			=> 5 cycles      5 bytes
 #endif							;
 			LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes
 			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   

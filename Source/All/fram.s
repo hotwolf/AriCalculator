@@ -391,6 +391,10 @@ FRAM_VARS_END_LIN	EQU	@
 							;                         14 cycles
 #emac	
 
+
+
+
+	
 ;PS_PUSH_X: Push one entry from index X onto the return stack (PSP -> Y)
 ; args:   X: cell to push onto the PS
 ; result: Y: PSP
@@ -419,6 +423,20 @@ FRAM_VARS_END_LIN	EQU	@
 							;                         17 cycles
 #emac	
 
+;PS_PUSH_D_NOCHK: Push one entry from accu D onto the return stack (PSP -> Y)
+; args:   D: cell to push onto the PS
+; result: Y: PSP
+; SSTACK: none
+; throws: FEXCPT_EC_PSOF
+;         X and D are preserved 
+#macro	PS_PUSH_D_NOCHK, 0
+			LDY		PSP		;PS -> Y		=> 3 cycles
+			STD		2,-Y		;			=> 3 cycles 
+			STY		PSP		;			=> 3 cycles
+							;                         ---------
+							;                          9 cycles
+#emac	
+	
 ;#Text input buffer (TIB)
 ;TIB_CHECK_OF: check if there is room for another character on the TIB (next free TIB location -> X)
 ; args:   1: required character space
@@ -523,7 +541,7 @@ FRAM_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ; throws: FEXCPT_EC_RSOF
 ;        Y and D are preserved
-#macro	RS_PUSH, 2	;1:variable
+#macro	RS_PUSH, 1	;1:variable
 			RS_CHECK_OF	1		;check for overflow	=>11 cycles
 			LDX		RSP		;var -> RS		=> 3 cycles
 			MOVW		\1, 2,-X	;			=> 5 cycles
@@ -538,7 +556,7 @@ FRAM_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ; throws: FEXCPT_EC_RSOF
 ;        X and D are preserved
-#macro	RS_PUSH_KEEP_X, 2	;1:variable
+#macro	RS_PUSH_KEEP_X, 1	;1:variable
 			LDY	NUMBER_TIB		;=> 3 cycles
 			LEAY	(TIB_START+2),Y		;=> 2 cycles
 			CPY	RSP			;=> 3 cycles
@@ -596,31 +614,30 @@ FRAM_PAD_ALLOC_4	LDD 	$0000 			;signal failure
 
 ;#Dictionary overflow handler
 FRAM_DICTOF_HANDLER	EQU	*
-			FEXCPT_THROW_ERROR	FMEM_EC_DICTOF
+			FEXCPT_THROW	FMEM_EC_DICTOF
 
 ;#PAD overflow handler
 FRAM_PADOF_HANDLER	EQU	*
-			FEXCPT_THROW_ERROR	FMEM_EC_PADOF
+			FEXCPT_THROW	FMEM_EC_PADOF
 
 ;#PS overflow handler
 FRAM_PSOF_HANDLER	EQU	*
-			FEXCPT_THROW_ERROR	FMEM_EC_PSOF
+			FEXCPT_THROW	FMEM_EC_PSOF
 
 ;#PS underflow handler
 FRAM_PSUF_HANDLER	EQU	*
-			FEXCPT_THROW_ERROR	FMEM_EC_PSUF
+			FEXCPT_THROW	FMEM_EC_PSUF
 
 ;#RS overflow handler
 RAM_RSOF_HANDLER	EQU	*
-			FEXCPT_THROW_ERROR	FMEM_EC_RSOF
+			FEXCPT_THROW	FMEM_EC_RSOF
 	
 ;#RS underflow handler
 FRAM_RSUF_HANDLER	EQU	*
-			FEXCPT_THROW_ERROR	FMEM_EC_RSUF
+			FEXCPT_THROW	FMEM_EC_RSUF
 	
 FRAM_CODE_END		EQU	*
 FRAM_CODE_END_LIN	EQU	@
-
 
 ;###############################################################################
 ;# Tables                                                                      #

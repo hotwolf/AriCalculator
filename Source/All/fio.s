@@ -75,6 +75,20 @@ FIO_VARS_END_LIN	EQU	@
 			;Quit action
 			FIO_QUIT	
 #emac
+
+;#Turn busy signal on
+#macro	FIO_SIGNAL_BUSY_ON, 0
+#ifdef LED_CODE_START
+			LED_BUSY_ON
+#endif
+#emac
+
+;#Turn busy signal off
+#macro	FIO_SIGNAL_BUSY_OFF, 0
+#ifdef LED_CODE_START
+			LED_BUSY_OFF
+#endif
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -133,17 +147,17 @@ CF_EKEY_5		FEXCPT_THROW	FEXCPT_EC_COMOF
 ; RS:     none
 ; throws: FEXCPT_EC_PSOF
 CF_EKEY_QUESTION	EQU	*
-			;Push TRUE onto the stack
+			;Check stack
 			PS_CHECK_OF, 1 			;check parameter stack
-			LDY	PSP
-			MOVW	#$0001, 2,+Y
-			STY	PS
+			;Push TRUE onto the stack (new PSP in Y)
+			MOVW	#TRUE, 0,Y
+			STY	PSP
 			;Check if read data is available (PSP in Y)
 			SCI_RX_READY_NB			 
 			BCS	CF_EKEY_QUESTION_1 	;done
-			MOVW	#$0000, 0,Y 		;return false
+			MOVW	#FALSE, 0,Y 		;return false
 			;Done
-CF_EKEY_QUESTION	NEXT
+CF_EKEY_QUESTION_1	NEXT
 	
 ;#Tansmit a byte character over the SCI
 ; args:   PSP+0: RX data
@@ -179,17 +193,17 @@ CF_EMIT_3		CLI				;enable interrupts
 ; RS:     none
 ; throws: FEXCPT_EC_PSOF
 CF_EMIT_QUESTION	EQU	*
-			;Push TRUE onto the stack
+			;Check stack
 			PS_CHECK_OF, 1 			;check parameter stack
-			LDY	PSP
-			MOVW	#$0001, 2,+Y
-			STY	PS
+			;Push TRUE onto the stack (new PSP in Y)
+			MOVW	#TRUE, 0,Y
+			STY	PSP
 			;Check if read data is available (PSP in Y)
 			SCI_TX_READY_NB			 
 			BCS	CF_EMIT_QUESTION_1 	;done
-			MOVW	#$0000, 0,Y 		;return false
+			MOVW	#$FALSE, 0,Y 		;return false
 			;Done
-CF_EMIT_QUESTION	NEXT
+			NEXT
 	
 FIO_CODE_END		EQU	*
 FIO_CODE_END_LIN	EQU	@

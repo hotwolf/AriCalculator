@@ -110,6 +110,34 @@ FQUIT_CODE_START_LIN	EQU	@
 #endif
 
 
+
+;#Read a byte character from the SCI
+; args:   PSP+0: buffer pointer	
+;         PSP+2: character limit
+; result: PSP+0: number of received characters
+; SSTACK: 6 bytes
+; PS:     1 cell
+; RS:     none
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_PSUF
+;         FEXCPT_EC_COMERR
+;         FEXCPT_EC_COMOF
+
+
+CF_ACCEPT		EQU	*
+			;Check stack 
+			PS_CHECK_UF, 2	
+			;Turn off busy signal
+			FIO_SIGNAL_BUSY_OFF
+			; 
+
+	
+
+
+
+	
+
+	
 ;#Get command line input and store it into any buffer
 ; args:   D: buffer size
 ;         X: buffer pointer

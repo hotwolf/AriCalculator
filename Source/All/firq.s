@@ -54,21 +54,6 @@
 ;###############################################################################
 
 ;###############################################################################
-;# Memory Layout                                                               #
-;###############################################################################
-;              
-;       RS:      	
-;       +--------------+
-;       |              |
-;       |              |
-;       |              | 
-;       +--------------+
-; RSP-> |  xt of RTI   |
-;       +--------------+
-;       | xt after ISR |
-;       +--------------+
-
-;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
 ;Enable interrupts 
@@ -125,7 +110,7 @@ FIRQ_VARS_END_LIN	EQU	@
 #macro	FIRQ_INIT, 0
 #ifdef	FIRQ_ON
 			;Initialize IRQ state
-			MOVW	#$0000,	FIRQ_QUEUE_START	;initialize queue
+			MOVW	#NULL,	FIRQ_QUEUE_START	;initialize queue
 			MOVW	#(FIRQ_QUEUE_START-FIRQ_QUEUE_NEXT), FIRQ_QUEUE_END
 			CLR	FIRQ_ISTAT	   	;	disable IRQs
 #endif
@@ -144,7 +129,7 @@ FIRQ_VARS_END_LIN	EQU	@
 			FIRQ_QUIT
 
 			;Reset IRQ state
-			MOVW	#$0000,	FIRQ_QUEUE_START	;initialize queue
+			MOVW	#NULL,	FIRQ_QUEUE_START	;initialize queue
 			MOVW	#(FIRQ_QUEUE_START-FIRQ_QUEUE_NEXT), FIRQ_QUEUE_END
 			CLR	FIRQ_ISTAT	   	;	disable IRQs
 #endif
@@ -176,7 +161,9 @@ FIRQ_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         X, Y, and D are preserved
 #macro	FIRQ_CHECK_IRQ, 0	
+#ifdef	FIRQ_ON
 			BRSET	FIRQ_ISTAT, #IRQ_ISTAT_ATTN, \1
+#endif
 #emac	
 
 ;Execute all IRQs
@@ -184,34 +171,26 @@ FIRQ_VARS_END_LIN	EQU	@
 ; result: none
 ; SSTACK: none
 ;         X, Y, and D are preserved
-#macro	FIRQ_EXEC_IRQ, 0	
-			EXEC_CF	EXEC
-
-	
+#macro	FIRQ_EXEC_IRQS, 0	
+#ifdef	FIRQ_ON
+			EXEC_CF	CF_EXEQ_IRQS
+#endif
 #emac	
 
-
-
-
-
-
-
-	
 ;# Macros for internal use
 	
-;FIRQ_HANDLE_IRQS: Check for and execute pending IRQs
-; args:   IP:  next execution token
+;FIRQ_CHECK_AT_NEXT: Check IRQ inbetween word boundaries
+; args:   Y:   next execution token
 ; result: IP:  subsequentexecution token
 ; 	  W/X: new CFA
 ; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;         no register content is preserved
-#macro	FIRQ_HANDLE_IRQS, 0
+#macro	FIRQ_CHECK_AT_NEXT, 0
 #ifdef	FIRQ_ON
-			BRSET	FIRQ_ISTAT, #IRQ_ISTAT_ATTN, FIRQ_HANDLE_IRQS
+	FIRQ_CHECK_IRQ	FIRQ_EXEC_AT_NEXT		, 
 #endif
 #emac
-
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -224,102 +203,108 @@ FIRQ_CODE_START_LIN	EQU	@
 #endif
 #ifdef	FIRQ_ON
 
-;FIRQ_HANDLE_IRQS: Check for and execute pending IRQs
+;Enable all IRQs
+; args:   IP:  next execution token
+; result: IP:  subsequentexecution token
+; 	  W/X: new CFA
+; 	  Y:   IP (= subsequent execution token)
+; SSTACK: none
+;         no register content is preserved
+CF_ENIRQ		EQU	*
+			BCLR	FIRQ_STAT, #IRQ_ISTAT_ATTN)
+			JOB	CF_ENIRQ_1
+CF_ENIRQ_1		EQU	CF_EXEC_IRQS_1
+	
+;FIRQ_EXEC_AT_NEXT: EXECUTE IRQ inbetween word boundaries
 ; args:   Y:   next execution token
 ; result: IP:  subsequentexecution token
 ; 	  W/X: new CFA
 ; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;         no register content is preserved
-FIRQ_HANDLE_IRQS	EQU	*
-			;Clear attention bit (execution token in Y)
+FIRQ_EXEC_AT_NEXT	EQU	*
+			STY	IP
+			;JOB	CF_EXEC_IRQS
+	
+;Execute all pending IRQs
+; args:   IP:  next execution token
+; result: IP:  subsequentexecution token
+; 	  W/X: new CFA
+; 	  Y:   IP (= subsequent execution token)
+; SSTACK: none;         no register content is preserved
+CF_EXEC_IRQS		EQU	*
+			;Clear attention bit
 			BCLR	FIRQ_STAT, #IRQ_ISTAT_ATTN
-			;Check for Break or suspend (execution token in Y)
-			LDAA	FIRQ_STAT 						;capture FIRQ_STAT
+			;Check if interrupts are enabled
+			BRCLR	FIRQ_STAT, #FIRQ_ISTAT_IRQEN, CF_EXEC_IRQS_6 		;interrupts are disabled
+			;Check for break or suspend - IRQs enabled
+CF_EXEC_IRQS_1		LDAA	FIRQ_STAT 						;capture FIRQ_STAT
 			BITA	#(FIRQ_ISTAT_BREAK|FIRQ_ISTAT_SUSPEND)
-			BNE	FIRQ_HANDLE_IRQS_ 					;handle break or suspend
-			;Check if interrupts are disabled (execution token in Y, FIRQ_STAT in A)
-			BITA	#FIRQ_ISTAT_IRQEN
-			BEQ	FIRQ_HANDLE_IRQS_ 					;interrupts are disabled
-			;Check for queued interrupts (execution token in Y, FIRQ_STAT in A) 
+			BNE	CF_EXEC_IRQS_4 						;handle break or suspend
+			;Check for queued interrupts - IRQs enabled (FIRQ_STAT in A) 
 			SEI								;avoid interrupt interference
 			LDX	FIRQ_QUEUE_START
-			BEQ	FIRQ_HANDLE_IRQS_ 					;queue is empty
-			;Remove first FISR from queue (first element in X, execution token in Y)
+			BEQ	CF_EXEC_IRQS_5 						;queue is empty
+			;Remove first FISR from queue - IRQs enabled (first element in X)
 			LDD	FIRQ_QUEUE_NEXT,X
 			STD	FIRQ_QUEUE_START
-			BNE	FIRQ_HANDLE_IRQS_A 					;queue has more than one elements
+			BNE	CF_EXEC_IRQS_IRQS_2 					;queue has more than one elements
 			MOVW	#(FIRQ_QUEUE_START-FIRQ_QUEUE_NEXT), FIRQ_QUEUE_END	;restore end pointer
-			;Execute first FISR in queue (first element in X, execution token in Y)
-FIRQ_HANDLE_IRQS_A	CLI				    				;release interrupts
-			BCLR	FIRQ_STAT, #IRQ_ISTAT_IRQEN 				;disable further FIRQs
-			TFR	Y,D
-			RS_CHECK_OF_KEEP_X, 2 						;check stack space
-			LDY	RSP 							;stack execution token and CFA_RTI
-			STD	2,-Y
-			MOVW	#IP_RTI, 2,-Y
-			STY	RSP
-			LDX	FIRQ_QUEUE_CFA,X
-			LEAY	2,X
-			STY	IP
-			JMP	[0,X]
-			;Handle break or suspend (execution token in Y, FIRQ_STAT in A)
-			BITA	#FIRQ_ISTAT_SUSPEND
-			BNE	FIRQ_HANDLE_IRQS_ 					;handle suspend
-			;Handle break (execution token in Y, FIRQ_STAT in A)
-			BCLR	FIRQ_STAT, #IRQ_ISTAT_BREAK
-			
-			
+CF_EXEC_IRQS_2		CLI				    				;release interrupts
+			LDY	FIRQ_QUEUE_CFA,X
+			;Execute first FISR in queue - IRQs enabled
+CF_EXEC_IRQS_3		BCLR	FIRQ_STAT, #IRQ_ISTAT_IRQEN 				;disable further FIRQs
+			EXEC_CFA_X 							;execute ISR
+			JOB	CF_EXEC_IRQS_1 						;check for more 
+			;Handle break or suspend - IRQs enabled (FIRQ_STAT in A)
+CF_EXEC_IRQS_4		LDX	#CFA_SUSPEND
+			BITA	#FIRQ_ISTAT_BREAK
+			BEQ	CF_EXEC_IRQS_3						;handle suspend
+			JOB	FEXEPT_ABORT 						;handle abort
+			;Queue is empty  - IRQs enabled
+CF_EXEC_IRQS_5		CLI
+			BSET	FIRQ_STAT, #IRQ_ISTAT_IRQEN 				;enable further FIRQs
+			JOB	CF_EXEC_IRQS_7
+			;Check for break or suspend - IRQs disabled
+CF_EXEC_IRQS_6		LDAA	FIRQ_STAT 						;capture FIRQ_STAT
+			BITA	#(FIRQ_ISTAT_BREAK|FIRQ_ISTAT_SUSPEND)
+			BEQ	CF_EXEC_IRQS_7						;done
+			;Handle break or suspend - IRQs disabled (FIRQ_STAT in A)
+			BITA	#FIRQ_ISTAT_BREAK
+			BNE	FEXEPT_ABORT						;handle abort
+			EXEC_CF	CF_SUSPEND
+CF_EXEC_IRQS_7		EQU	NEXT_NOIRQ
 
-
-
-
+;NEXT_NOIRQ: jump to the next instruction and don't handle interrupts
+; args:   IP:  new execution token
+; result: IP:  subsequent execution token
+; 	  W/X: new CFA
+; 	  Y:   IP (= subsequent execution token)
+; SSTACK: none
+;        D is preserved 
+NEXT_NOIRQ		LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
+			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes
+			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
+			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
+							;                         ---------	--------
+							;                         20 cycles	17 bytes
 	
-			;Handle suspend (execution token in Y, FIRQ_STAT in A)
-
-
-	
-
-
-
-	
-macro	RS_CHECK_OF, 1
-			LDX	NUMBER_TIB		;=> 3 cycles
-			LEAX	(TIB_START+(2*\1)),X	;=> 2 cycles
-			CPX	RSP			;=> 3 cycles
-			BHI	FRAM_RSOF_HANDLER	;=> 3 cycles/ 4 c
-
-	
-			;Execute first ISR in queue (first element in X, execution token in Y)
-			BCLR	FIRQ_STAT, #IRQ_ISTAT_IRQEN 				;disable further IRQs
-			
-
-
-
-	
-
-	
-			LDD	FIRQ_QUEUE_NEXT,X
-			STD	FIRQ_QUEUE_START
-			BNE	FIRQ_HANDLE_IRQS_ 					;queue has more than one elements
-			;Queue has only one element (first element in X, execution token in Y)
-			MOVW	#(FIRQ_QUEUE_START-FIRQ_QUEUE_NEXT), FIRQ_QUEUE_END	;restore end pointer
-
-	
-	
-			MOVW	FIRQ_QUEUE_NEXT,X, FIRQ_STAT	;detach from queue	
-			MOVW	#$0000, FIRQ_QUEUE_NEXT,X
-			
-
-	
-	
-
-
-
+;Disable all IRQs
+; args:   IP:  next execution token
+; result: IP:  subsequentexecution token
+; 	  W/X: new CFA
+; 	  Y:   IP (= subsequent execution token)
+; SSTACK: none;         no register content is preserved
+CF_DISIRQ		EQU	*
+			BCLR	FIRQ_STAT, #(IRQ_ISTAT_IRQEN|IRQ_ISTAT_ATTN)
+			JOB	CF_DISIRQ_1
+CF_DISIRQ_1		EQU	CF_EXEC_IRQS_6
+		
 #endif
+
 FIRQ_CODE_END		EQU	*
 FIRQ_CODE_END_LIN	EQU	@
-	
+
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
@@ -330,11 +315,6 @@ FIRQ_CODE_END_LIN	EQU	@
 FIRQ_TABS_START_LIN	EQU	@
 #endif	
 #ifdef	FIRQ_ON
-
-
-
-
-
 
 #endif
 FIRQ_TABS_END		EQU	*
@@ -351,11 +331,16 @@ FIRQ_WORDS_START_LIN	EQU	@
 #endif	
 #ifdef	FIRQ_ON
 
+;ENIRQ ( -- )
+;Allow incoming interrupt requests.
+;Throws: none 
+CFA_ENIRQ		DW	CF_ENIRQ
 
-
-
-
-
+;DISIRQ ( -- )
+;Ignore incoming interrupt requests.
+;Throws: none 
+CFA_DISIRQ		DW	CF_DISIRQ
+	
 #endif
 FIRQ_WORDS_END		EQU	*
 FIRQ_WORDS_END_LIN	EQU	@
