@@ -127,10 +127,17 @@ FEXCPT_EC_COMOF			EQU	-62	;RX buffer overflow
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	FEXCPT_VARS_START
+#ifdef FEXCEPT_VARS_START_LIN
+			ORG 	FEXCEPT_VARS_START, FEXCEPT_VARS_START_LIN
+#else
+			ORG 	FEXCEPT_VARS_START
+FEXCEPT_VARS_START_LIN	EQU	@
+#endif	
+
 HANDLER			DS	2 	;pointer tho the most recent exception
 					;handler 
-FEXCPT_VARS_END		EQU	*
+FEXCEPT_VARS_END		EQU	*
+FEXCEPT_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -150,7 +157,14 @@ FEXCPT_VARS_END		EQU	*
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	FEXCPT_CODE_START
+#ifdef FEXCEPT_CODE_START_LIN
+			ORG 	FEXCEPT_CODE_START, FEXCEPT_CODE_START_LIN
+#else
+			ORG 	FEXCEPT_CODE_START
+FEXCEPT_CODE_START_LIN	EQU	@
+#endif
+#ifdef	FEXCEPT_ON
+
 ;Exceptions
 FEXCPT_THROW_PSOF	EQU	FMEM_THROW_PSOF			;"Parameter stack overflow"
 FEXCPT_THROW_PSUF	EQU	FMEM_THROW_PSUF			;"Parameter stack underflow"
@@ -234,11 +248,19 @@ FEXCPT_THROW_8		EQU	CF_QUIT_RT
 FEXCPT_THROW_9		LDY	#FEXCPT_MSG_UNKNOWN
 			JOB	FEXCPT_THROW_5
 			
-FEXCPT_CODE_END		EQU	*
+FEXCEPT_CODE_END		EQU	*
+FEXCEPT_CODE_END_LIN	EQU	@
+
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	FEXCPT_TABS_START
+#ifdef FEXCEPT_TABS_START_LIN
+			ORG 	FEXCEPT_TABS_START, FEXCEPT_TABS_START_LIN
+#else
+			ORG 	FEXCEPT_TABS_START
+FEXCEPT_TABS_START_LIN	EQU	@
+#endif	
+
 				;Assign error messages to error codes 
 FEXCPT_MSGTAB_START	EQU	*
 
@@ -338,11 +360,18 @@ FEXCPT_MSG_DICTPROT	ERROR_MSG	ERROR_LEVEL_ERROR, "Destruction of dictionary stru
 FEXCPT_MSG_COMERR	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid RX data"
 FEXCPT_MSG_COMOF	ERROR_MSG	ERROR_LEVEL_ERROR, "RX buffer overflow"
 	
-FEXCPT_TABS_END		EQU	*
+FEXCEPT_TABS_END		EQU	*
+FEXCEPT_TABS_END_LIN	EQU	@
+
 ;###############################################################################
-;# Forth words                                                                 #
+;# Words                                                                       #
 ;###############################################################################
-			ORG	FEXCPT_WORDS_START
+#ifdef FEXCEPT_WORDS_START_LIN
+			ORG 	FEXCEPT_WORDS_START, FEXCEPT_WORDS_START_LIN
+#else
+			ORG 	FEXCEPT_WORDS_START
+FEXCEPT_WORDS_START_LIN	EQU	@
+#endif	
 
 ;#EXception words (EXCEPTION):
 ; ============================
@@ -594,6 +623,5 @@ CF_FATAL_QUOTE_NOMSG	JOB	FEXCPT_THROW_NOMSG
 
 CFA_FATAL_QUOTE_RT	EQU	CFA_ERROR_QUOTE_RT
 	
-	
-FEXCPT_WORDS_END	EQU	*
-FEXCPT_LAST_NFA		EQU	NFA_FATAL_QUOTE
+FEXCEPT_WORDS_END		EQU	*
+FEXCEPT_WORDS_END_LIN	EQU	@
