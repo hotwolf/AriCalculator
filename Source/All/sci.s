@@ -414,7 +414,7 @@ SCI_TXBUF_OUT		DS	1		;points to the oldest entry
 ;#Baud rate (reset proof) 
 SCI_BVAL		DS	2		;value of the SCIBD register *SCI_BMUL
 
-SCI_AUTO_LOC2		DS	1		;2nd auto-place location
+SCI_AUTO_LOC2		EQU	1		;2nd auto-place location
 			UNALIGN	1
 ;#Flags
 SCI_FLGS		EQU	((SCI_VARS_START&1)*SCI_AUTO_LOC1)+((~SCI_VARS_START&1)*SCI_AUTO_LOC2)
