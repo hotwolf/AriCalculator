@@ -118,19 +118,19 @@ BASE_VARS_END_LIN	EQU	VECTAB_VARS_START_LIN
 ;###############################################################################
 ;#Initialization
 #macro	BASE_INIT, 0
-			GPIO_INIT
-			CLOCK_INIT
-			COP_INIT
-			MMAP_INIT
-			VECTAB_INIT
-			ISTACK_INIT
-			TIM_INIT
-			STRING_INIT
-			NUM_INIT
-			NVM_INIT
-			CLOCK_WAIT_FOR_PLL
-			SCI_INIT	
-			RESET_INIT
+GPIO_INIT		GPIO_INIT		
+CLOCK_INIT		CLOCK_INIT		
+COP_INIT		COP_INIT		
+MMAP_INIT		MMAP_INIT		
+VECTAB_INIT		VECTAB_INIT		
+ISTACK_INIT		ISTACK_INIT		
+TIM_INIT		TIM_INIT		
+STRING_INIT		STRING_INIT		
+NUM_INIT		NUM_INIT		
+NVM_INIT		NVM_INIT		
+CLOCK_WAIT_FOR_PLL	CLOCK_WAIT_FOR_PLL	
+SCI_INIT		SCI_INIT		
+RESET_INIT              RESET_INIT              
 #emac
 	
 ;###############################################################################

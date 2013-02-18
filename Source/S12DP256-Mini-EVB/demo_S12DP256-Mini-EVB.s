@@ -50,7 +50,7 @@ ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 
 ;# Subroutine stack
 SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
-SSTACK_DEBUG		EQU	1 		;debug behavior
+;SSTACK_DEBUG		EQU	1 		;debug behavior
 
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
@@ -190,12 +190,14 @@ DEMO_LOOP		SCI_RX_BL
 			LDX	#STRING_STR_NL
 			STRING_PRINT_BL
 			JOB	DEMO_LOOP
+
+			;ALIGN 1		;
 	
 DEMO_CODE_END		EQU	*	
 DEMO_CODE_END_LIN	EQU	@	
 
 ;###############################################################################
-;# Tables                                                                      #
+;# TABLES                                                                      #
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 

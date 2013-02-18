@@ -414,7 +414,7 @@ SCI_TXBUF_OUT		DS	1		;points to the oldest entry
 ;#Baud rate (reset proof) 
 SCI_BVAL		DS	2		;value of the SCIBD register *SCI_BMUL
 
-SCI_AUTO_LOC2		EQU	1		;2nd auto-place location
+SCI_AUTO_LOC2		EQU	*		;2nd auto-place location
 			UNALIGN	1
 ;#Flags
 SCI_FLGS		EQU	((SCI_VARS_START&1)*SCI_AUTO_LOC1)+((~SCI_VARS_START&1)*SCI_AUTO_LOC2)
@@ -481,21 +481,21 @@ SCI_VARS_END_LIN	EQU	@
 #ifdef	CLOCK_FLGS
 			LDAB	CLOCK_FLGS
 			BITA	#(PORF|LVRF)
-			BNE	SCI_INIT_2
+			BNE	<SCI_INIT_2
 #endif
 			;Check if stored baud rate is still valid
 			LDD	SCI_BVAL 				;SCI_BMUL*baud rate -> D
-			BEQ	SCI_INIT_2				;use default value if zero
+			BEQ	<SCI_INIT_2				;use default value if zero
 			LDX	#SCI_BMUL				;SCI_BMUL -> X
 			IDIV						;D/X -> X, D%X -> D
 			CPD	#$0000					;check if the remainder is 0
-			BNE	SCI_INIT_2				;stored baud rate is invalid
+			BNE	<SCI_INIT_2				;stored baud rate is invalid
 			;Check if baud rate is listed 
 			LDY	#SCI_BTAB				;start of baud table -> Y
 SCI_INIT_1		CPX     2,Y+					;compare table entry with X	
-			BEQ	SCI_INIT_3				;match
+			BEQ	<SCI_INIT_3				;match
 			CPY	#SCI_BTAB_END				;check if the end of the table has been reached
-			BNE	SCI_INIT_1				;loop
+			BNE	<SCI_INIT_1				;loop
 			;No match use default
 SCI_INIT_2		LDX	#SCI_BDEF	 			;default baud rate
 			MOVW	#(SCI_BDEF*SCI_BMUL), SCI_BVAL
