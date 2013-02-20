@@ -32,13 +32,13 @@
 ;# Clocks
 CLOCK_CRG		EQU	1		;old CRG
 #ifndef CLOCK_OSC_FREQ	
-CLOCK_OSC_FREQ		EQU	4000000		;4 MHz
+CLOCK_OSC_FREQ		EQU	 4000000	;4 MHz
 #endif
 #ifndef CLOCK_BUS_FREQ
 CLOCK_BUS_FREQ		EQU	25000000	;25 MHz
 #endif
 #ifndef CLOCK_REF_FREQ
-CLOCK_REF_FREQ		EQU	CLOCK_OSC_FREQ	;4,000 MHz
+CLOCK_REF_FREQ		EQU	 1000000	;1,000 MHz
 #endif
 
 ;# SCI
@@ -118,19 +118,20 @@ BASE_VARS_END_LIN	EQU	VECTAB_VARS_START_LIN
 ;###############################################################################
 ;#Initialization
 #macro	BASE_INIT, 0
-GPIO_INIT		GPIO_INIT		
-CLOCK_INIT		CLOCK_INIT		
-COP_INIT		COP_INIT		
-MMAP_INIT		MMAP_INIT		
-VECTAB_INIT		VECTAB_INIT		
-ISTACK_INIT		ISTACK_INIT		
-TIM_INIT		TIM_INIT		
-STRING_INIT		STRING_INIT		
-NUM_INIT		NUM_INIT		
-NVM_INIT		NVM_INIT		
-CLOCK_WAIT_FOR_PLL	CLOCK_WAIT_FOR_PLL	
-SCI_INIT		SCI_INIT		
-RESET_INIT              RESET_INIT              
+			GPIO_INIT
+			MMAP_INIT		
+			VECTAB_INIT		
+			ISTACK_INIT		
+			SSTACK_INIT
+			CLOCK_INIT		
+			COP_INIT		
+			TIM_INIT		
+			STRING_INIT		
+			NUM_INIT		
+			NVM_INIT		
+			CLOCK_WAIT_FOR_PLL	
+			SCI_INIT		
+			RESET_INIT              
 #emac
 	
 ;###############################################################################

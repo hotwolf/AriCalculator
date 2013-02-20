@@ -88,7 +88,7 @@
 
 ;Stack depth 
 #ifndef SSTACK_DEPTH
-SSTACK_DEPTH		EQU	24
+SSTACK_DEPTH		EQU	27
 #endif
 	
 ;###############################################################################

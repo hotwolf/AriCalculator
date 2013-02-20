@@ -51,7 +51,7 @@ ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 
 ;# Subroutine stack
-SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
+SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
 SSTACK_DEBUG		EQU	1 		;debug behavior
 
 ;# COP

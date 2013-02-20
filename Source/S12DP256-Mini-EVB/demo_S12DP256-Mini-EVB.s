@@ -34,12 +34,9 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;# Clocks
-CLOCK_CRG		EQU	1		;CPMU
-CLOCK_OSC_FREQ		EQU	10000000	;10 MHz
-CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
-CLOCK_REF_FREQ		EQU	10000000	;10 MHz
-CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
-CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
+CLOCK_CRG		EQU	1		;CRG
+;CLOCK_OSC_FREQ		EQU	 8000000	; 8 MHz
+;CLOCK_OSC_FREQ		EQU	16000000	;16 MHz
 
 ;# Memory map:
 MMAP_RAM		EQU	1 		;use RAM memory map
