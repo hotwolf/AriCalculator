@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<part xml:id="reference" 
+      xmlns="http://docbook.org/ns/docbook"
+      xmlns:xi="http://www.w3.org/2001/XInclude" 
+      version="5.0">
+
+  <title>Reference</title>
+  <info>
+    <keywordset>
+      <keyword>notation</keyword>
+      <keyword>words</keyword>
+    </keywordset>
+  </info> 
+
+  <xi:include href="notation.xml"/>
+
+  <xi:include href="words.xml"/>
+
+  <xi:include href="throw_codes.xml"/>
+
+</part>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<part xml:id="introdiction" 
+      xmlns="http://docbook.org/ns/docbook"
+      xmlns:xi="http://www.w3.org/2001/XInclude" 
+      version="5.0">
+
+  <title>Introduction</title>
+  <info>
+    <keywordset>
+      <keyword>Forth</keyword>
+    </keywordset>
+  </info> 
+  
+  <xi:include href="forth.xml"/>
+
+  <xi:include href="stacks.xml"/>
+
+  <xi:include href="buffers.xml"/>
+
+  <xi:include href="dictionary.xml"/>
+
+  <xi:include href="variables.xml"/>
+
+  <xi:include href="states.xml"/>
+
+  <xi:include href="semantics.xml"/>
+
+  <xi:include href="exceptions.xml"/>
+
+</part>

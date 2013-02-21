@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<book xmlns="http://docbook.org/ns/docbook"
+      xmlns:xi="http://www.w3.org/2001/XInclude" 
+      version="5.0">
+
+  <info>
+    <title>S12CForth</title>
+    <subtitle>User Manual</subtitle>
+    <author>
+      <personname>
+	<firstname>Dirk</firstname>
+	<surname>Heisswolf</surname>
+      </personname>
+    </author>
+    <copyright>
+      <year>2010</year>
+      <holder>Dirk Heisswolf</holder>
+    </copyright>
+    <address>
+      <uri>http:/hotwof.gihub.com/S12CForth</uri>
+    </address>
+    <revhistory>
+      <revision>
+	<revnumber>0.0</revnumber>
+	<date>27 August 2010</date>
+	<author>
+	  <personname>
+	    <firstname>Dirk</firstname>
+	    <surname>Heisswolf</surname>
+	  </personname>
+	</author>
+	<revremark>Initial release</revremark>
+      </revision>
+    </revhistory>
+  </info>
+
+  <dedication>
+    <para>
+      To Andrea
+    </para>
+  </dedication>
+
+  <xi:include href="preface.xml"/>
+
+  <xi:include href="introduction.xml"/>
+ 
+  <xi:include href="reference.xml"/>
+
+  <xi:include href="appendixes.xml"/>
+
+</book>

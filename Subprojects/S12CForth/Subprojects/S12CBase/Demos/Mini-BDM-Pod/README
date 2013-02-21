@@ -1,0 +1,24 @@
+This directory contains demos and tests running on the Mini-BDM-Pod.
+
+Available demos and tests:
++-demo_Mini-BDM-Pod.dbug12.txt   This is the Mini-BDM-Pod port of the S12CBase 
+|                                demo. It reads SCI input and prints the read 
+|                                value in ASCII, hexadecimal, decimal, octal, 
+|                                and binary representation. Ctrl-C and CTRL-Z
+|                                turn the busy-LED on/off. The following baud
+|                                rates are automatically detected:   4800
+|                                                                    7200
+|                                                                    9600
+|                                                                   14400
+|                                                                   19200
+|                                                                   28800
+|                                                                   38400
+|                                                                   57600
+|                                Baud rate detection  works best by typing the
+|                                characters "~" or "@".
+|                                This ASCII file contains all D-Bug12 commads to
+|                                run the demo in the on-chip RAM. No flashing
+|                                required.
+|
++-demo_Mini-BDM-Pod.lst          The assembler listing of the demo code.
+

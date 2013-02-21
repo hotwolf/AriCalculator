@@ -1,0 +1,952 @@
+;###############################################################################
+;# S12CBase - REGDEF - Register Definitions (SIMHC12)                          #
+;###############################################################################
+;#    Copyright 2010 - 2012 Dirk Heisswolf                                     #
+;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
+;#    families.                                                                #
+;#                                                                             #
+;#    S12CBase is free software: you can redistribute it and/or modify         #
+;#    it under the terms of the GNU General Public License as published by     #
+;#    the Free Software Foundation, either version 3 of the License, or        #
+;#    (at your option) any later version.                                      #
+;#                                                                             #
+;#    S12CBase is distributed in the hope that it will be useful,              #
+;#    but WITHOUT ANY WARRANTY; without even the implied warranty of           #
+;#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #
+;#    GNU General Public License for more details.                             #
+;#                                                                             #
+;#    You should have received a copy of the GNU General Public License        #
+;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
+;###############################################################################
+;# Description:                                                                #
+;#   This module defines the register map of the 68HC12A4.                     #
+;#   This version of REGDEF contains modifications to run on the SIM68HC12     #
+;#   simulator.                                                                #
+;###############################################################################
+;# Required Modules:                                                           #
+;#    - none                                                                   #
+;#                                                                             #
+;# Requirements to Software Using this Module:                                 #
+;#    - none                                                                   #
+;###############################################################################
+;# Version History:                                                            #
+;#    Apr 1, 2010                                                              #
+;#      - Initial release                                                      #
+;###############################################################################
+;#################################
+;# 68HC12A4 Register Definitions #
+;#################################
+PORTA		EQU	$0000
+PTA7		EQU	$80
+PTA6		EQU	$40
+PTA5		EQU	$20
+PTA4		EQU	$10
+PTA3		EQU	$08
+PTA2		EQU	$04
+PTA1		EQU	$02
+PTA0		EQU	$01
+PA7		EQU	$80
+PA6		EQU	$40
+PA5		EQU	$20
+PA4		EQU	$10
+PA3		EQU	$08
+PA2		EQU	$04
+PA1		EQU	$02
+PA0		EQU	$01
+
+PORTB		EQU	$0001
+PTB7		EQU	$80
+PTB6		EQU	$40
+PTB5		EQU	$20
+PTB4		EQU	$10
+PTB3		EQU	$08
+PTB2		EQU	$04
+PTB1		EQU	$02
+PTB0		EQU	$01
+PB7		EQU	$80
+PB6		EQU	$40
+PB5		EQU	$20
+PB4		EQU	$10
+PB3		EQU	$08
+PB2		EQU	$04
+PB1		EQU	$02
+PB0		EQU	$01
+
+DDRA		EQU	$0002
+DDRA7		EQU	$80
+DDRA6		EQU	$40
+DDRA5		EQU	$20
+DDRA4		EQU	$10
+DDRA3		EQU	$08
+DDRA2		EQU	$04
+DDRA1		EQU	$02
+DDRA0		EQU	$01
+
+DDRB		EQU	$0003
+DDRB7		EQU	$80
+DDRB6		EQU	$40
+DDRB5		EQU	$20
+DDRB4		EQU	$10
+DDRB3		EQU	$08
+DDRB2		EQU	$04
+DDRB1		EQU	$02
+DDRB0		EQU	$01
+
+PORTC		EQU	$0004
+PTC7		EQU	$80
+PTC6		EQU	$40
+PTC5		EQU	$20
+PTC4		EQU	$10
+PTC3		EQU	$08
+PTC2		EQU	$04
+PTC1		EQU	$02
+PTC0		EQU	$01
+PC7		EQU	$80
+PC6		EQU	$40
+PC5		EQU	$20
+PC4		EQU	$10
+PC3		EQU	$08
+PC2		EQU	$04
+PC1		EQU	$02
+PC0		EQU	$01
+
+PORTD		EQU	$0005
+PTD7		EQU	$80
+PTD6		EQU	$40
+PTD5		EQU	$20
+PTD4		EQU	$10
+PTD3		EQU	$08
+PTD2		EQU	$04
+PTD1		EQU	$02
+PTD0		EQU	$01
+PD7		EQU	$80
+PD6		EQU	$40
+PD5		EQU	$20
+PD4		EQU	$10
+PD3		EQU	$08
+PD2		EQU	$04
+PD1		EQU	$02
+PD0		EQU	$01
+
+DDRC		EQU	$0006
+DDRC7		EQU	$80
+DDRC6		EQU	$40
+DDRC5		EQU	$20
+DDRC4		EQU	$10
+DDRC3		EQU	$08
+DDRC2		EQU	$04
+DDRC1		EQU	$02
+DDRC0		EQU	$01
+
+DDRD		EQU	$0007
+DDRD7		EQU	$80
+DDRD6		EQU	$40
+DDRD5		EQU	$20
+DDRD4		EQU	$10
+DDRD3		EQU	$08
+DDRD2		EQU	$04
+DDRD1		EQU	$02
+DDRD0		EQU	$01
+
+PORTE		EQU	$0008
+PTE7		EQU	$80
+PTE6		EQU	$40
+PTE5		EQU	$20
+PTE4		EQU	$10
+PTE3		EQU	$08
+PTE2		EQU	$04
+PTE1		EQU	$02
+PTE0		EQU	$01
+PE7		EQU	$80
+PE6		EQU	$40
+PE5		EQU	$20
+PE4		EQU	$10
+PE3		EQU	$08
+PE2		EQU	$04
+PE1		EQU	$02
+PE0		EQU	$01
+
+DDRE		EQU	$0009
+DDRE7		EQU	$80
+DDRE6		EQU	$40
+DDRE5		EQU	$20
+DDRE4		EQU	$10
+DDRE3		EQU	$08
+DDRE2		EQU	$04
+DDRE1		EQU	$02
+DDRE0		EQU	$01
+	
+PEAR		EQU	$000A
+ARSIE		EQU	$80
+PLLTE		EQU	$40
+PIPOE		EQU	$20
+NECLK		EQU	$10
+LSTRE		EQU	$08
+RDWE		EQU	$04
+
+MODE		EQU	$000B
+SMODN		EQU	$80
+MODB		EQU	$40
+MODA		EQU	$20
+ESTRA		EQU	$10	
+IVIS		EQU	$08
+EMD		EQU	$02
+EME		EQU	$01
+
+PUCR		EQU	$000C
+PUPH		EQU	$80
+PUPG		EQU	$40
+PUPF		EQU	$20
+PUPE		EQU	$10
+PUPD		EQU	$08
+PUPC		EQU	$04
+PUPB		EQU	$02
+PUPA		EQU	$01
+
+RDRIV		EQU	$000D
+RDPJ		EQU	$80
+RDPH		EQU	$40
+RDPG		EQU	$20
+RDPF		EQU	$10
+RDPE		EQU	$08
+RDPD		EQU	$04
+RDPC		EQU	$02
+RDPAB		EQU	$01
+
+EBICTL		EQU	$000E
+ESTR		EQU	$01
+
+;$000E - $000F reserved
+
+INITRM		EQU	$0010
+RAM15		EQU	$80
+RAM14		EQU	$40
+RAM13		EQU	$20
+RAM12		EQU	$10
+RAM11		EQU	$08
+
+INITRG		EQU	$0011
+REG14		EQU	$40
+REG13		EQU	$20
+REG12		EQU	$10
+REG11		EQU	$08
+
+INITEE		EQU	$0012
+EE15		EQU	$80
+EE14		EQU	$40
+EE13		EQU	$20
+EE12		EQU	$10
+EEON		EQU	$01
+
+MISC		EQU	$0013
+EWDIR		EQU	$08
+NDRC		EQU	$04
+
+RTICTL		EQU	$0014
+RTIE		EQU	$80
+RTIWAI		EQU	$40
+RSBCK		EQU	$20
+RSBYP		EQU	$80
+RTR2		EQU	$04
+RTR1		EQU	$02
+RTR0		EQU	$01
+
+RTIFLG		EQU	$0015
+RTIF		EQU	$80
+
+COPCTL		EQU	$0016
+CME		EQU	$80
+FCME		EQU	$40
+FCM		EQU	$20
+FCOP		EQU	$10
+DISR		EQU	$08
+CR2		EQU	$04
+CR1		EQU	$02
+CR0		EQU	$01
+
+ARMCOP		EQU	$0017
+
+;$0018 - $001D reserved
+
+INTCR		EQU	$001E
+IRQE		EQU	$80
+IRQEN		EQU	$40
+DLY		EQU	$20
+
+HPRIO		EQU	$001F
+PSEL5		EQU	$20
+PSEL4		EQU	$10
+PSEL3		EQU	$08
+PSEL2		EQU	$04
+PSEL1		EQU	$02
+
+KWIED		EQU	$0020
+
+KWIFD		EQU	$0021
+
+;$0022 - $0023 reserved
+
+PORTH		EQU	$0024
+PTH7		EQU	$80
+PTH6		EQU	$40
+PTH5		EQU	$20
+PTH4		EQU	$10
+PTH3		EQU	$08
+PTH2		EQU	$04
+PTH1		EQU	$02
+PTH0		EQU	$01
+PH7		EQU	$80
+PH6		EQU	$40
+PH5		EQU	$20
+PH4		EQU	$10
+PH3		EQU	$08
+PH2		EQU	$04
+PH1		EQU	$02
+PH0		EQU	$01
+
+DDRH		EQU	$0025
+DDRH7		EQU	$80
+DDRH6		EQU	$40
+DDRH5		EQU	$20
+DDRH4		EQU	$10
+DDRH3		EQU	$08
+DDRH2		EQU	$04
+DDRH1		EQU	$02
+DDRH0		EQU	$01
+
+KWIEH		EQU	$0026
+
+KWIFH		EQU	$0027
+
+PORTJ		EQU	$0028
+PTJ7		EQU	$80
+PTJ6		EQU	$40
+PTJ5		EQU	$20
+PTJ4		EQU	$10
+PTJ3		EQU	$08
+PTJ2		EQU	$04
+PTJ1		EQU	$02
+PTJ0		EQU	$01
+PJ7		EQU	$80
+PJ6		EQU	$40
+PJ5		EQU	$20
+PJ4		EQU	$10
+PJ3		EQU	$08
+PJ2		EQU	$04
+PJ1		EQU	$02
+PJ0		EQU	$01
+
+DDRJ		EQU	$0029
+DDRJ7		EQU	$80
+DDRJ6		EQU	$40
+DDRJ5		EQU	$20
+DDRJ4		EQU	$10
+DDRJ3		EQU	$08
+DDRJ2		EQU	$04
+DDRJ1		EQU	$02
+DDRJ0		EQU	$01
+
+KWIEJ		EQU	$002A
+
+KWIFJ		EQU	$002B
+
+KPOL		EQU	$002C
+
+PUPSJ		EQU	$002D
+
+PULEJ		EQU	$002E
+
+;$002F reserved
+
+PORTF		EQU	$0030
+PTF6		EQU	$40
+PTF5		EQU	$20
+PTF4		EQU	$10
+PTF3		EQU	$08
+PTF2		EQU	$04
+PTF1		EQU	$02
+PTF0		EQU	$01
+PF6		EQU	$40
+PF5		EQU	$20
+PF4		EQU	$10
+PF3		EQU	$08
+PF2		EQU	$04
+PF1		EQU	$02
+PF0		EQU	$01
+
+PORTG		EQU	$0031
+PTG5		EQU	$20
+PTG4		EQU	$10
+PTG3		EQU	$08
+PTG2		EQU	$04
+PTG1		EQU	$02
+PTG0		EQU	$01
+PG5		EQU	$20
+PG4		EQU	$10
+PG3		EQU	$08
+PG2		EQU	$04
+PG1		EQU	$02
+PG0		EQU	$01
+
+DDRF		EQU	$0032
+DDRF6		EQU	$40
+DDRF5		EQU	$20
+DDRF4		EQU	$10
+DDRF3		EQU	$08
+DDRF2		EQU	$04
+DDRF1		EQU	$02
+DDRF0		EQU	$01
+
+DDRG		EQU	$0033
+DDRG5		EQU	$20
+DDRG4		EQU	$10
+DDRG3		EQU	$08
+DDRG2		EQU	$04
+DDRG1		EQU	$02
+DDRG0		EQU	$01
+
+DPAGE		EQU	$0034
+
+PPAGE		EQU	$0035
+PIX5		EQU	$20
+PIX4		EQU	$10
+PIX3		EQU	$08
+PIX2		EQU	$04
+PIX1		EQU	$02
+PIX0		EQU	$01
+	
+EPAGE		EQU	$0036
+
+WINDEF		EQU	$0037
+
+XMAR		EQU	$0038
+
+;$0039 - $003B reserved
+
+CSCTL0		EQU	$003C
+
+CSCTL1		EQU	$003D
+
+CSSTR0		EQU	$003E
+
+CSSTR1		EQU	$003F
+
+LDVH		EQU	$0040
+
+LDVL		EQU	$0041
+
+RDVH		EQU	$0042
+
+RDVL		EQU	$0043
+
+;$00044- $0047 reserved
+
+CLKCTL		EQU	$0047
+LCKF		EQU	$80
+PLLON		EQU	$40
+PLLS		EQU	$20
+BCSC		EQU	$10
+BCSB		EQU	$08
+BCSA		EQU	$04
+MCSB		EQU	$02
+MCSA		EQU	$01
+
+;$00048- $005F reserved
+
+ATDCTL0		EQU	$0060
+ATDCTL1		EQU	$0061
+
+ATDCTL2		EQU	$0062
+ADPU		EQU	$80
+AFFC		EQU	$40
+AWAI		EQU	$20
+ASCIE		EQU	$02
+ASCIF		EQU	$01
+
+ATDCTL3		EQU	$0063
+FRZ1		EQU	$02
+FRZ0		EQU	$01
+
+ATDCTL4		EQU	$0064
+SMP1		EQU	$40
+SMP0		EQU	$20
+PRS4		EQU	$10
+PRS3		EQU	$08
+PRS2		EQU	$04
+PRS1		EQU	$02
+PRS0		EQU	$01
+
+ATDCTL5		EQU	$0065
+S8CM		EQU	$40
+SCAN		EQU	$20
+MULT		EQU	$10
+CD		EQU	$08
+CC		EQU	$04
+CB		EQU	$02
+CA		EQU	$01
+
+ATDSTAT1	EQU	$0066
+SCF		EQU	$80
+CC2		EQU	$04
+CC1		EQU	$02
+CC0		EQU	$01
+
+ATDSTAT2	EQU	$0067
+CCF7		EQU	$80
+CCF6		EQU	$40
+CCF5		EQU	$20
+CCF4		EQU	$10
+CCF3		EQU	$08
+CCF2		EQU	$04
+CCF1		EQU	$02
+CCF0		EQU	$01
+	
+ATDTEST0	EQU	$0068
+SAR9		EQU	$80
+SAR8		EQU	$40
+SAR7		EQU	$20
+SAR6		EQU	$10
+SAR5		EQU	$08
+SAR4		EQU	$04
+SAR3		EQU	$02
+SAR2		EQU	$01
+
+ATDTEST1	EQU	$0069
+SAR1		EQU	$80
+SAR0		EQU	$40
+RST		EQU	$20
+TSTOUT		EQU	$10
+TST3		EQU	$08
+TST2		EQU	$04
+TST1		EQU	$02
+TST0		EQU	$01
+	
+;$006A - $006E reserved
+
+PORTAD		EQU	$006F
+PAD7		EQU	$80
+PAD6		EQU	$40
+PAD5		EQU	$20
+PAD4		EQU	$10
+PAD3		EQU	$08
+PAD2		EQU	$04
+PAD1		EQU	$02
+PAD0		EQU	$01
+
+ADR0H		EQU	$0070
+
+;$0071 reserved
+
+ADR1H		EQU	$0072
+
+;$0073 reserved
+
+ADR2H		EQU	$0074
+
+;$0075 reserved
+
+ADR3H		EQU	$0076
+
+;$0077 reserved
+
+ADR4H		EQU	$0078
+
+;$0079 reserved
+
+ADR5H		EQU	$007A
+
+;$007B reserved
+
+ADR6H		EQU	$007C
+
+;$007D reserved
+
+ADR7H		EQU	$007E
+
+;$007F reserved
+
+TIOS		EQU	$0080
+IOS7		EQU	$80
+IOS6		EQU	$40
+IOS5		EQU	$20
+IOS4		EQU	$10
+IOS3		EQU	$08
+IOS2		EQU	$04
+IOS1		EQU	$02
+IOS0		EQU	$01
+
+TCFORC		EQU	$0081
+FOC7		EQU	$80
+FOC6		EQU	$40
+FOC5		EQU	$20
+FOC4		EQU	$10
+FOC3		EQU	$08
+FOC2		EQU	$04
+FOC1		EQU	$02
+FOC0		EQU	$01
+
+TOC7M		EQU	$0082
+OC7M7		EQU	$80
+OC7M6		EQU	$40
+OC7M5		EQU	$20
+OC7M4		EQU	$10
+OC7M3		EQU	$08
+OC7M2		EQU	$04
+OC7M1		EQU	$02
+OC7M0		EQU	$01
+
+TOC7D		EQU	$0083
+OC7D7		EQU	$80
+OC7D6		EQU	$40
+OC7D5		EQU	$20
+OC7D4		EQU	$10
+OC7D3		EQU	$08
+OC7D2		EQU	$04
+OC7D1		EQU	$02
+OC7D0		EQU	$01
+
+TCNT		EQU	$0084
+
+TSCR1		EQU	$0086
+TSCR		EQU	$0086
+TEN		EQU	$80
+TSWAI		EQU	$40
+TSFRZ		EQU	$20
+TFFCA		EQU	$10
+
+;$0087 reserved
+
+TCTL1		EQU	$0088
+OM7		EQU	$80
+OL7		EQU	$40
+OM6		EQU	$20
+OL6		EQU	$10
+OM5		EQU	$08
+OL5		EQU	$04
+OM4		EQU	$02
+OL4		EQU	$01
+
+TCTL2		EQU	$0089
+OM3		EQU	$80
+OL3		EQU	$40
+OM2		EQU	$20
+OL2		EQU	$10
+OM1		EQU	$08
+OL1		EQU	$04
+OM0		EQU	$02
+OL0		EQU	$01
+
+TCTL3		EQU	$008A
+EDG7B		EQU	$80
+EDG7A		EQU	$40
+EDG6B		EQU	$20
+EDG6A		EQU	$10
+EDG5B		EQU	$08
+EDG5A		EQU	$04
+EDG4B		EQU	$02
+EDG4A		EQU	$01
+
+TCTL4		EQU	$008B
+EDG3B		EQU	$80
+EDG3A		EQU	$40
+EDG2B		EQU	$20
+EDG2A		EQU	$10
+EDG1B		EQU	$08
+EDG1A		EQU	$04
+EDG0B		EQU	$02
+EDG0A		EQU	$01
+
+TIE		EQU	$008C
+TMSK1		EQU	$008C
+C7I		EQU	$80
+C6I		EQU	$40
+C5I		EQU	$20
+C4I		EQU	$10
+C3I		EQU	$08
+C2I		EQU	$04
+C1I		EQU	$02
+C0I		EQU	$01
+
+TSCR2		EQU	$008D
+TMSK2		EQU	$008D
+TOI		EQU	$80
+PUPT		EQU	$40
+RDPT		EQU	$20	
+TCRE		EQU	$08
+PR2		EQU	$04
+PR1		EQU	$02
+PR0		EQU	$01
+
+TFLG1		EQU	$008E
+C7F		EQU	$80
+C6F		EQU	$40
+C5F		EQU	$20
+C4F		EQU	$10
+C3F		EQU	$08
+C2F		EQU	$04
+C1F		EQU	$02
+C0F		EQU	$01
+
+TFLG2		EQU	$008F
+TOF		EQU	$80
+
+TC0		EQU	$0090
+TC1		EQU	$0092
+TC2		EQU	$0094
+TC3		EQU	$0096
+TC4		EQU	$0098
+TC5		EQU	$009A
+TC6		EQU	$009C
+TC7		EQU	$009E
+
+PACTL		EQU	$00A0
+PAEN		EQU	$40
+PAMOD		EQU	$20
+PEDGE		EQU	$10
+CLK1		EQU	$08
+CLK0		EQU	$04
+PAOVI		EQU	$02
+PAI		EQU	$01
+
+PAFLG		EQU	$00A1
+PAOVF		EQU	$02
+PAIF		EQU	$01
+
+PACNT		EQU	$00A2
+
+;$00A4 - $00AC reserved
+
+TIMTST		EQU	$00AD
+
+PORTT		EQU	$00AE
+PTT7		EQU	$80
+PTT6		EQU	$40
+PTT5		EQU	$20
+PTT4		EQU	$10
+PTT3		EQU	$08
+PTT2		EQU	$04
+PTT1		EQU	$02
+PTT0		EQU	$01
+PT7		EQU	$80
+PT6		EQU	$40
+PT5		EQU	$20
+PT4		EQU	$10
+PT3		EQU	$08
+PT2		EQU	$04
+PT1		EQU	$02
+PT0		EQU	$01
+
+DDRT		EQU	$00AF
+DDRT7		EQU	$80
+DDRT6		EQU	$40
+DDRT5		EQU	$20
+DDRT4		EQU	$10
+DDRT3		EQU	$08
+DDRT2		EQU	$04
+DDRT1		EQU	$02
+DDRT0		EQU	$01
+
+;$00B0 - $00BF reserved
+
+SCIBDH		EQU	$00C0
+SC0BDH		EQU	$00C0
+BTST		EQU	$80
+BSPL		EQU	$40
+BRLD		EQU	$20
+SBR12		EQU	$10
+SBR11		EQU	$08
+SBR10		EQU	$04
+SBR9		EQU	$02
+SBR8		EQU	$01
+
+SCIBDL		EQU	$00C1
+SC0BDL		EQU	$00C1
+SBR7		EQU	$80
+SBR6		EQU	$40
+SBR5		EQU	$20
+SBR4		EQU	$10
+SBR3		EQU	$08
+SBR2		EQU	$04
+SBR1		EQU	$02
+SBR0		EQU	$01
+
+SCICR1		EQU	$00C2
+SC0CR1		EQU	$00C2
+LOOPS		EQU	$80
+WOMS		EQU	$40
+RSRC		EQU	$20
+M		EQU	$10
+WAKE		EQU	$08
+ILT		EQU	$04
+PE		EQU	$02
+PT		EQU	$01
+	
+SCICR2		EQU	$00C3
+SC0CR2		EQU	$00C3
+TXIE		EQU	$80  ;renamed to txie, not to clash with tie register
+TCIE		EQU	$40
+RIE		EQU	$20
+ILIE		EQU	$10
+TE		EQU	$08
+RE		EQU	$04
+RWU		EQU	$02
+SBK		EQU	$01
+	
+SCISR1		EQU	$00C4
+SC0SR1		EQU	$00C4
+TDRE		EQU	$80
+TC		EQU	$40
+RDRF		EQU	$20
+IDLE		EQU	$10
+OR		EQU	$08
+NF		EQU	$04
+FE		EQU	$02
+PF		EQU	$01
+
+SCISR2		EQU	$00C5
+SC0SR2		EQU	$00C5
+RAF		EQU	$01
+
+SCIDRH		EQU	$00C6
+SC0DRH		EQU	$00C6
+R8		EQU	$80
+T8		EQU	$40
+
+SCIDRL		EQU	$00C7
+SC0DRL		EQU	$00C7
+
+SC1BDH		EQU	$00C8
+BTST		EQU	$80
+BSPL		EQU	$40
+BRLD		EQU	$20
+SBR12		EQU	$10
+SBR11		EQU	$08
+SBR10		EQU	$04
+SBR9		EQU	$02
+SBR8		EQU	$01
+
+SC1BDL		EQU	$00C9
+SBR7		EQU	$80
+SBR6		EQU	$40
+SBR5		EQU	$20
+SBR4		EQU	$10
+SBR3		EQU	$08
+SBR2		EQU	$04
+SBR1		EQU	$02
+SBR0		EQU	$01
+
+SC1CR1		EQU	$00CA
+LOOPS		EQU	$80
+WOMS		EQU	$40
+RSRC		EQU	$20
+M		EQU	$10
+WAKE		EQU	$08
+ILT		EQU	$04
+PE		EQU	$02
+PT		EQU	$01
+	
+SC1CR2		EQU	$00CB
+TXIE		EQU	$80  ;renamed to txie, not to clash with tie register
+TCIE		EQU	$40
+RIE		EQU	$20
+ILIE		EQU	$10
+TE		EQU	$08
+RE		EQU	$04
+RWU		EQU	$02
+SBK		EQU	$01
+	
+SC1SR1		EQU	$00CC
+TDRE		EQU	$80
+TC		EQU	$40
+RDRF		EQU	$20
+IDLE		EQU	$10
+OR		EQU	$08
+NF		EQU	$04
+FE		EQU	$02
+PF		EQU	$01
+
+SC1SR2		EQU	$00CD
+RAF		EQU	$01
+
+SC1DRH		EQU	$00CE
+R8		EQU	$80
+T8		EQU	$40
+
+SC1DRL		EQU	$00CF
+
+SPICR1		EQU	$00D0
+SP0CR1		EQU	$00D0
+SPIE		EQU	$80
+SPE		EQU	$40
+SPTIE		EQU	$20
+MSTR		EQU	$10
+CPOL		EQU	$08
+CPHA		EQU	$04
+SSOE		EQU	$02
+LSBFE		EQU	$01
+
+SPICR2		EQU	$00D1
+SP0CR2		EQU	$00D1
+PUPS		EQU	$08
+RDS		EQU	$04
+SPC0		EQU	$01
+
+SPIBR		EQU	$00D2
+SP0BR		EQU	$00D2
+SPPR2		EQU	$40
+SPPR1		EQU	$20
+SPPR0		EQU	$10
+SPR2		EQU	$04
+SPR1		EQU	$02
+SPR0		EQU	$01
+
+SPISR		EQU	$00D3
+SP0SR		EQU	$00D3
+SPIF		EQU	$80
+SPTEF		EQU	$20
+MODF		EQU	$10
+
+;$00D4 reserved
+
+SPIDR		EQU	$00D5
+SP0DR		EQU	$00D5
+
+PORTS		EQU	$00D6
+PTS7		EQU	$80
+PTS6		EQU	$40
+PTS5		EQU	$20
+PTS4		EQU	$10
+PTS3		EQU	$08
+PTS2		EQU	$04
+PTS1		EQU	$02
+PTS0		EQU	$01
+PS7		EQU	$80
+PS6		EQU	$40
+PS5		EQU	$20
+PS4		EQU	$10
+PS3		EQU	$08
+PS2		EQU	$04
+PS1		EQU	$02
+PS0		EQU	$01
+
+DDRS		EQU	$00D7
+DDRS7		EQU	$80
+DDRS6		EQU	$40
+DDRS5		EQU	$20
+DDRS4		EQU	$10
+DDRS3		EQU	$08
+DDRS2		EQU	$04
+DDRS1		EQU	$02
+DDRS0		EQU	$01
+
+;$00D8 - $00EF reserved
+
+EEMCR		EQU	$00F0
+
+EEPROT		EQU	$00F1
+
+EETST		EQU	$00F2
+
+EEPROG		EQU	$00F3
+
+;$00F4 - $01FF reserved

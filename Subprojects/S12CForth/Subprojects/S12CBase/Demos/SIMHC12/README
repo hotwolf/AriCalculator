@@ -1,0 +1,11 @@
+This directory contains demos and tests running on the SIMHC12 simulator.
+
+Available demos and tests:
++-demo_SIMHC12.s19  	This is the SIMHC12 port of the S12CBase demo.
+|                       It reads SCI input and prints the read value in
+|                       ASCII, hexadecimal, decimal, octal, and binary 
+|                       representation.
+|                       This S-record file can be loaded into the 
+|                       simulator in normal single-chip mode.
+|
++-demo_SIMHC12.lst  	This is the SIMHC12 port of the S12CBase demo.

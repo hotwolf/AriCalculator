@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bibliography xml:id="bibliography" 
+	      xmlns="http://docbook.org/ns/docbook"
+	      xmlns:xi="http://www.w3.org/2001/XInclude" 
+	      version="5.0">
+
+  <biblioentry xreflabel="bib_dpans94">
+    <author>
+      <orgname>American National Standards Institute, Inc.</orgname>
+      <orgdiv>Technical Committee X3J14</orgdiv>
+    </author>
+    <copyright>
+      <year>1994</year>
+      <holder>Technical Committee X3J1</holder>
+    </copyright>
+    <title>American National Standard X3.215-1994</title>
+    <subtitle>Programming Languages — Forth</subtitle>
+    <pubdate>March 24, 1994</pubdate>
+    <biblioid class="uri">http://forth.sourceforge.net/standard/dpans</biblioid>
+  </biblioentry>
+
+  <biblioentry xreflabel="bib_startforth">
+    <author>
+      <personname>
+	<firstname>Leo</firstname>
+	<surname>Brodie</surname>
+      </personname>
+    </author>
+    <copyright>
+      <year>2003</year>
+      <holder>FORTH, Inc.</holder>
+    </copyright>
+    <title>Starting Forth</title>
+    <biblioid class="uri">http://www.forth.com/starting-forth/</biblioid>
+    <!-- <biblioid class="uri">http://home.iae.nl/users/mhx/sf.html</biblioid> -->
+  </biblioentry>
+
+</bibliography>
+

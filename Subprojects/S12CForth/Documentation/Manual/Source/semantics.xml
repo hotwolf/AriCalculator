@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<chapter xml:id="semantics" 
+	 xmlns="http://docbook.org/ns/docbook"
+	 xmlns:xi="http://www.w3.org/2001/XInclude" 
+	 version="5.0">
+
+  <title>Semantics</title>
+  <info>
+    <keywordset>
+      <keyword>interpretation semantics</keyword>
+      <keyword>compilation semantics</keyword>
+      <keyword>execution semantics</keyword>
+    </keywordset>
+  </info> 
+
+  <para>
+    TBD
+  </para> 
+
+</chapter>
