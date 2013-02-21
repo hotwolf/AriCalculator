@@ -325,6 +325,9 @@ Dirk Heisswolf
 =item V00.43 - Jan 4, 2013
  -range violations in DBEQ, DBNE, TBEQ, TBNE instructions no longer abort the compilation
   
+=item V00.44 - Feb 13, 2013
+ -fixed directory path format for Windows
+  
 =cut
 
 #################
@@ -380,8 +383,13 @@ use File::Basename;
 ###################
 # path delimeters #
 ###################
-*path_del         = "/";
-*path_absolute    = \qr/^$path_del/;
+if ($^O =~ /MSWin/i) {
+    $path_del         = "\\";
+    *path_absolute    = \qr/^[A-Z]\:/;
+} else {
+    $path_del         = "\/";
+    *path_absolute    = \qr/^\//;
+}
 
 ########################
 # code entry structure #
@@ -3079,9 +3087,9 @@ sub new {
     #instantiate object
     bless $self, $class;
     #printf STDERR "libs: %s\n", join(", ", @$library_list);
-
+    
     #compile code
-    $self->compile($file_list, $library_list, $symbols);
+    $self->compile($file_list, [@$library_list, sprintf(".%s", $path_del)], $symbols);
 
     return $self;
 }
@@ -3137,7 +3145,7 @@ sub compile {
     my $keep_compiling;
     my $result_ok;
     #compiler runs
-    my $max_comp_runs = 200;
+    my $max_comp_runs = 100;
 
     ##############
     # precompile #
@@ -3293,7 +3301,8 @@ sub precompile {
         #printf "file_name: %s\n", $file_name;
         $error = 0;
         if ($file_name =~ /$path_absolute/) {
-            #asolute path
+	   #printf "absolute path: %s\n", $file_name;
+           #asolute path
             $file = $file_name;
             if (-e $file) {
                 if (-r $file) {
@@ -3311,6 +3320,7 @@ sub precompile {
                 #print "$error\n";
             }
         } else {
+	    #printf "relative path: %s\n", $file_name;
             #library path
             $match = 0;
             ################
@@ -4351,8 +4361,8 @@ sub compile_run {
 				    ######################
 				    # label redefinition #
 				    ######################
-				    #if ($self->{compile_count} >= 20) {
-				    #        printf STDERR "REDEF: %s %s %s (%s %s)\n", ($code_label,
+				    #if ($self->{compile_count} >= 100) {
+				    #        printf STDOUT "REDEF: %s %X->%X (%s %s)\n", ($code_label,
 				    #                                                    $self->{comp_symbols}->{$code_label},
 				    #                                                    $label_value,
 				    #                                                    ${$code_entry->[1]},
@@ -4365,11 +4375,11 @@ sub compile_run {
 				######################
 				# label redefinition #
 				######################
-				#if ($self->{compile_count} >= 20) {
-				#    printf STDERR "REDEF: %s %s undef (%s %s)\n", ($code_label,
-				#                                               $self->{comp_symbols}->{$code_label},
-				#                                               ${$code_entry->[1]},
-				#                                               $code_entry->[0]);
+				#if ($self->{compile_count} >= 100) {
+				#    printf STDOUT "REDEF: %s %X->undef (%s %s)\n", ($code_label,
+				#                                                    $self->{comp_symbols}->{$code_label},
+				#                                                    ${$code_entry->[1]},
+				#                                                    $code_entry->[0]);
 				#}
 				$redef_count++;
 				$self->{comp_symbols}->{$code_label} = undef;
@@ -4399,12 +4409,12 @@ sub compile_run {
 				    ######################
 				    # label redefinition #
 				    ######################
-				    #if ($self->{compile_count} >= 20) {
-				    #        printf STDERR "REDEF: %s %s %s (%s %s)\n", ($code_label,
-				    #                                                    $code_sym_tabs->[0]->{$code_label},
-				    #                                                    $label_value,
-				    #                                                    ${$code_entry->[1]},
-				    #                                                    $code_entry->[0]);
+				    #if ($self->{compile_count} >= 100) {
+				    #        printf STDOUT "REDEF: %s %X->%X (%s %s)\n", ($code_label,
+				    #                                                     $code_sym_tabs->[0]->{$code_label},
+				    #                                                     $label_value,
+				    #                                                     ${$code_entry->[1]},
+				    #                                                     $code_entry->[0]);
 				    #}
 				    $redef_count++;
 				    $code_sym_tabs->[0]->{$code_label} = $label_value;
@@ -4413,11 +4423,11 @@ sub compile_run {
 				######################
 				# label redefinition #
 				######################
-				#if ($self->{compile_count} >= 20) {
-				#    printf STDERR "REDEF: %s %s undef (%s %s)\n", ($code_label,
-				#                                               $code_sym_tabs->[0]->{$code_label},
-				#                                               ${$code_entry->[1]},
-				#                                               $code_entry->[0]);
+				#if ($self->{compile_count} >= 100) {
+				#    printf STDOUT "REDEF: %s %X->undef (%s %s)\n", ($code_label,
+				#                                                    $code_sym_tabs->[0]->{$code_label},
+				#                                                    ${$code_entry->[1]},
+				#                                                    $code_entry->[0]);
 				#}
 				$redef_count++;
 				$code_sym_tabs->[0]->{$code_label} = undef;

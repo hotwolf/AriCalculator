@@ -51,7 +51,7 @@ ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
 ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 
 ;# Subroutine stack
-SSTACK_DEPTH		EQU	24	 	;no interrupt nesting
+SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
 SSTACK_DEBUG		EQU	1 		;debug behavior
 
 ;# COP
@@ -199,12 +199,15 @@ DEMO_LOOP		SCI_RX_BL
 			NUM_CLEAN_REVERSE
 	
 			;Print binary value (char in X)
+			LDAA	#2
+			LDAB	#" "
+			STRING_FILL_BL
 			LDY	#$0000
 			LDAB	#2
 			NUM_REVERSE
 			TFR	SP, Y
 			NEGA
-			ADDA	#10
+			ADDA	#8
 			LDAB	#"0"
 			STRING_fill_BL
 			LDAB	#2

@@ -51,7 +51,7 @@
 ;Valid number base
 NUM_BASE_MIN		EQU	2				;binary
 NUM_BASE_MAX		EQU	NUM_SYMTAB_END-NUM_SYMTAB	;max base value determined by symbol table
-NUM_BASE_DEF		EQU	10				;default base (decimal)
+NUM_BASE_DEFAULT	EQU	10				;default base (decimal)
 	
 ;###############################################################################
 ;# Variables                                                                   #

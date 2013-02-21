@@ -63,7 +63,7 @@
 ;                |  Registers  |               
 ;                +-------------+ $0400         
 ;                |/////////////|               
-;         RAM->+ +-------------+ $C000               
+;         RAM->+ +-------------+ $D000               
 ;              | |  Variables  |               
 ;              | +-------------+               
 ;              | |    Code     |               
@@ -90,19 +90,23 @@ MMAP_FLASH		EQU	1 		;default is flash
 ;###############################################################################
 ;# Memory sizes
 MMAP_REG_SIZE		EQU	$0400 		;  1K
-MMAP_RAM_SIZE		EQU	$F000 		; 12K
+MMAP_RAM_SIZE		EQU	$3000 		; 12K
 MMAP_FLASH_SIZE		EQU	$40000 		;256K
 	
 ;# Memory Locations
 MMAP_REG_START		EQU	$0000
 MMAP_REG_END		EQU	MMAP_REG_START+MMAP_REG_SIZE
+MMAP_INITRG_VAL		EQU	MMAP_REG_START>>8
 
+	
 #ifdef	MMAP_RAM
 MMAP_RAM_END		EQU	$10000
 MMAP_RAM_START		EQU	MMAP_RAM_END-MMAP_RAM_SIZE
+MMAP_INITRM_VAL		EQU	((MMAP_RAM_START>>8)&$C0)|RAMHAL
 #else
 MMAP_RAM_START		EQU	$1000
 MMAP_RAM_END		EQU	MMAP_RAM_START+MMAP_RAM_SIZE
+MMAP_INITRM_VAL		EQU	(MMAP_RAM_START>>8)&$C0
 #endif
 
 #ifdef	MMAP_FLASH
@@ -149,7 +153,7 @@ MMAP_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	MMAP_INIT, 0
 			;Setup and lock RAM and register space
-			MOVW	#((MMAP_RAM_START&$F800)|(MMAP_REG_START>>8)), INITRM
+			MOVW	#((MMAP_INITRM_VAL<<8)|MMAP_INITRG_VAL), INITRM
 
 #ifdef	MMAP_FLASH
 			;Setup and lock flash space

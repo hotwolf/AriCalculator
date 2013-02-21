@@ -192,11 +192,17 @@ RESET_INIT_4		STRING_PRINT_BL
 			SCI_TX_DONE_BL	
 #emac
 	
-;#Perform a reset due to a fatal error
+;#Perform a reset due to a fatal error (immediate error code)
 ; args: 1: message pointer	
 #macro	RESET_FATAL, 1
-			;BGND
 			LDX	#\1
+			RESET_FATAL_X
+#emac
+
+;#Perform a reset due to a fatal error (error code in X)
+; args: X: message pointer	
+#macro	RESET_FATAL_X, 0
+			;BGND
 			JOB	RESET_FATAL
 #emac
 
