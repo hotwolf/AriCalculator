@@ -19,9 +19,10 @@
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module implements the inner interpreter of the S12CForth virtual    #
-;#    machine.                                                                 #
+;#    This module implements the exception handling of the S12CForth virtual   #
+;#    machine. The following Forth variables belong to this module:            #
 ;#                                                                             #
+;#      HANDLER = Points to the next exception stack frame                     #
 ;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -54,6 +55,13 @@
 ;           +---------------------+   |frame
 ;           | xt after CATCH call |   |
 ;           +---------------------+ <-+
+
+;###############################################################################
+;# Configuration                                                               #
+;###############################################################################
+;PPAGE for error message look-up
+;FEXCEPT_ERRPP			EQU	$FE 
+
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -147,13 +155,44 @@ FEXCEPT_VARS_END_LIN	EQU	@
 			MOVW	#$0000, HANDLER ;reset exception handler
 #emac
 
-;#Throw an exception from within an assembler primitive
+;#Throw an exception from within an assembler primitive (immediate error code)
+; args:   1: error code
+; result: none
+; SSTACK: none
+;         no registers are preserved 
 #macro	FEXCPT_THROW, 1
 			LDD	#\1		;set error code
+			FEXCPT_THROW_D
+#emac
+
+;#Throw an exception from within an assembler primitive (error code in D)
+; args:   D: error code
+; result: none
+; SSTACK: none
+;         no registers are preserved 
+#macro	FEXCPT_THROW, 0
 			;BGND
 			JOB	FEXCPT_THROW	;throw exception
+emac
+
+;#Throw a fatal erroe from within an assembler primitive (immediate error code)
+; args:   1: error code
+; result: none
+; SSTACK: none
+;         no registers are preserved 
+#macro	FEXCPT_FATAL, 1
+			RESET_FATAL, \1	
 #emac
-	
+
+;#Throw a fatal error from within an assembler primitive (error code in X)
+; args:   X, error code
+; result: none
+; SSTACK: none
+;         no registers are preserved 
+#macro	FEXCPT_FATAL_X, 0
+			RESET_FATAL_X
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -165,17 +204,27 @@ FEXCEPT_CODE_START_LIN	EQU	@
 #endif
 #ifdef	FEXCEPT_ON
 
-;Exceptions
-FEXCPT_THROW_PSOF	EQU	FMEM_THROW_PSOF			;"Parameter stack overflow"
-FEXCPT_THROW_PSUF	EQU	FMEM_THROW_PSUF			;"Parameter stack underflow"
-FEXCPT_THROW_RSOF	EQU	FMEM_THROW_RSOF			;"Parameter stack overflow"
-FEXCPT_THROW_RSUF	EQU	FMEM_THROW_RSUF 		;"Return stack underflow"
-FEXCPT_THROW_DICTOF	EQU	FCORE_THROW_DICTOF 		;"Dictionary overflow"
-FEXCPT_THROW_STROF	EQU	FCORE_THROW_STROF 		;"Parsed string overflow"
-FEXCPT_THROW_NOMSG	FEXCPT_THROW	 FEXCPT_EC_NOMSG	;"Empty message string"
+
+;#Check if SCI has received data
+; args:   none
+; result: PSP+0: flag (true if data is available)
+; SSTACK: 4 bytes
+; PS:     1 cell
+; RS:     none
+; throws: FEXCPT_EC_PSOF
+
+
+
+
+
+
+	
 	
 ;#Throw an exception
 ; args:   D: error code
+; result: none
+; SSTACK: none
+;         no registers are preserved 
 FEXCPT_THROW		EQU	*
 			;Check if exception is cought
 			LDX	HANDLER						;check if an exception handler exists
@@ -254,11 +303,25 @@ FEXCEPT_CODE_END_LIN	EQU	@
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
+;Tabes in unpaged address space
+;------------------------------ 
 #ifdef FEXCEPT_TABS_START_LIN
 			ORG 	FEXCEPT_TABS_START, FEXCEPT_TABS_START_LIN
 #else
 			ORG 	FEXCEPT_TABS_START
 FEXCEPT_TABS_START_LIN	EQU	@
+#endif	
+
+FEXCEPT_CODE_END	EQU	*
+FEXCEPT_CODE_END_LIN	EQU	@
+
+;Tabes in paged address space
+;---------------------------- 
+#ifdef FEXCEPT_PAGTABS_START_LIN
+			ORG 	FEXCEPT_PAGTABS_START, FEXCEPT_PAGTABS_START_LIN
+#else
+			ORG 	FEXCEPT_PAGTABS_START
+FEXCEPT_PAGTABS_START_LIN	EQU	@
 #endif	
 
 				;Assign error messages to error codes 
@@ -330,38 +393,38 @@ FEXCPT_MSGTAB_FBDM	FBDM_MSGTAB
 FEXCPT_MSGTAB_END	EQU	*
 			
 ;Standard error messages 
-;FEXCPT_MSG_UNKNOWN	ERROR_MSG	ERROR_LEVEL_ERROR, "Unknown problem"
-FEXCPT_MSG_UNKNOWN	EQU		ERROR_MSG_UNKNOWN
-FEXCPT_MSG_PSOF		ERROR_MSG	ERROR_LEVEL_ERROR, "Parameter stack overflow"
-FEXCPT_MSG_PSUF		ERROR_MSG	ERROR_LEVEL_ERROR, "Parameter stack underflow" 
-FEXCPT_MSG_RSOF		ERROR_MSG	ERROR_LEVEL_ERROR, "Return stack overflow"
-FEXCPT_MSG_RSUF		ERROR_MSG	ERROR_LEVEL_ERROR, "Return stack underflow"
-;FEXCPT_MSG_DOOF	RROR_MSG	ERROR_LEVEL_ERROR, "DO-loop nested too deeply"	
-FEXCPT_MSG_DICTOF	ERROR_MSG	ERROR_LEVEL_ERROR, "Dictionary overflow"
-;FEXCPT_MSG_INVALADR	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid memory address"
-FEXCPT_MSG_0DIV		ERROR_MSG	ERROR_LEVEL_ERROR, "Division by zero"
-FEXCPT_MSG_RESOR	ERROR_MSG	ERROR_LEVEL_ERROR, "Result out of range"
-FEXCPT_MSG_UDEFWORD	ERROR_MSG	ERROR_LEVEL_ERROR, "Undefined word"
-FEXCPT_MSG_COMPONLY	ERROR_MSG	ERROR_LEVEL_ERROR, "Compile-only word"
-FEXCPT_MSG_NONAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Missing name argument"
-FEXCPT_MSG_PADOF	ERROR_MSG	ERROR_LEVEL_ERROR, "PAD overflow"
-FEXCPT_MSG_STROF	ERROR_MSG	ERROR_LEVEL_ERROR, "String too long"
-FEXCPT_MSG_CTRLSTRUC	ERROR_MSG	ERROR_LEVEL_ERROR, "Control structure mismatch"
-;FFEXCPT_MSG_INVALNUM	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid numeric argument"
-FEXCPT_MSG_COMPNEST	ERROR_MSG	ERROR_LEVEL_ERROR, "Nested compilation"
-FEXCPT_MSG_NONCREATE	ERROR_MSG	ERROR_LEVEL_ERROR, "Illegal operation on non-CREATEd definition"
-;FEXCPT_MSG_INVALNAME	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid name argument"
-FEXCPT_MSG_INVALBASE	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid BASE"
-FEXCPT_MSG_CESF		ERROR_MSG	ERROR_LEVEL_ERROR, "Corrupt exception stack frame"
+;FEXCPT_MSG_UNKNOWN	FCS	"Unknown problem"
+FEXCPT_MSG_UNKNOWN	EQU	ERROR_MSG_UNKNOWN
+FEXCPT_MSG_PSOF		FCS	"Parameter stack overflow"
+FEXCPT_MSG_PSUF		FCS	"Parameter stack underflow" 
+FEXCPT_MSG_RSOF		FCS	"Return stack overflow"
+FEXCPT_MSG_RSUF		FCS	"Return stack underflow"
+;FEXCPT_MSG_DOOF	FCS	"DO-loop nested too deeply"	
+FEXCPT_MSG_DICTOF	FCS	"Dictionary overflow"
+;FEXCPT_MSG_INVALADR	FCS	"Invalid memory address"
+FEXCPT_MSG_0DIV		FCS	"Division by zero"
+FEXCPT_MSG_RESOR	FCS	"Result out of range"
+FEXCPT_MSG_UDEFWORD	FCS	"Undefined word"
+FEXCPT_MSG_COMPONLY	FCS	"Compile-only word"
+FEXCPT_MSG_NONAME	FCS	"Missing name argument"
+FEXCPT_MSG_PADOF	FCS	"PAD overflow"
+FEXCPT_MSG_STROF	FCS	"String too long"
+FEXCPT_MSG_CTRLSTRUC	FCS	"Control structure mismatch"
+;FFEXCPT_MSG_INVALNUM	FCS	"Invalid numeric argument"
+FEXCPT_MSG_COMPNEST	FCS	"Nested compilation"
+FEXCPT_MSG_NONCREATE	FCS	"Illegal operation on non-CREATEd definition"
+;FEXCPT_MSG_INVALNAME	FCS	"Invalid name argument"
+FEXCPT_MSG_INVALBASE	FCS	"Invalid BASE"
+FEXCPT_MSG_CESF		FCS	"Corrupt exception stack frame"
 2
 ;Non-standard error messages 
-FEXCPT_MSG_NOMSG	ERROR_MSG	ERROR_LEVEL_ERROR, "Empty message string"
-FEXCPT_MSG_DICTPROT	ERROR_MSG	ERROR_LEVEL_ERROR, "Destruction of dictionary structure"
-FEXCPT_MSG_COMERR	ERROR_MSG	ERROR_LEVEL_ERROR, "Invalid RX data"
-FEXCPT_MSG_COMOF	ERROR_MSG	ERROR_LEVEL_ERROR, "RX buffer overflow"
+FEXCPT_MSG_NOMSG	FCS	"Empty message string"
+FEXCPT_MSG_DICTPROT	FCS	"Destruction of dictionary structure"
+FEXCPT_MSG_COMERR	FCS	"Invalid RX data"
+FEXCPT_MSG_COMOF	FCS	"RX buffer overflow"
 	
-FEXCEPT_TABS_END		EQU	*
-FEXCEPT_TABS_END_LIN	EQU	@
+FEXCEPT_PAGTABS_END	EQU	*
+FEXCEPT_PAGTABS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Words                                                                       #

@@ -66,16 +66,6 @@ FIO_VARS_END_LIN	EQU	@
 #macro	FIO_INIT, 0
 #emac
 
-;#Quit action
-#macro	FIO_QUIT, 0
-#emac
-	
-;#Abort action (also in case of break or error)
-#macro	FIO_ABORT, 0
-			;Quit action
-			FIO_QUIT	
-#emac
-
 ;#Turn busy signal on
 #macro	FIO_SIGNAL_BUSY_ON, 0
 #ifdef LED_CODE_START

@@ -92,17 +92,26 @@
 ;###############################################################################
 
 ;###############################################################################
+;# Configuration                                                               #
+;###############################################################################
+	
+;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
 ;Valid number base
-FCORE_BASE_MIN		EQU	PRINT_BASE_MIN	;2
-FCORE_BASE_MAX		EQU	PRINT_BASE_MAX	;PRINT_SYMTAB_END-PRINT_SYMTAB=26
-FCORE_BASE_DEF		EQU	PRINT_BASE_DEF	;10
-FCORE_SYMTAB		EQU	PRINT_SYMTAB
+FCORE_BASE_MIN		EQU	NUM_BASE_MIN		;2
+FCORE_BASE_MAX		EQU	NUM_BASE_MAX		;PRINT_SYMTAB_END-PRINT_SYMTAB=26
+FCORE_BASE_DEFAULT	EQU	NUM_BASE_DEFAULT	;10
+FCORE_SYMTAB		EQU	NUM_SYMTAB
 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
+#ifdef FCORE_VARS_START_LIN
+			ORG 	FCORE_VARS_START, FCORE_VARS_START_LIN
+#else
+			ORG 	FCORE_VARS_START
+#endif	
 			ORG	FCORE_VARS_START
 IP			DS	2 	;instruction pointer
 BASE			DS	2	;base for numeric I/O
@@ -111,6 +120,9 @@ LAST_NFA		DS	2	;last NFA entry
 ABORT_QUOTE_MSG		DS	2	;message of last ABORT" call
 FCORE_VARS_END		EQU	*
 	
+FCORE_VARS_END		EQU	*
+FCORE_VARS_END_LIN	EQU	@
+
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
@@ -294,7 +306,12 @@ DONE			EQU	*
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	FCORE_CODE_START
+#ifdef FCORE_CODE_START_LIN
+			ORG 	FCORE_CODE_START, FCORE_CODE_START_LIN
+#else
+			ORG 	FCORE_CODE_START
+#endif
+
 ;Common subroutines:
 ;===================
 
@@ -1154,11 +1171,17 @@ CF_NOP			EQU		*
 			NEXT
 
 FCORE_CODE_END		EQU	*
-	
+FCORE_CODE_END_LIN	EQU	@
+			
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-			ORG	FCORE_TABS_START
+#ifdef FCORE_TABS_START_LIN
+			ORG 	FCORE_TABS_START, FCORE_TABS_START_LIN
+#else
+			ORG 	FCORE_TABS_START
+#endif	
+
 ;System prompt
 FCORE_SUSPEND_PROMPT	FCS	"S "
 FCORE_INTERPRET_PROMPT	FCS	"> "
@@ -1178,6 +1201,7 @@ FCORE_SYSTEM_PROMPT	FCS	" ok"
 ;			DB	"P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" "{" "|" "}" "~" $00 ;$7x
 									
 FCORE_TABS_END		EQU	*
+FCORE_TABS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Forth words                                                                 #

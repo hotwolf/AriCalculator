@@ -123,10 +123,19 @@ FRAM_PAD_PS_DIST	EQU	16 	;default is 16 bytes
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;Memory boundaries
 DICT_START		EQU	FRAM_DICT_PS_START ;start of the dictionary
 PS_EMPTY		EQU	FRAM_DICT_PS_END   ;PSP on empty PS
 TIB_START		EQU	FRAM_TIB_RS_START  ;start of the TIB
 RS_EMPTY		EQU	FRAM_TIB_RS_END	   ;RSP on empty RS
+
+;Error codes
+FRAM_EC_DICTOF		EQU	FEXCPT_EC_DICTOF	;DICT overflow (-8)
+FRAM_EC_PADOF		EQU	FEXCPT_EC_PADOF		;PAD overflow  (-17)
+FRAM_EC_PSOF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
+FRAM_EC_PSUF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
+FRAM_EC_RSOF		EQU	FEXCPT_EC_RSOF		;RS overflow   (-5)
+FRAM_EC_RSUF		EQU	FEXCPT_EC_RSUF		;RS underflow  (-6)
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -193,8 +202,9 @@ FRAM_VARS_END_LIN	EQU	@
 			MOVW	#PS_EMPTY,	PSP	
 #emac
 	
-;#User dictionary (DICT) 
-;DICT_CHECK_OF: check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
+;#User dictionary (DICT)
+;----------------------- 
+;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
 ; args:   1: required space (bytes)
 ; result: X: CP-new bytes
 ; SSTACK: none
@@ -211,7 +221,7 @@ FRAM_VARS_END_LIN	EQU	@
 							;   17 cycles/12 cycles
 #emac			
 
-;DICT_CHECK_OF_A: check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
+;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
 ; args:   A: required space (bytes)
 ; result: X: CP-new bytes
 ; SSTACK: none
@@ -228,7 +238,7 @@ FRAM_VARS_END_LIN	EQU	@
 							;   17 cycles/12 cycles
 #emac			
 	
-;DICT_CHECK_OF_D: check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
+;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
 ; args:   D: required space (bytes)
 ; result: X: CP-new bytes
 ; SSTACK: none
@@ -245,7 +255,8 @@ FRAM_VARS_END_LIN	EQU	@
 							;   17 cycles/12 cycles
 #emac			
 	
-;#Pictured numeric output buffer (PAD) 
+;#Pictured numeric output buffer (PAD)
+;-------------------------------------
 ;PAD_CHECK_OF: check if there is room for one more character on the PAD (HLD -> X)
 ; args:   none
 ; result: X: HLD
@@ -648,17 +659,6 @@ FRAM_CODE_END_LIN	EQU	@
 			ORG 	FRAM_TABS_START
 FRAM_TABS_START_LIN	EQU	@
 #endif	
-
-;Error codes
-FRAM_EC_DICTOF		EQU	FEXCPT_EC_DICTOF	;DICT overflow (-8)
-
-FRAM_EC_PADOF		EQU	FEXCPT_EC_PADOF		;PAD overflow  (-17)
-
-FRAM_EC_PSOF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
-FRAM_EC_PSUF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
-
-FRAM_EC_RSOF		EQU	FEXCPT_EC_RSOF		;RS overflow   (-5)
-FRAM_EC_RSUF		EQU	FEXCPT_EC_RSUF		;RS underflow  (-6)
 
 FRAM_TABS_END		EQU	*
 FRAM_TABS_END_LIN	EQU	@
