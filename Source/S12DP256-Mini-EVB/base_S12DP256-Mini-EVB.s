@@ -45,7 +45,7 @@ CLOCK_REF_FREQ		EQU	 1000000	;1,000 MHz
 #ifndef	SCI_FC_RTS_CTS
 #ifndef	SCI_FC_XON_XOFF
 #ifndef SCI_FC_NONE	
-SCI_FC_XON_XOFF		EQU	1 		;XON/XOFF flow control
+SCI_FC_XONXOFF		EQU	1 		;XON/XOFF flow control
 #endif
 #endif
 #endif
