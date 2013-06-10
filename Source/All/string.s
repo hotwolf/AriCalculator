@@ -24,8 +24,10 @@
 ;#    STRING_PRINT_BL  - print a string (blocking)                             #
 ;#    STRING_FILL_NB   - print a number of filler characters (non-blocking)    #
 ;#    STRING_FILL_BL   - print a number of filler characters (blocking)        #
-;#    STRING_UPPER_B   - convert a character to upper case                     #
-;#    STRING_LOWER_B   - convert a character to lower case                     #
+;#    STRING_UPPER     - convert a character to upper case                     #
+;#    STRING_LOWER     - convert a character to lower case                     #
+;#    STRING_PRINTABLE - make character printable                              #				;
+;#    STRING_SKIP_WS   - skip whitespace characters                            #
 ;#                                                                             #
 ;#    Each of these functions has a coresponding macro definition              #
 ;###############################################################################
@@ -46,6 +48,9 @@
 ;#    July 2, 2012                                                             #
 ;#      - Added support for linear PC                                          #
 ;#      - Added non-blocking functions                                         #
+;#    June 10, 2013                                                            #
+;#      - turned STRING_UPPER and STRING_LOWER into subroutines                #
+;#      - added STRING_SKIP_WS                                                 #
 ;###############################################################################
 	
 ;###############################################################################
@@ -152,55 +157,39 @@ STRING_VARS_END_LIN	EQU	@
 ;#Convert a lower case character to upper case
 ; args:   B: ASCII character (w/ or w/out termination)
 ; result: B: lower case ASCII character 
-; SSTACK: none
+; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
-#macro	STRING_UPPER_B, 0
-			CMPB	#$61		;"a"
-			BLO	DONE
-			CMPB	#$7A		;"z"
-			BLS	ADJUST
-			CMPB	#$EA		;"a"+$80
-			BLO	DONE
-			CMPB	#$FA		;"z"+$80
-			BHI	DONE
-ADJUST			SUBB	#$20		;"a"-"A"	
-DONE			EQU	*
+#macro	STRING_UPPER, 0
+			SSTACK_JOBSR	STRING_UPPER_B, 2
 #emac
 
 ;#Convert an upper case character to lower case
 ; args:   B: ASCII character (w/ or w/out termination)
 ; result: B: upper case ASCII character
-; SSTACK: none
+; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
-#macro	STRING_LOWER_B, 0
-			CMPB	#$41		;"A"
-			BLO	DONE
-			CMPB	#$5A		;"Z"
-			BLS	ADJUST
-			CMPB	#$C1		;"A"+$80
-			BLO	DONE
-			CMPB	#$DA		;"Z"+$80
-			BHI	DONE
-ADJUST			ADDB	#$20		;"a"-"A"	
-DONE			EQU	*
+#macro	STRING_LOWER, 0
+			SSTACK_JOBSR	STRING_LOWER_B, 2
 #emac
 
 ;#Make ASCII character printable
 ; args:   B: ASCII character (w/out termination)
 ; result: B: printable ASCII character or "."
-; SSTACK: none
+; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
-#macro	STRING_MAKE_PRINTABLE_B, 0
-			
-	
-			CMPB	#$20		;" "
-			BLO	ADJUST
-			CMPB	#$7E		;"~"
-			BLS	DONE
-ADJUST			LDAB	#$2E		;"."	
-DONE			EQU	*
+#macro	STRING_PRINTABLE, 0	
+			SSTACK_JOBSR	STRING_PRINTABLE_B, 2
 #emac
 
+;#Skip whitespace
+; args:   X:      start of the string
+; result: X;      trimmed string
+; SSTACK: 3 bytes
+;         Y and D are preserved 
+#macro	STRING_SKIP_WS, 0	
+			SSTACK_JOBSR	STRING_SKIP_WS, 3	
+#emac
+	
 ;#Terminated line break
 #macro	STRING_NL_TERM, 0
 			DB	STRING_SYM_CR	
@@ -327,9 +316,79 @@ STRING_FILL_NB_3	SSTACK_PREPULL	2
 ; SSTACK: 9 bytes
 ;         X, Y and B are preserved
 #ifdef	STRING_BLOCKING_ON
-STRING_FILL_BL	EQU	*
+STRING_FILL_BL		EQU	*
 			SCI_MAKE_BL	STRING_FILL_NB, 7	
 #endif
+
+;#Convert a lower case character to upper case
+; args:   B: ASCII character (w/ or w/out termination)
+; result: B: lower case ASCII character 
+; SSTACK: 2 bytes
+;         X, Y, and A are preserved 
+STRING_UPPER		EQU	*
+			CMPB	#$61		;"a"
+			BLO	STRING_UPPER_2
+			CMPB	#$7A		;"z"
+			BLS	STRING_UPPER_1
+			CMPB	#$EA		;"a"+$80
+			BLO	STRING_UPPER_2
+			CMPB	#$FA		;"z"+$80
+			BHI	STRING_UPPER_2
+STRING_UPPER_1		SUBB	#$20		;"a"-"A"	
+			;Done
+STRING_UPPER_2		RTS
+
+;#Convert an upper case character to lower case
+; args:   B: ASCII character (w/ or w/out termination)
+; result: B: upper case ASCII character
+; SSTACK: 2 bytes
+;         X, Y, and A are preserved 
+STRING_LOWER		EQU	*
+			CMPB	#$41		;"A"
+			BLO	STRING_LOWER_2
+			CMPB	#$5A		;"Z"
+			BLS	STRING_LOWER_1
+			CMPB	#$C1		;"A"+$80
+			BLO	STRING_LOWER_2
+			CMPB	#$DA		;"Z"+$80
+			BHI	STRING_LOWER_2
+STRING_LOWER_1		ADDB	#$20		;"a"-"A"	
+			;Done
+STRING_LOWER_2		RTS
+
+;#Make ASCII character printable
+; args:   B: ASCII character (w/out termination)
+; result: B: printable ASCII character or "."
+; SSTACK: 2 bytes
+;         X, Y, and A are preserved 
+STRING_PRINTABLE	EQU	*	
+			CMPB	#$20		;" "
+			BLO	STRING_PRINTABLE_2
+			CMPB	#$7E		;"~"
+			BLS	STRING_PRINTABLE_1
+STRING_PRINTABLE_1	LDAB	#$2E		;"."	
+			;Done
+STRING_PRINTABLE_2	RTS
+
+;#Skip whitespace
+; args:   X:      start of the string
+; result: X;      trimmed string
+; SSTACK: 3 bytes
+;         Y and D are preserved 
+STRING_SKIP_WS		EQU	*	
+			;Save registers (string pointer in X)
+			PSHB				;save B	
+			;Skip whitespace (string pointer in X)
+STRING_SKIP_WS_1	LDAB	1,X+ 			;check character
+			BMI	STRING_SKIP_WS_2	;adjust pointer
+			CMPB	#$20			;" "
+			BLS	STRING_SKIP_WS_1  	;check next character
+STRING_SKIP_WS_2	LEAX	-1,X	
+			;Restore registers (updated string pointer in X)
+			SSTACK_PREPULL	3
+			PULB
+			;Done
+			RTS
 	
 STRING_CODE_END		EQU	*	
 STRING_CODE_END_LIN	EQU	@	
