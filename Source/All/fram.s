@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CForth- FRAM - Stack and buffer management for the Forth VM              #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010 - 2013 Dirk Heisswolf                                     #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -56,6 +56,7 @@
 ;      	                    +--------------+--------------+	     
 ;    FRAM_DICT_PS_START, -> |              |              | 	     
 ;            DICT_START     |       User Dictionary       |	     
+;                           |       User Variables        |	     
 ;                           |              |              |	     
 ;                           |              v              |	     
 ;                           | --- --- --- --- --- --- --- |	     

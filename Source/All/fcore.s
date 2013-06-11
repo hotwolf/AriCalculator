@@ -1210,8 +1210,9 @@ FCORE_TABS_END_LIN	EQU	@
 
 ;#Core words (CORE):
 ; ==================
-	
-;! ( x a-addr -- )
+
+;Word: ! ( x a-addr -- ) IMMEDIATE
+;
 ;Store x at a-addr.
 ;
 ;S12CForth implementation details:
