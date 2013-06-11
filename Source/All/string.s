@@ -26,8 +26,9 @@
 ;#    STRING_FILL_BL   - print a number of filler characters (blocking)        #
 ;#    STRING_UPPER     - convert a character to upper case                     #
 ;#    STRING_LOWER     - convert a character to lower case                     #
-;#    STRING_PRINTABLE - make character printable                              #				;
+;#    STRING_PRINTABLE - make character printable                              #
 ;#    STRING_SKIP_WS   - skip whitespace characters                            #
+;#    STRING_LENGTH    - determine the length of a string                      #
 ;#                                                                             #
 ;#    Each of these functions has a coresponding macro definition              #
 ;###############################################################################
@@ -51,6 +52,8 @@
 ;#    June 10, 2013                                                            #
 ;#      - turned STRING_UPPER and STRING_LOWER into subroutines                #
 ;#      - added STRING_SKIP_WS                                                 #
+;#    June 11, 2013                                                            #
+;#      - added STRING_LENGTH                                                  #
 ;###############################################################################
 	
 ;###############################################################################
@@ -190,6 +193,15 @@ STRING_VARS_END_LIN	EQU	@
 			SSTACK_JOBSR	STRING_SKIP_WS, 3	
 #emac
 	
+;#Count characters in string
+; args:   X: start of the string
+; result: A; number of characters in string     
+; SSTACK: 2 bytes
+;         X, Y and B are preserved 
+#macro	STRING_LENGTH, 0
+			SSTACK_JOBSR	STRING_LENGTH, 2
+#emac
+
 ;#Terminated line break
 #macro	STRING_NL_TERM, 0
 			DB	STRING_SYM_CR	
@@ -369,10 +381,10 @@ STRING_PRINTABLE	EQU	*
 STRING_PRINTABLE_1	LDAB	#$2E		;"."	
 			;Done
 STRING_PRINTABLE_2	RTS
-
+	
 ;#Skip whitespace
-; args:   X:      start of the string
-; result: X;      trimmed string
+; args:   X: start of the string
+; result: X: trimmed string
 ; SSTACK: 3 bytes
 ;         Y and D are preserved 
 STRING_SKIP_WS		EQU	*	
@@ -387,6 +399,24 @@ STRING_SKIP_WS_2	LEAX	-1,X
 			;Restore registers (updated string pointer in X)
 			SSTACK_PREPULL	3
 			PULB
+			;Done
+			RTS
+
+;#Count characters in string
+; args:   X: start of the string
+; result: A; number of characters in string     
+; SSTACK: 2 bytes
+;         X, Y and B are preserved 
+STRING_LENGTH		EQU	*	
+			;Initialize count
+			CLRB			
+			;Save registers (character count in B)
+STRING_LENGTH_1		BRSET	B,X, #$80, STRING_LENGTH_2	;end of string found
+			INCA					;increment count 
+			BNE	STRING_LENGTH_1			;max. count not reached				
+			;Adjust count
+			LDAA	#$FE
+STRING_LENGTH_2		INCA
 			;Done
 			RTS
 	
