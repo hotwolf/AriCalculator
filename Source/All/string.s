@@ -181,7 +181,7 @@ STRING_VARS_END_LIN	EQU	@
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
 #macro	STRING_PRINTABLE, 0	
-			SSTACK_JOBSR	STRING_PRINTABLE_B, 2
+			SSTACK_JOBSR	STRING_PRINTABLE, 2
 #emac
 
 ;#Skip whitespace

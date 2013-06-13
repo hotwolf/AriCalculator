@@ -1289,7 +1289,7 @@ SPI2DRL         EQU     $00FD
 
 FCLKDIV         EQU     $0100
 FDIVLD          EQU     $80
-FDIV6           EQU     $40
+FDIVLCK         EQU     $40
 FDIV5           EQU     $20
 FDIV4           EQU     $10
 FDIV3           EQU     $08
