@@ -1,9 +1,9 @@
 ;###############################################################################
-;# S12CBase - NVM - Non-Volatile Memory Driver (Mini-BDM-Pod)                  #
+;# S12CBase - NVM - NVM Driver (Mini-BDM-Pod)                                  #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2013 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
-;#    families                                                                 #
+;#    families.                                                                #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -19,91 +19,43 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module erase and programing routines for the on-chip NVMs.          #
-;###############################################################################
-;# Version History:                                                            #
-;#    November 21, 2012                                                        #
-;#      - Initial release                                                      #
+;#    This module contains NVM write and erase functions.                      #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    - none                                                                   #
+;#    REGDEF - Register Definitions                                            #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
 ;###############################################################################
-;  Flash Map:
-;  ----------  
-;  Block 3		  Block 2		 Block 1S		Block 1N	       Block 0		
-;  +---------+ $70_0000	  +---------+ $74_0000	 +---------+ $78_0000	+---------+ $7A_0000   +---------+ $7C_0000	
-;  | Page C0 |	       	  | Page D0 |	       	 | Page E0 |	       	| Page E8 |	       | Page F0 |	       	
-;  +---------+ $70_4000   +---------+ $74_4000   +---------+ $78_4000   +---------+ $7A_4000   +---------+ $7C_4000  
-;  | Page C1 |	       	  | Page D1 |	       	 | Page E1 |	       	| Page E9 |	       | Page F1 |	       	
-;  +---------+ $70_8000	  +---------+ $74_8000	 +---------+ $78_8000	+---------+ $7A_8000   +---------+ $7C_8000	
-;  | Page C2 |	       	  | Page D2 |	       	 | Page E2 |	       	| Page EA |	       | Page F2 |	       	
-;  +---------+ $70_C000	  +---------+ $74_C000	 +---------+ $78_C000	+---------+ $7A_C000   +---------+ $7C_C000	
-;  | Page C3 |		  | Page D3 |		 | Page E3 |		| Page EB |	       | Page F3 |		
-;  +---------+ $71_0000   +---------+ $74_0000   +---------+ $79_0000   +---------+ $7B_0000   +---------+ $7D_0000  
-;  | Page C4 |	       	  | Page D4 |	       	 | Page E4 |	       	| Page EC |	       | Page F4 |	       	
-;  +---------+ $71_4000   +---------+ $75_4000   +---------+ $79_4000   +---------+ $7B_4000   +---------+ $7D_4000  
-;  | Page C5 |	       	  | Page D5 |	       	 | Page E5 |	       	| Page ED |	       | Page F5 |	       	
-;  +---------+ $71_8000   +---------+ $75_8000   +---------+ $79_8000   +---------+ $7B_8000   +---------+ $7D_8000  
-;  | Page C6 |	       	  | Page D6 |	       	 | Page E6 |	       	| Page EE |	       | Page F6 |	       	
-;  +---------+ $71_C000   +---------+ $75_C000   +---------+ $79_C000   +---------+ $7B_C000   +---------+ $7D_C000  
-;  | Page C7 |		  | Page D7 |		 | Page E7 |		| Page EF |	       | Page F7 |		
-;  +---------+ $72_0000   +---------+ $75_0000   +---------+            +---------+            +---------+ $7E_0000  
-;  | Page C8 |	       	  | Page D8 |	       	                	                       | Page F8 |	       	
-;  +---------+ $72_4000   +---------+ $76_4000                                                 +---------+ $7E_4000  
-;  | Page C9 |	       	  | Page D9 |	       	                                               | Page F9 |	       	
-;  +---------+ $72_8000   +---------+ $76_8000                                                 +---------+ $7E_8000  
-;  | Page CA |	       	  | Page DA |	       	                                               | Page FA |	       	
-;  +---------+ $72_C000   +---------+ $76_C000                                                 +---------+ $7E_C000  
-;  | Page CB |		  | Page DB |		                                               | Page FB |		
-;  +---------+ $73_0000   +---------+ $77_0000                                                 +---------+ $7F_0000  
-;  | Page CC |	       	  | Page DC |	       	                                               | Page FC |	       	
-;  +---------+ $73_4000   +---------+ $77_4000                                                 +---------+ $7F_4000  
-;  | Page CD |	       	  | Page DD |	       	                                               | Program |	       	
-;  +---------+ $73_8000   +---------+ $77_8000                                                 +---------+ $7F_8000  
-;  | Page CE |	       	  | Page DE |	       	                                               | Page FE |	       	
-;  +---------+ $73_C000   +---------+ $77_C000                                                 +---------+
-;  | Page CF |		  | Page DF |		               	                               | Program |		
-;  +---------+            +---------+                                                          +---------+           
-;
-;  Status Byte:
-;  ------------  
-;  Last byte of each page (local address BFFF).
-;
+;# Version History:                                                            #
+;#    May 27, 2013                                                             #
+;#      - Initial release                                                      #
+;###############################################################################
 	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;General settings
-;----------------
-;Oscillator frequency
-#ifndef	CLOCK_OSC_FREQ
-CLOCK_OSC_FREQ		EQU	10000000 	;default is 10MHz
+;Prescaler value
+#ifndef NVM_FDIV_VAL
+NVM_FDIV_VAL		EQU	(CLOCK_OSC_FREQ/1000000)-1
 #endif
 
-;NVM settings
-;-------------
-;Clock divider 
-#ifndef	NVM_FDIV_VAL
-NVM_FDIV_VAL		EQU	((CLOCK_OSC_FREQ/1000000)-1) ;default is $0A
-#endif
-
-;Flash size
-#ifndef	NVM_1024K
-#ifndef	NVM_512K
-NVM_1024K		EQU	1 		;default is 1MB
+;Fixed page protection
+;--------------------- 
+#ifndef	NVM_FIXED_PAGE_PROT_ON
+#ifndef	NVM_FIXED_PAGE_PROT_OFF
+NVM_FIXED_PAGE_PROT_ON	EQU	1	;default is NVM_FIXED_PAGE_PROT_ON	
 #endif
 #endif
 	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Status byte 
-NVM_SBYTE_ADDR		EQU	$BFFF
+;#Program/erase sizes
+;-------------------- 
+NVM_PHRASE_SIZE		EQU	64
+NVM_SECTOR_SIZE		EQU	1024
 
-	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -122,49 +74,72 @@ NVM_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	NVM_INIT, 0
-;			;Flash configuration
-;			MOVB	#NVM_FDIV_VAL, FCLKDIV 		;set prescaler
-;			MOVW	#((IGNSF<<8)|DFDIE), FCNFG
-;			MOVB	#(FPOPEN|FPHS1|FPHS0|FPLDIS), FPROT
-;
-;			;Select the most recent PPAGE 
-;			NVM_SET_PPAGE
+			MOVB	#NVM_FDIV_VAL, FCLKDIV
+			MOVB	#DFDIE,FERCNFG 
+#emac	
+	
+;#Program phrase
+; args:   X:      target address within paging window
+;	  PPAGE:  current page
+;	  Y:      data pointer 
+; result: C-flag: set if successful
+; SSTACK: 18 bytes
+;         X, Y, and D are preserved
+#macro	NVM_PROGRAM_PHRASE, 0
+			SSTACK_JOBSR	NVM_PROGRAM_PHRASE, 18
 #emac
 
-;#Set PPAGE
+;#Erase sector
+; args:   X:      sector address
+;	  PPAGE:  current page
+; result: C-flag: set if successful
+; SSTACK: 18 bytes
+;         X, Y, and D are preserved
+#macro	NVM_ERASE_SECTOR, 0
+			SSTACK_JOBSR	NVM_ERASE_SECTOR, 18
+#emac
+
+;#Erase page
+; args:   PPAGE:  current page
+; result: C-flag: set if successful
+; SSTACK: 22 bytes
+;         X, Y, and D are preserved
+#macro	NVM_ERASE_PAGE, 0
+			SSTACK_JOBSR	NVM_ERASE_PAGE, 22
+#emac
+
+;#Check fixed page protection 
+; args:   1:      escape address (in case of violation)
+;	  PPAGE:  current page
+; result: none
+; SSTACK: none
+;         X, Y, and D are preserved
+#macro	NVM_CHECK_FIXED_PAGE_PROT, 1
+#ifndef	NVM_FIXED_PAGE_PROT_ON
+	BRSET	PPAGE, #$FD, \1
+#endif
+#emac
+
+;#Set command and address 
+; args:   X:      target address within paging window
+;	  PPAGE:  current page
+;	  A:      command 
+; result: CCOBIX: $01
+;         C-flag: set if successful
+; SSTACK: 4 bytes
+;         X, Y, and D are preserved
+#macro	NVM_SET_CMD, 0
+			SSTACK_JOBSR	NVM_SET_CMD, 4
+#emac
+
+;#Execute NVM command from RAM
 ; args:   none
-; result: C-flag: set if successful
-; SSTACK: ? bytes
-;         X, Y and D are preserved 
-#macro NVM_SET_PPAGE, 0
+; result: none
+; SSTACK: 15 bytes
+;         X, Y, and D are preserved
+#macro	NVM_EXEC_CMD, 0
+			SSTACK_JOBSR	NVM_EXEC_CMD, 15
 #emac
-
-;#Invalidate current page and start a new one
-; args:   none
-; result: C-flag: set if successful
-; SSTACK: ? bytes
-;         X, Y and D are preserved 
-#macro NVM_INVALIDATE_PAGE, 0
-#emac
-
-;#Erase all flash pages
-; args:   none
-; result: C-flag: set if successful
-; SSTACK: ? bytes
-;         X, Y and D are preserved 
-#macro NVM_ERASE_ALL, 0
-#emac
-
-;#Copy data string into flash 
-; args:   X: start of source (RAM address)
-;         Y: start of destination (paged flash address)
-;         D: number of bytes to copy 
-; result: C-flag: set if successful
-; SSTACK: ? bytes
-;         X, Y and D are preserved 
-#macro NVM_COPY, 0
-#emac
-
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -175,53 +150,157 @@ NVM_VARS_END_LIN	EQU	@
 			ORG 	NVM_CODE_START
 NVM_CODE_START_LIN	EQU	@			
 #endif	
-
-;#Set PPAGE
-; args:   none
+	
+;#Program phrase
+; args:   X:      target address within paging window
+;	  PPAGE:  current page
+;	  Y:      data pointer 
 ; result: C-flag: set if successful
-; SSTACK: ? bytes
-;         X, Y and D are preserved 
-NVM_SET_PPAGE		EQU	*
-			;Set first PPAGE
-#ifdef	NVM_1024K
-			MOVB	#$C0, PPAGE
-#else
-#ifdef	NVM_1024K
-			MOVB	#$E0, PPAGE
-#else
-			MOVB	#$F8, PPAGE
-#endif	
-#endif	
-			
-
-
-
-	
-;#Erase flash
-; args:   none
+; SSTACK: 18 bytes
+;         X, Y, and D are preserved
+NVM_PROGRAM_PHRASE	EQU	*
+			;Protect fixed pages
+			NVM_CHECK_FIXED_PAGE_PROT  NVM_PROGRAM_PHRASE_1
+			;Save registers (paged address in X, data pointer in Y)
+			PSHA 					;push A onto the SSTACK
+			;Set CCOB  (paged address in X, data pointer in Y)
+			LDAA	#$06 				;program P-flash
+			NVM_SET_CMD
+			INC	FCCOBIX	    			;CCOBIX=$002
+			MOVW	0,Y, FCCOBHI
+			INC	FCCOBIX	    			;CCOBIX=$003
+			MOVW	2,Y, FCCOBHI
+			INC	FCCOBIX	    			;CCOBIX=$004
+			MOVW	4,Y, FCCOBHI
+			INC	FCCOBIX	    			;CCOBIX=$005
+			MOVW	6,Y, FCCOBHI
+			;Execute command 
+			NVM_EXEC_CMD
+			;Restore registers
+			SSTACK_PREPULL	3
+			PULA					;pull A from the SSTACK
+			;Check result
+			SEC
+			BRCLR	FSTAT, #(ACCERR|FPVIOL|MGSTAT1|MGSTAT0), NVM_PROGRAM_PHRASE_2
+NVM_PROGRAM_PHRASE_1	CLC
+			;Done
+NVM_PROGRAM_PHRASE_2	RTS
+						
+;#Erase sector
+; args:   X:      sector address
+;	  PPAGE:  current page
 ; result: C-flag: set if successful
-; SSTACK: ? bytes
-;         X, Y and D are preserved 
-NVM_ERASE_FLASH		EQU	*
-
-
+; SSTACK: 18 bytes
+;         X, Y, and D are preserved
+NVM_ERASE_SECTOR	EQU	*
+			;Protect fixed pages
+			NVM_CHECK_FIXED_PAGE_PROT  NVM_ERASE_SECTOR_1
+			;Save registers (paged address in X)
+			PSHA 					;push A onto the SSTACK
+			;Set CCOB  (paged address in X)
+			LDAA	#$0A 				;erase P-flash sector
+			NVM_SET_CMD
+			;Execute command 
+			NVM_EXEC_CMD
+			;Restore registers
+			SSTACK_PREPULL	3
+			PULA					;pull A from the SSTACK
+			;Check result
+			SEC
+			BRCLR	FSTAT, #(ACCERR|FPVIOL|MGSTAT1|MGSTAT0), NVM_ERASE_SECTOR_2
+NVM_ERASE_SECTOR_1	CLC
+			;Done
+NVM_ERASE_SECTOR_2	RTS
+	
+;#Erase page
+; args:   PPAGE:  current page
+; result: C-flag: set if successful
+; SSTACK: 22 bytes
+;         X, Y, and D are preserved
+NVM_ERASE_PAGE		EQU	*
+			;Save registers (paged address in X, data pointer in Y)
+			PSHX 					;push X onto the SSTACK
+			;Erase all 16 sdectors sector 
+			LDX	#$8000		
+NVM_ERASE_PAGE_1	NVM_ERASE_SECTOR
+			BCC	NVM_ERASE_PAGE_2			;error occured
+			LEAX	NVM_SECTOR_SIZE,X
+			CPX	$C000
+			BLO	NVM_ERASE_PAGE_1
+			;Restore registers (page erased)
+			SSTACK_PREPULL	4
+			PULX					;pull X from the SSTACK
+			;Done
+			SEC
+			RTS
+			;Restore registers (error condition)
+NVM_ERASE_PAGE_2	SSTACK_PREPULL	4
+			PULX					;pull X from the SSTACK
+			;Done
+			CLC
+			RTS
 
 	
+;#Set command and address 
+; args:   X:      target address within paging window
+;	  PPAGE:  current page
+;	  A:      command 
+; result: CCOBIX: $01
+; SSTACK: 4 bytes
+;         X, Y, and D are preserved
+NVM_SET_CMD		EQU	*
+			;Save registers (paged address in X, data pointer in Y)
+			PSHD 					;push D onto the SSTACK
+			;Set command  (paged address in X, command in A)
+			CLR	FCCOBIX	    			;CCOBIX=$00	
+			STAA	FCCOBHI				;set command
+			;Set ADDR[23:16]  (paged address in X)
+			LDAA	PPAGE
+			CLRB
+			LSRA 					
+			LSRA 					
+			ORAA	#$40
+			STAA	FCCOBLO
+			;Set ADDR[15:0]  (paged address in X, ADDR[15:14] in B)
+			MOVB	#$01, FCCOBIX
+			STX	FCCOBHI				;set ADDR[13:0]
+			LDAA	FCCOBHI				;set ADDR[15:14]
+			ANDA	#$3F
+			ABA
+			STAA	FCCOBHI
+			;Done
+			SSTACK_PREPULL	4
+			RTS
 
-
-
+;#Execute NVM command from RAM
+; args:   none
+; result: none
+; SSTACK: 15 bytes
+;         X, Y, and D are preserved
+NVM_EXEC_CMD		EQU	*
+			;Push RAM code onto the stack
+			;18 0B FF 01 07	  MOVB  #$FF, FSTAT     ;clear CCIF
+			;1F 01 07 80 FB	  BRCLR FSTAT, #CCIF, * ;wait until CCIF is set
+			;06 xx xx      	  JMP     $xxxx
+			MOVW	#NVM_EXEC_CMD_1, 2,-SP
+			MOVW	#$FB06, 	 2,-SP
+			MOVW	#$0708, 	 2,-SP
+			MOVW	#$1F01, 	 2,-SP
+			MOVW	#$0107, 	 2,-SP
+			MOVW	#$0BFF, 	 2,-SP
+			MOVB	#$18, 		 1,-SP
+			;Invoke command
+			SEI
+			JMP	0,SP
+NVM_EXEC_CMD_1		CLI
+			;Done
+			SSTACK_PREPULL	15
+			LEAS	-13,SP
+			RTS
 	
-			;Command complete interrupt 
-NVM_ISR_CC		EQU	*
-
-
-
-
-			;Error interrupt 
-NVM_ISR_ERROR		EQU	*
-
-
-
+;#ECC double fault
+NVM_ISR_ECCERR		EQU	*
+			RESET_FATAL	NVM_STR_ECCERR	
 	
 NVM_CODE_END		EQU	*	
 NVM_CODE_END_LIN	EQU	@	
@@ -236,5 +315,8 @@ NVM_CODE_END_LIN	EQU	@
 NVM_TABS_START_LIN	EQU	@			
 #endif	
 
+NVM_STR_ECCERR		FCS	"ECC error"
+
 NVM_TABS_END		EQU	*	
 NVM_TABS_END_LIN	EQU	@	
+

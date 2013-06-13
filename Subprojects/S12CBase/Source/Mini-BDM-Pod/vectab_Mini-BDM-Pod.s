@@ -41,6 +41,8 @@
 ;#      - Added dummy vectors                                                  #
 ;#    November 16, 2012                                                        #
 ;#      - Restructured table                                                   #
+;#    June 12, 2013                                                            #
+;#      - Added ECC error interrupt                                            #
 ;###############################################################################
 
 ;###############################################################################
@@ -199,7 +201,11 @@ ISR_CAN0RX    		BGND				;vector base + $B2
 ISR_CAN0ERR   		BGND				;vector base + $B4
 ISR_CAN0WUP   		BGND				;vector base + $B6
 ISR_FLASH     		BGND				;vector base + $B8
-ISR_FLASHFLT  		BGND				;vector base + $BA
+#ifdef	NVM_ISR_ECCERR					;vector base + $BA
+ISR_FLASHFLT  		EQU	NVM_ISR_ECCERR
+#else
+ISR_FLASHFLT  		BGND
+#endif
 ISR_SPI2      		BGND				;vector base + $BC
 ISR_SPI1      		BGND				;vector base + $BE
 ISR_IIC0      		BGND				;vector base + $C0
@@ -337,7 +343,11 @@ ISR_CAN0RX    		EQU	RESET_ISR_FATAL		;vector base + $B2
 ISR_CAN0ERR   		EQU	RESET_ISR_FATAL		;vector base + $B4
 ISR_CAN0WUP   		EQU	RESET_ISR_FATAL		;vector base + $B6
 ISR_FLASH     		EQU	RESET_ISR_FATAL		;vector base + $B8
-ISR_FLASHFLT  		EQU	RESET_ISR_FATAL		;vector base + $BA
+#ifdef	NVM_ISR_ECCERR					;vector base + $BA
+ISR_FLASHFLT  		EQU	NVM_ISR_ECCERR
+#else
+ISR_FLASHFLT  		EQU	RESET_ISR_FATAL
+#endif
 ISR_SPI2      		EQU	RESET_ISR_FATAL		;vector base + $BC
 ISR_SPI1      		EQU	RESET_ISR_FATAL		;vector base + $BE
 ISR_IIC0      		EQU	RESET_ISR_FATAL		;vector base + $C0
@@ -346,7 +356,7 @@ ISR_SCM			EQU	RESET_ISR_FATAL		;vector base + $C4
 #ifdef	CLOCK_ISR					;vector base + $C6
 ISR_PLLLOCK		EQU	CLOCK_ISR
 #else
-ISR_PLLLOCK		BGND
+ISR_PLLLOCK		EQU	RESET_ISR_FATAL
 #endif
 ISR_ECT_PBOV  		EQU	RESET_ISR_FATAL		;vector base + $C8
 ISR_ECT_MODCNT		EQU	RESET_ISR_FATAL		;vector base + $CA

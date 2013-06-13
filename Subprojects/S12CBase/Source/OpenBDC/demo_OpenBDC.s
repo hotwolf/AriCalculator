@@ -163,7 +163,7 @@ DEMO_LOOP		SCI_RX_BL
 			STRING_FILL_BL
 			TFR	X, D
 			CLRA
-			STRING_MAKE_PRINTABLE_B
+			STRING_PRINTABLE
 			SCI_TX_BL
 
 			;Print hexadecimal value (char in X)

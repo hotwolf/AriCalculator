@@ -218,13 +218,13 @@ EXSTR01         EQU     $02
 EXSTR00         EQU     $01
 
 GPAGE           EQU     $0010
-GP6             EQU     $20
-GP5             EQU     $10
-GP4             EQU     $08
-GP3             EQU     $04
-GP2             EQU     $02
-GP1             EQU     $01
-GP0
+GP6		EQU     $40
+GP5             EQU     $20
+GP4             EQU     $10
+GP3             EQU     $08
+GP2             EQU     $04
+GP1             EQU     $02
+GP0		EQU     $01
 
 DIRECT          EQU     $0011
 DP15            EQU     $80
