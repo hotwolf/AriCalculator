@@ -596,7 +596,7 @@ sub print_tree {
 	    }       	    
 	    if (length($nt_string) > 0) {
 		#Non-zero length
-		printf FILEHANDLE $instr_form_nc, $left_col, "FCC", $nt_string;
+		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", $nt_string;
 		printf FILEHANDLE $instr_form_nc, "", "DB", "STRING_TERMINATION";
 	    } else {
 		printf FILEHANDLE $instr_form_nc, $left_col, "DB", "STRING_TERMINATION";

@@ -1204,24 +1204,367 @@ FCORE_TABS_END		EQU	*
 FCORE_TABS_END_LIN	EQU	@
 
 ;###############################################################################
-;# Forth words                                                                 #
+;# Words                                                                       #
 ;###############################################################################
-			ORG	FCORE_WORDS_START ;(previous NFA: FCORE_PREV_NFA)
+#ifdef FCORE_WORDS_START_LIN
+			ORG 	FCORE_WORDS_START, FCORE_WORDS_START_LIN
+#else
+			ORG 	FCORE_WORDS_START
+FCORE_WORDS_START_LIN	EQU	@
+#endif	
 
-;#Core words (CORE):
-; ==================
+;#Code Field Addresses:
+;======================
+			ALIGN	1
+;Word: ! ( x a-addr -- )
+;;Store x at a-addr.
+CFA_STORE		DW	CF_STORE
 
-;Word: ! ( x a-addr -- ) IMMEDIATE
-;
-;Store x at a-addr.
+;Word: # ( ud1 -- ud2 )
+;Divide ud1 by the number in BASE giving the quotient ud2 and the remainder n.
+;(n is the least-significant digit of ud1.) Convert n to external form and add
+;the resulting character to the beginning of the pictured numeric output string.
+;An ambiguous condition exists if # executes outside of a <# #> delimited number
+;conversion.
+CFA_NUMBER_SIGN		DW	CF_NUMBER_SIGN
+
+;Word: #> ( xd -- c-addr u )
+;Drop xd. Make the pictured numeric output string available as a character
+;string. c-addr and u specify the resulting character string. A program may
+;replace characters within the string. 
+CFA_NUMBER_SIGN_GREATER	DW	CF_NUMBER_SIGN_GREATER
+
+;Word: #S ( ud1 -- ud2 )
+;Convert one digit of ud1 according to the rule for #. Continue conversion
+;until the quotient is zero. ud2 is zero. An ambiguous condition exists if #S
+;executes outside of a <# #> delimited number conversion.
+CFA_NUMBER_SIGN_S	DW	CF_NUMBER_SIGN_S
+
+;Word: ' ( "<spaces>name" -- xt ) 	;'
+;Skip leading space delimiters. Parse name delimited by a space. Find name and
+;return xt, the execution token for name. An ambiguous condition exists if name
+;is not found.
+CFA_TICK		DW	CF_TICK
+
+;Word: (								IMMEDIATE
+;Compilation: Perform the execution semantics given below.
+;Execution: ( "ccc<paren>" -- )
+;Parse ccc delimited by ) (right parenthesis). ( is an immediate word.
+CFA_PAREN		DW	CF_PAREN
+
+;Word: * ( n1|u1 n2|u2 -- n3|u3 )
+;Multiply n1|u1 by n2|u2 giving the product n3|u3.
+CFA_STAR		DW	CF_STAR
+
+;Word: */ ( n1 n2 n3 -- n4 )
+;Multiply n1 by n2 producing the intermediate double-cell result d. Divide d by
+;n3 giving the single-cell quotient n4. An ambiguous condition exists if n3 is
+;zero or if the quotient n4 lies outside the range of a signed number. If d and
+;n3 differ in sign, the implementation-defined result returned will be the same
+;as that returned by either the phrase >R M* R> FM/MOD SWAP DROP or the phrase
+;>R M* R> SM/REM SWAP DROP 
+CFA_STAR_SLASH		DW	CF_STAR_SLASH
+
+;Word: */MOD ( n1 n2 n3 -- n4 n5 )
+;Multiply n1 by n2 producing the intermediate double-cell result d. Divide d by
+;n3 producing the single-cell remainder n4 and the single-cell quotient n5. An
+;ambiguous condition exists if n3 is zero, or if the quotient n5 lies outside
+;the range of a single-cell signed integer. If d and n3 differ in sign, the
+;implementation-defined result returned will be the same as that returned by
+;either the phrase >R M* R> FM/MOD or the phrase >R M* R> SM/REM .
+CFA_STAR_SLASH_MOD	DW	CF_STAR_SLASH_MOD
+
+;Word: + ( n1|u1 n2|u2 -- n3|u3 )
+;Add n2|u2 to n1|u1, giving the sum n3|u3.
+CFA_PLUS		DW	CF_PLUS
+
+;Word: +! ( n|u a-addr -- )
+;Add n|u to the single-cell number at a-addr.
+CFA_PLUS_STORE		DW	CF_PLUS_STORE
+
+;Word: +LOOP	IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: do-sys -- )
+;Append the run-time semantics given below to the current definition. Resolve
+;the destination of all unresolved occurrences of LEAVE between the location
+;given by do-sys and the next location for a transfer of control, to execute the
+;words following +LOOP.
+;Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
+;An ambiguous condition exists if the loop control parameters are unavailable.
+;Add n to the loop index. If the loop index did not cross the boundary between
+;the loop limit minus one and the loop limit, continue execution at the beginning
+;of the loop. Otherwise, discard the current loop control parameters and continue
+;execution immediately following the loop.
+CFA_PLUS_LOOP		DW	CF_PLUS_LOOP
+			DW	CFA_PLUS_LOOP_RT
+;LOOP run-time semantics
+CFA_PLUS_LOOP_RT	DW	CF_PLUS_LOOP_RT
+
+;Word: , ( x -- )
+;Reserve one cell of data space and store x in the cell. If the data-space
+;pointer is aligned when , begins execution, it will remain aligned when,
+;finishes execution. An ambiguous condition exists if the data-space pointer is
+;not aligned prior to execution of ,.
+CFA_COMMA		DW	CF_COMMA
+
+;Word: - ( n1|u1 n2|u2 -- n3|u3 )
+;Subtract n2|u2n from n1|u1, giving the difference n3|u3.
+CFA_MINUS		DW	CF_MINUS
+
+;;Word: . ( n -- )
+;Display n in free field format.
+CFA_DOT			DW	CF_DOT
+
+;Word: ."								IMMEDIATE 			
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( "ccc<quote>" -- )
+;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
+;below to the current definition.
+;Run-time: ( -- )
+;Display ccc.
+CFA_DOT_QUOTE		DW	CF_DOT_QUOTE 		;compilation semantics
+;." run-time semantics
+CFA_DOT_QUOTE_RT	DW	CF_DOT_QUOTE_RT
+
+;Word: / ( n1 n2 -- n3 )
+;Divide n1 by n2, giving the single-cell quotient n3. An ambiguous condition
+;exists if n2 is zero. If n1 and n2 differ in sign, the implementation-defined
+;result returned will be the same as that returned by either the phrase
+;>R S>D R> FM/MOD SWAP DROP or the phrase >R S>D R> SM/REM SWAP DROP .
+CFA_SLASH		DW	CF_SLASH
+
+;Word: /MOD ( n1 n2 -- n3 n4 )
+;Divide n1 by n2, giving the single-cell remainder n3 and the single-cell
+;quotient n4. An ambiguous condition exists if n2 is zero. If n1 and n2 differ
+;in sign, the implementation-defined result returned will be the same as that
+;returned by either the phrase >R S>D R> FM/MOD or the phrase >R S>D R> SM/REM . 
+CFA_SLASH_MOD		DW	CF_SLASH_MOD
+
+;Word: 0< ( n -- flag )
+;flag is true if and only if n is less than zero.
+CFA_ZERO_LESS		DW	CF_ZERO_LESS
+
+;Word: 0= ( x -- flag )
+;flag is true if and only if x is equal to zero.
+CFA_ZERO_EQUALS		DW	CF_ZERO_EQUALS
+
+;Word: 1+ ( n1|u1 -- n2|u2 )
+;Add one (1) to n1|u1 giving the sum n2|u2.
+CFA_ONE_PLUS		DW	CF_ONE_PLUS
+
+;Word: 1- ( n1|u1 -- n2|u2 ) 
+;Subtract one (1) from n1|u1 giving the difference n2|u2.
+CFA_ONE_MINUS		DW	CF_ONE_MINUS
+
+;Word: 2! ( x1 x2 a-addr -- )
+;Store the cell pair x1 x2 at a-addr, with x2 at a-addr and x1 at the next
+;consecutive cell. It is equivalent to the sequence SWAP OVER ! CELL+ ! .
+CFA_TWO_STORE		DW	CF_TWO_STORE
+
+;Word: 2* ( x1 -- x2 )
+;x2 is the result of shifting x1 one bit toward the most-significant bit,
+;filling the vacated least-significant bit with zero.
+CFA_TWO_STAR		DW	CF_TWO_STAR
+
+;Word: 2/ ( x1 -- x2 )
+;x2 is the result of shifting x1 one bit toward the least-significant bit,
+;leaving the most-significant bit unchanged.
+CFA_TWO_SLASH		DW	CF_TWO_SLASH
+
+;Word: 2@ ( a-addr -- x1 x2 )
+;Fetch the cell pair x1 x2 stored at a-addr. x2 is stored at a-addr and x1 at
+;the next consecutive cell. It is equivalent to the sequence DUP CELL+ @ SWAP @ .
+CFA_TWO_FETCH		DW	CF_TWO_FETCH
+
+;Word: 2DROP ( x1 x2 -- )
+;Drop cell pair x1 x2 from the stack.
+CFA_TWO_DROP		DW	CF_TWO_DROP
+
+;Word: 2DUP ( x1 x2 -- x1 x2 x1 x2 )
+;Duplicate cell pair x1 x2.
+CFA_TWO_DUP		DW	CF_TWO_DUP
+
+;Word: 2OVER ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 )
+;Copy cell pair x1 x2 to the top of the stack.
+CFA_TWO_OVER		DW	CF_TWO_OVER
+
+;Word: 2SWAP ( x1 x2 x3 x4 -- x3 x4 x1 x2 )
+;Exchange the top two cell pairs.
+CFA_TWO_SWAP		DW	CF_TWO_SWAP
+
+;Word: : ( C: "<spac2es>name" -- colon-sys ) 				IMMEDIATE
+;Skip leading space delimiters. Parse name delimited by a space. Create a
+;definition for name, called a colon definition. Enter compilation state and
+;start the current definition, producing colon-sys. Append the initiation
+;semantics given below to the current definition.
+;The execution semantics of name will be determined by the words compiled into
+;the body of the definition. The current definition shall not be findable in the
+;dictionary until it is ended (or until the execution of DOES> in some systems).
+;Initiation: ( i*x -- i*x )  ( R:  -- nest-sys )
+;Save implementation-dependent information nest-sys about the calling
+;definition. The stack effects i*x represent arguments to name.
+;name Execution: ( i*x -- j*x )
+;Execute the definition name. The stack effects i*x and j*x represent arguments
+;to and results from name, respectively.
+CFA_COLON		DW	CF_COLON
+
+;Word: ;								IMMEDIATE 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: colon-sys -- )
+;Append the run-time semantics below to the current definition. End the current
+;definition, allow it to be found in the dictionary and enter interpretation
+;state, consuming colon-sys. If the data-space pointer is not aligned, reserve
+;enough data space to align it.
+;Run-time: ( -- ) ( R: nest-sys -- )
+;Return to the calling definition specified by nest-sys.
+CFA_SEMICOLON		DW	CF_SEMICOLON
+
+;Word: < ( n1 n2 -- flag )
+;flag is true if and only if n1 is less than n2.
+CFA_LESS_THAN		DW	CF_LESS_THAN
+
+;Word: <# ( -- )
+;Initialize the pictured numeric output conversion process.
+CFA_LESS_NUMBER_SIGN	DW	CF_LESS_NUMBER_SIGN
+
+;Word: = ( x1 x2 -- flag )
+;flag is true if and only if x1 is bit-for-bit the same as x2.
+CFA_EQUALS		DW	CF_EQUALS
+
+;Word: > ( n1 n2 -- flag )
+;flag is true if and only if n1 is greater than n2.
+CFA_GREATER_THAN	DW	CF_GREATER_THAN
+
+;Word: >BODY ( xt -- a-addr )
+;a-addr is the data-field address corresponding to xt. An ambiguous condition
+;exists if xt is not for a word defined via CREATE.
+CFA_TO_BODY		DW	CF_TO_BODY
+
+;Word: >NUMBER ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 )
+;ud2 is the unsigned result of converting the characters within the string
+;specified by c-addr1 u1 into digits, using the number in BASE, and adding each
+;into ud1 after multiplying ud1 by the number in BASE. Conversion continues
+;left-to-right until a character that is not convertible, including any + or -,
+;is encountered or the string is entirely converted. c-addr2 is the location of
+;the first unconverted character or the first character past the end of the
+;string if the string was entirely converted. u2 is the number of unconverted
+;characters in the string. An ambiguous condition exists if ud2 overflows during
+;the conversion. 
+CFA_TO_NUMBER		DW	CF_TO_NUMBER
+
+;Word: >R
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( x -- ) ( R:  -- x )
+;Move x to the return stack.
+CFA_TO_R		DW	CF_TO_R
+
+;Word: ?DUP ( x -- 0 | x x )
+;Duplicate x if it is non-zero.
+CFA_QUESTION_DUP	DW	CF_QUESTION_DUP
+
+;Word: @ ( a-addr -- x )
+;x is the value stored at a-addr.
+CFA_FETCH		DW		CF_FETCH
+
+;Word: ABORT ( i*x -- ) ( R: j*x -- )
+;Empty the data stack and perform the function of QUIT, which includes emptying
+;the return stack, without displaying a message.
+CFA_ABORT		DW	CF_ABORT
+;ABORT run-time semantics
+CFA_ABORT_RT		DW	CF_ABORT_RT
+
+;Word: ABORT"								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( "ccc<quote>" -- )
+;Parse ccc delimited by a " (double-quote). Append the run-time semantics given
+;below to the current definition.
+;Run-time: ( i*x x1 --  | i*x ) ( R: j*x --  | j*x )
+;Remove x1 from the stack. If any bit of x1 is not zero, display ccc and perform
+;an implementation-defined abort sequence that includes the function of ABORT.
+CFA_ABORT_QUOTE		DW	CF_ABORT_QUOTE
+;ABORT" run-time semantics
+CFA_ABORT_QUOTE_RT	DW	CF_ABORT_QUOTE_RT
+
+;Word: ABS ( n -- u )
+;u is the absolute value of n.
+CFA_ABS			DW		CF_ABS
+
+;Word: ACCEPT ( c-addr +n1 -- +n2 )
+;Receive a string of at most +n1 characters. An ambiguous condition exists if
+;+n1 is zero or greater than 32,767. Display graphic characters as they are
+;received. A program that depends on the presence or absence of non-graphic
+;characters in the string has an environmental dependency. The editing
+;functions, if any, that the system performs in order to construct the string
+;are implementation-defined.
+;Input terminates when an implementation-defined line terminator is received.
+;When input terminates, nothing is appended to the string, and the display is
+;maintained in an implementation-defined way.
+;+n2 is the length of the string stored at c-addr.
+CFA_ACCEPT		DW	CF_ACCEPT
+
+;Word: ALIGN ( -- )
+;If the data-space pointer is not aligned, reserve enough space to align it.
+CFA_ALIGN		DW	CF_ALIGN
+
+;Word: ALIGNED ( addr -- a-addr )
+;a-addr is the first aligned address greater than or equal to addr.
+CFA_ALIGNED		DW	CF_ALIGNED
+
+;Word: ALLOT ( n -- )
+;If n is greater than zero, reserve n address units of data space. If n is less
+;than zero, release |n| address units of data space. If n is zero, leave the
+;data-space pointer unchanged.
+;If the data-space pointer is aligned and n is a multiple of the size of a cell
+;when ALLOT begins execution, it will remain aligned when ALLOT finishes
+;execution.
+;If the data-space pointer is character aligned and n is a multiple of the size
+;of a character when ALLOT begins execution, it will remain character aligned
+;when ALLOT finishes execution.
+CFA_ALLOT		DW	CF_ALLOT
+
+;Word: AND ( x1 x2 -- x3 )
+;x3 is the bit-by-bit logical and of x1 with x2.
+CFA_AND			DW	CF_AND
+
+;Word: BASE ( -- a-addr )
+;a-addr is the address of a cell containing the current number-conversion radix
+;{{2...36}}.
+CFA_BASE		DW	CF_CONSTANT_RT
+			DW	BASE
+
+;Word: BEGIN 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- dest )
+;Put the next location for a transfer of control, dest, onto the control flow
+;stack. Append the run-time semantics given below to the current definition.
+;Run-time: ( -- )
+;Continue execution.
+CFA_BEGIN		DW	CF_BEGIN
+	
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+	
+;#Code Fields:
+;=============
+
+;! ( x a-addr -- )
+;;Store x at a-addr.
 ;
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_STORE		FHEADER, "!", FCORE_PREV_NFA, COMPILE
-CFA_STORE		DW	CF_STORE
 CF_STORE		PS_CHECK_UF 2, CF_STORE_PSUF 	;check for underflow  (PSP -> Y)
 			LDX	2,Y+			;x -> a-addr	
 			MOVW	2,Y+, 0,X
@@ -1242,10 +1585,6 @@ CF_STORE_PSUF		JOB	FCORE_THROW_PSUF
 ;"Parameter stack underflow"
 ;"PAD buffer overflow"
 ;"Invalid BASE value"
-;
-			ALIGN	1
-NFA_NUMBER_SIGN		FHEADER, "#", NFA_STORE, COMPILE
-CFA_NUMBER_SIGN		DW	CF_NUMBER_SIGN
 CF_NUMBER_SIGN		PS_CHECK_UF	2, CF_NUMBER_SIGN_PSUF 	;check for underflow  (PSP -> Y)
 			BASE_CHECK	CF_NUMBER_SIGN_INVALBASE;check BASE value (BASE -> D)
 			;Perform division (PSP in Y, BASE in D)
@@ -1281,10 +1620,6 @@ CF_NUMBER_SIGN_INVALBASE	JOB	FCORE_THROW_INVALBASE
 ;String in PAD (at c-addr) is terminated. 
 ;Throws:
 ;"Parameter stack underflow"
-;
-				ALIGN	1
-NFA_NUMBER_SIGN_GREATER		FHEADER, "#>", NFA_NUMBER_SIGN, COMPILE
-CFA_NUMBER_SIGN_GREATER		DW	CF_NUMBER_SIGN_GREATER
 CF_NUMBER_SIGN_GREATER		PS_CHECK_UF	2, CF_NUMBER_SIGN_GREATER_PSUF ;check for underflow
 				;Check PAD length (PSP in Y)
 				LDD	PAD					;PAD-HLD -> u
@@ -1314,10 +1649,6 @@ CF_NUMBER_SIGN_GREATER_PSUF	JOB	FCORE_THROW_PSUF
 ;"Parameter stack underflow"
 ;"PAD buffer overflow"
 ;"Invalid BASE value"
-;
-			ALIGN	1
-NFA_NUMBER_SIGN_S	FHEADER, "#S", NFA_NUMBER_SIGN_GREATER, COMPILE
-CFA_NUMBER_SIGN_S	DW	CF_NUMBER_SIGN_S
 CF_NUMBER_SIGN_S	PS_CHECK_UF	2, CF_NUMBER_SIGN_S_PSUF 	;check for underflow  (PSP -> Y)
 			BASE_CHECK	CF_NUMBER_SIGN_S_INVALBASE;check BASE value (BASE -> D)
 			;Perform division (PSP in Y, BASE in D)
@@ -1362,9 +1693,6 @@ CF_NUMBER_SIGN_S_INVALBASE	JOB	FCORE_THROW_INVALBASE
 ;"Parameter stack overflow"
 ;"Missing name argument"
 ;"Undefined word"
-			ALIGN	1
-NFA_TICK		FHEADER, "'", NFA_NUMBER_SIGN_S, COMPILE
-CFA_TICK		DW	CF_TICK
 CF_TICK			PS_CHECK_OF	1, CF_TICK_PSOF 	;check for PS overflow (PSP-2 -> Y)	
 			;Parse name (PSP-2 in Y) 
 			SSTACK_JOBSR	FCORE_NAME 		;string pointer -> X
@@ -1385,9 +1713,6 @@ CF_TICK_UDEFWORD	JOB	FCORE_THROW_UDEFWORD
 ;Compilation: Perform the execution semantics given below.
 ;Execution: ( "ccc<paren>" -- )
 ;Parse ccc delimited by ) (right parenthesis). ( is an immediate word.
-			ALIGN	1
-NFA_PAREN		FHEADER, "(", NFA_TICK, IMMEDIATE
-CFA_PAREN		DW	CF_PAREN
 CF_PAREN		;Skip TIB to next ")"
 			LDAA	#")"
 			SSTACK_JOBSR	FCORE_PARSE
@@ -1400,10 +1725,6 @@ CF_PAREN		;Skip TIB to next ")"
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_STAR		FHEADER, "*", NFA_PAREN, COMPILE
-CFA_STAR		DW	CF_STAR
 CF_STAR			PS_CHECK_UF	2, CF_STAR_PSUF ;check for underflow  (PSP -> Y)
 			TFR	Y, X
 			LDY	2,X	;n1    -> Y
@@ -1428,10 +1749,6 @@ CF_STAR_PSUF		JOB	FCORE_THROW_PSUF
 ;"Parameter stack underflow"
 ;"Divide by zero"
 ;"Quotient out of range"
-;
-			ALIGN	1
-NFA_STAR_SLASH		FHEADER, "*/", NFA_STAR, COMPILE
-CFA_STAR_SLASH		DW	CF_STAR_SLASH
 CF_STAR_SLASH		PS_CHECK_UF	3, CF_STAR_SLASH_PSUF ;check for underflow (PSP -> Y)
 			TFR	Y, X
 			LDY	4,X			;n1    -> Y
@@ -1457,16 +1774,12 @@ CF_STAR_SLASH_RESOR	JOB	FCORE_THROW_RESOR
 ;the range of a single-cell signed integer. If d and n3 differ in sign, the
 ;implementation-defined result returned will be the same as that returned by
 ;either the phrase >R M* R> FM/MOD or the phrase >R M* R> SM/REM .
-;10
+;
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
 ;"Divide by zero"
 ;"Quotient out of range"
-;
-			ALIGN	1
-NFA_STAR_SLASH_MOD	FHEADER, "*/MOD", NFA_STAR_SLASH, COMPILE
-CFA_STAR_SLASH_MOD	DW	CF_STAR_SLASH_MOD
 CF_STAR_SLASH_MOD	PS_CHECK_UF	3, CF_STAR_SLASH_MOD_PSUF ;check for underflow  (PSP -> Y)
 			TFR	Y, X
 			LDY	4,X			;n1    -> Y
@@ -1492,10 +1805,6 @@ CF_STAR_SLASH_MOD_RESOR	JOB	FCORE_THROW_RESOR
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_PLUS		FHEADER, "+", NFA_STAR_SLASH_MOD, COMPILE
-CFA_PLUS		DW	CF_PLUS
 CF_PLUS			PS_CHECK_UF	2, CF_PLUS_PSUF ;check for underflow  (PSP -> Y)
 			LDD	2,Y+
 			ADDD	0,Y
@@ -1511,10 +1820,6 @@ CF_PLUS_PSUF	JOB	FCORE_THROW_PSUF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_PLUS_STORE		FHEADER, "+!", NFA_PLUS, COMPILE
-CFA_PLUS_STORE		DW	CF_PLUS_STORE
 CF_PLUS_STORE		PS_CHECK_UF	2, CF_PLUS_STORE_PSUF ;check for underflow  (PSP -> Y)
 			LDX	2,Y+
 			LDD	0,X
@@ -1546,10 +1851,6 @@ CF_PLUS_STORE_PSUF	JOB	FCORE_THROW_PSUF
 ;"Parameter stack underflow"
 ;"Dictionary underflow"
 ;"Compile-only word"
-			ALIGN	1
-NFA_PLUS_LOOP		FHEADER, "+LOOP", NFA_PLUS_STORE, IMMEDIATE
-CFA_PLUS_LOOP		DW	CF_PLUS_LOOP
-			DW	CFA_PLUS_LOOP_RT
 CF_PLUS_LOOP		EQU	CF_LOOP
 
 CF_PLUS_LOOP_PSUF	JOB	FCORE_THROW_PSUF
@@ -1560,9 +1861,6 @@ CF_PLUS_LOOP_RSUF	JOB	FCORE_THROW_RSUF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-CFA_PLUS_LOOP_RT	DW	CF_PLUS_LOOP_RT
 CF_PLUS_LOOP_RT		PS_CHECK_UF	1, CF_PLUS_LOOP_PSUF	;(PSP -> Y)
 			RS_CHECK_UF	2, CF_PLUS_LOOP_RSUF	;(RSP -> X)
 			;Increment and check index (RSP in X, PSP in Y)
@@ -1589,10 +1887,6 @@ CF_PLUS_LOOP_RT_1	LEAX	4,X
 ;Throws:
 ;"Parameter stack underflow"
 ;"Dictionary overflow"
-;
-			ALIGN	1
-NFA_COMMA		FHEADER, ",", NFA_PLUS_LOOP, COMPILE
-CFA_COMMA		DW	CF_COMMA
 CF_COMMA		PS_CHECK_UF	1, CF_COMMA_PSUF 	;check for PS underflow   (PSP -> Y)
 			DICT_CHECK_OF	2, CF_COMMA_DICTOF	;check for DICT overflow (CP+bytes -> X)
 			MOVW	2,Y+, -2,X
@@ -1610,10 +1904,6 @@ CF_COMMA_DICTOF		JOB	FCORE_THROW_DICTOF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_MINUS		FHEADER, "-", NFA_COMMA, COMPILE
-CFA_MINUS		DW	CF_MINUS
 CF_MINUS		PS_CHECK_UF	2, CF_MINUS_PSUF ;check for underflow (PSP -> Y)
 			LDD	2,Y
 			SUBD	2,Y+
@@ -1630,10 +1920,6 @@ CF_MINUS_PSUF	JOB	FCORE_THROW_PSUF
 ;Throws:
 ;"Parameter stack underflow"
 ;"Invalid BASE"
-;
-			ALIGN	1
-NFA_DOT			FHEADER, ".", NFA_MINUS, COMPILE
-CFA_DOT			DW	CF_DOT
 CF_DOT			PS_PULL_X	CF_DOT_PSUF 	;pull cell from PS
 			BASE_CHECK	CF_DOT_INVALBASE;check BASE value
 			PRINT_SPC			;print a space character
@@ -1643,7 +1929,7 @@ CF_DOT			PS_PULL_X	CF_DOT_PSUF 	;pull cell from PS
 CF_DOT_PSUF		JOB	FCORE_THROW_PSUF
 CF_DOT_INVALBASE	JOB	FCORE_THROW_INVALBASE
 	
-;." 			;"
+;."
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "ccc<quote>" -- )
 ;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
@@ -1654,16 +1940,12 @@ CF_DOT_INVALBASE	JOB	FCORE_THROW_INVALBASE
 ;S12CForth implementation details:
 ;Interpretation semantics:
 ;Print string to the terminal
-;Trows:
+;Throws:
 ;"Dictionary overflow"
 ;"Parsed string overflow"
-;
 CF_DOT_QUOTE_DICTOF	JOB	FCORE_THROW_DICTOF
 CF_DOT_QUOTE_STROF	JOB	FCORE_THROW_STROF
 	
-			ALIGN	1
-NFA_DOT_QUOTE		FHEADER, '."', NFA_DOT, IMMEDIATE ;"
-CFA_DOT_QUOTE		DW	CF_DOT_QUOTE 		;compilation semantics
 CF_DOT_QUOTE		;Parse quote
 			LDAA	#$22 				;double quote
 CF_DOT_QUOTE_1		SSTACK_JOBSR	FCORE_PARSE		;string pointer -> X, character count -> A
@@ -1694,10 +1976,6 @@ CF_DOT_QUOTE_3		PRINT_STR
 ;S12CForth implementation details:
 ;Interpretation semantics:
 ;Print string to the terminal
-;Throws:
-;
-			ALIGN	1
-CFA_DOT_QUOTE_RT	DW	CF_DOT_QUOTE_RT
 CF_DOT_QUOTE_RT		LDX	IP			;print string at IP
 			PRINT_STR
 			PRINT_STRCNT 			;advance IP
@@ -1715,10 +1993,6 @@ CF_DOT_QUOTE_RT		LDX	IP			;print string at IP
 ;Throws:
 ;"Parameter stack underflow"
 ;"Divide by zero"
-;
-			ALIGN	1
-NFA_SLASH		FHEADER, "/", NFA_DOT_QUOTE, COMPILE
-CFA_SLASH		DW	CF_SLASH
 CF_SLASH		PS_CHECK_UF	2, CF_SLASH_PSUF ;check for underflow (PSP -> Y)
 			LDD	2,Y			 ;n1   -> D
 			LDX	2,Y+			 ;n2   -> X
@@ -1741,10 +2015,6 @@ CF_SLASH_0DIV		JOB	FCORE_THROW_0DIV
 ;Throws:
 ;"Parameter stack underflow"
 ;"Divide by zero"
-;
-			ALIGN	1
-NFA_SLASH_MOD		FHEADER, "/MOD", NFA_SLASH, COMPILE
-CFA_SLASH_MOD		DW	CF_SLASH_MOD
 CF_SLASH_MOD		PS_CHECK_UF	2, CF_SLASH_MOD_PSUF	;check for underflow  (PSP -> Y)
 			LDD	2,Y				;n1   -> D
 			LDX	0,Y				;n2   -> X
@@ -1763,10 +2033,6 @@ CF_SLASH_MOD_0DIV	JOB	FCORE_THROW_0DIV
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_ZERO_LESS		FHEADER, "0<", NFA_SLASH_MOD, COMPILE
-CFA_ZERO_LESS		DW	CF_ZERO_LESS
 CF_ZERO_LESS		PS_CHECK_UF 1, CF_ZERO_LESS_PSUF	;(PSP -> Y)
 			LDX	0,Y
 			BMI	<CF_ZERO_LESS_2
@@ -1782,10 +2048,6 @@ CF_ZERO_LESS_PSUF	JOB	FCORE_THROW_PSUF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_ZERO_EQUALS		FHEADER, "0=", NFA_ZERO_LESS, COMPILE
-CFA_ZERO_EQUALS		DW	CF_ZERO_EQUALS
 CF_ZERO_EQUALS		PS_CHECK_UF 1, CF_ZERO_EQUALS_PSUF	;(PSP -> Y)
 			LDX	0,Y
 			BNE	<CF_ZERO_EQUALS_2
@@ -1801,10 +2063,6 @@ CF_ZERO_EQUALS_PSUF	JOB	FCORE_THROW_PSUF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_ONE_PLUS		FHEADER, "1+", NFA_ZERO_EQUALS, COMPILE
-CFA_ONE_PLUS		DW	CF_ONE_PLUS
 CF_ONE_PLUS		PS_CHECK_UF 1, CF_ONE_MINUS_PSUF	;(PSP -> Y)
 			LDX	0,Y
 			LEAX	1,X
@@ -1815,9 +2073,10 @@ CF_ONE_PLUS_PSUF	JOB	FCORE_THROW_PSUF
 	
 ;1- ( n1|u1 -- n2|u2 ) 
 ;Subtract one (1) from n1|u1 giving the difference n2|u2.
-			ALIGN	1
-NFA_ONE_MINUS		FHEADER, "1-", NFA_ONE_PLUS, COMPILE
-CFA_ONE_MINUS		DW	CF_ONE_MINUS
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
 CF_ONE_MINUS		PS_CHECK_UF 1, CF_ONE_MINUS_PSUF	;(PSP -> Y)
 			LDX	0,Y
 			LEAX	-1,X
@@ -1833,10 +2092,6 @@ CF_ONE_MINUS_PSUF	JOB	FCORE_THROW_PSUF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_TWO_STORE		FHEADER, "2!", NFA_ONE_MINUS, COMPILE
-CFA_TWO_STORE		DW	CF_TWO_STORE
 CF_TWO_STORE		PS_CHECK_UF 3, CF_TWO_STORE_PSUF 	;check for underflow  (PSP -> Y)
 			LDX	2,Y+				;x -> a-addr	
 			MOVW	2,Y+, 2,X+
@@ -1853,10 +2108,6 @@ CF_TWO_STORE_PSUF	JOB	FCORE_THROW_PSUF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_TWO_STAR		FHEADER, "2*", NFA_TWO_STORE, COMPILE
-CFA_TWO_STAR		DW	CF_TWO_STAR
 CF_TWO_STAR		PS_CHECK_UF 1, CF_TWO_STAR_PSUF	;(PSP -> Y)
 			LDD	0,Y
 			LSLD
@@ -1872,10 +2123,6 @@ CF_TWO_STAR_PSUF	JOB	FCORE_THROW_PSUF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_TWO_SLASH		FHEADER, "2/", NFA_TWO_STAR, COMPILE
-CFA_TWO_SLASH		DW	CF_TWO_SLASH
 CF_TWO_SLASH		PS_CHECK_UF 1, CF_TWO_SLASH_PSUF	;(PSP -> Y)
 			LDD	0,Y
 			LSRD
@@ -1892,10 +2139,6 @@ CF_TWO_SLASH_PSUF	JOB	FCORE_THROW_PSUF
 ;Throws:
 ;"Parameter stack underflow"
 ;"Parameter stack overflow"
-;
-			ALIGN	1
-NFA_TWO_FETCH		FHEADER, "2@", NFA_TWO_SLASH, COMPILE
-CFA_TWO_FETCH		DW	CF_TWO_FETCH
 CF_TWO_FETCH		PS_CHECK_UFOF	1, CF_TWO_FETCH_PSUF, 1, CF_TWO_FETCH_PSOF	;check for under and overflow
 			;Fetch data (PSP-2 in Y)
 			LDX	2,Y
@@ -1908,14 +2151,12 @@ CF_TWO_FETCH		PS_CHECK_UFOF	1, CF_TWO_FETCH_PSUF, 1, CF_TWO_FETCH_PSOF	;check fo
 CF_TWO_FETCH_PSUF	JOB	FCORE_THROW_PSUF
 CF_TWO_FETCH_PSOF	JOB	FCORE_THROW_PSOF
 
+			ALIGN	1
 ;2DROP ( x1 x2 -- )
 ;Drop cell pair x1 x2 from the stack.
 ;
 ;S12CForth implementation details:
 ; - Doesn't throw any exception, resets the parameter stack on underflow 
-			ALIGN	1
-NFA_TWO_DROP		FHEADER, "2DROP", NFA_TWO_FETCH, COMPILE
-CFA_TWO_DROP		DW	CF_TWO_DROP
 CF_TWO_DROP		PS_CHECK_UF	2, CF_TWO_DROP_2	;(PSP -> Y)
 			LEAY	4,Y				;drop 2 cells
 CF_TWO_DROP_1		STY	PSP
@@ -1930,10 +2171,6 @@ CF_TWO_DROP_2		LDY	#PS_EMPTY 			;reset PS
 ;Throws:
 ;"Parameter stack underflow"
 ;"Parameter stack overflow"
-;
-			ALIGN	1
-NFA_TWO_DUP		FHEADER, "2DUP", NFA_TWO_DROP, COMPILE
-CFA_TWO_DUP		DW		CF_TWO_DUP
 CF_TWO_DUP		PS_CHECK_UFOF	2, CF_TWO_DUP_PSUF, 2, CF_TWO_DUP_PSOF	;check for under and overflow
 			MOVW		6,Y, 2,Y				;duplicate stack entry
 			MOVW		4,Y, 0,Y				;duplicate stack entry
@@ -1951,10 +2188,6 @@ CF_TWO_DUP_PSOF		JOB	FCORE_THROW_PSOF
 ;Throws:
 ;"Parameter stack underflow"
 ;"Parameter stack overflow"
-;
-			ALIGN	1
-NFA_TWO_OVER		FHEADER, "2OVER", NFA_TWO_DUP, COMPILE
-CFA_TWO_OVER		DW	CF_TWO_OVER
 CF_TWO_OVER		PS_CHECK_UFOF	4, CF_TWO_OVER_PSUF, 2, CF_TWO_OVER_PSOF;check for under and overflow
 			MOVW		8,Y, 0,Y				;duplicate stack entry
 			MOVW		10,Y, 2,Y				;duplicate stack entry
@@ -1970,10 +2203,6 @@ CF_TWO_OVER_PSOF	JOB	FCORE_THROW_PSOF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_TWO_SWAP		FHEADER, "2SWAP", NFA_TWO_OVER, COMPILE
-CFA_TWO_SWAP		DW	CF_TWO_SWAP
 CF_TWO_SWAP		PS_CHECK_UF 4, CF_TWO_SWAP_PSUF	;(PSP -> Y)
 			LDD	0,Y
 			LDX	2,Y
@@ -2008,10 +2237,6 @@ CF_TWO_SWAP_PSUF	JOB	FCORE_THROW_PSUF
 ;"Missing name argument"
 ;"Dictionary overflow"
 ;"Compiler nesting"
-;
-			ALIGN	1
-NFA_COLON		FHEADER, ":", NFA_TWO_SWAP, IMMEDIATE
-CFA_COLON		DW	CF_COLON
 CF_COLON		INTERPRET_ONLY	CF_COLON_COMPNEST	;check for nested definition
 			PS_CHECK_OF	1, CF_COLON_PSOF 	;check for PS overflow (PSP-2 -> Y)	
 			;Build header (PSP-2 -> Y)
@@ -2051,11 +2276,6 @@ CF_COLON_COMPNEST	JOB	FCORE_THROW_COMPNEST
 ;"Parameter stack underflow"
 ;"Dictionary overflow"
 ;"Compile-only word"
-;
-	
-			ALIGN	1
-NFA_SEMICOLON		FHEADER, ";", NFA_COLON, IMMEDIATE
-CFA_SEMICOLON		DW	CF_SEMICOLON
 CF_SEMICOLON		COMPILE_ONLY	CF_SEMICOLON_COMPONLY 	;ensure that compile mode is on
 			PS_CHECK_UF	1, CF_SEMICOLON_CTRLSTRUC;(PSP -> Y)
 			DICT_CHECK_OF	2, CF_SEMICOLON_DICTOF	;(CP+2 -> X)
@@ -2101,10 +2321,6 @@ CF_SEMICOLON_DICTOF	JOB	FCORE_THROW_DICTOF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_LESS_THAN		FHEADER, "<", NFA_SEMICOLON, COMPILE
-CFA_LESS_THAN		DW	CF_LESS_THAN
 CF_LESS_THAN		PS_CHECK_UF 2, CF_LESS_THAN_PSUF 	;check for underflow  (PSP -> Y)
 			LDD	2,Y			;u1 -> D
 			MOVW	#$FFFF, 2,Y		;TRUE
@@ -2121,9 +2337,6 @@ CF_LESS_THAN_PSUF	JOB	FCORE_THROW_PSUF
 ;
 ;S12CForth implementation details:
 ;-Allocates the PAD buffer
-			ALIGN	1
-NFA_LESS_NUMBER_SIGN	FHEADER, "<#", NFA_LESS_THAN, COMPILE
-CFA_LESS_NUMBER_SIGN	DW	CF_LESS_NUMBER_SIGN
 CF_LESS_NUMBER_SIGN	PAD_ALLOC
 			NEXT
 	
@@ -2133,10 +2346,6 @@ CF_LESS_NUMBER_SIGN	PAD_ALLOC
 ;
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_EQUALS		FHEADER, "=", NFA_LESS_NUMBER_SIGN, COMPILE
-CFA_EQUALS		DW	CF_EQUALS
 CF_EQUALS		PS_CHECK_UF 2, CF_EQUALS_PSUF 	;check for underflow  (PSP -> Y)
 			LDD	2,Y			;u1 -> D
 			MOVW	#$FFFF, 2,Y		;TRUE
@@ -2154,10 +2363,6 @@ CF_EQUALS_PSUF	JOB	FCORE_THROW_PSUF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_GREATER_THAN	FHEADER, ">", NFA_EQUALS, COMPILE
-CFA_GREATER_THAN	DW	CF_GREATER_THAN
 CF_GREATER_THAN		PS_CHECK_UF 2, CF_GREATER_THAN_PSUF 	;check for underflow  (PSP -> Y)
 			LDD	2,Y			;u1 -> D
 			MOVW	#$FFFF, 2,Y		;TRUE
@@ -2177,10 +2382,6 @@ CF_GREATER_THAN_PSUF	JOB	FCORE_THROW_PSUF
 ;Throws:
 ;"Parameter stack underflow"
 ;"Illegal operation on non-CREATEd definition"
-;
-			ALIGN	1
-NFA_TO_BODY		FHEADER, ">BODY", NFA_GREATER_THAN, COMPILE
-CFA_TO_BODY		DW	CF_TO_BODY
 CF_TO_BODY		PS_CHECK_UF	1, CF_TO_BODY_PSUF ;check for underflow
 			;Check CFA (PSP in Y)
 			LDX	0,Y 	;CFA -> X
@@ -2193,6 +2394,7 @@ CF_TO_BODY		PS_CHECK_UF	1, CF_TO_BODY_PSUF ;check for underflow
 CF_TO_BODY_PSUF		JOB	FCORE_THROW_PSUF
 CF_TO_BODY_NONCREATE	JOB	FCORE_THROW_NONCREATE
 	
+			ALIGN	1
 ;>IN ( -- a-addr )
 ;a-addr is the address of a cell containing the offset in characters from the
 ;start of the input buffer to the start of the parse area.
@@ -2215,10 +2417,6 @@ CFA_TO_IN		DW	CF_CONSTANT_RT
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_TO_NUMBER		FHEADER, ">NUMBER", NFA_TO_IN, COMPILE
-CFA_TO_NUMBER		DW	CF_TO_NUMBER
 CF_TO_NUMBER		PS_CHECK_UF	4, CF_TO_NUMBER_PSUF	;(PSP -> Y)
 			;Allocate temporary memory (PSP in Y)
 			SSTACK_ALLOC	10
@@ -2251,10 +2449,6 @@ CF_TO_NUMBER_PSUF	JOB	FCORE_THROW_PSUF
 ;Throws:
 ;"Parameter stack underflow"
 ;"Return stack overerflow"
-;
-			ALIGN	1
-NFA_TO_R		FHEADER, ">R", NFA_TO_NUMBER, COMPILE
-CFA_TO_R		DW	CF_TO_R
 CF_TO_R			;Check stacks
 			PS_CHECK_UF	1, CF_TO_R_PSUF	;(PSP -> Y)
 			RS_CHECK_OF	1, CF_TO_R_RSOF
@@ -2276,10 +2470,6 @@ CF_TO_R_RSOF		JOB	FCORE_THROW_RSOF
 ;Throws:
 ;"Parameter stack underflow"
 ;"Parameter stack overerflow"
-;
-			ALIGN	1
-NFA_QUESTION_DUP	FHEADER, "?DUP", NFA_TO_R, COMPILE
-CFA_QUESTION_DUP	DW	CF_QUESTION_DUP
 CF_QUESTION_DUP		PS_CHECK_UF	1, CF_QUESTION_DUP_PSUF	;(PSP -> Y)
 			;Check value
 			LDD	0,Y
@@ -2300,10 +2490,6 @@ CF_QUESTION_DUP_PSOF		JOB	FCORE_THROW_PSOF
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_FETCH		FHEADER, "@", NFA_QUESTION_DUP, COMPILE
-CFA_FETCH		DW		CF_FETCH
 CF_FETCH		PS_CHECK_UF	1, CF_FETCH_PSUF ;check for underflow
 			LDX		0,Y		;[TOS]	-> TOS
 			MOVW		0,X, 0,Y	;
@@ -2314,16 +2500,14 @@ CF_FETCH_PSUF		JOB	FCORE_THROW_PSUF
 ;ABORT ( i*x -- ) ( R: j*x -- )
 ;Empty the data stack and perform the function of QUIT, which includes emptying
 ;the return stack, without displaying a message.
-			ALIGN	1
-NFA_ABORT		FHEADER, "ABORT", NFA_FETCH, COMPILE
-CFA_ABORT		DW	CF_ABORT
-CF_ABORT		JOB	FCORE_THROW_ABORT
+;CF_ABORT		JOB	FCORE_THROW_ABORT
+CF_ABORT		EQU	FCORE_THROW_ABORT
 
 ;ABORT run-time semantics
-CFA_ABORT_RT		DW	CF_ABORT_RT
 CF_ABORT_RT		PS_RESET
 			JOB	CF_QUIT_RT
 	
+			ALIGN	1
 ;ABORT" 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "ccc<quote>" -- )
@@ -2339,11 +2523,6 @@ CF_ABORT_RT		PS_RESET
 ;"Compile-only word"
 ;"Parsed string overflow"
 ;"Empty message string"
-
-				;
-			ALIGN	1
-NFA_ABORT_QUOTE		FHEADER, 'ABORT"', NFA_ABORT, IMMEDIATE ;"
-CFA_ABORT_QUOTE		DW	CF_ABORT_QUOTE
 CF_ABORT_QUOTE		COMPILE_ONLY	CF_ABORT_QUOTE_COMPONLY ;ensure that compile mode is on
 			;Parse quote
 			LDAA	#$22 				;double quote
@@ -2376,8 +2555,6 @@ CF_ABORT_QUOTE_NOMSG	JOB	FCORE_THROW_NOMSG
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-			ALIGN	1
-CFA_ABORT_QUOTE_RT	DW	CF_ABORT_QUOTE_RT
 CF_ABORT_QUOTE_RT	PS_CHECK_UF	1, CF_ABORT_QUOTE_PSUF;check for underflow
 			;Check x1
 			LDD	2,Y+
@@ -2401,10 +2578,6 @@ CF_ABORT_QUOTE_RT_2	STY	PSP 			;update PSP
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_ABS			FHEADER, "ABS", NFA_ABORT_QUOTE, COMPILE
-CFA_ABS			DW		CF_ABS
 CF_ABS			PS_CHECK_UF	1, CF_ABS_PSUF	;check for underflow
 			LDD		0,Y		;TOS	-> D
 			BPL		CF_ABS_1	;ABS(D)	-> D
@@ -2435,10 +2608,6 @@ CF_ABS_PSUF		JOB	FCORE_THROW_PSUF
 ;"Invalid numeric argument"	
 ;"Invalid RX data"
 ;"RX buffer overflow"
-;
-			ALIGN	1
-NFA_ACCEPT		FHEADER, "ACCEPT", NFA_ABS, COMPILE
-CFA_ACCEPT		DW	CF_ACCEPT
 CF_ACCEPT		PS_CHECK_UF	2, CF_ACCEPT_PSUF	;PSP -> Y
 			;Parse command line (PSP in Y)
 			LDD	0,Y
@@ -2458,15 +2627,10 @@ CF_ACCEPT_COMERR	JMP	0,X
 	
 ;ALIGN ( -- )
 ;If the data-space pointer is not aligned, reserve enough space to align it.
-			ALIGN	1
-NFA_ALIGN		FHEADER, "ALIGN", NFA_ACCEPT, COMPILE
-CFA_ALIGN		DW	CF_NOP
+CF_ALIGN		EQU	CF_NOP
 
 ;ALIGNED ( addr -- a-addr )
-;a-addr is the first aligned address greater than or equal to addr.
-			ALIGN	1
-NFA_ALIGNED		FHEADER, "ALIGNED", NFA_ALIGN, COMPILE
-CFA_ALIGNED		DW	CF_NOP
+CF_ALIGNED		EQU	CF_NOP
 
 ;ALLOT ( n -- )
 ;If n is greater than zero, reserve n address units of data space. If n is less
@@ -2484,10 +2648,6 @@ CFA_ALIGNED		DW	CF_NOP
 ;"Parameter stack underflow"
 ;"Dictionary overflow"
 ;"Destruction of dictionary structure"
-;
-			ALIGN	1
-NFA_ALLOT		FHEADER, "ALLOT", NFA_ALIGNED, COMPILE
-CFA_ALLOT		DW	CF_ALLOT
 CF_ALLOT		PS_CHECK_UF	1, CF_ALLOT_PSUF;PSP -> Y
 			;Get argument
 			LDD	2,Y+
@@ -2517,10 +2677,6 @@ CF_ALLOT_DICTPROT	JOB	FCORE_THROW_DICTPROT
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_AND			FHEADER, "AND", NFA_ALLOT, COMPILE
-CFA_AND			DW		CF_AND
 CF_AND			PS_CHECK_UF	2, CF_AND_PSUF 	;PSP     -> Y
 			LDD	2,Y+
 			ANDA	0,Y			;D & TOS -> D
@@ -2534,10 +2690,6 @@ CF_AND_PSUF		JOB	FCORE_THROW_PSUF
 ;BASE ( -- a-addr )
 ;a-addr is the address of a cell containing the current number-conversion radix
 ;{{2...36}}.
-			ALIGN	1
-NFA_BASE		FHEADER, "BASE", NFA_AND, COMPILE
-CFA_BASE		DW	CF_CONSTANT_RT
-			DW	BASE
 
 ;BEGIN 
 ;Interpretation: Interpretation semantics for this word are undefined.

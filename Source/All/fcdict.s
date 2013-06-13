@@ -94,41 +94,122 @@ FCDICT_CODE_START_LIN	EQU	@
 
 
 
+;Find word in dictionary
+; args:   X: string pointer
+; result: X: updated string pointer (unchanged if word has not been found) 
+;         Y: CFA (null if word not found) 
+; SSTACK: n bytes
+;         D is preserved 
+FCDICT_FIND		EQU	*
+			;Save registers (string pointer in X)
+			PSHX						;save X
+			PSHD						;save D	
+			;Skip whitespace (string pointer in X)
+			STRING_SKIP_WS 					;truncate preceding whitespaces (SSTACK: 3 bytes)
+			;Set dictionary tree pointer (string pointer in X)
+			LDY	#FCDICT_TREE
+			
+			;Check next character (string pointer in X, dict pointer in Y)
+FCDICT_FIND_1		LDD	1,X+ 					;load two character
+			CMPB	#$20					;terminate if followed by whitespacw
+			BHI	FCDICT_FIND_2
+			ORAA	#$80
+FCDICT_FIND_2		STRING_UPPER					;make upper case  (SSTACK: 3 bytes)
+			
+			;Select branch of subtree (char in A, next char pointer in X, dict pointer in Y)
+FCDICT_FIND_3		TAB						;compare first character in substring
+			EORB	0,Y
+			ANDB	$7F
+			BEQ	FCDICT_FIND_6 				;match
+			;Skip to next branch (char in A, next char pointer in X, dict pointer in Y) 
+FCDICT_FIND_4		BRCLR	1,Y+, #$80, * 				;find end of substring
+			BRCLR	2,Y+, $FF, FCDICT_FIND_5 		;string termination found
+			BRCLR	0,Y, $FF, FCDICT_FIND_ 			;search unsuccessful
+			JOB	FCDICT_FIND_3 				;check next branch
+FCDICT_FIND_5		BRCLR	1,+Y, $FF, FCDICT_FIND_ 		;search unsuccessful
+			JOB	FCDICT_FIND_3 				;check next branch
 
-
-
-
-
+			;Branch selected (char in A, next char pointer in X, dict pointer in Y) 
+FCDICT_FIND_6		TSTA
+			BMI	FCDICT_FIND_ 				;end of string reached
 
 
 
 
 	
-;Skip whitespace
-; args:   Y
-; SSTACK: none
-; PS:     none
-; RS:     none
-; throws: nothing
-#macro	FCORE_DICT_SKIP, 0
-#emac
+			;End of search string (char in A, next char pointer in X, dict pointer in Y)
+FCDICT_FIND_		BRCLR	1,Y+, #$80, FCDICT_FIND_		;search unsuccessful
+			BRCLR	0,Y,  #$FF,  FCDICT_FIND_		;look for empty string in subtree
+			LDY	0,Y 					;fetch result
+			;Search successful (next char pointer in X, result in Y)  
+FCDICT_FIND_		SSTACK_PREPULL	6
+			LDD	4,SP+					;pull D from the SSTACK (skip X)
+			SEC
+			;Done
+			RTS
+			;Look for empty string in subtree  (char in A, next char pointer in X, dict pointer in Y)
+			LDY	1,Y
+			
+
+	
+	
+			TST	0,Y
+			BPL	FCDICT_FIND_ 				;
 
 
-			;Skip whitespace (string pointer in X, dict pointer in Y)
-			STRING_SKIP_WS 			;truncate preceding whitespaces (SSTACK: 3 bytes)
 
-			;Check string character (string pointer in X, dict pointer in Y)
-			LDD	1,X+ 			;load next two characters
-			BMI	FCORE_DICT_FIND_ 	;last character in word
-			CMPB	#$20			;" "	
-			BLS	FCORE_DICT_FIND_ 	;last character in word
+			LDY	1,Y
+				
+
+
+	
+			TST	2,Y
+
+
+	+ 					;skip pointer
+			BNE	FCORE_DICT_FIND_5			:skip termination
+			LEAY	1,Y					
+			
+	
+
+			BRCLR	2,+Y, #$80, FCORE_DICT_FIND_ 		;check next branch  
+			
+			;Search unsuccssful
+FCORE_DICT_FIND_5
+
+			;Character match 
+
+	
+
+
+	
+	LDAA	1,Y+   			;check subtree
+			BMI	FCORE_DICT_FIND_ 	;subtree exists
+			; (char in B, next char pointer in X, dict pointer in Y)
+			CBA
+			
+
+
+	
+
+
+	        BEQ	FCORE_DICT_FIND_	;word not found
+
+	
+
+
+
+
+
+
+
+
 			
 			
 			
 	
 
 
-			STRING_UPPER			;make upper case  (SSTACK: 3 bytes)
 			TSTB
 	
 			;Check dictionary tree (char in B, next char pointer in X, dict pointer in Y)
