@@ -94,6 +94,47 @@
 ;       FRAM_TIB_RS_END, ->                                 
 ;              RS_EMPTY
 
+
+
+;#Common word format:
+; ===================
+;	
+;        +-----------------------------+
+;  NFA-> |         Previous NFA        |	
+;        +--------------+--------------+
+;        |PRE|CFA offset| 
+;        +--------------+   
+;        |              | 
+;        |              | 
+;        |     Name     | 
+;        |              | 
+;        |              | 
+;        +-----------------------------+
+;  CFA-> |       Code Field Address    |	
+;        +--------------+--------------+
+;        |              | 
+;        |              | 
+;        |     Data     | 
+;        |              | 
+;        |              | 
+;        +--------------+   
+;                              
+; args: 1. name of the word
+;       2. previous word entry
+;       3. precedence bit (1:immediate, 0:compile)
+IMMEDIATE	EQU	1
+COMPILE		EQU	0
+#macro	FHEADER, 3
+PREV		DW	\2
+NAME_CNT	DB	((NAME_END-NAME_START)&$7F)|(\3<<7)
+NAME_START	FCS	\1
+		ALIGN	1
+NAME_END	
+#emac	
+
+
+
+	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
