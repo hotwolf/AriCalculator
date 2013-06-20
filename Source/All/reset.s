@@ -43,6 +43,8 @@
 ;#    November 16, 2012                                                        #
 ;#      - Total redo, now called reset handler and only supporting fatal       #
 ;#  	  errors                                                               #
+;#    June 20, 2013                                                            #
+;#      - Added macros "RESET_RESTART" and "RESET_RESTART_NO_MSG"              #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    STRING - String printing routines                                        #
@@ -88,7 +90,7 @@ RESET_CODERUN_OFF	EQU	1 		;default is RESET_CODERUN_OFF
 
 ;Welcome message
 ;---------------
-;RESET_WELCOME	FCS	"Hello, this is S12CBase!"
+;RESET_WELCOME		FCS	"Hello, this is S12CBase!"
 	
 ;###############################################################################
 ;# Constants                                                                   #
@@ -163,8 +165,7 @@ RESET_VARS_END_LIN	EQU	@
 RESET_INIT_1		EQU	*
 #ifdef	RESET_COP_ON
 			;Check if error message is valid (checksum in A, valid/invalid in C)
-
-			LDY	RESET_STR_COP
+			LDY	#RESET_STR_COP
 			BCC	<RESET_INIT_2		 ;print error message
 #else
 			BCC	<RESET_INIT_3		 ;print welcome message
@@ -172,7 +173,10 @@ RESET_INIT_1		EQU	*
 			;Verify checksum (checksum in A)
 			CMPA	RESET_MSG_CHKSUM
 			BNE	<RESET_INIT_3		 ;print welcome message
-			LDY	RESET_MSG	
+			LDY	RESET_MSG
+			;BEQ	RESET_INIT_5 		 ;empty message
+			BEQ	RESET_INIT_4 		 ;empty message
+	
 			;Print error message (error message in Y)
 RESET_INIT_2		LDX	#RESET_STR_FATAL
 			STRING_PRINT_BL
@@ -185,7 +189,7 @@ RESET_INIT_4		STRING_PRINT_BL
 			;LDX	#STRING_STR_EXCLAM_NL
 			;STRING_PRINT_BL
 			;Remove custom error message
-			LDD	$0000
+RESET_INIT_5		LDD	$0000
 			STD	RESET_MSG
 			STAA	RESET_MSG_CHKSUM
 			;Wait until message has been transmitted
@@ -195,17 +199,32 @@ RESET_INIT_4		STRING_PRINT_BL
 ;#Perform a reset due to a fatal error (immediate error code)
 ; args: 1: message pointer	
 #macro	RESET_FATAL, 1
+			;BGND
 			LDX	#\1
-			RESET_FATAL_X
+			JOB	RESET_FATAL_X
 #emac
 
 ;#Perform a reset due to a fatal error (error code in X)
 ; args: X: message pointer	
 #macro	RESET_FATAL_X, 0
 			;BGND
-			JOB	RESET_FATAL
+			JOB	RESET_FATAL_X
 #emac
 
+;#Perform a system restart
+; args: none
+#macro	RESET_RESTART 0
+			;BGND
+			COP_RESET
+#emac
+	
+;#Perform a system restart without welcome message
+; args: none
+#macro	RESET_RESTART_NO_MSG 0
+			;BGND
+			JOB	RESET_RESTART_NO_MSG
+#emac
+	
 ;#Check error message string and calculate checksum
 ; args:   X:      error message
 ; result: A:      checksum
@@ -270,13 +289,26 @@ RESET_EXT_ENTRY		EQU	*
 #endif
 #endif
 			JOB	START_OF_CODE
+
+;#Subroutines
+;------------
+
+;#Perform a system restart
+; args: none
+RESET_RESTART		EQU	RESET_FATAL_X_4
+	
+;#Perform a system restart without welcome message
+; args: none
+RESET_RESTART_NO_MSG	EQu	*
+			LDX	#$0000
+			JOB	RESET_FATAL_X_1
 	
 ;#Perform a reset due to a fatal error
 ; args: X: message pointer	
-RESET_FATAL		EQU	*
+RESET_FATAL_X		EQU	*
 			STX	RESET_MSG
-			LDY	RESET_FATAL_1
-	
+RESET_FATAL_X_1		LDY	RESET_FATAL_X_2
+
 ;#Calculate the checksum of the custom error message
 ; args:   X:      error message	
 ;         Y:      return address	
@@ -286,45 +318,48 @@ RESET_FATAL		EQU	*
 RESET_CALC_CHECKSUM	EQU	*
 			;Initialize checksum generation
 			CLRA
+			;Check for empty message 
+			TBEQ	X, RESET_CALC_checksum_3
+	
 			;Get next character
 RESET_CALC_CHECKSUM_1	LDAB	1,X+
 			BMI	RESET_CALC_CHECKSUM_2 	;last charcter reached
 			CMPB	#STRING_SYM_SPACE
-			BLO	<RESET_CALC_CHECKSUM_3 	;message is invalid
+			BLO	<RESET_CALC_CHECKSUM_4 	;message is invalid
 			CMPB	#STRING_SYM_TILDE
-			BHI	<RESET_CALC_CHECKSUM_3 	;message is invalid
+			BHI	<RESET_CALC_CHECKSUM_4 	;message is invalid
 			ABA
 			ROLA
 			ADCA	#$00
 			JOB	RESET_CALC_CHECKSUM_1
 			;Last charcter reached
 RESET_CALC_CHECKSUM_2	CMPB	#(STRING_SYM_SPACE|$80)
-			BLO	<RESET_CALC_CHECKSUM_3 	;message is invalid
+			BLO	<RESET_CALC_CHECKSUM_4 	;message is invalid
 			CMPB	#(STRING_SYM_TILDE|80)
-			BHI	<RESET_CALC_CHECKSUM_3 	;message is invalid
+			BHI	<RESET_CALC_CHECKSUM_4 	;message is invalid
 			;Message is valid
 			ABA
 			ROLA
 			ADCA	#$00
-			COMA
+RESET_CALC_CHECKSUM_3	COMA
 			SEC
 			JMP	0,Y
 			;Message is invalid
-RESET_CALC_CHECKSUM_3	CLC
+RESET_CALC_CHECKSUM_4	CLC
 			JMP	0,Y
 			
 ;#Perform a reset due to a fatal error...continued
 			;Check if message is valid (checksum in A, valid/invalid in C-flag)  
-RESET_FATAL_1		BCC	RESET_FATAL_3		;clear message
+RESET_FATAL_X_2		BCC	RESET_FATAL_X_4		;clear message
 			STAA	RESET_MSG_CHKSUM
 			;Trigger COP 	
-RESET_FATAL_2		COP_RESET
+RESET_FATAL_X_3		COP_RESET
 			;Clear message
-RESET_FATAL_3		CLRA
+RESET_FATAL_X_4		CLRA
 			CLRB
 			STD	RESET_MSG
 			STAA	RESET_MSG_CHKSUM
-			JOB	RESET_FATAL_2 		;trigger COP
+			JOB	RESET_FATAL_X_3 		;trigger COP
 
 ;#Trigger a fatal error if a reset accurs
 RESET_ISR_FATAL		EQU	*
