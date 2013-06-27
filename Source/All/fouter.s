@@ -40,10 +40,30 @@
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
 ;###############################################################################
+;# TIB Memory Layout:
+;#                         +--------------+--------------+        
+;#   FRAM_TIB_RS_START, -> |              |              | |          
+;#           TIB_START     |       Text Input Buffer     | | [TIB_CNT]
+;#                         |              |              | |	       
+;#                         |              v              | <	       
+;#                         | --- --- --- --- --- --- --- | 	       
+;#                         .                             . <- [TIB_START+TIB_CNT]
+;#                         .                             .            
+;#                         | --- --- --- --- --- --- --- |            
+;#                         |              ^              | <- [RSP]
+;#                         |              |              |
+;#                         |        Return Stack         |
+;#                         |              |              |
+;#                         +--------------+--------------+
+;#     FRAM_TIB_RS_END, ->                                 
+;#            RS_EMPTY
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;Safety distance to return stack 
+;TIB_PADDING		EQU	4 
+
 	
 ;###############################################################################
 ;# Constants                                                                   #
@@ -59,8 +79,10 @@
 FOUTER_VARS_START_LIN	EQU	@
 #endif	
 			ALIGN	1	
-STATE			DS	2 		;compilation/interpretation state
+STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
 BASE			DS	2 		;number conversion radix
+NUMBER_TIB  		DS	2		;number of chars in the TIB
+TO_IN  			DS	2		;in pointer of the TIB (TIB_START+TO_IN poin
 	
 FOUTER_VARS_END		EQU	*
 FOUTER_VARS_END_LIN	EQU	@
@@ -71,6 +93,32 @@ FOUTER_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	FOUTER_INIT, 0
 			MOVW	#$0000, STATE	
+#emac
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+;#Prompt string definition
+; args:   1: P
+; result: none    
+; SSTACK: none
+;         X, Y, and D is preserved 
+#macro	FOUTER_PROMPT, 1
+			STRING_NL_NONTERM
+			FCS	\1
 #emac
 	
 ;###############################################################################
@@ -145,14 +193,9 @@ FOUTER_ACCEPT	EQU	*
 			;| Return address  |  +6
 			;+--------+--------+
 FOUTER_ACCEPT_CHAR_LIMIT	EQU	0
-FOUTER_ACCEPT_BUF_PTR	EQU	2	
+FOUTER_ACCEPT_BUF_PTR		EQU	2	
 			;Signal input request (buffer pointer in X, char count in Y)
 			LED_BUSY_OFF
-
-
-
-
-	
 			;Initialize counter (buffer pointer in X, char count in Y)
 			LDY	#$0000
 			;Read input (buffer pointer in X, char count in Y)
@@ -251,7 +294,7 @@ FOUTER_ACCEPT_8		EQU	FOUTER_ACCEPT_7
 ;Code fields:
 ;============ 	
 
-;CF_ABORT ( -- ) Execute the first execution token after the CFA (CFA in X)
+;CF_ABORT ( -- ) Abort and start outer interpreter
 ; args:   IP:  next execution token	
 ;         W/X: current CFA
 ; result: IP:  subsequent execution token
@@ -259,9 +302,10 @@ FOUTER_ACCEPT_8		EQU	FOUTER_ACCEPT_7
 ; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;        D is preserved 
+CF_QUIT			EQU	*
+			MOVW	#PSP_EMPTY, PSP			;reset parameter stack
 
-
-;CF_QUIT ( -- )	Execute the first execution token after the CFA (CFA in X)
+;CF_QUIT ( -- ) start outer interpreter
 ; args:   IP:  next execution token	
 ;         W/X: current CFA
 ; result: IP:  subsequent execution token
@@ -269,19 +313,110 @@ FOUTER_ACCEPT_8		EQU	FOUTER_ACCEPT_7
 ; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;        D is preserved 
+CF_QUIT			EQU	*
+			MOVW	#RSP_EMPTY, RSP			;reset return stack
 
-
-
-;CF_SUSPEND ( -- )	Execute the first execution token after the CFA (CFA in X)
+;CF_SUSPEND ( -- ) temporarily suspend execution and start outer interpreter
 ; args:   IP:  next execution token	
 ;         W/X: current CFA
 ; result: IP:  subsequent execution token
 ; 	  W/X: current CFA
 ; 	  Y:   IP (= subsequent execution token)
-; SSTACK: none
+; SSTACK: 10 bytes
 ;        D is preserved 
+CF_SUSPEND		EQU	*
+			;Signal input request
+			LED_BUSY_OFF
+			;Print prompt INTERPRET, COMPILE, OR SUSPEND
+			LDX	#FOUTER_COMPILE_PROMPT		;compile prompt if STATE != 0
+			LDD	STATE
+			BNE	CF_SUSPEND_1
+			LDX	#FOUTER_SUSPEND_PROMPT		;suspend prompt if RSP != RS_BOTTOM 
+			LDD	RSPX1X3
+			CPD	#RS_EMPTY
+			BNE	CF_SUSPEND_1
+			LDX	#FOUTER_INTERPRET_PROMPT	;interpretation prompt otherwise 
+CF_SUSPEND_1		STRING_PRINT_BL		 		;(SSTACK: 10 bytes)
+			;Reset TIB
+			LDY	#$0000					
+			;Read character (char count in Y)
+CF_SUSPEND_2		SCI_RX_BL				;(SSTACK: 6 bytes)
+			;Check for errors (flags in A, char in B, char count in Y)
+			BITA	#(SCI_FLG_SWOR|OR)		;check for RX buffer overflow
+			BNE	CF_SUSPEND_8			;handle RX buffer overflow
+			BITA	#(NF|FE|PE)			;check for RX errors
+			BNE	CF_SUSPEND_9			;handle RX errors
+			;Check for BACKSPACE (char in B, char count in Y)
+			CMPB	#STRING_SYM_BACKSPACE	
+			BEQ	CF_SUSPEND_6			;handle backspace
+			CMPB	#STRING_SYM_DEL	
+			BEQ	CF_SUSPEND_5			;handle as backspace
+			;Check for ENTER (CR) (char in B, char count in Y)
+			CMPB	#STRING_SYM_CR	
+			BEQ	CF_SUSPEND_10			;process input
+			;Ignore LF  (char in B, char count in Y)
+			CMPB	#STRING_SYM_LF
+			BEQ	CF_SUSPEND_2			;ignore
+			;Check for TIB overflow (char in B, char count in Y)
+#ifdef	TIB_PADDING
+			LEAX	TIB_PADDING,Y 			;consider TIB padding
+			CPX	RSP				;check TIB range
+#else
+			CPY	RSP				;check TIB range
+#endif
+			BHS	CF_SUSPEND_7	 		;handle TIB overflow
+			;Check for valid special characters (char in B, char count in Y)
+			CMPB	#STRING_SYM_TAB	
+			BEQ	CF_SUSPEND_3            	;append to buffer and echo 
+			;Check for invalid characters (char in B, char count in Y)
+			CMPB	#" " 				;first legal character in ASCII table
+			BLO	CF_SUSPEND_7	               	;handle invalid input
+			CMPB	#"~"				;last legal character in ASCII table
+			BHI	CF_SUSPEND_7               	;handle invalid input
+			;Append to buffer and echo (char in B, char count in Y)
+CF_SUSPEND_3		STAB	TIB_START,Y 			;append input character
+			LEAY	1,Y				;increment TIB count
+CF_SUSPEND_4		SCI_TX_BL				;(SSTACK: 7 bytes)
+			CF_SUSPEND_2				;wait for input
+			;Remove most recent character (char in B, char count in Y)
+CF_SUSPEND_5		LDAB	#STRING_SYM_BACKSPACE 		;convert DEL to BACKSPACE
+CF_SUSPEND_6		TBEQ	Y, CF_SUSPEND_7			;handle empty TIB
+			LEAY	-1,Y				;decrement TIB count
+			CF_SUSPEND_4				;echo BACKSPACE
+			;Beep and ignore (char count in Y)
+CF_SUSPEND_7		LDAB	#STRING_SYM_BEEP			
+			CF_SUSPEND_4				;echo BEEP
+			;Handle communication errors
+CF_SUSPEND_8		FEXCEPT_THROW	FEXCPT_EC_COMOF		;throw RX overflow exception
+CF_SUSPEND_9		FEXCEPT_THROW	FEXCPT_EC_COMERR	;throw RX error exception
+			;Process input (char count in Y)
+CF_SUSPEND_10		BSET	(TIB_START-1),Y, #$80 		;terminate last character
+			STY	NUMBER_TIB			;update TIB count variable
+			MOVW	#$0000, TO_IN			;reset TIB index
+			;Look up next word 
+			LDX	TO_IN 				;string pointer -> X 
+			LEAX	TIB_START,X		
+			STRING_SKIP_WS 				;skip white space
+			FUDICT_FIND				;parse user dictionary
+			TBNE	X, CF_SUSPEND_			;word not found
+			FNVDICT_FIND				;parse non-volatile dictionary
+			TBNE	X, CF_SUSPEND_			;word not found
+			FCDICT_FIND				;parse core dictionary
+			TBNE	X, CF_SUSPEND_			;word not found
+			
+
+	
 
 
+	
+
+			LDX	#TIB_START			;set TIB pointer
+CF_SUSPEND_		;STRING_SKIP_WS				;skip whitespace (SSTACK: 3 bytes)
+			FUDICT_FIND				
+			FNVDICT_FIND
+			FCDICT_FIND
+	
+		
 
 
 ;CF_RESUME ( -- )	Execute the first execution token after the CFA (CFA in X)
@@ -292,11 +427,15 @@ FOUTER_ACCEPT_8		EQU	FOUTER_ACCEPT_7
 ; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;        D is preserved 
+CF_RESUME		EQU	*
+			;Check if SHELL points to the bottom of the stack
+
+
+			MOVW	SHELL, RSP
 
 
 
-
-
+_
 
 
 
@@ -314,13 +453,13 @@ FOUTER_CODE_END_LIN	EQU	@
 			ORG 	FOUTER_TABS_START
 FOUTER_TABS_START_LIN	EQU	@
 #endif	
-
+	
 ;System prompts
-FOUTER_SUSPEND_PROMPT	FCS	"S> "
-FOUTER_INTERPRET_PROMPT	FCS	"> "
-FOUTER_COMPILE_PROMPT	FCS	"+ "
-FOUTER_SKIP_PROMPT	FCS	"0 "
-FOUTER_SYSTEM_PROMPT	FCS	" ok"
+FOUTER_SUSPEND_PROMPT	FOUTER_PROMPT	"S> "
+FOUTER_INTERPRET_PROMPT	FOUTER_PROMPT	"> "
+FOUTER_COMPILE_PROMPT	FOUTER_PROMPT	"+ "
+FOUTER_SKIP_PROMPT	FOUTER_PROMPT	"0 "
+FOUTER_SYSTEM_ACK	FCS		" ok"
 
 
 FOUTER_TABS_END		EQU	*
@@ -336,9 +475,10 @@ FOUTER_TABS_END_LIN	EQU	@
 FOUTER_WORDS_START_LIN	EQU	@
 #endif	
 
-
-
-
+			ALIGN	1
+;Word: RESUME ( -- )
+;Resume from SUSPEND 
+CFA_RESUME		EQU	CF_RESUME
 
 FOUTER_WORDS_END		EQU	*
 FOUTER_WORDS_END_LIN	EQU	@
