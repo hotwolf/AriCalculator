@@ -170,6 +170,14 @@ FINNER_VARS_END_LIN	EQU	@
 			RESET_RESTART_NO_MSG	
 #emac
 
+;#Abort action (to be executed in addition of quit action)
+#macro	FINNER_ABORT, 0
+#emac
+	
+;#Quit action
+#macro	FINNER_QUIT, 0
+#emac
+	
 ;#Suspend: Set suspend flag
 #macro	SCI_SUSPEND_ACTION
 			BSET	IRQ, #IRQ_SUSPEND

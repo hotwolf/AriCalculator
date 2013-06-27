@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CForth - FCORE WORDS - ANS Forth Core Words                              #
+;# S12CForth - FCORE - ANS Forth Core Words                                    #
 ;###############################################################################
 ;#    Copyright 2010 Dirk Heisswolf                                            #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #

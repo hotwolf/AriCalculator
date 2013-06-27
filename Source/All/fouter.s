@@ -23,8 +23,12 @@
 ;#    environment.                                                             #
 ;#                                                                             #
 ;#    The outer interpreter uses these registers:                              #
-;#     STATE = 0 -> Interpretation state    		       		       #
-;#             1 -> Compilation state    		       		       #
+;#          STATE = 0 -> Interpretation state    	       		       #
+;#                  1 -> Compilation state    		       		       #
+;#           BASE = Number conversion radix                                    #
+;#     NUMBER_TIB = Number of chars in the TIB                                 #
+;#          TO_IN = In-pointer of the TIB (>IN)	       			       #
+;#       	    (TIB_START+TO_IN) points to the next character	       #
 ;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -40,23 +44,23 @@
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
 ;###############################################################################
-;# TIB Memory Layout:
-;#                         +--------------+--------------+        
-;#   FRAM_TIB_RS_START, -> |              |              | |          
-;#           TIB_START     |       Text Input Buffer     | | [TIB_CNT]
-;#                         |              |              | |	       
-;#                         |              v              | <	       
-;#                         | --- --- --- --- --- --- --- | 	       
-;#                         .                             . <- [TIB_START+TIB_CNT]
-;#                         .                             .            
-;#                         | --- --- --- --- --- --- --- |            
-;#                         |              ^              | <- [RSP]
-;#                         |              |              |
-;#                         |        Return Stack         |
-;#                         |              |              |
-;#                         +--------------+--------------+
-;#     FRAM_TIB_RS_END, ->                                 
-;#            RS_EMPTY
+;        
+;                         +--------------+--------------+        
+;   FRAM_TIB_RS_START, -> |              |              | |          
+;           TIB_START     |       Text Input Buffer     | | [TIB_CNT]
+;                         |              |              | |	       
+;                         |              v              | <	       
+;                         | --- --- --- --- --- --- --- | 	       
+;                         .                             . <- [TIB_START+TIB_CNT]
+;                         .                             .            
+;                         | --- --- --- --- --- --- --- |            
+;                         |              ^              | <- [RSP]
+;                         |              |              |
+;                         |        Return Stack         |
+;                         |              |              |
+;                         +--------------+--------------+
+;     FRAM_TIB_RS_END, ->                                 
+;            RS_EMPTY
 
 ;###############################################################################
 ;# Configuration                                                               #
@@ -95,6 +99,14 @@ FOUTER_VARS_END_LIN	EQU	@
 			MOVW	#$0000, STATE	
 #emac
 
+;#Abort action (to be executed in addition of quit action)
+#macro	FOUTER_ABORT, 0
+#emac
+	
+;#Quit action
+#macro	FOUTER_QUIT, 0
+#emac
+	
 
 
 

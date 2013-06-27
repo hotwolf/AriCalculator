@@ -1,8 +1,8 @@
 ;###############################################################################
-;# S12CForth- FRAM - Stack and buffer management for the Forth VM              #
+;# S12CForth- FRS - Return Stack for the Forth VM                              #
 ;###############################################################################
 ;#    Copyright 2010 - 2013 Dirk Heisswolf                                     #
-;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
+;#    This file is part of the S12CForth frsework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
 ;#    S12CForth is free software: you can redistribute it and/or modify        #
@@ -19,21 +19,9 @@
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module implements the parameter and the return stack, as well as    #
-;#    the TIB and the dictionary space.                                        # 
+;#    This module implements the return stack.                                 #
 ;#                                                                             #
-;#    Forth virtual machine registers are defined as follows:                  #
-;#             CP = Compile pointer                                            #
-;#                  Points to the next free space after the dictionary         #
-;#            PAD = Beginning of the PAD buffer 			       #
-;#                  Points to the next byte after the PAD		       #
-;#            HLD = Pointer for pictured numeric output			       #
-;#                  Points to the first character on the PAD                   #
-;;#    NUMBER_TIB = Number of chars in the TIB                                 #
-;#          TO_IN = In-pointer of the TIB (>IN)	       			       #
-;#       	    (TIB_START+TO_IN) points to the next character	       #
-;#            PSP = Parameter Stack Pointer.				       #
-;#	            Points to the top of the parameter stack                   #
+;#    The return stack uses these registers:                                   #
 ;#            RSP = Return stack pointer.				       #
 ;#	            Points to the top of the return stack.                     #
 ;#                                                                             #
@@ -52,34 +40,10 @@
 ;###############################################################################
 ;# Memory Layout                                                               #
 ;###############################################################################
-;        
-;      	                    +--------------+--------------+	     
-;    FRAM_DICT_PS_START, -> |              |              | 	     
-;            DICT_START     |       User Dictionary       |	     
-;                           |       User Variables        |	     
-;                           |              |              |	     
-;                           |              v              |	     
-;                           | --- --- --- --- --- --- --- |	     
-;                           |                             | <- [CP]  
-;                           | --- --- --- --- --- --- --- |          
-;                           |              ^              | <- [HLD]	     
-;                           |             PAD             |	     
-;                           | --- --- --- --- --- --- --- |          
-;                           |                             | <- [PAD]          
-;                           .                             .          
-;                           .                             .          
-;                           | --- --- --- --- --- --- --- |          
-;                           |              ^              | <- [PSP]	  
-;                           |              |              |		  
-;                           |       Parameter stack       |		  
-;    	                    |              |              |		  
+;         
 ;                           +--------------+--------------+        
-;      FRAM_DICT_PS_END, ->   
-;              PS_EMPTY 
-;        
-;                           +--------------+--------------+        
-;     FRAM_TIB_RS_START, -> |              |              | |          
-;             TIB_START     |       Text Input Buffer     | | [TIB_CNT]
+;    	       TIB_START -> |              |              | |          
+;                           |       Text Input Buffer     | | [TIB_CNT]
 ;                           |              |              | |	       
 ;                           |              v              | <	       
 ;                           | --- --- --- --- --- --- --- | 	       
@@ -91,7 +55,7 @@
 ;                           |        Return Stack         |
 ;                           |              |              |
 ;                           +--------------+--------------+
-;       FRAM_TIB_RS_END, ->                                 
+;       FRS_TIB_RS_END, ->                                 
 ;              RS_EMPTY
 
 
@@ -139,54 +103,54 @@ NAME_END
 ;# Configuration                                                               #
 ;###############################################################################
 ;Memory boundaries
-;FRAM_DICT_PS_START	EQU	0	;start of shared DICT/PAD/PS space
-;FRAM_DICT_PS_END	EQU	0	;end of shared DICT/PAD/PS space
-;FRAM_TIB_RS_START	EQU	0	;start of shared TIB/RS space
-;FRAM_TIB_RS_END	EQU	0	;end of shared TIB/RS space
+;FRS_DICT_PS_START	EQU	0	;start of shared DICT/PAD/PS space
+;FRS_DICT_PS_END	EQU	0	;end of shared DICT/PAD/PS space
+;FRS_TIB_RS_START	EQU	0	;start of shared TIB/RS space
+;FRS_TIB_RS_END	EQU	0	;end of shared TIB/RS space
 
 ;Safety distance between TIB and RS
-#ifndef FRAM_TIB_RS_DIST
-FRAM_TIB_RS_DIST	EQU	4 	;default is 4 bytes
+#ifndef FRS_TIB_RS_DIST
+FRS_TIB_RS_DIST	EQU	4 	;default is 4 bytes
 #endif
 
 ;PAD SIZE
-#ifndef FRAM_PAD_SIZE
-FRAM_PAD_SIZE		EQU	84 	;default is 84 bytes
+#ifndef FRS_PAD_SIZE
+FRS_PAD_SIZE		EQU	84 	;default is 84 bytes
 #endif
-#ifndef FRAM_PAD_MINSIZE
-FRAM_PAD_MINSIZE	EQU	4 	;default is 4 bytes
+#ifndef FRS_PAD_MINSIZE
+FRS_PAD_MINSIZE	EQU	4 	;default is 4 bytes
 #endif
 	
 ;Safety distance between TIB and PS
-#ifndef FRAM_TIB_PS_DIST
-FRAM_PAD_PS_DIST	EQU	16 	;default is 16 bytes
+#ifndef FRS_TIB_PS_DIST
+FRS_PAD_PS_DIST	EQU	16 	;default is 16 bytes
 #endif
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
 ;Memory boundaries
-DICT_START		EQU	FRAM_DICT_PS_START ;start of the dictionary
-PS_EMPTY		EQU	FRAM_DICT_PS_END   ;PSP on empty PS
-TIB_START		EQU	FRAM_TIB_RS_START  ;start of the TIB
-RS_EMPTY		EQU	FRAM_TIB_RS_END	   ;RSP on empty RS
+DICT_START		EQU	FRS_DICT_PS_START ;start of the dictionary
+PS_EMPTY		EQU	FRS_DICT_PS_END   ;PSP on empty PS
+TIB_START		EQU	FRS_TIB_RS_START  ;start of the TIB
+RS_EMPTY		EQU	FRS_TIB_RS_END	   ;RSP on empty RS
 
 ;Error codes
-FRAM_EC_DICTOF		EQU	FEXCPT_EC_DICTOF	;DICT overflow (-8)
-FRAM_EC_PADOF		EQU	FEXCPT_EC_PADOF		;PAD overflow  (-17)
-FRAM_EC_PSOF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
-FRAM_EC_PSUF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
-FRAM_EC_RSOF		EQU	FEXCPT_EC_RSOF		;RS overflow   (-5)
-FRAM_EC_RSUF		EQU	FEXCPT_EC_RSUF		;RS underflow  (-6)
+FRS_EC_DICTOF		EQU	FEXCPT_EC_DICTOF	;DICT overflow (-8)
+FRS_EC_PADOF		EQU	FEXCPT_EC_PADOF		;PAD overflow  (-17)
+FRS_EC_PSOF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
+FRS_EC_PSUF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
+FRS_EC_RSOF		EQU	FEXCPT_EC_RSOF		;RS overflow   (-5)
+FRS_EC_RSUF		EQU	FEXCPT_EC_RSUF		;RS underflow  (-6)
 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef FRAM_VARS_START_LIN
-			ORG 	FRAM_VARS_START, FRS_VARS_START_LIN
+#ifdef FRS_VARS_START_LIN
+			ORG 	FRS_VARS_START, FRS_VARS_START_LIN
 #else
-			ORG 	FRAM_VARS_START
-FRAM_VARS_START_LIN	EQU	@
+			ORG 	FRS_VARS_START
+FRS_VARS_START_LIN	EQU	@
 
 CP			DS	2 	;compile pointer (next free space after the dictionary) 
 CP_SAVED		DS	2 	;last compile pointer (before the current compilation)  
@@ -197,14 +161,14 @@ NUMBER_TIB  		DS	2	;number of chars in the TIB
 TO_IN  			DS	2	;in pointer of the TIB (TIB_START+TO_IN points to the next character)
 RSP			DS	2 	;return stack pointer (top of stack)
 
-FRAM_VARS_END		EQU	*
-FRAM_VARS_END_LIN	EQU	@
+FRS_VARS_END		EQU	*
+FRS_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	FRAM_INIT, 0
+#macro	FRS_INIT, 0
 			;Initialize dictionary
 			LDD	#DICT_START
 			STD	CP
@@ -226,7 +190,7 @@ FRAM_VARS_END_LIN	EQU	@
 #emac
 
 ;#Quit action
-#macro	FRAM_QUIT, 0
+#macro	FRS_QUIT, 0
 			;Initialize TIB
 			MOVW	#(TIB_START-1),   TO_IN
 			MOVW	#$0000,   	NUMBER_TIB
@@ -236,9 +200,9 @@ FRAM_VARS_END_LIN	EQU	@
 #emac
 
 ;#Abort action (in case of break or error)
-#macro	FRAM_ABORT, 0
+#macro	FRS_ABORT, 0
 			;Quit action 
-			FRAM_QUIT
+			FRS_QUIT
 
 			;Initialize parameter stack
 			MOVW	#PS_EMPTY,	PSP	
@@ -256,7 +220,7 @@ FRAM_VARS_END_LIN	EQU	@
 			LDX	CP 			;=> 3 cycles
 			LEAX	\1,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
-			BHI	FRAM_DICTOF_HANDLER	;=> 3 cycles/ 4 cycles
+			BHI	FRS_DICTOF_HANDLER	;=> 3 cycles/ 4 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
 							;  -------------------
@@ -273,7 +237,7 @@ FRAM_VARS_END_LIN	EQU	@
 			LDX	CP 			;=> 3 cycles
 			LEAX	A,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
-			BHI	FRAM_DICTOF_HANDLER	;=> 3 cycles/ 4 cycles
+			BHI	FRS_DICTOF_HANDLER	;=> 3 cycles/ 4 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
 							;  --------------------
@@ -290,7 +254,7 @@ FRAM_VARS_END_LIN	EQU	@
 			LDX	CP 			;=> 3 cycles
 			LEAX	D,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
-			BHI	FRAM_DICTOF_HANDLER	;=> 3 cycles/ 4 cycles
+			BHI	FRS_DICTOF_HANDLER	;=> 3 cycles/ 4 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
 							;  --------------------
@@ -308,7 +272,7 @@ FRAM_VARS_END_LIN	EQU	@
 #macro	PAD_CHECK_OF, 0
 			LDX	HLD 			;=> 3 cycles
 			CPX	CP			;=> 3 cycles
-			BLS	FRAM_PADOF_HANDLER	;=> 3 cycles/ 4 cycles
+			BLS	FRS_PADOF_HANDLER	;=> 3 cycles/ 4 cycles
 							;  -------------------
 							;   9 cycles/10 cycles
 #emac			
@@ -320,8 +284,8 @@ FRAM_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_PADOF
 ;        X and Y are preserved 
 #macro	PAD_ALLOC, 0 
-			SSTACK_JOBSR	FRAM_PAD_ALLOC, 2
-			TBEQ	D, FRAM_PADOF_HANDLER 	;no space available at all
+			SSTACK_JOBSR	FRS_PAD_ALLOC, 2
+			TBEQ	D, FRS_PADOF_HANDLER 	;no space available at all
 #emac			
 
 ;PAD_DEALLOC: deallocate the PAD buffer  (PAD -> D)
@@ -354,7 +318,7 @@ FRAM_VARS_END_LIN	EQU	@
 #macro	PS_CHECK_UF, 1 
 			LDY	PSP 			;=> 3 cycles
 			CPY	#(PS_EMPTY-(2*\1))	;=> 2 cycles
-			BHI	FRAM_PSUF_HANDLER	;=> 3 cycles/ 4 cycles
+			BHI	FRS_PSUF_HANDLER	;=> 3 cycles/ 4 cycles
 							;  -------------------
 							;   8 cycles/ 9 cycles
 #emac
@@ -369,7 +333,7 @@ FRAM_VARS_END_LIN	EQU	@
 			LDY	PSP 			;=> 3 cycles
 			LEAY	-(2*\1),Y		;=> 2 cycles
 			CPY	PAD			;=> 3 cycles
-			BLO	FRAM_PSOF_HANDLER	;=> 3 cycle / 4 cycles
+			BLO	FRS_PSOF_HANDLER	;=> 3 cycle / 4 cycles
 							;  -------------------
 							;  11 cycles/ 12 cycles
 #emac
@@ -390,7 +354,7 @@ FRAM_VARS_END_LIN	EQU	@
 			COMA				;=> 1 cycle
 			COMB				;=> 1 cycle
 			CPY	PAD			;=> 3 cycles
-			BLO	FRAM_PSOF_HANDLER	;=> 3 cycles/  4 cycles
+			BLO	FRS_PSOF_HANDLER	;=> 3 cycles/  4 cycles
 							;  --------------------
 							;  19 cycles/ 20 cycles
 #emac
@@ -406,10 +370,10 @@ FRAM_VARS_END_LIN	EQU	@
 #macro	PS_CHECK_UFOF, 2  
 			LDY	PSP 			;=> 3 cycles
 			CPY	#(PS_EMPTY-(2*\1))	;=> 2 cycles
-			BHI	FRAM_PSUF_HANDLER	;=> 3 cycles/  4 cycles
+			BHI	FRS_PSUF_HANDLER	;=> 3 cycles/  4 cycles
 			LEAY	-(2*\2),Y		;=> 2 cycles
 			CPY	PAD			;=> 3 cycles
-			BLO	FRAM_PSOF_HANDLER	;=> 3 cycles/  4 cycles
+			BLO	FRS_PSOF_HANDLER	;=> 3 cycles/  4 cycles
 							;  --------------------
 							;  16 cycles/ 18 cycles
 #emac
@@ -501,7 +465,7 @@ FRAM_VARS_END_LIN	EQU	@
 			LDX	NUMBER_TIB		;=> 3 cycles
 			LEAX	(TIB_START+\1),X	;=> 2 cycles
 			CPX	RSP			;=> 3 cycles
-			BHI	FRAM_TIBOF_HANDLER	;=> 3 cycle / 4 cycles
+			BHI	FRS_TIBOF_HANDLER	;=> 3 cycle / 4 cycles
 							;  -------------------
 							;  11 cycles/12 cycles
 #emac
@@ -525,7 +489,7 @@ FRAM_VARS_END_LIN	EQU	@
 #macro	RS_CHECK_UF, 1
 			LDX	RSP 			;=> 3 cycles
 			CPX	#(RS_EMPTY-(2*\1))	;=> 2 cycles
-			BHI	FRAM_RSUF_HANDLER	;=> 3 cycles/ 4 cycles
+			BHI	FRS_RSUF_HANDLER	;=> 3 cycles/ 4 cycles
 							;  -------------------
 							;   8 cycles/ 9 cycles
 #emac
@@ -540,7 +504,7 @@ FRAM_VARS_END_LIN	EQU	@
 			LDX	NUMBER_TIB		;=> 3 cycles
 			LEAX	(TIB_START+(2*\1)),X	;=> 2 cycles
 			CPX	RSP			;=> 3 cycles
-			BHI	FRAM_RSOF_HANDLER	;=> 3 cycles/ 4 cycles
+			BHI	FRS_RSOF_HANDLER	;=> 3 cycles/ 4 cycles
 							;  -------------------
 							;  11 cycles/12 cycles
 #emac
@@ -555,7 +519,7 @@ FRAM_VARS_END_LIN	EQU	@
 			LDY	NUMBER_TIB		;=> 3 cycles
 			LEAY	(TIB_START+(2*\1)),Y	;=> 2 cycles
 			CPY	RSP			;=> 3 cycles
-			BHI	FRAM_RSOF_HANDLER	;=> 3 cycles/ 4 cycles
+			BHI	FRS_RSOF_HANDLER	;=> 3 cycles/ 4 cycles
 							;  -------------------
 							;  11 cycles/12 cycles
 #emac
@@ -613,7 +577,7 @@ FRAM_VARS_END_LIN	EQU	@
 			LDY	NUMBER_TIB		;=> 3 cycles
 			LEAY	(TIB_START+2),Y		;=> 2 cycles
 			CPY	RSP			;=> 3 cycles
-			BHI	FRAM_RSOF_HANDLER	;=> 3 cycle / 4 cycles
+			BHI	FRS_RSOF_HANDLER	;=> 3 cycle / 4 cycles
 			LDY	RSP			;=> 3 cycles
 			MOVW	\1, 2,-Y		;=> 5 cycles
 			STY	RSP			;=> 3 cycles
@@ -624,11 +588,11 @@ FRAM_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef FRAM_CODE_START_LIN
-			ORG 	FRAM_CODE_START, FRAM_CODE_START_LIN
+#ifdef FRS_CODE_START_LIN
+			ORG 	FRS_CODE_START, FRS_CODE_START_LIN
 #else
-			ORG 	FRAM_CODE_START
-FRAM_CODE_START_LIN	EQU	@
+			ORG 	FRS_CODE_START
+FRS_CODE_START_LIN	EQU	@
 #endif
 
 
@@ -639,46 +603,46 @@ FRAM_CODE_START_LIN	EQU	@
 ; result: D: PAD (= HLD), $0000 if no space is available
 ; SSTACK: 2
 ;        X and Y are preserved 
-FRAM_PAD_ALLOC		EQU	*
+FRS_PAD_ALLOC		EQU	*
 			;Calculate available space
 			LDD	PSP
 			SUBD	CP
-			;BLS	FRAM_PAD_ALLOC_4 	;no space available at all
+			;BLS	FRS_PAD_ALLOC_4 	;no space available at all
 			;Check if requested space is available
-			CPD	#(FRAM_PAD_SIZE+FRAM_PAD_PS_DIST)
-			BLO	FRAM_PAD_ALLOC_3	;reduce size
+			CPD	#(FRS_PAD_SIZE+FRS_PAD_PS_DIST)
+			BLO	FRS_PAD_ALLOC_3	;reduce size
 			LDD	CP
-			ADDD	#FRAM_PAD_SIZE
+			ADDD	#FRS_PAD_SIZE
 			;Allocate PAD
-FRAM_PAD_ALLOC_1	STD	PAD
+FRS_PAD_ALLOC_1	STD	PAD
 			STD	HLD
 			;Done 
-FRAM_PAD_ALLOC_2	SSTACK_PREPULL	2
+FRS_PAD_ALLOC_2	SSTACK_PREPULL	2
 			RTS
 			;Reduce PAD size 
-FRAM_PAD_ALLOC_3	CPD	#(FRAM_PAD_MINSIZE+FRAM_PAD_PS_DIST)
-			BLO	FRAM_PAD_ALLOC_		;not enough space available
+FRS_PAD_ALLOC_3	CPD	#(FRS_PAD_MINSIZE+FRS_PAD_PS_DIST)
+			BLO	FRS_PAD_ALLOC_		;not enough space available
 			LDD	PSP
-			SUBD	#FRAM_PAD_PS_DIST
-			JOB	FRAM_PAD_ALLOC_1 	;allocate PAD
+			SUBD	#FRS_PAD_PS_DIST
+			JOB	FRS_PAD_ALLOC_1 	;allocate PAD
 			;Not enough space available
-FRAM_PAD_ALLOC_4	LDD 	$0000 			;signal failure
-			JOB	FRAM_PAD_ALLOC_2	;done
+FRS_PAD_ALLOC_4	LDD 	$0000 			;signal failure
+			JOB	FRS_PAD_ALLOC_2	;done
 
 ;#Dictionary overflow handler
-FRAM_DICTOF_HANDLER	EQU	*
+FRS_DICTOF_HANDLER	EQU	*
 			FEXCPT_THROW	FMEM_EC_DICTOF
 
 ;#PAD overflow handler
-FRAM_PADOF_HANDLER	EQU	*
+FRS_PADOF_HANDLER	EQU	*
 			FEXCPT_THROW	FMEM_EC_PADOF
 
 ;#PS overflow handler
-FRAM_PSOF_HANDLER	EQU	*
+FRS_PSOF_HANDLER	EQU	*
 			FEXCPT_THROW	FMEM_EC_PSOF
 
 ;#PS underflow handler
-FRAM_PSUF_HANDLER	EQU	*
+FRS_PSUF_HANDLER	EQU	*
 			FEXCPT_THROW	FMEM_EC_PSUF
 
 ;#RS overflow handler
@@ -686,35 +650,35 @@ RAM_RSOF_HANDLER	EQU	*
 			FEXCPT_THROW	FMEM_EC_RSOF
 	
 ;#RS underflow handler
-FRAM_RSUF_HANDLER	EQU	*
+FRS_RSUF_HANDLER	EQU	*
 			FEXCPT_THROW	FMEM_EC_RSUF
 	
-FRAM_CODE_END		EQU	*
-FRAM_CODE_END_LIN	EQU	@
+FRS_CODE_END		EQU	*
+FRS_CODE_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef FRAM_TABS_START_LIN
-			ORG 	FRAM_TABS_START, FRAM_TABS_START_LIN
+#ifdef FRS_TABS_START_LIN
+			ORG 	FRS_TABS_START, FRS_TABS_START_LIN
 #else
-			ORG 	FRAM_TABS_START
-FRAM_TABS_START_LIN	EQU	@
+			ORG 	FRS_TABS_START
+FRS_TABS_START_LIN	EQU	@
 #endif	
 
-FRAM_TABS_END		EQU	*
-FRAM_TABS_END_LIN	EQU	@
+FRS_TABS_END		EQU	*
+FRS_TABS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Words                                                                       #
 ;###############################################################################
-#ifdef FRAM_WORDS_START_LIN
-			ORG 	FRAM_WORDS_START, FRAM_WORDS_START_LIN
+#ifdef FRS_WORDS_START_LIN
+			ORG 	FRS_WORDS_START, FRS_WORDS_START_LIN
 #else
-			ORG 	FRAM_WORDS_START
-FRAM_WORDS_START_LIN	EQU	@
+			ORG 	FRS_WORDS_START
+FRS_WORDS_START_LIN	EQU	@
 #endif	
 
-FRAM_WORDS_END		EQU	*
-FRAM_WORDS_END_LIN	EQU	@
+FRS_WORDS_END		EQU	*
+FRS_WORDS_END_LIN	EQU	@
 
