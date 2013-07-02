@@ -50,9 +50,9 @@
 ;           TIB_START     |       Text Input Buffer     | | [TIB_CNT]
 ;                         |              |              | |	       
 ;                         |              v              | <	       
-;                         | --- --- --- --- --- --- --- | 	       
-;                         .                             . <- [TIB_START+TIB_CNT]
-;                         .                             .            
+;                     -+- | --- --- --- --- --- --- --- | 	       
+;          TIB_PADDING |  .                             . <- [TIB_START+TIB_CNT] 
+;                     -+- .                             .            
 ;                         | --- --- --- --- --- --- --- |            
 ;                         |              ^              | <- [RSP]
 ;                         |              |              |
@@ -65,9 +65,11 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;TIB location
+;TIB_START		EQU	0
+
 ;Safety distance to return stack 
 ;TIB_PADDING		EQU	4 
-
 	
 ;###############################################################################
 ;# Constants                                                                   #
@@ -99,39 +101,18 @@ FOUTER_VARS_END_LIN	EQU	@
 			MOVW	#$0000, STATE	
 #emac
 
-;#Abort action (to be executed in addition of quit action)
+;#Abort action (to be executed in addition of quit and suspend action)
 #macro	FOUTER_ABORT, 0
 #emac
 	
-;#Quit action
+;#Quit action (to be executed in addition of suspend action)
 #macro	FOUTER_QUIT, 0
 #emac
 	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	
-;#Prompt string definition
-; args:   1: P
-; result: none    
-; SSTACK: none
-;         X, Y, and D is preserved 
-#macro	FOUTER_PROMPT, 1
-			STRING_NL_NONTERM
-			FCS	\1
+;#Suspend action
+#macro	FOUTER_SUSPEND, 0
 #emac
+	
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -465,6 +446,13 @@ FOUTER_CODE_END_LIN	EQU	@
 			ORG 	FOUTER_TABS_START
 FOUTER_TABS_START_LIN	EQU	@
 #endif	
+
+;Prompt string definition format
+; args:   1: P
+#macro	FOUTER_PROMPT, 1
+			STRING_NL_NONTERM
+			FCS	\1
+#emac
 	
 ;System prompts
 FOUTER_SUSPEND_PROMPT	FOUTER_PROMPT	"S> "

@@ -42,19 +42,19 @@
 ;###############################################################################
 ;        
 ;      	                    +--------------+--------------+	     
-;           FUDICT_START -> |              |              | 	     
+;            UDICT_START -> |              |              | 	     
 ;                           |       User Dictionary       |	     
 ;                           |       User Variables        |	     
 ;                           |              |              |	     
 ;                           |              v              |	     
-;                           | --- --- --- --- --- --- --- |	     
-;                           |                             | <- [CP]  
-;                           | --- --- --- --- --- --- --- |          
+;                       -+- | --- --- --- --- --- --- --- |
+;             UDICT_PADDING |                             | <- [CP]	     
+;                       -+- | --- --- --- --- --- --- --- |          
 ;                           |              ^              | <- [HLD]	     
 ;                           |             PAD             |	     
-;                           | --- --- --- --- --- --- --- |          
-;                           |                             | <- [PAD]          
-;                           .                             .          
+;                       -+- | --- --- --- --- --- --- --- |          
+;             RS_PADDING |  |                             | <- [PAD]          
+;                       -+- .                             .          
 ;                           .                             .          
 ;                           | --- --- --- --- --- --- --- |          
 ;                           |              ^              | <- [PSP]	  
@@ -62,44 +62,20 @@
 ;                           |       Parameter stack       |		  
 ;    	                    |              |              |		  
 ;                           +--------------+--------------+        
-;               FPS_END, ->   
-;               PS_EMPTY 
+;               PS_EMPTY ->   
 	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Memory boundaries
-;FPS_DICT_PS_START	EQU	0	;start of shared DICT/PAD/PS space
-;FPS_DICT_PS_END	EQU	0	;end of shared DICT/PAD/PS space
-;FPS_TIB_RS_START	EQU	0	;start of shared TIB/RS space
-;FPS_TIB_RS_END	EQU	0	;end of shared TIB/RS space
-
-;Safety distance between TIB and RS
-#ifndef FPS_TIB_RS_DIST
-FPS_TIB_RS_DIST	EQU	4 	;default is 4 bytes
-#endif
-	
-;Safety distance between TIB and PS
-#ifndef FPS_TIB_PS_DIST
-FPS_PAD_PS_DIST	EQU	16 	;default is 16 bytes
-#endif
+;Bottom of parameter stack
+;PS_EMPTY		EQU	0
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Memory boundaries
-DICT_START		EQU	FPS_DICT_PS_START ;start of the dictionary
-PS_EMPTY		EQU	FPS_DICT_PS_END   ;PSP on empty PS
-TIB_START		EQU	FPS_TIB_RS_START  ;start of the TIB
-RS_EMPTY		EQU	FPS_TIB_RS_END	   ;RSP on empty RS
-
 ;Error codes
-FPS_EC_DICTOF		EQU	FEXCPT_EC_DICTOF	;DICT overflow (-8)
-FPS_EC_PADOF		EQU	FEXCPT_EC_PADOF		;PAD overflow  (-17)
-FPS_EC_PSOF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
-FPS_EC_PSUF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
-FPS_EC_RSOF		EQU	FEXCPT_EC_RSOF		;RS overflow   (-5)
-FPS_EC_RSUF		EQU	FEXCPT_EC_RSUF		;RS underflow  (-6)
+FPS_EC_OF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
+FPS_EC_UF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -123,15 +99,21 @@ FPS_VARS_END_LIN	EQU	@
 			;Initialize parameter stack
 			MOVW	#PS_EMPTY,	PSP	
 #emac
+	
+;#Abort action (to be executed in addition of quit and suspend action)
+#macro	FRS_ABORT, 0
+			;Reset parameter stack
+			MOVW	#PR_EMPTY,	PSP		
+#emac
+	
+;#Quit action (to be executed in addition of suspend action)
+#macro	FRS_QUIT, 0
+#emac
+	
+;#Suspend action
+#macro	FRS_SUSPEND, 0
+#emac
 
-;#Abort action (to be executed in addition of quit action)
-#macro	FPS_ABORT, 0
-#emac
-	
-;#Quit action
-#macro	FPS_QUIT, 0
-#emac
-	
 ;#Parameter stack oerations:
 ;#--------------------------	
 ;PS_RESET: reset the parameter stack
@@ -287,23 +269,6 @@ FPS_VARS_END_LIN	EQU	@
 							;                         ---------
 							;                          9 cycles
 #emac	
-	
-;#Text input buffer (TIB)
-;TIB_CHECK_OF: check if there is room for another character on the TIB (next free TIB location -> X)
-; args:   1: required character space
-; result: X: next free TIB location
-; SSTACK: none
-; throws: FEXCPT_EC_TIBOF
-;        Y and D are preserved 
-#macro	TIB_CHECK_OF, 1
-			LDX	NUMBER_TIB		;=> 3 cycles
-			LEAX	(TIB_START+\1),X	;=> 2 cycles
-			CPX	RSP			;=> 3 cycles
-			BHI	FPS_TIBOF_HANDLER	;=> 3 cycle / 4 cycles
-							;  -------------------
-							;  11 cycles/12 cycles
-#emac
-
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -316,11 +281,11 @@ FPS_CODE_START_LIN	EQU	@
 
 ;#PS overflow handler
 FPS_OF_HANDLER		EQU	*
-			FEXCPT_THROW	FMEM_EC_PSOF
+			FEXCPT_THROW	FEXCPT_EC_PSOF
 
 ;#PS underflow handler
 FPS_UF_HANDLER		EQU	*
-			FEXCPT_THROW	FMEM_EC_PSUF
+			FEXCPT_THROW	FEXCPT_EC_PSUF
 	
 FPS_CODE_END		EQU	*
 FPS_CODE_END_LIN	EQU	@
