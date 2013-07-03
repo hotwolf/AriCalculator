@@ -19,21 +19,7 @@
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module attempts to implement the ANS Forth core word and core set   #
-;#    extension word set.                                                      #
-;#                                                                             #
-;#    Forth virtual machine registers are defined as follows:                  #
-;#       W   = Working register. 					       #
-;#             The W register points to the CFA of the current word, but it    #
-;#             may be overwritten.	   			               #
-;#             Used for indexed addressing and arithmetics.		       #
-;#	       Index Register X is used to implement W.                        #
-;#       IP  = Instruction pointer.					       #
-;#             Points to the next execution token.			       #
-;#       PSP = Parameter Stack Pointer.					       #
-;#	       Points one cell beyond the top of the parameter stack           #
-;#       RSP = Return stack pointer.					       #
-;#	       Points one cell beyond the top of the return stack.             #
+;#    This module implements the ANS Forth core and core extension word set.   #
 ;#                                                                             #
 ;#    The following notation is used to describe the stack layout in the word  #
 ;#    definitions:                                                             #
@@ -134,107 +120,16 @@ FCORE_VARS_END_LIN	EQU	@
 			MOVW	#$0000, ABORT_QUOTE_MSG
 #emac
 
-;#Common word format:
-; ===================
-;	
-;        +-----------------------------+
-;  NFA-> |         Previous NFA        |	
-;        +--------------+--------------+
-;        |PRE|CFA offset| 
-;        +--------------+   
-;        |              | 
-;        |              | 
-;        |     Name     | 
-;        |              | 
-;        |              | 
-;        +-----------------------------+
-;  CFA-> |       Code Field Address    |	
-;        +--------------+--------------+
-;        |              | 
-;        |              | 
-;        |     Data     | 
-;        |              | 
-;        |              | 
-;        +--------------+   
-;                              
-; args: 1. name of the word
-;       2. previous word entry
-;       3. precedence bit (1:immediate, 0:compile)
-IMMEDIATE	EQU	1
-COMPILE		EQU	0
-#macro	FHEADER, 3
-PREV		DW	\2
-NAME_CNT	DB	((NAME_END-NAME_START)&$7F)|(\3<<7)
-NAME_START	FCS	\1
-		ALIGN	1
-NAME_END	
-#emac	
-
-;#Common macros:
-;	
-;        +-----------+
-;        |    CFA    |	
-;        +-----------+    +-----------+
-;  IP -> | PRIMITIVE | -> |    CFA    | -> ASM code
-;        +-----------+    +-----------+
-;                         | PRIMITIVE |
-;                         +-----------+
-;   IP   = PRIMITIVE        
-;  [IP]  = CFA	
-; [[IP]] = ASM code	
-;	
-
-;#Common code fragments	
-;NEXT:	jump to the next instruction
-#macro	NEXT, 0	
-NEXT			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
-			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
-			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
-			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
-							;                         ---------	--------
-							;                         15 cycles	12 bytes
-#emac
-
-;SKIP_NEXT: skip next instruction and jump to one after
-#macro	SKIP_NEXT, 0	
-SKIP_NEXT		LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
-			LEAY	2,Y			;IP += 2		=> 2 cycles	 2 bytes
-			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
-			STY	IP			;		  	=> 3 cycles	 3 bytes 
-			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
-							;                         ---------	--------
-							;                         17 cycles	14 bytes
-#emac
-
-;JUMP_NEXT: Read the next word entry and jump to that instruction 
-#macro	JUMP_NEXT, 0	
-JUMP_NEXT		LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes
-			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
-			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
-			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
-							;                         ---------	--------
-							;                         18 cycles	13 bytes
-#emac
-
-;EXEC_CFA: Execute a Forth word (CFA) directly from assembler code 
-#macro	EXEC_CFA, 3	;args: 1:CFA 2:RS overflow handler, 3:RS underflow handler
-			RS_PUSH	IP, \2			;IP -> RS			
-			MOVW	#IP_RESUME, IP 		;set next IP
-			LDX	#\1			;set W
-			JMP	[0,X]			;execute CF
-IP_RESUME		DW	CFA_RESUME
-CFA_RESUME		DW	CF_RESUME
-CF_RESUME		RS_PULL	IP, \3 			;RS -> IP
+;#Abort action (to be executed in addition of quit and suspend action)
+#macro	FCORE_ABORT, 0
 #emac
 	
-;EXEC_CF: Execute a Forth word's code field (CF) directly from assembler code (w/out setting the W register)
-#macro	EXEC_CF, 3	;args: 1:CF 2:RS overflow handler, 3:RS underflow handler
-			RS_PUSH	IP, \2			;IP -> RS			
-			MOVW	#IP_RESUME, IP 		;set next IP
-			JOB	\1
-IP_RESUME		DW	CFA_RESUME
-CFA_RESUME		DW	CF_RESUME
-CF_RESUME		RS_PULL	IP, \3 			;RS -> IP
+;#Quit action (to be executed in addition of suspend action)
+#macro	FCORE_QUIT, 0
+#emac
+	
+;#Suspend action
+#macro	FCORE_SUSPEND, 0
 #emac
 
 ;BASE_CHECK: Verify the content of the BASE variable (Cdirectly from assembler code (BASE -> D)

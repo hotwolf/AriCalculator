@@ -41,6 +41,31 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;# Clocks
+CLOCK_CRG		EQU	1		;CPMU
+CLOCK_OSC_FREQ		EQU	10000000	;10 MHz
+CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
+CLOCK_REF_FREQ		EQU	10000000	;10 MHz
+CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
+CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
+
+;# Interrupt stack
+ISTACK_S12X		EQU	1	 	;S12X interrupt handling
+
+;# Subroutine stack
+SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
+
+;# SCI
+SCI_FC_XONXOFF		EQU	1 		;XON/XOFF flow control
+SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
+SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
+SCI_BD_ON		EQU	1 		;use baud rate detection
+SCI_BD_ECT		EQU	1 		;TIM
+SCI_BD_IC		EQU	0		;IC0
+SCI_BD_OC		EQU	2		;OC2			
+SCI_DLY_OC		EQU	3		;OC3
+SCI_ERRSIG_ON		EQU	1 		;signal errors
+SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -66,6 +91,10 @@ FPS_VARS_START_LIN	EQU	@
 FUDICT_VARS_START	EQU	*
 FUDICT_VARS_START_LIN	EQU	@
 			ORG	FUDICT_VARS_END, FUDICT_VARS_END_LIN
+
+FCDICT_VARS_START	EQU	*
+FCDICT_VARS_START_LIN	EQU	@
+			ORG	FCDICT_VARS_END, FCDICT_VARS_END_LIN
 
 FINNER_VARS_START	EQU	*
 FINNER_VARS_START_LIN	EQU	@
@@ -115,6 +144,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FRS_INIT
 	FPS_INIT
 	FUDICT_INIT
+	FCDICT_INIT
 	FINNER_INIT
 	FOUTER_INIT
 	FCORE_INIT
@@ -131,6 +161,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FRS_ABORT
 	FPS_ABORT
 	FUDICT_ABORT
+	FCDICT_ABORT
 	FINNER_ABORT
 	FOUTER_ABORT
 	FCORE_ABORT
@@ -147,6 +178,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FRS_QUIT
 	FPS_QUIT
 	FUDICT_QUIT
+	FCDICT_QUIT
 	FINNER_QUIT
 	FOUTER_QUIT
 	FCORE_QUIT
@@ -163,6 +195,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FRS_SUSPEND
 	FPS_SUSPEND
 	FUDICT_SUSPEND
+	FCDICT_SUSPEND
 	FINNER_SUSPEND
 	FOUTER_SUSPEND
 	FCORE_SUSPEND
@@ -197,6 +230,10 @@ FPS_CODE_START_LIN	EQU	@
 
 FUDICT_CODE_START	EQU	*
 FUDICT_CODE_START_LIN	EQU	@
+			ORG	FUDICT_CODE_END, FUDICT_CODE_END_LIN
+
+FCDICT_CODE_START	EQU	*
+FCDICT_CODE_START_LIN	EQU	@
 			ORG	FUDICT_CODE_END, FUDICT_CODE_END_LIN
 
 FINNER_CODE_START	EQU	*
@@ -271,6 +308,10 @@ FUDICT_TABS_START	EQU	*
 FUDICT_TABS_START_LIN	EQU	@
 			ORG	FUDICT_TABS_END, FUDICT_TABS_END_LIN
 
+FCDICT_TABS_START	EQU	*
+FCDICT_TABS_START_LIN	EQU	@
+			ORG	FCDICT_TABS_END, FCDICT_TABS_END_LIN
+
 FINNER_TABS_START	EQU	*
 FINNER_TABS_START_LIN	EQU	@
 			ORG	FINNER_TABS_END, FINNER_TABS_END_LIN
@@ -313,20 +354,82 @@ FORTH_TABS_END_LIN	EQU	@
 ;###############################################################################
 ;# Forth words                                                                 #
 ;###############################################################################
-  
+#ifdef FORTH_WORDS_START_LIN
+			ORG 	FORTH_WORDS_START, FORTH_WORDS_START_LIN
+#else
+			ORG 	FORTH_WORDS_START
+#endif	
+
+FRS_WORDS_START		EQU	*
+FRS_WORDS_START_LIN	EQU	@
+			ORG	FRS_WORDS_END, FRS_WORDS_END_LIN
+
+FPS_WORDS_START		EQU	*
+FPS_WORDS_START_LIN	EQU	@
+			ORG	FPS_WORDS_END, FPS_WORDS_END_LIN
+
+FUDICT_WORDS_START	EQU	*
+FUDICT_WORDS_START_LIN	EQU	@
+			ORG	FUDICT_WORDS_END, FUDICT_WORDS_END_LIN
+
+FCDICT_WORDS_START	EQU	*
+FCDICT_WORDS_START_LIN	EQU	@
+			ORG	FCDICT_WORDS_END, FCDICT_WORDS_END_LIN
+
+FINNER_WORDS_START	EQU	*
+FINNER_WORDS_START_LIN	EQU	@
+			ORG	FINNER_WORDS_END, FINNER_WORDS_END_LIN
+
+FOUTER_WORDS_START	EQU	*
+FOUTER_WORDS_START_LIN	EQU	@
+			ORG	FOUTER_WORDS_END, FOUTER_WORDS_END_LIN
+
+FCORE_WORDS_START	EQU	*
+FCORE_WORDS_START_LIN	EQU	@
+			ORG	FCORE_WORDS_END, FCORE_WORDS_END_LIN
+
+FEXCPT_WORDS_START	EQU	*
+FEXCPT_WORDS_START_LIN	EQU	@
+			ORG	FEXCPT_WORDS_END, FEXCPT_WORDS_END_LIN
+
+;FDOUBLE_WORDS_START	EQU	*
+;FDOUBLE_WORDS_START_LIN	EQU	@
+;			ORG	FDOUBLE_WORDS_END, FDOUBLE_WORDS_END_LIN
+
+;FFLOAT_WORDS_START	EQU	*
+;FFLOAT_WORDS_START_LIN	EQU	@
+;			ORG	FFLOAT_WORDS_END, FFLOAT_WORDS_END_LIN
+
+;FTOOLS_WORDS_START	EQU	*
+;FTOOLS_WORDS_START_LIN	EQU	@
+;			ORG	FTOOLS_WORDS_END, FTOOLS_WORDS_END_LIN
+
+;FFACIL_WORDS_START	EQU	*
+;FFACIL_WORDS_START_LIN	EQU	@
+;			ORG	FFACIL_WORDS_END, FFACIL_WORDS_END_LIN
+
+;FSCI_WORDS_START	EQU	*
+;FSCI_WORDS_START_LIN	EQU	@
+;			ORG	FSCI_WORDS_END, FSCI_WORDS_END_LIN
+
+FORTH_WORDS_END		EQU	*	
+FORTH_WORDS_END_LIN	EQU	@
+
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
 #include ../Subprojects/S12CBase/Source/base_Mini-BDM_Pod.s	;S12CBase
-#include ./frs.s						;return stack
-#include ./fps.s						;parameter stack 
-#include ./fudict.s						;user dictionary
-#include ./finner.s						;inner interpreter
-#include ./fouter.s						;outer interpreter
-#include ./fcore.s						;core words
-#include ./fexcpt.s						;exceptions
-;#include ./fdouble.s						;double-number words
-;#include ./ffloat.s						;floating point words
-;#include ./ftools.s						;programming tools words
-;#include ./ffacil.s						;facility words
-;#include ./fsci.s						;S12CBase SCI wrapper
+#include ../All/frs.s						;return stack
+#include ../All/fps.s						;parameter stack 
+#include ../All/fudict.s					;user dictionary
+#include ../All/fcdict.s					;core dictionary
+#include ../All/fcdict_tree.s					;core dictionary search tree
+#include ../All/finner.s					;inner interpreter
+#include ../All/fouter.s					;outer interpreter
+#include ../All/fcore.s						;core words
+#include ../All/fexcpt.s					;exceptions
+;#include ../All/fdouble.s					;double-number words
+;#include ../All/ffloat.s					;floating point words
+;#include ../All/ftools.s					;programming tools words
+;#include ../All/ffacil.s					;facility words
+;#include ../All/fsci.s						;S12CBase SCI wrapper

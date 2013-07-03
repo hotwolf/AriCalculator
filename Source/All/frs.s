@@ -42,8 +42,8 @@
 ;###############################################################################
 ;         
 ;                           +--------------+--------------+        
-;    	       TIB_START -> |              |              | |          
-;                           |       Text Input Buffer     | | [TIB_CNT]
+;          RS_TIB_START, -> |              |              | |          
+;             TIB_START     |       Text Input Buffer     | | [TIB_CNT]
 ;                           |              |              | |	       
 ;                           |              v              | <	       
 ;                       -+- | --- --- --- --- --- --- --- | 	       
@@ -55,18 +55,22 @@
 ;                           |        Return Stack         |
 ;                           |              |              |
 ;                           +--------------+--------------+
-;              RS_EMPTY ->                                 
-;              RS_EMPTY
+;             RS_EMPTY, ->                                 
+;           RS_TIB_END
 	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Bottom of return stack
-;RS_EMPTY		EQU	0
+;Boundaries
+;RS_TIB_START		EQU	0
+;RS_TIB_END		EQU	0
 	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;Bottom of return stack
+RS_EMPTY		EQU	RS_TIB_END
+
 ;Error codes
 FRS_EC_OF		EQU	FEXCPT_EC_RSOF		;RS overflow   (-5)
 FRS_EC_UF		EQU	FEXCPT_EC_RSUF		;RS underflow  (-6)

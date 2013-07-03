@@ -155,6 +155,18 @@ FEXCEPT_VARS_END_LIN	EQU	@
 			MOVW	#$0000, HANDLER ;reset exception handler
 #emac
 
+;#Abort action (to be executed in addition of quit and suspend action)
+#macro	FEXCPT_ABORT, 0
+#emac
+	
+;#Quit action (to be executed in addition of suspend action)
+#macro	FEXCPT_QUIT, 0
+#emac
+	
+;#Suspend action
+#macro	FEXCPT_SUSPEND, 0
+#emac
+	
 ;#Throw an exception from within an assembler primitive (immediate error code)
 ; args:   1: error code
 ; result: none
@@ -312,18 +324,6 @@ FEXCEPT_CODE_END_LIN	EQU	@
 FEXCEPT_TABS_START_LIN	EQU	@
 #endif	
 
-FEXCEPT_CODE_END	EQU	*
-FEXCEPT_CODE_END_LIN	EQU	@
-
-;Tabes in paged address space
-;---------------------------- 
-#ifdef FEXCEPT_PAGTABS_START_LIN
-			ORG 	FEXCEPT_PAGTABS_START, FEXCEPT_PAGTABS_START_LIN
-#else
-			ORG 	FEXCEPT_PAGTABS_START
-FEXCEPT_PAGTABS_START_LIN	EQU	@
-#endif	
-
 				;Assign error messages to error codes 
 FEXCPT_MSGTAB_START	EQU	*
 
@@ -423,8 +423,8 @@ FEXCPT_MSG_DICTPROT	FCS	"Destruction of dictionary structure"
 FEXCPT_MSG_COMERR	FCS	"Invalid RX data"
 FEXCPT_MSG_COMOF	FCS	"RX buffer overflow"
 	
-FEXCEPT_PAGTABS_END	EQU	*
-FEXCEPT_PAGTABS_END_LIN	EQU	@
+FEXCEPT_TABS_END	EQU	*
+FEXCEPT_TABS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Words                                                                       #

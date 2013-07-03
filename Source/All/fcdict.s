@@ -19,29 +19,7 @@
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
+;#    This module implements the core dictionary.                              #
 ;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -75,6 +53,18 @@ FCDICT_VARS_START_LIN	EQU	@
 FCDICT_VARS_END		EQU	*
 FCDICT_VARS_END_LIN	EQU	@
 
+;#Abort action (to be executed in addition of quit and suspend action)
+#macro	FCDICT_ABORT, 0
+#emac
+	
+;#Quit action (to be executed in addition of suspend action)
+#macro	FCDICT_QUIT, 0
+#emac
+	
+;#Suspend action
+#macro	FCDICT_SUSPEND, 0
+#emac
+	
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################

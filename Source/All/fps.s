@@ -42,8 +42,8 @@
 ;###############################################################################
 ;        
 ;      	                    +--------------+--------------+	     
-;            UDICT_START -> |              |              | 	     
-;                           |       User Dictionary       |	     
+;        UDICT_RS_START, -> |              |              | 	     
+;           UDICT_START     |       User Dictionary       |	     
 ;                           |       User Variables        |	     
 ;                           |              |              |	     
 ;                           |              v              |	     
@@ -62,17 +62,22 @@
 ;                           |       Parameter stack       |		  
 ;    	                    |              |              |		  
 ;                           +--------------+--------------+        
-;               PS_EMPTY ->   
+;              PS_EMPTY, ->   
+;          UDUCT_PS_END
 	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Bottom of parameter stack
-;PS_EMPTY		EQU	0
+;Boundaries
+;UDICT_RS_START		EQU	0
+;UDICT_RS_END		EQU	0
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;Bottom of parameter stack
+PS_EMPTY		EQU	UDUCT_PS_END
+
 ;Error codes
 FPS_EC_OF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
 FPS_EC_UF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
