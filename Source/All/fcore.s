@@ -1065,1013 +1065,6 @@ CF_INNER_RSOF		JOB	FCORE_THROW_RSOF
 CF_NOP			EQU		*	
 			NEXT
 
-FCORE_CODE_END		EQU	*
-FCORE_CODE_END_LIN	EQU	@
-			
-;###############################################################################
-;# Tables                                                                      #
-;###############################################################################
-#ifdef FCORE_TABS_START_LIN
-			ORG 	FCORE_TABS_START, FCORE_TABS_START_LIN
-#else
-			ORG 	FCORE_TABS_START
-#endif	
-
-;System prompt
-FCORE_SUSPEND_PROMPT	FCS	"S "
-FCORE_INTERPRET_PROMPT	FCS	"> "
-FCORE_COMPILE_PROMPT	FCS	"+ "
-FCORE_SKIP_PROMPT	FCS	"0 "
-FCORE_SYSTEM_PROMPT	FCS	" ok"
-
-;Character conversion for NAME
-;			;	 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
-;FCORE_NAME_TAB		DB	$00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 ;$0x
-;			DB	$00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 ;$1x
-;			DB      $00 "!" $22 "#" "$" "%"	"&" $27 "(" ")" "*" "+" "," "-" "." "/" ;$2x
-;			DB	"0" "1" "2" "3" "4" "5" "6" "7" "8" "9" ":" ";" "<" "=" ">" "?" ;$3x
-;			DB	"@" "A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M" "N" "O" ;$4x
-;			DB	"P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" "[" $5C "]" "^" "_" ;$5x
-;			DB	$60 "A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M" "N" "O" ;$6x
-;			DB	"P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" "{" "|" "}" "~" $00 ;$7x
-									
-FCORE_TABS_END		EQU	*
-FCORE_TABS_END_LIN	EQU	@
-
-;###############################################################################
-;# Words                                                                       #
-;###############################################################################
-#ifdef FCORE_WORDS_START_LIN
-			ORG 	FCORE_WORDS_START, FCORE_WORDS_START_LIN
-#else
-			ORG 	FCORE_WORDS_START
-FCORE_WORDS_START_LIN	EQU	@
-#endif	
-
-;#Code Field Addresses:
-;======================
-			ALIGN	1
-;Word: ! ( x a-addr -- )
-;;Store x at a-addr.
-CFA_STORE		DW	CF_STORE
-
-;Word: # ( ud1 -- ud2 )
-;Divide ud1 by the number in BASE giving the quotient ud2 and the remainder n.
-;(n is the least-significant digit of ud1.) Convert n to external form and add
-;the resulting character to the beginning of the pictured numeric output string.
-;An ambiguous condition exists if # executes outside of a <# #> delimited number
-;conversion.
-CFA_NUMBER_SIGN		DW	CF_NUMBER_SIGN
-
-;Word: #> ( xd -- c-addr u )
-;Drop xd. Make the pictured numeric output string available as a character
-;string. c-addr and u specify the resulting character string. A program may
-;replace characters within the string. 
-CFA_NUMBER_SIGN_GREATER	DW	CF_NUMBER_SIGN_GREATER
-
-;Word: #S ( ud1 -- ud2 )
-;Convert one digit of ud1 according to the rule for #. Continue conversion
-;until the quotient is zero. ud2 is zero. An ambiguous condition exists if #S
-;executes outside of a <# #> delimited number conversion.
-CFA_NUMBER_SIGN_S	DW	CF_NUMBER_SIGN_S
-
-;Word: ' ( "<spaces>name" -- xt ) 	;'
-;Skip leading space delimiters. Parse name delimited by a space. Find name and
-;return xt, the execution token for name. An ambiguous condition exists if name
-;is not found.
-CFA_TICK		DW	CF_TICK
-
-;Word: (								IMMEDIATE
-;Compilation: Perform the execution semantics given below.
-;Execution: ( "ccc<paren>" -- )
-;Parse ccc delimited by ) (right parenthesis). ( is an immediate word.
-CFA_PAREN		DW	CF_PAREN
-
-;Word: * ( n1|u1 n2|u2 -- n3|u3 )
-;Multiply n1|u1 by n2|u2 giving the product n3|u3.
-CFA_STAR		DW	CF_STAR
-
-;Word: */ ( n1 n2 n3 -- n4 )
-;Multiply n1 by n2 producing the intermediate double-cell result d. Divide d by
-;n3 giving the single-cell quotient n4. An ambiguous condition exists if n3 is
-;zero or if the quotient n4 lies outside the range of a signed number. If d and
-;n3 differ in sign, the implementation-defined result returned will be the same
-;as that returned by either the phrase >R M* R> FM/MOD SWAP DROP or the phrase
-;>R M* R> SM/REM SWAP DROP 
-CFA_STAR_SLASH		DW	CF_STAR_SLASH
-
-;Word: */MOD ( n1 n2 n3 -- n4 n5 )
-;Multiply n1 by n2 producing the intermediate double-cell result d. Divide d by
-;n3 producing the single-cell remainder n4 and the single-cell quotient n5. An
-;ambiguous condition exists if n3 is zero, or if the quotient n5 lies outside
-;the range of a single-cell signed integer. If d and n3 differ in sign, the
-;implementation-defined result returned will be the same as that returned by
-;either the phrase >R M* R> FM/MOD or the phrase >R M* R> SM/REM .
-CFA_STAR_SLASH_MOD	DW	CF_STAR_SLASH_MOD
-
-;Word: + ( n1|u1 n2|u2 -- n3|u3 )
-;Add n2|u2 to n1|u1, giving the sum n3|u3.
-CFA_PLUS		DW	CF_PLUS
-
-;Word: +! ( n|u a-addr -- )
-;Add n|u to the single-cell number at a-addr.
-CFA_PLUS_STORE		DW	CF_PLUS_STORE
-
-;Word: +LOOP	IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( C: do-sys -- )
-;Append the run-time semantics given below to the current definition. Resolve
-;the destination of all unresolved occurrences of LEAVE between the location
-;given by do-sys and the next location for a transfer of control, to execute the
-;words following +LOOP.
-;Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
-;An ambiguous condition exists if the loop control parameters are unavailable.
-;Add n to the loop index. If the loop index did not cross the boundary between
-;the loop limit minus one and the loop limit, continue execution at the beginning
-;of the loop. Otherwise, discard the current loop control parameters and continue
-;execution immediately following the loop.
-CFA_PLUS_LOOP		DW	CF_PLUS_LOOP
-			DW	CFA_PLUS_LOOP_RT
-;LOOP run-time semantics
-CFA_PLUS_LOOP_RT	DW	CF_PLUS_LOOP_RT
-
-;Word: , ( x -- )
-;Reserve one cell of data space and store x in the cell. If the data-space
-;pointer is aligned when , begins execution, it will remain aligned when,
-;finishes execution. An ambiguous condition exists if the data-space pointer is
-;not aligned prior to execution of ,.
-CFA_COMMA		DW	CF_COMMA
-
-;Word: - ( n1|u1 n2|u2 -- n3|u3 )
-;Subtract n2|u2n from n1|u1, giving the difference n3|u3.
-CFA_MINUS		DW	CF_MINUS
-
-;;Word: . ( n -- )
-;Display n in free field format.
-CFA_DOT			DW	CF_DOT
-
-;Word: ."								IMMEDIATE 			
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( "ccc<quote>" -- )
-;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
-;below to the current definition.
-;Run-time: ( -- )
-;Display ccc.
-CFA_DOT_QUOTE		DW	CF_DOT_QUOTE 		;compilation semantics
-;." run-time semantics
-CFA_DOT_QUOTE_RT	DW	CF_DOT_QUOTE_RT
-
-;Word: / ( n1 n2 -- n3 )
-;Divide n1 by n2, giving the single-cell quotient n3. An ambiguous condition
-;exists if n2 is zero. If n1 and n2 differ in sign, the implementation-defined
-;result returned will be the same as that returned by either the phrase
-;>R S>D R> FM/MOD SWAP DROP or the phrase >R S>D R> SM/REM SWAP DROP .
-CFA_SLASH		DW	CF_SLASH
-
-;Word: /MOD ( n1 n2 -- n3 n4 )
-;Divide n1 by n2, giving the single-cell remainder n3 and the single-cell
-;quotient n4. An ambiguous condition exists if n2 is zero. If n1 and n2 differ
-;in sign, the implementation-defined result returned will be the same as that
-;returned by either the phrase >R S>D R> FM/MOD or the phrase >R S>D R> SM/REM . 
-CFA_SLASH_MOD		DW	CF_SLASH_MOD
-
-;Word: 0< ( n -- flag )
-;flag is true if and only if n is less than zero.
-CFA_ZERO_LESS		DW	CF_ZERO_LESS
-
-;Word: 0= ( x -- flag )
-;flag is true if and only if x is equal to zero.
-CFA_ZERO_EQUALS		DW	CF_ZERO_EQUALS
-
-;Word: 1+ ( n1|u1 -- n2|u2 )
-;Add one (1) to n1|u1 giving the sum n2|u2.
-CFA_ONE_PLUS		DW	CF_ONE_PLUS
-
-;Word: 1- ( n1|u1 -- n2|u2 ) 
-;Subtract one (1) from n1|u1 giving the difference n2|u2.
-CFA_ONE_MINUS		DW	CF_ONE_MINUS
-
-;Word: 2! ( x1 x2 a-addr -- )
-;Store the cell pair x1 x2 at a-addr, with x2 at a-addr and x1 at the next
-;consecutive cell. It is equivalent to the sequence SWAP OVER ! CELL+ ! .
-CFA_TWO_STORE		DW	CF_TWO_STORE
-
-;Word: 2* ( x1 -- x2 )
-;x2 is the result of shifting x1 one bit toward the most-significant bit,
-;filling the vacated least-significant bit with zero.
-CFA_TWO_STAR		DW	CF_TWO_STAR
-
-;Word: 2/ ( x1 -- x2 )
-;x2 is the result of shifting x1 one bit toward the least-significant bit,
-;leaving the most-significant bit unchanged.
-CFA_TWO_SLASH		DW	CF_TWO_SLASH
-
-;Word: 2@ ( a-addr -- x1 x2 )
-;Fetch the cell pair x1 x2 stored at a-addr. x2 is stored at a-addr and x1 at
-;the next consecutive cell. It is equivalent to the sequence DUP CELL+ @ SWAP @ .
-CFA_TWO_FETCH		DW	CF_TWO_FETCH
-
-;Word: 2DROP ( x1 x2 -- )
-;Drop cell pair x1 x2 from the stack.
-CFA_TWO_DROP		DW	CF_TWO_DROP
-
-;Word: 2DUP ( x1 x2 -- x1 x2 x1 x2 )
-;Duplicate cell pair x1 x2.
-CFA_TWO_DUP		DW	CF_TWO_DUP
-
-;Word: 2OVER ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 )
-;Copy cell pair x1 x2 to the top of the stack.
-CFA_TWO_OVER		DW	CF_TWO_OVER
-
-;Word: 2SWAP ( x1 x2 x3 x4 -- x3 x4 x1 x2 )
-;Exchange the top two cell pairs.
-CFA_TWO_SWAP		DW	CF_TWO_SWAP
-
-;Word: : ( C: "<spac2es>name" -- colon-sys ) 				IMMEDIATE
-;Skip leading space delimiters. Parse name delimited by a space. Create a
-;definition for name, called a colon definition. Enter compilation state and
-;start the current definition, producing colon-sys. Append the initiation
-;semantics given below to the current definition.
-;The execution semantics of name will be determined by the words compiled into
-;the body of the definition. The current definition shall not be findable in the
-;dictionary until it is ended (or until the execution of DOES> in some systems).
-;Initiation: ( i*x -- i*x )  ( R:  -- nest-sys )
-;Save implementation-dependent information nest-sys about the calling
-;definition. The stack effects i*x represent arguments to name.
-;name Execution: ( i*x -- j*x )
-;Execute the definition name. The stack effects i*x and j*x represent arguments
-;to and results from name, respectively.
-CFA_COLON		DW	CF_COLON
-
-;Word: ;								IMMEDIATE 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( C: colon-sys -- )
-;Append the run-time semantics below to the current definition. End the current
-;definition, allow it to be found in the dictionary and enter interpretation
-;state, consuming colon-sys. If the data-space pointer is not aligned, reserve
-;enough data space to align it.
-;Run-time: ( -- ) ( R: nest-sys -- )
-;Return to the calling definition specified by nest-sys.
-CFA_SEMICOLON		DW	CF_SEMICOLON
-
-;Word: < ( n1 n2 -- flag )
-;flag is true if and only if n1 is less than n2.
-CFA_LESS_THAN		DW	CF_LESS_THAN
-
-;Word: <# ( -- )
-;Initialize the pictured numeric output conversion process.
-CFA_LESS_NUMBER_SIGN	DW	CF_LESS_NUMBER_SIGN
-
-;Word: = ( x1 x2 -- flag )
-;flag is true if and only if x1 is bit-for-bit the same as x2.
-CFA_EQUALS		DW	CF_EQUALS
-
-;Word: > ( n1 n2 -- flag )
-;flag is true if and only if n1 is greater than n2.
-CFA_GREATER_THAN	DW	CF_GREATER_THAN
-
-;Word: >BODY ( xt -- a-addr )
-;a-addr is the data-field address corresponding to xt. An ambiguous condition
-;exists if xt is not for a word defined via CREATE.
-CFA_TO_BODY		DW	CF_TO_BODY
-
-;Word: >NUMBER ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 )
-;ud2 is the unsigned result of converting the characters within the string
-;specified by c-addr1 u1 into digits, using the number in BASE, and adding each
-;into ud1 after multiplying ud1 by the number in BASE. Conversion continues
-;left-to-right until a character that is not convertible, including any + or -,
-;is encountered or the string is entirely converted. c-addr2 is the location of
-;the first unconverted character or the first character past the end of the
-;string if the string was entirely converted. u2 is the number of unconverted
-;characters in the string. An ambiguous condition exists if ud2 overflows during
-;the conversion. 
-CFA_TO_NUMBER		DW	CF_TO_NUMBER
-
-;Word: >R
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( x -- ) ( R:  -- x )
-;Move x to the return stack.
-CFA_TO_R		DW	CF_TO_R
-
-;Word: ?DUP ( x -- 0 | x x )
-;Duplicate x if it is non-zero.
-CFA_QUESTION_DUP	DW	CF_QUESTION_DUP
-
-;Word: @ ( a-addr -- x )
-;x is the value stored at a-addr.
-CFA_FETCH		DW		CF_FETCH
-
-;Word: ABORT ( i*x -- ) ( R: j*x -- )
-;Empty the data stack and perform the function of QUIT, which includes emptying
-;the return stack, without displaying a message.
-CFA_ABORT		DW	CF_ABORT
-;ABORT run-time semantics
-CFA_ABORT_RT		DW	CF_ABORT_RT
-
-;Word: ABORT"								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( "ccc<quote>" -- )
-;Parse ccc delimited by a " (double-quote). Append the run-time semantics given
-;below to the current definition.
-;Run-time: ( i*x x1 --  | i*x ) ( R: j*x --  | j*x )
-;Remove x1 from the stack. If any bit of x1 is not zero, display ccc and perform
-;an implementation-defined abort sequence that includes the function of ABORT.
-CFA_ABORT_QUOTE		DW	CF_ABORT_QUOTE
-;ABORT" run-time semantics
-CFA_ABORT_QUOTE_RT	DW	CF_ABORT_QUOTE_RT
-
-;Word: ABS ( n -- u )
-;u is the absolute value of n.
-CFA_ABS			DW		CF_ABS
-
-;Word: ACCEPT ( c-addr +n1 -- +n2 )
-;Receive a string of at most +n1 characters. An ambiguous condition exists if
-;+n1 is zero or greater than 32,767. Display graphic characters as they are
-;received. A program that depends on the presence or absence of non-graphic
-;characters in the string has an environmental dependency. The editing
-;functions, if any, that the system performs in order to construct the string
-;are implementation-defined.
-;Input terminates when an implementation-defined line terminator is received.
-;When input terminates, nothing is appended to the string, and the display is
-;maintained in an implementation-defined way.
-;+n2 is the length of the string stored at c-addr.
-CFA_ACCEPT		DW	CF_ACCEPT
-
-;Word: ALIGN ( -- )
-;If the data-space pointer is not aligned, reserve enough space to align it.
-CFA_ALIGN		DW	CF_ALIGN
-
-;Word: ALIGNED ( addr -- a-addr )
-;a-addr is the first aligned address greater than or equal to addr.
-CFA_ALIGNED		DW	CF_ALIGNED
-
-;Word: ALLOT ( n -- )
-;If n is greater than zero, reserve n address units of data space. If n is less
-;than zero, release |n| address units of data space. If n is zero, leave the
-;data-space pointer unchanged.
-;If the data-space pointer is aligned and n is a multiple of the size of a cell
-;when ALLOT begins execution, it will remain aligned when ALLOT finishes
-;execution.
-;If the data-space pointer is character aligned and n is a multiple of the size
-;of a character when ALLOT begins execution, it will remain character aligned
-;when ALLOT finishes execution.
-CFA_ALLOT		DW	CF_ALLOT
-
-;Word: AND ( x1 x2 -- x3 )
-;x3 is the bit-by-bit logical and of x1 with x2.
-CFA_AND			DW	CF_AND
-
-;Word: BASE ( -- a-addr )
-;a-addr is the address of a cell containing the current number-conversion radix
-;{{2...36}}.
-CFA_BASE		DW	CF_CONSTANT_RT
-			DW	BASE
-
-;Word: BEGIN 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( C: -- dest )
-;Put the next location for a transfer of control, dest, onto the control flow
-;stack. Append the run-time semantics given below to the current definition.
-;Run-time: ( -- )
-;Continue execution.
-CFA_BEGIN		DW	CF_BEGIN
-
-;Word: BL ( -- char )
-;char is the character value for a space.
-CFA_B_L			DW	CF_CONSTANT_RT
-			DW	PRINT_SYM_SPACE
-
-;Word: C! ( char c-addr -- )
-;Store char at c-addr. When character size is smaller than cell size, only the
-;number of low-order bits corresponding to character size are transferred.
-CFA_C_STORE		DW	CF_C_STORE
-
-;Word: C, ( char -- )
-;Reserve space for one character in the data space and store char in the space.
-;If the data-space pointer is character aligned when C, begins execution, it
-;will remain character aligned when C, finishes execution. An ambiguous
-;condition exists if the data-space pointer is not character-aligned prior to
-;execution of C,.
-CFA_C_COMMA		DW	CF_C_COMMA
-
-;Word: C@ ( c-addr -- char )
-;Fetch the character stored at c-addr. When the cell size is greater than
-;character size, the unused high-order bits are all zeroes.
-CFA_C_FETCH		DW	CF_C_FETCH
-
-;Word: CELL+ 	( a-addr1 -- a-addr2 )
-;Add the size in address units of a cell to a-addr1, giving a-addr2.
-CFA_CELL_PLUS		DW	CF_CELL_PLUS
-
-;Word: CELLS ( n1 -- n2 )
-;n2 is the size in address units of n1 cells.
-CFA_CELLS		DW	CF_CELLS
-
-;Word: CHAR 	( "<SPACES>NAME" -- char )
-;Skip leading space delimiters. Parse name delimited by a space. Put the value
-;of its first character onto the stack.
-CFA_CHAR		DW	CF_CHAR
-
-;Word: CHAR+ ( c-addr1 -- c-addr2 )
-;Add the size in address units of a character to c-addr1, giving c-addr2.
-CFA_CHAR_PLUS		DW	CF_ONE_PLUS
-
-;Word: CHARS ( n1 -- n2 )
-;n2 is the size in address units of n1 characters.
-CFA_CHARS		DW	CF_NOP
-
-;Word: CLS ( -- empty ) S12CForth extension!
-CFA_CLS			DW	CF_CLS
-
-;Word: CONSTANT ( x "<spaces>name" -- ) 
-;Skip leading space delimiters. Parse name delimited by a space. Create a
-;definition for name with the execution semantics defined below.
-;name is referred to as a constant.
-;name Execution: ( -- x )
-;Place x on the stack.
-CFA_CONSTANT		DW	CF_CONSTANT
-
-;Word: COUNT ( c-addr1 -- c-addr2 u )
-;Return the character string specification for the counted string stored at
-;c-addr1. c-addr2 is the address of the first character after c-addr1. u is the
-;contents of the character at c-addr1, which is the length in characters of the
-;string at c-addr2.
-CFA_COUNT		DW	CF_COUNT
-
-;Word: CR ( -- )
-;Cause subsequent output to appear at the beginning of the next line.
-CFA_CR			DW	CF_CR
-
-;Word: CREATE ( "<spaces>name" -- )
-;Skip leading space delimiters. Parse name delimited by a space. Create a
-;definition for name with the execution semantics defined below. If the
-;data-space pointer is not aligned, reserve enough data space to align it. The
-;new data-space pointer defines name's data field. CREATE does not allocate data
-;space in name's data field.
-;name Execution: ( -- a-addr )
-;a-addr is the address of name's data field. The execution semantics of name may
-;be extended by using DOES>.
-CFA_CREATE		DW	CF_CREATE
-
-;CREATE run-time semantics
-;Push the address of the second cell after the CFA onto the parameter stack
-CFA_CREATE_RT		DW	CF_CREATE_RT	
-	
-;Word: DECIMAL ( -- )
-;Set the numeric conversion radix to ten (decimal).
-CFA_DECIMAL		DW	CF_DECIMAL
-
-;Word: DEPTH ( -- +n )
-;+n is the number of single-cell values contained in the data stack before +n
-;was placed on the stack.
-CFA_DEPTH		DW	CF_DEPTH
-
-;Word: DO								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( C: -- do-sys )
-;Place do-sys onto the control-flow stack. Append the run-time semantics given
-;below to the current definition. The semantics are incomplete until resolved
-;by a consumer of do-sys such as LOOP.
-;;Run-time: ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
-;Set up loop control parameters with index n2|u2 and limit n1|u1. An ambiguous
-;condition exists if n1|u1 and n2|u2 are not both the same type. Anything
-;already on the return stack becomes unavailable until the loop-control
-;parameters are discarded.
-CFA_DO			DW	CF_DO
-			DW	CFA_DO_RT
-;DO run-time semantics
-CFA_DO_RT		DW	CF_DO_RT
-
-;Word: DOES>								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( C: colon-sys1 -- colon-sys2 )
-;Append the run-time semantics below to the current definition. Whether or not
-;the current definition is rendered findable in the dictionary by the
-;compilation of DOES> is implementation defined. Consume colon-sys1 and produce
-;colon-sys2. Append the initiation semantics given below to the current
-;definition.
-;Run-time: ( -- ) ( R: nest-sys1 -- )
-;Replace the execution semantics of the most recent definition, referred to as
-;name, with the name execution semantics given below. Return control to the
-;calling definition specified by nest-sys1. An ambiguous condition exists if
-;name was not defined with CREATE or a user-defined word that calls CREATE.
-;Initiation: ( i*x -- i*x a-addr ) ( R:  -- nest-sys2 )
-;Save implementation-dependent information nest-sys2 about the calling
-;definition. Place name's data field address on the stack. The stack effects i*x
-;represent arguments to name.
-;name Execution: ( i*x -- j*x )
-;Execute the portion of the definition that begins with the initiation semantics
-;appended by the DOES> which modified name. The stack effects i*x and j*x
-;represent arguments to and results from name, respectively.
-CFA_DOES		DW	CF_DOES
-;DOES> run-time semantics
-CFA_DOES_RT		DW	CF_DOES_RT	
-
-;Word: DROP ( x -- )
-;Remove x from the stack.
-CFA_DROP		DW		CF_DROP
-
-;Word: DUP ( x -- x x )
-;Duplicate x.
-CFA_DUP			DW		CF_DUP
-
-;Word: ELSE								IMMEDIATE 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( C: orig1 -- orig2 )
-;Put the location of a new unresolved forward reference orig2 onto the control
-;flow stack. Append the run-time semantics given below to the current
-;definition. The semantics will be incomplete until orig2 is resolved
-;(e.g., by THEN). Resolve the forward reference orig1 using the location
-;following the appended run-time semantics.
-;Run-time: ( -- )
-;Continue execution at the location given by the resolution of orig2.
-CFA_ELSE		DW	CF_ELSE
-			DW	CFA_ELSE_RT
-;ELSE run-time semantics
-CFA_ELSE_RT		EQU	CFA_AGAIN_RT
-	
-;Word: EMIT ( x -- )
-;If x is a graphic character in the implementation-defined character set,
-;display x. The effect of EMIT for all other values of x is
-;implementation-defined.
-;When passed a character whose character-defining bits have a value between hex
-;20 and 7E inclusive, the corresponding standard character, specified by 3.1.2.1
-;Graphic characters, is displayed. Because different output devices can respond
-;differently to control characters, programs that use control characters to
-;perform specific functions have an environmental dependency. Each EMIT deals
-;with only one character.
-CFA_EMIT		DW	CF_EMIT
-
-;ENVIRONMENT? ( c-addr u -- false | i*x true )
-;c-addr is the address of a character string and u is the string's character
-;count. u may have a value in the range from zero to an implementation-defined
-;maximum which shall not be less than 31. The character string should contain a
-;keyword from 3.2.6 Environmental queries or the optional word sets to be
-;checked for correspondence with an attribute of the present environment. If the
-;system treats the attribute as unknown, the returned flag is false; otherwise,
-;the flag is true and the i*x returned is of the type specified in the table for
-;the attribute queried.
-
-;EVALUATE ( i*x c-addr u -- j*x )
-;Save the current input source specification. Store minus-one (-1) in SOURCE-ID
-;if it is present. Make the string described by c-addr and u both the input
-;source and input buffer, set >IN to zero, and interpret. When the parse area is
-;empty, restore the prior input source specification. Other stack effects are
-;due to the words EVALUATEd.
-
-;Word: EXECUTE ( i*x xt -- j*x )
-;Remove xt from the stack and perform the semantics identified by it. Other
-;stack effects are due to the word EXECUTEd.
-CFA_EXECUTE		DW	CF_EXECUTE
-
-;Word: EXIT								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( -- ) ( R: nest-sys -- )
-;Return control to the calling definition specified by nest-sys. Before
-;executing EXIT within a do-loop, a program shall discard the loop-control
-;parameters by executing UNLOOP.
-CFA_EXIT		DW	CF_EXIT
-;EXIT run-time semantics
-CFA_EXIT_RT		DW	CF_EXIT_RT
-
-;Word: FILL ( c-addr u char -- )
-;If u is greater than zero, store char in each of u consecutive characters of
-;memory beginning at c-addr.
-CFA_FILL		DW	CF_FILL
-
-;Word: FIND ( c-addr -- c-addr 0  |  xt 1  |  xt -1 )
-;Find the definition named in the counted string at c-addr. If the definition is
-;not found, return c-addr and zero. If the definition is found, return its
-;execution token xt. If the definition is immediate, also return one (1),
-;otherwise also return minus-one (-1). For a given string, the values returned
-;by FIND while compiling may differ from those returned while not compiling.
-CFA_FIND	 	DW	CF_FIND
-
-;Word: FM/MOD ( d1 n1 -- n2 n3 )
-;Divide d1 by n1, giving the floored quotient n3 and the remainder n2. Input and
-;output stack arguments are signed. An ambiguous condition exists if n1 is zero
-;or if the quotient lies outside the range of a single-cell signed integer.
-;Floored Division Example:
-;Dividend Divisor Remainder Quotient
-;   10       7        3         1
-;  -10       7        4        -2
-;   10      -7       -4        -2
-;  -10      -7       -3         1
-CFA_F_M_SLASH_MOD	DW	CF_F_M_SLASH_MOD
-
-;Word: HERE ( -- addr )
-;addr is the data-space pointer. (points to the next free data space)
-CFA_HERE		DW	CF_CONSTANT_RT
-			DW	CP
-;Word: HOLD ( char -- )
-;Add char to the beginning of the pictured numeric output string. An ambiguous
-;condition exists if HOLD executes outside of a <# #> delimited number
-;conversion.
-CFA_HOLD		DW	CF_HOLD
-
-;Word: I
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( -- n|u ) ( R:  loop-sys -- loop-sys )
-;n|u is a copy of the current (innermost) loop index. An ambiguous condition
-;exists if the loop control parameters are unavailable.
-CFA_I			DW	CF_I
-
-;Word: IF 								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( C: -- orig )
-;Put the location of a new unresolved forward reference orig onto the control
-;flow stack. Append the run-time semantics given below to the current
-;definition. The semantics are incomplete until orig is resolved, e.g., by THEN
-;or ELSE.
-;Run-time: ( x -- )
-;If all bits of x are zero, continue execution at the location specified by the
-;resolution of orig.
-CFA_IF			DW	CF_IF
-;IF run-time semantics
-CFA_IF_RT		DW	CF_IF_RT
-
-;Word: IMMEDIATE ( -- )
-;Make the most recent definition an immediate word. An ambiguous condition
-;exists if the most recent definition does not have a name.
-CFA_IMMEDIATE		DW	CF_IMMEDIATE
-
-;Word: INVERT ( x1 -- x2 )
-;Invert all bits of x1, giving its logical inverse x2.
-CFA_INVERT		DW	CF_INVERT
-
-;Word: J
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( -- n|u ) ( R: loop-sys1 loop-sys2 -- loop-sys1 loop-sys2 )
-;n|u is a copy of the next-outer loop index. An ambiguous condition exists if
-;the loop control parameters of the next-outer loop, loop-sys1, are unavailable.
-CFA_J			DW	CF_J
-
-;Word: KEY ( -- char )
-;Receive one character char, a member of the implementation-defined character
-;set. Keyboard events that do not correspond to such characters are discarded
-;until a valid character is received, and those events are subsequently
-;unavailable.
-;All standard characters can be received. Characters received by KEY are not
-;displayed.
-;Any standard character returned by KEY has the numeric value specified in
-;3.1.2.1 Graphic characters. Programs that require the ability to receive
-;control characters have an environmental dependency.
-CFA_KEY			DW	CF_KEY
-
-;Word: LEAVE								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( -- ) ( R: loop-sys -- )
-;Discard the current loop control parameters. An ambiguous condition exists if
-;they are unavailable. Continue execution immediately following the innermost
-;syntactically enclosing DO ... LOOP or DO ... +LOOP.
-CFA_LEAVE		DW	CF_LEAVE
-			DW	CFA_LEAVE_RT
-;LEAVE run-time semantics
-CFA_LEAVE_RT		DW	CF_LEAVE_RT
-
-;Word: LITERAL								IMMEDIATE 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( x -- )
-;Append the run-time semantics given below to the current definition.
-;Run-time: ( -- x )
-;Place x on the stack.
-CFA_LITERAL		DW	CF_LITERAL
-			DW	CFA_LITERAL_RT
-;Word: LITERAL run-time semantics
-CFA_LITERAL_RT		DW	CF_LITERAL_RT
-
-;Word: LOOP								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( C: do-sys -- )
-;Append the run-time semantics given below to the current definition. Resolve
-;the destination of all unresolved occurrences of LEAVE between the location
-;given by do-sys and the next location for a transfer of control, to execute the
-;words following the LOOP.
-;Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
-;An ambiguous condition exists if the loop control parameters are unavailable.
-;Add one to the loop index. If the loop index is then equal to the loop limit,
-;discard the loop parameters and continue execution immediately following the
-;loop. Otherwise continue execution at the beginning of the loop.
-CFA_LOOP		DW	CF_LOOP
-			DW	CFA_LOOP_RT
-;LOOP run-time semantics
-CFA_LOOP_RT		DW	CF_LOOP_RT
-
-;Word: LSHIFT ( x1 u -- x2 )
-;Perform a logical left shift of u bit-places on x1, giving x2. Put zeroes into
-;the least significant bits vacated by the shift. An ambiguous condition exists
-;if u is greater than or equal to the number of bits in a cell.
-CFA_L_SHIFT		DW	CF_L_SHIFT
-
-;Word: M* ( n1 n2 -- d )
-;d is the signed product of n1 times n2.
-CFA_M_STAR		DW	CF_M_STAR
-
-;Word: MAX ( n1 n2 -- n3 )
-;n3 is the greater of n1 and n2.
-CFA_MAX			DW	CF_MAX
-
-;Word: MIN ( n1 n2 -- n3 )
-;n3 is the lesser of n1 and n2.
-CFA_MIN			DW	CF_MIN
-
-;Word: MOD ( n1 n2 -- n3 )
-;Divide n1 by n2, giving the single-cell remainder n3. An ambiguous condition
-;exists if n2 is zero. If n1 and n2 differ in sign, the implementation-defined
-;result returned will be the same as that returned by either the phrase
-;>R S>D R> FM/MOD DROP or the phrase >R S>D R> SM/REM DROP.
-CFA_MOD			DW	CF_MOD
-	
-;Word: MOVE ( addr1 addr2 u -- )
-;If u is grater than zero, copy the contents of u consecutive address units at
-;addr1 to the u consecutive address units at addr2. After MOVE completes, the u
-;consecutive address units at addr2 contain exactly what the u consecutive
-;address units at addr1 contained before the move.
-CFA_MOVE		DW	CF_MOVE
-
-;Word: NEGATE ( n1 -- n2 )
-;Negate n1, giving its arithmetic inverse n2.
-CFA_NEGATE		DW	CF_NEGATE
-
-;Word: OR ( x1 x2 -- x3 )
-;x3 is the bit-by-bit inclusive-or of x1 with x2.
-CFA_OR			DW	CF_OR
-
-;Word: OVER ( x1 x2 -- x1 x2 x1 )
-;Place a copy of x1 on top of the stack.
-CFA_OVER		DW	CF_OVER
-
-;Word: POSTPONE								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( "<spaces>name" -- )
-;Skip leading space delimiters. Parse name delimited by a space. Find name.
-;Append the compilation semantics of name to the current definition. An
-;ambiguous condition exists if name is not found.
-CFA_POSTPONE		DW	CF_POSTPONE
-
-;Word: QUIT ( -- )  ( R:  i*x -- )
-;Empty the return stack, store zero in SOURCE-ID if it is present, make the user
-;input device the input source, and enter interpretation state. Do not display a
-;message. Repeat the following:
-;Accept a line from the input source into the input buffer, set >IN to zero, and
-;interpret.
-;Display the implementation-defined system prompt if in interpretation state,
-;all processing has been completed, and no ambiguous condition exists.
-CFA_QUIT		DW	CF_QUIT
-;QUIT run-time semantics
-CFA_QUIT_RT		DW	CF_QUIT_RT
-
-;Word: R> 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( -- x ) ( R:  x -- )
-;Move x from the return stack to the data stack.
-CFA_R_FROM		DW	CF_R_FROM
-
-;Word: R@ 
-;r-fetch CORE 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( -- x ) ( R:  x -- x )
-;Copy x from the return stack to the data stack.
-CFA_R_FETCH		DW	CF_R_FETCH
-
-;Word: RECURSE								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( -- )
-;Append the execution semantics of the current definition to the current
-;definition. An ambiguous condition exists if RECURSE appears in a definition
-;after DOES>.
-CFA_RECURSE		DW	CF_RECURSE
-
-;Word: REPEAT 								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( C: orig dest -- )
-;Append the run-time semantics given below to the current definition, resolving
-;the backward reference dest. Resolve the forward reference orig using the
-;location following the appended run-time semantics.
-;Run-time: ( -- )
-;Continue execution at the location given by dest.
-CFA_REPEAT		DW	CF_REPEAT
-			DW	CFA_REPEAT_RT
-;REPEAT run-time semantics 
-CFA_REPEAT_RT		EQU	CFA_AGAIN_RT 	;same as AGAIN run-time semantics
-
-;Word: ROT ( x1 x2 x3 -- x2 x3 x1 )
-;Rotate the top three stack entries.
-CFA_ROT			DW	CF_ROT
-
-;Word: RSHIFT ( x1 u -- x2 )
-;Perform a logical right shift of u bit-places on x1, giving x2. Put zeroes into
-;the most significant bits vacated by the shift. An ambiguous condition exists
-;if u is greater than or equal to the number of bits in a cell.
-CFA_R_SHIFT		DW	CF_R_SHIFT
-
-;Word: S"								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( "ccc<quote>" -- )
-;Parse ccc delimited by " (double-quote). Append the run-time semantics given
-;below to the current definition.
-;Run-time: ( -- c-addr u )
-;Return c-addr and u describing a string consisting of the characters ccc. A
-;program shall not alter the returned string.
-CFA_S_QUOTE		DW	CF_S_QUOTE
-;S" run-time semantics
-CFA_S_QUOTE_RT		DW	CF_S_QUOTE_RT
-
-;Word: S>D ( n -- d )
-;Convert the number n to the double-cell number d with the same numerical value.
-CFA_S_TO_D		DW	CF_S_TO_D	
-
-;Word: SIGN ( n -- )
-;If n is negative, add a minus sign to the beginning of the pictured numeric
-;output string. An ambiguous condition exists if SIGN executes outside of a
-;<# #> delimited number conversion.
-CFA_SIGN		DW	CF_SIGN
-
-;Word: SM/REM ( d1 n1 -- n2 n3 )
-;Divide d1 by n1, giving the symmetric quotient n3 and the remainder n2. Input
-;and output stack arguments are signed. An ambiguous condition exists if n1 is
-;zero or if the quotient lies outside the range of a single-cell signed integer.
-;Symmetric Division Example:
-;Dividend Divisor Remainder Quotient
-;   10       7        3         1
-;  -10       7       -3        -1
-;   10      -7        3        -1
-;  -10      -7       -3         1
-;
-CFA_S_M_SLASH_REM	DW	CF_S_M_SLASH_REM
-
-;Word: SOURCE ( -- c-addr u )
-;c-addr is the address of, and u is the number of characters in, the input
-;buffer.
-CFA_SOURCE		DW	CF_SOURCE
-
-;Word: SPACE ( -- )
-;Display one space.
-CFA_SPACE		DW	CF_SPACE
-	
-;Word: SPACES ( n -- )
-;If n is greater than zero, display n spaces.
-CFA_SPACES		DW	CF_SPACES
-
-;Word: STATE ( -- a-addr )
-;a-addr is the address of a cell containing the compilation-state flag. STATE is
-;true when in compilation state, false otherwise. The true value in STATE is
-;non-zero, but is otherwise implementation-defined. Only the following standard
-;words alter the value in STATE: : (colon), ; (semicolon), ABORT, QUIT, :NONAME,
-;[ (left-bracket), and ] (right-bracket).
-;Note: A program shall not directly alter the contents of STATE.
-CFA_STATE		DW	CF_CONSTANT_RT
-			DW	STATE
-
-;Word: SWAP ( x1 x2 -- x2 x1 )
-;Exchange the top two stack items.
-CFA_SWAP		DW	CF_SWAP
-
-;Word: THEN								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( C: orig -- )
-;Append the run-time semantics given below to the current definition. Resolve
-;the forward reference orig using the location of the appended run-time
-;semantics.
-;Run-time: ( -- )
-;Continue execution.
-CFA_THEN		DW	CF_THEN
-
-;Word: TYPE ( c-addr u -- )
-;If u is greater than zero, display the character string specified by c-addr and
-;u.
-;When passed a character in a character string whose character-defining bits
-;have a value between hex 20 and 7E inclusive, the corresponding standard
-;character, specified by 3.1.2.1 graphic characters, is displayed. Because
-;different output devices can respond differently to control characters,
-;programs that use control characters to perform specific functions have an
-;environmental dependency.
-CFA_TYPE		DW	CF_TYPE
-
-;Word: U. ( u -- )
-;Display u in free field format.
-CFA_U_DOT		DW	CF_U_DOT
-
-;Word: U< ( u1 u2 -- flag )
-;flag is true if and only if u1 is less than u2.
-CFA_U_LESS_THAN		DW	CF_U_LESS_THAN
-
-;Word: UM* ( u1 u2 -- ud )
-;Multiply u1 by u2, giving the unsigned double-cell product ud. All values and
-;arithmetic are unsigned.
-CFA_U_M_STAR		DW	CF_U_M_STAR
-
-;Word: UM/MOD ( ud u1 -- u2 u3 )
-;Divide ud by u1, giving the quotient u3 and the remainder u2. All values and
-;arithmetic are unsigned. An ambiguous condition exists if u1 is zero or if the
-;quotient lies outside the range of a single-cell unsigned integer.
-CFA_U_M_SLASH_MOD	DW	CF_U_M_SLASH_MOD
-
-;Word: UNLOOP
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( -- ) ( R: loop-sys -- )
-;Discard the loop-control parameters for the current nesting level. An UNLOOP is
-;required for each nesting level before the definition may be EXITed. An
-;ambiguous condition exists if the loop-control parameters are unavailable.
-CFA_UNLOOP		DW	CF_UNLOOP
-
-;Word: UNTIL								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( C: dest -- )
-;Append the run-time semantics given below to the current definition, resolving
-;the backward reference dest.
-;Run-time: ( x -- )
-;If all bits of x are zero, continue execution at the location specified by
-;dest.
-CFA_UNTIL		DW	CF_UNTIL
-			DW	CFA_UNTIL_RT
-;Word: UNTIL run-time semantics 
-CFA_UNTIL_RT		DW	CF_UNTIL_RT
-
-;VARIABLE ( "<spaces>name" -- )
-;Skip leading space delimiters. Parse name delimited by a space. Create a
-;definition for name with the execution semantics defined below. Reserve one
-;cell of data space at an aligned address.
-;name is referred to as a variable.
-;name Execution: ( -- a-addr )
-;a-addr is the address of the reserved cell. A program is responsible for
-;initializing the contents of the reserved cell.
-CFA_VARIABLE		DW	CF_VARIABLE
-
-;Word: WHILE								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( C: dest -- orig dest )
-;Put the location of a new unresolved forward reference orig onto the control
-;flow stack, under the existing dest. Append the run-time semantics given below
-;to the current definition. The semantics are incomplete until orig and dest are
-;resolved (e.g., by REPEAT).
-;Run-time: ( x -- )
-;If all bits of x are zero, continue execution at the location specified by the
-;resolution of orig.
-CFA_WHILE		DW	CF_WHILE
-			DW	CFA_WHILE_RT
-;WHILE run-time semantics 
-CFA_WHILE_RT		EQU	CFA_UNTIL_RT 	;same as UNTIL run-time semantics
-
-;Word: WORD ( char "<chars>ccc<char>" -- c-addr )
-;Skip leading delimiters. Parse characters ccc delimited by char. An ambiguous
-;condition exists if the length of the parsed string is greater than the
-;implementation-defined length of a counted string.
-;c-addr is the address of a transient region containing the parsed word as a
-;counted string. If the parse area was empty or contained no characters other
-;than the delimiter, the resulting string has a zero length. A space, not
-;included in the length, follows the string. A program may replace characters
-;within the string.
-;Note: The requirement to follow the string with a space is obsolescent and is
-;included as a concession to existing programs that use CONVERT. A program shall
-;not depend on the existence of the space.
-CFA_WORD		DW	CF_WORD
-
-;Word: XOR ( x1 x2 -- x3 )
-;x3 is the bit-by-bit exclusive-or of x1 with x2.
-CFA_XOR			DW	CF_XOR
-
-;Word: [								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: Perform the execution semantics given below.
-;Execution: ( -- )
-;Enter interpretation state. [ is an immediate word.
-CFA_LEFT_BRACKET	DW	CF_LEFT_BRACKET
-
-;Word: [']								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( "<spaces>name" -- )
-;Skip leading space delimiters. Parse name delimited by a space. Find name.
-;Append the run-time semantics given below to the current definition.
-;An ambiguous condition exists if name is not found.
-;Run-time: ( -- xt )
-;Place name's execution token xt on the stack. The execution token returned by
-;the compiled phrase ['] X is the same value returned by ' X outside of
-;compilation state.
-CFA_BRACKET_TICK	DW	CF_BRACKET_TICK
-
-;Word: [CHAR]								IMMEDIATE
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( "<spaces>name" -- )
-;Skip leading space delimiters. Parse name delimited by a space. Append the
-;run-time semantics given below to the current definition.
-;Run-time: ( -- char )
-;Place char, the value of the first character of name, on the stack.
-CFA_BRACKET_CHAR	DW	CF_BRACKET_CHAR
-			DW	CFA_LITERAL_RT	
-
-;Word: ] ( -- )								IMMEDIATE
-;Enter compilation state.
-CFA_RIGHT_BRACKET	DW	CF_RIGHT_BRACKET
-
-;#Core extension words (CORE EXT):
-; ================================
-
-
-
-
-
-
 
 
 
@@ -5321,10 +4314,6 @@ CF_RIGHT_BRACKET	MOVW	#$0001, STATE
 ;terminal input buffer.
 ;Note: This word is obsolescent and is included as a concession to existing
 ;      implementations.
-			ALIGN	1
-NFA_NUMBER_TIB		FHEADER, "#TIB", NFA_RIGHT_BRACKET, COMPILE
-CFA_NUMBER_TIB		DW	CF_CONSTANT_RT
-			DW	NUMBER_TIB
 
 ;.(
 ;Compilation: Perform the execution semantics given below.
@@ -5338,10 +4327,6 @@ CFA_NUMBER_TIB		DW	CF_CONSTANT_RT
 ;Trows:
 ;"Dictionary overflow"
 ;"Parsed string overflow"
-;
-			ALIGN	1
-NFA_DOT_PAREN		FHEADER, ".(", NFA_NUMBER_TIB, IMMEDIATE
-CFA_DOT_PAREN		DW	CF_DOT_PAREN
 CF_DOT_PAREN		;Parse quote
 			LDAA	#")" 				;right parenthesis
 			;JOB	CF_DOT_QUOTE_1
@@ -5351,14 +4336,11 @@ CF_DOT_PAREN		;Parse quote
 			PRINT_STR	
 			;Done
 CF_DOT_PAREN_1		NEXT
-				
+	
 ;.R ( n1 n2 -- )
 ;Display n1 right aligned in a field n2 characters wide. If the number of
 ;characters required to display n1 is greater than n2, all digits are displayed
 ;with no leading spaces in a field as wide as necessary.
-			ALIGN	1
-NFA_DOT_R		FHEADER, ".R", NFA_DOT_PAREN, COMPILE
-CFA_DOT_R		DW	CF_DOT_R
 CF_DOT_R		PS_CHECK_UF 2, CF_DOT_R_PSUF 	;check for underflow  (PSP -> Y)
 			BASE_CHECK	CF_DOT_R_INVALBASE	;check BASE value (BASE -> D)
 			;Saturate n at $FF
@@ -5376,12 +4358,9 @@ CF_DOT_R_2		LDAA	#$FF
 
 CF_DOT_R_PSUF		JOB	FCORE_THROW_PSUF
 CF_DOT_R_INVALBASE	JOB	FCORE_THROW_INVALBASE
-	
+
 ;0<> ( x -- flag )
 ;flag is true if and only if x is not equal to zero.
-			ALIGN	1
-NFA_ZERO_NOT_EQUALS	FHEADER, "0<>", NFA_DOT_R, COMPILE
-CFA_ZERO_NOT_EQUALS	DW	CF_ZERO_NOT_EQUALS
 CF_ZERO_NOT_EQUALS	PS_CHECK_UF 1, CF_ZERO_NOT_EQUALS_PSUF 	;check for underflow (PSP -> Y)
 			LDD	0,Y
 			MOVW	#$FFFF, 0,Y		;TRUE
@@ -5395,9 +4374,6 @@ CF_ZERO_NOT_EQUALS_PSUF	JOB	FCORE_THROW_PSUF
 
 ;0> ( n -- flag )
 ;flag is true if and only if n is greater than zero.
-			ALIGN	1
-NFA_ZERO_GREATER	FHEADER, "0>", NFA_ZERO_NOT_EQUALS, COMPILE
-CFA_ZERO_GREATER	DW	CF_ZERO_GREATER
 CF_ZERO_GREATER		PS_CHECK_UF 1, CF_ZERO_GREATER_PSUF 	;check for underflow (PSP -> Y)
 			LDD	0,Y
 			MOVW	#$FFFF, 0,Y		;TRUE
@@ -5408,7 +4384,7 @@ CF_ZERO_GREATER_1	STY	PSP
 			NEXT
 	
 CF_ZERO_GREATER_PSUF	JOB	FCORE_THROW_PSUF
-	
+
 ;2>R
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution:      ( x1 x2 -- ) ( R:  -- x1 x2 )
@@ -5420,9 +4396,6 @@ CF_ZERO_GREATER_PSUF	JOB	FCORE_THROW_PSUF
 ;Throws:
 ;"Parameter stack underflow"
 ;"Return stack overflow"
-			ALIGN	1
-NFA_TWO_TO_R		FHEADER, "2>R", NFA_ZERO_GREATER, COMPILE
-CFA_TWO_TO_R		DW	CF_TWO_TO_R
 CF_TWO_TO_R		PS_CHECK_UF	2, CF_TWO_TO_PSUF	;(PSP -> Y)
 			RS_CHECK_OF	2, CF_TWO_TO_RSOF	;
 			;Move stack entries (PSP in Y)
@@ -5435,7 +4408,7 @@ CF_TWO_TO_R		PS_CHECK_UF	2, CF_TWO_TO_PSUF	;(PSP -> Y)
 
 CF_TWO_TO_PSUF		JOB	FCORE_THROW_PSUF
 CF_TWO_TO_RSOF		JOB	FCORE_THROW_RSOF
-	
+
 ;2R>
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- x1 x2 ) ( R:  x1 x2 -- )
@@ -5447,10 +4420,6 @@ CF_TWO_TO_RSOF		JOB	FCORE_THROW_RSOF
 ;Throws:
 ;"Parameter stack overflow"
 ;"Return stack underflow"
-;
-			ALIGN	1
-NFA_TWO_FROM_R		FHEADER, "2R>", NFA_TWO_TO_R, COMPILE
-CFA_TWO_FROM_R		DW	CF_TWO_FROM_R
 CF_TWO_FROM_R		PS_CHECK_OF	2, CF_TWO_FROM_R_PSOF 	;check for PS overflow (PSP-4 -> Y)	
 			RS_CHECK_UF	2, CF_TWO_FROM_R_RSUF	;(RSP -> X)
 			;Move stack entries
@@ -5462,7 +4431,7 @@ CF_TWO_FROM_R		PS_CHECK_OF	2, CF_TWO_FROM_R_PSOF 	;check for PS overflow (PSP-4 
 
 CF_TWO_FROM_R_PSOF	JOB	FCORE_THROW_PSOF
 CF_TWO_FROM_R_RSUF	JOB	FCORE_THROW_RSUF
-	
+
 ;2R@
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- x1 x2 ) ( R:  x1 x2 -- x1 x2 )
@@ -5474,10 +4443,6 @@ CF_TWO_FROM_R_RSUF	JOB	FCORE_THROW_RSUF
 ;Throws:
 ;"Parameter stack overflow"
 ;"Return stack underflow"
-;
-			ALIGN	1
-NFA_TWO_R_FETCH		FHEADER, "2R@", NFA_TWO_FROM_R, COMPILE
-CFA_TWO_R_FETCH		DW	CF_TWO_R_FETCH
 CF_TWO_R_FETCH		PS_CHECK_OF	2, CF_TWO_R_FETCH_PSOF 	;check for PS overflow (PSP-4 -> Y)	
 			RS_CHECK_UF	2, CF_TWO_R_FETCH_RSUF	;(RSP -> X)
 			;Move stack entries
@@ -5488,7 +4453,7 @@ CF_TWO_R_FETCH		PS_CHECK_OF	2, CF_TWO_R_FETCH_PSOF 	;check for PS overflow (PSP-
 
 CF_TWO_R_FETCH_PSOF	JOB	FCORE_THROW_PSOF
 CF_TWO_R_FETCH_RSUF	JOB	FCORE_THROW_RSUF
-	
+
 ;:NONAME ( C:  -- colon-sys )  ( S:  -- xt )
 ;Create an execution token xt, enter compilation state and start the current
 ;definition, producing colon-sys. Append the initiation semantics given below
@@ -5512,10 +4477,6 @@ CF_TWO_R_FETCH_RSUF	JOB	FCORE_THROW_RSUF
 ;"Parameter stack overflow"
 ;"Compiler nesting"
 ;"Dictionary overflow"
-;
-			ALIGN	1
-NFA_COLON_NONAME	FHEADER, ":NONAME", NFA_TWO_R_FETCH, IMMEDIATE
-CFA_COLON_NONAME	DW	CF_COLON_NONAME
 CF_COLON_NONAME		INTERPRET_ONLY	CF_COLON_NONAME_COMPNEST	;check for nested definition
 			PS_CHECK_OF	2, CF_COLON_NONAME_PSOF 	;(PSP-4 -> Y)
 			DICT_CHECK_OF	2, CF_COLON_NONAME_DICTOF		;(CP+2 -> X)
@@ -5535,19 +4496,14 @@ CF_COLON_NONAME		INTERPRET_ONLY	CF_COLON_NONAME_COMPNEST	;check for nested defin
 CF_COLON_NONAME_PSOF		JOB	FCORE_THROW_PSOF
 CF_COLON_NONAME_COMPNEST	JOB	FCORE_THROW_COMPNEST
 CF_COLON_NONAME_DICTOF		JOB	FCORE_THROW_DICTOF
-	
+
 ;<> ( x1 x2 -- flag )
 ;flag is true if and only if x1 is not bit-for-bit the same as x2.
 ;
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack overflow"
-;
 CF_NOT_EQUALS_PSUF	JOB	FCORE_THROW_PSUF
-
-			ALIGN	1
-NFA_NOT_EQUALS		FHEADER, "<>", NFA_COLON_NONAME, COMPILE
-CFA_NOT_EQUALS		DW	CF_NOT_EQUALS
 CF_NOT_EQUALS		PS_CHECK_UF 2, CF_NOT_EQUALS_PSUF 	;check for underflow  (PSP -> Y)
 			LDD	2,Y			;u1 -> D
 			MOVW	#$FFFF, 2,Y		;TRUE
@@ -5556,7 +4512,7 @@ CF_NOT_EQUALS		PS_CHECK_UF 2, CF_NOT_EQUALS_PSUF 	;check for underflow  (PSP -> 
 			MOVW	#$0000, 0,Y
 CF_NOT_EQUALS_1		STY	PSP
 			NEXT
-			
+
 ;?DO
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: -- do-sys )
@@ -5578,11 +4534,6 @@ CF_NOT_EQUALS_1		STY	PSP
 ;"Parameter stack overflow"
 ;"Dictionary overflow"
 ;"Compile-only word"
-;
-			ALIGN	1
-NFA_QUESTION_DO		FHEADER, "?DO", NFA_NOT_EQUALS, IMMEDIATE
-CFA_QUESTION_DO		DW	CF_QUESTION_DO
-			DW	CFA_QUESTION_DO_RT
 			;?DO compile semantics (run-time CFA in [X+2])
 CF_QUESTION_DO		COMPILE_ONLY	CF_QUESTION_DO_COMPONLY 	;ensure that compile mode is on
 			PS_CHECK_OF	2, CF_QUESTION_DO_PSOF		;(PSP-4 -> Y)
@@ -5605,14 +4556,12 @@ CF_QUESTION_DO_PSUF	JOB	FCORE_THROW_PSUF
 CF_QUESTION_DO_RSOF	JOB	FCORE_THROW_RSOF
 CF_QUESTION_DO_DICTOF	JOB	FCORE_THROW_DICTOF
 CF_QUESTION_DO_COMPONLY	JOB	FCORE_THROW_COMPONLY	
-	
+
 ;?DO run-time semantics
 ;
 ;S12CForth implementation details:
 ;Throws:
 ;"Return stack undererflow"
-			ALIGN	1
-CFA_QUESTION_DO_RT	DW	CF_QUESTION_DO_RT
 CF_QUESTION_DO_RT	PS_CHECK_UF	2, CF_QUESTION_DO_PSUF	;(PSP -> Y)
 			RS_CHECK_OF	2, CF_QUESTION_DO_RSOF	;
 			;Compare args on PS
@@ -5644,16 +4593,9 @@ CF_QUESTION_DO_RT_1	STY	PSP
 ;"Parameter stack underflow"
 ;"Dictionary overflow"
 ;"Compile-only word"
-;
-			ALIGN	1
-NFA_AGAIN		FHEADER, "AGAIN", NFA_QUESTION_DO, IMMEDIATE
-CFA_AGAIN		DW	CF_AGAIN
-			DW	CFA_AGAIN_RT
 CF_AGAIN		EQU	CF_LITERAL
 	
 ;AGAIN run-time semantics
-			ALIGN	1
-CFA_AGAIN_RT		DW	CF_AGAIN_RT
 CF_AGAIN_RT		JUMP_NEXT
 
 ;C"
@@ -5671,10 +4613,6 @@ CF_AGAIN_RT		JUMP_NEXT
 ;"Dictionary overflow"
 ;"Compile-only word"
 ;"Parsed string overflow"
-;
-			ALIGN	1
-NFA_C_QUOTE		FHEADER, 'C"', NFA_AGAIN, IMMEDIATE ;"
-CFA_C_QUOTE		DW	CF_C_QUOTE
 CF_C_QUOTE		COMPILE_ONLY	CF_C_QUOTE_COMPONLY ;ensure that compile mode is on
 			;Parse quote
 			LDAA	#$22 				;double quote
@@ -5713,8 +4651,6 @@ CF_C_QUOTE_PSOF		JOB	FCORE_THROW_PSOF
 ;Print string to the terminal
 ;Throws:
 ;"Parameter stack overflow"
-			ALIGN	1
-CFA_C_QUOTE_RT		DW	CF_C_QUOTE_RT
 CF_C_QUOTE_RT		PS_CHECK_OF	1, CF_C_QUOTE_PSOF 	;check for PS overflow (PSP-2 -> Y)
 			;Push string pointer onto PS (PSP-2 in Y)
 			LDX	IP
@@ -5727,7 +4663,7 @@ CF_C_QUOTE_RT		PS_CHECK_OF	1, CF_C_QUOTE_PSOF 	;check for PS overflow (PSP-2 -> 
 			STX	IP
 			;Done
 			NEXT
-	
+
 ;CASE
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: -- case-sys )
@@ -5740,13 +4676,9 @@ CF_C_QUOTE_RT		PS_CHECK_OF	1, CF_C_QUOTE_PSOF 	;check for PS overflow (PSP-2 -> 
 ;Throws:
 ;"Parameter stack overflow"
 ;"Compile-only word"
-;
 CF_CASE_PSOF		JOB	FCORE_THROW_PSOF	
 CF_CASE_COMPONLY	JOB	FCORE_THROW_COMPONLY
 
-			ALIGN	1
-NFA_CASE		FHEADER, "CASE", NFA_C_QUOTE, IMMEDIATE
-CFA_CASE		DW	CF_CASE
 CF_CASE			COMPILE_ONLY	CF_CASE_COMPONLY 	;ensure that compile mode is on
 			PS_CHECK_OF	1, CF_CASE_PSOF 	;(PSP-2 -> Y)
 			;Push initial case-sys ($0000) onto the PS
@@ -5765,14 +4697,10 @@ CF_CASE			COMPILE_ONLY	CF_CASE_COMPONLY 	;ensure that compile mode is on
 ;"Parameter stack underflow"
 ;"Dictionary overflow"
 ;"Compile-only word"
-;
 CF_COMPILE_COMMA_PSUF		JOB	FCORE_THROW_PSUF
 CF_COMPILE_COMMA_DICTOF		JOB	FCORE_THROW_DICTOF
 CF_COMPILE_COMMA_COMPONLY	JOB	FCORE_THROW_COMPONLY
 	
-			ALIGN	1
-NFA_COMPILE_COMMA	FHEADER, "COMPILE,", NFA_CASE, IMMEDIATE
-CFA_COMPILE_COMMA	DW	CF_COMPILE_COMMA
 CF_COMPILE_COMMA	COMPILE_ONLY	CF_COMPILE_COMMA_COMPONLY 	;ensure that compile mode is on
 			PS_CHECK_UF	1, CF_COMPILE_COMMA_PSUF 	;check for PS underflow   (PSP -> Y)
 			DICT_CHECK_OF	2, CF_COMPILE_COMMA_DICTOF	;check for DICT overflow (CP+bytes -> X)
@@ -5794,10 +4722,6 @@ CF_COMPILE_COMMA	COMPILE_ONLY	CF_COMPILE_COMMA_COMPONLY 	;ensure that compile mo
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_CONVERT		FHEADER, "CONVERT", NFA_COMPILE_COMMA, COMPILE
-CFA_CONVERT		DW	CF_CONVERT
 CF_CONVERT		PS_CHECK_UF	3, CF_CONVERT_PSUF	;(PSP -> Y)
 			;Allocate temporary memory (PSP in Y)
 			SSTACK_ALLOC	10
@@ -5833,11 +4757,6 @@ CF_CONVERT_PSUF		JOB	FCORE_THROW_PSUF
 ;"Parameter stack underflow"
 ;"Dictionary overflow"
 ;"Compile-only word"
-;
-			ALIGN	1
-NFA_ENDCASE		FHEADER, "ENDCASE", NFA_CONVERT, IMMEDIATE
-CFA_ENDCASE		DW	CF_ENDCASE
-			DW	CFA_ENDCASE_RT
 			;ENDCASE compile semantics (run-time CFA in [X+2])
 CF_ENDCASE		COMPILE_ONLY	CF_ENDCASE_COMPONLY 	;ensure that compile mode is on
 			PS_CHECK_UF	1, CF_ENDCASE_PSUF	;(PSP -> Y)
@@ -5863,6 +4782,1170 @@ CF_ENDCASE_DICTOF	JOB	FCORE_THROW_DICTOF
 CF_ENDCASE_COMPONLY	JOB	FCORE_THROW_COMPONLY
 
 CFA_ENDCASE_RT		EQU	CFA_DROP
+
+
+
+
+
+
+
+
+	
+FCORE_CODE_END		EQU	*
+FCORE_CODE_END_LIN	EQU	@
+			
+;###############################################################################
+;# Tables                                                                      #
+;###############################################################################
+#ifdef FCORE_TABS_START_LIN
+			ORG 	FCORE_TABS_START, FCORE_TABS_START_LIN
+#else
+			ORG 	FCORE_TABS_START
+#endif	
+
+;System prompt
+;FCORE_SUSPEND_PROMPT	FCS	"S "
+;FCORE_INTERPRET_PROMPT	FCS	"> "
+;FCORE_COMPILE_PROMPT	FCS	"+ "
+;FCORE_SKIP_PROMPT	FCS	"0 "
+;FCORE_SYSTEM_PROMPT	FCS	" ok"
+
+;Character conversion for NAME
+;			;	 0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
+;FCORE_NAME_TAB		DB	$00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 ;$0x
+;			DB	$00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 ;$1x
+;			DB      $00 "!" $22 "#" "$" "%"	"&" $27 "(" ")" "*" "+" "," "-" "." "/" ;$2x
+;			DB	"0" "1" "2" "3" "4" "5" "6" "7" "8" "9" ":" ";" "<" "=" ">" "?" ;$3x
+;			DB	"@" "A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M" "N" "O" ;$4x
+;			DB	"P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" "[" $5C "]" "^" "_" ;$5x
+;			DB	$60 "A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M" "N" "O" ;$6x
+;			DB	"P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z" "{" "|" "}" "~" $00 ;$7x
+									
+FCORE_TABS_END		EQU	*
+FCORE_TABS_END_LIN	EQU	@
+
+;###############################################################################
+;# Words                                                                       #
+;###############################################################################
+#ifdef FCORE_WORDS_START_LIN
+			ORG 	FCORE_WORDS_START, FCORE_WORDS_START_LIN
+#else
+			ORG 	FCORE_WORDS_START
+FCORE_WORDS_START_LIN	EQU	@
+#endif	
+
+;#Code Field Addresses:
+;======================
+			ALIGN	1
+;Word: ! ( x a-addr -- )
+;;Store x at a-addr.
+CFA_STORE		DW	CF_STORE
+
+;Word: # ( ud1 -- ud2 )
+;Divide ud1 by the number in BASE giving the quotient ud2 and the remainder n.
+;(n is the least-significant digit of ud1.) Convert n to external form and add
+;the resulting character to the beginning of the pictured numeric output string.
+;An ambiguous condition exists if # executes outside of a <# #> delimited number
+;conversion.
+CFA_NUMBER_SIGN		DW	CF_NUMBER_SIGN
+
+;Word: #> ( xd -- c-addr u )
+;Drop xd. Make the pictured numeric output string available as a character
+;string. c-addr and u specify the resulting character string. A program may
+;replace characters within the string. 
+CFA_NUMBER_SIGN_GREATER	DW	CF_NUMBER_SIGN_GREATER
+
+;Word: #S ( ud1 -- ud2 )
+;Convert one digit of ud1 according to the rule for #. Continue conversion
+;until the quotient is zero. ud2 is zero. An ambiguous condition exists if #S
+;executes outside of a <# #> delimited number conversion.
+CFA_NUMBER_SIGN_S	DW	CF_NUMBER_SIGN_S
+
+;Word: ' ( "<spaces>name" -- xt ) 	;'
+;Skip leading space delimiters. Parse name delimited by a space. Find name and
+;return xt, the execution token for name. An ambiguous condition exists if name
+;is not found.
+CFA_TICK		DW	CF_TICK
+
+;Word: (								IMMEDIATE
+;Compilation: Perform the execution semantics given below.
+;Execution: ( "ccc<paren>" -- )
+;Parse ccc delimited by ) (right parenthesis). ( is an immediate word.
+CFA_PAREN		DW	CF_PAREN
+
+;Word: * ( n1|u1 n2|u2 -- n3|u3 )
+;Multiply n1|u1 by n2|u2 giving the product n3|u3.
+CFA_STAR		DW	CF_STAR
+
+;Word: */ ( n1 n2 n3 -- n4 )
+;Multiply n1 by n2 producing the intermediate double-cell result d. Divide d by
+;n3 giving the single-cell quotient n4. An ambiguous condition exists if n3 is
+;zero or if the quotient n4 lies outside the range of a signed number. If d and
+;n3 differ in sign, the implementation-defined result returned will be the same
+;as that returned by either the phrase >R M* R> FM/MOD SWAP DROP or the phrase
+;>R M* R> SM/REM SWAP DROP 
+CFA_STAR_SLASH		DW	CF_STAR_SLASH
+
+;Word: */MOD ( n1 n2 n3 -- n4 n5 )
+;Multiply n1 by n2 producing the intermediate double-cell result d. Divide d by
+;n3 producing the single-cell remainder n4 and the single-cell quotient n5. An
+;ambiguous condition exists if n3 is zero, or if the quotient n5 lies outside
+;the range of a single-cell signed integer. If d and n3 differ in sign, the
+;implementation-defined result returned will be the same as that returned by
+;either the phrase >R M* R> FM/MOD or the phrase >R M* R> SM/REM .
+CFA_STAR_SLASH_MOD	DW	CF_STAR_SLASH_MOD
+
+;Word: + ( n1|u1 n2|u2 -- n3|u3 )
+;Add n2|u2 to n1|u1, giving the sum n3|u3.
+CFA_PLUS		DW	CF_PLUS
+
+;Word: +! ( n|u a-addr -- )
+;Add n|u to the single-cell number at a-addr.
+CFA_PLUS_STORE		DW	CF_PLUS_STORE
+
+;Word: +LOOP	IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: do-sys -- )
+;Append the run-time semantics given below to the current definition. Resolve
+;the destination of all unresolved occurrences of LEAVE between the location
+;given by do-sys and the next location for a transfer of control, to execute the
+;words following +LOOP.
+;Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
+;An ambiguous condition exists if the loop control parameters are unavailable.
+;Add n to the loop index. If the loop index did not cross the boundary between
+;the loop limit minus one and the loop limit, continue execution at the beginning
+;of the loop. Otherwise, discard the current loop control parameters and continue
+;execution immediately following the loop.
+CFA_PLUS_LOOP		DW	CF_PLUS_LOOP
+			DW	CFA_PLUS_LOOP_RT
+;LOOP run-time semantics
+CFA_PLUS_LOOP_RT	DW	CF_PLUS_LOOP_RT
+
+;Word: , ( x -- )
+;Reserve one cell of data space and store x in the cell. If the data-space
+;pointer is aligned when , begins execution, it will remain aligned when,
+;finishes execution. An ambiguous condition exists if the data-space pointer is
+;not aligned prior to execution of ,.
+CFA_COMMA		DW	CF_COMMA
+
+;Word: - ( n1|u1 n2|u2 -- n3|u3 )
+;Subtract n2|u2n from n1|u1, giving the difference n3|u3.
+CFA_MINUS		DW	CF_MINUS
+
+;;Word: . ( n -- )
+;Display n in free field format.
+CFA_DOT			DW	CF_DOT
+
+;Word: ."								IMMEDIATE 			
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( "ccc<quote>" -- )
+;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
+;below to the current definition.
+;Run-time: ( -- )
+;Display ccc.
+CFA_DOT_QUOTE		DW	CF_DOT_QUOTE 		;compilation semantics
+;." run-time semantics
+CFA_DOT_QUOTE_RT	DW	CF_DOT_QUOTE_RT
+
+;Word: / ( n1 n2 -- n3 )
+;Divide n1 by n2, giving the single-cell quotient n3. An ambiguous condition
+;exists if n2 is zero. If n1 and n2 differ in sign, the implementation-defined
+;result returned will be the same as that returned by either the phrase
+;>R S>D R> FM/MOD SWAP DROP or the phrase >R S>D R> SM/REM SWAP DROP .
+CFA_SLASH		DW	CF_SLASH
+
+;Word: /MOD ( n1 n2 -- n3 n4 )
+;Divide n1 by n2, giving the single-cell remainder n3 and the single-cell
+;quotient n4. An ambiguous condition exists if n2 is zero. If n1 and n2 differ
+;in sign, the implementation-defined result returned will be the same as that
+;returned by either the phrase >R S>D R> FM/MOD or the phrase >R S>D R> SM/REM . 
+CFA_SLASH_MOD		DW	CF_SLASH_MOD
+
+;Word: 0< ( n -- flag )
+;flag is true if and only if n is less than zero.
+CFA_ZERO_LESS		DW	CF_ZERO_LESS
+
+;Word: 0= ( x -- flag )
+;flag is true if and only if x is equal to zero.
+CFA_ZERO_EQUALS		DW	CF_ZERO_EQUALS
+
+;Word: 1+ ( n1|u1 -- n2|u2 )
+;Add one (1) to n1|u1 giving the sum n2|u2.
+CFA_ONE_PLUS		DW	CF_ONE_PLUS
+
+;Word: 1- ( n1|u1 -- n2|u2 ) 
+;Subtract one (1) from n1|u1 giving the difference n2|u2.
+CFA_ONE_MINUS		DW	CF_ONE_MINUS
+
+;Word: 2! ( x1 x2 a-addr -- )
+;Store the cell pair x1 x2 at a-addr, with x2 at a-addr and x1 at the next
+;consecutive cell. It is equivalent to the sequence SWAP OVER ! CELL+ ! .
+CFA_TWO_STORE		DW	CF_TWO_STORE
+
+;Word: 2* ( x1 -- x2 )
+;x2 is the result of shifting x1 one bit toward the most-significant bit,
+;filling the vacated least-significant bit with zero.
+CFA_TWO_STAR		DW	CF_TWO_STAR
+
+;Word: 2/ ( x1 -- x2 )
+;x2 is the result of shifting x1 one bit toward the least-significant bit,
+;leaving the most-significant bit unchanged.
+CFA_TWO_SLASH		DW	CF_TWO_SLASH
+
+;Word: 2@ ( a-addr -- x1 x2 )
+;Fetch the cell pair x1 x2 stored at a-addr. x2 is stored at a-addr and x1 at
+;the next consecutive cell. It is equivalent to the sequence DUP CELL+ @ SWAP @ .
+CFA_TWO_FETCH		DW	CF_TWO_FETCH
+
+;Word: 2DROP ( x1 x2 -- )
+;Drop cell pair x1 x2 from the stack.
+CFA_TWO_DROP		DW	CF_TWO_DROP
+
+;Word: 2DUP ( x1 x2 -- x1 x2 x1 x2 )
+;Duplicate cell pair x1 x2.
+CFA_TWO_DUP		DW	CF_TWO_DUP
+
+;Word: 2OVER ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 )
+;Copy cell pair x1 x2 to the top of the stack.
+CFA_TWO_OVER		DW	CF_TWO_OVER
+
+;Word: 2SWAP ( x1 x2 x3 x4 -- x3 x4 x1 x2 )
+;Exchange the top two cell pairs.
+CFA_TWO_SWAP		DW	CF_TWO_SWAP
+
+;Word: : ( C: "<spac2es>name" -- colon-sys ) 				IMMEDIATE
+;Skip leading space delimiters. Parse name delimited by a space. Create a
+;definition for name, called a colon definition. Enter compilation state and
+;start the current definition, producing colon-sys. Append the initiation
+;semantics given below to the current definition.
+;The execution semantics of name will be determined by the words compiled into
+;the body of the definition. The current definition shall not be findable in the
+;dictionary until it is ended (or until the execution of DOES> in some systems).
+;Initiation: ( i*x -- i*x )  ( R:  -- nest-sys )
+;Save implementation-dependent information nest-sys about the calling
+;definition. The stack effects i*x represent arguments to name.
+;name Execution: ( i*x -- j*x )
+;Execute the definition name. The stack effects i*x and j*x represent arguments
+;to and results from name, respectively.
+CFA_COLON		DW	CF_COLON
+
+;Word: ;								IMMEDIATE 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: colon-sys -- )
+;Append the run-time semantics below to the current definition. End the current
+;definition, allow it to be found in the dictionary and enter interpretation
+;state, consuming colon-sys. If the data-space pointer is not aligned, reserve
+;enough data space to align it.
+;Run-time: ( -- ) ( R: nest-sys -- )
+;Return to the calling definition specified by nest-sys.
+CFA_SEMICOLON		DW	CF_SEMICOLON
+
+;Word: < ( n1 n2 -- flag )
+;flag is true if and only if n1 is less than n2.
+CFA_LESS_THAN		DW	CF_LESS_THAN
+
+;Word: <# ( -- )
+;Initialize the pictured numeric output conversion process.
+CFA_LESS_NUMBER_SIGN	DW	CF_LESS_NUMBER_SIGN
+
+;Word: = ( x1 x2 -- flag )
+;flag is true if and only if x1 is bit-for-bit the same as x2.
+CFA_EQUALS		DW	CF_EQUALS
+
+;Word: > ( n1 n2 -- flag )
+;flag is true if and only if n1 is greater than n2.
+CFA_GREATER_THAN	DW	CF_GREATER_THAN
+
+;Word: >BODY ( xt -- a-addr )
+;a-addr is the data-field address corresponding to xt. An ambiguous condition
+;exists if xt is not for a word defined via CREATE.
+CFA_TO_BODY		DW	CF_TO_BODY
+
+;Word: >NUMBER ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 )
+;ud2 is the unsigned result of converting the characters within the string
+;specified by c-addr1 u1 into digits, using the number in BASE, and adding each
+;into ud1 after multiplying ud1 by the number in BASE. Conversion continues
+;left-to-right until a character that is not convertible, including any + or -,
+;is encountered or the string is entirely converted. c-addr2 is the location of
+;the first unconverted character or the first character past the end of the
+;string if the string was entirely converted. u2 is the number of unconverted
+;characters in the string. An ambiguous condition exists if ud2 overflows during
+;the conversion. 
+CFA_TO_NUMBER		DW	CF_TO_NUMBER
+
+;Word: >R
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( x -- ) ( R:  -- x )
+;Move x to the return stack.
+CFA_TO_R		DW	CF_TO_R
+
+;Word: ?DUP ( x -- 0 | x x )
+;Duplicate x if it is non-zero.
+CFA_QUESTION_DUP	DW	CF_QUESTION_DUP
+
+;Word: @ ( a-addr -- x )
+;x is the value stored at a-addr.
+CFA_FETCH		DW		CF_FETCH
+
+;Word: ABORT ( i*x -- ) ( R: j*x -- )
+;Empty the data stack and perform the function of QUIT, which includes emptying
+;the return stack, without displaying a message.
+CFA_ABORT		DW	CF_ABORT
+;ABORT run-time semantics
+CFA_ABORT_RT		DW	CF_ABORT_RT
+
+;Word: ABORT"								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( "ccc<quote>" -- )
+;Parse ccc delimited by a " (double-quote). Append the run-time semantics given
+;below to the current definition.
+;Run-time: ( i*x x1 --  | i*x ) ( R: j*x --  | j*x )
+;Remove x1 from the stack. If any bit of x1 is not zero, display ccc and perform
+;an implementation-defined abort sequence that includes the function of ABORT.
+CFA_ABORT_QUOTE		DW	CF_ABORT_QUOTE
+;ABORT" run-time semantics
+CFA_ABORT_QUOTE_RT	DW	CF_ABORT_QUOTE_RT
+
+;Word: ABS ( n -- u )
+;u is the absolute value of n.
+CFA_ABS			DW		CF_ABS
+
+;Word: ACCEPT ( c-addr +n1 -- +n2 )
+;Receive a string of at most +n1 characters. An ambiguous condition exists if
+;+n1 is zero or greater than 32,767. Display graphic characters as they are
+;received. A program that depends on the presence or absence of non-graphic
+;characters in the string has an environmental dependency. The editing
+;functions, if any, that the system performs in order to construct the string
+;are implementation-defined.
+;Input terminates when an implementation-defined line terminator is received.
+;When input terminates, nothing is appended to the string, and the display is
+;maintained in an implementation-defined way.
+;+n2 is the length of the string stored at c-addr.
+CFA_ACCEPT		DW	CF_ACCEPT
+
+;Word: ALIGN ( -- )
+;If the data-space pointer is not aligned, reserve enough space to align it.
+CFA_ALIGN		DW	CF_ALIGN
+
+;Word: ALIGNED ( addr -- a-addr )
+;a-addr is the first aligned address greater than or equal to addr.
+CFA_ALIGNED		DW	CF_ALIGNED
+
+;Word: ALLOT ( n -- )
+;If n is greater than zero, reserve n address units of data space. If n is less
+;than zero, release |n| address units of data space. If n is zero, leave the
+;data-space pointer unchanged.
+;If the data-space pointer is aligned and n is a multiple of the size of a cell
+;when ALLOT begins execution, it will remain aligned when ALLOT finishes
+;execution.
+;If the data-space pointer is character aligned and n is a multiple of the size
+;of a character when ALLOT begins execution, it will remain character aligned
+;when ALLOT finishes execution.
+CFA_ALLOT		DW	CF_ALLOT
+
+;Word: AND ( x1 x2 -- x3 )
+;x3 is the bit-by-bit logical and of x1 with x2.
+CFA_AND			DW	CF_AND
+
+;Word: BASE ( -- a-addr )
+;a-addr is the address of a cell containing the current number-conversion radix
+;{{2...36}}.
+CFA_BASE		DW	CF_CONSTANT_RT
+			DW	BASE
+
+;Word: BEGIN 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- dest )
+;Put the next location for a transfer of control, dest, onto the control flow
+;stack. Append the run-time semantics given below to the current definition.
+;Run-time: ( -- )
+;Continue execution.
+CFA_BEGIN		DW	CF_BEGIN
+
+;Word: BL ( -- char )
+;char is the character value for a space.
+CFA_B_L			DW	CF_CONSTANT_RT
+			DW	PRINT_SYM_SPACE
+
+;Word: C! ( char c-addr -- )
+;Store char at c-addr. When character size is smaller than cell size, only the
+;number of low-order bits corresponding to character size are transferred.
+CFA_C_STORE		DW	CF_C_STORE
+
+;Word: C, ( char -- )
+;Reserve space for one character in the data space and store char in the space.
+;If the data-space pointer is character aligned when C, begins execution, it
+;will remain character aligned when C, finishes execution. An ambiguous
+;condition exists if the data-space pointer is not character-aligned prior to
+;execution of C,.
+CFA_C_COMMA		DW	CF_C_COMMA
+
+;Word: C@ ( c-addr -- char )
+;Fetch the character stored at c-addr. When the cell size is greater than
+;character size, the unused high-order bits are all zeroes.
+CFA_C_FETCH		DW	CF_C_FETCH
+
+;Word: CELL+ 	( a-addr1 -- a-addr2 )
+;Add the size in address units of a cell to a-addr1, giving a-addr2.
+CFA_CELL_PLUS		DW	CF_CELL_PLUS
+
+;Word: CELLS ( n1 -- n2 )
+;n2 is the size in address units of n1 cells.
+CFA_CELLS		DW	CF_CELLS
+
+;Word: CHAR 	( "<SPACES>NAME" -- char )
+;Skip leading space delimiters. Parse name delimited by a space. Put the value
+;of its first character onto the stack.
+CFA_CHAR		DW	CF_CHAR
+
+;Word: CHAR+ ( c-addr1 -- c-addr2 )
+;Add the size in address units of a character to c-addr1, giving c-addr2.
+CFA_CHAR_PLUS		DW	CF_ONE_PLUS
+
+;Word: CHARS ( n1 -- n2 )
+;n2 is the size in address units of n1 characters.
+CFA_CHARS		DW	CF_NOP
+
+;Word: CLS ( -- empty ) S12CForth extension!
+CFA_CLS			DW	CF_CLS
+
+;Word: CONSTANT ( x "<spaces>name" -- ) 
+;Skip leading space delimiters. Parse name delimited by a space. Create a
+;definition for name with the execution semantics defined below.
+;name is referred to as a constant.
+;name Execution: ( -- x )
+;Place x on the stack.
+CFA_CONSTANT		DW	CF_CONSTANT
+
+;Word: COUNT ( c-addr1 -- c-addr2 u )
+;Return the character string specification for the counted string stored at
+;c-addr1. c-addr2 is the address of the first character after c-addr1. u is the
+;contents of the character at c-addr1, which is the length in characters of the
+;string at c-addr2.
+CFA_COUNT		DW	CF_COUNT
+
+;Word: CR ( -- )
+;Cause subsequent output to appear at the beginning of the next line.
+CFA_CR			DW	CF_CR
+
+;Word: CREATE ( "<spaces>name" -- )
+;Skip leading space delimiters. Parse name delimited by a space. Create a
+;definition for name with the execution semantics defined below. If the
+;data-space pointer is not aligned, reserve enough data space to align it. The
+;new data-space pointer defines name's data field. CREATE does not allocate data
+;space in name's data field.
+;name Execution: ( -- a-addr )
+;a-addr is the address of name's data field. The execution semantics of name may
+;be extended by using DOES>.
+CFA_CREATE		DW	CF_CREATE
+
+;CREATE run-time semantics
+;Push the address of the second cell after the CFA onto the parameter stack
+CFA_CREATE_RT		DW	CF_CREATE_RT	
+	
+;Word: DECIMAL ( -- )
+;Set the numeric conversion radix to ten (decimal).
+CFA_DECIMAL		DW	CF_DECIMAL
+
+;Word: DEPTH ( -- +n )
+;+n is the number of single-cell values contained in the data stack before +n
+;was placed on the stack.
+CFA_DEPTH		DW	CF_DEPTH
+
+;Word: DO								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- do-sys )
+;Place do-sys onto the control-flow stack. Append the run-time semantics given
+;below to the current definition. The semantics are incomplete until resolved
+;by a consumer of do-sys such as LOOP.
+;;Run-time: ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
+;Set up loop control parameters with index n2|u2 and limit n1|u1. An ambiguous
+;condition exists if n1|u1 and n2|u2 are not both the same type. Anything
+;already on the return stack becomes unavailable until the loop-control
+;parameters are discarded.
+CFA_DO			DW	CF_DO
+			DW	CFA_DO_RT
+;DO run-time semantics
+CFA_DO_RT		DW	CF_DO_RT
+
+;Word: DOES>								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: colon-sys1 -- colon-sys2 )
+;Append the run-time semantics below to the current definition. Whether or not
+;the current definition is rendered findable in the dictionary by the
+;compilation of DOES> is implementation defined. Consume colon-sys1 and produce
+;colon-sys2. Append the initiation semantics given below to the current
+;definition.
+;Run-time: ( -- ) ( R: nest-sys1 -- )
+;Replace the execution semantics of the most recent definition, referred to as
+;name, with the name execution semantics given below. Return control to the
+;calling definition specified by nest-sys1. An ambiguous condition exists if
+;name was not defined with CREATE or a user-defined word that calls CREATE.
+;Initiation: ( i*x -- i*x a-addr ) ( R:  -- nest-sys2 )
+;Save implementation-dependent information nest-sys2 about the calling
+;definition. Place name's data field address on the stack. The stack effects i*x
+;represent arguments to name.
+;name Execution: ( i*x -- j*x )
+;Execute the portion of the definition that begins with the initiation semantics
+;appended by the DOES> which modified name. The stack effects i*x and j*x
+;represent arguments to and results from name, respectively.
+CFA_DOES		DW	CF_DOES
+;DOES> run-time semantics
+CFA_DOES_RT		DW	CF_DOES_RT	
+
+;Word: DROP ( x -- )
+;Remove x from the stack.
+CFA_DROP		DW		CF_DROP
+
+;Word: DUP ( x -- x x )
+;Duplicate x.
+CFA_DUP			DW		CF_DUP
+
+;Word: ELSE								IMMEDIATE 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: orig1 -- orig2 )
+;Put the location of a new unresolved forward reference orig2 onto the control
+;flow stack. Append the run-time semantics given below to the current
+;definition. The semantics will be incomplete until orig2 is resolved
+;(e.g., by THEN). Resolve the forward reference orig1 using the location
+;following the appended run-time semantics.
+;Run-time: ( -- )
+;Continue execution at the location given by the resolution of orig2.
+CFA_ELSE		DW	CF_ELSE
+			DW	CFA_ELSE_RT
+;ELSE run-time semantics
+CFA_ELSE_RT		EQU	CFA_AGAIN_RT
+	
+;Word: EMIT ( x -- )
+;If x is a graphic character in the implementation-defined character set,
+;display x. The effect of EMIT for all other values of x is
+;implementation-defined.
+;When passed a character whose character-defining bits have a value between hex
+;20 and 7E inclusive, the corresponding standard character, specified by 3.1.2.1
+;Graphic characters, is displayed. Because different output devices can respond
+;differently to control characters, programs that use control characters to
+;perform specific functions have an environmental dependency. Each EMIT deals
+;with only one character.
+CFA_EMIT		DW	CF_EMIT
+
+;ENVIRONMENT? ( c-addr u -- false | i*x true )
+;c-addr is the address of a character string and u is the string's character
+;count. u may have a value in the range from zero to an implementation-defined
+;maximum which shall not be less than 31. The character string should contain a
+;keyword from 3.2.6 Environmental queries or the optional word sets to be
+;checked for correspondence with an attribute of the present environment. If the
+;system treats the attribute as unknown, the returned flag is false; otherwise,
+;the flag is true and the i*x returned is of the type specified in the table for
+;the attribute queried.
+
+;EVALUATE ( i*x c-addr u -- j*x )
+;Save the current input source specification. Store minus-one (-1) in SOURCE-ID
+;if it is present. Make the string described by c-addr and u both the input
+;source and input buffer, set >IN to zero, and interpret. When the parse area is
+;empty, restore the prior input source specification. Other stack effects are
+;due to the words EVALUATEd.
+
+;Word: EXECUTE ( i*x xt -- j*x )
+;Remove xt from the stack and perform the semantics identified by it. Other
+;stack effects are due to the word EXECUTEd.
+CFA_EXECUTE		DW	CF_EXECUTE
+
+;Word: EXIT								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( -- ) ( R: nest-sys -- )
+;Return control to the calling definition specified by nest-sys. Before
+;executing EXIT within a do-loop, a program shall discard the loop-control
+;parameters by executing UNLOOP.
+CFA_EXIT		DW	CF_EXIT
+;EXIT run-time semantics
+CFA_EXIT_RT		DW	CF_EXIT_RT
+
+;Word: FILL ( c-addr u char -- )
+;If u is greater than zero, store char in each of u consecutive characters of
+;memory beginning at c-addr.
+CFA_FILL		DW	CF_FILL
+
+;Word: FIND ( c-addr -- c-addr 0  |  xt 1  |  xt -1 )
+;Find the definition named in the counted string at c-addr. If the definition is
+;not found, return c-addr and zero. If the definition is found, return its
+;execution token xt. If the definition is immediate, also return one (1),
+;otherwise also return minus-one (-1). For a given string, the values returned
+;by FIND while compiling may differ from those returned while not compiling.
+CFA_FIND	 	DW	CF_FIND
+
+;Word: FM/MOD ( d1 n1 -- n2 n3 )
+;Divide d1 by n1, giving the floored quotient n3 and the remainder n2. Input and
+;output stack arguments are signed. An ambiguous condition exists if n1 is zero
+;or if the quotient lies outside the range of a single-cell signed integer.
+;Floored Division Example:
+;Dividend Divisor Remainder Quotient
+;   10       7        3         1
+;  -10       7        4        -2
+;   10      -7       -4        -2
+;  -10      -7       -3         1
+CFA_F_M_SLASH_MOD	DW	CF_F_M_SLASH_MOD
+
+;Word: HERE ( -- addr )
+;addr is the data-space pointer. (points to the next free data space)
+CFA_HERE		DW	CF_CONSTANT_RT
+			DW	CP
+;Word: HOLD ( char -- )
+;Add char to the beginning of the pictured numeric output string. An ambiguous
+;condition exists if HOLD executes outside of a <# #> delimited number
+;conversion.
+CFA_HOLD		DW	CF_HOLD
+
+;Word: I
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( -- n|u ) ( R:  loop-sys -- loop-sys )
+;n|u is a copy of the current (innermost) loop index. An ambiguous condition
+;exists if the loop control parameters are unavailable.
+CFA_I			DW	CF_I
+
+;Word: IF 								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- orig )
+;Put the location of a new unresolved forward reference orig onto the control
+;flow stack. Append the run-time semantics given below to the current
+;definition. The semantics are incomplete until orig is resolved, e.g., by THEN
+;or ELSE.
+;Run-time: ( x -- )
+;If all bits of x are zero, continue execution at the location specified by the
+;resolution of orig.
+CFA_IF			DW	CF_IF
+;IF run-time semantics
+CFA_IF_RT		DW	CF_IF_RT
+
+;Word: IMMEDIATE ( -- )
+;Make the most recent definition an immediate word. An ambiguous condition
+;exists if the most recent definition does not have a name.
+CFA_IMMEDIATE		DW	CF_IMMEDIATE
+
+;Word: INVERT ( x1 -- x2 )
+;Invert all bits of x1, giving its logical inverse x2.
+CFA_INVERT		DW	CF_INVERT
+
+;Word: J
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( -- n|u ) ( R: loop-sys1 loop-sys2 -- loop-sys1 loop-sys2 )
+;n|u is a copy of the next-outer loop index. An ambiguous condition exists if
+;the loop control parameters of the next-outer loop, loop-sys1, are unavailable.
+CFA_J			DW	CF_J
+
+;Word: KEY ( -- char )
+;Receive one character char, a member of the implementation-defined character
+;set. Keyboard events that do not correspond to such characters are discarded
+;until a valid character is received, and those events are subsequently
+;unavailable.
+;All standard characters can be received. Characters received by KEY are not
+;displayed.
+;Any standard character returned by KEY has the numeric value specified in
+;3.1.2.1 Graphic characters. Programs that require the ability to receive
+;control characters have an environmental dependency.
+CFA_KEY			DW	CF_KEY
+
+;Word: LEAVE								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( -- ) ( R: loop-sys -- )
+;Discard the current loop control parameters. An ambiguous condition exists if
+;they are unavailable. Continue execution immediately following the innermost
+;syntactically enclosing DO ... LOOP or DO ... +LOOP.
+CFA_LEAVE		DW	CF_LEAVE
+			DW	CFA_LEAVE_RT
+;LEAVE run-time semantics
+CFA_LEAVE_RT		DW	CF_LEAVE_RT
+
+;Word: LITERAL								IMMEDIATE 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( x -- )
+;Append the run-time semantics given below to the current definition.
+;Run-time: ( -- x )
+;Place x on the stack.
+CFA_LITERAL		DW	CF_LITERAL
+			DW	CFA_LITERAL_RT
+;Word: LITERAL run-time semantics
+CFA_LITERAL_RT		DW	CF_LITERAL_RT
+
+;Word: LOOP								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: do-sys -- )
+;Append the run-time semantics given below to the current definition. Resolve
+;the destination of all unresolved occurrences of LEAVE between the location
+;given by do-sys and the next location for a transfer of control, to execute the
+;words following the LOOP.
+;Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
+;An ambiguous condition exists if the loop control parameters are unavailable.
+;Add one to the loop index. If the loop index is then equal to the loop limit,
+;discard the loop parameters and continue execution immediately following the
+;loop. Otherwise continue execution at the beginning of the loop.
+CFA_LOOP		DW	CF_LOOP
+			DW	CFA_LOOP_RT
+;LOOP run-time semantics
+CFA_LOOP_RT		DW	CF_LOOP_RT
+
+;Word: LSHIFT ( x1 u -- x2 )
+;Perform a logical left shift of u bit-places on x1, giving x2. Put zeroes into
+;the least significant bits vacated by the shift. An ambiguous condition exists
+;if u is greater than or equal to the number of bits in a cell.
+CFA_L_SHIFT		DW	CF_L_SHIFT
+
+;Word: M* ( n1 n2 -- d )
+;d is the signed product of n1 times n2.
+CFA_M_STAR		DW	CF_M_STAR
+
+;Word: MAX ( n1 n2 -- n3 )
+;n3 is the greater of n1 and n2.
+CFA_MAX			DW	CF_MAX
+
+;Word: MIN ( n1 n2 -- n3 )
+;n3 is the lesser of n1 and n2.
+CFA_MIN			DW	CF_MIN
+
+;Word: MOD ( n1 n2 -- n3 )
+;Divide n1 by n2, giving the single-cell remainder n3. An ambiguous condition
+;exists if n2 is zero. If n1 and n2 differ in sign, the implementation-defined
+;result returned will be the same as that returned by either the phrase
+;>R S>D R> FM/MOD DROP or the phrase >R S>D R> SM/REM DROP.
+CFA_MOD			DW	CF_MOD
+	
+;Word: MOVE ( addr1 addr2 u -- )
+;If u is grater than zero, copy the contents of u consecutive address units at
+;addr1 to the u consecutive address units at addr2. After MOVE completes, the u
+;consecutive address units at addr2 contain exactly what the u consecutive
+;address units at addr1 contained before the move.
+CFA_MOVE		DW	CF_MOVE
+
+;Word: NEGATE ( n1 -- n2 )
+;Negate n1, giving its arithmetic inverse n2.
+CFA_NEGATE		DW	CF_NEGATE
+
+;Word: OR ( x1 x2 -- x3 )
+;x3 is the bit-by-bit inclusive-or of x1 with x2.
+CFA_OR			DW	CF_OR
+
+;Word: OVER ( x1 x2 -- x1 x2 x1 )
+;Place a copy of x1 on top of the stack.
+CFA_OVER		DW	CF_OVER
+
+;Word: POSTPONE								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( "<spaces>name" -- )
+;Skip leading space delimiters. Parse name delimited by a space. Find name.
+;Append the compilation semantics of name to the current definition. An
+;ambiguous condition exists if name is not found.
+CFA_POSTPONE		DW	CF_POSTPONE
+
+;Word: QUIT ( -- )  ( R:  i*x -- )
+;Empty the return stack, store zero in SOURCE-ID if it is present, make the user
+;input device the input source, and enter interpretation state. Do not display a
+;message. Repeat the following:
+;Accept a line from the input source into the input buffer, set >IN to zero, and
+;interpret.
+;Display the implementation-defined system prompt if in interpretation state,
+;all processing has been completed, and no ambiguous condition exists.
+CFA_QUIT		DW	CF_QUIT
+;QUIT run-time semantics
+CFA_QUIT_RT		DW	CF_QUIT_RT
+
+;Word: R> 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( -- x ) ( R:  x -- )
+;Move x from the return stack to the data stack.
+CFA_R_FROM		DW	CF_R_FROM
+
+;Word: R@ 
+;r-fetch CORE 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( -- x ) ( R:  x -- x )
+;Copy x from the return stack to the data stack.
+CFA_R_FETCH		DW	CF_R_FETCH
+
+;Word: RECURSE								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( -- )
+;Append the execution semantics of the current definition to the current
+;definition. An ambiguous condition exists if RECURSE appears in a definition
+;after DOES>.
+CFA_RECURSE		DW	CF_RECURSE
+
+;Word: REPEAT 								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: orig dest -- )
+;Append the run-time semantics given below to the current definition, resolving
+;the backward reference dest. Resolve the forward reference orig using the
+;location following the appended run-time semantics.
+;Run-time: ( -- )
+;Continue execution at the location given by dest.
+CFA_REPEAT		DW	CF_REPEAT
+			DW	CFA_REPEAT_RT
+;REPEAT run-time semantics 
+CFA_REPEAT_RT		EQU	CFA_AGAIN_RT 	;same as AGAIN run-time semantics
+
+;Word: ROT ( x1 x2 x3 -- x2 x3 x1 )
+;Rotate the top three stack entries.
+CFA_ROT			DW	CF_ROT
+
+;Word: RSHIFT ( x1 u -- x2 )
+;Perform a logical right shift of u bit-places on x1, giving x2. Put zeroes into
+;the most significant bits vacated by the shift. An ambiguous condition exists
+;if u is greater than or equal to the number of bits in a cell.
+CFA_R_SHIFT		DW	CF_R_SHIFT
+
+;Word: S"								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( "ccc<quote>" -- )
+;Parse ccc delimited by " (double-quote). Append the run-time semantics given
+;below to the current definition.
+;Run-time: ( -- c-addr u )
+;Return c-addr and u describing a string consisting of the characters ccc. A
+;program shall not alter the returned string.
+CFA_S_QUOTE		DW	CF_S_QUOTE
+;S" run-time semantics
+CFA_S_QUOTE_RT		DW	CF_S_QUOTE_RT
+
+;Word: S>D ( n -- d )
+;Convert the number n to the double-cell number d with the same numerical value.
+CFA_S_TO_D		DW	CF_S_TO_D	
+
+;Word: SIGN ( n -- )
+;If n is negative, add a minus sign to the beginning of the pictured numeric
+;output string. An ambiguous condition exists if SIGN executes outside of a
+;<# #> delimited number conversion.
+CFA_SIGN		DW	CF_SIGN
+
+;Word: SM/REM ( d1 n1 -- n2 n3 )
+;Divide d1 by n1, giving the symmetric quotient n3 and the remainder n2. Input
+;and output stack arguments are signed. An ambiguous condition exists if n1 is
+;zero or if the quotient lies outside the range of a single-cell signed integer.
+;Symmetric Division Example:
+;Dividend Divisor Remainder Quotient
+;   10       7        3         1
+;  -10       7       -3        -1
+;   10      -7        3        -1
+;  -10      -7       -3         1
+;
+CFA_S_M_SLASH_REM	DW	CF_S_M_SLASH_REM
+
+;Word: SOURCE ( -- c-addr u )
+;c-addr is the address of, and u is the number of characters in, the input
+;buffer.
+CFA_SOURCE		DW	CF_SOURCE
+
+;Word: SPACE ( -- )
+;Display one space.
+CFA_SPACE		DW	CF_SPACE
+	
+;Word: SPACES ( n -- )
+;If n is greater than zero, display n spaces.
+CFA_SPACES		DW	CF_SPACES
+
+;Word: STATE ( -- a-addr )
+;a-addr is the address of a cell containing the compilation-state flag. STATE is
+;true when in compilation state, false otherwise. The true value in STATE is
+;non-zero, but is otherwise implementation-defined. Only the following standard
+;words alter the value in STATE: : (colon), ; (semicolon), ABORT, QUIT, :NONAME,
+;[ (left-bracket), and ] (right-bracket).
+;Note: A program shall not directly alter the contents of STATE.
+CFA_STATE		DW	CF_CONSTANT_RT
+			DW	STATE
+
+;Word: SWAP ( x1 x2 -- x2 x1 )
+;Exchange the top two stack items.
+CFA_SWAP		DW	CF_SWAP
+
+;Word: THEN								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: orig -- )
+;Append the run-time semantics given below to the current definition. Resolve
+;the forward reference orig using the location of the appended run-time
+;semantics.
+;Run-time: ( -- )
+;Continue execution.
+CFA_THEN		DW	CF_THEN
+
+;Word: TYPE ( c-addr u -- )
+;If u is greater than zero, display the character string specified by c-addr and
+;u.
+;When passed a character in a character string whose character-defining bits
+;have a value between hex 20 and 7E inclusive, the corresponding standard
+;character, specified by 3.1.2.1 graphic characters, is displayed. Because
+;different output devices can respond differently to control characters,
+;programs that use control characters to perform specific functions have an
+;environmental dependency.
+CFA_TYPE		DW	CF_TYPE
+
+;Word: U. ( u -- )
+;Display u in free field format.
+CFA_U_DOT		DW	CF_U_DOT
+
+;Word: U< ( u1 u2 -- flag )
+;flag is true if and only if u1 is less than u2.
+CFA_U_LESS_THAN		DW	CF_U_LESS_THAN
+
+;Word: UM* ( u1 u2 -- ud )
+;Multiply u1 by u2, giving the unsigned double-cell product ud. All values and
+;arithmetic are unsigned.
+CFA_U_M_STAR		DW	CF_U_M_STAR
+
+;Word: UM/MOD ( ud u1 -- u2 u3 )
+;Divide ud by u1, giving the quotient u3 and the remainder u2. All values and
+;arithmetic are unsigned. An ambiguous condition exists if u1 is zero or if the
+;quotient lies outside the range of a single-cell unsigned integer.
+CFA_U_M_SLASH_MOD	DW	CF_U_M_SLASH_MOD
+
+;Word: UNLOOP
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( -- ) ( R: loop-sys -- )
+;Discard the loop-control parameters for the current nesting level. An UNLOOP is
+;required for each nesting level before the definition may be EXITed. An
+;ambiguous condition exists if the loop-control parameters are unavailable.
+CFA_UNLOOP		DW	CF_UNLOOP
+
+;Word: UNTIL								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: dest -- )
+;Append the run-time semantics given below to the current definition, resolving
+;the backward reference dest.
+;Run-time: ( x -- )
+;If all bits of x are zero, continue execution at the location specified by
+;dest.
+CFA_UNTIL		DW	CF_UNTIL
+			DW	CFA_UNTIL_RT
+;Word: UNTIL run-time semantics 
+CFA_UNTIL_RT		DW	CF_UNTIL_RT
+
+;VARIABLE ( "<spaces>name" -- )
+;Skip leading space delimiters. Parse name delimited by a space. Create a
+;definition for name with the execution semantics defined below. Reserve one
+;cell of data space at an aligned address.
+;name is referred to as a variable.
+;name Execution: ( -- a-addr )
+;a-addr is the address of the reserved cell. A program is responsible for
+;initializing the contents of the reserved cell.
+CFA_VARIABLE		DW	CF_VARIABLE
+
+;Word: WHILE								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: dest -- orig dest )
+;Put the location of a new unresolved forward reference orig onto the control
+;flow stack, under the existing dest. Append the run-time semantics given below
+;to the current definition. The semantics are incomplete until orig and dest are
+;resolved (e.g., by REPEAT).
+;Run-time: ( x -- )
+;If all bits of x are zero, continue execution at the location specified by the
+;resolution of orig.
+CFA_WHILE		DW	CF_WHILE
+			DW	CFA_WHILE_RT
+;WHILE run-time semantics 
+CFA_WHILE_RT		EQU	CFA_UNTIL_RT 	;same as UNTIL run-time semantics
+
+;Word: WORD ( char "<chars>ccc<char>" -- c-addr )
+;Skip leading delimiters. Parse characters ccc delimited by char. An ambiguous
+;condition exists if the length of the parsed string is greater than the
+;implementation-defined length of a counted string.
+;c-addr is the address of a transient region containing the parsed word as a
+;counted string. If the parse area was empty or contained no characters other
+;than the delimiter, the resulting string has a zero length. A space, not
+;included in the length, follows the string. A program may replace characters
+;within the string.
+;Note: The requirement to follow the string with a space is obsolescent and is
+;included as a concession to existing programs that use CONVERT. A program shall
+;not depend on the existence of the space.
+CFA_WORD		DW	CF_WORD
+
+;Word: XOR ( x1 x2 -- x3 )
+;x3 is the bit-by-bit exclusive-or of x1 with x2.
+CFA_XOR			DW	CF_XOR
+
+;Word: [								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: Perform the execution semantics given below.
+;Execution: ( -- )
+;Enter interpretation state. [ is an immediate word.
+CFA_LEFT_BRACKET	DW	CF_LEFT_BRACKET
+
+;Word: [']								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( "<spaces>name" -- )
+;Skip leading space delimiters. Parse name delimited by a space. Find name.
+;Append the run-time semantics given below to the current definition.
+;An ambiguous condition exists if name is not found.
+;Run-time: ( -- xt )
+;Place name's execution token xt on the stack. The execution token returned by
+;the compiled phrase ['] X is the same value returned by ' X outside of
+;compilation state.
+CFA_BRACKET_TICK	DW	CF_BRACKET_TICK
+
+;Word: [CHAR]								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( "<spaces>name" -- )
+;Skip leading space delimiters. Parse name delimited by a space. Append the
+;run-time semantics given below to the current definition.
+;Run-time: ( -- char )
+;Place char, the value of the first character of name, on the stack.
+CFA_BRACKET_CHAR	DW	CF_BRACKET_CHAR
+			DW	CFA_LITERAL_RT	
+
+;Word: ] ( -- )								IMMEDIATE
+;Enter compilation state.
+CFA_RIGHT_BRACKET	DW	CF_RIGHT_BRACKET
+
+;#Core extension words (CORE EXT):
+; ================================
+
+;Word: #TIB ( -- a-addr )
+;a-addr is the address of a cell containing the number of characters in the
+;terminal input buffer.
+;Note: This word is obsolescent and is included as a concession to existing
+;      implementations.
+CFA_NUMBER_TIB		DW	CF_CONSTANT_RT
+			DW	NUMBER_TIB
+
+;Word: .(								IMMEDIATE
+;Compilation: Perform the execution semantics given below.
+;Execution: ( "ccc<paren>" -- )
+;Parse and display ccc delimited by ) (right parenthesis). .( is an immediate
+;word.
+CFA_DOT_PAREN		DW	CF_DOT_PAREN
+				
+;Word: .R ( n1 n2 -- )
+;Display n1 right aligned in a field n2 characters wide. If the number of
+;characters required to display n1 is greater than n2, all digits are displayed
+;with no leading spaces in a field as wide as necessary.
+CFA_DOT_R		DW	CF_DOT_R
+	
+;Word: 0<> ( x -- flag )
+;flag is true if and only if x is not equal to zero.
+CFA_ZERO_NOT_EQUALS	DW	CF_ZERO_NOT_EQUALS
+
+;Word: 0> ( n -- flag )
+;flag is true if and only if n is greater than zero.
+CFA_ZERO_GREATER	DW	CF_ZERO_GREATER
+	
+;Word: 2>R
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution:      ( x1 x2 -- ) ( R:  -- x1 x2 )
+;Transfer cell pair x1 x2 to the return stack. Semantically equivalent to
+;SWAP >R >R .
+CFA_TWO_TO_R		DW	CF_TWO_TO_R
+	
+;Word: 2R>
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( -- x1 x2 ) ( R:  x1 x2 -- )
+;Transfer cell pair x1 x2 from the return stack. Semantically equivalent to
+;R> R> SWAP .
+CFA_TWO_FROM_R		DW	CF_TWO_FROM_R
+	
+;Word: 2R@
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( -- x1 x2 ) ( R:  x1 x2 -- x1 x2 )
+;Copy cell pair x1 x2 from the return stack. Semantically equivalent to
+;R> R> 2DUP >R >R SWAP .
+CFA_TWO_R_FETCH		DW	CF_TWO_R_FETCH
+	
+;Word: :NONAME ( C:  -- colon-sys )  ( S:  -- xt )
+;Create an execution token xt, enter compilation state and start the current
+;definition, producing colon-sys. Append the initiation semantics given below
+;to the current definition.
+;The execution semantics of xt will be determined by the words compiled into the
+;body of the definition. This definition can be executed later by using
+;xt EXECUTE.
+;If the control-flow stack is implemented using the data stack, colon-sys shall
+;be the topmost item on the data stack.
+;Initiation: ( i*x -- i*x ) ( R:  -- nest-sys )
+;Save implementation-dependent information nest-sys about the calling
+;definition. The stack effects i*x represent arguments to xt.
+;xt Execution: ( i*x -- j*x )
+;Execute the definition specified by xt. The stack effects i*x and j*x represent
+;arguments to and results from xt, respectively.
+CFA_COLON_NONAME	DW	CF_COLON_NONAME
+	
+;Word: <> ( x1 x2 -- flag )
+;flag is true if and only if x1 is not bit-for-bit the same as x2.
+CFA_NOT_EQUALS		DW	CF_NOT_EQUALS
+			
+;Word: ?DO								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- do-sys )
+;Put do-sys onto the control-flow stack. Append the run-time semantics given
+;below to the current definition. The semantics are incomplete until resolved by
+;a consumer of do-sys such as LOOP.
+;Run-time: ( n1|u1 n2|u2 -- ) ( R: --  | loop-sys )
+;If n1|u1 is equal to n2|u2, continue execution at the location given by the
+;consumer of do-sys. Otherwise set up loop control parameters with index n2|u2
+;and limit n1|u1 and continue executing immediately following ?DO. Anything
+;already on the return stack becomes unavailable until the loop control
+;parameters are discarded. An ambiguous condition exists if n1|u1 and n2|u2 are
+;not both of the same type.
+CFA_QUESTION_DO		DW	CF_QUESTION_DO
+	
+;?DO run-time semantics
+CFA_QUESTION_DO_RT	DW	CF_QUESTION_DO_RT
+
+;Word: AGAIN								IMMEDIATE 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: dest -- )
+;Append the run-time semantics given below to the current definition, resolving
+;the backward reference dest.
+;Run-time: ( -- )
+;Continue execution at the location specified by dest. If no other control flow
+;words are used, any program code after AGAIN will not be executed.
+CFA_AGAIN		DW	CF_AGAIN
+			DW	CFA_AGAIN_RT
+	
+;AGAIN run-time semantics
+CFA_AGAIN_RT		DW	CF_AGAIN_RT
+
+;Word: C"								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( "ccc<quote>" -- )
+;Parse ccc delimited by " (double-quote) and append the run-time semantics given
+;below to the current definition.
+;Run-time: ( -- c-addr )
+;Return c-addr, a counted string consisting of the characters ccc. A program
+;shall not alter the returned string.
+CFA_C_QUOTE		DW	CF_C_QUOTE
+
+;C" run-time semantics
+CFA_C_QUOTE_RT		DW	CF_C_QUOTE_RT
+	
+;Word: CASE								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- case-sys )
+;Mark the start of the CASE ... OF ... ENDOF ... ENDCASE structure. Append the
+;run-time semantics given below to the current definition.
+;Run-time: ( -- )
+;Continue execution.
+CFA_CASE		DW	CF_CASE
+
+;Word: COMPILE, 							IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( xt -- )
+;Append the execution semantics of the definition represented by xt to the
+;execution semantics of the current definition.
+CFA_COMPILE_COMMA	DW	CF_COMPILE_COMMA
+
+;Word: CONVERT ( ud1 c-addr1 -- ud2 c-addr2 )
+;ud2 is the result of converting the characters within the text beginning at the
+;first character after c-addr1 into digits, using the number in BASE, and adding
+;each digit to ud1 after multiplying ud1 by the number in BASE. Conversion
+;continues until a character that is not convertible is encountered. c-addr2 is
+;the location of the first unconverted character. An ambiguous condition exists
+;if ud2 overflows.
+;Note: This word is obsolescent and is included as a concession to existing
+;implementations. Its function is superseded by >NUMBER.
+CFA_CONVERT		DW	CF_CONVERT
+	
+;Word: ENDCASE								IMMEDIATE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: case-sys -- )
+;Mark the end of the CASE ... OF ... ENDOF ... ENDCASE structure. Use case-sys
+;to resolve the entire structure. Append the run-time semantics given below to
+;the current definition.
+;Run-time: ( x -- )
+;Discard the case selector x and continue execution.
+CFA_ENDCASE		DW	CF_ENDCASE
+			DW	CFA_ENDCASE_RT
 	
 ;ENDOF
 ;Interpretation: Interpretation semantics for this word are undefined.

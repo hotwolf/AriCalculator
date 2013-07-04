@@ -323,6 +323,9 @@ if ($code->{problems}) {
         printf FILEHANDLE "\n";
 
 	#Print tree
+        printf FILEHANDLE "#ifndef FCDICT_TREE_EXTSTS\n";
+        printf FILEHANDLE "FCDICT_TREE_EXISTS      EQU     1\n";
+ 	printf FILEHANDLE "\n";
         printf FILEHANDLE ";Instantiate dictionary tree\n";
         printf FILEHANDLE "; args:   none\n";
         printf FILEHANDLE "; result: none\n";
@@ -338,6 +341,7 @@ if ($code->{problems}) {
         #printf FILEHANDLE "\n";
 	print_tree(\%dict_tree, "", []);
         printf FILEHANDLE "#emac\n";
+        printf FILEHANDLE "#endif\n";
  
 	close FILEHANDLE;
     } else {
