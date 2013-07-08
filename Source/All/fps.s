@@ -90,7 +90,8 @@ FPS_EC_UF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
 #else
 			ORG 	FPS_VARS_START
 FPS_VARS_START_LIN	EQU	@
-
+#endif
+	
 PSP			DS	2 	;parameter stack pointer (top of stack)
 
 FPS_VARS_END		EQU	*
@@ -106,17 +107,17 @@ FPS_VARS_END_LIN	EQU	@
 #emac
 	
 ;#Abort action (to be executed in addition of quit and suspend action)
-#macro	FRS_ABORT, 0
+#macro	FPS_ABORT, 0
 			;Reset parameter stack
 			MOVW	#PR_EMPTY,	PSP		
 #emac
 	
 ;#Quit action (to be executed in addition of suspend action)
-#macro	FRS_QUIT, 0
+#macro	FPS_QUIT, 0
 #emac
 	
 ;#Suspend action
-#macro	FRS_SUSPEND, 0
+#macro	FPS_SUSPEND, 0
 #emac
 
 ;#Parameter stack oerations:
@@ -238,7 +239,7 @@ FPS_VARS_END_LIN	EQU	@
 ; result: Y: PSP
 ; SSTACK: none
 ; throws: FEXCPT_EC_PSOF
-         X and D are preserved 
+;         X and D are preserved 
 #macro	PS_PUSH_X, 0
 			PS_CHECK_OF	1		;check for overflow	=> 9 cycles
 			STX		0,Y		;PS -> Y		=> 3 cycles 

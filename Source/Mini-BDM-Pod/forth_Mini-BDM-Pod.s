@@ -418,12 +418,12 @@ FORTH_WORDS_END_LIN	EQU	@
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ../Subprojects/S12CBase/Source/base_Mini-BDM_Pod.s	;S12CBase
+#include ../../Subprojects/S12CBase/Source/Mini-BDM-Pod/base_Mini-BDM-Pod.s;S12CBase
 #include ../All/frs.s						;return stack
 #include ../All/fps.s						;parameter stack 
 #include ../All/fudict.s					;user dictionary
 #include ../All/fcdict.s					;core dictionary
-#include ../All/fcdict_tree.s					;core dictionary search tree
+;#include ../All/fcdict_tree.s					;core dictionary search tree
 #include ../All/finner.s					;inner interpreter
 #include ../All/fouter.s					;outer interpreter
 #include ../All/fcore.s						;core words

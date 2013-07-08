@@ -164,7 +164,7 @@ FINNER_VARS_END_LIN	EQU	@
 ;Break/suspend handling:
 ;============-==========
 ;#Break: Set break indicator and perform a systewm reset
-#macro	SCI_BREAK_ACTION
+#macro	SCI_BREAK_ACTION, 0
 			MOVW	#BREAK_INDICATOR_HIVAL, BREAK_INDICATOR_HI
 			MOVW	#BREAK_INDICATOR_LOVAL, BREAK_INDICATOR_LO
 			RESET_RESTART_NO_MSG	
@@ -179,7 +179,7 @@ FINNER_VARS_END_LIN	EQU	@
 #emac
 	
 ;#Suspend: Set suspend flag
-#macro	SCI_SUSPEND_ACTION
+#macro	SCI_SUSPEND_ACTION, 0
 			BSET	IRQ, #IRQ_SUSPEND
 #emac
 	
@@ -461,11 +461,6 @@ IRQ_HANDLER		EQU	*
 			LDX	#CF_....
 			LSLD
 			BMI	...
-#ifdef	
-
-
-
-
 
 	
 ;Code fields:

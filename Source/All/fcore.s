@@ -206,7 +206,7 @@ DONE			EQU	*
 #else
 			ORG 	FCORE_CODE_START
 #endif
-
+	
 ;Common subroutines:
 ;===================
 
@@ -5347,6 +5347,120 @@ CF_BACKSLASH		MOVW	NUMBER_TIB, TO_IN ;set >IN do the last character
 
 
 
+;#Non-standard S12CForth extensions:
+; ==================================
+
+;0 ( -- 0 )
+;Constant 0
+
+;1 ( -- 1 )
+;Constant 1
+
+;2 ( -- 2 )
+;Constant 2
+
+;3 ( -- 3 )
+;Constant 3
+
+;4 ( -- 4 )
+;Constant 4
+
+;5 ( -- 5 )
+;Constant 5
+
+;6 ( -- 6 )
+;Constant 6
+
+;7 ( -- 7 )
+;Constant 7
+
+;8 ( -- 8 )
+;Constant 8
+
+;BINARY ( -- )
+;Set the numeric conversion radix to two (binary).
+CF_BINARY		MOVW	#2, BASE
+			NEXT
+	
+;CP ( -- addr)
+;Compile pointer (points to the next free byte after the user dictionary)
+
+;EMPTY ( -- )
+;Delete all user defined words
+CF_EMPTY		;Clear dictionary
+			MOVW	#FCORE_LAST_NFA, LAST_NFA 	;set last NFA
+			LDD	#DICT_START			;set compile pointer
+			STD	CP
+			STD	CP_SAVED
+			;Reset PS
+			PS_RESET
+			;Done		
+			NEXT
+
+;NAME ("<spaces>ccc<space>" -- c-addr )
+;Parse whitespace separated word: 
+;Skip leading whitespaces (" ", TAB, and non-printables). Parse characters ccc
+;delimited by a whitespace (" ", TAB, or non-printable character). c-addr is
+;the address of a terminated upper-case string. A resulting string of zero
+; length will return the address $0000.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+CF_NAME_PSOF		JOB	FCORE_THROW_PSOF
+CF_NAME			PS_CHECK_OF	1, CF_NAME_PSOF ;(PSP-2 -> Y)
+			;Parse name (new PSP in Y)
+			SSTACK_JOBSR	FCORE_NAME 	;string pointer -> X (SSTACK: 6 bytes)
+			;Stack result (new PSP in Y, string pointer in X)
+			STX	 0,Y
+			STY	PSP
+			NEXT
+	
+
+;NUMBER ( c-addr -- c-addr 0 | u 1 | n 1 | ud 2 | d 2 )
+;Convert terminated the string at c-addr into a number. The value of BASE is the
+;radix for the conversion. 	
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack overflow"
+;"Invalid BASE value"
+CF_NUMBER_PSUF		JOB	FCORE_THROW_PSUF
+CF_NUMBER_PSOF		JOB	FCORE_THROW_PSOF
+CF_NUMBER_INVALBASE	JOB	FCORE_THROW_INVALBASE
+			;Check BASE value 
+CF_NUMBER		BASE_CHECK	CF_NUMBER_INVALBASE	;check BASE value (BASE -> D)
+			;Check minimum stack requirements 
+			PS_CHECK_UFOF	1, CF_NUMBER_PSUF, 1, CF_NUMBER_PSOF ;check for under and overflow (PSP-2 -> Y)
+			;Convert string
+			LDX	2,Y	
+			SSTACK_JOBSR	FCORE_NUMBER ;value -> Y:X, size -> D (SSTACK: 12 bytes)
+			;Check result
+			CPD	#$0001
+			BLO	CF_NUMBER_3
+			BHI	CF_NUMBER_2
+			;Single number
+			LDY	PSP
+			STX	2,Y-
+			STD	0,Y
+CF_NUMBER_1		STY	PSP
+			NEXT
+			;Double number
+CF_NUMBER_2		TFR	Y,D
+			LDY	PSP
+			STX	2,Y-
+			STD	2,Y-
+			MOVW	#$0002, 0,Y
+			JOB	CF_NUMBER_1
+			;Not a number
+CF_NUMBER_3		LDY	PSP
+			STD	2,-Y
+			JOB	CF_NUMBER_1
+
+FCORE_WORDS_END		EQU	*
+FCORE_LAST_NFA		EQU	NFA_NUMBER
+
 
 
 
@@ -6792,104 +6906,29 @@ CFA_EIGHT		DW	CF_CONSTANT_RT
 
 ;Word: BINARY ( -- )
 ;Set the numeric conversion radix to two (binary).
-			ALIGN	1
-NFA_BINARY			FHEADER, "BINARY", NFA_EIGHT, COMPILE
-CFA_BINARY			DW	CF_BINARY
-CF_BINARY			MOVW	#2, BASE
-			NEXT
+CFA_BINARY		DW	CF_BINARY
 	
-;CP ( -- addr)
+;Word: CP ( -- addr)
 ;Compile pointer (points to the next free byte after the user dictionary)
-			ALIGN	1
-NFA_CP			FHEADER, "CP", NFA_BINARY, COMPILE
 CFA_CP			DW	CF_CONSTANT_RT
 			DW	CP
 
-;EMPTY ( -- )
+;Word: EMPTY ( -- )
 ;Delete all user defined words
-			ALIGN	1
-NFA_EMPTY		FHEADER, "EMPTY", NFA_CP, COMPILE
 CFA_EMPTY		DW	CF_EMPTY
-CF_EMPTY		;Clear dictionary
-			MOVW	#FCORE_LAST_NFA, LAST_NFA 	;set last NFA
-			LDD	#DICT_START			;set compile pointer
-			STD	CP
-			STD	CP_SAVED
-			;Reset PS
-			PS_RESET
-			;Done		
-			NEXT
 
-;NAME ("<spaces>ccc<space>" -- c-addr )
+;Word: NAME ("<spaces>ccc<space>" -- c-addr )
 ;Parse whitespace separated word: 
 ;Skip leading whitespaces (" ", TAB, and non-printables). Parse characters ccc
 ;delimited by a whitespace (" ", TAB, or non-printable character). c-addr is
 ;the address of a terminated upper-case string. A resulting string of zero
 ; length will return the address $0000.
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack overflow"
-;
-CF_NAME_PSOF		JOB	FCORE_THROW_PSOF
-
-			ALIGN	1
-NFA_NAME		FHEADER, "NAME", NFA_EMPTY, COMPILE
 CFA_NAME		DW	CF_NAME
-CF_NAME			PS_CHECK_OF	1, CF_NAME_PSOF ;(PSP-2 -> Y)
-			;Parse name (new PSP in Y)
-			SSTACK_JOBSR	FCORE_NAME 	;string pointer -> X (SSTACK: 6 bytes)
-			;Stack result (new PSP in Y, string pointer in X)
-			STX	 0,Y
-			STY	PSP
-			NEXT
-	
 
-;NUMBER ( c-addr -- c-addr 0 | u 1 | n 1 | ud 2 | d 2 )
+;Word: NUMBER ( c-addr -- c-addr 0 | u 1 | n 1 | ud 2 | d 2 )
 ;Convert terminated the string at c-addr into a number. The value of BASE is the
 ;radix for the conversion. 	
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-;"Parameter stack overflow"
-;"Invalid BASE value"
-;
-CF_NUMBER_PSUF		JOB	FCORE_THROW_PSUF
-CF_NUMBER_PSOF		JOB	FCORE_THROW_PSOF
-CF_NUMBER_INVALBASE	JOB	FCORE_THROW_INVALBASE
-
-			ALIGN	1
-NFA_NUMBER		FHEADER, "NUMBER", NFA_NAME, COMPILE
 CFA_NUMBER		DW	CF_NUMBER
-			;Check BASE value 
-CF_NUMBER		BASE_CHECK	CF_NUMBER_INVALBASE	;check BASE value (BASE -> D)
-			;Check minimum stack requirements 
-			PS_CHECK_UFOF	1, CF_NUMBER_PSUF, 1, CF_NUMBER_PSOF ;check for under and overflow (PSP-2 -> Y)
-			;Convert string
-			LDX	2,Y	
-			SSTACK_JOBSR	FCORE_NUMBER ;value -> Y:X, size -> D (SSTACK: 12 bytes)
-			;Check result
-			CPD	#$0001
-			BLO	CF_NUMBER_3
-			BHI	CF_NUMBER_2
-			;Single number
-			LDY	PSP
-			STX	2,Y-
-			STD	0,Y
-CF_NUMBER_1		STY	PSP
-			NEXT
-			;Double number
-CF_NUMBER_2		TFR	Y,D
-			LDY	PSP
-			STX	2,Y-
-			STD	2,Y-
-			MOVW	#$0002, 0,Y
-			JOB	CF_NUMBER_1
-			;Not a number
-CF_NUMBER_3		LDY	PSP
-			STD	2,-Y
-			JOB	CF_NUMBER_1
 
 FCORE_WORDS_END		EQU	*
-FCORE_LAST_NFA		EQU	NFA_NUMBER
+FCORE_WORDS_END_LIN	EQU	*

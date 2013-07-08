@@ -149,6 +149,7 @@ FUDICT_EC_RSUF		EQU	FEXCPT_EC_RSUF		;RS underflow  (-6)
 #else
 			ORG 	FUDICT_VARS_START
 FUDICT_VARS_START_LIN	EQU	@
+#endif
 
 CP			DS	2 	;compile pointer (next free space after the dictionary) 
 CP_SAVED		DS	2 	;last compile pointer (before the current compilation)  
