@@ -185,7 +185,7 @@ FEXCEPT_VARS_END_LIN	EQU	@
 #macro	FEXCPT_THROW_D, 0
 			;BGND
 			JOB	FEXCPT_THROW	;throw exception
-emac
+#emac
 
 ;#Throw a fatal erroe from within an assembler primitive (immediate error code)
 ; args:   1: error code

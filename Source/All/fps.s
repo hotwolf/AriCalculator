@@ -68,6 +68,12 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;Debug option for stack over/underflows
+;FPS_DEBUG		EQU	1 
+	
+;Disable stack range checks
+;FPS_NO_CHECK	EQU	1 
+
 ;Boundaries
 ;UDICT_RS_START		EQU	0
 ;UDICT_RS_END		EQU	0
@@ -137,12 +143,14 @@ FPS_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ; throws: FEXCPT_EC_PSUF
 ;         X and D are preserved 
-#macro	PS_CHECK_UF, 1 
+#macro	PS_CHECK_UF, 1
+#ifndef	FPS_NO_CHECK
 			LDY	PSP 			;=> 3 cycles
 			CPY	#(PS_EMPTY-(2*\1))	;=> 2 cycles
-			BHI	FPS_UF_HANDLER		;=> 3 cycles/ 4 cycles
+			BHI	FPS_THROW_PSUF		;=> 3 cycles/ 4 cycles
 							;  -------------------
 							;   8 cycles/ 9 cycles
+#endif
 #emac
 	
 ;PS_CHECK_OF: check if there is room for a number of stack entries (PSP-new cells -> Y)
@@ -152,12 +160,14 @@ FPS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_PSOF
 ;        X and D are preserved 
 #macro	PS_CHECK_OF, 1
+#ifndef	FPS_NO_CHECK
 			LDY	PSP 			;=> 3 cycles
 			LEAY	-(2*\1),Y		;=> 2 cycles
 			CPY	PAD			;=> 3 cycles
-			BLO	FPS_OF_HANDLER		;=> 3 cycle / 4 cycles
+			BLO	FPS_THROW_PSOF		;=> 3 cycle / 4 cycles
 							;  -------------------
 							;  11 cycles/ 12 cycles
+#endif
 #emac
 
 ;PS_CHECK_OF_D: check if there is room for a number of stack entries (PSP-new cells -> Y)
@@ -167,6 +177,7 @@ FPS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_PSOF
 ;         X and D are preserved 
 #macro	PS_CHECK_OF_D, 0
+#ifndef	FPS_NO_CHECK
 			LDY	PSP 			;=> 3 cycles
 			COMA				;=> 1 cycle
 			COMB				;=> 1 cycle
@@ -176,9 +187,10 @@ FPS_VARS_END_LIN	EQU	@
 			COMA				;=> 1 cycle
 			COMB				;=> 1 cycle
 			CPY	PAD			;=> 3 cycles
-			BLO	FPS_OF_HANDLER		;=> 3 cycles/  4 cycles
+			BLO	FPS_THROW_PSOF		;=> 3 cycles/  4 cycles
 							;  --------------------
 							;  19 cycles/ 20 cycles
+#endif
 #emac
 
 ;PS_CHECK_UFOF: check for over and underflow (PSP-new cells -> Y)
@@ -190,14 +202,16 @@ FPS_VARS_END_LIN	EQU	@
 ;         FEXCPT_EC_PSUF
 ;         X and D are preserved 
 #macro	PS_CHECK_UFOF, 2  
+#ifndef	FPS_NO_CHECK
 			LDY	PSP 			;=> 3 cycles
 			CPY	#(PS_EMPTY-(2*\1))	;=> 2 cycles
-			BHI	FPS_UF_HANDLER	;	=> 3 cycles/  4 cycles
+			BHI	FPS_THROW_PSUF		;=> 3 cycles/  4 cycles
 			LEAY	-(2*\2),Y		;=> 2 cycles
 			CPY	PAD			;=> 3 cycles
-			BLO	FPS_OF_HANDLER		;=> 3 cycles/  4 cycles
+			BLO	FPS_THROW_PSOF		;=> 3 cycles/  4 cycles
 							;  --------------------
 							;  16 cycles/ 18 cycles
+#endif
 #emac
 	
 ;PS_PULL_X: pull one entry from the parameter stack into index Y (PSP -> Y)
@@ -229,10 +243,6 @@ FPS_VARS_END_LIN	EQU	@
 							;                         ---------
 							;                         14 cycles
 #emac	
-
-
-
-
 	
 ;PS_PUSH_X: Push one entry from index X onto the return stack (PSP -> Y)
 ; args:   X: cell to push onto the PS
@@ -285,13 +295,16 @@ FPS_VARS_END_LIN	EQU	@
 FPS_CODE_START_LIN	EQU	@
 #endif
 
-;#PS overflow handler
-FPS_OF_HANDLER		EQU	*
-			FEXCPT_THROW	FEXCPT_EC_PSOF
-
-;#PS underflow handler
-FPS_UF_HANDLER		EQU	*
-			FEXCPT_THROW	FEXCPT_EC_PSUF
+;Exceptions:
+;===========
+;Standard exceptions
+#ifdef FPS_DEBUG
+FPS_THROW_PSOF		BGND					;parameter stack overflow
+FPS_THROW_PSUF		BGND					;parameter stack underflow
+#else
+FPS_THROW_PSOF		FEXCPT_THROW	FEXCPT_EC_PSOF		;parameter stack overflow
+FPS_THROW_PSUF		FEXCPT_THROW	FEXCPT_EC_PSUF		;parameter stack underflow
+#endif
 	
 FPS_CODE_END		EQU	*
 FPS_CODE_END_LIN	EQU	@

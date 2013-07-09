@@ -30,7 +30,8 @@
 ;#	       Index Register X is used to implement W.                        #
 ;#        IP = Instruction pointer.					       #
 ;#             Points to the next execution token.			       #
-;#       IRQ = Interrupt request flags to interrupt the program flow.          #
+;#      ATTN = IRQ alert                                                       #
+;#       IRQ = Interrupt request flags                                         #
 ;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -147,9 +148,8 @@ FINNER_VARS_START_LIN	EQU	@
 	
 			ALIGN	1	
 IP			DS	2 		;instruction pointer
-IRQ			DS	2		;attention flags
-BREAK_INDICATOR_HI	EQU	IP
-BREAK_INDICATOR_LO	EQU	IRQ
+ATTN			DS	2		;IRQ alert
+IRQ			DS	2		;interrupt flags
 	
 FINNER_VARS_END		EQU	*
 FINNER_VARS_END_LIN	EQU	@
@@ -161,27 +161,31 @@ FINNER_VARS_END_LIN	EQU	@
 #macro	FINNER_INIT, 0
 #emac
 
-;Break/suspend handling:
-;============-==========
-;#Break: Set break indicator and perform a systewm reset
-#macro	SCI_BREAK_ACTION, 0
-			MOVW	#BREAK_INDICATOR_HIVAL, BREAK_INDICATOR_HI
-			MOVW	#BREAK_INDICATOR_LOVAL, BREAK_INDICATOR_LO
-			RESET_RESTART_NO_MSG	
-#emac
-
-;#Abort action (to be executed in addition of quit action)
+;#Abort action (to be executed in addition of quit and suspend action)
 #macro	FINNER_ABORT, 0
 #emac
 	
-;#Quit action
+;#Quit action (to be executed in addition of suspend action)
 #macro	FINNER_QUIT, 0
 #emac
 	
+;#Suspend action
+#macro	FINNER_SUSPEND, 0
+#emac
+	
+;Break/suspend handling:
+;=======================
+;#Break: Set break indicator and perform a systewm reset
+#macro	SCI_BREAK_ACTION, 0
+			RESET_RESTART_NO_MSG	
+#emac
+
 ;#Suspend: Set suspend flag
 #macro	SCI_SUSPEND_ACTION, 0
 			BSET	IRQ, #IRQ_SUSPEND
 #emac
+
+
 	
 ;Inner interpreter:
 ;==================
@@ -577,7 +581,7 @@ CFA_EOW			DW	CF_EOW
 
 ; ( -- )
 ;Return from interrupt
-CFA_RTI				DW	CF_RTI
+CFA_RTI			DW	CF_RTI
 	
 ;Word: WAI ( -- )
 ;Wait for interrupt 

@@ -61,6 +61,12 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;Debug option for stack over/underflows
+;FRS_DEBUG		EQU	1 
+	
+;Disable stack range checks
+;FRS_NO_CHECK	EQU	1 
+
 ;Boundaries
 ;RS_TIB_START		EQU	0
 ;RS_TIB_END		EQU	0
@@ -131,11 +137,13 @@ FRS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_RSUF
 ;        Y and D are preserved 
 #macro	RS_CHECK_UF, 1
+#ifndef	FRS_NO_CHECK
 			LDX	RSP 			;=> 3 cycles
 			CPX	#(RS_EMPTY-(2*\1))	;=> 2 cycles
-			BHI	FRS_UF_HANDLER	;=> 3 cycles/ 4 cycles
+			BHI	FRS_THROW_RSUF		;=> 3 cycles/ 4 cycles
 							;  -------------------
 							;   8 cycles/ 9 cycles
+#endif
 #emac
 
 ;RS_CHECK_OF: check if there is room for a number of stack entries (X modified)
@@ -145,12 +153,14 @@ FRS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_RSOF
 ;        Y and D are preserved 
 #macro	RS_CHECK_OF, 1
+#ifndef	FRS_NO_CHECK
 			LDX	NUMBER_TIB		;=> 3 cycles
 			LEAX	(TIB_START+(2*\1)),X	;=> 2 cycles
 			CPX	RSP			;=> 3 cycles
-			BHI	FRS_OF_HANDLER		;=> 3 cycles/ 4 cycles
+			BHI	FRS_THROW_RSOF		;=> 3 cycles/ 4 cycles
 							;  -------------------
 							;  11 cycles/12 cycles
+#endif
 #emac
 	
 ;RS_CHECK_OF_KEEP_X: check if there is room for a number of stack entries (Y modified)
@@ -160,12 +170,14 @@ FRS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_RSOF
 ;        X and D are preserved 
 #macro	RS_CHECK_OF_KEEP_X, 1
+#ifndef	FRS_NO_CHECK
 			LDY	NUMBER_TIB		;=> 3 cycles
 			LEAY	(TIB_START+(2*\1)),Y	;=> 2 cycles
 			CPY	RSP			;=> 3 cycles
-			BHI	FRS_OF_HANDLER	;=> 3 cycles/ 4 cycles
+			BHI	FRS_THROW_RSOF		;=> 3 cycles/ 4 cycles
 							;  -------------------
 							;  11 cycles/12 cycles
+#endif
 #emac
 	
 ;RS_PULL: pull one entry from the return stack  (RSP -> X)
@@ -175,11 +187,13 @@ FRS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_RSUF
 ;        Y and D are preserved 
 #macro	RS_PULL, 1
+#ifndef	FRS_NO_CHECK
 			RS_CHECK_UF	1		;check for underflow	=> 8 cycles
 			MOVW		2,X+, \1	;RS -> X		=> 3 cycles 
 			STX		RSP		;			=> 3 cycles
 							;                         ---------
 							;                         14 cycles
+#endif
 #emac	
 	
 ;RS_PULL_Y: pull one entry from the return stack into index Y
@@ -189,11 +203,13 @@ FRS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_RSUF
 ;        Y and D are preserved 
 #macro	RS_PULL_Y, 0	;1:underflow handler  
+#ifndef	FRS_NO_CHECK
 			RS_CHECK_UF	1		;check for underflow	=> 8 cycles
 			LDY		2,X+		;RS -> X		=> 3 cycles 
 			STX		RSP		;			=> 3 cycles
 							;                         ---------
 							;                         14 cycles
+#endif
 #emac	
 	
 ;RS_PUSH: push a variable onto the return stack (RSP -> X)
@@ -209,6 +225,7 @@ FRS_VARS_END_LIN	EQU	@
 			STX		RSP		;			=> 3 cycles
 							;                         ---------
 							;                         22 cycles
+#endif
 #emac	
 
 ;RS_PUSH: push a variable onto the return stack and don't touch index X
@@ -221,7 +238,7 @@ FRS_VARS_END_LIN	EQU	@
 			LDY	NUMBER_TIB		;=> 3 cycles
 			LEAY	(TIB_START+2),Y		;=> 2 cycles
 			CPY	RSP			;=> 3 cycles
-			BHI	FRS_OF_HANDLER		;=> 3 cycle / 4 cycles
+			BHI	FRS_THROW_RSOF		;=> 3 cycle / 4 cycles
 			LDY	RSP			;=> 3 cycles
 			MOVW	\1, 2,-Y		;=> 5 cycles
 			STY	RSP			;=> 3 cycles
@@ -240,13 +257,16 @@ FRS_CODE_START_LIN	EQU	@
 #endif
 			JOB	FRS_PAD_ALLOC_2	;done
 
-;#RS overflow handler
-FRS_OF_HANDLER	EQU	*
-			FEXCPT_THROW	FEXCPT_EC_RSOF
-	
-;#RS underflow handler
-FRS_UF_HANDLER	EQU	*
-			FEXCPT_THROW	FEXCPT_EC_RSUF
+;Exceptions:
+;===========
+;Standard exceptions
+#ifdef FRS_DEBUG
+FRS_THROW_PSOF		BGND					;return stack overflow
+FRS_THROW_PSUF		BGND					;return stack underflow
+#else
+FRS_THROW_PSOF		FEXCPT_THROW	FEXCPT_EC_RSOF		;return stack overflow
+FRS_THROW_PSUF		FEXCPT_THROW	FEXCPT_EC_RSUF		;return stack underflow
+#endif
 	
 FRS_CODE_END		EQU	*
 FRS_CODE_END_LIN	EQU	@
