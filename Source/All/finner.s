@@ -41,8 +41,7 @@
 ;# Required Modules:                                                           #
 ;#    SSTACK	- Subroutine stack                                             #
 ;#    FRAM	- Forth return stack                                           #
-;#    FIRQ	- Forth interrupt handler                                      #
-;#    FSTART	- Forth start-up procedure                                     #
+;#    FEXCEPT	- Forth exception handler                                      #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -71,55 +70,29 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;Interrupt service routines
-#ifndef	CFA_ISR_PRIO_C
-CFA_ISR_PRIO_C		EQU	CFA_ISR_UNEXPECTED
-#end
-#ifndef	CFA_ISR_PRIO_B
-CFA_ISR_PRIO_B		EQU	CFA_ISR_UNEXPECTED
-#end
-#ifndef	CFA_ISR_PRIO_A
-CFA_ISR_PRIO_A		EQU	CFA_ISR_UNEXPECTED
-#end
-#ifndef	CFA_ISR_PRIO_9
-CFA_ISR_PRIO_9		EQU	CFA_ISR_UNEXPECTED
-#end
-#ifndef	CFA_ISR_PRIO_8
-CFA_ISR_PRIO_8		EQU	CFA_ISR_UNEXPECTED
-#end
-#ifndef	CFA_ISR_PRIO_7
-CFA_ISR_PRIO_7		EQU	CFA_ISR_UNEXPECTED
-#end
-#ifndef	CFA_ISR_PRIO_6
-CFA_ISR_PRIO_6		EQU	CFA_ISR_UNEXPECTED
-#end
-#ifndef	CFA_ISR_PRIO_5
-CFA_ISR_PRIO_5		EQU	CFA_ISR_UNEXPECTED
-#end
-#ifndef	CFA_ISR_PRIO_4
-CFA_ISR_PRIO_4		EQU	CFA_ISR_UNEXPECTED
-#end
-#ifndef	CFA_ISR_PRIO_3
-CFA_ISR_PRIO_3		EQU	CFA_ISR_UNEXPECTED
-#end
-#ifndef	CFA_ISR_PRIO_2
-CFA_ISR_PRIO_2		EQU	CFA_ISR_UNEXPECTED
-#end
-#ifndef	CFA_ISR_PRIO_1
-CFA_ISR_PRIO_1		EQU	CFA_ISR_UNEXPECTED
-#end
-#ifndef	CFA_ISR_PRIO_0
-CFA_ISR_PRIO_0		EQU	CFA_ISR_UNEXPECTED
-#end
+;FINNER_ISR_PRIO_C		EQU	CFA_ISR_UNEXPECTED
+;FINNER_ISR_PRIO_B		EQU	CFA_ISR_UNEXPECTED
+;FINNER_ISR_PRIO_A		EQU	CFA_ISR_UNEXPECTED
+;FINNER_ISR_PRIO_9		EQU	CFA_ISR_UNEXPECTED
+;FINNER_ISR_PRIO_8		EQU	CFA_ISR_UNEXPECTED
+;FINNER_ISR_PRIO_7		EQU	CFA_ISR_UNEXPECTED
+;FINNER_ISR_PRIO_6		EQU	CFA_ISR_UNEXPECTED
+;FINNER_ISR_PRIO_5		EQU	CFA_ISR_UNEXPECTED
+;FINNER_ISR_PRIO_4		EQU	CFA_ISR_UNEXPECTED
+;FINNER_ISR_PRIO_3		EQU	CFA_ISR_UNEXPECTED
+;FINNER_ISR_PRIO_2		EQU	CFA_ISR_UNEXPECTED
+;FINNER_ISR_PRIO_1		EQU	CFA_ISR_UNEXPECTED
+;FINNER_ISR_PRIO_0		EQU	CFA_ISR_UNEXPECTED
 	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;IRQ flags 
-IRQ_INHIBIT		EQU	$8000
-IRQ_SUSPEND		EQU	$4000 ;non-maskable
-IRQ_PRIO_D		EQU	$2000 ;highest priority interrupt request
-IRQ_PRIO_C		EQU	$1000
-IRQ_PRIO_B		EQU	$0400
+;IRQ bits 
+IRQ_ATTM		EQU	$8000 ;pay attention to interrupt requests
+IRQ_SUSPEND		EQU	$4000 ;suspend ctrl-Z
+IRQ_INHIBIT		EQU	$2000 ;block IRQs
+IRQ_PRIO_C		EQU	$1000 ;highest priority interrupt request
+IRQ_PRIO_B		EQU	$0800
 IRQ_PRIO_A		EQU	$0400
 IRQ_PRIO_9		EQU	$0200
 IRQ_PRIO_8		EQU	$0100
@@ -131,11 +104,107 @@ IRQ_PRIO_3		EQU	$0008
 IRQ_PRIO_2		EQU	$0004
 IRQ_PRIO_1		EQU	$0002
 IRQ_PRIO_0		EQU	$0001 ;lowest priority interrupt request
-	
-;Break indicator Value 
-BREAK_INDICATOR_HIVAL	EQU	$0555
-BREAK_INDICATOR_LOVAL	EQU	~BREAK_INDICATOR_HIVAL
 
+;Interrupt service routines and defined masks
+#ifdef	FINNER_ISR_PRIO_C
+FINNER_DEF_PRIO_C	EQU	IRQ_PRIO_PRIO_C
+#else	
+FINNER_DEF_PRIO_C	EQU	0
+FINNER_ISR_PRIO_C	EQU	FINNER_ISR_UNEXPECTED
+#end
+#ifdef	FINNER_ISR_PRIO_B
+FINNER_DEF_PRIO_B	EQU	IRQ_PRIO_PRIO_B
+#else	
+FINNER_DEF_PRIO_B	EQU	0
+FINNER_ISR_PRIO_B	EQU	FINNER_ISR_UNEXPECTED
+#end
+#ifdef	FINNER_ISR_PRIO_A
+FINNER_DEF_PRIO_A	EQU	IRQ_PRIO_PRIO_A
+#else	
+FINNER_DEF_PRIO_A	EQU	0
+FINNER_ISR_PRIO_A	EQU	FINNER_ISR_UNEXPECTED
+#end
+#ifdef	FINNER_ISR_PRIO_9
+FINNER_DEF_PRIO_9	EQU	IRQ_PRIO_PRIO_9
+#else	
+FINNER_DEF_PRIO_9	EQU	0
+FINNER_ISR_PRIO_9	EQU	FINNER_ISR_UNEXPECTED
+#end
+#ifdef	FINNER_ISR_PRIO_8
+FINNER_DEF_PRIO_8	EQU	IRQ_PRIO_PRIO_8
+#else	
+FINNER_DEF_PRIO_8	EQU	0
+FINNER_ISR_PRIO_8	EQU	FINNER_ISR_UNEXPECTED
+#end
+#ifdef	FINNER_ISR_PRIO_7
+FINNER_DEF_PRIO_7	EQU	IRQ_PRIO_PRIO_7
+#else	
+FINNER_DEF_PRIO_7	EQU	0
+FINNER_ISR_PRIO_7	EQU	FINNER_ISR_UNEXPECTED
+#end
+#ifdef	FINNER_ISR_PRIO_6
+FINNER_DEF_PRIO_6	EQU	IRQ_PRIO_PRIO_6
+#else	
+FINNER_DEF_PRIO_6	EQU	0
+FINNER_ISR_PRIO_6	EQU	FINNER_ISR_UNEXPECTED
+#end
+#ifdef	FINNER_ISR_PRIO_5
+FINNER_DEF_PRIO_5	EQU	IRQ_PRIO_PRIO_5
+#else	
+FINNER_DEF_PRIO_5	EQU	0
+FINNER_ISR_PRIO_5	EQU	FINNER_ISR_UNEXPECTED
+#end
+#ifdef	FINNER_ISR_PRIO_4
+FINNER_DEF_PRIO_4	EQU	IRQ_PRIO_PRIO_4
+#else	
+FINNER_DEF_PRIO_4	EQU	0
+FINNER_ISR_PRIO_4	EQU	FINNER_ISR_UNEXPECTED
+#end
+#ifdef	FINNER_ISR_PRIO_3
+FINNER_DEF_PRIO_3	EQU	IRQ_PRIO_PRIO_3
+#else	
+FINNER_DEF_PRIO_3	EQU	0
+FINNER_ISR_PRIO_3	EQU	FINNER_ISR_UNEXPECTED
+#end
+#ifdef	FINNER_ISR_PRIO_2
+FINNER_DEF_PRIO_2	EQU	IRQ_PRIO_PRIO_2
+#else	
+FINNER_DEF_PRIO_2	EQU	0
+FINNER_ISR_PRIO_2	EQU	FINNER_ISR_UNEXPECTED
+#end
+#ifdef	FINNER_ISR_PRIO_1
+FINNER_DEF_PRIO_1	EQU	IRQ_PRIO_PRIO_1
+#else	
+FINNER_DEF_PRIO_1	EQU	0
+FINNER_ISR_PRIO_1	EQU	FINNER_ISR_UNEXPECTED
+#end
+#ifdef	FINNER_ISR_PRIO_0
+FINNER_DEF_PRIO_0	EQU	IRQ_PRIO_PRIO_0
+#else	
+FINNER_DEF_PRIO_0	EQU	0
+FINNER_ISR_PRIO_0	EQU	FINNER_ISR_UNEXPECTED
+#end
+FINNER_DEF_PRIO_C_8	EQU	IRQ_PRIO_PRIO_C|IRQ_PRIO_PRIO_B|IRQ_PRIO_PRIO_A|IRQ_PRIO_PRIO_9|IRQ_PRIO_PRIO_8
+FINNER_DEF_PRIO_7_4	EQU	IRQ_PRIO_PRIO_7|IRQ_PRIO_PRIO_6|IRQ_PRIO_PRIO_5|IRQ_PRIO_PRIO_4
+FINNER_DEF_PRIO_3_0	EQU	IRQ_PRIO_PRIO_3|IRQ_PRIO_PRIO_2|IRQ_PRIO_PRIO_1|IRQ_PRIO_PRI|O_0
+FINNER_DEF_PRIOS	EQU	IRQ_PRIO_PRIO_C_8|IRQ_PRIO_PRIO_7_4|IRQ_PRIO_PRIO_3_0
+FINNER_UNDEF_PRIOS	EQU 	~IRQ_PRIO_PRIOS
+
+;Interrupt flag clearing masks
+FINNER_MASK_PRIO_C	EQU	IRQ_PRIO_C|IRQ_ATTN|FINNER_UNDEF_PRIOS
+FINNER_MASK_PRIO_B	EQU	IRQ_PRIO_B|FINNER_MASK_PRIO_C
+FINNER_MASK_PRIO_A	EQU	IRQ_PRIO_A|FINNER_MASK_PRIO_B
+FINNER_MASK_PRIO_9	EQU	IRQ_PRIO_9|FINNER_MASK_PRIO_A
+FINNER_MASK_PRIO_8	EQU	IRQ_PRIO_8|FINNER_MASK_PRIO_9
+FINNER_MASK_PRIO_7	EQU	IRQ_PRIO_7|FINNER_MASK_PRIO_8
+FINNER_MASK_PRIO_6	EQU	IRQ_PRIO_6|FINNER_MASK_PRIO_7
+FINNER_MASK_PRIO_5	EQU	IRQ_PRIO_5|FINNER_MASK_PRIO_6
+FINNER_MASK_PRIO_4	EQU	IRQ_PRIO_4|FINNER_MASK_PRIO_5
+FINNER_MASK_PRIO_3	EQU	IRQ_PRIO_3|FINNER_MASK_PRIO_4
+FINNER_MASK_PRIO_2	EQU	IRQ_PRIO_2|FINNER_MASK_PRIO_3
+FINNER_MASK_PRIO_1	EQU	IRQ_PRIO_1|FINNER_MASK_PRIO_2
+FINNER_MASK_PRIO_0	EQU	IRQ_PRIO_0|FINNER_MASK_PRIO_1
+						    
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -144,11 +213,9 @@ BREAK_INDICATOR_LOVAL	EQU	~BREAK_INDICATOR_HIVAL
 #else
 			ORG 	FINNER_VARS_START
 FINNER_VARS_START_LIN	EQU	@
-#endif
-	
+#endif	
 			ALIGN	1	
 IP			DS	2 		;instruction pointer
-ATTN			DS	2		;IRQ alert
 IRQ			DS	2		;interrupt flags
 	
 FINNER_VARS_END		EQU	*
@@ -182,10 +249,8 @@ FINNER_VARS_END_LIN	EQU	@
 
 ;#Suspend: Set suspend flag
 #macro	SCI_SUSPEND_ACTION, 0
-			BSET	IRQ, #IRQ_SUSPEND
+			BSET	IRQ, #(IRQ_ATTN|IRQ_SUSPEND)
 #emac
-
-
 	
 ;Inner interpreter:
 ;==================
@@ -201,6 +266,7 @@ FINNER_VARS_END_LIN	EQU	@
 #macro	NEXT, 0	
 			JOB	NEXT			;run next instruction	=> 3 cycles	 3 bytes
 #emac
+
 ;#SKIP_NEXT: skip next instruction and jump to one after
 ; args:	  IP:   pointer to next instruction
 ;	  IRQ: pending interrupt requests
@@ -228,22 +294,35 @@ FINNER_VARS_END_LIN	EQU	@
 ;Enable/disable interrupts:
 ;==========================
 
+; args:	  none
+; result: none
+; SSTACK: none
+;         X and Y are preserved
+#macro	ALLOW_IRQS, 0	
+			SEI				;make operation atomic
+			LDD	IRQ			;fetch IRQ
+			ANDA	#~IRQ_INIBIT		;clear IRQ_INHIBIT bit
+			BNE	ALLOW_IRQS_1		;set IRQ_ATTN
+			TBEQ	B, ALLOW_IRQS_2		;don't set IRQ_ATTN
+ALLOW_IRQS_1		ORAA	#IRQ_ATTN		;set IRQ_ATTN
+ALLOW_IRQS_2		STAA	IRQ			;update IRQ
+			CLI				;end atomic operation
+#emac
+
+;#ALLOW_IRQS
 ;#INHIBIT_IRQS
 ; args:	  none
 ; result: none
 ; SSTACK: none
-;         X, Y, and D are preserved
-#macro	ALLOW_IRQS, 0	
-			BCLR	IRQ, #((IRQ_INHIBIT)>>8)
-#emac
-
-;#ALLOW_IRQS
-; args:	  none
-; result: none
-; SSTACK: none
-;         X, Y, and D are preserved
+;         X and Y are preserved
 #macro	INHIBIT_IRQS, 0	
-			BSET	IRQ, #((IRQ_INHIBIT)>>8)
+			SEI				;make operation atomic
+			LDAA	IRQ			;fetch IRQ
+			BITA	#~IRQ_SUSPEND		;check IRQ_SUSPEND bit
+			BNE	INHIBIT_IRQS_1		;keep IRQ_ATTN set
+			ANDA	#~IRQ_ATTN		;clear IRQ_ATTN
+INHIBIT_IRQS_1		STAA	IRQ			;update IRQ
+			CLI				;end atomic operation
 #emac
 	
 ;CF/CFA/ISR execution from assembly code:
@@ -284,21 +363,7 @@ CFA_RESUME		DW	CF_RESUME
 CF_RESUME		EQU	*
 			RS_PULL IP 			;RS -> IP
 #emac
-	
-;Execute interrupt service routine
-; args:   X: ISR (CFA)
-; result: see CF
-; SSTACK: none
-; PS:     see CF
-; RS:     1+CF usage
-; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CF)
-;         No registers are preserved
-#macro	EXEC_ISR_X, 0
-			INHIBIT_IRQS
-			EXEC_CFA_X
-			ALLOW_IRQS
-#emac
-	
+		
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -308,19 +373,46 @@ CF_RESUME		EQU	*
 			ORG 	FINNER_CODE_START
 FINNER_CODE_START_LIN	EQU	@
 #endif
-
-;Entry point:
-;============
-FSTART			EQU	*			
-
-
-
-
-
 	
 ;Inner interpreter:
 ;==================
 
+
+;#SKIP_NEXT: skip next instruction and jump to one after
+; args:	  IP:  pointer to next instruction
+;	  IRQ: pending interrupt requests
+; result: IP:  pointer to subsequent instruction
+;         W/X: new CFA
+;         Y:   IP (=pointer to subsequent instruction)
+; SSTACK: none
+; PS:     none
+; RS:     none
+; throws: none
+;         No registers are preserved
+SKIP_NEXT		EQU	*
+			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
+			LEAY	2,Y			;IP += 2		=> 2 cycles	 2 bytes
+			STY	IP
+			JOB	SKIP_NEXT_1
+SKIP_NEXT_1		EQU	NEXT_1
+
+;#JUMP_NEXT: Read the next word entry and jump to that instruction 
+; args:	  IP:  pointer to next instruction
+;	  IRQ: pending interrupt requests
+; result: IP:  pointer to subsequent instruction
+;         W/X: new CFA
+;         Y:   IP (=pointer to subsequent instruction)
+; SSTACK: none
+; PS:     none
+; RS:     none
+; throws: none
+;         No registers are preserved
+JUMP_NEXT		EQU	*
+			LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes
+			STY	IP
+			JOB	JUMP_NEXT_1
+JUMP_NEXT_1		EQU	NEXT_1
+	
 ;#NEXT:	jump to the next instruction
 ; args:	  IP:   pointer to next instruction
 ;	  IRQ: pending interrupt requests
@@ -334,138 +426,45 @@ FSTART			EQU	*
 ;         No registers are preserved
 NEXT			EQU	*
 			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
-			LDD	IRQ			;check IRQ flags	=> 3 cycles	 3 bytes
-			BNE	NEXT_			;	 	      	=> 1 cycle	 4 bytes
-NEXT_1			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
+NEXT_1			LDAA	IRQ			;check IRQ_ATTN flag	=> 3 cycles	 3 bytes
+			BMI	NEXT_2			;	 	      	=> 1 cycle	 4 bytes
+			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
 			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
 			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
 							;                         ---------	--------
 							;                         19 cycles	19 bytes
-			;Update (IP in Y, IRQ in D)
-NEXT_			STY	IP
-			;Some IRQ flags set (IP in Y, IRQ in D)
-NEXT_			LSLD				;remove inhibit flag 
-			BEQ	NEXT_1			;no IRQs
-			BMI	NEXT_			;execute SUSPEND
-			BCS	NEXT_1			;interrupts inhibited
-			;Check high prio IRQs (IP in Y, IRQ<<1 in D)
-			LSRA				;only check prio C..8
-			LDAB	#$80
-			LDX	#(ISR_TAB-6)
-NEXT_			LSRB				;find first one loop
-			LEAX	2,X
-			LSLA
-			BEQ	NEXT_
-			BCC	NEXT_
-			
+			;Check for IRQs
+NEXT_2			SEI				;make operation atomic
+			LDD	IRQ			;refetch IRQ
+			LSLD				;remove IRQ_ATTN bit
+			BMI	NEXT_4 			;suspend
+			LSLD				;remove IRQ_SUSPEND bit
+			LSLD				;remove IRQ_INHIBIT bit
+			BLS	NEXT_ 			;No IRQs or IRQs are inhibited (C+Z=1)
+			;Find pending IRQ (IRQ<<3 in D)
+			LDX	#-2
+NEXT_3			LEAX	2, X			;point to next vector table entry
+			LSLD				;remove next IRQ_PRIO bit
+			BHI	NEXT_3			;check next lower IRQ_PRIO bit
+			;Clear interrupt flag (table offset in X) 
+			LDD	FINNER_MASK_TAB,X 	;fetch mask
+			AMDD	IRQ			;apply mask
+			ORAA	#(IRQ_INHIBIT>>8)	;set IRQ_INHIBIT flag
+			STD	IRQ			;update IRQ
+			CLI				;end atomic operation
+			;Execute ISR (table offset in X) 
+			LDX	FINNER_ISR_TAB,X 	;fetch ISR vector
+			EXEC_CFA_X			;execute ISR
+			ALLOW_IRQS			;enable pending interrupts
+			JOB	NEXT_2			;check for further interrupt requests
+			;Suspend  (IRQ<<1 in D)
+NEXT_4			;Catch all exceptions
 
 
-	
-			;Pending interrupt found (IP in Y, ISR table pointer in X, flag mask in B)
-			COMB				;clear request flag
-			SEI
-			ANDB	IRQ
-			STAB	IRQ
-			CLI
-			LDX	0,X 			;execute ISR
-			EXEC_ISR_X
-			NEXT				;next instruction
-			;Check low prio IRQs (IP in Y, ISR table pointer in X)
-NEXT_			LDAA	IRQ+1
-			LDAB	#(IRQ_SUSPEND>>8)
-
-
-	
-
-			COMB				;clear request and inhibit interrupts
-			ANDB	IRQ
-			ORAB	#(IRQ_INHIBIT>>8)
-
-
-			STAB	IRQ
-			LDX	0,X 			;execute ISR
-			EXEC_CFA_X
-			ALLOW_IRQS ;
-			
-
-	
-
-	
-
-;#SKIP_NEXT: skip next instruction and jump to one after
-; args:	  IP:   pointer to next instruction
-;	  IRQ: pending interrupt requests
-; result: IP:   pointer to subsequent instruction
-;         W/X:  new CFA
-;         Y:    IP (=pointer to subsequent instruction)
-; SSTACK: none
-; PS:     none
-; RS:     none
-; throws: none
-;         No registers are preserved
-SKIP_NEXT		EQU	*
-			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
-			LEAY	2,Y			;IP += 2		=> 2 cycles	 2 bytes
-			LDD	IRQ			;check IRQ flags       => 3 cycles	 3 bytes
-			BMI	IRQ_HANDLER		;		      	=> 1 cycle	 4 bytes
-			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
-			STY	IP			;		  	=> 3 cycles	 3 bytes 
-			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
-							;                         ---------	--------
-							;                         21 cycles	21 bytes
-
-;#JUMP_NEXT: Read the next word entry and jump to that instruction 
-; args:	  IP:   pointer to next instruction
-;	  IRQ: pending interrupt requests
-; result: IP:   pointer to subsequent instruction
-;         W/X:  new CFA
-;         Y:    IP (=pointer to subsequent instruction)
-; SSTACK: none
-; PS:     none
-; RS:     none
-; throws: none
-;         No registers are preserved
-JUMP_NEXT		EQU	*
-			LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes
-			LDD	IRQ			;check IRQ flags	=> 3 cycles	 3 bytes
-			BMI	IRQ_HANDLER		;		      	=> 1 cycle	 4 bytes
-			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
-			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
-			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
-							;                         ---------	--------
-							;                         22 cycles	20 bytes
-
-;#IRQ_HANDLER: Read the next word entry and jump to that instruction 
-; args:	  Y:    next IP (IP register to be ignored)
-;         D:    IRQ (pending interrupt requests)
-; result: IP:   pointer to subsequent instruction
-;         W/X:  new CFA
-;         Y:    IP (=pointer to subsequent instruction)
-; SSTACK: none
-; PS:     none
-; RS:     none
-; throws: none
-;         No registers are preserved
-
-IRQ_HANDLER		EQU	*
-			;Check for BREAK 
-			LSLD
-			LSLD
-			BCC	IRQ_HANDLER_ 		;execute BREAK
-			;Check for SUSPEND
-			LSLD
-			BCC	IRQ_HANDLER_ 		;execute BREAK
-#ifdef CFA_ISR_PRIO_B
-			; 
-	
-
-	
-			BMI	...
-			;Check for Suspend
-			LDX	#CF_....
-			LSLD
-			BMI	...
-
+			;No IRQs to execute 
+NEXT_			BCLR	IRQ, #IRQ_ATTN 		;clear IRQ_ATTN bit
+			CLI				;end atomic operation
+			JOB	NEXT		
 	
 ;Code fields:
 ;============ 	
@@ -494,40 +493,20 @@ CF_INNER		EQU		*
 ; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;        D is preserved 
-CF_EXIT			LDD		IRQ 		;IRQ state -> X		=> 3 cycles
-			BMI		CF_EXIT_1	;handle IRQs		=> 1 cycle
-			RS_PULL_Y			;RS -> Y (= IP)		=>12 cycles
-			LDX		2,Y+		;IP += 2, CFA -> X	=> 3 cycles
+CF_EXIT			RS_PULL_Y			;RS -> Y (= IP)		=>12 cycles
 			STY		IP 		;			=> 3 cycles	=> 3 cycles 
-			JMP		[0,X]		;JUMP [CFA]             => 6 cycles
-							;                         ---------
-							;                         28 cycles			
-			;Handle IRQs (IRQ status in D)
-CF_EXIT_1		LSLD				;check for break
-			BMI		___BREAK
-			LSLD				;check for suspend
-			BMI		___SUSPEND
-			
+			JOB		CF_EXIT_1
+CF_EXIT_1		EQU		NEXT_1
 
 
-
-
-
-
-
-
-	
-
-
-	
 ;Word: IRQEN ( -- )
 ;Enable interrupts 
-CF_IRQEN		ENABLE_IRQS
+CF_IRQEN		ALLOW_IRQS
 			NEXT
 
 ;Word: IRQDIS ( -- )
 ;Disable interrupts 
-CF_IRQDIS		DISABLE_IRQS
+CF_IRQDIS		INIBIT_IRQS
 			NEXT
 
 FINNER_CODE_END		EQU	*
@@ -543,21 +522,35 @@ FINNER_CODE_END_LIN	EQU	@
 FINNER_TABS_START_LIN	EQU	@
 #endif	
 
-CFA_ISR_TAB			EQU	
-			DW	CFA_ISR_PRIO_D
-			DW	CFA_ISR_PRIO_C
-			DW	CFA_ISR_PRIO_B
-			DW	CFA_ISR_PRIO_A
-			DW	CFA_ISR_PRIO_9
-			DW	CFA_ISR_PRIO_8
-			DW	CFA_ISR_PRIO_7
-			DW	CFA_ISR_PRIO_6
-			DW	CFA_ISR_PRIO_5
-			DW	CFA_ISR_PRIO_4
-			DW	CFA_ISR_PRIO_3
-			DW	CFA_ISR_PRIO_2
-			DW	CFA_ISR_PRIO_1
-			DW	CFA_ISR_PRIO_0
+FINNER_ISR_TAB		EQU	*
+			DW	FINNER_ISR_PRIO_C
+			DW	FINNER_ISR_PRIO_B
+			DW	FINNER_ISR_PRIO_A
+			DW	FINNER_ISR_PRIO_9
+			DW	FINNER_ISR_PRIO_8
+			DW	FINNER_ISR_PRIO_7
+			DW	FINNER_ISR_PRIO_6
+			DW	FINNER_ISR_PRIO_5
+			DW	FINNER_ISR_PRIO_4
+			DW	FINNER_ISR_PRIO_3
+			DW	FINNER_ISR_PRIO_2
+			DW	FINNER_ISR_PRIO_1
+			DW	FINNER_ISR_PRIO_0
+
+FINNER_MASK_TAB		EQU	*
+			DW	FINNER_MASK_PRIO_C
+			DW	FINNER_MASK_PRIO_B
+			DW	FINNER_MASK_PRIO_A
+			DW	FINNER_MASK_PRIO_9
+			DW	FINNER_MASK_PRIO_8
+			DW	FINNER_MASK_PRIO_7
+			DW	FINNER_MASK_PRIO_6
+			DW	FINNER_MASK_PRIO_5
+			DW	FINNER_MASK_PRIO_4
+			DW	FINNER_MASK_PRIO_3
+			DW	FINNER_MASK_PRIO_2
+			DW	FINNER_MASK_PRIO_1
+			DW	FINNER_MASK_PRIO_0
 	
 FINNER_TABS_END		EQU	*
 FINNER_TABS_END_LIN	EQU	@

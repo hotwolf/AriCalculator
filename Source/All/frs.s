@@ -137,8 +137,8 @@ FRS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_RSUF
 ;        Y and D are preserved 
 #macro	RS_CHECK_UF, 1
-#ifndef	FRS_NO_CHECK
 			LDX	RSP 			;=> 3 cycles
+#ifndef	FRS_NO_CHECK
 			CPX	#(RS_EMPTY-(2*\1))	;=> 2 cycles
 			BHI	FRS_THROW_RSUF		;=> 3 cycles/ 4 cycles
 							;  -------------------
@@ -187,13 +187,11 @@ FRS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_RSUF
 ;        Y and D are preserved 
 #macro	RS_PULL, 1
-#ifndef	FRS_NO_CHECK
 			RS_CHECK_UF	1		;check for underflow	=> 8 cycles
 			MOVW		2,X+, \1	;RS -> X		=> 3 cycles 
 			STX		RSP		;			=> 3 cycles
 							;                         ---------
 							;                         14 cycles
-#endif
 #emac	
 	
 ;RS_PULL_Y: pull one entry from the return stack into index Y
@@ -203,18 +201,16 @@ FRS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_RSUF
 ;        Y and D are preserved 
 #macro	RS_PULL_Y, 0	;1:underflow handler  
-#ifndef	FRS_NO_CHECK
 			RS_CHECK_UF	1		;check for underflow	=> 8 cycles
 			LDY		2,X+		;RS -> X		=> 3 cycles 
 			STX		RSP		;			=> 3 cycles
 							;                         ---------
 							;                         14 cycles
-#endif
 #emac	
 	
 ;RS_PUSH: push a variable onto the return stack (RSP -> X)
 ; args:   1: address of variable to push data from
-; result: Y: RSP
+; result: X: RSP
 ; SSTACK: none
 ; throws: FEXCPT_EC_RSOF
 ;        Y and D are preserved
@@ -225,7 +221,6 @@ FRS_VARS_END_LIN	EQU	@
 			STX		RSP		;			=> 3 cycles
 							;                         ---------
 							;                         22 cycles
-#endif
 #emac	
 
 ;RS_PUSH: push a variable onto the return stack and don't touch index X
@@ -235,10 +230,12 @@ FRS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_RSOF
 ;        X and D are preserved
 #macro	RS_PUSH_KEEP_X, 1	;1:variable
+#ifndef	FRS_NO_CHECK
 			LDY	NUMBER_TIB		;=> 3 cycles
 			LEAY	(TIB_START+2),Y		;=> 2 cycles
 			CPY	RSP			;=> 3 cycles
 			BHI	FRS_THROW_RSOF		;=> 3 cycle / 4 cycles
+#endif
 			LDY	RSP			;=> 3 cycles
 			MOVW	\1, 2,-Y		;=> 5 cycles
 			STY	RSP			;=> 3 cycles

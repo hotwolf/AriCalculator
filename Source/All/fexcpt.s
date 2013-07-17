@@ -59,9 +59,6 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;PPAGE for error message look-up
-;FEXCEPT_ERRPP			EQU	$FE 
-
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -126,11 +123,14 @@ FEXCPT_EC_QUIT			EQU	-56	;QUIT
 ;FEXCPT_EC_57			EQU	-57	;exception in sending or receiving a character
 ;FEXCPT_EC_58			EQU	-58	;[IF], [ELSE], or [THEN] exception
 	
-;Non-standard error codes 
+;S12CForth specific error codes 
 FEXCPT_EC_NOMSG			EQU	-59	;empty message string
 FEXCPT_EC_DICTPROT		EQU	-60	;destruction of dictionary structure
 FEXCPT_EC_COMERR		EQU	-61	;invalid RX data
 FEXCPT_EC_COMOF			EQU	-62	;RX buffer overflow
+
+;Highest standard error code value
+FEXCPT_EC_MAX			EQU	FEXCPT_EC_COMOF
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -166,6 +166,15 @@ FEXCEPT_VARS_END_LIN	EQU	@
 ;#Suspend action
 #macro	FEXCPT_SUSPEND, 0
 #emac
+
+;#Print error message
+; args:   D: error code
+; result: none
+; SSTACK: 16 bytes
+;         X, Y and D are preserved
+#macro	FEXCPT_PRINT_ERROR, 0
+			SSTACK_JOBSR	FEXCPT_PRINT_ERROR, 16
+#emac
 	
 ;#Throw an exception from within an assembler primitive (immediate error code)
 ; args:   1: error code
@@ -187,15 +196,6 @@ FEXCEPT_VARS_END_LIN	EQU	@
 			JOB	FEXCPT_THROW	;throw exception
 #emac
 
-;#Throw a fatal erroe from within an assembler primitive (immediate error code)
-; args:   1: error code
-; result: none
-; SSTACK: none
-;         no registers are preserved 
-#macro	FEXCPT_FATAL, 1
-			RESET_FATAL, \1	
-#emac
-
 ;#Error message
 ; args: 1: error code
 ; 	2: message string
@@ -204,8 +204,9 @@ FEXCEPT_VARS_END_LIN	EQU	@
 ;         no registers are preserved 
 #macro	FEXCPT_MSG, 2
 			DB	\1		 ;error code
-#emac			FCS	\2		 ;error message
-
+			FCS	\2		 ;error message
+#emac
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -216,9 +217,53 @@ FEXCEPT_VARS_END_LIN	EQU	@
 FEXCEPT_CODE_START_LIN	EQU	@
 #endif
 
+;#Print error message
+; args:   D: error code
+; result: none
+; SSTACK: 16 bytes
+;         X, Y and D are preserved
+FEXCPT_PRINT_ERROR	EQU	*
+			;Save registers (error code in D)
+			PSHX
+			PSHD
+			;Check for standard errors (error code in D)
+			CPD	#FEXCPT_EC_MAX
+			BLO	FEXCPT_PRINT_ERROR_4 				;non-standard error
+			;Check for ABORT (error code in B)
+			CPAB	#FEXCPT_EC_ABORT
+			BEQ	FEXCPT_PRINT_ERROR_6 				;no message for ABORT
+			;Check for QUIT (error code in B)
+			CPAB	#FEXCPT_EC_QUIT
+			BEQ	FEXCPT_PRINT_ERROR_6 				;no message for QUIT
+			;Check for ABORT" (error code in B)
+			CPAB	#FEXCPT_EC_ABORTQ
+			BEQ	FEXCPT_PRINT_ERROR_7 				;print ABORT" message		
+			;Standard error code (error code in B)
+			LDX     #FEXCPT_MSGTAB_END 				;start at the beginning of the lookup table
+FEXCPT_PRINT_ERROR_1	LDAA	1,X+ 						;check the current error code
+			BEQ	FEXCPT_PRINT_ERROR_3 				;unknown error				
+			CBA							;check error code
+			BEQ	FEXCPT_PRINT_ERROR_3 				;match	
+FEXCPT_PRINT_ERROR_2	LDAA	1,X+ 						;skip string
+			BMI	FEXCPT_PRINT_ERROR_1 				;end of string found
+			JOB	FEXCPT_PRINT_ERROR_2
+			;Error entry found (message pointer in X) 
+FEXCPT_PRINT_ERROR_3	TFR	X, D
+FEXCPT_PRINT_ERROR_4	LDX	#FEXCPT_MSG_HEAD
+			STRING_PRINT_BL  					;(SSTACK: 10 bytes)
+			TFR	D, X
+FEXCPT_PRINT_ERROR_5	STRING_PRINT_BL  					;(SSTACK: 10 bytes)
+			;Restore registers
+FEXCPT_PRINT_ERROR_6	SSTACK_PREPULL	6
+			PULD
+			PULX
+			;Done
+			RTS
+			;Print ABORT" message 
+FEXCPT_PRINT_ERROR_7	LDX	ABORT_QUOTE_MSG
+			BNE	FEXCPT_PRINT_ERROR_5 				;print  message
+			JOB	FEXCPT_PRINT_ERROR_6 				;no message
 
-
-	
 	
 ;#Throw an exception
 ; args:   D: error code
@@ -228,23 +273,35 @@ FEXCEPT_CODE_START_LIN	EQU	@
 FEXCPT_THROW		EQU	*
 			;Check if exception is cought
 			LDX	HANDLER						;check if an exception handler exists
-			BEQ	FEXCPT_THROW_2					;no exception handler
-			;Cought exception, verify stack frame (RSP in X, error code in D)
-			STX	RSP						;restore RS	
-			RS_CHECK_UF	3, FEXCPT_THROW_1			;three entries must be on the RS  
-			RS_CHECK_OF	0, FEXCPT_THROW_1			;check for RS overflow
- 			;Restore stacks (RSP in X, error code in D)
-			LDX	RSP
+			BEQ	FEXCPT_THROW_					;no exception handler
+			;Cought exception, verify stack frame (HANDLER in X, error code in D)
+			CPX	#(RS_EMPTY-6)					;check for 3 cell exception frame
+			BHI	FEXCPT_THROW_ 					;invalid exception handler
+			LDY	NUMBER_TIB 					;check for RS overflow
+			LEAY	TIB_START,Y
+			CPY	HANDLER
+			BLO	EXCPT_THROW_ 					;invalid exception handler
+ 			;Restore stacks (HANDLER in X, error code in D)
 			MOVW	2,X+, HANDLER					;pull previous HANDLER (RSP -> X)
-			MOVW	2,X+, PSP					;pull previous PSP (RSP -> X)		
+			LDY	2,X+						;pull previous PSP (RSP -> X)		
 			MOVW	2,X+, IP					;pull next IP (RSP -> X)		
-			;Check if PSP is valid (RSP in X, error code in D)
-			PS_CHECK_UFOF 0,FEXCPT_THROW_1,1,FEXCPT_THROW_1		;check PSP (PSP -> Y)
+			STX	RSP
+			;Check if PSP is valid (new PSP in Y, error code in D)
+			CPY	#PS_EMPTY 					;check for PS underflow
+			BHI	EXCPT_THROW_ 					;invalid exception handler
+			LDX	PAD
+			LEAX	2,X	     					;make sure there is room for the return value
+			BLO	EXCPT_THROW_ 					;invalid exception handler
+			STY	PSP
 			;Return error code (RSP in X, error code in D)
-			STD	0,Y						;push error code onto PS
-			STX	RSP						;set RSP
+			STD	2,-Y						;push error code onto PS
 			STY	PSP						;set PSP
 			NEXT
+			;Invalid  
+
+
+
+
 FEXCPT_THROW_CESF	;Corrupt exception stack frame (error code in D)
 FEXCPT_THROW_1		LDY	#FEXCPT_EC_CESF
 			JOB	FEXCPT_THROW_4 					;print error message
@@ -481,6 +538,9 @@ FEXCEPT_CODE_END_LIN	EQU	@
 FEXCEPT_TABS_START_LIN	EQU	@
 #endif	
 
+FEXCPT_MSG_HEAD		STRING_NL_NONTERM
+			FCS		"Error! "
+	
 FEXCPT_MSGTAB		EQU	*
 			FEXCPT_MSG	FEXCPT_EC_PSOF,		"Parameter stack overflow"
 			FEXCPT_MSG	FEXCPT_EC_PSUF,		"Parameter stack underflow" 
@@ -507,7 +567,7 @@ FEXCPT_MSGTAB		EQU	*
 			FEXCPT_MSG	FEXCPT_EC_DICTPROT,	"Destruction of dictionary structure"
 			FEXCPT_MSG	FEXCPT_EC_COMERR,	"Invalid RX data"
 			FEXCPT_MSG	FEXCPT_EC_COMOF		"RX buffer overflow"
-			FEXCPT_MSG	0			"Unknown problem"
+			FEXCPT_MSG	0			"Unknown cause"
 	
 FEXCEPT_TABS_END	EQU	*
 FEXCEPT_TABS_END_LIN	EQU	@
