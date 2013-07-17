@@ -263,17 +263,16 @@ FEXCPT_PRINT_ERROR_6	SSTACK_PREPULL	6
 FEXCPT_PRINT_ERROR_7	LDX	ABORT_QUOTE_MSG
 			BNE	FEXCPT_PRINT_ERROR_5 				;print  message
 			JOB	FEXCPT_PRINT_ERROR_6 				;no message
-
 	
 ;#Throw an exception
 ; args:   D: error code
 ; result: none
-; SSTACK: none
+; SSTACK: 16 bytes
 ;         no registers are preserved 
 FEXCPT_THROW		EQU	*
-			;Check if exception is cought
+			;Check if exception is cought (error code in D)
 			LDX	HANDLER						;check if an exception handler exists
-			BEQ	FEXCPT_THROW_					;no exception handler
+			BEQ	FEXCPT_THROW_					;default exception handler
 			;Cought exception, verify stack frame (HANDLER in X, error code in D)
 			CPX	#(RS_EMPTY-6)					;check for 3 cell exception frame
 			BHI	FEXCPT_THROW_ 					;invalid exception handler
@@ -292,67 +291,18 @@ FEXCPT_THROW		EQU	*
 			LDX	PAD
 			LEAX	2,X	     					;make sure there is room for the return value
 			BLO	EXCPT_THROW_ 					;invalid exception handler
-			STY	PSP
-			;Return error code (RSP in X, error code in D)
+			;Push error code onto PS (new in Y, error code in D)
 			STD	2,-Y						;push error code onto PS
 			STY	PSP						;set PSP
 			NEXT
-			;Invalid  
-
-
-
-
-FEXCPT_THROW_CESF	;Corrupt exception stack frame (error code in D)
-FEXCPT_THROW_1		LDY	#FEXCPT_EC_CESF
-			JOB	FEXCPT_THROW_4 					;print error message
-			;Uncought exception, check for special error codes (error code in D)
-FEXCPT_THROW_2		CPD	#FEXCPT_EC_ABORT 				;check for ABORT				
-			BEQ	FEXCPT_THROW_6
-			CPD	#FEXCPT_EC_ABORTQ 				;check for ABORT"				
-			BEQ	FEXCPT_THROW_7
-			CPD	#FEXCPT_EC_QUIT 				;check for QUIT				
-			BEQ	FEXCPT_THROW_8
-			CPD	#-((FEXCPT_MSGTAB_END-FEXCPT_MSGTAB_START)/2) 	;check for standard error code
-			BLO	FEXCPT_THROW_3					;custom error message
-			;Standard error code (error code in D)
-			LDX     #FEXCPT_MSGTAB_END 				;look-up standard error message
-			LSLD
-			LDD	D,X	
-			;Custom error code (error message in D)
-FEXCPT_THROW_3		TFR	D, Y						;error message -> Y
-			;Check message format (error message in Y)
-			LEAX	1,Y						;count chars in message
-			PRINT_STRCNT						
-			IBEQ	A, FEXCPT_THROW_9 				;invalid error message
-			;Check error level (error message in Y)
-			LDAA	0,Y
-			CMPA	#ERROR_LEVEL_FATAL
-			BEQ	FEXCPT_THROW_5 					;fatal error
-			CMPA	#ERROR_LEVEL_ERROR
-			BNE	FEXCPT_THROW_9 					;invalid error message
-			;Error (error message in Y)
-FEXCPT_THROW_4		ERROR_PRINT						
-			JOB	CF_ABORT_RT	
-			;Fatal error (error message in Y)
-FEXCPT_THROW_5		TFR	Y, D
-			JOB	ERROR_RESTART
-			;ABORT
-FEXCPT_THROW_6		EQU	CF_ABORT_RT
-			;JOB	CF_ABORT_RT	
-			;ABORT" (message pointer in ABORT_QUOTE_MSG)
-FEXCPT_THROW_7		LDX	ABORT_QUOTE_MSG
-			BEQ	FEXCPT_THROW_9
-			PRINT_STRCNT						
-			IBEQ	A, FEXCPT_THROW_9				;invalid error message
-			PRINT_LINE_BREAK
-			PRINT_STR
-			JOB	CF_ABORT_RT
-			;QUIT
-FEXCPT_THROW_8		EQU	CF_QUIT_RT
-			;JOB	CF_QUIT_RT
-			;Invalid error message 
-FEXCPT_THROW_9		LDY	#FEXCPT_MSG_UNKNOWN
-			JOB	FEXCPT_THROW_5
+			;Invalid exception handler
+FEXCPT_THROW_		LDD	#FEXCPT_EC_CESF					;change error code
+			MOVW	#$0000, HANDLER					;restore default handler
+			;Default exception handler (error code in D)
+FEXCPT_THROW_		FEXCPT_PRINT_ERROR 					;print error message
+			CPD	 #FEXCPT_EC_ABORTQ 				;check for ABORT and ABORT"
+			BHS	CF_ABORT 					;abort
+			JOB	CF_QUIT						;quit
 
 ;#Code Fields:
 ;=============
