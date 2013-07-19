@@ -272,14 +272,14 @@ FEXCPT_PRINT_ERROR_7	LDX	ABORT_QUOTE_MSG
 FEXCPT_THROW		EQU	*
 			;Check if exception is cought (error code in D)
 			LDX	HANDLER						;check if an exception handler exists
-			BEQ	FEXCPT_THROW_					;default exception handler
+			BEQ	FEXCPT_THROW_2					;default exception handler
 			;Cought exception, verify stack frame (HANDLER in X, error code in D)
 			CPX	#(RS_EMPTY-6)					;check for 3 cell exception frame
-			BHI	FEXCPT_THROW_ 					;invalid exception handler
+			BHI	FEXCPT_THROW_1 					;invalid exception handler
 			LDY	NUMBER_TIB 					;check for RS overflow
 			LEAY	TIB_START,Y
 			CPY	HANDLER
-			BLO	EXCPT_THROW_ 					;invalid exception handler
+			BLO	EXCPT_THROW_1 					;invalid exception handler
  			;Restore stacks (HANDLER in X, error code in D)
 			MOVW	2,X+, HANDLER					;pull previous HANDLER (RSP -> X)
 			LDY	2,X+						;pull previous PSP (RSP -> X)		
@@ -287,19 +287,19 @@ FEXCPT_THROW		EQU	*
 			STX	RSP
 			;Check if PSP is valid (new PSP in Y, error code in D)
 			CPY	#PS_EMPTY 					;check for PS underflow
-			BHI	EXCPT_THROW_ 					;invalid exception handler
+			BHI	EXCPT_THROW_1 					;invalid exception handler
 			LDX	PAD
 			LEAX	2,X	     					;make sure there is room for the return value
-			BLO	EXCPT_THROW_ 					;invalid exception handler
+			BLO	EXCPT_THROW_1 					;invalid exception handler
 			;Push error code onto PS (new in Y, error code in D)
 			STD	2,-Y						;push error code onto PS
 			STY	PSP						;set PSP
 			NEXT
 			;Invalid exception handler
-FEXCPT_THROW_		LDD	#FEXCPT_EC_CESF					;change error code
+FEXCPT_THROW_1		LDD	#FEXCPT_EC_CESF					;change error code
 			MOVW	#$0000, HANDLER					;restore default handler
 			;Default exception handler (error code in D)
-FEXCPT_THROW_		FEXCPT_PRINT_ERROR 					;print error message
+FEXCPT_THROW_2		FEXCPT_PRINT_ERROR 					;print error message
 			CPD	 #FEXCPT_EC_ABORTQ 				;check for ABORT and ABORT"
 			BHS	CF_ABORT 					;abort
 			JOB	CF_QUIT						;quit
@@ -323,9 +323,9 @@ FEXCPT_THROW_		FEXCPT_PRINT_ERROR 					;print error message
 ;"Parameter stack overflow"
 ;"Return stack overflow"
 ;"Corrupt exception stack frame"
-CF_CATCH		PS_CHECK_UF	1, CF_CATCH_PSUF 	;check PS requirements (PSP -> Y)
-			RS_CHECK_OF	3, CF_CATCH_RSOF	;check RS requirements 
-			;Build exception stack frame 
+CF_CATCH		RS_CHECK_OF	3			;check RS requirements 
+			PS_CHECK_UF	1			;check PS requirements (PSP -> Y)
+			;Build exception stack frame (PSP in Y)
 			LDX	RSP				;RSP -> X
 			MOVW	IP,	 2,-X			;IP      > RS
 			LEAY	2,Y
@@ -334,20 +334,18 @@ CF_CATCH		PS_CHECK_UF	1, CF_CATCH_PSUF 	;check PS requirements (PSP -> Y)
 			STX	RSP
 			STX	HANDLER		      		;RSP -> HANDLER
 			;Execute xt (RSP in X, PSP+2 in Y)
-			MOVW	#IP_CATCH_RESUME, IP 		;set next IP	
-			LDX	-2,Y 				;execute xt
-			STY	PSP
-			JMP	[0,X]
-			;Resume CATCH, no exception was thrown
-IP_CATCH_RESUME		DW	CFA_CATCH_RESUME
-CFA_CATCH_RESUME	DW	CF_CATCH_RESUME
-CF_CATCH_RESUME		RS_CHECK_UF 	3, CF_CATCH_CESF	;check for RS underflow (RSP -> X)
+			LDX	-2,Y 				;fetch xt
+			STY	PSP				;update PSP
+			EXEC_CFA_X				;execute xt
+			RS_CHECK_UF 	3, CF_CATCH_CESF	;check for RS underflow (RSP -> X)
 			PS_CHECK_OF	1, CF_CATCH_PSOF	;check for PS overflow (PSP-2 -> Y)
 			;Check if HANDLER points to the top of the RS (RSP in X, PSP-2 in Y)
 			CPX	HANDLER				;check if RSP==HANDLER
-			BNE	CF_CATCH_CESF			;corrupt exception stack frame
-			;Restore error stack frame (RSP in X, PSP-2 in Y)
-			LEAX	4,X
+			BEQ	CF_CATCH_1			;HANDLER is ok
+			MOVW	#$0000. HANDLER			;reset HANDLER
+			JOB	FEXCPT_THROW_CESF		;throw exception stack frame error
+			;Restore previous HANDLER (RSP in X, PSP-2 in Y)
+CF_CATCH_1		LEAX	4,X
 			MOVW	2,X+, IP
 			STX	RSP
 			;Push 0x0 onto the PS (RSP in X, PSP-2 in Y)
@@ -355,10 +353,6 @@ CF_CATCH_RESUME		RS_CHECK_UF 	3, CF_CATCH_CESF	;check for RS underflow (RSP -> X
 			STY	PSP
 			;Done 
 			NEXT	
-CF_CATCH_PSUF		JOB	FEXCPT_THROW_PSUF			
-CF_CATCH_PSOF		JOB	FEXCPT_THROW_PSOF			
-CF_CATCH_RSOF		JOB	FEXCPT_THROW_RSOF			
-CF_CATCH_CESF		JOB	FEXCPT_THROW_CESF		;corrupt exception stack frame 
 
 ;THROW ( k*x n -- k*x | i*x n )
 ;If any bits of n are non-zero, pop the topmost exception frame from the
@@ -384,94 +378,92 @@ CF_CATCH_CESF		JOB	FEXCPT_THROW_CESF		;corrupt exception stack frame
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-CF_THROW		PS_CHECK_UF	1, CF_THROW_PSUF	;PS for underflow (RSP -> Y)
+CF_THROW		PS_CHECK_UF	1			;PS for underflow (RSP -> Y)
 			LDD	2,Y+				;check if TOS is 0
 			BEQ	CF_THROW_1			;NEXT
 			STX	PSP
 			JOB	FEXCPT_THROW
 CF_THROW_1		STX	PSP
 			NEXT
-
-CF_THROW_PSUF		JOB	FEXCPT_THROW_PSUF			
 	
-;ERROR"
-;Non-standard S12CForth extension!
-;Defines a new throwable error code (n).		
-;Interpretation: ( "ccc<quote>" -- n )
-;Parse ccc delimited by " (double-quote) and put the error code onto the parameter stack.
-;Compilation: ( "ccc<quote>" -- )
-;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
-;below to the current definition.
-;Run-time: ( -- n )
-;Put the error code onto the parameter stack.
+;;ERROR"
+;;Non-standard S12CForth extension!
+;;Defines a new throwable error code (n).		
+;;Interpretation: ( "ccc<quote>" -- n )
+;;Parse ccc delimited by " (double-quote) and put the error code onto the parameter stack.
+;;Compilation: ( "ccc<quote>" -- )
+;;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
+;;below to the current definition.
+;;Run-time: ( -- n )
+;;Put the error code onto the parameter stack.
+;;
+;;S12CForth implementation details:
+;;Trows:
+;;"Parameter stack overflow"
+;;"Dictionary overflow"
+;;"Parsed string overflow"
+;;"Empty message string"
+;CF_ERROR_QUOTE		;Parse quote
+;			LDAA	#$22 				;double quote
+;			SSTACK_JOBSR	FCORE_PARSE
+;			TBEQ	X, CF_ERROR_QUOTE_NOMSG 	;empty quote
+;			IBEQ	A, CF_ERROR_QUOTE_STROF		;add CFA to count
+;			TAB
+;			CLRA	
+;			;Check state (string pointer in X, char count+1 in D)
+;			LDY	STATE				;ensure that compile mode is on
+;			BEQ	CF_ERROR_QUOTE_3		;interpetation mode
+;			;Compile mode (string pointer in X, char count+1 in D) 
+;			ADDD	#3				;check for dictionary overflow
+;			TFR	X, Y
+;			DICT_CHECK_OF_D	CF_ERROR_QUOTE_DICTOF 
+;			;Append run-time CFA (string pointer in Y)
+;			LDX	CP
+;			MOVW	#CFA_ERROR_QUOTE_RT, 2,X+
+;			;Append error level (CP in X, string pointer in Y)
+;CF_ERROR_QUOTE_1	MOVB	#ERROR_LEVEL_ERROR, 1,X+
+;			;Append quote (CP in X, string pointer in Y)
+;			CPSTR_Y_TO_X
+;			STX	CP
+;			INTERPRET_ONLY	CF_ERROR_QUOTE_2
+;			STX	CP_SAVED
+;			;Done
+;CF_ERROR_QUOTE_2	NEXT
+;			;Interpretation mode  (string pointer in X, char count+1 in D) 
+;CF_ERROR_QUOTE_3	ADDD	#1				;check for dictionary overflow
+;			TFR	X, Y
+;			DICT_CHECK_OF_D	CF_ERROR_QUOTE_DICTOF
+;			TFR	Y, X
+;			;Push CP onto PS (string pointer in Y)
+;			PS_CHECK_OF	1, CF_ERROR_QUOTE_PSOF 	;(PSP-2 cells -> Y)
+;			MOVW	CP, 0,Y
+;			STY	PSP
+;			TFR	X, Y
+;			LDX	CP
+;			JOB	CF_ERROR_QUOTE_1
+;	
+;CF_ERROR_QUOTE_PSOF	JOB	FEXCPT_THROW_PSOF			
+;CF_ERROR_QUOTE_DICTOF	JOB	FEXCPT_THROW_DICTOF			
+;CF_ERROR_QUOTE_STROF	JOB	FEXCPT_THROW_STROF		
+;CF_ERROR_QUOTE_NOMSG	JOB	FEXCPT_THROW_NOMSG		
 ;
-;S12CForth implementation details:
-;Trows:
-;"Parameter stack overflow"
-;"Dictionary overflow"
-;"Parsed string overflow"
-;"Empty message string"
-CF_ERROR_QUOTE		;Parse quote
-			LDAA	#$22 				;double quote
-			SSTACK_JOBSR	FCORE_PARSE
-			TBEQ	X, CF_ERROR_QUOTE_NOMSG 	;empty quote
-			IBEQ	A, CF_ERROR_QUOTE_STROF		;add CFA to count
-			TAB
-			CLRA	
-			;Check state (string pointer in X, char count+1 in D)
-			LDY	STATE				;ensure that compile mode is on
-			BEQ	CF_ERROR_QUOTE_3		;interpetation mode
-			;Compile mode (string pointer in X, char count+1 in D) 
-			ADDD	#3				;check for dictionary overflow
-			TFR	X, Y
-			DICT_CHECK_OF_D	CF_ERROR_QUOTE_DICTOF 
-			;Append run-time CFA (string pointer in Y)
-			LDX	CP
-			MOVW	#CFA_ERROR_QUOTE_RT, 2,X+
-			;Append error level (CP in X, string pointer in Y)
-CF_ERROR_QUOTE_1	MOVB	#ERROR_LEVEL_ERROR, 1,X+
-			;Append quote (CP in X, string pointer in Y)
-			CPSTR_Y_TO_X
-			STX	CP
-			INTERPRET_ONLY	CF_ERROR_QUOTE_2
-			STX	CP_SAVED
-			;Done
-CF_ERROR_QUOTE_2	NEXT
-			;Interpretation mode  (string pointer in X, char count+1 in D) 
-CF_ERROR_QUOTE_3	ADDD	#1				;check for dictionary overflow
-			TFR	X, Y
-			DICT_CHECK_OF_D	CF_ERROR_QUOTE_DICTOF
-			TFR	Y, X
-			;Push CP onto PS (string pointer in Y)
-			PS_CHECK_OF	1, CF_ERROR_QUOTE_PSOF 	;(PSP-2 cells -> Y)
-			MOVW	CP, 0,Y
-			STY	PSP
-			TFR	X, Y
-			LDX	CP
-			JOB	CF_ERROR_QUOTE_1
-	
-CF_ERROR_QUOTE_PSOF	JOB	FEXCPT_THROW_PSOF			
-CF_ERROR_QUOTE_DICTOF	JOB	FEXCPT_THROW_DICTOF			
-CF_ERROR_QUOTE_STROF	JOB	FEXCPT_THROW_STROF		
-CF_ERROR_QUOTE_NOMSG	JOB	FEXCPT_THROW_NOMSG		
-
-;ERROR" run-time semantics
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack overflow"
-CF_ERROR_QUOTE_RT		PS_CHECK_OF	1, CF_ERROR_QUOTE_PSOF 	;(PSP-2 cells -> Y)
-				;PUSH error code onto the PS 
-				LDX	IP
-				STX	0,Y
-				STY	PSP
-				;Advance IP (IP in X)
-				LEAX	1,X
-				PRINT_STRCNT
-				LEAX	A,X
-				STX	IP
-				;Done
-				NEXT
+;;ERROR" run-time semantics
+;;
+;;S12CForth implementation details:
+;;Throws:
+;;"Parameter stack overflow"
+;CF_ERROR_QUOTE_RT		PS_CHECK_OF	1, CF_ERROR_QUOTE_PSOF 	;(PSP-2 cells -> Y)
+;				;PUSH error code onto the PS 
+;				LDX	IP
+;				STX	0,Y
+;				STY	PSP
+;				;Advance IP (IP in X)
+;				LEAX	1,X
+;				PRINT_STRCNT
+;				LEAX	A,X
+;				STX	IP
+;				;Done
+;				NEXT
 	
 FEXCEPT_CODE_END		EQU	*
 FEXCEPT_CODE_END_LIN	EQU	@
@@ -569,19 +561,19 @@ CFA_CATCH		DW	CF_CATCH
 ;in the Core word set).
 CFA_THROW		DW	CF_THROW
 
-;Word ERROR"										IMMEDIATE
-;Non-standard S12CForth extension!
-;Defines a new throwable error code (n).		
-;Interpretation: ( "ccc<quote>" -- n )
-;Parse ccc delimited by " (double-quote) and put the error code onto the parameter stack.
-;Compilation: ( "ccc<quote>" -- )
-;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
-;below to the current definition.
-;Run-time: ( -- n )
-;Put the error code onto the parameter stack.
-CFA_ERROR_QUOTE		DW	CF_ERROR_QUOTE 			
-;ERROR" run-time semantics
-CFA_ERROR_QUOTE_RT	DW	CF_ERROR_QUOTE_RT 			
+;;Word ERROR"										IMMEDIATE
+;;Non-standard S12CForth extension!
+;;Defines a new throwable error code (n).		
+;;Interpretation: ( "ccc<quote>" -- n )
+;;Parse ccc delimited by " (double-quote) and put the error code onto the parameter stack.
+;;Compilation: ( "ccc<quote>" -- )
+;;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
+;;below to the current definition.
+;;Run-time: ( -- n )
+;;Put the error code onto the parameter stack.
+;CFA_ERROR_QUOTE		DW	CF_ERROR_QUOTE 			
+;;ERROR" run-time semantics
+;CFA_ERROR_QUOTE_RT	DW	CF_ERROR_QUOTE_RT 			
 	
 FEXCEPT_WORDS_END		EQU	*
 FEXCEPT_WORDS_END_LIN	EQU	@

@@ -437,7 +437,7 @@ NEXT_1			LDAA	IRQ			;check IRQ_ATTN flag	=> 3 cycles	 3 bytes
 NEXT_2			SEI				;make operation atomic
 			LDD	IRQ			;refetch IRQ
 			LSLD				;remove IRQ_ATTN bit
-			BMI	NEXT_4 			;suspend
+			BMI	NEXT_ 			;suspend
 			LSLD				;remove IRQ_SUSPEND bit
 			LSLD				;remove IRQ_INHIBIT bit
 			BLS	NEXT_ 			;No IRQs or IRQs are inhibited (C+Z=1)
@@ -457,9 +457,15 @@ NEXT_3			LEAX	2, X			;point to next vector table entry
 			EXEC_CFA_X			;execute ISR
 			ALLOW_IRQS			;enable pending interrupts
 			JOB	NEXT_2			;check for further interrupt requests
+
+
 			;Suspend  (IRQ<<1 in D)
 NEXT_4			;Catch all exceptions
+			
+			
 
+
+	
 
 			;No IRQs to execute 
 NEXT_			BCLR	IRQ, #IRQ_ATTN 		;clear IRQ_ATTN bit
