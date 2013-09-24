@@ -107,11 +107,6 @@ UDICT_PS_START		EQU	RS_TIB_END		;start of shared DICT/PAD/PS space
 UDICT_PS_END		EQU	MMAP_RAM_END		;end of shared DICT/PAD/PS space
 
 ;###############################################################################
-;# Includes                                                                    #
-;###############################################################################
-#include ./forth_Mini-BDM-Pod.s		;S12CForth bundle
-	
-;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 			ORG 	DEMO_VARS_START, DEMO_VARS_START_LIN
@@ -152,7 +147,7 @@ DEMO_VARS_END_LIN	EQU	@
 ;			MOVB	#ARM, DBGC1
 			
 ;Application code
-			JOB	CF_ABORT
+			JOB	FORTH_START
 
 ;			;Dump trace buffer
 ;DEMO_DUMP_TRACE		CLR	DBGC1
@@ -177,7 +172,26 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
+;#Welcome string
 DEMO_WELCOME		FCS	"This is the S12CForth Demo for the Mini-BDM-Pod"
 
 DEMO_TABS_END		EQU	*	
 DEMO_TABS_END_LIN	EQU	@	
+
+;###############################################################################
+;# Demo words                                                                  #
+;###############################################################################
+#ifdef DEMO_WORDS_START_LIN
+			ORG 	DEMO_WORDS_START, DEMO_WORDS_START_LIN
+#else
+			ORG 	DEMO_WORDS_START
+#endif	
+
+DEMO_WORDS_END		EQU	*	
+DEMO_WORDS_END_LIN	EQU	@
+
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+#include ./forth_Mini-BDM-Pod.s		;S12CForth bundle
+	

@@ -323,7 +323,8 @@ FEXCPT_THROW_2		FEXCPT_PRINT_ERROR 					;print error message
 ;"Parameter stack overflow"
 ;"Return stack overflow"
 ;"Corrupt exception stack frame"
-CF_CATCH		RS_CHECK_OF	3			;check RS requirements 
+CF_CATCH		EQU	*
+			RS_CHECK_OF	3			;check RS requirements 
 			PS_CHECK_UF	1			;check PS requirements (PSP -> Y)
 			;Build exception stack frame (PSP in Y)
 			LDX	RSP				;RSP -> X
