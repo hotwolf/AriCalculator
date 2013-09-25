@@ -73,6 +73,9 @@ SCI_DLY_OC		EQU	3		;OC3
 SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 
+;# STRING
+STRING_BLOCKING_ON		EQU	1		;enable blocking subroutines
+	
 ;# Temporary workarounds                                                       #
 FEXCPT_EC_COMERR		EQU	-61	;invalid RX data
 FEXCPT_EC_COMOF			EQU	-62	;RX buffer overflow

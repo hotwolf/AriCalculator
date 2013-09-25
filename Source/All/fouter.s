@@ -133,14 +133,14 @@ FOUTER_QUIT		EQU	*
 ; result: TIB:     command line	
 ;         TIB_CNT: char count
 ; SSTACK: 10 bytes
-FOUTER_QUERY		EQU	*	
+#macro 	FOUTER_QUERY
 			;Print prompt
 			LDX	#FOUTER_INTERPRET_PROMPT
 			STRING_PRINT_BL				;(SSTACK: 10 bytes)
 			;Signal input request
 			LED_BUSY_OFF
 			;Reset input pointer (X)
-FOUTER_QUERY_1		LDX	TIB_START
+FOUTER_QUERY_1		LDX	#TIB_START
 	
 			;Receive byte
 FOUTER_QUERY_2		SCI_RX_BL				;(SSTACK: 6 bytes)
@@ -200,16 +200,28 @@ FOUTER_QUERY_6		CPX	#TIB_START
 			;Input complete  (buffer pointer in X) 
 FOUTER_QUERY_7		LEAY	-TIB_START,X 			;calculate char count
 			STY	TO_IN
-			BEQ	FOUTER_QUERY_1 			;empty command line
+			BEQ	FOUTER_QUERY_8 			;empty command line
 			BSET	-1,X, #$80			;terminate command line string
 	
 			;Signal activity
-			LED_BUSY_ON
-
+FOUTER_QUERY_8		LED_BUSY_ON
+#emac
+FOUTER_QUERY	
 
 ;#Echo command line
 			LDX	#FOUTER_TIB_PROMPT
 			STRING_PRINT_BL
+			LDX	TO_IN
+			BEQ	FOUTER_QUIT
+			LDX	#TIB_START
+			STRING_PRINT_BL
+
+
+
+
+
+
+	
 			JOB	FOUTER_QUIT
 FOUTER_TIB_PROMPT	FOUTER_PROMPT	"TIB: "
 
