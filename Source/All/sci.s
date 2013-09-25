@@ -141,6 +141,8 @@
 ;#      - Mini-BDM-Pod uses XON/XOFF flow control instead of RTS/CTS           #
 ;#    November 14, 2012                                                        #
 ;#      - Total redo                                                           #
+;#    September 25, 2013                                                       #
+;#      - Fixed reception of C0 characters                                     #
 ;###############################################################################
 
 ;###############################################################################
@@ -1429,23 +1431,24 @@ SCI_ISR_RX_14		EQU	*
 SCI_ISR_RX_15		CMPB	#SCI_DLE
 			BNE	<SCI_ISR_RX_16				;done
 			BSET	SCI_FLGS, #SCI_FLG_RX_ESC 		;set escape marker	
-SCI_ISR_RX_16		JOB	SCI_ISR_RX_6 				;done
+			JOB	SCI_ISR_RX_6 				;done
 #else
 #ifdef	SCI_FC_XONXOFF
 			CMPB	#SCI_DLE
 			BNE	<SCI_ISR_RX_16				;done
 			BSET	SCI_FLGS, #SCI_FLG_RX_ESC 			;set escape marker	
-SCI_ISR_RX_16		JOB	SCI_ISR_RX_6 				;done
+			JOB	SCI_ISR_RX_6 				;done
 #else
 #ifdef	SCI_FC_SUSPEND
 			CMPB	#SCI_DLE
 			BNE	<SCI_ISR_RX_16				;done
 			BSET	SCI_FLGS, #SCI_FLG_RX_ESC 			;set escape marker	
-SCI_ISR_RX_16		JOB	SCI_ISR_RX_6 				;done
+			JOB	SCI_ISR_RX_6 				;done
 #endif
 #endif
 #endif
-	
+SCI_ISR_RX_16		JOB	SCI_ISR_RX_5 				;queue RX data
+
 #ifdef SCI_BD_ON
 #ifdef SCI_BD_TIM	
 ;#BD negedge ISR (default IC1)
