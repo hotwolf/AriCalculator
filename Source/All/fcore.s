@@ -5717,11 +5717,10 @@ CFA_ELSE_RT		EQU	CFA_AGAIN_RT
 ;display x. The effect of EMIT for all other values of x is
 ;implementation-defined.
 ;When passed a character whose character-defining bits have a value between hex
-;20 and 7E inclusive, the corresponding standard character, specified by 3.1.2.1
-;Graphic characters, is displayed. Because different output devices can respond
-;differently to control characters, programs that use control characters to
-;perform specific functions have an environmental dependency. Each EMIT deals
-;with only one character.
+;20 and 7E inclusive, the corresponding standard character is displayed. Because
+;different output devices can respond differently to control characters, programs
+;that use control characters to perform specific functions have an environmental
+;dependency. Each EMIT deals with only one character.
 CFA_EMIT		DW	CF_EMIT
 
 ;ENVIRONMENT? ( c-addr u -- false | i*x true )

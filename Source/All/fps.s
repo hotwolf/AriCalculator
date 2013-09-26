@@ -146,8 +146,8 @@ FPS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_PSUF
 ;         X and D are preserved 
 #macro	PS_CHECK_UF, 1
-#ifndef	FPS_NO_CHECK
 			LDY	PSP 			;=> 3 cycles
+#ifndef	FPS_NO_CHECK
 			CPY	#(PS_EMPTY-(2*\1))	;=> 2 cycles
 			BHI	FPS_THROW_PSUF		;=> 3 cycles/ 4 cycles
 							;  -------------------
@@ -162,9 +162,9 @@ FPS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_PSOF
 ;        X and D are preserved 
 #macro	PS_CHECK_OF, 1
-#ifndef	FPS_NO_CHECK
 			LDY	PSP 			;=> 3 cycles
 			LEAY	-(2*\1),Y		;=> 2 cycles
+#ifndef	FPS_NO_CHECK
 			CPY	PAD			;=> 3 cycles
 			BLO	FPS_THROW_PSOF		;=> 3 cycle / 4 cycles
 							;  -------------------
@@ -179,7 +179,6 @@ FPS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_PSOF
 ;         X and D are preserved 
 #macro	PS_CHECK_OF_D, 0
-#ifndef	FPS_NO_CHECK
 			LDY	PSP 			;=> 3 cycles
 			COMA				;=> 1 cycle
 			COMB				;=> 1 cycle
@@ -188,6 +187,7 @@ FPS_VARS_END_LIN	EQU	@
 			LEAY	2,Y			;=> 2 cycles
 			COMA				;=> 1 cycle
 			COMB				;=> 1 cycle
+#ifndef	FPS_NO_CHECK
 			CPY	PAD			;=> 3 cycles
 			BLO	FPS_THROW_PSOF		;=> 3 cycles/  4 cycles
 							;  --------------------
@@ -204,16 +204,18 @@ FPS_VARS_END_LIN	EQU	@
 ;         FEXCPT_EC_PSUF
 ;         X and D are preserved 
 #macro	PS_CHECK_UFOF, 2  
-#ifndef	FPS_NO_CHECK
 			LDY	PSP 			;=> 3 cycles
+#ifndef	FPS_NO_CHECK
 			CPY	#(PS_EMPTY-(2*\1))	;=> 2 cycles
 			BHI	FPS_THROW_PSUF		;=> 3 cycles/  4 cycles
+#endif
 			LEAY	-(2*\2),Y		;=> 2 cycles
+#ifndef	FPS_NO_CHECK
 			CPY	PAD			;=> 3 cycles
 			BLO	FPS_THROW_PSOF		;=> 3 cycles/  4 cycles
+#endif
 							;  --------------------
 							;  16 cycles/ 18 cycles
-#endif
 #emac
 	
 ;PS_PULL_X: Pull one entry from the parameter stack into index X (PSP -> Y)
@@ -274,8 +276,22 @@ FPS_VARS_END_LIN	EQU	@
 							;                         11 cycles
 #emac	
 
+;PS_PUSH: Push one entry from index X onto the return stack (PSP -> Y)
+; args:   1: value to push onto the PS
+; result: Y: PSP
+; SSTACK: none
+; throws: FEXCPT_EC_PSOF
+;         X and D are preserved 
+#macro	PS_PUSH, 1
+			PS_CHECK_OF	1		;check for overflow	=> 9 cycles
+			MOVW		\1, 0,Y		;PS -> Y		=> 4/5 cycles 
+			STY		PSP		;			=> 3   cycles
+							;                         ---------
+							;                         16/17 cycles
+#emac	
+
 ;PS_PUSH_X: Push one entry from index X onto the return stack (PSP -> Y)
-; args:   X: cell to push onto the PS
+; args:   X: value to push onto the PS
 ; result: Y: PSP
 ; SSTACK: none
 ; throws: FEXCPT_EC_PSOF
@@ -289,7 +305,7 @@ FPS_VARS_END_LIN	EQU	@
 #emac	
 
 ;PS_PUSH_D: Push one entry from accu D onto the return stack (PSP -> Y)
-; args:   D: cell to push onto the PS
+; args:   D: value to push onto the PS
 ; result: Y: PSP
 ; SSTACK: none
 ; throws: FEXCPT_EC_PSOF
@@ -303,7 +319,7 @@ FPS_VARS_END_LIN	EQU	@
 #emac	
 
 ;PS_PUSH_D_NOCHK: Push one entry from accu D onto the return stack (PSP -> Y)
-; args:   D: cell to push onto the PS
+; args:   D: value to push onto the PS
 ; result: Y: PSP
 ; SSTACK: none
 ; throws: FEXCPT_EC_PSOF

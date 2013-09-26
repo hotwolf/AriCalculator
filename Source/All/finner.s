@@ -176,9 +176,28 @@ FINNER_VARS_END_LIN	EQU	@
 IP_RESUME		DW	CFA_RESUME
 CFA_RESUME		DW	CF_RESUME
 CF_RESUME		EQU	*
-			RS_PULL IP, 			;RS -> IP
+			RS_PULL IP 			;RS -> IP
 #emac
-	
+
+;Execute a CF and jump to an absolute address
+; args:   1: CF
+;         2: address
+; result: see CF
+; SSTACK: none
+; PS:     see CF
+; RS:     1+CF usage
+; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CF)
+;         No registers are preserved
+#macro	EXEC_CF_JMP, 2
+			RS_PUSH IP			;IP -> RS
+			MOVW	#IP_RESUME, IP 		;set next IP
+			JOB	\1			;execute CF
+IP_RESUME		DW	CFA_RESUME
+CFA_RESUME		DW	CF_RESUME
+CF_RESUME		EQU	\2
+			RS_PULL IP 			;RS -> IP
+#emac
+
 ;Execute a CFA directly from assembler code
 ; args:   X: CFA
 ; result: see CF
@@ -298,21 +317,36 @@ CF_INNER		EQU		*
 CF_EOW			EQU	*
 			RS_PULL_Y			;RS -> Y (= IP)		=>12 cycles
 			STY		IP 		;			=> 3 cycles	=> 3 cycles 
-			NEXT
+CF_EOW_1		NEXT
 
-;CF_WAI ( -- ) Wait for any event
+
+;CF_NOP ( -- ) No operation
 ; args:   none	
 ; result: none
 ; SSTACK: none
 ;        D is preserved 
-CF_WAI			EQU	*
-			SEI				;disable interrupts
+CF_NOP			EQU		CF_EOW_1
+	
+;CF_WAIT ( xt -- ) Wait until the NEXT_PTR is modified
+; args:   PSP+0: xt checking for a condition ( -- flag )	
+; result: none
+; SSTACK: none
+;        D is preserved 
+CF_WAIT			EQU	*
+			;Check for change of NEXT_PTR 
+CF_WAIT_1		SEI				;disable interrupts
 			LDX	NEXT_PTR		;check for default NEXT pointer
 			CPX	#NEXT
-			BNE	CF_WAI_1	 	;not default next pointer
+			BEQ	CF_WAIT_2	 	;still default next pointer
+			CLI				;enable interrupts
+			;Execute non-default NEXT
+			NEXT
+			;Wait for any internal system event
+CF_WAIT_2		LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
-CF_WAI_1		NEXT	
-	
+			LED_BUSY_ON 			;signal activity
+			JOB	CF_WAIT_1		;check NEXT_PTR again
+
 FINNER_CODE_END		EQU	*
 FINNER_CODE_END_LIN	EQU	@
 	
@@ -338,13 +372,23 @@ FINNER_TABS_END_LIN	EQU	@
 			ORG 	FINNER_WORDS_START
 FINNER_WORDS_START_LIN	EQU	@
 #endif	
-
-;#Code Field Addresses:
-;======================
 			ALIGN	1
-; ( -- )
+;#ANSForth Words:
+;================
+
+;#S12CForth Words:
+;================
+;EOW ( -- )
 ;End of word
 CFA_EOW			DW	CF_EOW
+
+;Word: NOP ( -- )
+;No operation
+CFA_NOP			DW	CF_NOP
+
+;Word: WAIT ( -- )
+;Wait for any interrupt event. (Wait until NEXT_PTR has been changed.)
+CFA_WAIT		DW	CF_WAIT
 	
 FINNER_WORDS_END		EQU	*
 FINNER_WORDS_END_LIN	EQU	@

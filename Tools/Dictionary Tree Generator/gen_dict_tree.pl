@@ -26,6 +26,8 @@
 # Version History:                                                            #
 #    8 January, 2013                                                          #
 #      - Initial release                                                      #
+#    8 October, 2013                                                          #
+#      - Fixed output format                                                  #
 ###############################################################################
 
 #################
@@ -508,7 +510,20 @@ sub print_tree_layout {
 		printf FILEHANDLE "> %s %s\n", $tree->{$string}->{cfa_name}, $tree->{$string}->{is_immediate} ? "(immediate)" : "" ;
 	    } else {
 		#string is not terminated
-		printf FILEHANDLE sprintf("%%-%ds", ($max_string_length+1)), $nt_string;
+		#printf FILEHANDLE sprintf("%%-%ds", ($max_string_length+1)), $nt_string;
+		printf FILEHANDLE $nt_string;
+		my $arrow_length = $max_string_length-length($nt_string);
+		if ($arrow_length < 3) {
+		    printf FILEHANDLE sprintf("%%-%ds",  $arrow_length), " ";
+		} elsif ($arrow_length == 3) {
+		    printf FILEHANDLE " > ";
+		} else {
+		    printf FILEHANDLE " ";
+		    foreach my $i (0..($arrow_length-3)) {
+			printf FILEHANDLE "-";
+		    }
+		    printf FILEHANDLE "> ";
+		}
 		print_tree_layout($tree->{$string}, $new_pre_string);
 		if ($#strings >= 0) {
 		    printf FILEHANDLE "%s\n", $new_pre_string;
@@ -569,7 +584,11 @@ sub print_tree {
 	#Print substring entry
 	if ($nt_string eq $string) {
 	    #String is not terminated
-	    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", $nt_string;
+	    if ($nt_string !~ /\"/) {
+		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
+	    } else {
+		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
+	    }
 	    printf FILEHANDLE $instr_form, "", "DW", sprintf($label_format, join("_", @$position, $string_index)), sprintf("%s...", $combo_string);
 	    
 	    #Optimize subtree order
@@ -600,7 +619,11 @@ sub print_tree {
 	    }       	    
 	    if (length($nt_string) > 0) {
 		#Non-zero length
-		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", $nt_string;
+	    if ($nt_string !~ /\"/) {
+		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
+	    } else {
+		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
+	    }
 		printf FILEHANDLE $instr_form_nc, "", "DB", "STRING_TERMINATION";
 	    } else {
 		printf FILEHANDLE $instr_form_nc, $left_col, "DB", "STRING_TERMINATION";
