@@ -30,7 +30,6 @@
 ;#	       Index Register X is used to implement W.                        #
 ;#        IP = Instruction pointer.					       #
 ;#             Points to the next execution token.			       #
-;#       IRQ = Interrupt mask                                                  #
 ;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -85,8 +84,7 @@ FINNER_VARS_START_LIN	EQU	@
 #endif	
 			ALIGN	1	
 IP			DS	2 		;instruction pointer
-IRQ			DS	2		;interrupt flags
-NEXT_PTR		DS	2		;pointer to 
+NEXT_PTR		DS	2		;pointer to the NEXT code 
 
 FINNER_VARS_END		EQU	*
 FINNER_VARS_END_LIN	EQU	@
@@ -103,23 +101,15 @@ FINNER_VARS_END_LIN	EQU	@
 #macro	FINNER_ABORT, 0
 #emac
 	
-;#Quit action (to be executed on QUIT)
+;#Quit action (to be executed in addition of suspend action)
 #macro	FINNER_QUIT, 0
-			FINNER_INIT
+			MOVW	#NEXT, NEXT_PTR
 #emac
 	
-;Break/suspend handling:
-;=======================
-;#Break: Set break indicator and perform a systewm reset
-#macro	SCI_BREAK_ACTION, 0
-			RESET_RESTART_NO_MSG	
+;#Suspend action
+#macro	FINNER_SUSPEND, 0
 #emac
 
-;#Suspend: Set suspend flag
-#macro	SCI_SUSPEND_ACTION, 0
-			QUIT
-#emac
-	
 ;Inner interpreter:
 ;==================
 
@@ -158,44 +148,19 @@ FINNER_VARS_END_LIN	EQU	@
 #macro	JUMP_NEXT, 0	
 			JOB	JUMP_NEXT		;run next instruction	=> 3 cycles	 3 bytes
 #emac
-
-;Enable/disable interrupts:
-;==========================
-
+	
+;#RESTORE_NEXT_PTR: Restore default NEXT_PTR
 ; args:	  none
-; result: none
+; result: none 
 ; SSTACK: none
-;         X and Y are preserved
-#macro	ALLOW_IRQS, 0	
-			SEI				;make operation atomic
-			LDD	IRQ			;fetch IRQ
-			ANDA	#~IRQ_INIBIT		;clear IRQ_INHIBIT bit
-			BNE	ALLOW_IRQS_1		;set IRQ_ATTN
-			TBEQ	B, ALLOW_IRQS_2		;don't set IRQ_ATTN
-ALLOW_IRQS_1		ORAA	#IRQ_ATTN		;set IRQ_ATTN
-ALLOW_IRQS_2		STAA	IRQ			;update IRQ
-			CLI				;end atomic operation
-#emac
-
-;#ALLOW_IRQS
-;#INHIBIT_IRQS
-; args:	  none
-; result: none
-; SSTACK: none
-;         X and Y are preserved
-#macro	INHIBIT_IRQS, 0	
-			SEI				;make operation atomic
-			LDAA	IRQ			;fetch IRQ
-			BITA	#~IRQ_SUSPEND		;check IRQ_SUSPEND bit
-			BNE	INHIBIT_IRQS_1		;keep IRQ_ATTN set
-			ANDA	#~IRQ_ATTN		;clear IRQ_ATTN
-INHIBIT_IRQS_1		STAA	IRQ			;update IRQ
-			CLI				;end atomic operation
+;         All registers are preserved
+#macro	RESTORE_NEXT_PTR, 0	
+			MOVW	#NEXT, NEXT_PTR
 #emac
 	
 ;CF/CFA/ISR execution from assembly code:
 ;========================================
-
+	
 ;Execute a CF directly from assembler code
 ; args:   1: CF
 ; result: see CF
@@ -244,7 +209,6 @@ FINNER_CODE_START_LIN	EQU	@
 	
 ;Inner interpreter:
 ;==================
-
 
 ;#SKIP_NEXT: skip next instruction and jump to one after
 ; args:	  IP:  pointer to next instruction
@@ -303,23 +267,11 @@ NEXT			EQU	*
 			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
 							;                         ---------
 							;                         15 cycles
-
-
-
-
-
-
-
-
-
-
-
-
 	
 ;Code fields:
 ;============ 	
 
-;CF_INNER   ( -- )	Execute the first execution token after the CFA (CFA in X)
+;CF_INNER ( -- ) Execute the first execution token after the CFA (CFA in X)
 ; args:   IP:  next execution token	
 ;         W/X: current CFA
 ; result: IP:  subsequent execution token
@@ -343,22 +295,24 @@ CF_INNER		EQU		*
 ; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;        D is preserved 
-CF_EXIT			RS_PULL_Y			;RS -> Y (= IP)		=>12 cycles
+CF_EOW			EQU	*
+			RS_PULL_Y			;RS -> Y (= IP)		=>12 cycles
 			STY		IP 		;			=> 3 cycles	=> 3 cycles 
-			JOB		CF_EXIT_1
-CF_EXIT_1		EQU		NEXT_1
-
-
-;Word: IRQEN ( -- )
-;Enable interrupts 
-CF_IRQEN		ALLOW_IRQS
 			NEXT
 
-;Word: IRQDIS ( -- )
-;Disable interrupts 
-CF_IRQDIS		INIBIT_IRQS
-			NEXT
-
+;CF_WAI ( -- ) Wait for any event
+; args:   none	
+; result: none
+; SSTACK: none
+;        D is preserved 
+CF_WAI			EQU	*
+			SEI				;disable interrupts
+			LDX	NEXT_PTR		;check for default NEXT pointer
+			CPX	#NEXT
+			BNE	CF_WAI_1	 	;not default next pointer
+			ISTACK_WAIT			;wait for next interrupt
+CF_WAI_1		NEXT	
+	
 FINNER_CODE_END		EQU	*
 FINNER_CODE_END_LIN	EQU	@
 	
@@ -371,36 +325,6 @@ FINNER_CODE_END_LIN	EQU	@
 			ORG 	FINNER_TABS_START
 FINNER_TABS_START_LIN	EQU	@
 #endif	
-
-FINNER_ISR_TAB		EQU	*
-			DW	FINNER_ISR_PRIO_C
-			DW	FINNER_ISR_PRIO_B
-			DW	FINNER_ISR_PRIO_A
-			DW	FINNER_ISR_PRIO_9
-			DW	FINNER_ISR_PRIO_8
-			DW	FINNER_ISR_PRIO_7
-			DW	FINNER_ISR_PRIO_6
-			DW	FINNER_ISR_PRIO_5
-			DW	FINNER_ISR_PRIO_4
-			DW	FINNER_ISR_PRIO_3
-			DW	FINNER_ISR_PRIO_2
-			DW	FINNER_ISR_PRIO_1
-			DW	FINNER_ISR_PRIO_0
-
-FINNER_MASK_TAB		EQU	*
-			DW	FINNER_MASK_PRIO_C
-			DW	FINNER_MASK_PRIO_B
-			DW	FINNER_MASK_PRIO_A
-			DW	FINNER_MASK_PRIO_9
-			DW	FINNER_MASK_PRIO_8
-			DW	FINNER_MASK_PRIO_7
-			DW	FINNER_MASK_PRIO_6
-			DW	FINNER_MASK_PRIO_5
-			DW	FINNER_MASK_PRIO_4
-			DW	FINNER_MASK_PRIO_3
-			DW	FINNER_MASK_PRIO_2
-			DW	FINNER_MASK_PRIO_1
-			DW	FINNER_MASK_PRIO_0
 	
 FINNER_TABS_END		EQU	*
 FINNER_TABS_END_LIN	EQU	@
@@ -421,22 +345,6 @@ FINNER_WORDS_START_LIN	EQU	@
 ; ( -- )
 ;End of word
 CFA_EOW			DW	CF_EOW
-
-; ( -- )
-;Return from interrupt
-CFA_RTI			DW	CF_RTI
-	
-;Word: WAI ( -- )
-;Wait for interrupt 
-CFA_WAI 		DW	CF_WAI
-	
-;Word: IRQEN ( -- )
-;Enable interrupts 
-CFA_IRQEN		DW	CF_IRQEN
-
-;Word: IRQDIS ( -- )
-;Disable interrupts 
-CFA_IRQDIS		DW	CF_IRQDIS
 	
 FINNER_WORDS_END		EQU	*
 FINNER_WORDS_END_LIN	EQU	@

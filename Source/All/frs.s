@@ -62,7 +62,7 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;Debug option for stack over/underflows
-;FRS_DEBUG		EQU	1 
+;FRS_DEBUG		EQU	1
 	
 ;Disable stack range checks
 ;FRS_NO_CHECK	EQU	1 
@@ -78,9 +78,11 @@
 RS_EMPTY		EQU	RS_TIB_END
 
 ;Error codes
+#ifndef	FRS_NO_CHECK
 FRS_EC_OF		EQU	FEXCPT_EC_RSOF		;RS overflow   (-5)
 FRS_EC_UF		EQU	FEXCPT_EC_RSUF		;RS underflow  (-6)
-	
+#endif
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -101,8 +103,8 @@ FRS_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FRS_INIT, 0
-			;Initialize parameter stack
-			MOVW	#PS_EMPTY,	PSP		
+			;Initialize return stack
+			MOVW	#RS_EMPTY,	RSP		
 #emac
 
 ;#Abort action (to be executed in addition of quit and suspend action)
@@ -252,17 +254,20 @@ FRS_VARS_END_LIN	EQU	@
 			ORG 	FRS_CODE_START
 FRS_CODE_START_LIN	EQU	@
 #endif
-			JOB	FRS_PAD_ALLOC_2	;done
+
+			;JOB	FRS_PAD_ALLOC_2	;done
 
 ;Exceptions:
 ;===========
 ;Standard exceptions
+#ifndef FRS_NO_CHECK
 #ifdef FRS_DEBUG
 FRS_THROW_PSOF		BGND					;return stack overflow
 FRS_THROW_PSUF		BGND					;return stack underflow
 #else
 FRS_THROW_PSOF		FEXCPT_THROW	FEXCPT_EC_RSOF		;return stack overflow
 FRS_THROW_PSUF		FEXCPT_THROW	FEXCPT_EC_RSUF		;return stack underflow
+#endif
 #endif
 	
 FRS_CODE_END		EQU	*

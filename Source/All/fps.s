@@ -82,11 +82,13 @@
 ;# Constants                                                                   #
 ;###############################################################################
 ;Bottom of parameter stack
-PS_EMPTY		EQU	UDUCT_PS_END
+PS_EMPTY		EQU	UDICT_PS_END
 
 ;Error codes
+#ifndef FPS_NO_CHECK	EQU	1 
 FPS_EC_OF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
 FPS_EC_UF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
+#endif
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -115,7 +117,7 @@ FPS_VARS_END_LIN	EQU	@
 ;#Abort action (to be executed in addition of quit and suspend action)
 #macro	FPS_ABORT, 0
 			;Reset parameter stack
-			MOVW	#PR_EMPTY,	PSP		
+			MOVW	#PS_EMPTY,	PSP		
 #emac
 	
 ;#Quit action (to be executed in addition of suspend action)
@@ -214,7 +216,7 @@ FPS_VARS_END_LIN	EQU	@
 #endif
 #emac
 	
-;PS_PULL_X: pull one entry from the parameter stack into index Y (PSP -> Y)
+;PS_PULL_X: Pull one entry from the parameter stack into index X (PSP -> Y)
 ; args:   none
 ; result: X: pulled PS content
 ;	  Y: PSP
@@ -229,7 +231,21 @@ FPS_VARS_END_LIN	EQU	@
 							;                         14 cycles
 #emac	
 	
-;PS_PULL_D: pull one entry from the parameter stack into accu D (PSP -> Y)
+;PS_COPY_X: Copy one entry from the parameter stack into index X (PSP -> Y)
+; args:   none
+; result: D: copied PS content
+;	  Y: PSP
+; SSTACK: none
+; throws: FEXCPT_EC_PSUF
+;         X is preserved 
+#macro	PS_COPY_X, 0
+			PS_CHECK_UF	1		;check for underflow	=> 8 cycles
+			LDX		2,Y+		;PS -> Y		=> 3 cycles 
+							;                         ---------
+							;                         11 cycles
+#emac	
+
+;PS_PULL_D: Pull one entry from the parameter stack into accu D (PSP -> Y)
 ; args:   none
 ; result: D: pulled PS content
 ;	  Y: PSP
@@ -244,6 +260,20 @@ FPS_VARS_END_LIN	EQU	@
 							;                         14 cycles
 #emac	
 	
+;PS_COPY_D: Copy one entry from the parameter stack into accu D (PSP -> Y)
+; args:   none
+; result: D: copied PS content
+;	  Y: PSP
+; SSTACK: none
+; throws: FEXCPT_EC_PSUF
+;         X is preserved 
+#macro	PS_COPY_D, 0
+			PS_CHECK_UF	1		;check for underflow	=> 8 cycles
+			LDD		2,Y+		;PS -> Y		=> 3 cycles 
+							;                         ---------
+							;                         11 cycles
+#emac	
+
 ;PS_PUSH_X: Push one entry from index X onto the return stack (PSP -> Y)
 ; args:   X: cell to push onto the PS
 ; result: Y: PSP
@@ -285,6 +315,22 @@ FPS_VARS_END_LIN	EQU	@
 							;                         ---------
 							;                          9 cycles
 #emac	
+
+;PS_DROP: Remove entries from the parameter stack (PSP -> Y)
+; args:   none
+; result: 1: number of cells to remove
+;	  Y: PSP
+; SSTACK: none
+; throws: FEXCPT_EC_PSUF
+;         X is preserved 
+#macro	PS_DROP, 1
+			PS_CHECK_UF	\1		;check for underflow	=> 8 cycles
+			LEAY		(2*\1),Y	;PS -> Y		=> 2 cycles 
+			STY		PSP		;			=> 3 cycles
+							;                         ---------
+							;                         14 cycles
+#emac	
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -298,12 +344,14 @@ FPS_CODE_START_LIN	EQU	@
 ;Exceptions:
 ;===========
 ;Standard exceptions
+#ifndef FPS_NO_CHECK
 #ifdef FPS_DEBUG
 FPS_THROW_PSOF		BGND					;parameter stack overflow
 FPS_THROW_PSUF		BGND					;parameter stack underflow
 #else
 FPS_THROW_PSOF		FEXCPT_THROW	FEXCPT_EC_PSOF		;parameter stack overflow
 FPS_THROW_PSUF		FEXCPT_THROW	FEXCPT_EC_PSUF		;parameter stack underflow
+#endif
 #endif
 	
 FPS_CODE_END		EQU	*

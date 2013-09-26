@@ -85,6 +85,9 @@ FOUTER_VARS_START_LIN	EQU	@
 			ALIGN	1	
 STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
 BASE			DS	2 		;number conversion radix
+
+
+
 NUMBER_TIB  		DS	2		;number of chars in the TIB
 TO_IN  			DS	2		;in pointer of the TIB (TIB_START+TO_IN point to the next empty byte)
 	
@@ -106,6 +109,21 @@ FOUTER_VARS_END_LIN	EQU	@
 	
 ;#Quit action (to be executed in addition of suspend action)
 #macro	FOUTER_QUIT, 0
+#emac
+	
+;#Suspend action
+#macro	FOUTER_SUSPEND, 0
+#emac
+	
+;Break/suspend handling:
+;=======================
+;#Break: Set break indicator and perform a systewm reset
+#macro	SCI_BREAK_ACTION, 0
+			RESET_RESTART_NO_MSG	
+#emac
+
+;#Suspend: Set suspend flag
+#macro	SCI_SUSPEND_ACTION, 0
 #emac
 	
 ;###############################################################################
@@ -133,7 +151,7 @@ FOUTER_QUIT		EQU	*
 ; result: TIB:     command line	
 ;         TIB_CNT: char count
 ; SSTACK: 10 bytes
-#macro 	FOUTER_QUERY
+#macro 	FOUTER_QUERY, 0
 			;Print prompt
 			LDX	#FOUTER_INTERPRET_PROMPT
 			STRING_PRINT_BL				;(SSTACK: 10 bytes)
@@ -229,7 +247,7 @@ FOUTER_TIB_PROMPT	FOUTER_PROMPT	"TIB: "
 ;============ 	
 
 ;CF_ABORT ( -- ) Abort and start outer interpreter
-CF_QUIT			EQU	FOUTER_ABORT
+CF_ABORT		EQU	FOUTER_ABORT
 
 ;CF_QUIT ( -- ) start outer interpreter
 CF_QUIT			EQU	FOUTER_QUIT

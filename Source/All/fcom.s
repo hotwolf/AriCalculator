@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CForth - FIO - I/O Handler for the S12CForth Framework                   #
+;# S12CForth - FCOM - Communication Interface for the S12CForth Framework      #
 ;###############################################################################
 ;#    Copyright 2011 Dirk Heisswolf                                            #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
@@ -49,87 +49,83 @@
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef FIO_VARS_START_LIN
-			ORG 	FIO_VARS_START, FIO_VARS_START_LIN
+#ifdef FCOM_VARS_START_LIN
+			ORG 	FCOM_VARS_START, FCOM_VARS_START_LIN
 #else
-			ORG 	FIO_VARS_START
-FIO_VARS_START_LIN	EQU	@
+			ORG 	FCOM_VARS_START
+FCOM_VARS_START_LIN	EQU	@
 #endif
 
-FIO_VARS_END		EQU	*
-FIO_VARS_END_LIN	EQU	@
+FCOM_VARS_END		EQU	*
+FCOM_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	FIO_INIT, 0
+#macro	FCOM_INIT, 0
 #emac
 
-;#Turn busy signal on
-#macro	FIO_SIGNAL_BUSY_ON, 0
-#ifdef LED_CODE_START
-			LED_BUSY_ON
-#endif
-#emac
-
-;#Turn busy signal off
-#macro	FIO_SIGNAL_BUSY_OFF, 0
-#ifdef LED_CODE_START
-			LED_BUSY_OFF
-#endif
+;#Abort action (to be executed in addition of quit and suspend action)
+#macro	FCOM_ABORT, 0
 #emac
 	
+;#Quit action (to be executed in addition of suspend action)
+#macro	FCOM_QUIT, 0
+#emac
+	
+;#Suspend action
+#macro	FCOM_SUSPEND, 0
+#emac
+		
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef FIO_CODE_START_LIN
-			ORG 	FIO_CODE_START, FIO_CODE_START_LIN
+#ifdef FCOM_CODE_START_LIN
+			ORG 	FCOM_CODE_START, FCOM_CODE_START_LIN
 #else
-			ORG 	FIO_CODE_START
-FIO_CODE_START_LIN	EQU	@
+			ORG 	FCOM_CODE_START
+FCOM_CODE_START_LIN	EQU	@
 #endif
 
-;#Read a byte character from the SCI
+;Code fields:
+;============ 	
+
+;EKEY ( -- u ) Read a byte character
 ; args:   none
 ; result: PSP+0: RX data
-; SSTACK: 6 bytes
+; SSTACK: 4 bytes
 ; PS:     1 cell
 ; RS:     none
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_COMERR
 ;         FEXCPT_EC_COMOF
 CF_EKEY			EQU	*
-			;Receive one byte
+			;RX loop
 CF_EKEY_1		SEI				;disable interrupts
-			SCI_RX_NB			;try to read from SCI (SSTACK: 6 bytes)
-			BCS	CF_EKEY_3		;successful
-			FIRQ_CHECK_IRQ	CF_EKEY_2	;check if interrupts are pending
-			ISTACK_WAIT			;wait for next interrupt
-			JOB	CF_EKEY_1		;try again
-			;Execute all pending ISRs
-CF_EKEY_2		CLI				;enable interrupts
-			FIRQ_EXEC_IRQ
-			JOB	CF_EKEY_1		;try again
+			SCI_RX_NB			;try to read from SCI (SSTACK: 4 bytes)
+			BCS	CF_EKEY_2		;successful
+			EXEC_CF	CF_WAI			;Wait for any event
+			JOB	CF_EKEY_1		;try again			
 			;One byte has been received (flags in A, data in B)
-CF_EKEY_3		CLI				;enable interrupts
+CF_EKEY_2		CLI				;enable interrupts
 			;Check for RX errors (flags in A, data in B)
 			BITA	#(NF|FE|PE)
-			BNE	FIO_EKEY_4 		;RX error
+			BNE	CF_EKEY_3 		;RX error
 			;Check for buffer overflows (flags in A, data in B)
 			BITA	#(SCI_FLG_SWOR|OR)
-			BNE	CF_EKEY_5 		;buffer overflow
+			BNE	CF_EKEY_4 		;buffer overflow
 			;Push data onto the parameter stack  (flags in A, data in B)
 			CLRA
 			PS_PUSH_D
 			;Done
 			NEXT
 			;Throw communication error
-CF_EKEY_4		FEXCPT_THROW	FEXCPT_EC_COMERR	
+CF_EKEY_3		FEXCPT_THROW	FEXCPT_EC_COMERR	
 			;Throw communication overflow error
-CF_EKEY_5		FEXCPT_THROW	FEXCPT_EC_COMOF	
+CF_EKEY_4		FEXCPT_THROW	FEXCPT_EC_COMOF	
 	
-;#Check if SCI has received data
+;EKEY? ( -- flag ) Check for data
 ; args:   none
 ; result: PSP+0: flag (true if data is available)
 ; SSTACK: 4 bytes
@@ -137,19 +133,17 @@ CF_EKEY_5		FEXCPT_THROW	FEXCPT_EC_COMOF
 ; RS:     none
 ; throws: FEXCPT_EC_PSOF
 CF_EKEY_QUESTION	EQU	*
-			;Check stack
-			PS_CHECK_OF, 1 			;check parameter stack
-			;Push TRUE onto the stack (new PSP in Y)
-			MOVW	#TRUE, 0,Y
-			STY	PSP
-			;Check if read data is available (PSP in Y)
-			SCI_RX_READY_NB			 
-			BCS	CF_EKEY_QUESTION_1 	;done
-			MOVW	#FALSE, 0,Y 		;return false
+			;Check if read data is available
+			CLRB				;initialize B
+			SCI_RX_READY_NB			;check RX queue (SSTACK: 4 bytes)
+			SBCB	#$00			;set or clear all bits in B
+			TBA				;B -> A
+			;Push the result onto the PS
+			PS_PUSH_D
 			;Done
-CF_EKEY_QUESTION_1	NEXT
+			NEXT
 	
-;#Tansmit a byte character over the SCI
+;EMIT ( x -- ) Tansmit a byte character
 ; args:   PSP+0: RX data
 ; result: none
 ; SSTACK: 5 bytes
@@ -157,25 +151,22 @@ CF_EKEY_QUESTION_1	NEXT
 ; RS:     none
 ; throws: FEXCPT_EC_PSUF
 CF_EMIT			EQU	*
-			;Pull data from parameter stack
-			PS_PULL_D
+			;Read data from parameter stack
+CF_EMIT_1		PS_COPY_D
 			;Teansmit data (data in D)
-CF_EMIT_1		SEI				;disable interrupts
+			SEI				;disable interrupts
 			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
-			BCS	CF_EMIT_3		;successful
-			FIRQ_CHECK_IRQ	CF_EMIT_2	;check if interrupts are pending
-			ISTACK_WAIT			;wait for next interrupt
-			JOB	CF_EMIT_1		;try again
-			;Execute all pending ISRs
+			BCS	CF_EMIT_2		;successful
+			EXEC_CF	CF_WAI			;Wait for any event
+			JOB	CF_EMIT_1		;try again			
+			;One byte has been send
 CF_EMIT_2		CLI				;enable interrupts
-			FIRQ_EXEC_IRQ
-			JOB	CF_EMIT_1		;try again
-			;One byte has been transmittet
-CF_EMIT_3		CLI				;enable interrupts
+			;Remove parameter from stack
+			PS_DROP, 1
 			;Done
 			NEXT
 
-;#Check if data can be sent over the SCI
+;EMIT? ( -- flag ) Check if data can be sent over the SCI
 ; args:   none
 ; result: PSP+0: flag (true if data is available)
 ; SSTACK: 4 bytes
@@ -183,43 +174,67 @@ CF_EMIT_3		CLI				;enable interrupts
 ; RS:     none
 ; throws: FEXCPT_EC_PSOF
 CF_EMIT_QUESTION	EQU	*
-			;Check stack
-			PS_CHECK_OF, 1 			;check parameter stack
-			;Push TRUE onto the stack (new PSP in Y)
-			MOVW	#TRUE, 0,Y
-			STY	PSP
-			;Check if read data is available (PSP in Y)
-			SCI_TX_READY_NB			 
-			BCS	CF_EMIT_QUESTION_1 	;done
-			MOVW	#$FALSE, 0,Y 		;return false
+			;Check if read data is available
+			CLRB				;initialize B
+			SCI_TX_READY_NB			;check RX queue (SSTACK: 4 bytes)
+			SBCB	#$00			;set or clear all bits in B
+			TBA				;B -> A
+			;Push the result onto the PS
+			PS_PUSH_D
 			;Done
 			NEXT
 	
-FIO_CODE_END		EQU	*
-FIO_CODE_END_LIN	EQU	@
 
+
+;PRINT ( c-addr -- ) Print a terminated string
+; args:   address of a terminated string
+; result: none
+; SSTACK: 8 bytes
+; PS:     1 cell
+; RS:     none
+; throws: FEXCPT_EC_PSOF
+CF_PRINT		EQU	*
+			;Read data from parameter stack
+CF_PRINT_1		PS_COPY_X
+			;Print string (string in X, PSP in Y)
+			SEI				;disable interrupts
+			STRING_PRINT_NB			;try to write to SCI (SSTACK: 8 bytes)
+			BCS	CF_PRINT_2		;successful
+			STX	0,Y			;update string pointer
+			EXEC_CF	CF_WAI			;Wait for any event
+			JOB	CF_PRINT_1		;try again			
+			;One byte has been send
+CF_PRINT_2		CLI				;enable interrupts
+			;Remove parameter from stack
+			PS_DROP, 1
+			;Done
+			NEXT
+
+FCOM_CODE_END		EQU	*
+FCOM_CODE_END_LIN	EQU	@
+	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef FIO_TABS_START_LIN
-			ORG 	FIO_TABS_START, FIO_TABS_START_LIN
+#ifdef FCOM_TABS_START_LIN
+			ORG 	FCOM_TABS_START, FCOM_TABS_START_LIN
 #else
-			ORG 	FIO_TABS_START
-FIO_TABS_START_LIN	EQU	@
+			ORG 	FCOM_TABS_START
+FCOM_TABS_START_LIN	EQU	@
 #endif	
 
-FIO_TABS_END		EQU	*
-FIO_TABS_END_LIN	EQU	@
+FCOM_TABS_END		EQU	*
+FCOM_TABS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Words                                                                       #
 ;###############################################################################
-#ifdef FIO_WORDS_START_LIN
-			ORG 	FIO_WORDS_START, FIO_WORDS_START_LIN
+#ifdef FCOM_WORDS_START_LIN
+			ORG 	FCOM_WORDS_START, FCOM_WORDS_START_LIN
 #else
-			ORG 	FIO_WORDS_START
-FIO_WORDS_START_LIN	EQU	@
+			ORG 	FCOM_WORDS_START
+FCOM_WORDS_START_LIN	EQU	@
 #endif	
 
-FIO_WORDS_END		EQU	*
-FIO_WORDS_END_LIN	EQU	@
+FCOM_WORDS_END		EQU	*
+FCOM_WORDS_END_LIN	EQU	@
