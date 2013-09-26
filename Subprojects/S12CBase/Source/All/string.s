@@ -64,7 +64,7 @@
 ;Enable blocking subroutines
 #ifndef	STRING_BLOCKING_ON
 #ifndef	STRING_BLOCKING_OFF
-STRING_BLOCKING_OFF	EQU	1 	;blocking functions disabled by default
+STRING_BLOCKING_ON	EQU	1 	;blocking functions enabled by default
 #endif
 #endif
 
@@ -231,11 +231,9 @@ STRING_VARS_END_LIN	EQU	@
 ; args:   1: non-blocking function
 ;         2: subroutine stack usage of non-blocking function (min. 4)
 ; SSTACK: stack usage of non-blocking function + 2
-;         rgister output of the non-blocking function is preserved 
+;         register output of the non-blocking function is preserved 
 #macro	STRING_CALL_BL, 2
-LOOP			;Wait until TX buffer accepts new data
-			SCI_TX_READY_BL
-			;Call non-blocking function
+LOOP			;Call non-blocking function
 			SSTACK_JOBSR	\1, \2
 			BCC	LOOP 		;function unsuccessful
 #emac
