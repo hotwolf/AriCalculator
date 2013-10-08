@@ -225,8 +225,9 @@ RESET_INIT_5		LDD	$0000
 			JOB	RESET_RESTART_NO_MSG
 #emac
 	
-;#Check error message string and calculate checksum
-; args:   X:      error message
+;#Calculate the checksum of the custom error message
+; args:   X:      error message	
+;         Y:      return address	
 ; result: A:      checksum
 ;         C-flag: set if message is valid
 ;         none of the registers are preserved 
@@ -235,14 +236,6 @@ RESET_INIT_5		LDD	$0000
 			JOB	RESET_CALC_CHECKSUM
 DONE			EQU	*
 #emac
-
-;#Calculate the checksum of the custom error message
-; args:   X:      error message	
-;         Y:      return address	
-; result: A:      checksum
-;         C-flag: set if message is valid
-;         none of the registers are preserved 
-
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -359,7 +352,7 @@ RESET_FATAL_X_4		CLRA
 			CLRB
 			STD	RESET_MSG
 			STAA	RESET_MSG_CHKSUM
-			JOB	RESET_FATAL_X_3 		;trigger COP
+			JOB	RESET_FATAL_X_3 	;trigger COP
 
 ;#Trigger a fatal error if a reset accurs
 RESET_ISR_FATAL		EQU	*
