@@ -54,6 +54,13 @@ FCDICT_VARS_START_LIN	EQU	@
 FCDICT_VARS_END		EQU	*
 FCDICT_VARS_END_LIN	EQU	@
 
+;###############################################################################
+;# Macros                                                                      #
+;###############################################################################
+;#Initialization
+#macro	FCDICT_INIT, 0
+#emac
+
 ;#Abort action (to be executed in addition of quit and suspend action)
 #macro	FCDICT_ABORT, 0
 #emac
@@ -66,13 +73,6 @@ FCDICT_VARS_END_LIN	EQU	@
 #macro	FCDICT_SUSPEND, 0
 #emac
 	
-;###############################################################################
-;# Macros                                                                      #
-;###############################################################################
-;#Initialization
-#macro	FCDICT_INIT, 0
-#emac
-
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################

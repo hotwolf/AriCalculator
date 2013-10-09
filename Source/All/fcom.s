@@ -29,9 +29,9 @@
 ;#      - Initial release                                                      #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    BASE - S12CBase framework                                                #
-;#    FCORE - Forth core words                                                 #
-;#    FMEM - Forth memories                                                    #
+;#    BASE   - S12CBase framework                                              #
+;#    FPS    - Forth parameter stack                                           #
+;#    FINNER - Forth inner interpreter                                         #
 ;#    FEXCPT - Forth exceptions                                                #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #

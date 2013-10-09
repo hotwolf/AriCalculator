@@ -271,7 +271,7 @@ FPS_VARS_END_LIN	EQU	@
 ;         X is preserved 
 #macro	PS_COPY_D, 0
 			PS_CHECK_UF	1		;check for underflow	=> 8 cycles
-			LDD		2,Y+		;PS -> Y		=> 3 cycles 
+			LDD		0,Y		;PS -> Y		=> 3 cycles 
 							;                         ---------
 							;                         11 cycles
 #emac	

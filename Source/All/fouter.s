@@ -37,9 +37,9 @@
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    BASE - S12CBase framework                                                #
-;#    FCORE - Forth core words                                                 #
-;#    FMEM - Forth memories                                                    #
-;#    FEXCPT - Forth exceptions                                                #
+;#    FPS    - Forth parameter stack                                           #
+;#    FRS    - Forth return stack                                              #
+;#    FINNER - Forth inner interpreter                                         #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -89,7 +89,7 @@ STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
 BASE			DS	2 		;number conversion radix
 
 NUMBER_TIB  		DS	2		;number of chars in the TIB
-TO_IN  		DS	2		;in pointer of the TIB (TIB_START+TO_IN point to the next empty byte)
+TO_IN  			DS	2		;in pointer of the TIB (TIB_START+TO_IN point to the next empty byte)
 	
 FOUTER_VARS_END		EQU	*
 FOUTER_VARS_END_LIN	EQU	@
@@ -151,7 +151,7 @@ CF_DOT_PROMPT		EQU	*
 			LDD	STATE
 			BEQ	CF_DOT_PROMPT_1
 			LDX	#FOUTER_COMPILE_PROMPT
-CF_DOT_PROMPT_1		PS_PUSH_D 				;push prompt pointer onto the PS
+CF_DOT_PROMPT_1		PS_PUSH_X 				;push prompt pointer onto the PS
 			;Print the prompt (prompt pointer in [PS+0])
 			JOB	CF_DOT_STRING
 

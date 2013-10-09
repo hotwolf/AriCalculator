@@ -37,9 +37,8 @@
 ;#      - Initial release                                                      #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    SSTACK	- Subroutine stack                                             #
-;#    FRAM	- Forth return stack                                           #
-;#    FEXCEPT	- Forth exception handler                                      #
+;#    BASE   - S12CBase framework                                              #
+;#    FRS    - Forth return stack                                              #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -341,6 +340,7 @@ CF_WAIT_1		SEI				;disable interrupts
 			CLI				;enable interrupts
 			;Execute non-default NEXT
 			NEXT
+			JOB	CF_WAIT_1		;check NEXT_PTR again
 			;Wait for any internal system event
 CF_WAIT_2		LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
