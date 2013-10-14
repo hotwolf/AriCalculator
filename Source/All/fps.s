@@ -235,8 +235,11 @@ FPS_VARS_END_LIN	EQU	@
 	
 ;PS_COPY_X: Copy one entry from the parameter stack into index X (PSP -> Y)
 ; args:   none
-; result: D: copied PS content
-;	  Y: PSP
+; result: D:      copied PS content
+;	  Y:      PSP
+;	  N-flag: set if cell is negative
+;	  Z-flag: set if cell is zero
+;	  V-flag: cleared
 ; SSTACK: none
 ; throws: FEXCPT_EC_PSUF
 ;         X is preserved 
@@ -264,8 +267,11 @@ FPS_VARS_END_LIN	EQU	@
 	
 ;PS_COPY_D: Copy one entry from the parameter stack into accu D (PSP -> Y)
 ; args:   none
-; result: D: copied PS content
-;	  Y: PSP
+; result: D:      copied PS content
+;	  Y:      PSP
+;	  N-flag: set if cell is negative
+;	  Z-flag: set if cell is zero
+;	  V-flag: cleared
 ; SSTACK: none
 ; throws: FEXCPT_EC_PSUF
 ;         X is preserved 

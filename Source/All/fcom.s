@@ -32,6 +32,7 @@
 ;#    BASE   - S12CBase framework                                              #
 ;#    FPS    - Forth parameter stack                                           #
 ;#    FINNER - Forth inner interpreter                                         #
+;#    FOUTER - Forth outer interpreter                                         #
 ;#    FEXCPT - Forth exceptions                                                #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
@@ -96,7 +97,7 @@ FCOM_CODE_START_LIN	EQU	@
 ; result: PSP+0: RX data
 ; SSTACK: 4 bytes
 ; PS:     1 cell
-; RS:     none
+; RS:     1 cell
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_COMERR
 ;         FEXCPT_EC_COMOF
@@ -152,36 +153,38 @@ CF_EKEY_QUESTION	EQU	*
 			;Done
 			NEXT
 	
-;EMIT ( x -- ) Tansmit a byte character
+;EMIT ( x -- ) Transmit a byte character
 ; args:   PSP+0: RX data
 ; result: none
 ; SSTACK: 5 bytes
 ; PS:     none
-; RS:     none
+; RS:     1 cell
 ; throws: FEXCPT_EC_PSUF
 CF_EMIT			EQU	*
-			;Try to transmit data (data in D)
+			;Read data from PS
 CF_EMIT_1		PS_COPY_D 			;copy TX data from PS
-			SEI				;disable interrupts
+			;Try to transmit data (data in D)
+CF_EMIT_2		SEI				;disable interrupts
 			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
-			BCC	CF_EMIT_2		;TX queue is full
+			BCC	CF_EMIT_3		;TX queue is full
 			CLI				;enable interrupts
 			;Remove parameter from stack
 			PS_DROP, 1
 			;Done
 			NEXT
-			;Check for change of NEXT_PTR (I-bit set)
-CF_EMIT_2		LDX	NEXT_PTR		;check for default NEXT pointer
+			;Check for change of NEXT_PTR (data in D, I-bit set)
+CF_EMIT_3		LDX	NEXT_PTR		;check for default NEXT pointer
 			CPX	#NEXT
-			BEQ	CF_EMIT_3	 	;still default next pointer
+			BEQ	CF_EMIT_4	 	;still default next pointer
 			CLI				;enable interrupts
 			;Execute NOP
 			EXEC_CF_JMP	CF_NOP, CF_EMIT_1
-			;Wait for any internal system event
-CF_EMIT_3		;LED_BUSY_OFF 			;signal inactivity
+			;Wait for any internal system event (data in D, I-bit set)
+CF_EMIT_4		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
 			;LED_BUSY_ON 			;signal activity
-			JOB	CF_EMIT_1		;check NEXT_PTR again
+			JOB	CF_EMIT_2		;check NEXT_PTR again
+			;JOB	CF_EMIT_1		;maybe more robust?
 
 ;EMIT? ( -- flag ) Check if data can be sent over the SCI
 ; args:   none
@@ -200,41 +203,332 @@ CF_EMIT_QUESTION	EQU	*
 			PS_PUSH_D
 			;Done
 			NEXT
-	
-;.$ ( c-addr -- ) Print a terminated string
-; args:   address of a terminated string
+
+
+;.R ( n1 n2 -- ) Print right aligned signed number
+; args:   PSP+0: alignment space
+;         PSP+1: signed number
 ; result: none
-; SSTACK: 8 bytes
+; SSTACK: 4 bytes
 ; PS:     1 cell
 ; RS:     none
 ; throws: FEXCPT_EC_PSOF
-CF_DOT_STRING		EQU	*
+;         FEXCPT_EC_RSOF
+
+
+
+	
+;D.R ( d n -- ) Print right aligned double number
+; args:   PSP+0: alignment space
+;         PSP+1: signed double number
+; result: none
+; SSTACK: 4 bytes
+; PS:     1 cell
+; RS:     none
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_RSOF
+CF_D_DOT_R		EQU	* 
+			;Check PS
+			PS_CHECK_UF	3 		;PSP -> Y
+			;Check sign of double number (PSP in Y)
+			LDD	2,Y
+			BPL	CF_D_DOT_R_3		;positive number
+			;Negate double number (PSP in Y)
+			CLRA				;clear D
+			CLRB	
+			TFR	D, X 			;clear X
+			SUBD	4,Y
+			EXG	D, X
+			SBCB	3,Y
+			SBCA	2,Y
+			STD	2,Y 			;save negated double value
+			STX	4,Y
+			;Set base (PSP in Y, positive double number in D:X)
+			TFR	D, Y
+			FIX_BASE 			;base -> D
+			;Reverse double number (base in B, positive double number in Y:X)
+			NUM_REVERSE			;digit count -> A (SSTACK: 18 bytes)
+			NUM_CLEAN_REVERSE 		;clean up SSTACK
+			;Calculate alignment (digit count in A)
+			LDY	PSP 			;PSP -> Y
+			LDX	#$0001			;consider sign
+			LEAX	A,X			;sign/digit count -> X
+			LDD	0,Y			;calculate number of space chars
+			STX	0,Y
+			SUBD	0,Y
+			BHI	CF_D_DOT_R_2 		;alignment is required
+			PS_DROP 1			;drop alignment size from PS
+CF_D_DOT_R_1		EXEC_CF_JMP CF_MINUS, CF_D_DOT_R_5;print sign
+CF_D_DOT_R_2		STD	0,Y
+			EXEC_CF_JMP CF_SPACES, CF_D_DOT_R_1;print alignment		
+			;Positive number (PSP in Y, MSW	in D) 
+CF_D_DOT_R_3		LDX	4,Y
+			TFR	D, Y
+			;Set base (positive double number in Y:X)			
+			FIX_BASE 			;base -> D
+			;Reverse double number (base in B, positive double number in Y:X)
+			NUM_REVERSE			;digit count -> A (SSTACK: 18 bytes)
+			;Check if alignment is needed (reverse on SSTACK, digit count in A, number in Y:X)
+			LDY	PSP 			;PSP -> Y
+			TAB				;A -> D
+			CLRA
+			LDX	0,Y
+			STD	0,Y
+			TFR	X,D
+			SUBD	0,Y
+			BHI	CF_D_DOT_R_4 		;alignment is required
+			PS_DROP 3			;drop alignment size and number from PS
+			JOB	CF_D_DOT_R_7		;print reverse
+CF_D_DOT_R_4		STD	0,Y
+			NUM_CLEAN_REVERSE 		;clean up SSTACK
+			EXEC_CF	CF_SPACES		;print alignment
+			;Calculate reverse number
+CF_D_DOT_R_5		LDY	PSP 			;PSP -> Y
+			LDX	2,Y
+			LDY	0,Y
+			;Set base (positive double number in Y:X)			
+			FIX_BASE 			;base -> D
+			;Reverse double number (base in B, positive double number in Y:X)
+			NUM_REVERSE			;digit count -> A (SSTACK: 18 bytes)
+			;Cleanup PS (reverse on SSTACK)
+CF_D_DOT_R_6		PS_DROP	2 			;drop double number
+			;Print reverse number (reverse on SSTACK)
+CF_D_DOT_R_7		SEI				;disable interrupts
+			NUM_REVPRINT_NB			;print digit (SSTACK: 8 bytes)
+			BCC	CF_D_DOT_R_8     	;TX queue is full
+			CLI				;enable interrupts
+			;Clean up stacks (PSP in Y, Base in D)
+			NUM_CLEAN_REVERSE 		;clean up SSTACK
+			;Done
+			NEXT
+			;Check for change of NEXT_PTR (PSP in Y, base in D, I-bit set)
+CF_D_DOT_R_8		LDX	NEXT_PTR		;check for default NEXT pointer
+			CPX	#NEXT
+			BEQ	CF_D_DOT_R_9		;still default next pointer
+			CLI				;enable interrupts
+			;Move reverse number onto the PS
+			SSTACK_PREPULL	6
+			PS_CHECK_OF	3 		;move reverse to PS
+			STY	PSP
+			MOVW	2,SP+, 0,Y 
+			MOVW	2,SP+, 2,Y 
+			MOVW	2,SP+, 4,Y
+			;Execute NOP
+			EXEC_CF	CF_NOP
+			;Move revers back to sstack
+			SSTACK_PREPUSH	6
+			PS_CHECK_UF	3
+			MOVW	2,Y+, 2,-SP
+			MOVW	2,Y+, 2,-SP
+			MOVW	2,Y+, 2,-SP
+			STY	PSP
+			JOB	CF_D_DOT_R_7		;try to print more digits
+			;Wait for any internal system event (base in B, I-bit set)
+CF_D_DOT_R_9		;LED_BUSY_OFF 			;signal inactivity
+			ISTACK_WAIT			;wait for next interrupt
+			;LED_BUSY_ON 			;signal activity
+			JOB	CF_D_DOT_R_7		;try to print more digits
+
+;. ( n -- ) Print signed number
+; args:   PSP+0: reverse number structure
+; result: none
+; SSTACK: 18 bytes
+; PS:     2 cells
+; RS:     1 cell
+; throws: FEXCPT_EC_PSUF
+CF_DOT			EQU	*
+
+;U. ( u -- ) Print unsigned number
+; args:   PSP+0: reverse number structure
+; result: none
+; SSTACK: 18 bytes
+; PS:     2 cells
+; RS:     1 cell
+; throws: FEXCPT_EC_PSUF
+CF_U_DOT		EQU	*
+	
+;REVERSE. ( reverse -- ) Print reverse number
+; args:   PSP+0: reverse number structure
+; result: none
+; SSTACK: 8 bytes
+; PS:     none
+; RS:     1 cell
+; throws: FEXCPT_EC_PSUF
+;CF_REVERSE_DOT		EQU	*
+;			;PS layout (byte addresses):
+;			; PSP+0: MSB   
+;			; PSP+1:  |    
+;			; PSP+2:  |reverse  
+;			; PSP+3:  |number  
+;			; PSP+4:  |    
+;			; PSP+5: LSB   			
+;			;Copy reverse number onto the SSTACK
+;CF_REVERSE_DOT_1	PS_CHECK_UF	3 		;PSP -> Y
+;			SSTACK_PREPUSH	6
+;			MOVW	4,Y, 2,-SP
+;			MOVW	2,Y, 2,-SP
+;			MOVW	0,Y, 2,-SP
+;			;Load base (PSP in Y)
+;CF_REVERSE_DOT_2	FIX_BASE 			;base -> D
+;			;Try to print a digit (PSP in Y, base in D)	
+;CF_REVERSE_DOT_3	SEI				;disable interrupts
+;			NUM_REVPRINT_NB			;print digit (SSTACK: 8 bytes)
+;			BCC	CF_REVERSE_DOT_4	;TX queue is full
+;			CLI				;enable interrupts
+;			;Clean up stacks (PSP in Y, Base in D)
+;			NUM_CLEAN_REVERSE 		;clean up SSTACK
+;			PS_DROP, 3			;clean up PS
+;			;Done
+;			NEXT
+;			;Check for change of NEXT_PTR (PSP in Y, base in D, I-bit set)
+;CF_REVERSE_DOT_4	LDX	NEXT_PTR		;check for default NEXT pointer
+;			CPX	#NEXT
+;			BEQ	CF_REVERSE_DOT_5	 ;still default next pointer
+;			CLI				;enable interrupts
+;			;Move reverse number onto the PS (PSP in Y, base in D, I-bit set)
+;			MOVW	2,SP+, 0,Y 
+;			MOVW	2,SP+, 2,Y 
+;			MOVW	2,SP+, 4,Y 
+;			;Execute NOP
+;			EXEC_CF_JMP	CF_NOP, CF_REVERSE_DOT_1
+;			;Wait for any internal system event (base in B, I-bit set)
+;CF_REVERSE_DOT_5	;LED_BUSY_OFF 			;signal inactivity
+;			ISTACK_WAIT			;wait for next interrupt
+;			;LED_BUSY_ON 			;signal activity
+;			JOB	CF_REVERSE_DOT_3	;check NEXT_PTR again
+
+;SPACE ( -- ) Print a space character
+; args:   none
+; result: none
+; SSTACK: 5 bytes
+; PS:     none
+; RS:     1 cell
+; throws: FEXCPT_EC_PSUF
+CF_SPACE		EQU	*
+			;Try to transmit space character
+CF_SPACE_1		LDAB	#" " 			;space char -> B
+CF_SPACE_2		SEI				;disable interrupts
+			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
+			BCC	CF_SPACE_3		;TX queue is full
+			CLI				;enable interrupts
+			;Done
+			NEXT
+			;Check for change of NEXT_PTR (space char in B, I-bit set)
+CF_SPACE_3		LDX	NEXT_PTR		;check for default NEXT pointer
+			CPX	#NEXT
+			BEQ	CF_SPACE_4	 	;still default next pointer
+			CLI				;enable interrupts
+			;Execute NOP
+			EXEC_CF_JMP	CF_NOP, CF_SPACE_1
+			;Wait for any internal system event (space char in B, I-bit set)
+CF_SPACE_4		;LED_BUSY_OFF 			;signal inactivity
+			ISTACK_WAIT			;wait for next interrupt
+			;LED_BUSY_ON 			;signal activity
+			JOB	CF_SPACE_2		;check NEXT_PTR again
+			;JOB	CF_SPACE_1		;maybe more robust?
+
+;SPACES ( n -- ) Transmit n space characters
+; args:   PSP+0: number of space characters
+; result: none
+; SSTACK: 5 bytes
+; PS:     none
+; RS:     1 cell
+; throws: FEXCPT_EC_PSUF
+CF_SPACES		EQU	*
+			;Try to transmit space characters
+CF_SPACES_1		PS_COPY_X 			;space count from PS
+			BLE	CF_SPACES_3		;n < 1
+			;Try to transmit space character (char count in X)
+			LDAB	#" " 			;space char -> B
+CF_SPACES_2		SEI				;disable interrupts
+			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
+			BCC	CF_SPACES_4		;TX queue is full
+			CLI				;enable interrupts
+			;Decrement char count (char count in X, space char in B) 
+			DBNE	X, CF_SPACES_2
+			;Remove parameter from stack
+CF_SPACES_3		PS_DROP, 1
+			;Done
+			NEXT
+			;Check for change of NEXT_PTR (char count in X, space char in B, I-bit set)
+CF_SPACES_4		LDY	NEXT_PTR		;check for default NEXT pointer
+			CPY	#NEXT
+			BEQ	CF_SPACES_5	 	;still default next pointer
+			CLI				;enable interrupts
+			;Execute NOP
+			EXEC_CF_JMP	CF_NOP, CF_SPACES_1
+			;Wait for any internal system event (char count in X, space char in B, I-bit set)
+CF_SPACES_5		;LED_BUSY_OFF 			;signal inactivity
+			ISTACK_WAIT			;wait for next interrupt
+			;LED_BUSY_ON 			;signal activity
+			JOB	CF_SPACES_2		;check NEXT_PTR again
+			;JOB	CF_SPACES_1		;maybe more robust?
+
+;MINUS ( -- ) Print a minus character
+; args:   none
+; result: none
+; SSTACK: 5 bytes
+; PS:     none
+; RS:     1 cell
+; throws: FEXCPT_EC_PSUF
+CF_MINUS		EQU	*
+			;Try to transmit MINUS character
+CF_MINUS_1		LDAB	#"-" 			;MINUS char -> B
+CF_MINUS_2		SEI				;disable interrupts
+			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
+			BCC	CF_MINUS_3		;TX queue is full
+			CLI				;enable interrupts
+			;Done
+			NEXT
+			;Check for change of NEXT_PTR (MINUS char in B, I-bit set)
+CF_MINUS_3		LDX	NEXT_PTR		;check for default NEXT pointer
+			CPX	#NEXT
+			BEQ	CF_MINUS_4	 	;still default next pointer
+			CLI				;enable interrupts
+			;Execute NOP
+			EXEC_CF_JMP	CF_NOP, CF_MINUS_1
+			;Wait for any internal system event (MINUS char in B, I-bit set)
+CF_MINUS_4		;LED_BUSY_OFF 			;signal inactivity
+			ISTACK_WAIT			;wait for next interrupt
+			;LED_BUSY_ON 			;signal activity
+			JOB	CF_MINUS_2		;check NEXT_PTR again
+			;JOB	CF_MINUS_1		;maybe more robust?
+	
+;$. ( c-addr -- ) Print a terminated string
+; args:   address of a terminated string
+; result: none
+; SSTACK: 8 bytes
+; PS:     none
+; RS:     1 cell
+; throws: FEXCPT_EC_PSOF
+CF_STRING_DOT		EQU	*
 			;Try to print part of the string
-CF_DOT_STRING_1		PS_COPY_X
+CF_STRING_DOT_1		PS_COPY_X
 			;Print string (string in X, PSP in Y)
-			SEI				;disable interrupts
+CF_STRING_DOT_2		SEI				;disable interrupts
 			STRING_PRINT_NB			;try to write to SCI (SSTACK: 8 bytes)
-			BCC	CF_DOT_STRING_2		;string incomplete
+			BCC	CF_STRING_DOT_3		;string incomplete
 			CLI				;enable interrupts
 			;Remove parameter from stack
 			PS_DROP, 1
 			;Done
 			NEXT
-			;Update string pointer  (string in X, PSP in Y)
-CF_DOT_STRING_2		STX	0,Y
+			;Update string pointer (string in X, PSP in Y)
+CF_STRING_DOT_3		STX	0,Y
 			;Check for change of NEXT_PTR (I-bit set)
-			LDX	NEXT_PTR		;check for default NEXT pointer
-			CPX	#NEXT
-			BEQ	CF_DOT_STRING_3	 	;still default next pointer
+			LDY	NEXT_PTR		;check for default NEXT pointer
+			CPY	#NEXT
+			BEQ	CF_STRING_DOT_4	 	;still default next pointer
 			CLI				;enable interrupts
 			;Execute NOP
-			EXEC_CF_JMP	CF_NOP, CF_DOT_STRING_1
-			;Wait for any internal system event
-CF_DOT_STRING_3		;LED_BUSY_OFF 			;signal inactivity
+			EXEC_CF_JMP	CF_NOP, CF_STRING_DOT_1
+			;Wait for any internal system event (string in X)
+CF_STRING_DOT_4		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
 			;LED_BUSY_ON 			;signal activity
-			JOB	CF_DOT_STRING_1		;check NEXT_PTR again
-
+			JOB	CF_STRING_DOT_2		;check NEXT_PTR again
+			;JOB	CF_STRING_DOT_1		;maybe more robust?
+	
 FCOM_CODE_END		EQU	*
 FCOM_CODE_END_LIN	EQU	@
 	
@@ -270,6 +564,7 @@ FCOM_WORDS_START_LIN	EQU	@
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack overflow"
+;"Return stack overflow"
 ;"Invalid RX data"
 ;"RX buffer overflow"
 CFA_EKEY		DW	CF_EKEY
@@ -298,26 +593,53 @@ CFA_EKEY_QUESTION	DW	CF_EKEY_QUESTION
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
+;"Return stack overflow"
 CFA_EMIT		DW	CF_EMIT
 
-;Word: EMIT? ( -- flag )
-;flag is true if the user output device is ready to accept data and the execution
-;of EMIT in place of EMIT? would not have suffered an indefinite delay. If the
-;device status is indeterminate, flag is true.
+;Word: D.R ( d n --  )
+;Display d right aligned in a field n characters wide. If the number of
+;characters required to display d is greater than n, all digits are displayed
+;with no leading spaces in a field as wide as necessary.
 ;
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack overflow"
-CFA_EMIT_QUESTION	DW	CF_EKEY_QUESTION
+;"Return stack overflow"
+CFA_D_DOT_R	DW	CF_D_DOT_R
+	
+;Word: SPACE ( -- )
+;Display one space.
+;
+;S12CForth implementation details:
+;Throws:
+;"Return stack overflow"
+CFA_SPACE		DW	CF_SPACE
 
+;Word: EMIT ( n -- )
+;If n is greater than zero, display n spaces.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Return stack overflow"
+CFA_SPACES		DW	CF_SPACES
+	
 ;S12CForth Words:
 ;================
-;Word: .$ ( c-addr -- )
+;Word: MINUS ( -- )
+;Display a minus character.
+;
+;S12CForth implementation details:
+;Throws:
+;"Return stack overflow"
+CFA_MINUS		DW	CF_MINUS
+
+;Word: $. ( c-addr -- )
 ;Print a terminated string
 ;
 ;Throws:
 ;"Parameter stack overflow"
-CFA_DOT_STRING		DW	CF_DOT_STRING
+CFA_STRING_DOT		DW	CF_STRING_DOT
 	
 FCOM_WORDS_END		EQU	*
 FCOM_WORDS_END_LIN	EQU	@

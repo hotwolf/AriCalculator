@@ -125,6 +125,27 @@ FOUTER_VARS_END_LIN	EQU	@
 ;#Suspend: Set suspend flag
 #macro	SCI_SUSPEND_ACTION, 0
 #emac
+
+;Break/suspend handling:
+;=======================
+;#Fix base
+; args:   BASE: any base value
+; result: D:    range adjusted base value (2<=base<=16)
+;         BASE: range adjusted base value (2<=base<=16)
+; SSTACK: none
+;         X and Y are preserved
+#macro	FIX_BASE, 0
+			LDD	BASE
+			CPD	#16
+			BLS	FIX_BASE_1
+			LDD	#16
+			JOB	FIX_BASE_2
+FIX_BASE_1		CPD	#2
+			BHS	FIX_BASE_3
+			LDD	#2
+FIX_BASE_2		STD	BASE
+FIX_BASE_3		EQU	*
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -153,7 +174,7 @@ CF_DOT_PROMPT		EQU	*
 			LDX	#FOUTER_COMPILE_PROMPT
 CF_DOT_PROMPT_1		PS_PUSH_X 				;push prompt pointer onto the PS
 			;Print the prompt (prompt pointer in [PS+0])
-			JOB	CF_DOT_STRING
+			JOB	CF_STRING_DOT
 
 ;QUERY ( -- ) Query command line input
 ;Make the user input device the input source. Receive input into the terminal input buffer, 
