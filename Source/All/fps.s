@@ -282,7 +282,7 @@ FPS_VARS_END_LIN	EQU	@
 							;                         11 cycles
 #emac	
 
-;PS_PUSH: Push one entry from index X onto the return stack (PSP -> Y)
+;PS_PUSH: 
 ; args:   1: value to push onto the PS
 ; result: Y: PSP
 ; SSTACK: none
@@ -295,7 +295,7 @@ FPS_VARS_END_LIN	EQU	@
 							;                         ---------
 							;                         16/17 cycles
 #emac	
-
+	
 ;PS_PUSH_X: Push one entry from index X onto the return stack (PSP -> Y)
 ; args:   X: value to push onto the PS
 ; result: Y: PSP

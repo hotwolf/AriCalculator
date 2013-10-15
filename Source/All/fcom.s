@@ -204,6 +204,24 @@ CF_EMIT_QUESTION	EQU	*
 			;Done
 			NEXT
 
+;. ( n -- ) Print signed number
+; args:   PSP+0: reverse number structure
+; result: none
+; SSTACK: 18 bytes
+; PS:     2 cells
+; RS:     1 cell
+; throws: FEXCPT_EC_PSUF
+CF_DOT			EQU	*
+			;Check PS
+			PS_CHECK_UFOF	1, 1 		;new PSP -> Y
+			;Convert to double number (new PSP in Y)
+			STY 	PSP
+			LDD	2,Y			;sign extend number
+			SEX	A, D
+			TAB
+			STD	0,Y
+			;Print number (PSP in Y, MSW in D)
+			JOB	CF_D_DOT_1
 
 ;.R ( n1 n2 -- ) Print right aligned signed number
 ; args:   PSP+0: alignment space
@@ -211,20 +229,56 @@ CF_EMIT_QUESTION	EQU	*
 ; result: none
 ; SSTACK: 4 bytes
 ; PS:     1 cell
-; RS:     none
+; RS:     1 cell
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_RSOF
+CF_DOT_R		EQU	* 
+			;Check PS
+			PS_CHECK_UFOF	2, 1 		;new PSP -> Y
+			;Convert to double number (new PSP in Y)
+			STY 	PSP
+			MOVW	2,Y, 0,Y 		;move alignment space parameter
+			LDD	4,Y			;sign extend number
+			SEX	A, D
+			TAB
+			STD	2,Y
+			;Print number (PSP in Y, MSW in D)
+			JOB	CF_D_DOT_R_1
 
-
-
+;D. ( d -- ) Print a double number
+; args:   PSP+0: signed double number
+; result: none
+; SSTACK: 18 bytes
+; PS:     1 cell
+; RS:     1 cell
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_RSOF
+CF_D_DOT		EQU	* 
+			;Check PS
+			PS_CHECK_UF	2 		;PSP -> Y
+			;Check sign of double number (PSP in Y)
+			LDD	0,Y
+CF_D_DOT_1		BPL	CF_D_DOT_R_7		;positive number
+			;Negate double number (PSP in Y)
+			CLRA				;clear D
+			CLRB	
+			TFR	D, X 			;clear X
+			SUBD	2,Y
+			EXG	D, X
+			SBCB	1,Y
+			SBCA	0,Y
+			STD	0,Y 			;save negated double value
+			STX	2,Y
+			;Print sign
+			JOB	CF_D_DOT_R_2
 	
 ;D.R ( d n -- ) Print right aligned double number
 ; args:   PSP+0: alignment space
 ;         PSP+1: signed double number
 ; result: none
 ; SSTACK: 4 bytes
-; PS:     1 cell
-; RS:     none
+; PS:     none
+; RS:     1 cell
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_RSOF
 CF_D_DOT_R		EQU	* 
@@ -232,7 +286,7 @@ CF_D_DOT_R		EQU	*
 			PS_CHECK_UF	3 		;PSP -> Y
 			;Check sign of double number (PSP in Y)
 			LDD	2,Y
-			BPL	CF_D_DOT_R_3		;positive number
+CF_D_DOT_R_1		BPL	CF_D_DOT_R_4		;positive number
 			;Negate double number (PSP in Y)
 			CLRA				;clear D
 			CLRB	
@@ -256,13 +310,13 @@ CF_D_DOT_R		EQU	*
 			LDD	0,Y			;calculate number of space chars
 			STX	0,Y
 			SUBD	0,Y
-			BHI	CF_D_DOT_R_2 		;alignment is required
+			BHI	CF_D_DOT_R_3 		;alignment is required
 			PS_DROP 1			;drop alignment size from PS
-CF_D_DOT_R_1		EXEC_CF_JMP CF_MINUS, CF_D_DOT_R_5;print sign
-CF_D_DOT_R_2		STD	0,Y
-			EXEC_CF_JMP CF_SPACES, CF_D_DOT_R_1;print alignment		
+CF_D_DOT_R_2		EXEC_CF_JMP CF_MINUS, CF_D_DOT_R_6;print sign
+CF_D_DOT_R_3		STD	0,Y
+			EXEC_CF_JMP CF_SPACES, CF_D_DOT_R_2;print alignment		
 			;Positive number (PSP in Y, MSW	in D) 
-CF_D_DOT_R_3		LDX	4,Y
+CF_D_DOT_R_4		LDX	4,Y
 			TFR	D, Y
 			;Set base (positive double number in Y:X)			
 			FIX_BASE 			;base -> D
@@ -276,35 +330,35 @@ CF_D_DOT_R_3		LDX	4,Y
 			STD	0,Y
 			TFR	X,D
 			SUBD	0,Y
-			BHI	CF_D_DOT_R_4 		;alignment is required
+			BHI	CF_D_DOT_R_5 		;alignment is required
 			PS_DROP 3			;drop alignment size and number from PS
-			JOB	CF_D_DOT_R_7		;print reverse
-CF_D_DOT_R_4		STD	0,Y
+			JOB	CF_D_DOT_R_8		;print reverse
+CF_D_DOT_R_5		STD	0,Y
 			NUM_CLEAN_REVERSE 		;clean up SSTACK
 			EXEC_CF	CF_SPACES		;print alignment
 			;Calculate reverse number
-CF_D_DOT_R_5		LDY	PSP 			;PSP -> Y
-			LDX	2,Y
+CF_D_DOT_R_6		LDY	PSP 			;PSP -> Y
+CF_D_DOT_R_7		LDX	2,Y
 			LDY	0,Y
 			;Set base (positive double number in Y:X)			
 			FIX_BASE 			;base -> D
 			;Reverse double number (base in B, positive double number in Y:X)
 			NUM_REVERSE			;digit count -> A (SSTACK: 18 bytes)
 			;Cleanup PS (reverse on SSTACK)
-CF_D_DOT_R_6		PS_DROP	2 			;drop double number
+			PS_DROP	2 			;drop double number
 			;Print reverse number (reverse on SSTACK)
-CF_D_DOT_R_7		SEI				;disable interrupts
+CF_D_DOT_R_8		SEI				;disable interrupts
 			NUM_REVPRINT_NB			;print digit (SSTACK: 8 bytes)
-			BCC	CF_D_DOT_R_8     	;TX queue is full
+			BCC	CF_D_DOT_R_9     	;TX queue is full
 			CLI				;enable interrupts
 			;Clean up stacks (PSP in Y, Base in D)
 			NUM_CLEAN_REVERSE 		;clean up SSTACK
 			;Done
 			NEXT
 			;Check for change of NEXT_PTR (PSP in Y, base in D, I-bit set)
-CF_D_DOT_R_8		LDX	NEXT_PTR		;check for default NEXT pointer
+CF_D_DOT_R_9		LDX	NEXT_PTR		;check for default NEXT pointer
 			CPX	#NEXT
-			BEQ	CF_D_DOT_R_9		;still default next pointer
+			BEQ	CF_D_DOT_R_10		;still default next pointer
 			CLI				;enable interrupts
 			;Move reverse number onto the PS
 			SSTACK_PREPULL	6
@@ -322,21 +376,12 @@ CF_D_DOT_R_8		LDX	NEXT_PTR		;check for default NEXT pointer
 			MOVW	2,Y+, 2,-SP
 			MOVW	2,Y+, 2,-SP
 			STY	PSP
-			JOB	CF_D_DOT_R_7		;try to print more digits
+			JOB	CF_D_DOT_R_8		;try to print more digits
 			;Wait for any internal system event (base in B, I-bit set)
-CF_D_DOT_R_9		;LED_BUSY_OFF 			;signal inactivity
+CF_D_DOT_R_10		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
 			;LED_BUSY_ON 			;signal activity
-			JOB	CF_D_DOT_R_7		;try to print more digits
-
-;. ( n -- ) Print signed number
-; args:   PSP+0: reverse number structure
-; result: none
-; SSTACK: 18 bytes
-; PS:     2 cells
-; RS:     1 cell
-; throws: FEXCPT_EC_PSUF
-CF_DOT			EQU	*
+			JOB	CF_D_DOT_R_8		;try to print more digits
 
 ;U. ( u -- ) Print unsigned number
 ; args:   PSP+0: reverse number structure
@@ -345,57 +390,14 @@ CF_DOT			EQU	*
 ; PS:     2 cells
 ; RS:     1 cell
 ; throws: FEXCPT_EC_PSUF
-CF_U_DOT		EQU	*
-	
-;REVERSE. ( reverse -- ) Print reverse number
-; args:   PSP+0: reverse number structure
-; result: none
-; SSTACK: 8 bytes
-; PS:     none
-; RS:     1 cell
-; throws: FEXCPT_EC_PSUF
-;CF_REVERSE_DOT		EQU	*
-;			;PS layout (byte addresses):
-;			; PSP+0: MSB   
-;			; PSP+1:  |    
-;			; PSP+2:  |reverse  
-;			; PSP+3:  |number  
-;			; PSP+4:  |    
-;			; PSP+5: LSB   			
-;			;Copy reverse number onto the SSTACK
-;CF_REVERSE_DOT_1	PS_CHECK_UF	3 		;PSP -> Y
-;			SSTACK_PREPUSH	6
-;			MOVW	4,Y, 2,-SP
-;			MOVW	2,Y, 2,-SP
-;			MOVW	0,Y, 2,-SP
-;			;Load base (PSP in Y)
-;CF_REVERSE_DOT_2	FIX_BASE 			;base -> D
-;			;Try to print a digit (PSP in Y, base in D)	
-;CF_REVERSE_DOT_3	SEI				;disable interrupts
-;			NUM_REVPRINT_NB			;print digit (SSTACK: 8 bytes)
-;			BCC	CF_REVERSE_DOT_4	;TX queue is full
-;			CLI				;enable interrupts
-;			;Clean up stacks (PSP in Y, Base in D)
-;			NUM_CLEAN_REVERSE 		;clean up SSTACK
-;			PS_DROP, 3			;clean up PS
-;			;Done
-;			NEXT
-;			;Check for change of NEXT_PTR (PSP in Y, base in D, I-bit set)
-;CF_REVERSE_DOT_4	LDX	NEXT_PTR		;check for default NEXT pointer
-;			CPX	#NEXT
-;			BEQ	CF_REVERSE_DOT_5	 ;still default next pointer
-;			CLI				;enable interrupts
-;			;Move reverse number onto the PS (PSP in Y, base in D, I-bit set)
-;			MOVW	2,SP+, 0,Y 
-;			MOVW	2,SP+, 2,Y 
-;			MOVW	2,SP+, 4,Y 
-;			;Execute NOP
-;			EXEC_CF_JMP	CF_NOP, CF_REVERSE_DOT_1
-;			;Wait for any internal system event (base in B, I-bit set)
-;CF_REVERSE_DOT_5	;LED_BUSY_OFF 			;signal inactivity
-;			ISTACK_WAIT			;wait for next interrupt
-;			;LED_BUSY_ON 			;signal activity
-;			JOB	CF_REVERSE_DOT_3	;check NEXT_PTR again
+CF_U_DOT		EQU	*			
+			;Check PS
+			PS_CHECK_UFOF	1, 1 		;new PSP -> Y
+			;Convert to double number (new PSP in Y)
+			STY 	PSP
+			MOVW	#$0000, 0,Y
+			;Print unsigned number (PSP in Y) 
+			JOB	CF_D_DOT_R_7
 
 ;SPACE ( -- ) Print a space character
 ; args:   none
@@ -425,7 +427,6 @@ CF_SPACE_4		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
 			;LED_BUSY_ON 			;signal activity
 			JOB	CF_SPACE_2		;check NEXT_PTR again
-			;JOB	CF_SPACE_1		;maybe more robust?
 
 ;SPACES ( n -- ) Transmit n space characters
 ; args:   PSP+0: number of space characters
@@ -450,8 +451,10 @@ CF_SPACES_2		SEI				;disable interrupts
 CF_SPACES_3		PS_DROP, 1
 			;Done
 			NEXT
+			;Update string pointer (char count X, PSP in Y)
+CF_SPACES_4		STX	0,Y
 			;Check for change of NEXT_PTR (char count in X, space char in B, I-bit set)
-CF_SPACES_4		LDY	NEXT_PTR		;check for default NEXT pointer
+			LDY	NEXT_PTR		;check for default NEXT pointer
 			CPY	#NEXT
 			BEQ	CF_SPACES_5	 	;still default next pointer
 			CLI				;enable interrupts
@@ -461,8 +464,7 @@ CF_SPACES_4		LDY	NEXT_PTR		;check for default NEXT pointer
 CF_SPACES_5		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
 			;LED_BUSY_ON 			;signal activity
-			JOB	CF_SPACES_2		;check NEXT_PTR again
-			;JOB	CF_SPACES_1		;maybe more robust?
+			JOB	CF_SPACES_1		;check NEXT_PTR again
 
 ;MINUS ( -- ) Print a minus character
 ; args:   none
@@ -492,7 +494,6 @@ CF_MINUS_4		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
 			;LED_BUSY_ON 			;signal activity
 			JOB	CF_MINUS_2		;check NEXT_PTR again
-			;JOB	CF_MINUS_1		;maybe more robust?
 	
 ;$. ( c-addr -- ) Print a terminated string
 ; args:   address of a terminated string
@@ -526,8 +527,7 @@ CF_STRING_DOT_3		STX	0,Y
 CF_STRING_DOT_4		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
 			;LED_BUSY_ON 			;signal activity
-			JOB	CF_STRING_DOT_2		;check NEXT_PTR again
-			;JOB	CF_STRING_DOT_1		;maybe more robust?
+			JOB	CF_STRING_DOT_1		;check NEXT_PTR again
 	
 FCOM_CODE_END		EQU	*
 FCOM_CODE_END_LIN	EQU	@
@@ -596,6 +596,35 @@ CFA_EKEY_QUESTION	DW	CF_EKEY_QUESTION
 ;"Return stack overflow"
 CFA_EMIT		DW	CF_EMIT
 
+;Word: . ( n --  )
+;Display n in free field format.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+;"Return stack overflow"
+CFA_DOT			DW	CF_DOT
+
+;Word: .R ( n1 n2 --  )
+;Display n1 right aligned in a field n2 characters wide.  If the number of
+;characters required to display n1 is greater than n2, all digits are displayed
+;with no leading spaces in a field as wide as necessary.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+;"Return stack overflow"
+CFA_DOT_R		DW	CF_DOT_R
+
+;Word: D. ( d --  )
+;Display d in free field format. 
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+;"Return stack overflow"
+CFA_D_DOT		DW	CF_D_DOT
+	
 ;Word: D.R ( d n --  )
 ;Display d right aligned in a field n characters wide. If the number of
 ;characters required to display d is greater than n, all digits are displayed
@@ -605,7 +634,16 @@ CFA_EMIT		DW	CF_EMIT
 ;Throws:
 ;"Parameter stack overflow"
 ;"Return stack overflow"
-CFA_D_DOT_R	DW	CF_D_DOT_R
+CFA_D_DOT_R		DW	CF_D_DOT_R
+
+;Word: U. ( u --  )
+;Display u in free field format.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+;"Return stack overflow"
+CFA_U_DOT		DW	CF_U_DOT
 	
 ;Word: SPACE ( -- )
 ;Display one space.
