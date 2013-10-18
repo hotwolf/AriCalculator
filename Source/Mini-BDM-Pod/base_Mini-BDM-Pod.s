@@ -133,8 +133,8 @@ NVM_VARS_START_LIN	EQU	NUM_VARS_END_LIN
 VECTAB_VARS_START	EQU	NVM_VARS_END
 VECTAB_VARS_START_LIN	EQU	NVM_VARS_END_LIN
 
-BASE_VARS_END		EQU	VECTAB_VARS_START	
-BASE_VARS_END_LIN	EQU	VECTAB_VARS_START_LIN
+BASE_VARS_END		EQU	VECTAB_VARS_END	
+BASE_VARS_END_LIN	EQU	VECTAB_VARS_END_LIN
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -212,8 +212,8 @@ NVM_CODE_START_LIN	EQU	NUM_CODE_END_LIN
 VECTAB_CODE_START	EQU	NVM_CODE_END
 VECTAB_CODE_START_LIN	EQU	NVM_CODE_END_LIN
 
-BASE_CODE_END		EQU	VECTAB_CODE_START	
-BASE_CODE_END_LIN	EQU	VECTAB_CODE_START_LIN
+BASE_CODE_END		EQU	VECTAB_CODE_END	
+BASE_CODE_END_LIN	EQU	VECTAB_CODE_END_LIN
 
 ;###############################################################################
 ;# Tables                                                                      #
@@ -269,8 +269,8 @@ NVM_TABS_START_LIN	EQU	NUM_TABS_END_LIN
 VECTAB_TABS_START	EQU	NVM_TABS_END
 VECTAB_TABS_START_LIN	EQU	NVM_TABS_END_LIN
 
-BASE_TABS_END		EQU	VECTAB_TABS_START	
-BASE_TABS_END_LIN	EQU	VECTAB_TABS_START_LIN
+BASE_TABS_END		EQU	VECTAB_TABS_END	
+BASE_TABS_END_LIN	EQU	VECTAB_TABS_END_LIN
 
 ;###############################################################################
 ;# Includes                                                                    #
