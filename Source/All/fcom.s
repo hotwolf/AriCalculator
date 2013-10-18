@@ -348,6 +348,7 @@ CF_D_DOT_R_7		LDX	2,Y
 			PS_DROP	2 			;drop double number
 			;Print reverse number (reverse on SSTACK)
 CF_D_DOT_R_8		SEI				;disable interrupts
+			FIX_BASE 			;base -> D	
 			NUM_REVPRINT_NB			;print digit (SSTACK: 8 bytes)
 			BCC	CF_D_DOT_R_9     	;TX queue is full
 			CLI				;enable interrupts
@@ -399,6 +400,32 @@ CF_U_DOT		EQU	*
 			;Print unsigned number (PSP in Y) 
 			JOB	CF_D_DOT_R_7
 
+;HEX. ( u -- ) Print unsigned number
+; args:   PSP+0: reverse number structure
+; result: none
+; SSTACK: 18 bytes
+; PS:     2 cells
+; RS:     1 cell
+; throws: FEXCPT_EC_PSUF
+CF_HEX_DOT		EQU	*			
+			;Check PS
+			PS_CHECK_UF	1 		;PSP -> Y	
+			;Convert to double number (nPSP in Y)
+
+
+
+				;Convert to double number (nPSP in Y)
+			STY 	PSP
+			MOVW	#$0000, 0,Y
+			;Print unsigned number (PSP in Y) 
+			JOB	CF_D_DOT_R_7
+
+
+
+
+
+
+	
 ;SPACE ( -- ) Print a space character
 ; args:   none
 ; result: none
@@ -672,6 +699,15 @@ CFA_SPACES		DW	CF_SPACES
 ;"Return stack overflow"
 CFA_MINUS		DW	CF_MINUS
 
+;Word: HEX. ( u --  )
+;Display u as 4 digit hexadecimal number.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+;"Return stack overflow"
+CFA_HEX_DOT		DW	CF_HEX_DOT
+	
 ;Word: $. ( c-addr -- )
 ;Print a terminated string
 ;

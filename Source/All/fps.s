@@ -363,6 +363,21 @@ FPS_VARS_END_LIN	EQU	@
 FPS_CODE_START_LIN	EQU	@
 #endif
 
+;Code fields:
+;============
+;.PS_PUSH ( -- x ) Push constant x onto the PS. (W must point to X) 
+; args:   address of a terminated string
+; result: none
+; SSTACK: 8 bytes
+; PS:     1 cell
+; RS:     none
+; throws: FEXCPT_EC_PSOF
+CF_PS_PUSH		EQU	*
+			; 
+			LDX	0,X
+			PS_PUSH_X
+			NEXT
+
 ;Exceptions:
 ;===========
 ;Standard exceptions

@@ -136,13 +136,13 @@ FOUTER_VARS_END_LIN	EQU	@
 ;         X and Y are preserved
 #macro	FIX_BASE, 0
 			LDD	BASE
-			CPD	#16
+			CPD	#NUM_BASE_MAX
 			BLS	FIX_BASE_1
-			LDD	#16
+			LDD	#NUM_BASE_MAX
 			JOB	FIX_BASE_2
-FIX_BASE_1		CPD	#2
+FIX_BASE_1		CPD	#NUM_BASE_MIN
 			BHS	FIX_BASE_3
-			LDD	#2
+			LDD	#NUM_BASE_MIN
 FIX_BASE_2		STD	BASE
 FIX_BASE_3		EQU	*
 #emac
@@ -304,7 +304,44 @@ FOUTER_WORDS_START_LIN	EQU	@
 ;"Invalid RX data"
 ;"RX buffer overflow"
 CFA_QUERY		DW	CF_QUERY
-	
+
+;Word: STATE ( -- a-addr ) 
+;a-addr is the address of a cell containing the compilation-state flag.  STATE is true when in 
+;compilation state, false otherwise.  The true value in STATE is non-zero, but is otherwise 
+;implementation-defined.  Only the following standard words alter the value in STATE:  : 
+;(colon), ; (semicolon), ABORT, QUIT, :NONAME, [ (left-bracket), and ] (right-bracket). 
+;  Note:  A program shall not directly alter the contents of STATE. 
+;
+;Throws:
+;"Parameter stack overflow"
+CFA_STATE		DW	CF_PS_PUSH
+			DW	STATE
+
+;Word: BASE ( -- a-addr ) 
+;a-addr is the address of a cell containing the current number-conversion radix {{2...36}}. 
+;
+;Throws:
+;"Parameter stack overflow"
+CFA_BASE		DW	CF_PS_PUSH
+			DW	BASE
+
+;Word: >IN ( -- a-addr ) 
+;a-addr is the address of a cell containing the offset in characters from the start of the input 
+;buffer to the start of the parse area.  
+;
+;Throws:
+;"Parameter stack overflow"
+CFA_TO_IN		DW	CF_PS_PUSH
+			DW	TO_IN
+
+;Word: #TIB ( -- a-addr ) 
+;a-addr is the address of a cell containing the number of characters in the terminal input buffer.
+;
+;Throws:
+;"Parameter stack overflow"
+CFA_NUMBER_TIB		DW	CF_PS_PUSH
+			DW	NUMBER_TIB
+
 ;S12CForth Words:
 ;================
 ;Word: .PROMPT ( -- )
