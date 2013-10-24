@@ -344,11 +344,10 @@ CF_D_DOT_R_7		LDX	2,Y
 			FIX_BASE 			;base -> D
 			;Reverse double number (base in B, positive double number in Y:X)
 			NUM_REVERSE			;digit count -> A (SSTACK: 18 bytes)
-			;Cleanup PS (reverse on SSTACK)
+			;Cleanup PS (base in B, reverse on SSTACK)
 			PS_DROP	2 			;drop double number
-			;Print reverse number (reverse on SSTACK)
+			;Print reverse number (base in B, reverse on SSTACK)
 CF_D_DOT_R_8		SEI				;disable interrupts
-			FIX_BASE 			;base -> D	
 			NUM_REVPRINT_NB			;print digit (SSTACK: 8 bytes)
 			BCC	CF_D_DOT_R_9     	;TX queue is full
 			CLI				;enable interrupts
@@ -359,7 +358,7 @@ CF_D_DOT_R_8		SEI				;disable interrupts
 			;Check for change of NEXT_PTR (PSP in Y, base in D, I-bit set)
 CF_D_DOT_R_9		LDX	NEXT_PTR		;check for default NEXT pointer
 			CPX	#NEXT
-			BEQ	CF_D_DOT_R_10		;still default next pointer
+			BEQ	CF_D_DOT_R_11		;still default next pointer
 			CLI				;enable interrupts
 			;Move reverse number onto the PS
 			SSTACK_PREPULL	6
@@ -377,12 +376,13 @@ CF_D_DOT_R_9		LDX	NEXT_PTR		;check for default NEXT pointer
 			MOVW	2,Y+, 2,-SP
 			MOVW	2,Y+, 2,-SP
 			STY	PSP
+CF_D_DOT_R_10		FIX_BASE 			;base -> D	
 			JOB	CF_D_DOT_R_8		;try to print more digits
 			;Wait for any internal system event (base in B, I-bit set)
-CF_D_DOT_R_10		;LED_BUSY_OFF 			;signal inactivity
+CF_D_DOT_R_11		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
 			;LED_BUSY_ON 			;signal activity
-			JOB	CF_D_DOT_R_8		;try to print more digits
+			JOB	CF_D_DOT_R_10		;try to print more digits
 
 ;U. ( u -- ) Print unsigned number
 ; args:   PSP+0: reverse number structure

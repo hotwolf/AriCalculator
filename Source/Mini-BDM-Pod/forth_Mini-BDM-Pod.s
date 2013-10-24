@@ -477,8 +477,8 @@ FORTH_WORDS_END_LIN	EQU	@
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ../../../S12CBase/Source/Mini-BDM-Pod/base_Mini-BDM-Pod.s;S12CBase
-;#include ../../Subprojects/S12CBase/Source/Mini-BDM-Pod/base_Mini-BDM-Pod.s;S12CBase
+;#include ../../../S12CBase/Source/Mini-BDM-Pod/base_Mini-BDM-Pod.s;S12CBase
+#include ../../Subprojects/S12CBase/Source/Mini-BDM-Pod/base_Mini-BDM-Pod.s;S12CBase
 #include ../All/frs.s						;return stack
 #include ../All/finner.s					;inner interpreter
 #include ../All/firq.s						;interrupt requests

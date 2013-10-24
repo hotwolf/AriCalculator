@@ -94,7 +94,7 @@ FPS_EC_UF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
 ;# Variables                                                                   #
 ;###############################################################################
 #ifdef FPS_VARS_START_LIN
-			ORG 	FPS_VARS_START, FRS_VARS_START_LIN
+			ORG 	FPS_VARS_START, FPS_VARS_START_LIN
 #else
 			ORG 	FPS_VARS_START
 FPS_VARS_START_LIN	EQU	@
@@ -344,7 +344,7 @@ FPS_VARS_END_LIN	EQU	@
 ;	  Y: PSP
 ; SSTACK: none
 ; throws: FEXCPT_EC_PSUF
-;         X is preserved 
+;         X and D are preserved 
 #macro	PS_DROP, 1
 			PS_CHECK_UF	\1		;check for underflow	=> 8 cycles
 			LEAY		(2*\1),Y	;PS -> Y		=> 2 cycles 

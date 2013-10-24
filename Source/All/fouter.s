@@ -201,28 +201,28 @@ CF_QUERY_1		EXEC_CF	CF_EKEY				;input car -> [PS+0]
 			LDD	[PSP] 				;input char -> B
 			;Ignore LF (input car in B)
 			CMPB	#STRING_SYM_LF
-			BEQ	CF_QUERY_1			;ignore
+			BEQ	CF_QUERY_4			;ignore
 			;Check for ENTER (CR) (input car in B and in [PS+0])
 			CMPB	#STRING_SYM_CR	
-			BEQ	CF_QUERY_7			;input complete		
+			BEQ	CF_QUERY_8			;input complete		
 			;Check for BACKSPACE (input char in B and in [PS+0])
 			CMPB	#STRING_SYM_BACKSPACE	
-			BEQ	CF_QUERY_6	 		;check for underflow
+			BEQ	CF_QUERY_7	 		;check for underflow
 			CMPB	#STRING_SYM_DEL	
-			BEQ	CF_QUERY_6	 		;check for underflow
+			BEQ	CF_QUERY_7	 		;check for underflow
 			;Check for valid special characters (input char in B and in [PS+0])
 			CMPB	#STRING_SYM_TAB	
 			BEQ	CF_QUERY_2	 		;echo and append to buffer
 			;Check for invalid characters (input char in B and in [PS+0])
 			CMPB	#" " 				;first legal character in ASCII table
-			BLO	CF_QUERY_4			;beep
+			BLO	CF_QUERY_5			;beep
 			CMPB	#"~"				;last legal character in ASCII table
-			BHI	CF_QUERY_4 			;beep			
+			BHI	CF_QUERY_5 			;beep			
 			;Check for buffer overflow (input char in B and in [PS+0])
 			LDY	NUMBER_TIB
 			LEAY	(TIB_PADDING+TIB_START),Y
 			CPY	RSP
-			BHS	CF_QUERY_4 			;beep
+			BHS	CF_QUERY_5 			;beep
 			;Append char to input line (input char in B and in [PS+0])
 CF_QUERY_2		LDY	NUMBER_TIB
 			STAB	TIB_START,Y			;store character
@@ -231,24 +231,30 @@ CF_QUERY_2		LDY	NUMBER_TIB
 			;Echo input char (input char in [PS+0])
 CF_QUERY_3		EXEC_CF	CF_EMIT				;print character
 			JOB	CF_QUERY_1
+			;Ignore input char
+CF_QUERY_4		LDY	PSP 				;drop char from PS
+			LEAY	2,Y
+			STY	PSP
+			JOB	CF_QUERY_1
 			;BEEP			
-CF_QUERY_4		LDD	#STRING_SYM_BEEP		;replace received char by a beep
-CF_QUERY_5		STD	[PSP]
+CF_QUERY_5		LDD	#STRING_SYM_BEEP		;replace received char by a beep
+CF_QUERY_6		STD	[PSP]
 			JOB	CF_QUERY_3 			;transmit beep
 			;Check for buffer underflow (input char in [PS+0])
-CF_QUERY_6		LDY	NUMBER_TIB 			;decrement char count
+CF_QUERY_7		LDY	NUMBER_TIB 			;decrement char count
 			BEQ	CF_QUERY_4			;underflow -> beep
 			LEAY	-1,Y
 			STY	NUMBER_TIB
 			LDD	#STRING_SYM_BACKSPACE		;replace received char by a backspace
-			JOB	CF_QUERY_5
+			JOB	CF_QUERY_6
 			;Input complete
-CF_QUERY_7		LDY	NUMBER_TIB
-			BEQ	CF_QUERY_8 			;command line is empty
+CF_QUERY_8		LDY	PSP 				;drop char from PS
+			LEAY	2,Y
+			STY	PSP
+			LDY	NUMBER_TIB 			;check char count
+			BEQ	CF_QUERY_9 			;command line is empty
 			BSET	(TIB_START-1),Y, #$80		;terminate last character
-			
-CF_QUERY_8		NEXT
-	
+CF_QUERY_9		NEXT
 	
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@
