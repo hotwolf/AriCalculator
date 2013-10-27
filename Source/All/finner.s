@@ -178,25 +178,6 @@ CF_RESUME		EQU	*
 			RS_PULL IP 			;RS -> IP
 #emac
 
-;Execute a CF and jump to an absolute address
-; args:   1: CF
-;         2: address
-; result: see CF
-; SSTACK: none
-; PS:     see CF
-; RS:     1+CF usage
-; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CF)
-;         No registers are preserved
-#macro	EXEC_CF_JMP, 2
-			RS_PUSH IP			;IP -> RS
-			MOVW	#IP_RESUME, IP 		;set next IP
-			JOB	\1			;execute CF
-IP_RESUME		DW	CFA_RESUME
-CFA_RESUME		DW	CF_RESUME
-CF_RESUME		EQU	\2
-			RS_PULL IP 			;RS -> IP
-#emac
-
 ;Execute a CFA directly from assembler code
 ; args:   X: CFA
 ; result: see CF

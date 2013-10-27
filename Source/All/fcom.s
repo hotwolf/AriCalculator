@@ -124,7 +124,8 @@ CF_EKEY_2		LDX	NEXT_PTR		;check for default NEXT pointer
 			BEQ	CF_EKEY_3	 	;still default next pointer
 			CLI				;enable interrupts
 			;Execute NOP
-			EXEC_CF_JMP	CF_NOP, CF_EKEY_1
+			EXEC_CF	CF_NOP
+			JOB	CF_EKEY_1
 			;Wait for any internal system event
 CF_EKEY_3		LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
@@ -178,7 +179,8 @@ CF_EMIT_3		LDX	NEXT_PTR		;check for default NEXT pointer
 			BEQ	CF_EMIT_4	 	;still default next pointer
 			CLI				;enable interrupts
 			;Execute NOP
-			EXEC_CF_JMP	CF_NOP, CF_EMIT_1
+			EXEC_CF	CF_NOP
+			JOB    	CF_EMIT_1
 			;Wait for any internal system event (data in D, I-bit set)
 CF_EMIT_4		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
@@ -312,9 +314,11 @@ CF_D_DOT_R_1		BPL	CF_D_DOT_R_4		;positive number
 			SUBD	0,Y
 			BHI	CF_D_DOT_R_3 		;alignment is required
 			PS_DROP 1			;drop alignment size from PS
-CF_D_DOT_R_2		EXEC_CF_JMP CF_MINUS, CF_D_DOT_R_6;print sign
+CF_D_DOT_R_2		EXEC_CF	CF_MINUS		;print sign
+			JOB    	CF_D_DOT_R_6
 CF_D_DOT_R_3		STD	0,Y
-			EXEC_CF_JMP CF_SPACES, CF_D_DOT_R_2;print alignment		
+			EXEC_CF	CF_SPACES
+			JOB    	CF_D_DOT_R_2		;print alignment		
 			;Positive number (PSP in Y, MSW	in D) 
 CF_D_DOT_R_4		LDX	4,Y
 			TFR	D, Y
@@ -337,7 +341,12 @@ CF_D_DOT_R_5		STD	0,Y
 			NUM_CLEAN_REVERSE 		;clean up SSTACK
 			EXEC_CF	CF_SPACES		;print alignment
 			;Calculate reverse number
-CF_D_DOT_R_6		LDY	PSP 			;PSP -> Y
+CF_D_DOT_R_6
+			;DX	RSP
+			;DY	PSP
+			;GND
+
+			LDY	PSP 			;PSP -> Y
 CF_D_DOT_R_7		LDX	2,Y
 			LDY	0,Y
 			;Set base (positive double number in Y:X)			
@@ -448,7 +457,8 @@ CF_SPACE_3		LDX	NEXT_PTR		;check for default NEXT pointer
 			BEQ	CF_SPACE_4	 	;still default next pointer
 			CLI				;enable interrupts
 			;Execute NOP
-			EXEC_CF_JMP	CF_NOP, CF_SPACE_1
+			EXEC_CF	CF_NOP
+			JOB    	CF_SPACE_1
 			;Wait for any internal system event (space char in B, I-bit set)
 CF_SPACE_4		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
@@ -486,7 +496,8 @@ CF_SPACES_4		STX	0,Y
 			BEQ	CF_SPACES_5	 	;still default next pointer
 			CLI				;enable interrupts
 			;Execute NOP
-			EXEC_CF_JMP	CF_NOP, CF_SPACES_1
+			EXEC_CF	CF_NOP
+			JOB    	CF_SPACES_1
 			;Wait for any internal system event (char count in X, space char in B, I-bit set)
 CF_SPACES_5		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
@@ -515,7 +526,8 @@ CF_MINUS_3		LDX	NEXT_PTR		;check for default NEXT pointer
 			BEQ	CF_MINUS_4	 	;still default next pointer
 			CLI				;enable interrupts
 			;Execute NOP
-			EXEC_CF_JMP	CF_NOP, CF_MINUS_1
+			EXEC_CF	CF_NOP
+			JOB    	CF_MINUS_1
 			;Wait for any internal system event (MINUS char in B, I-bit set)
 CF_MINUS_4		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
@@ -549,7 +561,8 @@ CF_STRING_DOT_3		STX	0,Y
 			BEQ	CF_STRING_DOT_4	 	;still default next pointer
 			CLI				;enable interrupts
 			;Execute NOP
-			EXEC_CF_JMP	CF_NOP, CF_STRING_DOT_1
+			EXEC_CF	CF_NOP
+			JOB    	CF_STRING_DOT_1
 			;Wait for any internal system event (string in X)
 CF_STRING_DOT_4		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
