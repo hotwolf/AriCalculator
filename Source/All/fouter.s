@@ -214,18 +214,6 @@ FOUTER_PARSE_3		EXG	Y,D
 FOUTER_PARSE_4		LDX	#$0000
 			JOB	FOUTER_PARSE_3
 
-
-
-
-
-
-
-
-
-
-
-
-
 	
 ;Code fields:
 ;============
@@ -250,7 +238,7 @@ CF_DOT_PROMPT_1		PS_PUSH_X 				;push prompt pointer onto the PS
 ;Make the user input device the input source. Receive input into the terminal input buffer, 
 ;replacing any previous contents. Make the result, whose address is returned by TIB, the input 
 ;buffer.  Set >IN to zero.
-; args:   address of a terminated string
+; args:   none
 ; result: none
 ; SSTACK: 8 bytes
 ; PS:     1 cell
@@ -326,28 +314,34 @@ CF_QUERY_8		LDY	PSP 				;drop char from PS
 			BSET	(TIB_START-1),Y, #$80		;terminate last character
 CF_QUERY_9		NEXT
 
-
-
-
-
-;PARSE ( -- ) Query command line input
-;Make the user input device the input source. Receive input into the terminal input buffer, 
-;replacing any previous contents. Make the result, whose address is returned by TIB, the input 
-;buffer.  Set >IN to zero.
-; args:   address of a terminated string
-; result: none
-; SSTACK: 8 bytes
+;PARSE ( char "ccc<char>" -- c-addr u ) Parse the TIB
+;Parse ccc delimited by the delimiter char. c-addr is the address (within the
+;input buffer) and u is the length of the parsed string.  If the parse area was
+;empty, the resulting string has a zero length.
+; args:   PSP+0: delimiter char
+; result: PSP+0: character count
+;         PSP+1: string pointer
+; SSTACK: 5 bytes
 ; PS:     1 cell
-; RS:     2 cells
+; RS:     none
 ; throws: FEXCPT_EC_PSOF
-;         FEXCPT_EC_RSOF
-;         FEXCPT_EC_COMERR
-;         FEXCPT_EC_COMOF
-
-
-
-
-	
+;         FEXCPT_EC_PSUF
+CF_PARSE		EQU	*
+			;Check PS
+			PS_CHECK_UFOF	1, 1 		;new PSP -> Y
+			STY	PSP
+			;Get delimiter char (PSP in Y)
+			LDAA	3,Y
+			;Parse TIB (delimiter char in A, PSP in Y)  
+			FOUTER_PARSE 			;(SSTACK: 5 bytes)
+			;Pass results to PS (char count in A, string pointer in X, PSP in Y)
+			STX	2,Y
+			TAB
+			CLRA
+			STD	0,Y
+			;Done
+			NEXT
+			
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@
 	
@@ -403,6 +397,16 @@ FOUTER_WORDS_START_LIN	EQU	@
 ;"RX buffer overflow"
 CFA_QUERY		DW	CF_QUERY
 
+;Word: PARSE ( char "ccc<char>" -- c-addr u )
+;Parse ccc delimited by the delimiter char. c-addr is the address (within the
+;input buffer) and u is the length of the parsed string.  If the parse area was
+;empty, the resulting string has a zero length.
+;
+;Throws:
+;"Parameter stack overflow"
+;"Parameter stack underflow"
+CFA_PARSE		DW	CF_PARSE
+	
 ;Word: STATE ( -- a-addr ) 
 ;a-addr is the address of a cell containing the compilation-state flag.  STATE is true when in 
 ;compilation state, false otherwise.  The true value in STATE is non-zero, but is otherwise 
