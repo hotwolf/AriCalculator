@@ -407,29 +407,57 @@ CF_U_DOT		EQU	*
 ;HEX. ( u -- ) Print unsigned number
 ; args:   PSP+0: reverse number structure
 ; result: none
-; SSTACK: 18 bytes
-; PS:     2 cells
+; SSTACK: 5 bytes
+; PS:     1 cell
 ; RS:     1 cell
 ; throws: FEXCPT_EC_PSUF
 CF_HEX_DOT		EQU	*			
 			;Check PS
-			PS_CHECK_UF	1 		;PSP -> Y	
-			;Convert to double number (nPSP in Y)
+			PS_CHECK_UFOF	1, 1 		;new PSP -> Y
+			;Push initial nibble count onto (new PSP in Y)
+			STY	PSP
+			MOVB	#4, 1,Y
+			;Look up digit symbol (PSP in Y)
+CF_HEX_DOT_1		LDAA	2,Y 			;MSB -> A
+			LSRA				;calculate table offset
+			LSRA
+			LSRA
+			LSRA
+			LDX	#FCOM_SYMTAB 		;look up digit symbol
+			LDAB	A,X
+			;Print  digit (digit symbol in B, PSP in Y)
+			SEI				;disable interrupts
+			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
+			BCC	CF_HEX_DOT_2		;TX queue is full
+			CLI				;enable interrupts
+			;Switch to next digit (PSP in Y)
+			LDD	2,Y
+			LSLD
+			LSLD
+			LSLD
+			LSLD
+			STD	2,Y
+			DEC	1,Y
+			BNE	CF_HEX_DOT_1		;more digits to ptint
+			;Remove parameter2 from stack
+			PS_DROP, 2
+			;Done
+			NEXT
+			;Check for change of NEXT_PTR (PSP in Y)
+CF_HEX_DOT_2		LDX	NEXT_PTR		;check for default NEXT pointer
+			CPX	#NEXT
+			BEQ	CF_HEX_DOT_3	 	;still default next pointer
+			CLI				;enable interrupts
+			;Execute NOP
+			EXEC_CF	CF_NOP
+			PS_CHECK_UF	2 		;PSP -> Y
+			JOB    	CF_HEX_DOT_1
+			;Wait for any internal system event
+CF_HEX_DOT_3		;LED_BUSY_OFF 			;signal inactivity
+			ISTACK_WAIT			;wait for next interrupt
+			;LED_BUSY_ON 			;signal activity
+			JOB	CF_HEX_DOT_1		;check NEXT_PTR again
 
-
-
-				;Convert to double number (nPSP in Y)
-			STY 	PSP
-			MOVW	#$0000, 0,Y
-			;Print unsigned number (PSP in Y) 
-			JOB	CF_D_DOT_R_7
-
-
-
-
-
-
-	
 ;SPACE ( -- ) Print a space character
 ; args:   none
 ; result: none
@@ -577,6 +605,8 @@ FCOM_CODE_END_LIN	EQU	@
 FCOM_TABS_START_LIN	EQU	@
 #endif	
 
+FCOM_SYMTAB		EQU	NUM_SYMTAB
+	
 FCOM_TABS_END		EQU	*
 FCOM_TABS_END_LIN	EQU	@
 

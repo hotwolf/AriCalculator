@@ -365,6 +365,44 @@ FPS_CODE_START_LIN	EQU	@
 
 ;Code fields:
 ;============
+;.S ( -- ) Copy and display the values currently on the data stack.
+; args:   none
+; result: none
+; SSTACK: 18 bytes
+; PS:      4 cells
+; RS:      1 cell
+; throws: FEXCPT_EC_PSOF
+;CF_DOT_S		EQU	*
+;			;Print header
+;			PS_PUSH	#FPS_DOT_S_HEADER
+;			EXEC_CF	CF_STRING_DOT
+;			;Reserve and populate local stack space
+;			FPS_CHECK_OF	4 			;reserve 3 cells
+;			MOVW	PSP, 6,Y			;initialize index
+;			STY	PSP				;update PSP
+;			;Print first column (PSP in Y)
+;			MOVW	BASE, 4,Y			;save BASE
+;			LDD	#PS_EMPTY			;calculate line count
+;			SUBD	6,Y
+;			LSRD
+;			STD	2,Y
+;			LDD	#(PS_EMPTY+6)			;calculate number of PS entries
+;			SUBD	PSP
+;			LSRD
+;			TFR	D, X 				;determine digit count
+;			LDD	#10 				;set BASE to decimal
+;			STD	BASE
+;			LDY	#$0000
+;			NUM_REVERSE 				
+;			TAB					;print line number
+;			CLRA
+;			STD	[PSP]
+;			EXEC_CF	CF_DOT_R
+;			;Print separator
+;			PS_PUSH	#FPS_DOT_S_HEADER
+;			EXEC_CF	CF_STRING_DOT
+			
+	
 ;.PS_PUSH ( -- x ) Push constant x onto the PS. (W must point to X) 
 ; args:   address of a terminated string
 ; result: none
@@ -373,7 +411,6 @@ FPS_CODE_START_LIN	EQU	@
 ; RS:     none
 ; throws: FEXCPT_EC_PSOF
 CF_PS_PUSH		EQU	*
-			; 
 			LDX	0,X
 			PS_PUSH_X
 			NEXT
@@ -404,6 +441,11 @@ FPS_CODE_END_LIN	EQU	@
 FPS_TABS_START_LIN	EQU	@
 #endif	
 
+;FPS_DOT_S_HEADER	STRING_NL_NONTERM
+;			FCC	"Parameter stack:"
+;			STRING_NL_TERM
+;FPS_DOT_S_SEPARATOR	FCS	": "
+	
 FPS_TABS_END		EQU	*
 FPS_TABS_END_LIN	EQU	@
 

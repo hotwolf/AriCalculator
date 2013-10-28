@@ -126,7 +126,7 @@ FOUTER_VARS_END_LIN	EQU	@
 #macro	SCI_SUSPEND_ACTION, 0
 #emac
 
-;Break/suspend handling:
+;General purpose macros:
 ;=======================
 ;#Fix base
 ; args:   BASE: any base value
@@ -146,6 +146,18 @@ FIX_BASE_1		CPD	#NUM_BASE_MIN
 FIX_BASE_2		STD	BASE
 FIX_BASE_3		EQU	*
 #emac
+
+;Functions:
+;==========
+;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
+; args:   A: delimiter
+; result: X: string pointer
+;	  A: character count (saturated at 255) 	
+; SSTACK: 5 bytes
+;         Y and B are preserved
+#macro	FOUTER_PARSE, 0
+			SSTACK_JOBSR	FOUTER_PARSE, 5
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -157,6 +169,64 @@ FIX_BASE_3		EQU	*
 FOUTER_CODE_START_LIN	EQU	@
 #endif
 
+
+;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
+; args:   A: delimiter
+; result: X: string pointer
+;	  A: character count (saturated at 255) 	
+; SSTACK: 5 bytes
+;         Y and B are preserved
+FOUTER_PARSE		EQU	*	
+			;Save registers
+			PSHY
+			PSHB
+			;Check for empty string (delimiter in A)
+			CLRB	      			;0 -> B
+			LDY	TO_IN			;current >IN -> Y
+			;LEAY	1,Y			;ignore first space character
+			CPY	NUMBER_TIB		;check for the end of the input buffer
+			BHS	FOUTER_PARSE_4		;return empty string
+			LEAX	TIB_START,Y		;save start of string
+			CMPA	0,X			;check for double quote
+			BEQ	FOUTER_PARSE_4		;return empty string		
+			;Parse remaining characters (>IN in Y, delimiter in A, string pointer in X)
+FOUTER_PARSE_1		ADDB	#1 			;increment B
+			SBCB	#0			;saturate B
+			LEAY	1,Y 			;increment >IN
+			CPY	NUMBER_TIB		;check for the end of the input buffer
+			BHS	FOUTER_PARSE_2		;terminate previous character
+			CMPA	TIB_START,Y		;check for double parse
+			BNE	FOUTER_PARSE_1		;check next character
+			;Terminate previous character (>IN in Y, delimiter in A, string pointer in X) 
+FOUTER_PARSE_2		BSET	TIB_START-1,Y, #$80 	;set termination bit
+FOUTER_PARSE_3		EXG	Y,D
+			ADDD	#1			;increment >IN
+			EMIND	NUMBER_TIB-*,PC		;don't go beyond the end of the TIB
+			EXG	Y,D
+			STY	TO_IN			;update >IN
+			TBA				;character count -> A
+			;Restore registers
+			PULB
+			PULY
+			;Done
+			RTS
+			;Empty string 
+FOUTER_PARSE_4		LDX	#$0000
+			JOB	FOUTER_PARSE_3
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
 ;Code fields:
 ;============
 ;.PROMPT ( -- ) Print the command line prompt
@@ -255,6 +325,28 @@ CF_QUERY_8		LDY	PSP 				;drop char from PS
 			BEQ	CF_QUERY_9 			;command line is empty
 			BSET	(TIB_START-1),Y, #$80		;terminate last character
 CF_QUERY_9		NEXT
+
+
+
+
+
+;PARSE ( -- ) Query command line input
+;Make the user input device the input source. Receive input into the terminal input buffer, 
+;replacing any previous contents. Make the result, whose address is returned by TIB, the input 
+;buffer.  Set >IN to zero.
+; args:   address of a terminated string
+; result: none
+; SSTACK: 8 bytes
+; PS:     1 cell
+; RS:     2 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+;         FEXCPT_EC_COMOF
+
+
+
+
 	
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@
