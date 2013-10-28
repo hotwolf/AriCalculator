@@ -336,17 +336,12 @@ CF_D_DOT_R_4		LDX	4,Y
 			SUBD	0,Y
 			BHI	CF_D_DOT_R_5 		;alignment is required
 			PS_DROP 3			;drop alignment size and number from PS
-			JOB	CF_D_DOT_R_8		;print reverse
+			JOB	CF_D_DOT_R_10		;print reverse
 CF_D_DOT_R_5		STD	0,Y
 			NUM_CLEAN_REVERSE 		;clean up SSTACK
 			EXEC_CF	CF_SPACES		;print alignment
 			;Calculate reverse number
-CF_D_DOT_R_6
-			;DX	RSP
-			;DY	PSP
-			;GND
-
-			LDY	PSP 			;PSP -> Y
+CF_D_DOT_R_6		LDY	PSP 			;PSP -> Y
 CF_D_DOT_R_7		LDX	2,Y
 			LDY	0,Y
 			;Set base (positive double number in Y:X)			
