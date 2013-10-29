@@ -173,48 +173,59 @@ FOUTER_CODE_START_LIN	EQU	@
 ;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
 ; args:   A: delimiter
 ; result: X: string pointer
-;	  A: character count (saturated at 255) 	
-; SSTACK: 5 bytes
-;         Y and B are preserved
+;	  D: character count	
+; SSTACK: 4 bytes
+;         Y is preserved
 FOUTER_PARSE		EQU	*	
 			;Save registers
 			PSHY
-			PSHB
 			;Check for empty string (delimiter in A)
-			CLRB	      			;0 -> B
 			LDY	TO_IN			;current >IN -> Y
-			;LEAY	1,Y			;ignore first space character
+FOUTER_PARSE_1		CPY	NUMBER_TIB		;check for the end of the input buffer
+			BHS	FOUTER_PARSE_7		;return empty string
+			BCLR	TIB_START,Y, #$80	;remove termination
+			CMPA	TIB_START,Y		
+			BEQ	FOUTER_PARSE_2		;skip delimeter
+			CMPA	#" "			;check is delimiter is space char
+			BNE	FOUTER_PARSE_3		;parse remaining caracters
+			CMPA	TIB_START,Y		
+			BLS	FOUTER_PARSE_3		;parse remaining caracters
+FOUTER_PARSE_2		LEAY	1,Y			;skip delimeter (increment >IN)
+			JOB	FOUTER_PARSE_1
+			;Parse remaining characters (>IN in Y, delimiter in A)
+FOUTER_PARSE_3		LEAX	TIB_START,Y 		;string pointer -> X
+FOUTER_PARSE_4		LEAY	1,Y			;increment >IN		
 			CPY	NUMBER_TIB		;check for the end of the input buffer
-			BHS	FOUTER_PARSE_4		;return empty string
-			LEAX	TIB_START,Y		;save start of string
-			CMPA	0,X			;check for double quote
-			BEQ	FOUTER_PARSE_4		;return empty string		
-			;Parse remaining characters (>IN in Y, delimiter in A, string pointer in X)
-FOUTER_PARSE_1		ADDB	#1 			;increment B
-			SBCB	#0			;saturate B
-			LEAY	1,Y 			;increment >IN
-			CPY	NUMBER_TIB		;check for the end of the input buffer
-			BHS	FOUTER_PARSE_2		;terminate previous character
-			CMPA	TIB_START,Y		;check for double parse
-			BNE	FOUTER_PARSE_1		;check next character
-			;Terminate previous character (>IN in Y, delimiter in A, string pointer in X) 
-FOUTER_PARSE_2		BSET	TIB_START-1,Y, #$80 	;set termination bit
-FOUTER_PARSE_3		EXG	Y,D
-			ADDD	#1			;increment >IN
-			EMIND	NUMBER_TIB-*,PC		;don't go beyond the end of the TIB
-			EXG	Y,D
-			STY	TO_IN			;update >IN
-			TBA				;character count -> A
-			;Restore registers
-			PULB
+			BHS	FOUTER_PARSE_5		;return parsed string
+			BCLR	TIB_START,Y, #$80	;remove termination
+			CMPA	TIB_START,Y		
+			BEQ	FOUTER_PARSE_5		;delimeter found
+			CMPA	#" "			;check is delimiter is space char
+			BNE	FOUTER_PARSE_4		;parse remaining caracters
+			CMPA	TIB_START,Y		
+			BLS	FOUTER_PARSE_4		;parse remaining caracters
+			;Delimeter found (>IN in Y, string pointer in X)
+FOUTER_PARSE_5		STY	TO_IN 			;update >IN
+			LEAY	TIB_START,Y		;end delimiter position -> Y
+			BSET	-1,Y, #$80 		;terminate previous character
+			TFR	X, D			;calculate character count
+			COMA
+			COMB
+			ADDD	#1
+			LEAY	D,Y
+			TFR	Y, D
+			;Restore registers (string pointer in X, char count in D)
+FOUTER_PARSE_6		SSTACK_PREPULL	4
 			PULY
-			;Done
+			;Done (string pointer in X, char count in D)
 			RTS
-			;Empty string 
-FOUTER_PARSE_4		LDX	#$0000
-			JOB	FOUTER_PARSE_3
+			;Return enpty string
+FOUTER_PARSE_7		MOVW	NUMBER_TIB, TO_IN 	;mark parse area emptu
+			CLRA				;clear char count
+			CLRB
+			TFR	D, X 			;clear string pointer
+			JOB	FOUTER_PARSE_6		;done
 
-	
 ;Code fields:
 ;============
 ;.PROMPT ( -- ) Print the command line prompt
@@ -250,9 +261,11 @@ CF_DOT_PROMPT_1		PS_PUSH_X 				;push prompt pointer onto the PS
 CF_QUERY		EQU	*
 			;Print prompt
 			EXEC_CF	CF_DOT_PROMPT
-			;Reset input buffer 
-			MOVW	#$0000, NUMBER_TIB
-			MOVW	#TIB_START, TO_IN
+			;Reset input buffer
+			CLRA
+			CLRB
+			STD	NUMBER_TIB
+			STD	TO_IN
 			;Receive input
 CF_QUERY_1		EXEC_CF	CF_EKEY				;input car -> [PS+0]
 			;Check input (input car in [PS+0])
