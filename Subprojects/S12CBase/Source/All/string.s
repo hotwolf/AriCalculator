@@ -163,7 +163,7 @@ STRING_VARS_END_LIN	EQU	@
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
 #macro	STRING_UPPER, 0
-			SSTACK_JOBSR	STRING_UPPER_B, 2
+			SSTACK_JOBSR	STRING_UPPER, 2
 #emac
 
 ;#Convert an upper case character to lower case (uncomment if needed)
@@ -172,7 +172,7 @@ STRING_VARS_END_LIN	EQU	@
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
 ;#macro	STRING_LOWER, 0
-;			SSTACK_JOBSR	STRING_LOWER_B, 2
+;			SSTACK_JOBSR	STRING_LOWER, 2
 ;#emac
 
 ;#Make ASCII character printable
