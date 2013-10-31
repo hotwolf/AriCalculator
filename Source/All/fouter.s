@@ -340,10 +340,10 @@ FOUTER_VARS_END_LIN	EQU	@
 ;	  D:   character count
 ; result: Y:X: number
 ;	  D:   size (0 if not a number)	
-; SSTACK: 20 bytes
+; SSTACK: 22 bytes
 ;         No registers are preserved
 #macro	FOUTER_INTEGER, 0	
-			SSTACK_JOBSR	FOUTER_NUMBER, 20
+			SSTACK_JOBSR	FOUTER_INTEGER, 22
 #emac
 
 ;###############################################################################
