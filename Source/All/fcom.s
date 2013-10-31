@@ -100,7 +100,6 @@ FCOM_CODE_START_LIN	EQU	@
 ; RS:     1 cell
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_COMERR
-;         FEXCPT_EC_COMOF
 CF_EKEY			EQU	*
 			;Try to receive data 
 CF_EKEY_1		SEI				;disable interrupts
@@ -108,11 +107,8 @@ CF_EKEY_1		SEI				;disable interrupts
 			BCC	CF_EKEY_2		;no data available
 			CLI				;enable interrupts
 			;Check for RX errors (flags in A, data in B)
-			BITA	#(NF|FE|PE)
+			BITA	#(SCI_FLG_SWOR|OR|NF|FE|PE)
 			BNE	CF_EKEY_4 		;RX error
-			;Check for RX buffer overflow (flags in A, data in B)
-			BITA	#(SCI_FLG_SWOR|OR)
-			BNE	CF_EKEY_5 		;RX buffer overflow
 			;Push data onto the parameter stack  (flags in A, data in B)
 			CLRA
 			PS_PUSH_D
@@ -133,8 +129,6 @@ CF_EKEY_3		LED_BUSY_OFF 			;signal inactivity
 			JOB	CF_EKEY_1		;check NEXT_PTR again
 			;RX error
 CF_EKEY_4		FEXCPT_THROW	FEXCPT_EC_COMERR
-			;RX buffer overflow
-CF_EKEY_5		FEXCPT_THROW	FEXCPT_EC_COMOF
 
 ;EKEY? ( -- flag ) Check for data
 ; args:   none
@@ -301,7 +295,7 @@ CF_D_DOT_R_1		BPL	CF_D_DOT_R_4		;positive number
 			STX	4,Y
 			;Set base (PSP in Y, positive double number in D:X)
 			TFR	D, Y
-			FIX_BASE 			;base -> D
+			FOUTER_FIX_BASE 		;base -> D
 			;Reverse double number (base in B, positive double number in Y:X)
 			NUM_REVERSE			;digit count -> A (SSTACK: 18 bytes)
 			NUM_CLEAN_REVERSE 		;clean up SSTACK
@@ -323,7 +317,7 @@ CF_D_DOT_R_3		STD	0,Y
 CF_D_DOT_R_4		LDX	4,Y
 			TFR	D, Y
 			;Set base (positive double number in Y:X)			
-			FIX_BASE 			;base -> D
+			FOUTER_FIX_BASE 		;base -> D
 			;Reverse double number (base in B, positive double number in Y:X)
 			NUM_REVERSE			;digit count -> A (SSTACK: 18 bytes)
 			;Check if alignment is needed (reverse on SSTACK, digit count in A, number in Y:X)
@@ -345,7 +339,7 @@ CF_D_DOT_R_6		LDY	PSP 			;PSP -> Y
 CF_D_DOT_R_7		LDX	2,Y
 			LDY	0,Y
 			;Set base (positive double number in Y:X)			
-			FIX_BASE 			;base -> D
+			FOUTER_FIX_BASE 		;base -> D
 			;Reverse double number (base in B, positive double number in Y:X)
 			NUM_REVERSE			;digit count -> A (SSTACK: 18 bytes)
 			;Cleanup PS (base in B, reverse on SSTACK)
@@ -380,7 +374,7 @@ CF_D_DOT_R_9		LDX	NEXT_PTR		;check for default NEXT pointer
 			MOVW	2,Y+, 2,-SP
 			MOVW	2,Y+, 2,-SP
 			STY	PSP
-CF_D_DOT_R_10		FIX_BASE 			;base -> D	
+CF_D_DOT_R_10		FOUTER_FIX_BASE 		;base -> D	
 			JOB	CF_D_DOT_R_8		;try to print more digits
 			;Wait for any internal system event (base in B, I-bit set)
 CF_D_DOT_R_11		;LED_BUSY_OFF 			;signal inactivity
@@ -605,6 +599,7 @@ FCOM_CODE_END_LIN	EQU	@
 FCOM_TABS_START_LIN	EQU	@
 #endif	
 
+;Symbol table
 FCOM_SYMTAB		EQU	NUM_SYMTAB
 	
 FCOM_TABS_END		EQU	*
@@ -631,7 +626,6 @@ FCOM_WORDS_START_LIN	EQU	@
 ;"Parameter stack overflow"
 ;"Return stack overflow"
 ;"Invalid RX data"
-;"RX buffer overflow"
 CFA_EKEY		DW	CF_EKEY
 
 ;Word: EKEY? ( -- flag )

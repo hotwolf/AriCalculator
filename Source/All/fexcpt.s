@@ -81,7 +81,7 @@ FEXCPT_EC_COMPONLY		EQU	-14	;interpreting a compile-only word
 ;FEXCPT_EC_15			EQU	-15	;invalid FORGET
 FEXCPT_EC_NONAME		EQU	-16	;attempt to use zero-length string as a name
 FEXCPT_EC_PADOF			EQU	-17	;pictured numeric output string overflow
-FEXCPT_EC_STROF			EQU	-18	;parsed string overflow
+;FEXCPT_EC_STROF		EQU	-18	;parsed string overflow
 ;FEXCPT_EC_19			EQU	-19	;definition name too long
 ;FEXCPT_EC_20			EQU	-20	;write to a read-only location
 ;FEXCPT_EC_21			EQU	-21	;unsupported operation (e.g., AT-XY on a too-dumb terminal)
@@ -120,14 +120,12 @@ FEXCPT_EC_CESF			EQU	-53	;exception stack overflow
 ;FEXCPT_EC_54			EQU	-54	;floating-point underflow
 ;FEXCPT_EC_55			EQU	-55	;floating-point unidentified fault
 FEXCPT_EC_QUIT			EQU	-56	;QUIT
-;FEXCPT_EC_57			EQU	-57	;exception in sending or receiving a character
+FEXCPT_EC_COMERR		EQU	-57	;exception in sending or receiving a character
 ;FEXCPT_EC_58			EQU	-58	;[IF], [ELSE], or [THEN] exception
 	
 ;S12CForth specific error codes 
 FEXCPT_EC_NOMSG			EQU	-59	;empty message string
 FEXCPT_EC_DICTPROT		EQU	-60	;destruction of dictionary structure
-FEXCPT_EC_COMERR		EQU	-61	;invalid RX data
-FEXCPT_EC_COMOF			EQU	-62	;RX buffer overflow
 
 ;Highest standard error code value
 FEXCPT_EC_MAX			EQU	FEXCPT_EC_COMOF
@@ -498,7 +496,7 @@ FEXCPT_MSGTAB		EQU	*
 			FEXCPT_MSG	FEXCPT_EC_COMPONLY,	"Compile-only word"
 			FEXCPT_MSG	FEXCPT_EC_NONAME,	"Missing name argument"
 			FEXCPT_MSG	FEXCPT_EC_PADOF,	"PAD overflow"
-			FEXCPT_MSG	FEXCPT_EC_STROF,	"String too long"
+			;FEXCPT_MSG	FEXCPT_EC_STROF,	"String too long"
 			FEXCPT_MSG	FEXCPT_EC_CTRLSTRUC,	"Control structure mismatch"
 			;FEXCPT_MSG	FFEXCPT_EC_INVALNUM,	"Invalid numeric argument"
 			FEXCPT_MSG	FEXCPT_EC_COMPNEST,	"Nested compilation"
@@ -508,8 +506,7 @@ FEXCPT_MSGTAB		EQU	*
 			FEXCPT_MSG	FEXCPT_EC_CESF,		"Corrupt exception stack frame"
 			FEXCPT_MSG	FEXCPT_EC_NOMSG,	"Empty message string"
 			FEXCPT_MSG	FEXCPT_EC_DICTPROT,	"Destruction of dictionary structure"
-			FEXCPT_MSG	FEXCPT_EC_COMERR,	"Invalid RX data"
-			FEXCPT_MSG	FEXCPT_EC_COMOF		"RX buffer overflow"
+			FEXCPT_MSG	FEXCPT_EC_COMERR,	"Corrupted RX data"
 			FEXCPT_MSG	0			"Unknown cause"
 	
 FEXCEPT_TABS_END	EQU	*
