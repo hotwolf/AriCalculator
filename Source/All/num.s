@@ -223,14 +223,14 @@ NUM_REVERSE_RLW		EQU	$10 ;SP+16:  |      +return address at
 
 			;Setup stack (double value in Y:X, base in B)
 			CLRA
-			MOVW	0,SP, 6,-SP 	;move return address to SP+10
-			STD	6,SP		;initialize reverse number
-			MOVW	#$0000, 4,SP    ;  reverse number = base
-			MOVW	#$0000, 2,SP
-			PSHX			;store X at SP+8
-			PSHY			;store Y at SP+6			
-			PSHD			;store count:base at SP+4
-			PSHX			;store double value at SP+0
+			MOVW	0,SP, 6,-SP 		;move return address to SP+10
+			STD	6,SP			;initialize reverse number
+			MOVW	#$0000, 4,SP    	;reverse number = base
+			MOVW	#$0000, 2,SP		
+			PSHX				;store X at SP+8
+			PSHY				;store Y at SP+6			
+			PSHD				;store count:base at SP+4
+			PSHX				;store double value at SP+0
 			PSHY
 
 			;Divide FHW by base
