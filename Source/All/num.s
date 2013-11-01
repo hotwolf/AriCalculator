@@ -289,10 +289,12 @@ NUM_REVERSE_3		LDY	NUM_REVERSE_RLW,SP
 			EMUL				;Y * D => Y:D
 			ADDD	NUM_REVERSE_RMW,SP
 			STD	NUM_REVERSE_RMW,SP
-
-			;Multiply RHW by base (carry-over in Y)
-			LDD	NUM_REVERSE_RHW,SP
-			EXG	D, Y
+			TFR	Y, D
+ 			ADCB	#$00	
+			ADCA	#$00
+ 			
+			;Multiply RHW by base (carry-over in D)
+			LDY	NUM_REVERSE_RHW,SP
 			STD	NUM_REVERSE_RHW,SP
 			CLRA
 			LDAB	NUM_REVERSE_BASE,SP
