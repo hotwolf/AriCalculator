@@ -72,6 +72,33 @@ FCDICT_VARS_END_LIN	EQU	@
 ;#Suspend action
 #macro	FCDICT_SUSPEND, 0
 #emac
+
+;Functions:
+;==========
+;Compare substring
+; args:   Y: reference string pointer (MSB terminated)
+;         X: string pointer
+;         D: character count
+; result: C-flag: set on match	
+;         Y: points to the byte after the reference string
+;         X: points to the byte after the matched substring (unchanged on mismatch)
+;         D: remaining character count (unchanged on mismatch)
+; SSTACK: 8 bytes
+;         No registers are preserved 
+#macro	FCDICT_COMP_SUBSTR, 0
+			SSTACK_JOBSR	FCDICT_COMP_SUBSTR, 8
+#emac
+	
+;Search word in dictionary
+; args:   X: string pointer
+;         D: char count 
+; result: C-flag: set if word is in the dictionary	
+;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
+; SSTACK: 16 bytes
+;         Y and D are preserved 
+#macro	FCDICT_SEARCH, 0
+			SSTACK_JOBSR	FCDICT_SEARCH, 16
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -83,203 +110,146 @@ FCDICT_VARS_END_LIN	EQU	@
 FCDICT_CODE_START_LIN	EQU	@
 #endif
 
-
-
-;Find word in dictionary
-; args:   X: string pointer
-; result: X: updated string pointer (unchanged if word has not been found) 
-;         Y: CFA (null if word not found) 
-; SSTACK: n bytes
-;         D is preserved 
-FCDICT_FIND		EQU	*
-			;Save registers (string pointer in X)
-			PSHX						;save X
-			PSHD						;save D	
-			;Skip whitespace (string pointer in X)
-			STRING_SKIP_WS 					;truncate preceding whitespaces (SSTACK: 3 bytes)
-			;Set dictionary tree pointer (string pointer in X)
-			LDY	#FCDICT_TREE
-			
-			;Check next character (string pointer in X, dict pointer in Y)
-FCDICT_FIND_1		LDD	1,X+ 					;load two character
-			CMPB	#$20					;terminate if followed by whitespacw
-			BHI	FCDICT_FIND_2
-			ORAA	#$80
-FCDICT_FIND_2		STRING_UPPER					;make upper case  (SSTACK: 3 bytes)
-			
-			;Select branch of subtree (char in A, next char pointer in X, dict pointer in Y)
-FCDICT_FIND_3		TAB						;compare first character in substring
-			EORB	0,Y
-			ANDB	$7F
-			BEQ	FCDICT_FIND_6 				;match
-			;Skip to next branch (char in A, next char pointer in X, dict pointer in Y) 
-FCDICT_FIND_4		BRCLR	1,Y+, #$80, * 				;find end of substring
-			BRCLR	2,Y+, $FF, FCDICT_FIND_5 		;string termination found
-			BRCLR	0,Y, $FF, FCDICT_FIND_ 			;search unsuccessful
-			JOB	FCDICT_FIND_3 				;check next branch
-FCDICT_FIND_5		BRCLR	1,+Y, $FF, FCDICT_FIND_ 		;search unsuccessful
-			JOB	FCDICT_FIND_3 				;check next branch
-
-			;Branch selected (char in A, next char pointer in X, dict pointer in Y) 
-FCDICT_FIND_6		TSTA
-			BMI	FCDICT_FIND_ 				;end of string reached
-
-
-
-
-	
-			;End of search string (char in A, next char pointer in X, dict pointer in Y)
-FCDICT_FIND_		BRCLR	1,Y+, #$80, FCDICT_FIND_		;search unsuccessful
-			BRCLR	0,Y,  #$FF,  FCDICT_FIND_		;look for empty string in subtree
-			LDY	0,Y 					;fetch result
-			;Search successful (next char pointer in X, result in Y)  
-FCDICT_FIND_		SSTACK_PREPULL	6
-			LDD	4,SP+					;pull D from the SSTACK (skip X)
-			SEC
+;Compare substring
+; args:   Y: reference string pointer (MSB terminated)
+;         X: string pointer
+;         D: character count
+; result: C-flag: set on match	
+;         Y: points to the byte after the reference string
+;         X: points to the byte after the matched substring (unchanged on mismatch)
+;         D: remaining character count (unchanged on mismatch)
+; SSTACK: 8 bytes
+;         No registers are preserved 
+FCDICT_COMP_SUBSTR	EQU	*
+			;Save registers (ref ptr in Y, str ptr in X, char count in D)
+			PSHX						;save X	
+			PSHD						;save D				
+			PSHD						;remainig char count			
+			;Check char count (ref ptr in Y, str ptr in X, char count in D)
+			;TBEQ	Y, FCDICT_COMP_SUBSTR_3 		;nothing to compare
+			TBEQ	D, FCDICT_COMP_SUBSTR_3 		;nothing to compare
+			;Read chars (ref ptr in Y, str ptr in X, char count in D)
+FCDICT_COMP_SUBSTR_1	LDAB	1,X+ 					;str char -> B
+			ANDB	#$7F		    			;remove termination
+			LDAA	1,Y+ 					;ref char -> A
+			BMI	FCDICT_COMP_SUBSTR_5			;termination reached
+FCDICT_COMP_SUBSTR_2	CBA
+			BNE	FCDICT_COMP_SUBSTR_3			;mismatch
+			LDD	0,SP			       		;char count -> D
+			DBNE	D, FCDICT_COMP_SUBSTR_1 			;check next char
+			;String is too short (ref ptr in Y)
+FCDICT_COMP_SUBSTR_3	TST	1,Y+ 					;skip past ref termination
+			BPL	FCDICT_COMP_SUBSTR_3
+			;Mismatch (new ref ptr in Y)
+FCDICT_COMP_SUBSTR_4	SSTACK_PREPULL	8 				;restore stack
+			PULD						;remove stack entry				
+			PULD						;restore D				
+			PULX						;restore X				
+			CLC						;flag mismatch
 			;Done
 			RTS
-			;Look for empty string in subtree  (char in A, next char pointer in X, dict pointer in Y)
-			LDY	1,Y
-			
-
-	
-	
-			TST	0,Y
-			BPL	FCDICT_FIND_ 				;
-
-
-
-			LDY	1,Y
-				
-
-
-	
-			TST	2,Y
-
-
-	+ 					;skip pointer
-			BNE	FCORE_DICT_FIND_5			:skip termination
-			LEAY	1,Y					
-			
-	
-
-			BRCLR	2,+Y, #$80, FCORE_DICT_FIND_ 		;check next branch  
-			
-			;Search unsuccssful
-FCORE_DICT_FIND_5
-
-			;Character match 
-
-	
-
-
-	
-	LDAA	1,Y+   			;check subtree
-			BMI	FCORE_DICT_FIND_ 	;subtree exists
-			; (char in B, next char pointer in X, dict pointer in Y)
+			;Reference string termination reached (ref ptr in Y, str ptr in X, char in B, ref char in A)
+FCDICT_COMP_SUBSTR_5	ANDA	#$7F		    			;remove termination
 			CBA
-			
-
-
-	
-
-
-	        BEQ	FCORE_DICT_FIND_	;word not found
-
-	
-
-
-
-
-
-
-
-
-			
-			
-			
-	
-
-
-			TSTB
-	
-			;Check dictionary tree (char in B, next char pointer in X, dict pointer in Y)
-FCORE_DICT_FIND_1	LDAA	1,Y+   			;check subtree
-			BEQ	FCORE_DICT_FIND_	;zero termination found
-			BMI	FCORE_DICT_FIND_ 	;end of substring
-			CBA
-			BEQ	FCORE_DICT_FIND_6 	;character match
-
-
-
-	
-			;Skip to next subtree (char in B, next char pointer in X, dict pointer in Y)
-FCORE_DICT_FIND_2	TST	1,Y+			;skip to next substring
-			BEQ	FCORE_DICT_FIND_3	;zero termination found	
-			BPL	FCORE_DICT_FIND_2	;no termination found
-FCORE_DICT_FIND_3	TST	2,+Y 			;skip over pointer
-			BNE	FCORE_DICT_FIND_1	;check next subtree
-			
-			;Word not found
-			LDX	#$0000
+			BNE	FCDICT_COMP_SUBSTR_4			;mismatch
+			;Match (ref ptr in Y, str ptr in X)
+			SSTACK_PREPULL	8 				;restore stack
+			PULD						;pull remaining char count
+			SUBD	#1 					;adjust char count
+			LEAS	4,SP 					;free stack space
+			SEC						;flag match
 			;Done
+			RTS
 
-	
-			;End of substring found ()
-			ANDA	#$7F
-			
-			
+;Search word in dictionary
+; args:   X: string pointer
+;         D: char count 
+; result: C-flag: set if word is in the dictionary	
+;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
+; SSTACK: 16 bytes
+;         Y and D are preserved 
+FCDICT_SEARCH		EQU	*
+			;Save registers (string pointer in X, char count in D)
+			PSHY						;save Y
+			PSHX						;save X
+			PSHD						;save D	
+			;Set dictionary tree pointer (string pointer in X, char count in D)
+			LDY	#FCDICT_TREE
+			;Compare substring (tree pointer in Y, string pointer in X, char count in D)
+FCDICT_SEARCH_1		FCDICT_COMP_SUBSTR   				;compare substring (SSTACK: 8 bytes)
+			BCS	FCDICT_SEARCH_4 			;substring matches
+			TST	0,Y					;check for STRING_TERMINATION
+			BNE	FCDICT_SEARCH_2 			;no STRING_TERMINATION
+			LEAY	1,Y 					;skip STRING_TERMINATION
+FCDICT_SEARCH_2		TST	2,+Y 					;check for END_OF_SUBTREE
+			BNE	FCDICT_SEARCH_1 			;compare next substring
+			;Search unsuccessful
+FCDICT_SEARCH_3		SSTACK_PREPULL	8 				;restore stack
+			PULX						;restore X				
+			PULD						;restore D				
+			PULY						;restore Y				
+			CLC						;flag unsuccessful search
+			;Done
+			RTS		
+			;Substring matches (tree pointer in Y, string pointer in X, char count in D)
+FCDICT_SEARCH_4		TST	0,Y					;check for STRING_TERMINATION
+			BNE	FCDICT_SEARCH_6 			;switch to subtree
+			TBNE	D, FCDICT_SEARCH_3			;search unsuccessful
+			;Search successful (tree pointer in Y, string pointer in X, char count in D)
+FCDICT_SEARCH_5		LDD	1,+Y 					;IMMEDIATE/CFA -> X
+			SSTACK_PREPULL	8 				;restore stack
+			PULX						;discards saved D content				
+			PULX						;restore X				
+			PULY						;restore Y				
+			SEC						;flag successful search
+			;Done
+			RTS		
+			;Switch to subtree (tree pointer in Y, string pointer in X, char count in D)
+FCDICT_SEARCH_6		LDY	0,Y					;switch to subtree
+			TST	0,Y					;check for STRING_TERMINATION
+			BNE	FCDICT_SEARCH_1 			;compare substring
+			TBEQ	D, FCDICT_SEARCH_5			;search successful
+			JOB	FCDICT_SEARCH_3				;search unsuccessful
 
-
-
-
-
-
-	
-	
-			JOB	FCORE_DICT_FIND_1	;try next substring
-	
-
-
-
-				BPL	LABEL_NEXT_SUBSTR
-			;End of substring (next char pointer in Y, subtree pointer in X)
-FCORE_DICT_FIND_5	LDX	2,X+
-			JOB	FCORE_DICT_FIND_2	;next substring
-				
-			;Check next string character (next char pointer in Y, dict pointer in X)
-FCORE_DICT_FIND_6	LDD	1,Y+
-			BPL	FCORE_DICT_FIND_1a	;not end of string, yet
-			
-			;End of string (char in A, next char pointer in Y, dict pointer in X)
-FCORE_DICT_FIND_7	ANDA	#$7F
-			LDAB	1,X+   			;check character in dictionary
-			BMI	FCORE_DICT_FIND_
-			CBA
-			BNE	FAIL
-			TST	1,X+   			;check for termination
-			BNE	FAIL
-
-
-			
-
-
-	
-
-LABEL_1			LDAA	1,+Y 			;load character	
-
-	
-
-	;; first match
-	;; next match
-	;; lookup
-
-
-
-
-
-
-
+;Code fields:
+;============
+;SEARCH-CDICT ( c-addr u -- 0 | xt 1 | xt -1 ) 
+;Find the definition in the core dictionary identified by the string c-addr u in
+;the word list identified by wid. If the definition is not found, return zero.
+;If thedefinition is found, return its execution token xt and one (1) if the
+;definition is immediate, minus-one (-1) otherwise. 
+; args:   PSP+0: char count
+;         PSP+1: string pointer
+; result: PSP+0: CFA
+;         PSP+1: COMPILE (1) or IMMEDIATE (-1)
+; or
+;         PSP+0: false flag
+; SSTACK: 16 bytes
+; PS:     1 cell
+; RS:     none
+; throws: FEXCPT_EC_PSUF
+CF_SEARCH_CDICT		EQU	*
+			;Check PS
+			PS_CHECK_UF	2 		;PSP -> Y
+			;Search core directory (PSP in Y)
+			LDX	2,Y
+			LDD	0,Y
+			FCDICT_SEARCH 			;(SSTACK: 16 bytes)
+			BCC	CF_SEARCH_CDICT_2	;search unsuccessfull
+			;Search sucessfull (PSP in Y, IMMEDIATE/CFA in D)
+			LDX	#$0000
+			LSLD
+			EXG	D,X
+			SBCB	#$00
+			SBCA	#$00
+			STD	0,Y
+			STX	2,Y
+			;Done
+CF_SEARCH_CDICT_1	NEXT
+			;Search sucessfull (PSP in Y)
+CF_SEARCH_CDICT_2	MOVW	#$0000, 2,+Y
+			STY	PSP
+			JOB	CF_SEARCH_CDICT_1 	;done
 	
 FCDICT_CODE_END		EQU	*
 FCDICT_CODE_END_LIN	EQU	@
@@ -310,6 +280,16 @@ FCDICT_TABS_END_LIN	EQU	@
 FCDICT_WORDS_START_LIN	EQU	@
 #endif	
 
+;S12CForth Words:
+;================
+
+;Word: SEARCH-CDICT ( c-addr u -- 0 | xt 1 | xt -1 ) 
+;Find the definition in the core dictionary identified by the string c-addr u in
+;the word list identified by wid. If the definition is not found, return zero.
+;If thedefinition is found, return its execution token xt and one (1) if the
+;definition is immediate, minus-one (-1) otherwise. 
+CFA_SEARCH_CDICT	DW	CF_SEARCH_CDICT
+	
 FCDICT_WORDS_END		EQU	*
 FCDICT_WORDS_END_LIN	EQU	@
 

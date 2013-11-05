@@ -284,7 +284,7 @@ if ($code->{problems}) {
         printf FILEHANDLE ";###############################################################################\n";
         printf FILEHANDLE ";#    Copyright 2009-2013 Dirk Heisswolf                                       #\n";
         printf FILEHANDLE ";#    This file is part of the S12CForth framework for Freescale's S12(X) MCU  #\n";
-        printf FILEHANDLE ";#    families.                                                                #\n";
+        printf FILEHANDLE ";#    familtree_layout_widthies.                                                                #\n";
         printf FILEHANDLE ";#                                                                             #\n";
         printf FILEHANDLE ";#    S12CForth is free software: you can redistribute it and/or modify        #\n";
         printf FILEHANDLE ";#    it under the terms of the GNU General Public License as published by     #\n";
@@ -429,12 +429,12 @@ sub get_tree_layout_width {
     my $tree       = shift @_;    
 
     my @strings = sort keys %$tree;
-    my $max_string_width = 0;
+    my $max_string_width = 4;
     my $max_child_width  = 0;
     while (my $string = shift @strings) {
 	chomp($string);
-	if (length($string) > $max_string_width) {
-	    $max_string_width = length($string);
+	if ((length($string)+4) > $max_string_width) {
+	    $max_string_width = (length($string)+4);
 	}
 	my $child_tree  = $tree->{$string};
 	my $child_width = get_tree_layout_width($tree->{$string});
@@ -442,7 +442,7 @@ sub get_tree_layout_width {
 	    $max_child_width = $child_width;
 	}
     }
-    return ($max_string_width + $max_child_width + 2);
+    return ($max_string_width + $max_child_width);
 }
 
 #####################
@@ -451,17 +451,17 @@ sub get_tree_layout_width {
 sub print_tree_layout {
     my $tree           = shift @_;
     my $pre_string     = shift @_;
-
+    
     #Extract strings
     my @strings = sort(keys %$tree);
  
     #Find longest string
-    my $max_string_length = 0;
+    my $max_string_length = 4;
     foreach my $string (@strings) {
 	my $nt_string = $string;
 	chomp($nt_string);
-	if (length($nt_string) > $max_string_length) {
-	    $max_string_length = length($nt_string);
+	if ((length($nt_string)+4) > $max_string_length) {
+	    $max_string_length = (length($nt_string)+4);
 	}
     }
   
@@ -471,9 +471,9 @@ sub print_tree_layout {
     while (my $string = shift @strings) {
 	#Update pre-string
 	if ($#strings >= 0) {
-	    $new_pre_string  = $pre_string . sprintf(sprintf("%%-%ds", $max_string_length+1), "|");
+	    $new_pre_string  = $pre_string . sprintf(sprintf("%%-%ds", $max_string_length), "|");
 	} else {
-	    $new_pre_string  = $pre_string . sprintf(sprintf("%%-%ds", $max_string_length+1), " ");
+	    $new_pre_string  = $pre_string . sprintf(sprintf("%%-%ds", $max_string_length), " ");
 	}
 
 	#Print pre-string
@@ -519,11 +519,14 @@ sub print_tree_layout {
 		    printf FILEHANDLE " > ";
 		} else {
 		    printf FILEHANDLE " ";
-		    foreach my $i (0..($arrow_length-3)) {
+		    foreach my $i (0..($arrow_length-4)) {
 			printf FILEHANDLE "-";
 		    }
 		    printf FILEHANDLE "> ";
 		}
+
+		#printf FILEHANDLE sprintf(" >%d<", $max_string_length);
+
 		print_tree_layout($tree->{$string}, $new_pre_string);
 		if ($#strings >= 0) {
 		    printf FILEHANDLE "%s\n", $new_pre_string;

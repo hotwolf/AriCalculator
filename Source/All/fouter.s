@@ -142,7 +142,7 @@ FOUTER_VARS_END_LIN	EQU	@
 ;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
 ; args:   A: delimiter
 ; result: X: string pointer
-;	  A: character count (saturated at 255) 	
+;	  D: character count
 ; SSTACK: 5 bytes
 ;         Y and B are preserved
 #macro	FOUTER_PARSE, 0
@@ -339,7 +339,7 @@ FOUTER_VARS_END_LIN	EQU	@
 ; args:   X:   string pointer
 ;	  D:   character count
 ; result: Y:X: number
-;	  D:   size (0 if not a number)	
+;	  D:   size (0 if not an integer)	
 ; SSTACK: 22 bytes
 ;         No registers are preserved
 #macro	FOUTER_INTEGER, 0	
@@ -837,7 +837,7 @@ FOUTER_PEEK_NUM_4	EQU	FOUTER_PEEK_NUM_3
 ; args:   X:   string pointer
 ;	  D:   character count
 ; result: Y:X: number
-;	  D:   cell count (0 if not a number)	
+;	  D:   cell count (0 if not an integer)	
 ; SSTACK: 22 bytes
 ;         No registers are preserved
 FOUTER_INTEGER		EQU	*	
@@ -1116,6 +1116,52 @@ CF_TO_NUMBER_1		LEAS	10,SP
 			;Done
 			NEXT
 	
+;INTEGER ( c-addr u -- d s | n 1 | 0) Interpret string as integer
+;Interpret string as integer value and return a single or double cell number
+;along with the cell count. If the interpretation was unsuccessful, return a
+;FALSE flag
+; args:   PSP+0: char count
+;         PSP+1: string pointer
+; result: PSP+0: cell count
+;         PSP+1: double value
+; or
+;         PSP+0: cell count
+;         PSP+1: single value
+; or
+;         PSP+0: false flag
+; SSTACK: 22 bytes
+; PS:     1 cell
+; RS:     none
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_PSUF
+CF_INTEGER		EQU	*
+			;Check PS
+			PS_CHECK_UFOF	2, 1 		;new PSP -> Y
+			STY	PSP
+			;Interpret string (PSP in Y)
+			LDD	2,Y
+			LDX	4,Y
+			FOUTER_INTEGER			;(SSTACK: 22 bytes)
+			STD	0,Y			;store cell count
+			TBEQ	D, CF_INTEGER_2		;not an integer (done)
+			DBEQ	D, CF_INTEGER_4		;single cell
+			;Double cell value (integer in Y:X) 
+			TFR	Y, D
+			LDY	PSP
+			STD	2,Y
+			STX	4,Y
+			;Done
+CF_INTEGER_1		NEXT
+			;Not an integer 
+CF_INTEGER_2		LDY	PSP
+			MOVW	#$0000, 4,+Y
+CF_INTEGER_3		STY	PSP
+			JOB	CF_INTEGER_1 		;done
+			;Single cell value (integer in X) 
+CF_INTEGER_4		LDY	PSP
+			MOVW	#$0001, 2,+Y
+			JOB	CF_INTEGER_3
+	
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@
 	
@@ -1218,7 +1264,7 @@ CFA_STATE		DW	CF_PS_PUSH
 CFA_BASE		DW	CF_PS_PUSH
 			DW	BASE
 
-;Word: >IN ( -- a-addr ) 
+;Word: >IN ( -- a-addr )
 ;a-addr is the address of a cell containing the offset in characters from the start of the input 
 ;buffer to the start of the parse area.  
 ;
@@ -1227,7 +1273,7 @@ CFA_BASE		DW	CF_PS_PUSH
 CFA_TO_IN		DW	CF_PS_PUSH
 			DW	TO_IN
 
-;Word: #TIB ( -- a-addr ) 
+;Word: #TIB ( -- a-addr )
 ;a-addr is the address of a cell containing the number of characters in the terminal input buffer.
 ;
 ;Throws:
@@ -1244,5 +1290,15 @@ CFA_NUMBER_TIB		DW	CF_PS_PUSH
 ;"Parameter stack overflow"
 CFA_DOT_PROMPT		DW	CF_DOT_PROMPT
 	
+;Word: INTEGER ( c-addr u -- d s | n 1 | 0)
+;Interpret string as integer value and return a single or double cell number
+;along with the cell count. If the interpretation was unsuccessful, return a
+;FALSE flag
+;
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack overflow"
+CFA_INTEGER		DW	CF_INTEGER
+
 FOUTER_WORDS_END	EQU	*
 FOUTER_WORDS_END_LIN	EQU	@
