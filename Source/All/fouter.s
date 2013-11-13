@@ -39,7 +39,9 @@
 ;#    BASE - S12CBase framework                                                #
 ;#    FPS    - Forth parameter stack                                           #
 ;#    FRS    - Forth return stack                                              #
+;#    FCOM   - Forth communication interface                                   #
 ;#    FINNER - Forth inner interpreter                                         #
+;#    FEXCPT - Forth Exception Handler                                         #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -1253,7 +1255,7 @@ CFA_TO_NUMBER		DW	CF_TO_NUMBER
 ;
 ;Throws:
 ;"Parameter stack overflow"
-CFA_STATE		DW	CF_PS_PUSH
+CFA_STATE		DW	CF_CONSTANT_RT
 			DW	STATE
 
 ;Word: BASE ( -- a-addr ) 
@@ -1261,7 +1263,7 @@ CFA_STATE		DW	CF_PS_PUSH
 ;
 ;Throws:
 ;"Parameter stack overflow"
-CFA_BASE		DW	CF_PS_PUSH
+CFA_BASE		DW	CF_CONSTANT_RT
 			DW	BASE
 
 ;Word: >IN ( -- a-addr )
@@ -1270,7 +1272,7 @@ CFA_BASE		DW	CF_PS_PUSH
 ;
 ;Throws:
 ;"Parameter stack overflow"
-CFA_TO_IN		DW	CF_PS_PUSH
+CFA_TO_IN		DW	CF_CONSTANT_RT
 			DW	TO_IN
 
 ;Word: #TIB ( -- a-addr )
@@ -1278,7 +1280,7 @@ CFA_TO_IN		DW	CF_PS_PUSH
 ;
 ;Throws:
 ;"Parameter stack overflow"
-CFA_NUMBER_TIB		DW	CF_PS_PUSH
+CFA_NUMBER_TIB		DW	CF_CONSTANT_RT
 			DW	NUMBER_TIB
 
 ;S12CForth Words:

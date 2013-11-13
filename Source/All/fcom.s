@@ -306,13 +306,16 @@ CF_D_DOT_R_1		BPL	CF_D_DOT_R_4		;positive number
 			LDD	0,Y			;calculate number of space chars
 			STX	0,Y
 			SUBD	0,Y
-			BHI	CF_D_DOT_R_3 		;alignment is required
-			PS_DROP 1			;drop alignment size from PS
-CF_D_DOT_R_2		EXEC_CF	CF_MINUS		;print sign
-			JOB    	CF_D_DOT_R_6
-CF_D_DOT_R_3		STD	0,Y
+			BLS	CF_D_DOT_R_3 		;alignment is required
+			;Print alignment (PSP in Y, padding size in D) 
+			STD	0,Y
 			EXEC_CF	CF_SPACES
-			JOB    	CF_D_DOT_R_2		;print alignment		
+CF_D_DOT_R_2		PS_CHECK_OF	1		;reserve a cell on the PS
+			STY		PSP
+			;Print minus sign (PSP in Y) 
+CF_D_DOT_R_3		MOVW	#"-", 0,Y
+			EXEC_CF	CF_EMIT
+			JOB    	CF_D_DOT_R_6
 			;Positive number (PSP in Y, MSW	in D) 
 CF_D_DOT_R_4		LDX	4,Y
 			TFR	D, Y
@@ -459,28 +462,28 @@ CF_HEX_DOT_3		;LED_BUSY_OFF 			;signal inactivity
 ; PS:     none
 ; RS:     1 cell
 ; throws: FEXCPT_EC_PSUF
-CF_SPACE		EQU	*
-			;Try to transmit space character
-CF_SPACE_1		LDAB	#" " 			;space char -> B
-CF_SPACE_2		SEI				;disable interrupts
-			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
-			BCC	CF_SPACE_3		;TX queue is full
-			CLI				;enable interrupts
-			;Done
-			NEXT
-			;Check for change of NEXT_PTR (space char in B, I-bit set)
-CF_SPACE_3		LDX	NEXT_PTR		;check for default NEXT pointer
-			CPX	#NEXT
-			BEQ	CF_SPACE_4	 	;still default next pointer
-			CLI				;enable interrupts
-			;Execute NOP
-			EXEC_CF	CF_NOP
-			JOB    	CF_SPACE_1
-			;Wait for any internal system event (space char in B, I-bit set)
-CF_SPACE_4		;LED_BUSY_OFF 			;signal inactivity
-			ISTACK_WAIT			;wait for next interrupt
-			;LED_BUSY_ON 			;signal activity
-			JOB	CF_SPACE_2		;check NEXT_PTR again
+;CF_SPACE		EQU	*
+;			;Try to transmit space character
+;CF_SPACE_1		LDAB	#" " 			;space char -> B
+;CF_SPACE_2		SEI				;disable interrupts
+;			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
+;			BCC	CF_SPACE_3		;TX queue is full
+;			CLI				;enable interrupts
+;			;Done
+;			NEXT
+;			;Check for change of NEXT_PTR (space char in B, I-bit set)
+;CF_SPACE_3		LDX	NEXT_PTR		;check for default NEXT pointer
+;			CPX	#NEXT
+;			BEQ	CF_SPACE_4	 	;still default next pointer
+;			CLI				;enable interrupts
+;			;Execute NOP
+;			EXEC_CF	CF_NOP
+;			JOB    	CF_SPACE_1
+;			;Wait for any internal system event (space char in B, I-bit set)
+;CF_SPACE_4		;LED_BUSY_OFF 			;signal inactivity
+;			ISTACK_WAIT			;wait for next interrupt
+;			;LED_BUSY_ON 			;signal activity
+;			JOB	CF_SPACE_2		;check NEXT_PTR again
 
 ;SPACES ( n -- ) Transmit n space characters
 ; args:   PSP+0: number of space characters
@@ -528,28 +531,28 @@ CF_SPACES_5		;LED_BUSY_OFF 			;signal inactivity
 ; PS:     none
 ; RS:     1 cell
 ; throws: FEXCPT_EC_PSUF
-CF_MINUS		EQU	*
-			;Try to transmit MINUS character
-CF_MINUS_1		LDAB	#"-" 			;MINUS char -> B
-CF_MINUS_2		SEI				;disable interrupts
-			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
-			BCC	CF_MINUS_3		;TX queue is full
-			CLI				;enable interrupts
-			;Done
-			NEXT
-			;Check for change of NEXT_PTR (MINUS char in B, I-bit set)
-CF_MINUS_3		LDX	NEXT_PTR		;check for default NEXT pointer
-			CPX	#NEXT
-			BEQ	CF_MINUS_4	 	;still default next pointer
-			CLI				;enable interrupts
-			;Execute NOP
-			EXEC_CF	CF_NOP
-			JOB    	CF_MINUS_1
-			;Wait for any internal system event (MINUS char in B, I-bit set)
-CF_MINUS_4		;LED_BUSY_OFF 			;signal inactivity
-			ISTACK_WAIT			;wait for next interrupt
-			;LED_BUSY_ON 			;signal activity
-			JOB	CF_MINUS_2		;check NEXT_PTR again
+;CF_MINUS		EQU	*
+;			;Try to transmit MINUS character
+;CF_MINUS_1		LDAB	#"-" 			;MINUS char -> B
+;CF_MINUS_2		SEI				;disable interrupts
+;			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
+;			BCC	CF_MINUS_3		;TX queue is full
+;			CLI				;enable interrupts
+;			;Done
+;			NEXT
+;			;Check for change of NEXT_PTR (MINUS char in B, I-bit set)
+;CF_MINUS_3		LDX	NEXT_PTR		;check for default NEXT pointer
+;			CPX	#NEXT
+;			BEQ	CF_MINUS_4	 	;still default next pointer
+;			CLI				;enable interrupts
+;			;Execute NOP
+;			EXEC_CF	CF_NOP
+;			JOB    	CF_MINUS_1
+;			;Wait for any internal system event (MINUS char in B, I-bit set)
+;CF_MINUS_4		;LED_BUSY_OFF 			;signal inactivity
+;			ISTACK_WAIT			;wait for next interrupt
+;			;LED_BUSY_ON 			;signal activity
+;			JOB	CF_MINUS_2		;check NEXT_PTR again
 	
 ;$. ( c-addr -- ) Print a terminated string
 ; args:   address of a terminated string
@@ -704,14 +707,6 @@ CFA_D_DOT_R		DW	CF_D_DOT_R
 ;"Return stack overflow"
 CFA_U_DOT		DW	CF_U_DOT
 	
-;Word: SPACE ( -- )
-;Display one space.
-;
-;S12CForth implementation details:
-;Throws:
-;"Return stack overflow"
-CFA_SPACE		DW	CF_SPACE
-
 ;Word: EMIT ( n -- )
 ;If n is greater than zero, display n spaces.
 ;
@@ -721,16 +716,16 @@ CFA_SPACE		DW	CF_SPACE
 ;"Return stack overflow"
 CFA_SPACES		DW	CF_SPACES
 	
-;S12CForth Words:
-;================
-;Word: MINUS ( -- )
-;Display a minus character.
+;Word: SPACE ( -- )
+;Display one space.
 ;
 ;S12CForth implementation details:
 ;Throws:
 ;"Return stack overflow"
-CFA_MINUS		DW	CF_MINUS
+;CFA_SPACE		DW	CF_SPACE
 
+;S12CForth Words:
+;================
 ;Word: HEX. ( u --  )
 ;Display u as 4 digit hexadecimal number.
 ;
@@ -747,5 +742,13 @@ CFA_HEX_DOT		DW	CF_HEX_DOT
 ;"Parameter stack overflow"
 CFA_STRING_DOT		DW	CF_STRING_DOT
 	
+;MINUS ( -- )
+;Display a minus character.
+;
+;S12CForth implementation details:
+;Throws:
+;"Return stack overflow"
+;CFA_MINUS		DW	CF_MINUS
+
 FCOM_WORDS_END		EQU	*
 FCOM_WORDS_END_LIN	EQU	@

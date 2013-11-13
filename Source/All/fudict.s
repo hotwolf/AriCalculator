@@ -297,15 +297,12 @@ FUDICT_VARS_END_LIN	EQU	@
 FUDICT_CODE_START_LIN	EQU	@
 #endif
 
-
-
-
 ;PAD_ALLOC: allocate the PAD buffer (PAD_SIZE bytes if possible) (PAD -> D)
 ; args:   none
 ; result: D: PAD (= HLD), $0000 if no space is available
 ; SSTACK: 2
 ;        X and Y are preserved 
-FUDICT_PAD_ALLOC		EQU	*
+FUDICT_PAD_ALLOC	EQU	*
 			;Calculate available space
 			LDD	PSP
 			SUBD	CP

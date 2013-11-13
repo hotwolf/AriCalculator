@@ -338,6 +338,22 @@ FPS_VARS_END_LIN	EQU	@
 							;                          9 cycles
 #emac	
 
+
+;PS_DUP: Duplicate last parameter stack entry (PSP -> Y)
+; args:   none
+; result: 1: number of cells to remove
+;	  Y: PSP
+; SSTACK: none
+; throws: FEXCPT_EC_PSUF
+;         X and D are preserved 
+#macro	PS_DUP, 0
+			PS_CHECK_OF	1		;check for overflow	=>11 cycles
+			MOVW		2,Y, 0,Y	;duplicate last entry	=> 3 cycles
+			STY		PSP		;			=> 3 cycles
+							;                         ---------
+							;                         19 cycles
+#emac	
+	
 ;PS_DROP: Remove entries from the parameter stack (PSP -> Y)
 ; args:   none
 ; result: 1: number of cells to remove
@@ -352,7 +368,9 @@ FPS_VARS_END_LIN	EQU	@
 							;                         ---------
 							;                         14 cycles
 #emac	
-	
+
+
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -365,6 +383,162 @@ FPS_CODE_START_LIN	EQU	@
 
 ;Code fields:
 ;============
+;2CONSTANT run-time semantics ( -- d )
+;Push the contents of the first cell after the CFA onto the parameter stack
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+CF_TWO_CONSTANT_RT	PS_CHECK_OF	2			;overflow check	=> 9 cycles
+			MOVW		4,X, 2,Y		;[CFA+6] -> PS	=> 5 cycles
+			JOB		CF_TWO_CONSTANT_RT_1
+CF_TWO_CONSTANT_RT_1	EQU		CF_CONSTANT_RT_1
+
+;CONSTANT run-time semantics ( -- x )
+;Push the contents of the first cell after the CFA onto the parameter stack
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+CF_CONSTANT_RT		PS_CHECK_OF	1			;overflow check	=> 9 cycles
+CF_CONSTANT_RT_1	MOVW		2,X, 0,Y		;[CFA+2] -> PS	=> 5 cycles
+CF_CONSTANT_RT_2	STY		PSP			;		=> 3 cycles
+			NEXT					;NEXT		=>15 cycles
+								; 		  ---------
+								;		  32 cycles
+
+;DUP ( x -- x x )
+;Duplicate x.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack overflow"
+CF_DUP			PS_CHECK_UFOF	1, 1			;check for overflow	=>11 cycles
+			MOVW		2,Y, 0,Y		;duplicate last entry	=> 3 cycles
+			JOB		CF_DUP_1
+CF_DUP_1		EQU		CF_CONSTANT_RT_2
+
+;DROP ( x -- )
+;Remove x from the stack.
+;
+;S12CForth implementation details:
+;Doesn't throw any exception, resets the parameter stack on underflow 
+CF_DROP			PS_CHECK_UF	1			;check for underflow	=> 8 cycles
+			LEAY		2,Y			;PS -> Y		=> 2 cycles 
+			JOB		CF_DROP_1
+CF_DROP_1		EQU		CF_CONSTANT_RT_2
+
+;OVER ( x1 x2 -- x1 x2 x1 )
+;Place a copy of x1 on top of the stack.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack overflow"
+CF_OVER			PS_CHECK_UFOF	2, 1			;check for under and overflow (PSP-2 -> Y)
+			MOVW	4,Y, 0,Y
+			JOB		CF_OVER_1
+CF_OVER_1		EQU		CF_CONSTANT_RT_2
+
+;2DUP ( x1 x2 -- x1 x2 x1 x2 )
+;Duplicate cell pair x1 x2.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack overflow"
+CF_TWO_DUP		PS_CHECK_UFOF	2, 2			;check for under and overflow
+			MOVW		6,Y, 2,Y		;duplicate stack entry
+			MOVW		4,Y, 0,Y		;duplicate stack entry
+			JOB		CF_TWO_DUP_1
+CF_TWO_DUP_1		EQU		CF_CONSTANT_RT_2
+
+;2DROP ( x1 x2 -- )
+;Drop cell pair x1 x2 from the stack.
+;
+;S12CForth implementation details:
+; - Doesn't throw any exception, resets the parameter stack on underflow 
+CF_TWO_DROP		PS_CHECK_UF	2			;check for underflow	=> 8 cycles
+			LEAY		4,Y			;PS -> Y		=> 2 cycles 
+			JOB		CF_TWO_DROP_1
+CF_TWO_DROP_1		EQU		CF_CONSTANT_RT_2
+	
+;2OVER ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 )
+;Copy cell pair x1 x2 to the top of the stack.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack overflow"
+CF_TWO_OVER		PS_CHECK_UFOF	4, 2			;check for under and overflow
+			MOVW		8,Y, 0,Y		;duplicate stack entry
+			MOVW		10,Y, 2,Y		;duplicate stack entry
+			JOB		CF_TWO_OVER_1
+CF_TWO_OVER_1		EQU		CF_CONSTANT_RT_2
+
+;SWAP ( x1 x2 -- x2 x1 )
+;Exchange the top two stack items.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+CF_SWAP			PS_CHECK_UF	2			;check for underflow (PSP -> Y)
+			;Swap
+			LDD		2,Y
+			MOVW		0,Y, 2,Y
+CF_SWAP_1		STD		0,Y
+			;Done
+			NEXT
+
+;2SWAP ( x1 x2 x3 x4 -- x3 x4 x1 x2 )
+;Exchange the top two cell pairs.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+CF_TWO_SWAP		PS_CHECK_UF	4			;(PSP -> Y)
+			LDD		6,Y
+			MOVW		2,Y 6,Y
+			STD		2,Y
+			LDD		4,Y
+			MOVW		0,Y 4,Y
+			JOB		CF_TWO_SWAP_1
+CF_TWO_SWAP_1		EQU		CF_SWAP_1
+	
+;ROT ( x1 x2 x3 -- x2 x3 x1 )
+;Rotate the top three stack entries.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+CF_ROT			PS_CHECK_UF	2			;check for underflow
+			;Rotate
+			LDD		4,Y
+			MOVW		2,Y, 4,Y
+			MOVW		0,Y, 2,Y
+			JOB		CF_ROT_1
+CF_ROT_1		EQU		CF_SWAP_1
+
+;2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 )
+;Rotate the top three cell pairs on the stack bringing cell pair x1 x2 to the
+;top of the stack.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+CF_TWO_ROT		PS_CHECK_UF 	6		;check for underflow (PSP -> Y)
+			;Swap PS entries (PSP in Y)
+			LDD	10,Y 			;save  x1
+			MOVW	 6,Y, 10,Y		;x3 -> x1
+			MOVW	 2,Y,  6,Y		;x5 -> x3
+			STD	 2,Y			;x1 -> x5
+			LDD	 8,Y 			;save  x2
+			MOVW	 4,Y,  8,Y		;x4 -> x2
+			MOVW	 0,Y,  4,Y		;x6 -> x4
+			JOB	CF_TWO_ROT_1
+CF_TWO_ROT_1		EQU	CF_SWAP_1
+
 ;.S ( -- ) Copy and display the values currently on the data stack.
 ; args:   none
 ; result: none
@@ -403,18 +577,6 @@ FPS_CODE_START_LIN	EQU	@
 ;			EXEC_CF	CF_STRING_DOT
 			
 	
-;.PS_PUSH ( -- x ) Push constant x onto the PS. (W must point to X) 
-; args:   address of a terminated string
-; result: none
-; SSTACK: 8 bytes
-; PS:     1 cell
-; RS:     none
-; throws: FEXCPT_EC_PSOF
-CF_PS_PUSH		EQU	*
-			LDX	0,X
-			PS_PUSH_X
-			NEXT
-
 ;Exceptions:
 ;===========
 ;Standard exceptions
@@ -459,6 +621,92 @@ FPS_TABS_END_LIN	EQU	@
 FPS_WORDS_START_LIN	EQU	@
 #endif	
 
+;#ANSForth Words:
+;================
+;Word: DUP ( x -- x x )
+;Duplicate x.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack overflow"
+;"Return stack overflow"
+CFA_DUP			DW	CF_DUP
+
+;Word: DROP ( x -- )
+;Remove x from the stack.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+CFA_DROP		DW	CF_DROP
+
+;Word: ROT ( x1 x2 x3 -- x2 x3 x1 )
+;Rotate the top three stack entries.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+CFA_ROT			DW	CF_ROT
+
+;Word: OVER ( x1 x2 -- x1 x2 x1 )
+;Place a copy of x1 on top of the stack.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack overflow"
+CFA_OVER		DW	CF_OVER
+
+;Word: SWAP ( x1 x2 -- x2 x1 )
+;Exchange the top two stack items.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+CFA_SWAP		DW	CF_SWAP
+
+;Word: 2DUP ( x1 x2 -- x1 x2 x1 x2 )
+;Duplicate cell pair x1 x2.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack overflow"
+CFA_TWO_DUP		DW	CF_TWO_DUP
+
+;Word: 2DROP ( x1 x2 -- )
+;Drop cell pair x1 x2 from the stack.
+;
+;S12CForth implementation details:
+; - Doesn't throw any exception, resets the parameter stack on underflow 
+CFA_TWO_DROP		DW	CF_TWO_DROP
+
+;Word: 2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 )
+;Rotate the top three cell pairs on the stack bringing cell pair x1 x2 to the
+;top of the stack.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+CFA_TWO_ROT		DW	CF_TWO_ROT	
+
+;Word: 2OVER ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 )
+;Copy cell pair x1 x2 to the top of the stack.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+;"Parameter stack overflow"
+CFA_TWO_OVER		DW	CF_TWO_OVER
+
+;Word: 2SWAP ( x1 x2 x3 x4 -- x3 x4 x1 x2 )
+;Exchange the top two cell pairs.
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+CFA_TWO_SWAP		DW	CF_TWO_SWAP
+	
 FPS_WORDS_END		EQU	*
 FPS_WORDS_END_LIN	EQU	@
 

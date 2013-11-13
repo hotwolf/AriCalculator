@@ -328,13 +328,7 @@ if ($code->{problems}) {
         printf FILEHANDLE "#ifndef FCDICT_TREE_EXTSTS\n";
         printf FILEHANDLE "FCDICT_TREE_EXISTS      EQU     1\n";
  	printf FILEHANDLE "\n";
-        printf FILEHANDLE ";Instantiate dictionary tree\n";
-        printf FILEHANDLE "; args:   none\n";
-        printf FILEHANDLE "; result: none\n";
-        printf FILEHANDLE "; SSTACK: none\n";
-        printf FILEHANDLE "; PS:     none\n";
-        printf FILEHANDLE "; RS:     none\n";
-        printf FILEHANDLE "; throws: nothing\n";
+        printf FILEHANDLE ";Dictionary tree\n";
         printf FILEHANDLE "#macro       FCDICT_TREE, 0\n";
         printf FILEHANDLE ";Local constants\n";
         printf FILEHANDLE "STRING_TERMINATION      EQU     \$00\n";

@@ -27,6 +27,11 @@
 ;#      - Initial release                                                      #
 ;###############################################################################
 ;# Required Modules:                                                           #
+;#    BASE - S12CBase framework                                                #
+;#    FPS    - Forth parameter stack                                           #
+;#    FRS    - Forth return stack                                              #
+;#    FCOM   - Forth communication interface                                   #
+;#    FINNER - Forth inner interpreter                                         #
 ;#    FEXCPT - Forth Exception Handler                                         #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
@@ -36,10 +41,12 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-
+	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;Max. line length
+FCDICT_LINE_WIDTH	EQU	80
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -75,18 +82,205 @@ FCDICT_VARS_END_LIN	EQU	@
 
 ;Functions:
 ;==========
+
+;Skip past the end of a string
+; args:   Y:      points to a substring or a termination character
+; result: Z-flag: set if termination character was found	
+;         N-flag: set if terminated string found	
+;         Y:      points past the end of the substring or the termination character
+; SSTACK: none
+;         X and D are preserved 
+#macro	FCDICT_SKIP_STRING, 0
+LOOP			TST	1,Y+ 		;check for termination character
+			BGT	LOOP		;string termination or termination character not found
+#emac
+
+;Switch to next sibling in dictionary tree
+; args:   Y: points to a substring or to a termination character
+; result: Z-flag: cleared if successful, set if no sibling exists	
+;         Y: next sibling
+; SSTACK: none
+;         X and D are preserved 
+#macro	FCDICT_NEXT_SIBLING, 0
+			FCDICT_SKIP_STRING 	;skip string
+			BEQ	CHECK_FOR_SIBLING
+			TST	0,Y
+			BNE	CHECK_FOR_SIBLING
+			LEAY	1,Y
+CHECK_FOR_SIBLING	TST	2,+Y
+#emac
+
+;Switch to first child in dictionary tree
+; args:   Y: tree pointer
+; result: Z-flag: cleared if successful, set if no child exists	
+;         Y: first child
+; SSTACK: none
+;         X and D are preserved 
+#macro	FCDICT_FIRST_CHILD, 0
+			FCDICT_SKIP_STRING 	;skip string
+			BEQ	DONE
+			TST	0,Y
+			BEQ	DONE
+			LDY	0,Y
+DONE			EQU	*
+#emac
+
+;Print CDICT word as represented on the stack
+; args:   none
+; result: none
+; SSTACK: none
+; PS:     1 cell
+; RS:     none
+; throws: nothing
+#macro	FCDICT_PRINT_WORD, 0
+			;Stack layout:
+			; +--------+--------+
+			; |  Substring ptr. | PSP+0
+			; +--------+--------+
+			; |      PSP+n      | PSP+2
+			; +--------+--------+
+			; |  Tree pointer   | PSP+4
+			; +--------+--------+
+			; :                 : 
+			; +--------+--------+
+			; |  Tree pointer   | PSP+n-2
+			; +--------+--------+
+			; |  Root pointer   | PSP+n
+			; +--------+--------+	
+			;Push substring pointer onto PS
+			PS_DUP
+			;Print substring
+FCDICT_PRINT_WORD_1	PS_DUP
+			EXEC_CF	CF_STRING_DOT
+			;Increment substring pointer
+			LDY	PSP
+			LDX	0,Y
+			LEAX	2,X
+			STX	0,Y
+			LEAX	2,X
+			CPX	PSP
+			BNE	FCDICT_PRINT_WORD_1
+			;Drop substring pointer
+			PS_DROP	1
+#emac
+
+;Count chars of CDICT word as represented on the stack
+; args:   none
+; result: D: char count
+;         Y: PSP
+; SSTACK: none
+; PS:     none
+; RS:     none
+; throws: nothing
+#macro	FCDICT_COUNT_CHARS, 0
+			;Stack layout:
+			; +--------+--------+
+			; |      PSP+n      | PSP+0
+			; +--------+--------+
+			; |  Tree pointer   | PSP+2
+			; +--------+--------+
+			; :                 : 
+			; +--------+--------+
+			; |  Tree pointer   | PSP+n-2
+			; +--------+--------+
+			; |  Root pointer   | PSP+n
+			; +--------+--------+	
+			;Initialize substring pointer and char counter
+			LDY	[PSP]
+			CLRA
+			CLRB
+			;Count substring chars (PSP+n in Y, 0 in D)
+FCDICT_COUNT_CHARS_1	LDX	2,Y-
+			STRING_SKIP_AND_COUNT
+			CPY	PSP
+			BHI	FCDICT_COUNT_CHARS_1
+#emac
+	
+;Print space or newline char depending on column length 
+; args:   none
+; result: none
+; SSTACK: ? bytes
+; PS:     >=3 cells
+; RS:     1 cell
+; throws: nothing
+#macro	FCDICT_PRINT_SEP, 0
+			;Stack layout:
+			; +--------+--------+
+			; |      PSP+n      | PSP+0
+			; +--------+--------+
+			; |  Tree pointer   | PSP+2
+			; +--------+--------+
+			; :                 : 
+			; +--------+--------+
+			; |  Tree pointer   | PSP+n-2
+			; +--------+--------+
+			; |  Root pointer   | PSP+n
+			; +--------+--------+	
+			; | Column counter  | PSP+n+2
+			; +--------+--------+
+			;Count chars 
+			FCDICT_COUNT_CHARS
+			;Check for line overflow (PSP in Y, char count in D)
+			TFR	D, X
+			LDY	0,Y
+			ADDD	2,Y
+			CPD	#(FCDICT_LINE_WIDTH+FCDICT_PRINT_SEP_WS_CNT)
+			BHI	FCDICT_PRINT_SEP_2 			;print new line
+			;Print word separator (PSP+n in Y, column count in D) 
+FCDICT_PRINT_SEP_2	TFR	D, X
+			LEAX	FCDICT_STR_SEP_CNT,X
+			PS_PUSH	#FCDICT_STR_SEP
+			JOB	FCDICT_PRINT_SEP_3
+			;Print new line (PSP+n in Y, char count in X) 
+			PS_PUSH	#FCDICT_STR_NL
+FCDICT_PRINT_SEP_3	STX	2,Y
+			EXEC_CF	CF_STRING_DOT
+#emac
+	
 ;Compare substring
 ; args:   Y: reference string pointer (MSB terminated)
 ;         X: string pointer
 ;         D: character count
-; result: C-flag: set on match	
-;         Y: points to the byte after the reference string
+;	  1: branch address in case of a mismatch 
+; result: Y: points somewhere inside the reference string
 ;         X: points to the byte after the matched substring (unchanged on mismatch)
 ;         D: remaining character count (unchanged on mismatch)
-; SSTACK: 8 bytes
+; SSTACK: 6 bytes
 ;         No registers are preserved 
-#macro	FCDICT_COMP_SUBSTR, 0
-			SSTACK_JOBSR	FCDICT_COMP_SUBSTR, 8
+#macro	FCDICT_COMP_STRING, 1
+			;Save registers (ref ptr in Y, str ptr in X, char count in D)
+			PSHX						;save X	
+			PSHD						;save D				
+			PSHD						;remainig char count			
+			;Check char count (ref ptr in Y, str ptr in X, char count in D)
+FCDICT_COMP_STRING_1	LDD	0,SP			       		;D -> char count
+			BEQ	FCDICT_COMP_STRING_2 			;mismatch
+			SUBD	#1
+			STD	0,SP
+			;Read chars (ref ptr in Y, str ptr in X, char count in D)
+			LDAB	1,X+ 					;str char -> B
+			ANDB	#$7F		    			;remove termination
+			STRING_UPPER		     			;check case insensitive
+			LDAA	1,Y+ 					;ref char -> A
+			BMI	FCDICT_COMP_STRING_3			;termination reached
+			CBA
+			BEQ	FCDICT_COMP_STRING_1			;check next char			
+			;Mismatch (new ref ptr in Y)
+FCDICT_COMP_STRING_2	SSTACK_PREPULL	8 				;restore stack
+			PULD						;remove stack entry				
+			PULD						;restore D				
+			PULX						;restore X				
+			;Done
+			JOB	\1
+			;Reference string termination reached (ref ptr in Y, str ptr in X, char in B, ref char in A)
+FCDICT_COMP_STRING_3	LEAX	-1,Y 					;set pointer to the end of the string
+			ANDA	#$7F		    			;remove termination
+			CBA
+			BNE	FCDICT_COMP_STRING_2			;mismatch
+			;Match (ref ptr in Y, str ptr in X)
+			SSTACK_PREPULL	8 				;restore stack
+			PULD						;pull remaining char count
+			LEAS	4,SP					;remove stack entries
 #emac
 	
 ;Search word in dictionary
@@ -94,7 +288,7 @@ FCDICT_VARS_END_LIN	EQU	@
 ;         D: char count 
 ; result: C-flag: set if word is in the dictionary	
 ;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
-; SSTACK: 16 bytes
+; SSTACK: 16 or 17 bytes
 ;         Y and D are preserved 
 #macro	FCDICT_SEARCH, 0
 			SSTACK_JOBSR	FCDICT_SEARCH, 16
@@ -110,64 +304,13 @@ FCDICT_VARS_END_LIN	EQU	@
 FCDICT_CODE_START_LIN	EQU	@
 #endif
 
-;Compare substring
-; args:   Y: reference string pointer (MSB terminated)
-;         X: string pointer
-;         D: character count
-; result: C-flag: set on match	
-;         Y: points to the byte after the reference string
-;         X: points to the byte after the matched substring (unchanged on mismatch)
-;         D: remaining character count (unchanged on mismatch)
-; SSTACK: 8 bytes
-;         No registers are preserved 
-FCDICT_COMP_SUBSTR	EQU	*
-			;Save registers (ref ptr in Y, str ptr in X, char count in D)
-			PSHX						;save X	
-			PSHD						;save D				
-			PSHD						;remainig char count			
-			;Check char count (ref ptr in Y, str ptr in X, char count in D)
-			;TBEQ	Y, FCDICT_COMP_SUBSTR_3 		;nothing to compare
-			TBEQ	D, FCDICT_COMP_SUBSTR_3 		;nothing to compare
-			;Read chars (ref ptr in Y, str ptr in X, char count in D)
-FCDICT_COMP_SUBSTR_1	LDAB	1,X+ 					;str char -> B
-			ANDB	#$7F		    			;remove termination
-			LDAA	1,Y+ 					;ref char -> A
-			BMI	FCDICT_COMP_SUBSTR_5			;termination reached
-FCDICT_COMP_SUBSTR_2	CBA
-			BNE	FCDICT_COMP_SUBSTR_3			;mismatch
-			LDD	0,SP			       		;char count -> D
-			DBNE	D, FCDICT_COMP_SUBSTR_1 			;check next char
-			;String is too short (ref ptr in Y)
-FCDICT_COMP_SUBSTR_3	TST	1,Y+ 					;skip past ref termination
-			BPL	FCDICT_COMP_SUBSTR_3
-			;Mismatch (new ref ptr in Y)
-FCDICT_COMP_SUBSTR_4	SSTACK_PREPULL	8 				;restore stack
-			PULD						;remove stack entry				
-			PULD						;restore D				
-			PULX						;restore X				
-			CLC						;flag mismatch
-			;Done
-			RTS
-			;Reference string termination reached (ref ptr in Y, str ptr in X, char in B, ref char in A)
-FCDICT_COMP_SUBSTR_5	ANDA	#$7F		    			;remove termination
-			CBA
-			BNE	FCDICT_COMP_SUBSTR_4			;mismatch
-			;Match (ref ptr in Y, str ptr in X)
-			SSTACK_PREPULL	8 				;restore stack
-			PULD						;pull remaining char count
-			SUBD	#1 					;adjust char count
-			LEAS	4,SP 					;free stack space
-			SEC						;flag match
-			;Done
-			RTS
-
 ;Search word in dictionary
 ; args:   X: string pointer
 ;         D: char count 
 ; result: C-flag: set if word is in the dictionary	
 ;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
-; SSTACK: 16 bytes
-;         Y and D are preserved 
+; SSTACK: 16 or 17 bytes
+;         X and Y are preserved 
 FCDICT_SEARCH		EQU	*
 			;Save registers (string pointer in X, char count in D)
 			PSHY						;save Y
@@ -176,40 +319,30 @@ FCDICT_SEARCH		EQU	*
 			;Set dictionary tree pointer (string pointer in X, char count in D)
 			LDY	#FCDICT_TREE
 			;Compare substring (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_1		FCDICT_COMP_SUBSTR   				;compare substring (SSTACK: 8 bytes)
-			BCS	FCDICT_SEARCH_4 			;substring matches
-			TST	0,Y					;check for STRING_TERMINATION
-			BNE	FCDICT_SEARCH_2 			;no STRING_TERMINATION
-			LEAY	1,Y 					;skip STRING_TERMINATION
-FCDICT_SEARCH_2		TST	2,+Y 					;check for END_OF_SUBTREE
-			BNE	FCDICT_SEARCH_1 			;compare next substring
+FCDICT_SEARCH_1		FCDICT_COMP_STRING	FCDICT_SEARCH_3    	;compare substring
+			;Substing matches (tree pointer in Y, string pointer in X, char count in D)
+			FCDICT_FIRST_CHILD 				;switch to first child
+			BNE	FCDICT_SEARCH_1				;check next substring
+			TBNE	D, FCDICT_SEARCH_4 			;search unsuccessful
+			LDAA	0,Y
+			BEQ	FCDICT_SEARCH_4 			;search unsuccessful
+			LDAB	1,Y
 			;Search unsuccessful
-FCDICT_SEARCH_3		SSTACK_PREPULL	8 				;restore stack
-			PULX						;restore X				
+			SSTACK_PREPULL	8 				;check stack
+			SEC						;flag unsuccessful search
+			PULX						;remove stack entry				
+FCDICT_SEARCH_2		PULX						;restore X				
+			PULY						;restore Y				
+			;Done
+			RTS		
+			;Try next sibling (tree pointer in Y, string pointer in X, char count in D)
+FCDICT_SEARCH_3		FCDICT_NEXT_SIBLING 				;skip to next sibling
+			BNE	FCDICT_SEARCH_1				;check next substring
+			;Search unsuccessful (tree pointer in Y, string pointer in X, char count in D)
+FCDICT_SEARCH_4		SSTACK_PREPULL	8 				;check stack
+			CLC						;flag successful search
 			PULD						;restore D				
-			PULY						;restore Y				
-			CLC						;flag unsuccessful search
-			;Done
-			RTS		
-			;Substring matches (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_4		TST	0,Y					;check for STRING_TERMINATION
-			BNE	FCDICT_SEARCH_6 			;switch to subtree
-			TBNE	D, FCDICT_SEARCH_3			;search unsuccessful
-			;Search successful (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_5		LDD	1,+Y 					;IMMEDIATE/CFA -> X
-			SSTACK_PREPULL	8 				;restore stack
-			PULX						;discards saved D content				
-			PULX						;restore X				
-			PULY						;restore Y				
-			SEC						;flag successful search
-			;Done
-			RTS		
-			;Switch to subtree (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_6		LDY	0,Y					;switch to subtree
-			TST	0,Y					;check for STRING_TERMINATION
-			BNE	FCDICT_SEARCH_1 			;compare substring
-			TBEQ	D, FCDICT_SEARCH_5			;search successful
-			JOB	FCDICT_SEARCH_3				;search unsuccessful
+			JOB	FCDICT_SEARCH_2
 
 ;Code fields:
 ;============
@@ -250,6 +383,84 @@ CF_SEARCH_CDICT_1	NEXT
 CF_SEARCH_CDICT_2	MOVW	#$0000, 2,+Y
 			STY	PSP
 			JOB	CF_SEARCH_CDICT_1 	;done
+
+;.WORDS-CDICT ( -- )
+;List the definition names in the core dictionary in alphabetical order.
+; args:   none
+; result: none
+; SSTACK: ? bytes
+; PS:     >=3 cells
+; RS:     1 cell
+; throws: nothing
+CF_WORDS_CDICT		EQU	*
+			;Stack layout:
+			; +--------+--------+
+			; |      PSP+n      | PSP+0
+			; +--------+--------+
+			; |  Tree pointer   | PSP+2
+			; +--------+--------+
+			; :                 : 
+			; +--------+--------+
+			; |  Tree pointer   | PSP+n-2
+			; +--------+--------+
+			; |  Root pointer   | PSP+n
+			; +--------+--------+	
+			; | Column counter  | PSP+n+2
+			; +--------+--------+
+			; 
+			;Print header
+			PS_PUSH	#FCDICT_WORDS_HEADER
+			EXEC_CF	CF_STRING_DOT
+			;Initialize stack
+			PS_CHECK_OF	3 		;new PSP -> Y
+			STY	PSP
+			MOVW	#$0000, 4,Y
+			MOVW	#FCDICT_TREE, 2,Y
+			LEAX	2,Y
+			STX     0,Y
+			;Find first leaf node (PSP in Y)
+CF_WORDS_CDICT_1	LDY	2,Y 			;tree pointer -> Y
+			FCDICT_FIRST_CHILD
+			BEQ	CF_WORDS_CDICT_2	;first word found
+			TFR 	Y, X			;child -> X
+			PS_CHECK_OF	1 		;new PSP -> Y
+			STY	PSP
+			MOVW	2,Y, 0,Y
+			STX	2,Y
+			JOB	CF_WORDS_CDICT_1	;stack next child
+			;First word found
+CF_WORDS_CDICT_2	FCDICT_COUNT_CHARS 		;count chars of first wors
+			LDX	0,Y			;initialize column counter
+			STD	2,X
+CF_WORDS_CDICT_3	FCDICT_PRINT_WORD 		;print word
+			;Find next sibling 
+			LDX	PSP
+CF_WORDS_CDICT_4	LDY	2,X
+			FCDICT_NEXT_SIBLING
+			BEQ	CF_WORDS_CDICT_		;find leaf node of sibling
+			;Find next uncle (PSP in X) 
+			LDY	0,X
+			STY	2,+Y
+			STX	PSP
+			CPY	PSP
+			BLO	CF_WORDS_CDICT_4 	;check parent
+			;Done
+			PS_DROP	2
+			NEXT
+			;Find leaf node of sibling  (sibling in Y, PSP in X) 
+			STY	2,X 			;switch to sibling
+CF_WORDS_CDICT_5	FCDICT_FIRST_CHILD
+			BEQ	CF_WORDS_CDICT_6	;word found	
+			TFR 	Y, X			;child -> X
+			PS_CHECK_OF	1 		;new PSP -> Y
+			STY	PSP
+			MOVW	2,Y, 0,Y
+			STX	2,Y
+			TFR	X, Y
+			JOB	CF_WORDS_CDICT_5	
+			;Word found
+CF_WORDS_CDICT_6	FCDICT_PRINT_SEP
+			JOB	CF_WORDS_CDICT_3	
 	
 FCDICT_CODE_END		EQU	*
 FCDICT_CODE_END_LIN	EQU	@
@@ -263,6 +474,18 @@ FCDICT_CODE_END_LIN	EQU	@
 			ORG 	FCDICT_TABS_START
 FCDICT_TABS_START_LIN	EQU	@
 #endif	
+
+;#New line string
+FCDICT_STR_NL		EQU	STRING_STR_NL
+
+;#Word separator string
+FCDICT_STR_SEP		FCS	" "
+FCDICT_STR_SEP_CNT	*-FCDICT_PRINT_SEP_WS
+
+;#Header line for WORDS output 
+FCDICT_WORDS_HEADER	STRING_NL_NONTERM
+			FCC	"Core Dictionary:"
+			STRING_NL_NONTERM
 
 ;#Dictionary tree
 FCDICT_TREE		FCDICT_TREE
@@ -289,7 +512,11 @@ FCDICT_WORDS_START_LIN	EQU	@
 ;If thedefinition is found, return its execution token xt and one (1) if the
 ;definition is immediate, minus-one (-1) otherwise. 
 CFA_SEARCH_CDICT	DW	CF_SEARCH_CDICT
+
+;Word: WORDS-CDICT ( -- )
+;List the definition names in the core dictionary in alphabetical order.
+CFA_WORDS_CDICT		DW	CF_WORDS_CDICT
 	
-FCDICT_WORDS_END		EQU	*
+FCDICT_WORDS_END	EQU	*
 FCDICT_WORDS_END_LIN	EQU	@
 
