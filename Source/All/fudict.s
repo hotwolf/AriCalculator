@@ -46,7 +46,7 @@
 ;###############################################################################
 ;        
 ;      	                    +--------------+--------------+	     
-;        UDICT_RS_START, -> |              |              | 	     
+;        UDICT_PS_START, -> |              |              | 	     
 ;           UDICT_START     |       User Dictionary       |	     
 ;                           |       User Variables        |	     
 ;                           |              |              |	     
@@ -57,7 +57,7 @@
 ;                           |              ^              | <- [HLD]	     
 ;                           |             PAD             |	     
 ;                       -+- | --- --- --- --- --- --- --- |          
-;             RS_PADDING |  |                             | <- [PAD]          
+;             PS_PADDING |  |                             | <- [PAD]          
 ;                       -+- .                             .          
 ;                           .                             .          
 ;                           | --- --- --- --- --- --- --- |          
@@ -109,8 +109,8 @@ NAME_END
 ;# Configuration                                                               #
 ;###############################################################################
 ;Boundaries
-;UDICT_RS_START		EQU	0
-;UDICT_RS_END		EQU	0
+;UDICT_PS_START		EQU	0
+;UDICT_PS_END		EQU	0
 
 ;Safety distance between the user dictionary and the PAD
 #ifndef UDICT_PADDING
@@ -133,13 +133,16 @@ PS_PADDING		EQU	16 	;default is 16 bytes
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;User Dictionary start address
+UDICT_START		EQU	UDICT_PS_START	
+
 ;Error codes
-FUDICT_EC_DICTOF	EQU	FEXCPT_EC_DICTOF	;DICT overflow (-8)
-FUDICT_EC_PADOF		EQU	FEXCPT_EC_PADOF		;PAD overflow  (-17)
-FUDICT_EC_PSOF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
-FUDICT_EC_PSUF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
-FUDICT_EC_RSOF		EQU	FEXCPT_EC_RSOF		;RS overflow   (-5)
-FUDICT_EC_RSUF		EQU	FEXCPT_EC_RSUF		;RS underflow  (-6)
+;FUDICT_EC_DICTOF	EQU	FEXCPT_EC_DICTOF	;DICT overflow (-8)
+;FUDICT_EC_PADOF		EQU	FEXCPT_EC_PADOF		;PAD overflow  (-17)
+;FUDICT_EC_PSOF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
+;FUDICT_EC_PSUF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
+;FUDICT_EC_RSOF		EQU	FEXCPT_EC_RSOF		;RS overflow   (-5)
+;FUDICT_EC_RSUF		EQU	FEXCPT_EC_RSUF		;RS underflow  (-6)
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -165,7 +168,7 @@ FUDICT_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	FUDICT_INIT, 0
 			;Initialize dictionary
-			LDD	#DICT_START
+			LDD	#UDICT_START
 			STD	CP
 			STD	CP_SAVED
 	
@@ -308,10 +311,10 @@ FUDICT_PAD_ALLOC	EQU	*
 			SUBD	CP
 			;BLS	FUDICT_PAD_ALLOC_4 	;no space available at all
 			;Check if requested space is available
-			CPD	#(FUDICT_PAD_SIZE+FUDICT_PAD_PS_DIST)
+			CPD	#(PAD_SIZE+PS_PADDING)
 			BLO	FUDICT_PAD_ALLOC_3	;reduce size
 			LDD	CP
-			ADDD	#FUDICT_PAD_SIZE
+			ADDD	#PAD_SIZE
 			;Allocate PAD
 FUDICT_PAD_ALLOC_1	STD	PAD
 			STD	HLD
@@ -319,10 +322,10 @@ FUDICT_PAD_ALLOC_1	STD	PAD
 FUDICT_PAD_ALLOC_2	SSTACK_PREPULL	2
 			RTS
 			;Reduce PAD size 
-FUDICT_PAD_ALLOC_3	CPD	#(FUDICT_PAD_MINSIZE+FUDICT_PAD_PS_DIST)
-			BLO	FUDICT_PAD_ALLOC_		;not enough space available
+FUDICT_PAD_ALLOC_3	CPD	#(PAD_MINSIZE+PS_PADDING)
+			BLO	FUDICT_PAD_ALLOC_4		;not enough space available
 			LDD	PSP
-			SUBD	#FUDICT_PAD_PS_DIST
+			SUBD	#PS_PADDING
 			JOB	FUDICT_PAD_ALLOC_1 	;allocate PAD
 			;Not enough space available
 FUDICT_PAD_ALLOC_4	LDD 	$0000 			;signal failure
@@ -330,27 +333,28 @@ FUDICT_PAD_ALLOC_4	LDD 	$0000 			;signal failure
 
 ;#Dictionary overflow handler
 FUDICT_DICTOF_HANDLER	EQU	*
-			FEXCPT_THROW	FMEM_EC_DICTOF
+			;FEXCPT_THROW	FMEM_EC_DICTOF
 
 ;#PAD overflow handler
 FUDICT_PADOF_HANDLER	EQU	*
-			FEXCPT_THROW	FMEM_EC_PADOF
+			;FEXCPT_THROW	FMEM_EC_PADOF
 
 ;#PS overflow handler
 FUDICT_PSOF_HANDLER	EQU	*
-			FEXCPT_THROW	FMEM_EC_PSOF
+			;FEXCPT_THROW	FMEM_EC_PSOF
 
 ;#PS underflow handler
 FUDICT_PSUF_HANDLER	EQU	*
-			FEXCPT_THROW	FMEM_EC_PSUF
+			;FEXCPT_THROW	FMEM_EC_PSUF
 
 ;#RS overflow handler
 RAM_RSOF_HANDLER	EQU	*
-			FEXCPT_THROW	FMEM_EC_RSOF
+			;FEXCPT_THROW	FMEM_EC_RSOF
 	
 ;#RS underflow handler
 FUDICT_RSUF_HANDLER	EQU	*
-			FEXCPT_THROW	FMEM_EC_RSUF
+			;FEXCPT_THROW	FMEM_EC_RSUF
+			BGND
 	
 FUDICT_CODE_END		EQU	*
 FUDICT_CODE_END_LIN	EQU	@

@@ -23,7 +23,7 @@
 ;#    words.                                                                   #
 ;#                                                                             #
 ;###############################################################################
-;# Generated on Tue, Nov 05 2013                                               #
+;# Generated on Thu, Nov 14 2013                                               #
 ;###############################################################################
 
 ;###############################################################################
@@ -36,32 +36,44 @@
 ;    |          PROMPT ---------> CFA_DOT_PROMPT 
 ;    |          R --------------> CFA_DOT_R 
 ;    |          
+;    2 -------> D ----> ROP ----> CFA_TWO_DROP 
+;    |          |       UP -----> CFA_TWO_DUP 
+;    |          |       
+;    |          OVER -----------> CFA_TWO_OVER 
+;    |          ROT ------------> CFA_TWO_ROT 
+;    |          SWAP -----------> CFA_TWO_SWAP 
+;    |          
 ;    > -------> IN -------------> CFA_TO_IN 
 ;    |          NUMBER ---------> CFA_TO_NUMBER 
 ;    |          
 ;    BASE ----------------------> CFA_BASE 
-;    D. ------> +---------------> CFA_D_DOT 
-;    |          R --------------> CFA_D_DOT_R 
+;    D -------> . ---> +--------> CFA_D_DOT 
+;    |          |      R -------> CFA_D_DOT_R 
+;    |          |      
+;    |          ROP ------------> CFA_DROP 
+;    |          UP -------------> CFA_DUP 
 ;    |          
 ;    E -------> KEY -> +--------> CFA_EKEY 
 ;    |          |      ? -------> CFA_EKEY_QUESTION 
 ;    |          |      
 ;    |          MIT ------------> CFA_SPACES 
 ;    |          
-;    HEX. ----------------------> CFA_HEX_DOT 
 ;    INTEGER -------------------> CFA_INTEGER 
-;    MINUS ---------------------> CFA_MINUS 
 ;    NOP -----------------------> CFA_NOP 
+;    OVER ----------------------> CFA_OVER 
 ;    P -------> ARSE -----------> CFA_PARSE 
 ;    |          RIO ------------> CFA_PRIO 
 ;    |          
 ;    QUERY ---------------------> CFA_QUERY 
+;    ROT -----------------------> CFA_ROT 
 ;    S -------> EARCH-CDICT ----> CFA_SEARCH_CDICT 
-;    |          PACE -----------> CFA_SPACE 
+;    |          PACE -----------> CFA_HEX_DOT 
 ;    |          TATE -----------> CFA_STATE 
+;    |          WAP ------------> CFA_SWAP 
 ;    |          
 ;    U. ------------------------> CFA_U_DOT 
-;    WAIT ----------------------> CFA_WAIT 
+;    W -------> AIT ------------> CFA_WAIT 
+;               ORDS-CDICT -----> CFA_WORDS_CDICT 
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -70,13 +82,156 @@
 #ifndef FCDICT_TREE_EXTSTS
 FCDICT_TREE_EXISTS      EQU     1
 
-;Instantiate dictionary tree
-; args:   none
-; result: none
-; SSTACK: none
-; PS:     none
-; RS:     none
-; throws: nothing
+;Dictionary tree
 #macro       FCDICT_TREE, 0
+;Local constants
+STRING_TERMINATION      EQU     $00
+END_OF_SUBTREE          EQU     $00
+IMMEDIATE               EQU     $8000
+;Root
+FCDICT_TREE_TOP         FCS     "#TIB"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_NUMBER_TIB>>1)             ;-> #TIB
+                        FCS     "$."
+                        DB      STRING_TERMINATION
+                        DW      (CFA_STRING_DOT>>1)             ;-> $.
+                        FCS     "."
+                        DW      FCDICT_TREE_2                   ;....
+                        FCS     "2"
+                        DW      FCDICT_TREE_3                   ;2...
+                        FCS     ">"
+                        DW      FCDICT_TREE_4                   ;>...
+                        FCS     "BASE"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_BASE>>1)                   ;-> BASE
+                        FCS     "D"
+                        DW      FCDICT_TREE_6                   ;D...
+                        FCS     "E"
+                        DW      FCDICT_TREE_7                   ;E...
+                        FCS     "INTEGER"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_INTEGER>>1)                ;-> INTEGER
+                        FCS     "NOP"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_NOP>>1)                    ;-> NOP
+                        FCS     "OVER"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_OVER>>1)                   ;-> OVER
+                        FCS     "P"
+                        DW      FCDICT_TREE_11                  ;P...
+                        FCS     "QUERY"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_QUERY>>1)                  ;-> QUERY
+                        FCS     "ROT"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_ROT>>1)                    ;-> ROT
+                        FCS     "S"
+                        DW      FCDICT_TREE_14                  ;S...
+                        FCS     "U."
+                        DB      STRING_TERMINATION
+                        DW      (CFA_U_DOT>>1)                  ;-> U.
+                        FCS     "W"
+                        DW      FCDICT_TREE_16                  ;W...
+                        ;DB     END_OF_SUBTREE
+;Subtree 2 => "."
+FCDICT_TREE_2           DB      STRING_TERMINATION
+                        DW      (CFA_DOT>>1)                    ;-> .
+                        FCS     "PROMPT"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_DOT_PROMPT>>1)             ;-> .PROMPT
+                        FCS     "R"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_DOT_R>>1)                  ;-> .R
+                        DB      END_OF_SUBTREE
+;Subtree 3 => "2"
+FCDICT_TREE_3           FCS     "D"
+                        DW      FCDICT_TREE_3_0                 ;2D...
+                        FCS     "OVER"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_TWO_OVER>>1)               ;-> 2OVER
+                        FCS     "ROT"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_TWO_ROT>>1)                ;-> 2ROT
+                        FCS     "SWAP"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_TWO_SWAP>>1)               ;-> 2SWAP
+                        DB      END_OF_SUBTREE
+;Subtree 3->0 => "2D"
+FCDICT_TREE_3_0         FCS     "ROP"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_TWO_DROP>>1)               ;-> 2DROP
+                        FCS     "UP"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_TWO_DUP>>1)                ;-> 2DUP
+                        DB      END_OF_SUBTREE
+;Subtree 4 => ">"
+FCDICT_TREE_4           FCS     "IN"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_TO_IN>>1)                  ;-> >IN
+                        FCS     "NUMBER"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_TO_NUMBER>>1)              ;-> >NUMBER
+                        DB      END_OF_SUBTREE
+;Subtree 6 => "D"
+FCDICT_TREE_6           FCS     "."
+                        DW      FCDICT_TREE_6_0                 ;D....
+                        FCS     "ROP"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_DROP>>1)                   ;-> DROP
+                        FCS     "UP"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_DUP>>1)                    ;-> DUP
+                        ;DB     END_OF_SUBTREE
+;Subtree 6->0 => "D."
+FCDICT_TREE_6_0         DB      STRING_TERMINATION
+                        DW      (CFA_D_DOT>>1)                  ;-> D.
+                        FCS     "R"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_D_DOT_R>>1)                ;-> D.R
+                        DB      END_OF_SUBTREE
+;Subtree 7 => "E"
+FCDICT_TREE_7           FCS     "KEY"
+                        DW      FCDICT_TREE_7_0                 ;EKEY...
+                        FCS     "MIT"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_SPACES>>1)                 ;-> EMIT
+                        ;DB     END_OF_SUBTREE
+;Subtree 7->0 => "EKEY"
+FCDICT_TREE_7_0         DB      STRING_TERMINATION
+                        DW      (CFA_EKEY>>1)                   ;-> EKEY
+                        FCS     "?"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_EKEY_QUESTION>>1)          ;-> EKEY?
+                        DB      END_OF_SUBTREE
+;Subtree 11 => "P"
+FCDICT_TREE_11          FCS     "ARSE"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_PARSE>>1)                  ;-> PARSE
+                        FCS     "RIO"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_PRIO>>1)                   ;-> PRIO
+                        DB      END_OF_SUBTREE
+;Subtree 14 => "S"
+FCDICT_TREE_14          FCS     "EARCH-CDICT"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_SEARCH_CDICT>>1)           ;-> SEARCH-CDICT
+                        FCS     "PACE"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_HEX_DOT>>1)                ;-> SPACE
+                        FCS     "TATE"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_STATE>>1)                  ;-> STATE
+                        FCS     "WAP"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_SWAP>>1)                   ;-> SWAP
+                        DB      END_OF_SUBTREE
+;Subtree 16 => "W"
+FCDICT_TREE_16          FCS     "AIT"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_WAIT>>1)                   ;-> WAIT
+                        FCS     "ORDS-CDICT"
+                        DB      STRING_TERMINATION
+                        DW      (CFA_WORDS_CDICT>>1)            ;-> WORDS-CDICT
+                        DB      END_OF_SUBTREE
 #emac
 #endif

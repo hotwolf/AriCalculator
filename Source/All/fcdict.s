@@ -224,7 +224,7 @@ FCDICT_COUNT_CHARS_1	LDX	2,Y-
 			TFR	D, X
 			LDY	0,Y
 			ADDD	2,Y
-			CPD	#(FCDICT_LINE_WIDTH+FCDICT_PRINT_SEP_WS_CNT)
+			CPD	#(FCDICT_LINE_WIDTH+FCDICT_STR_SEP_CNT)
 			BHI	FCDICT_PRINT_SEP_2 			;print new line
 			;Print word separator (PSP+n in Y, column count in D) 
 FCDICT_PRINT_SEP_2	TFR	D, X
@@ -437,7 +437,7 @@ CF_WORDS_CDICT_3	FCDICT_PRINT_WORD 		;print word
 			LDX	PSP
 CF_WORDS_CDICT_4	LDY	2,X
 			FCDICT_NEXT_SIBLING
-			BEQ	CF_WORDS_CDICT_		;find leaf node of sibling
+			BEQ	CF_WORDS_CDICT_5		;find leaf node of sibling
 			;Find next uncle (PSP in X) 
 			LDY	0,X
 			STY	2,+Y
@@ -448,18 +448,18 @@ CF_WORDS_CDICT_4	LDY	2,X
 			PS_DROP	2
 			NEXT
 			;Find leaf node of sibling  (sibling in Y, PSP in X) 
-			STY	2,X 			;switch to sibling
-CF_WORDS_CDICT_5	FCDICT_FIRST_CHILD
-			BEQ	CF_WORDS_CDICT_6	;word found	
+CF_WORDS_CDICT_5	STY	2,X 			;switch to sibling
+CF_WORDS_CDICT_6	FCDICT_FIRST_CHILD
+			BEQ	CF_WORDS_CDICT_7	;word found	
 			TFR 	Y, X			;child -> X
 			PS_CHECK_OF	1 		;new PSP -> Y
 			STY	PSP
 			MOVW	2,Y, 0,Y
 			STX	2,Y
 			TFR	X, Y
-			JOB	CF_WORDS_CDICT_5	
+			JOB	CF_WORDS_CDICT_6	
 			;Word found
-CF_WORDS_CDICT_6	FCDICT_PRINT_SEP
+CF_WORDS_CDICT_7	FCDICT_PRINT_SEP
 			JOB	CF_WORDS_CDICT_3	
 	
 FCDICT_CODE_END		EQU	*
