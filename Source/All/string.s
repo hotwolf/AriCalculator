@@ -20,15 +20,15 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#    This module implements various print routines for the SCI driver:        #
-;#    STRING_PRINT_NB  - print a string (non-blocking)                         #
-;#    STRING_PRINT_BL  - print a string (blocking)                             #
-;#    STRING_FILL_NB   - print a number of filler characters (non-blocking)    #
-;#    STRING_FILL_BL   - print a number of filler characters (blocking)        #
-;#    STRING_UPPER     - convert a character to upper case                     #
-;#    STRING_LOWER     - convert a character to lower case                     #
-;#    STRING_PRINTABLE - make character printable                              #
-;#    STRING_SKIP_WS   - skip whitespace characters                            #
-;#    STRING_LENGTH    - determine the length of a string                      #
+;#    STRING_PRINT_NB       - print a string (non-blocking)                    #
+;#    STRING_PRINT_BL       - print a string (blocking)                        #
+;#    STRING_FILL_NB        - print a number of filler characters (non-bl.)    #  
+;#    STRING_FILL_BL        - print a number of filler characters (blocking)   #
+;#    STRING_UPPER          - convert a character to upper case                #
+;#    STRING_LOWER          - convert a character to lower case                #
+;#    STRING_PRINTABLE      - make character printable                         #
+;#    STRING_SKIP_WS        - skip whitespace characters                       #
+;#    STRING_SKIP_AND_COUNT - determine the length of a string                 #
 ;#                                                                             #
 ;#    Each of these functions has a coresponding macro definition              #
 ;###############################################################################
