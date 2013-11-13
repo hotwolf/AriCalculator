@@ -20,15 +20,15 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#    This module implements various print routines for the SCI driver:        #
-;#    STRING_PRINT_NB  - print a string (non-blocking)                         #
-;#    STRING_PRINT_BL  - print a string (blocking)                             #
-;#    STRING_FILL_NB   - print a number of filler characters (non-blocking)    #
-;#    STRING_FILL_BL   - print a number of filler characters (blocking)        #
-;#    STRING_UPPER     - convert a character to upper case                     #
-;#    STRING_LOWER     - convert a character to lower case                     #
-;#    STRING_PRINTABLE - make character printable                              #
-;#    STRING_SKIP_WS   - skip whitespace characters                            #
-;#    STRING_LENGTH    - determine the length of a string                      #
+;#    STRING_PRINT_NB       - print a string (non-blocking)                    #
+;#    STRING_PRINT_BL       - print a string (blocking)                        #
+;#    STRING_FILL_NB        - print a number of filler characters (non-bl.)    #  
+;#    STRING_FILL_BL        - print a number of filler characters (blocking)   #
+;#    STRING_UPPER          - convert a character to upper case                #
+;#    STRING_LOWER          - convert a character to lower case                #
+;#    STRING_PRINTABLE      - make character printable                         #
+;#    STRING_SKIP_WS        - skip whitespace characters                       #
+;#    STRING_SKIP_AND_COUNT - determine the length of a string                 #
 ;#                                                                             #
 ;#    Each of these functions has a coresponding macro definition              #
 ;###############################################################################
@@ -54,6 +54,10 @@
 ;#      - added STRING_SKIP_WS                                                 #
 ;#    June 11, 2013                                                            #
 ;#      - added STRING_LENGTH                                                  #
+;#    June 11, 2013                                                            #
+;#      - added STRING_LENGTH                                                  #
+;#    October 31, 2013                                                         #
+;#      - replaced STRING_LENGTH by STRING_SKIP_AND_COUNT                      #
 ;###############################################################################
 	
 ;###############################################################################
@@ -193,15 +197,18 @@ STRING_VARS_END_LIN	EQU	@
 ;			SSTACK_JOBSR	STRING_SKIP_WS, 3	
 ;#emac
 	
-;#Count characters in string
+;#Skip string and count characters
 ; args:   X: start of the string
-; result: A; number of characters in string     
-; SSTACK: 2 bytes
-;         X, Y and B are preserved 
-#macro	STRING_LENGTH, 0
-			SSTACK_JOBSR	STRING_LENGTH, 2
+;         D: initial character count
+; result: X: one char past the end of the string
+;         D: incremented count     
+; SSTACK: none
+;        Y is preserved 
+#macro	STRING_SKIP_AND_COUNT, 0
+LOOP			ADDD	#1
+			BRCLR	1,X+, #$80, LOOP
 #emac
-
+			
 ;#Terminated line break
 #macro	STRING_NL_TERM, 0
 			DB	STRING_SYM_CR	
@@ -346,6 +353,7 @@ STRING_UPPER		EQU	*
 			BHI	STRING_UPPER_2
 STRING_UPPER_1		SUBB	#$20		;"a"-"A"	
 			;Done
+			SSTACK_PREPULL	2
 STRING_UPPER_2		RTS
 
 ;#Convert an upper case character to lower case (uncomment if needed)
@@ -378,6 +386,7 @@ STRING_PRINTABLE	EQU	*
 			BLS	STRING_PRINTABLE_1
 STRING_PRINTABLE_1	LDAB	#$2E		;"."	
 			;Done
+			SSTACK_PREPULL	2
 STRING_PRINTABLE_2	RTS
 	
 ;#Skip whitespace (uncomment if needed)
@@ -399,24 +408,6 @@ STRING_PRINTABLE_2	RTS
 ;			PULB
 ;			;Done
 ;			RTS
-
-;#Count characters in string
-; args:   X: start of the string
-; result: A; number of characters in string     
-; SSTACK: 2 bytes
-;         X, Y and B are preserved 
-STRING_LENGTH		EQU	*	
-			;Initialize count
-			CLRB			
-			;Save registers (character count in B)
-STRING_LENGTH_1		BRSET	B,X, #$80, STRING_LENGTH_2	;end of string found
-			INCA					;increment count 
-			BNE	STRING_LENGTH_1			;max. count not reached				
-			;Adjust count
-			LDAA	#$FE
-STRING_LENGTH_2		INCA
-			;Done
-			RTS
 	
 STRING_CODE_END		EQU	*	
 STRING_CODE_END_LIN	EQU	@	
