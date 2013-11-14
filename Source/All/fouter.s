@@ -24,7 +24,9 @@
 ;#                                                                             #
 ;#    The outer interpreter uses these registers:                              #
 ;#          STATE = 0 -> Interpretation state    	       		       #
-;#                  1 -> Compilation state    		       		       #
+;#                 -1 -> Compilation state    		       		       #
+;#          TDICT = 0 -> Compile to UDICT       	       		       #
+;#                 -1 -> Compile ti NVDICT    		       		       #
 ;#           BASE = Number conversion radix                                    #
 ;#     NUMBER_TIB = Number of chars in the TIB                                 #
 ;#          TO_IN = In-pointer of the TIB (>IN)	       			       #
@@ -89,10 +91,12 @@ FOUTER_VARS_START_LIN	EQU	@
 #endif	
 			ALIGN	1	
 STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
+TDICT			DS	2 		;target dictionary (0:UDICT, -1:NVDICT)
 BASE			DS	2 		;number conversion radix
 
 NUMBER_TIB  		DS	2		;number of chars in the TIB
 TO_IN  			DS	2		;in pointer of the TIB (TIB_START+TO_IN point to the next empty byte)
+TIB_OFFSET  		DS	2		;TIB buffer offset (for nested shells) 
 	
 FOUTER_VARS_END		EQU	*
 FOUTER_VARS_END_LIN	EQU	@
@@ -103,7 +107,12 @@ FOUTER_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	FOUTER_INIT, 0
 			LED_BUSY_ON
-			MOVW	#$0000, STATE	
+			MOVW	#$0000, STATE
+			MOVW	#$0000, TDICT
+			MOVW	#$0010, BASE
+			MOVW	#$0000, NUMBER_TIB 
+			MOVW	#$0000, TO_IN
+			MOVW	#$0000, TIB_OFFSET
 #emac
 
 ;#Abort action (to be executed in addition of quit and suspend action)
@@ -112,6 +121,8 @@ FOUTER_VARS_END_LIN	EQU	@
 	
 ;#Quit action (to be executed in addition of suspend action)
 #macro	FOUTER_QUIT, 0
+			MOVW	#$0000, STATE
+			MOVW	#$0000, NUMBER_TIB
 #emac
 	
 ;#Suspend action
@@ -164,7 +175,7 @@ FOUTER_VARS_END_LIN	EQU	@
 ;			|   Number LSW    | SP+8
 ;			+--------+--------+
 ; result: C-flag: set if successful (cleared on overflow) 	
-;         xStack:        +--------+--------+
+;         Stack:        +--------+--------+
 ;			|    Sign/Base    | SP+0
 ;			+--------+--------+
 ;			| Rem Char Count  | SP+2
@@ -945,6 +956,101 @@ FOUTER_INTEGER_12	LDX	FOUTER_INTEGER_NUMLO,SP ;check for signed overflow
 
 ;Code fields:
 ;============
+;ABORT run-time ( i*x -- ) ( R: j*x -- ) 
+;Empty the data stack and perform the function of QUIT, which includes emptying
+;the return stack, without displaying a message. 
+CF_ABORT_RT		EQU	*
+			;Initialize ABORT
+			FORTH_ABORT
+			;Suspend
+			;JOB	CF_QUIT_RT
+
+;QUIT run-time ( -- ) ( R: j*x -- )
+;Empty the return stack, store zero in SOURCE-ID if it is present, make the user
+;input device the input source, and enter interpretation state. Do not display a
+;message.  Repeat the following: 
+; -Accept a line from the input source into the input buffer, set >IN to zero,
+;  and interpret. 
+; -Display the system prompt if in interpretation state,
+;  all processing has been completed, and no ambiguous condition exists.
+; args:   none
+; result: none
+; SSTACK: 
+; PS:    
+; RS:    
+; throws: nothing
+CF_QUIT_RT		EQU	*
+			;Initialize QUIT
+			FORTH_QUIT
+			;Suspend
+			;JOB	CF_SUSPEND_RT	
+	
+;SUSPEND run-time ( -- )
+;Interprets the input stream, indexed by >IN, until exhausted
+; args:   
+; result:
+; SSTACK: 
+; PS:     
+; RS:     
+; throws: nothing
+CF_SUSPEND_RT		EQU	*
+			;Initialize SUSPEND 
+			FORTH_SUSPEND
+			;Set TIM offset 
+			MOVW	NUMBER_TIB, TIB_OFFSET ;save TIB offset
+			;Print command line prompt 
+CF_SUSPEND_RT_1		EXEC_CF	CF_DOT_PROMPT
+			;Query command line
+			EXEC_CF	CF_QUERY_APPEND
+			;Parse command line
+CF_SUSPEND_RT_2		LDAA	#" " 			;use whitespace as delimiter
+			FOUTER_PARSE
+			TBNE	D, CF_SUSPEND_RT_3 	;search dictionaries
+			;Parsing complete
+			MOVW	TIB_OFFSET, NUMBER_TIB 	;clear local TIB segment
+			;Print acknowledge
+			PS_PUSH	#FOUTER_SYSTEM_ACK
+			EXEC_CF	CF_STRING_DOT
+			JOB	CF_SUSPEND_RT_1
+			;Search UDICT (string pointer in X, char count in D)
+CF_SUSPEND_RT_3	
+			;Search NVDICT (string pointer in X, char count in D)
+CF_SUSPEND_RT_4			
+			;Search CDICT (string pointer in X, char count in D)
+CF_SUSPEND_RT_5		FCDICT_SEARCH
+			BCC	CF_SUSPEND_RT_8		;evaluate string as integer
+			LSLD
+			BCS	CF_SUSPEND_RT_7 	;execute immediate word
+			LDX	STATE
+			BEQ	CF_SUSPEND_RT_7 	;execute word
+			;Compile word (CFA in D)
+CF_SUSPEND_RT_6
+			JOB	CF_SUSPEND_RT_2		;parse next word
+			;Execute word (CFA in D)
+CF_SUSPEND_RT_7		TFR	D, X
+			EXEC_CFA_X
+			JOB	CF_SUSPEND_RT_2		;parse next word	
+			;Evaluate string as integer (string pointer in X, char count in D) 
+CF_SUSPEND_RT_8		FOUTER_INTEGER
+			TBEQ	D, CF_SUSPEND_RT_10 	;Unknown word
+			DBEQ	D, CF_SUSPEND_RT_9 	;single cell
+			;Double cell integer (int in Y:X)
+			LDD	STATE
+			BNE	CF_SUSPEND_RT_2		;parse next word
+			TFR	Y, D
+			PS_CHECK_OF	2 		;new PSP -> Y
+			STY	PSP
+			STD	0,Y
+			STX	2,Y
+			JOB	CF_SUSPEND_RT_2		;parse next word
+			;Single cell integer (int in X)
+CF_SUSPEND_RT_9		LDD	STATE
+			BNE	CF_SUSPEND_RT_2		;parse next word
+			PS_PUSH_X
+			JOB	CF_SUSPEND_RT_2		;parse next word
+			;Unknown word 
+CF_SUSPEND_RT_10	FEXCPT_THROW	 FEXCPT_EC_UDEFWORD			
+
 ;.PROMPT ( -- ) Print the command line prompt
 ; args:   address of a terminated string
 ; result: none
@@ -957,15 +1063,18 @@ CF_DOT_PROMPT		EQU	*
 			LDX	#FOUTER_INTERPRET_PROMPT
 			LDD	STATE
 			BEQ	CF_DOT_PROMPT_1
-			LDX	#FOUTER_COMPILE_PROMPT
+			LDX	#FOUTER_UCOMP_PROMPT
+			LDD	TDICT
+			BEQ	CF_DOT_PROMPT_1
+			LDX	#FOUTER_NVCOMP_PROMPT	
 CF_DOT_PROMPT_1		PS_PUSH_X 				;push prompt pointer onto the PS
 			;Print the prompt (prompt pointer in [PS+0])
 			JOB	CF_STRING_DOT
 
 ;QUERY ( -- ) Query command line input
-;Make the user input device the input source. Receive input into the terminal input buffer, 
-;replacing any previous contents. Make the result, whose address is returned by TIB, the input 
-;buffer.  Set >IN to zero.
+;Make the user input device the input source. Receive input into the terminal
+;input buffer,mreplacing any previous contents. Make the result, whose address is
+;returned by TIB, the input buffer.  Set >IN to zero.
 ; args:   none
 ; result: none
 ; SSTACK: 8 bytes
@@ -975,73 +1084,88 @@ CF_DOT_PROMPT_1		PS_PUSH_X 				;push prompt pointer onto the PS
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
 CF_QUERY		EQU	*
-			;Print prompt
-			;EXEC_CF	xCF_DOT_PROMPT
 			;Reset input buffer
-			CLRA
-			CLRB
-			STD	NUMBER_TIB
-			STD	TO_IN
+			MOVW	#0000, NUMBER_TIB
+			;JOB	CF_QUERY_APPEND
+
+;QUERY-APPEND ( -- ) Query command line input
+;Set >IN to #TIB. Make the user input device the input source. Receive input into
+;the terminal input buffer, appending previous contents. Make the result, whose
+;address is returned by TIB+>IN, the input buffer.
+; args:   none
+; result: none
+; SSTACK: 8 bytes
+; PS:     1 cell
+; RS:     2 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+CF_QUERY_APPEND		EQU	*
+			;Print prompt
+			;EXEC_CF	CF_DOT_PROMPT
+			;Setup input buffer
+			MOVW	NUMBER_TIB, TO_IN
 			;Receive input
-CF_QUERY_1		EXEC_CF	CF_EKEY				;input car -> [PS+0]
+CF_QUERY_APPEND_1	EXEC_CF	CF_EKEY				;input car -> [PS+0]
 			;Check input (input car in [PS+0])
 			LDD	[PSP] 				;input char -> B
 			;Ignore LF (input car in B)
 			CMPB	#STRING_SYM_LF
-			BEQ	CF_QUERY_4			;ignore
+			BEQ	CF_QUERY_APPEND_4		;ignore
 			;Check for ENTER (CR) (input car in B and in [PS+0])
 			CMPB	#STRING_SYM_CR	
-			BEQ	CF_QUERY_8			;input complete		
+			BEQ	CF_QUERY_APPEND_8		;input complete		
 			;Check for BACKSPACE (input char in B and in [PS+0])
 			CMPB	#STRING_SYM_BACKSPACE	
-			BEQ	CF_QUERY_7	 		;check for underflow
+			BEQ	CF_QUERY_APPEND_7	 	;check for underflow
 			CMPB	#STRING_SYM_DEL	
-			BEQ	CF_QUERY_7	 		;check for underflow
+			BEQ	CF_QUERY_APPEND_7	 	;check for underflow
 			;Check for valid special characters (input char in B and in [PS+0])
 			CMPB	#STRING_SYM_TAB	
-			BEQ	CF_QUERY_2	 		;echo and append to buffer
+			BEQ	CF_QUERY_APPEND_2	 	;echo and append to buffer
 			;Check for invalid characters (input char in B and in [PS+0])
 			CMPB	#" " 				;first legal character in ASCII table
-			BLO	CF_QUERY_5			;beep
+			BLO	CF_QUERY_APPEND_5		;beep
 			CMPB	#"~"				;last legal character in ASCII table
-			BHI	CF_QUERY_5 			;beep			
+			BHI	CF_QUERY_APPEND_5 		;beep			
 			;Check for buffer overflow (input char in B and in [PS+0])
 			LDY	NUMBER_TIB
 			LEAY	(TIB_PADDING+TIB_START),Y
 			CPY	RSP
-			BHS	CF_QUERY_5 			;beep
+			BHS	CF_QUERY_APPEND_5 		;beep
 			;Append char to input line (input char in B and in [PS+0])
-CF_QUERY_2		LDY	NUMBER_TIB
+CF_QUERY_APPEND_2	LDY	NUMBER_TIB
 			STAB	TIB_START,Y			;store character
 			LEAY	1,Y				;increment char count
 			STY	NUMBER_TIB
 			;Echo input char (input char in [PS+0])
-CF_QUERY_3		EXEC_CF	CF_EMIT				;print character
-			JOB	CF_QUERY_1
+CF_QUERY_APPEND_3	EXEC_CF	CF_EMIT				;print character
+			JOB	CF_QUERY_APPEND_1
 			;Ignore input char
-CF_QUERY_4		LDY	PSP 				;drop char from PS
+CF_QUERY_APPEND_4	LDY	PSP 				;drop char from PS
 			LEAY	2,Y
 			STY	PSP
-			JOB	CF_QUERY_1
+			JOB	CF_QUERY_APPEND_1
 			;BEEP			
-CF_QUERY_5		LDD	#STRING_SYM_BEEP		;replace received char by a beep
-CF_QUERY_6		STD	[PSP]
-			JOB	CF_QUERY_3 			;transmit beep
+CF_QUERY_APPEND_5	LDD	#STRING_SYM_BEEP		;replace received char by a beep
+CF_QUERY_APPEND_6	STD	[PSP]
+			JOB	CF_QUERY_APPEND_3 		;transmit beep
 			;Check for buffer underflow (input char in [PS+0])
-CF_QUERY_7		LDY	NUMBER_TIB 			;decrement char count
-			BEQ	CF_QUERY_4			;underflow -> beep
+CF_QUERY_APPEND_7	LDY	NUMBER_TIB 			;compare char count
+			CPY	TO_IN
+			BLS	CF_QUERY_APPEND_4		;underflow -> beep
 			LEAY	-1,Y
 			STY	NUMBER_TIB
 			LDD	#STRING_SYM_BACKSPACE		;replace received char by a backspace
-			JOB	CF_QUERY_6
+			JOB	CF_QUERY_APPEND_6
 			;Input complete
-CF_QUERY_8		LDY	PSP 				;drop char from PS
+CF_QUERY_APPEND_8	LDY	PSP 				;drop char from PS
 			LEAY	2,Y
 			STY	PSP
 			LDY	NUMBER_TIB 			;check char count
-			BEQ	CF_QUERY_9 			;command line is empty
+			BEQ	CF_QUERY_APPEND_9 		;command line is empty
 			BSET	(TIB_START-1),Y, #$80		;terminate last character
-CF_QUERY_9		NEXT
+CF_QUERY_APPEND_9	NEXT
 
 ;PARSE ( char "ccc<char>" -- c-addr u ) Parse the TIB
 ;Parse ccc delimited by the delimiter char. c-addr is the address (within the
@@ -1163,6 +1287,7 @@ CF_INTEGER_3		STY	PSP
 CF_INTEGER_4		LDY	PSP
 			MOVW	#$0001, 2,+Y
 			JOB	CF_INTEGER_3
+
 	
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@
@@ -1189,9 +1314,8 @@ FOUTER_SYMTAB		EQU	NUM_SYMTAB
 	
 ;System prompts
 FOUTER_INTERPRET_PROMPT	FOUTER_PROMPT	"> "
-FOUTER_COMPILE_PROMPT	FOUTER_PROMPT	"+ "
-
-
+FOUTER_UCOMP_PROMPT	FOUTER_PROMPT	"+ "
+FOUTER_NVCOMP_PROMPT	FOUTER_PROMPT	"NV+ "
 FOUTER_SKIP_PROMPT	FOUTER_PROMPT	"0 "
 FOUTER_SYSTEM_ACK	FCS		" ok"
 
@@ -1211,9 +1335,9 @@ FOUTER_WORDS_START_LIN	EQU	@
 ;#ANSForth Words:
 ;================
 ;Word: QUERY ( -- )
-;Make the user input device the input source. Receive input into the terminal input buffer, 
-;replacing any previous contents. Make the result, whose address is returned by TIB, the input 
-;buffer.  Set >IN to zero.
+;Make the user input device the input source. Receive input into the terminal
+;input buffer,mreplacing any previous contents. Make the result, whose address is
+;returned by TIB, the input buffer.  Set >IN to zero.
 ;
 ;Throws:
 ;"Parameter stack overflow"
@@ -1247,10 +1371,11 @@ CFA_PARSE		DW	CF_PARSE
 CFA_TO_NUMBER		DW	CF_TO_NUMBER
 	
 ;Word: STATE ( -- a-addr ) 
-;a-addr is the address of a cell containing the compilation-state flag.  STATE is true when in 
-;compilation state, false otherwise.  The true value in STATE is non-zero, but is otherwise 
-;implementation-defined.  Only the following standard words alter the value in STATE:  : 
-;(colon), ; (semicolon), ABORT, QUIT, :NONAME, [ (left-bracket), and ] (right-bracket). 
+;a-addr is the address of a cell containing the compilation-state flag. STATE is
+;true when in compilation state, false otherwise.  The true value in STATE is
+;non-zero. Only the following standard words alter the value in STATE:
+; : (colon), ; (semicolon), ABORT, QUIT, :NONAME, [ (left-bracket), and
+; ] (right-bracket). 
 ;  Note:  A program shall not directly alter the contents of STATE. 
 ;
 ;Throws:
@@ -1259,7 +1384,8 @@ CFA_STATE		DW	CF_CONSTANT_RT
 			DW	STATE
 
 ;Word: BASE ( -- a-addr ) 
-;a-addr is the address of a cell containing the current number-conversion radix {{2...36}}. 
+;a-addr is the address of a cell containing the current number-conversion radix
+;{{2...36}}. 
 ;
 ;Throws:
 ;"Parameter stack overflow"
@@ -1267,8 +1393,8 @@ CFA_BASE		DW	CF_CONSTANT_RT
 			DW	BASE
 
 ;Word: >IN ( -- a-addr )
-;a-addr is the address of a cell containing the offset in characters from the start of the input 
-;buffer to the start of the parse area.  
+;a-addr is the address of a cell containing the offset in characters from the
+;start of the input buffer to the start of the parse area.  
 ;
 ;Throws:
 ;"Parameter stack overflow"
@@ -1276,7 +1402,8 @@ CFA_TO_IN		DW	CF_CONSTANT_RT
 			DW	TO_IN
 
 ;Word: #TIB ( -- a-addr )
-;a-addr is the address of a cell containing the number of characters in the terminal input buffer.
+;a-addr is the address of a cell containing the number of characters in the
+;terminal input buffer.
 ;
 ;Throws:
 ;"Parameter stack overflow"
@@ -1285,6 +1412,29 @@ CFA_NUMBER_TIB		DW	CF_CONSTANT_RT
 
 ;S12CForth Words:
 ;================
+;Word: QUERY-APPEND ( -- )
+;Set >IN to #TIB. Make the user input device the input source. Receive input into
+;the terminal input buffer, appending previous contents. Make the result, whose
+;address is returned by TIB+>IN, the input buffer.
+;
+;Throws:
+;"Parameter stack overflow"
+;"Return stack overflow"
+;"Invalid RX data"
+CFA_QUERY_APPEND	DW	CF_QUERY_APPEND
+
+;Word: TDICT ( -- a-addr ) 
+;a-addr is the address of a cell containing the target dictionary flag. TDICT is
+;true when the non-volatile user dictionary (NVDICT) is selected, false otherwise.
+;The true value in STATE is non-zero.  Only the following standard words alter
+;the value in TDICT: >UDICT, >NVDICT. 
+;  Note:  A program shall not directly alter the contents of TDICT. 
+;
+;Throws:
+;"Parameter stack overflow"
+CFA_TDICT		DW	CF_CONSTANT_RT
+			DW	TDICT
+
 ;Word: .PROMPT ( -- )
 ;Print the command line prompt (interpretation or compilation)
 ;
@@ -1301,6 +1451,15 @@ CFA_DOT_PROMPT		DW	CF_DOT_PROMPT
 ;"Parameter stack underflow"
 ;"Parameter stack overflow"
 CFA_INTEGER		DW	CF_INTEGER
+
+;Word: TIB-OFFSET ( -- a-addr )
+;a-addr is the address of a cell containing the number of characters in the
+;terminal input buffer.
+;
+;Throws:
+;"Parameter stack overflow"
+CFA_TIB_OFFSET		DW	CF_CONSTANT_RT
+			DW	TIB_OFFSET
 
 FOUTER_WORDS_END	EQU	*
 FOUTER_WORDS_END_LIN	EQU	@

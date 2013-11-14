@@ -289,11 +289,11 @@ FCDICT_COMP_STRING_3	LEAX	-1,Y 					;set pointer to the end of the string
 ; result: C-flag: set if word is in the dictionary	
 ;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
 ; SSTACK: 16 or 17 bytes
-;         Y and D are preserved 
+;         Y and Y are preserved 
 #macro	FCDICT_SEARCH, 0
 			SSTACK_JOBSR	FCDICT_SEARCH, 16
 #emac
-	
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################

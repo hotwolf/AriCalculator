@@ -369,8 +369,6 @@ FPS_VARS_END_LIN	EQU	@
 							;                         14 cycles
 #emac	
 
-
-
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -387,8 +385,7 @@ FPS_CODE_START_LIN	EQU	@
 ;Push the contents of the first cell after the CFA onto the parameter stack
 ;
 ;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
+;Throws:	FEXCPT_EC_PSOF
 CF_TWO_CONSTANT_RT	PS_CHECK_OF	2			;overflow check	=> 9 cycles
 			MOVW		4,X, 2,Y		;[CFA+6] -> PS	=> 5 cycles
 			JOB		CF_TWO_CONSTANT_RT_1
@@ -398,8 +395,7 @@ CF_TWO_CONSTANT_RT_1	EQU		CF_CONSTANT_RT_1
 ;Push the contents of the first cell after the CFA onto the parameter stack
 ;
 ;S12CForth implementation details:
-;Throws:
-;"Parameter stack overflow"
+;Throws:	FEXCPT_EC_PSOF
 CF_CONSTANT_RT		PS_CHECK_OF	1			;overflow check	=> 9 cycles
 CF_CONSTANT_RT_1	MOVW		2,X, 0,Y		;[CFA+2] -> PS	=> 5 cycles
 CF_CONSTANT_RT_2	STY		PSP			;		=> 3 cycles
@@ -411,9 +407,8 @@ CF_CONSTANT_RT_2	STY		PSP			;		=> 3 cycles
 ;Duplicate x.
 ;
 ;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-;"Parameter stack overflow"
+;Throws:	FEXCPT_EC_PSOF
+;        	FEXCPT_EC_PSUF
 CF_DUP			PS_CHECK_UFOF	1, 1			;check for overflow	=>11 cycles
 			MOVW		2,Y, 0,Y		;duplicate last entry	=> 3 cycles
 			JOB		CF_DUP_1
@@ -424,6 +419,7 @@ CF_DUP_1		EQU		CF_CONSTANT_RT_2
 ;
 ;S12CForth implementation details:
 ;Doesn't throw any exception, resets the parameter stack on underflow 
+;Throws:	FEXCPT_EC_PSUF
 CF_DROP			PS_CHECK_UF	1			;check for underflow	=> 8 cycles
 			LEAY		2,Y			;PS -> Y		=> 2 cycles 
 			JOB		CF_DROP_1
@@ -433,9 +429,8 @@ CF_DROP_1		EQU		CF_CONSTANT_RT_2
 ;Place a copy of x1 on top of the stack.
 ;
 ;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-;"Parameter stack overflow"
+;Throws:        FEXCPT_EC_PSUF
+;         	FEXCPT_EC_PSOF
 CF_OVER			PS_CHECK_UFOF	2, 1			;check for under and overflow (PSP-2 -> Y)
 			MOVW	4,Y, 0,Y
 			JOB		CF_OVER_1
@@ -445,9 +440,8 @@ CF_OVER_1		EQU		CF_CONSTANT_RT_2
 ;Duplicate cell pair x1 x2.
 ;
 ;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-;"Parameter stack overflow"
+;Throws:        FEXCPT_EC_PSUF
+;         	FEXCPT_EC_PSOF
 CF_TWO_DUP		PS_CHECK_UFOF	2, 2			;check for under and overflow
 			MOVW		6,Y, 2,Y		;duplicate stack entry
 			MOVW		4,Y, 0,Y		;duplicate stack entry
@@ -458,7 +452,7 @@ CF_TWO_DUP_1		EQU		CF_CONSTANT_RT_2
 ;Drop cell pair x1 x2 from the stack.
 ;
 ;S12CForth implementation details:
-; - Doesn't throw any exception, resets the parameter stack on underflow 
+;Throws:        FEXCPT_EC_PSUF
 CF_TWO_DROP		PS_CHECK_UF	2			;check for underflow	=> 8 cycles
 			LEAY		4,Y			;PS -> Y		=> 2 cycles 
 			JOB		CF_TWO_DROP_1
@@ -468,9 +462,8 @@ CF_TWO_DROP_1		EQU		CF_CONSTANT_RT_2
 ;Copy cell pair x1 x2 to the top of the stack.
 ;
 ;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-;"Parameter stack overflow"
+;Throws:	FEXCPT_EC_PSUF
+;         	FEXCPT_EC_PSOF
 CF_TWO_OVER		PS_CHECK_UFOF	4, 2			;check for under and overflow
 			MOVW		8,Y, 0,Y		;duplicate stack entry
 			MOVW		10,Y, 2,Y		;duplicate stack entry
@@ -481,8 +474,7 @@ CF_TWO_OVER_1		EQU		CF_CONSTANT_RT_2
 ;Exchange the top two stack items.
 ;
 ;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
+;Throws:         FEXCPT_EC_PSUF
 CF_SWAP			PS_CHECK_UF	2			;check for underflow (PSP -> Y)
 			;Swap
 			LDD		2,Y
@@ -495,8 +487,7 @@ CF_SWAP_1		STD		0,Y
 ;Exchange the top two cell pairs.
 ;
 ;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
+;Throws:         FEXCPT_EC_PSUF
 CF_TWO_SWAP		PS_CHECK_UF	4			;(PSP -> Y)
 			LDD		6,Y
 			MOVW		2,Y 6,Y
@@ -510,8 +501,7 @@ CF_TWO_SWAP_1		EQU		CF_SWAP_1
 ;Rotate the top three stack entries.
 ;
 ;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
+;Throws:         FEXCPT_EC_PSUF
 CF_ROT			PS_CHECK_UF	2			;check for underflow
 			;Rotate
 			LDD		4,Y
@@ -525,8 +515,7 @@ CF_ROT_1		EQU		CF_SWAP_1
 ;top of the stack.
 ;
 ;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
+;Throws:         FEXCPT_EC_PSUF
 CF_TWO_ROT		PS_CHECK_UF 	6		;check for underflow (PSP -> Y)
 			;Swap PS entries (PSP in Y)
 			LDD	10,Y 			;save  x1

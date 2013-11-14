@@ -126,24 +126,25 @@ FEXCPT_EC_COMERR		EQU	-57	;exception in sending or receiving a character
 ;S12CForth specific error codes 
 FEXCPT_EC_NOMSG			EQU	-59	;empty message string
 FEXCPT_EC_DICTPROT		EQU	-60	;destruction of dictionary structure
+FEXCPT_EC_RESUME		EQU	-61	;resume from suspend
 
 ;Highest standard error code value
-FEXCPT_EC_MAX			EQU	FEXCPT_EC_COMOF
+FEXCPT_EC_MAX			EQU	FEXCPT_EC_RESUME
 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef FEXCEPT_VARS_START_LIN
-			ORG 	FEXCEPT_VARS_START, FEXCEPT_VARS_START_LIN
+#ifdef FEXCPT_VARS_START_LIN
+			ORG 	FEXCPT_VARS_START, FEXCPT_VARS_START_LIN
 #else
-			ORG 	FEXCEPT_VARS_START
-FEXCEPT_VARS_START_LIN	EQU	@
+			ORG 	FEXCPT_VARS_START
+FEXCPT_VARS_START_LIN	EQU	@
 #endif	
 
 HANDLER			DS	2 	;pointer tho the most recent exception
 					;handler 
-FEXCEPT_VARS_END		EQU	*
-FEXCEPT_VARS_END_LIN	EQU	@
+FEXCPT_VARS_END		EQU	*
+FEXCPT_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -164,7 +165,7 @@ FEXCEPT_VARS_END_LIN	EQU	@
 ;#Suspend action
 #macro	FEXCPT_SUSPEND, 0
 #emac
-
+	
 ;#Print error message
 ; args:   D: error code
 ; result: none
@@ -208,11 +209,11 @@ FEXCEPT_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef FEXCEPT_CODE_START_LIN
-			ORG 	FEXCEPT_CODE_START, FEXCEPT_CODE_START_LIN
+#ifdef FEXCPT_CODE_START_LIN
+			ORG 	FEXCPT_CODE_START, FEXCPT_CODE_START_LIN
 #else
-			ORG 	FEXCEPT_CODE_START
-FEXCEPT_CODE_START_LIN	EQU	@
+			ORG 	FEXCPT_CODE_START
+FEXCPT_CODE_START_LIN	EQU	@
 #endif
 
 ;#Print error message
@@ -228,13 +229,13 @@ FEXCPT_PRINT_ERROR	EQU	*
 			CPD	#FEXCPT_EC_MAX
 			BLO	FEXCPT_PRINT_ERROR_4 				;non-standard error
 			;Check for ABORT (error code in B)
-			CPAB	#FEXCPT_EC_ABORT
+			CMPB	#FEXCPT_EC_ABORT
 			BEQ	FEXCPT_PRINT_ERROR_6 				;no message for ABORT
 			;Check for QUIT (error code in B)
-			CPAB	#FEXCPT_EC_QUIT
+			CMPB	#FEXCPT_EC_QUIT
 			BEQ	FEXCPT_PRINT_ERROR_6 				;no message for QUIT
 			;Check for ABORT" (error code in B)
-			CPAB	#FEXCPT_EC_ABORTQ
+			CMPB	#FEXCPT_EC_ABORTQ
 			BEQ	FEXCPT_PRINT_ERROR_7 				;print ABORT" message		
 			;Standard error code (error code in B)
 			LDX     #FEXCPT_MSGTAB_END 				;start at the beginning of the lookup table
@@ -258,7 +259,7 @@ FEXCPT_PRINT_ERROR_6	SSTACK_PREPULL	6
 			;Done
 			RTS
 			;Print ABORT" message 
-FEXCPT_PRINT_ERROR_7	LDX	ABORT_QUOTE_MSG
+FEXCPT_PRINT_ERROR_7	;LDX	ABORT_QUOTE_MSG
 			BNE	FEXCPT_PRINT_ERROR_5 				;print  message
 			JOB	FEXCPT_PRINT_ERROR_6 				;no message
 	
@@ -277,7 +278,7 @@ FEXCPT_THROW		EQU	*
 			LDY	NUMBER_TIB 					;check for RS overflow
 			LEAY	TIB_START,Y
 			CPY	HANDLER
-			BLO	EXCPT_THROW_1 					;invalid exception handler
+			BLO	FEXCPT_THROW_1 					;invalid exception handler
  			;Restore stacks (HANDLER in X, error code in D)
 			MOVW	2,X+, HANDLER					;pull previous HANDLER (RSP -> X)
 			LDY	2,X+						;pull previous PSP (RSP -> X)		
@@ -285,10 +286,10 @@ FEXCPT_THROW		EQU	*
 			STX	RSP
 			;Check if PSP is valid (new PSP in Y, error code in D)
 			CPY	#PS_EMPTY 					;check for PS underflow
-			BHI	EXCPT_THROW_1 					;invalid exception handler
+			BHI	FEXCPT_THROW_1 					;invalid exception handler
 			LDX	PAD
 			LEAX	2,X	     					;make sure there is room for the return value
-			BLO	EXCPT_THROW_1 					;invalid exception handler
+			BLO	FEXCPT_THROW_1 					;invalid exception handler
 			;Push error code onto PS (new in Y, error code in D)
 			STD	2,-Y						;push error code onto PS
 			STY	PSP						;set PSP
@@ -299,8 +300,8 @@ FEXCPT_THROW_1		LDD	#FEXCPT_EC_CESF					;change error code
 			;Default exception handler (error code in D)
 FEXCPT_THROW_2		FEXCPT_PRINT_ERROR 					;print error message
 			CPD	 #FEXCPT_EC_ABORTQ 				;check for ABORT and ABORT"
-			BHS	CF_ABORT 					;abort
-			JOB	CF_QUIT						;quit
+			;BHS	CF_ABORT 					;abort
+			;JOB	CF_QUIT						;quit
 
 ;#Code Fields:
 ;=============
@@ -336,13 +337,13 @@ CF_CATCH		EQU	*
 			LDX	-2,Y 				;fetch xt
 			STY	PSP				;update PSP
 			EXEC_CFA_X				;execute xt
-			RS_CHECK_UF 	3, CF_CATCH_CESF	;check for RS underflow (RSP -> X)
-			PS_CHECK_OF	1, CF_CATCH_PSOF	;check for PS overflow (PSP-2 -> Y)
+			RS_CHECK_UF 	3			;check for RS underflow (RSP -> X)
+			PS_CHECK_OF	1			;check for PS overflow (PSP-2 -> Y)
 			;Check if HANDLER points to the top of the RS (RSP in X, PSP-2 in Y)
 			CPX	HANDLER				;check if RSP==HANDLER
 			BEQ	CF_CATCH_1			;HANDLER is ok
-			MOVW	#$0000. HANDLER			;reset HANDLER
-			JOB	FEXCPT_THROW_CESF		;throw exception stack frame error
+			MOVW	#$0000, HANDLER			;reset HANDLER
+			;JOB	FEXCPT_THROW_CESF		;throw exception stack frame error
 			;Restore previous HANDLER (RSP in X, PSP-2 in Y)
 CF_CATCH_1		LEAX	4,X
 			MOVW	2,X+, IP
@@ -464,19 +465,19 @@ CF_THROW_1		STX	PSP
 ;				;Done
 ;				NEXT
 	
-FEXCEPT_CODE_END		EQU	*
-FEXCEPT_CODE_END_LIN	EQU	@
+FEXCPT_CODE_END		EQU	*
+FEXCPT_CODE_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
 ;Tabes in unpaged address space
 ;------------------------------ 
-#ifdef FEXCEPT_TABS_START_LIN
-			ORG 	FEXCEPT_TABS_START, FEXCEPT_TABS_START_LIN
+#ifdef FEXCPT_TABS_START_LIN
+			ORG 	FEXCPT_TABS_START, FEXCPT_TABS_START_LIN
 #else
-			ORG 	FEXCEPT_TABS_START
-FEXCEPT_TABS_START_LIN	EQU	@
+			ORG 	FEXCPT_TABS_START
+FEXCPT_TABS_START_LIN	EQU	@
 #endif	
 
 FEXCPT_MSG_HEAD		STRING_NL_NONTERM
@@ -508,18 +509,19 @@ FEXCPT_MSGTAB		EQU	*
 			FEXCPT_MSG	FEXCPT_EC_DICTPROT,	"Destruction of dictionary structure"
 			FEXCPT_MSG	FEXCPT_EC_COMERR,	"Corrupted RX data"
 			FEXCPT_MSG	0			"Unknown cause"
-	
-FEXCEPT_TABS_END	EQU	*
-FEXCEPT_TABS_END_LIN	EQU	@
+FEXCPT_MSGTAB_END	EQU	*
+
+FEXCPT_TABS_END		EQU	*
+FEXCPT_TABS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Words                                                                       #
 ;###############################################################################
-#ifdef FEXCEPT_WORDS_START_LIN
-			ORG 	FEXCEPT_WORDS_START, FEXCEPT_WORDS_START_LIN
+#ifdef FEXCPT_WORDS_START_LIN
+			ORG 	FEXCPT_WORDS_START, FEXCPT_WORDS_START_LIN
 #else
-			ORG 	FEXCEPT_WORDS_START
-FEXCEPT_WORDS_START_LIN	EQU	@
+			ORG 	FEXCPT_WORDS_START
+FEXCPT_WORDS_START_LIN	EQU	@
 #endif	
 
 ;#Code Field Addresses:
@@ -573,5 +575,5 @@ CFA_THROW		DW	CF_THROW
 ;;ERROR" run-time semantics
 ;CFA_ERROR_QUOTE_RT	DW	CF_ERROR_QUOTE_RT 			
 	
-FEXCEPT_WORDS_END		EQU	*
-FEXCEPT_WORDS_END_LIN	EQU	@
+FEXCPT_WORDS_END		EQU	*
+FEXCPT_WORDS_END_LIN		EQU	@
