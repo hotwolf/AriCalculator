@@ -189,8 +189,8 @@ FOUTER_VARS_END_LIN	EQU	@
 ; SSTACK: 10 bytes
 ;         X, Y, and D are preserved
 #macro	FOUTER_TO_NUMBER, 0
-			SSTACK_PREPULL	10
-			SSTACK_JOBSR	FOUTER_TO_NUMBER, 10
+			SSTACK_CHECK_BOUNDARIES	10, 10
+			JOBSR	FOUTER_TO_NUMBER
 #emac
 
 ;#Check for a sign prefix
@@ -220,8 +220,8 @@ FOUTER_VARS_END_LIN	EQU	@
 ; SSTACK: 8 bytes
 ;         X, Y, and D are preserved
 #macro	FOUTER_TO_SIGN, 0
-			SSTACK_PREPULL	10
-			SSTACK_JOBSR	FOUTER_TO_SIGN, 8
+			SSTACK_CHECK_BOUNDARIES	8, 10
+			JOBSR	FOUTER_TO_SIGN
 #emac
 
 ;#Check for a filler character
@@ -251,8 +251,8 @@ FOUTER_VARS_END_LIN	EQU	@
 ; SSTACK: 10 bytes
 ;         X, Y, and D are preserved
 #macro	FOUTER_TO_FILLER, 0
-			SSTACK_PREPULL	10
-			SSTACK_JOBSR	FOUTER_TO_FILLER, 8
+			SSTACK_CHECK_BOUNDARIES	8, 10
+			JOBSR	FOUTER_TO_FILLER
 #emac
 
 ;#Check for an ASM-style base prefix
@@ -282,8 +282,8 @@ FOUTER_VARS_END_LIN	EQU	@
 ; SSTACK: 8 bytes
 ;         X, Y, and D are preserved
 #macro	FOUTER_TO_ABASE, 0
-			SSTACK_PREPULL	10
-			SSTACK_JOBSR	FOUTER_TO_ABASE, 8
+			SSTACK_CHECK_BOUNDARIES	8, 10
+			JOBSR	FOUTER_TO_ABASE
 #emac
 
 ;#Check for a C-style base prefix
@@ -313,8 +313,8 @@ FOUTER_VARS_END_LIN	EQU	@
 ; SSTACK: 10 bytes
 ;         X, Y, and D are preserved
 #macro	FOUTER_TO_CBASE, 0
-			SSTACK_PREPULL	10
-			SSTACK_JOBSR	FOUTER_TO_CBASE, 10
+			SSTACK_CHECK_BOUNDARIES	10, 10
+			JOBSR	FOUTER_TO_CBASE
 #emac
 
 #Check if the string starts with a valid digit
@@ -344,8 +344,8 @@ FOUTER_VARS_END_LIN	EQU	@
 ; SSTACK: 10 bytes
 ;         X, Y, and D are preserved
 #macro	FOUTER_PEEK_NUM, 0
-			SSTACK_PREPULL	10
-			SSTACK_JOBSR	FOUTER_PEEK_NUM, 10
+			SSTACK_CHECK_BOUNDARIES	10, 10
+			JOBSR	FOUTER_PEEK_NUM
 #emac
 	
 ;#Convert a terminated string into a number
@@ -906,9 +906,9 @@ FOUTER_INTEGER_NUMLO  	EQU	8			;number LSW
 FOUTER_INTEGER_1	FOUTER_TO_CBASE 		;check for C-style base prefix
 			BCS	FOUTER_INTEGER_5	;C-style base prefix found
 			FOUTER_FIX_BASE			;set default base
-			BRCLR	FOUTER_INTEGER_BASE,SP, #$80, FOUTER_INTEGER_2	
+			BRCLR	FOUTER_INTEGER_STRPTR,SP, #$80, FOUTER_INTEGER_2	
 			ORAA	#$80	
-FOUTER_INTEGER_2	STD	FOUTER_INTEGER_BASE,SP
+FOUTER_INTEGER_2	STD	FOUTER_INTEGER_STRPTR,SP
 			JOB	FOUTER_INTEGER_5	;check if next character is a valid digit
 FOUTER_INTEGER_3	FOUTER_TO_ABASE 		;check for ASM-style base prefix
 			BCS	FOUTER_INTEGER_5	;ASM-style base prefix found
@@ -939,7 +939,7 @@ FOUTER_INTEGER_9	LDY	FOUTER_INTEGER_NUMHI,SP ;check for overflow
 			BNE	FOUTER_INTEGER_7		;overflow
 			LDX	FOUTER_INTEGER_NUMLO,SP ;check for signed overflow
 			BPL	FOUTER_INTEGER_10	;no signed overflow
-			BRSET	FOUTER_INTEGER_BASE,SP, #$80, FOUTER_INTEGER_7;signed overflow
+			BRSET	FOUTER_INTEGER_STRPTR,SP, #$80, FOUTER_INTEGER_7;signed overflow
 FOUTER_INTEGER_10	LDD	#1
 			JOB	FOUTER_INTEGER_8	;cleanup stack structure
 			;Parse last character
@@ -949,7 +949,7 @@ FOUTER_INTEGER_11	LDAB	[FOUTER_INTEGER_STRPTR,SP]
 			BNE	FOUTER_INTEGER_7	;invalid format
 			LDY	FOUTER_INTEGER_NUMHI,SP ;check for overflow
 			BPL	FOUTER_INTEGER_12	;no signed overflow
-			BRSET	FOUTER_INTEGER_BASE,SP, #$80, FOUTER_INTEGER_7;signed overflow
+			BRSET	FOUTER_INTEGER_STRPTR,SP, #$80, FOUTER_INTEGER_7;signed overflow
 FOUTER_INTEGER_12	LDX	FOUTER_INTEGER_NUMLO,SP ;check for signed overflow
 			LDD	#2
 			JOB	FOUTER_INTEGER_8	;cleanup stack structure

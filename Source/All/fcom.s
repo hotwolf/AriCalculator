@@ -707,7 +707,7 @@ CFA_D_DOT_R		DW	CF_D_DOT_R
 ;"Return stack overflow"
 CFA_U_DOT		DW	CF_U_DOT
 	
-;Word: EMIT ( n -- )
+;Word: SPACES ( n -- )
 ;If n is greater than zero, display n spaces.
 ;
 ;S12CForth implementation details:
@@ -716,7 +716,7 @@ CFA_U_DOT		DW	CF_U_DOT
 ;"Return stack overflow"
 CFA_SPACES		DW	CF_SPACES
 	
-;Word: SPACE ( -- )
+;SPACE ( -- )
 ;Display one space.
 ;
 ;S12CForth implementation details:
