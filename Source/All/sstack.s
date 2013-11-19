@@ -116,17 +116,18 @@ SSTACK_VARS_END_LIN	EQU	@
 #macro	SSTACK_INIT, 0
 #emac
 
-;#Check stack before push operation	
-; args:   required stack capacity (bytes)
+;#Check stack boundaries	
+; args:   1: required stack capacity (bytes)
+;         2: expected stack content  (bytes)
 ; result: none 
 ; SSTACK: none
 ;         X, Y, and D are preserved 
-#macro	SSTACK_PREPUSH, 1 //number of bytes to push
+#macro	SSTACK_CHECK_BOUNDARIES, 2
 #ifndef	SSTACK_NO_CHECK 
 			CPS	#SSTACK_TOP+\1 		;=> 2 cycles	 3 bytes
 			BLO	OF	      		;=> 3 cycles	 4 bytes
-			CPS	#SSTACK_BOTTOM 		;=> 2 cycles	 3 bytes
-			BHI	UF	      		;=> 3 cycles	 4 bytes
+			CPS	#SSTACK_BOTTOM-\2	;=> 2 cycles	 3 bytes
+			BHI	UF			;=> 3 cycles	 4 bytes
 					      		;  ---------	--------
 					      		;  10 cycles	14 bytes
 #ifdef	SSTACK_DEBUG
@@ -140,28 +141,23 @@ OF			EQU	SSTACK_OF
 #endif
 #endif
 #emac
+	
+;#Check stack before push operation	
+; args:   1: required stack capacity (bytes)
+; result: none 
+; SSTACK: none
+;         X, Y, and D are preserved
+#macro	SSTACK_PREPUSH, 1 //number of bytes to push
+			SSTACK_CHECK_BOUNDARIES	\1, 0
+#emac
 
 ;#Check stack before pull operation	
-; args:   required stack content (bytes)
+; args:   1: expecteded stack content (bytes)
 ; result: none 
 ; SSTACK: none
 ;         X, Y, and D are preserved 
-#macro	SSTACK_PREPULL, 1 //number of bytes to push
-#ifndef	SSTACK_NO_CHECK 
-			CPS	#SSTACK_TOP		;=> 2 cycles	 3 bytes
-			BLO	OF			;=> 3 cycles	 4 bytes
-			CPS	#SSTACK_BOTTOM-\1	;=> 2 cycles	 3 bytes
-			BHI	UF			;=> 3 cycles	 4 bytes
-#ifdef	SSTACK_DEBUG					;  ---------	--------
-			JOB	DONE			;  10 cycles	14 bytes
-UF			BGND
-OF			BGND
-DONE			EQU	*	
-#else
-UF			EQU	SSTACK_UF
-OF			EQU	SSTACK_OF
-#endif
-#endif
+#macro	SSTACK_PREPULL, 1 //number of bytes to pull
+			SSTACK_CHECK_BOUNDARIES	0, \1
 #emac
 	
 ;#Check stack and call subroutine	
