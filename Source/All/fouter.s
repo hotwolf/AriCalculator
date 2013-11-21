@@ -351,8 +351,10 @@ FOUTER_VARS_END_LIN	EQU	@
 ;#Convert a terminated string into a number
 ; args:   X:   string pointer
 ;	  D:   character count
-; result: Y:X: number
-;	  D:   size (0 if not an integer)	
+; result: Y:X: number (saturated in case of an overflow)
+;	  D:   cell count
+;	       or  0 if format is invalid
+;	       or -1 in case of an overflow	
 ; SSTACK: 22 bytes
 ;         No registers are preserved
 #macro	FOUTER_INTEGER, 0	
@@ -844,13 +846,15 @@ FOUTER_PEEK_NUM_1	CMPB	(FOUTER_SYMTAB-1),X
 FOUTER_PEEK_NUM_2	JOB	FOUTER_PEEK_NUM_3
 FOUTER_PEEK_NUM_3	EQU	FOUTER_TO_NUMBER_7
        			;Valid digit found
-FOUTER_PEEK_NUM_4	EQU	FOUTER_PEEK_NUM_3
+FOUTER_PEEK_NUM_4	EQU	FOUTER_TO_NUMBER_3
 	
 ;#Convert a terminated string into a number
 ; args:   X:   string pointer
 ;	  D:   character count
-; result: Y:X: number
-;	  D:   cell count (0 if not an integer)	
+; result: Y:X: number (saturated in case of an overflow)
+;	  D:   cell count
+;	       or  0 if format is invalid
+;	       or -1 in case of an overflow	
 ; SSTACK: 22 bytes
 ;         No registers are preserved
 FOUTER_INTEGER		EQU	*	
@@ -871,13 +875,16 @@ FOUTER_INTEGER_STRCNT	EQU	2			;char count
 FOUTER_INTEGER_STRPTR	EQU	4			;string pointer	
 FOUTER_INTEGER_NUMHI	EQU	6			;number MSW	
 FOUTER_INTEGER_NUMLO  	EQU	8			;number LSW	
+FOUTER_INTEGER_RET_D	EQU	FOUTER_INTEGER_STRPTR	;D return value
+FOUTER_INTEGER_RET_Y	EQU	FOUTER_INTEGER_NUMHI	;Y return value	
+FOUTER_INTEGER_RET_X  	EQU	FOUTER_INTEGER_NUMLO	;X return value	
 			;Initialize stack struckture (string pointer in X, char count in D)
 			LDY	#$0000
 			PSHY				;number LSW
 			PSHY				;number MSW
 			PSHX				;string pointer
 			PSHD				;char count
-			PSHY				;base
+			PSHY				;base (must be zero at this point)
 			;Parse prefix
 			;        v
 			;    CHECK SIGN
@@ -902,13 +909,13 @@ FOUTER_INTEGER_NUMLO  	EQU	8			;number LSW
 			FOUTER_TO_SIGN 			;check for sign prefix
 			BCS	FOUTER_INTEGER_3	;sign prefix found
 			FOUTER_TO_ABASE 		;check for ASM-style base prefix
-			BCS	FOUTER_INTEGER_5	;ASM-style base prefix found
+			BCS	FOUTER_INTEGER_4	;ASM-style base prefix found
 FOUTER_INTEGER_1	FOUTER_TO_CBASE 		;check for C-style base prefix
 			BCS	FOUTER_INTEGER_5	;C-style base prefix found
 			FOUTER_FIX_BASE			;set default base
-			BRCLR	FOUTER_INTEGER_STRPTR,SP, #$80, FOUTER_INTEGER_2	
+			BRCLR	FOUTER_INTEGER_BASE,SP, #$80, FOUTER_INTEGER_2	
 			ORAA	#$80	
-FOUTER_INTEGER_2	STD	FOUTER_INTEGER_STRPTR,SP
+FOUTER_INTEGER_2	STD	FOUTER_INTEGER_BASE,SP
 			JOB	FOUTER_INTEGER_5	;check if next character is a valid digit
 FOUTER_INTEGER_3	FOUTER_TO_ABASE 		;check for ASM-style base prefix
 			BCS	FOUTER_INTEGER_5	;ASM-style base prefix found
@@ -918,41 +925,56 @@ FOUTER_INTEGER_5	FOUTER_PEEK_NUM			;check if next character is a valid digit
 			BCC	FOUTER_INTEGER_7	;invalid format
 			;Parse number 
 FOUTER_INTEGER_6	FOUTER_TO_NUMBER 		;parse digits
-			BCC	FOUTER_INTEGER_7	;overflow occured
-			LDD	FOUTER_INTEGER_STRCNT,SP;check number of remaiing chars
-			BEQ	FOUTER_INTEGER_9	;all digits parsed
-			DBEQ	D, FOUTER_INTEGER_11	;one char left to parse
+			BCC	FOUTER_INTEGER_13	;overflow occured
+			LDD	FOUTER_INTEGER_STRCNT,SP;check number of remaing chars
+			BEQ	FOUTER_INTEGER_10	;all digits parsed
+			DBEQ	D, FOUTER_INTEGER_12	;one char left to parse
 			FOUTER_TO_FILLER		;check for filler char
 			BCS	FOUTER_INTEGER_6	;filler char found
-			;Parse unsuccessfull 
-FOUTER_INTEGER_7	CLRA				;return no result
-			CLRB
-			TFR	D, X
-			TFR	D, Y
-			;Cleanup stack structure
-FOUTER_INTEGER_8	SSTACK_PREPULL	12 		;free stack space
-			LEAS	10,SP
-			;Done
+			;Invalid format 
+FOUTER_INTEGER_7	MOVW	#0, FOUTER_INTEGER_RET_D,SP	
+FOUTER_INTEGER_8	MOVW	#0, FOUTER_INTEGER_RET_Y,SP	
+			MOVW	#0, FOUTER_INTEGER_RET_X,SP
+			;Return result 
+FOUTER_INTEGER_9	SSTACK_PREPULL	12 		;free stack space
+			LEAS	4,SP
+			PULD
+			PULY
+			PULX
 			RTS
 			;Single cell integer found
-FOUTER_INTEGER_9	LDY	FOUTER_INTEGER_NUMHI,SP ;check for overflow
-			BNE	FOUTER_INTEGER_7		;overflow
-			LDX	FOUTER_INTEGER_NUMLO,SP ;check for signed overflow
-			BPL	FOUTER_INTEGER_10	;no signed overflow
-			BRSET	FOUTER_INTEGER_STRPTR,SP, #$80, FOUTER_INTEGER_7;signed overflow
-FOUTER_INTEGER_10	LDD	#1
-			JOB	FOUTER_INTEGER_8	;cleanup stack structure
+FOUTER_INTEGER_10	LDD	FOUTER_INTEGER_NUMHI,SP ;check for overflow
+			BNE	FOUTER_INTEGER_13	;overflow	
+			MOVW	#1, FOUTER_INTEGER_RET_D,SP;return cell count
+			BRCLR	FOUTER_INTEGER_BASE,SP, #$80, FOUTER_INTEGER_9;positive number
+			LDY	FOUTER_INTEGER_NUMLO,SP ;check for overflow
+			BMI	FOUTER_INTEGER_13	;overflow
+			;Calculate 2's complement (NUMHI in D, NUMHI in Y)
+FOUTER_INTEGER_11	COMA
+			COMB
+			EXG	D, Y
+			COMA
+			COMB
+			ADDD	#1			
+			EXG	D, Y
+			ADCB	#0
+			ADCA	#0
+			STY	FOUTER_INTEGER_NUMLO,SP
+			STD	FOUTER_INTEGER_NUMHI,SP
+			JOB	FOUTER_INTEGER_9	;return result
 			;Parse last character
-FOUTER_INTEGER_11	LDAB	[FOUTER_INTEGER_STRPTR,SP]
+FOUTER_INTEGER_12	LDAB	[FOUTER_INTEGER_STRPTR,SP]
 			ANDB	#$7F			;remove termination
-			CMPB	"."			;check for double
+			CMPB	#"."			;check for double
 			BNE	FOUTER_INTEGER_7	;invalid format
-			LDY	FOUTER_INTEGER_NUMHI,SP ;check for overflow
-			BPL	FOUTER_INTEGER_12	;no signed overflow
-			BRSET	FOUTER_INTEGER_STRPTR,SP, #$80, FOUTER_INTEGER_7;signed overflow
-FOUTER_INTEGER_12	LDX	FOUTER_INTEGER_NUMLO,SP ;check for signed overflow
-			LDD	#2
-			JOB	FOUTER_INTEGER_8	;cleanup stack structure
+			MOVW	#2, FOUTER_INTEGER_RET_D,SP;return cell count
+			BRCLR	FOUTER_INTEGER_BASE,SP, #$80, FOUTER_INTEGER_9;positive number
+			LDY	FOUTER_INTEGER_NUMLO,SP
+			LDD	FOUTER_INTEGER_NUMHI,SP ;check for overflow
+			BPL	FOUTER_INTEGER_11	;calculate 2's complement
+			;Overflow 
+FOUTER_INTEGER_13	MOVW	#-1, FOUTER_INTEGER_RET_D,SP
+			JOB	FOUTER_INTEGER_8	
 
 ;Code fields:
 ;============
@@ -1032,8 +1054,8 @@ CF_SUSPEND_RT_7		TFR	D, X
 			JOB	CF_SUSPEND_RT_2		;parse next word	
 			;Evaluate string as integer (string pointer in X, char count in D) 
 CF_SUSPEND_RT_8		FOUTER_INTEGER
-			TBEQ	D, CF_SUSPEND_RT_10 	;Unknown word
 			DBEQ	D, CF_SUSPEND_RT_9 	;single cell
+			DBNE	D, CF_SUSPEND_RT_10 	;invalid number
 			;Double cell integer (int in Y:X)
 			LDD	STATE
 			BNE	CF_SUSPEND_RT_2		;parse next word
@@ -1048,7 +1070,7 @@ CF_SUSPEND_RT_9		LDD	STATE
 			BNE	CF_SUSPEND_RT_2		;parse next word
 			PS_PUSH_X
 			JOB	CF_SUSPEND_RT_2		;parse next word
-			;Unknown word 
+			;Unknown word (or number out of range)
 CF_SUSPEND_RT_10	FEXCPT_THROW	 FEXCPT_EC_UDEFWORD			
 
 ;.PROMPT ( -- ) Print the command line prompt
@@ -1269,8 +1291,8 @@ CF_INTEGER		EQU	*
 			LDX	4,Y
 			FOUTER_INTEGER			;(SSTACK: 22 bytes)
 			STD	0,Y			;store cell count
-			TBEQ	D, CF_INTEGER_2		;not an integer (done)
 			DBEQ	D, CF_INTEGER_4		;single cell
+			DBNE	D, CF_INTEGER_2		;not an integer (done)
 			;Double cell value (integer in Y:X) 
 			TFR	Y, D
 			LDY	PSP
