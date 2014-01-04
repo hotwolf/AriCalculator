@@ -335,9 +335,11 @@ SCI_SUSPEND		EQU	$1A 		;ctrl-z (suspend program execution)
 
 ;#Buffer sizes		
 SCI_RXBUF_SIZE		EQU	 16*2		;size of the receive buffer (8 error:data entries)
-SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
+;SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
+SCI_TXBUF_SIZE		EQU	  2		;size of the transmit buffer
 SCI_RXBUF_MASK		EQU	$1F		;mask for rolling over the RX buffer
-SCI_TXBUF_MASK		EQU	$07		;mask for rolling over the TX buffer
+;SCI_TXBUF_MASK		EQU	$07		;mask for rolling over the TX buffer
+SCI_TXBUF_MASK		EQU	$01		;mask for rolling over the TX buffer
 
 ;#Hardware handshake borders
 SCI_RX_FULL_LEVEL	EQU	 8*2		;RX buffer threshold to block transmissions 
