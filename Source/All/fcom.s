@@ -147,6 +147,19 @@ CF_EKEY_QUESTION	EQU	*
 			PS_PUSH_D
 			;Done
 			NEXT
+
+;SPACE ( -- ) Print a space character
+; args:   none
+; result: none
+; SSTACK: 5 bytes
+; PS:     1 cell
+; RS:     1 cell
+; throws: FEXCPT_EC_PSUF
+CF_SPACE		EQU	*
+			;Push space character onto PS 
+			PS_PUSH	#" "
+			;Print char 
+			;JOB	CF_EMIT
 	
 ;EMIT ( x -- ) Transmit a byte character
 ; args:   PSP+0: RX data
@@ -454,37 +467,7 @@ CF_HEX_DOT_3		;LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
 			;LED_BUSY_ON 			;signal activity
 			JOB	CF_HEX_DOT_1		;check NEXT_PTR again
-
-;SPACE ( -- ) Print a space character
-; args:   none
-; result: none
-; SSTACK: 5 bytes
-; PS:     none
-; RS:     1 cell
-; throws: FEXCPT_EC_PSUF
-;CF_SPACE		EQU	*
-;			;Try to transmit space character
-;CF_SPACE_1		LDAB	#" " 			;space char -> B
-;CF_SPACE_2		SEI				;disable interrupts
-;			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
-;			BCC	CF_SPACE_3		;TX queue is full
-;			CLI				;enable interrupts
-;			;Done
-;			NEXT
-;			;Check for change of NEXT_PTR (space char in B, I-bit set)
-;CF_SPACE_3		LDX	NEXT_PTR		;check for default NEXT pointer
-;			CPX	#NEXT
-;			BEQ	CF_SPACE_4	 	;still default next pointer
-;			CLI				;enable interrupts
-;			;Execute NOP
-;			EXEC_CF	CF_NOP
-;			JOB    	CF_SPACE_1
-;			;Wait for any internal system event (space char in B, I-bit set)
-;CF_SPACE_4		;LED_BUSY_OFF 			;signal inactivity
-;			ISTACK_WAIT			;wait for next interrupt
-;			;LED_BUSY_ON 			;signal activity
-;			JOB	CF_SPACE_2		;check NEXT_PTR again
-
+	
 ;SPACES ( n -- ) Transmit n space characters
 ; args:   PSP+0: number of space characters
 ; result: none
@@ -524,36 +507,20 @@ CF_SPACES_5		;LED_BUSY_OFF 			;signal inactivity
 			;LED_BUSY_ON 			;signal activity
 			JOB	CF_SPACES_1		;check NEXT_PTR again
 
-;MINUS ( -- ) Print a minus character
-; args:   none
+;Word: CR ( -- )
+;Cause subsequent output to appear at the beginning of the next line.
+; args:   address of a terminated string
 ; result: none
-; SSTACK: 5 bytes
-; PS:     none
+; SSTACK: 8 bytes
+; PS:     1 cell
 ; RS:     1 cell
-; throws: FEXCPT_EC_PSUF
-;CF_MINUS		EQU	*
-;			;Try to transmit MINUS character
-;CF_MINUS_1		LDAB	#"-" 			;MINUS char -> B
-;CF_MINUS_2		SEI				;disable interrupts
-;			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
-;			BCC	CF_MINUS_3		;TX queue is full
-;			CLI				;enable interrupts
-;			;Done
-;			NEXT
-;			;Check for change of NEXT_PTR (MINUS char in B, I-bit set)
-;CF_MINUS_3		LDX	NEXT_PTR		;check for default NEXT pointer
-;			CPX	#NEXT
-;			BEQ	CF_MINUS_4	 	;still default next pointer
-;			CLI				;enable interrupts
-;			;Execute NOP
-;			EXEC_CF	CF_NOP
-;			JOB    	CF_MINUS_1
-;			;Wait for any internal system event (MINUS char in B, I-bit set)
-;CF_MINUS_4		;LED_BUSY_OFF 			;signal inactivity
-;			ISTACK_WAIT			;wait for next interrupt
-;			;LED_BUSY_ON 			;signal activity
-;			JOB	CF_MINUS_2		;check NEXT_PTR again
-	
+; throws: FEXCPT_EC_PSOF
+CF_CR			EQU	*
+			;Push string pointer onto PS
+			PS_PUSH	#STRING_STR_NL
+			;Print string 
+			;JOB	CF_STRING_DOT
+
 ;$. ( c-addr -- ) Print a terminated string
 ; args:   address of a terminated string
 ; result: none
@@ -706,6 +673,13 @@ CFA_D_DOT_R		DW	CF_D_DOT_R
 ;"Parameter stack overflow"
 ;"Return stack overflow"
 CFA_U_DOT		DW	CF_U_DOT
+
+;Word: CR ( -- )
+;Cause subsequent output to appear at the beginning of the next line.
+;
+;Throws:
+;"Parameter stack overflow"
+CFA_CR			DW	CF_CR
 	
 ;Word: SPACES ( n -- )
 ;If n is greater than zero, display n spaces.
@@ -722,7 +696,7 @@ CFA_SPACES		DW	CF_SPACES
 ;S12CForth implementation details:
 ;Throws:
 ;"Return stack overflow"
-;CFA_SPACE		DW	CF_SPACE
+CFA_SPACE		DW	CF_SPACE
 
 ;S12CForth Words:
 ;================
@@ -742,13 +716,5 @@ CFA_HEX_DOT		DW	CF_HEX_DOT
 ;"Parameter stack overflow"
 CFA_STRING_DOT		DW	CF_STRING_DOT
 	
-;MINUS ( -- )
-;Display a minus character.
-;
-;S12CForth implementation details:
-;Throws:
-;"Return stack overflow"
-;CFA_MINUS		DW	CF_MINUS
-
 FCOM_WORDS_END		EQU	*
 FCOM_WORDS_END_LIN	EQU	@

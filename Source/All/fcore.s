@@ -2314,8 +2314,8 @@ CF_COUNT		PS_CHECK_UFOF	1, 1 			;check for under and overflow
 	
 ;CR ( -- )
 ;Cause subsequent output to appear at the beginning of the next line.
-CF_CR			PRINT_LINE_BREAK	;(SSTACK: 11 bytes)
-			NEXT	
+;CF_CR			PRINT_LINE_BREAK	;(SSTACK: 11 bytes)
+;			NEXT	
 
 ;CREATE ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -5620,9 +5620,9 @@ CFA_CONSTANT		DW	CF_CONSTANT
 ;string at c-addr2.
 CFA_COUNT		DW	CF_COUNT
 
-;Word: CR ( -- )
+;CR ( -- )
 ;Cause subsequent output to appear at the beginning of the next line.
-CFA_CR			DW	CF_CR
+;CFA_CR			DW	CF_CR
 
 ;Word: CREATE ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a

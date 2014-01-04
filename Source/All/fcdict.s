@@ -82,156 +82,6 @@ FCDICT_VARS_END_LIN	EQU	@
 
 ;Functions:
 ;==========
-
-;Skip past the end of a string
-; args:   Y:      points to a substring or a termination character
-; result: Z-flag: set if termination character was found	
-;         N-flag: set if terminated string found	
-;         Y:      points past the end of the substring or the termination character
-; SSTACK: none
-;         X and D are preserved 
-#macro	FCDICT_SKIP_STRING, 0
-LOOP			TST	1,Y+ 		;check for termination character
-			BGT	LOOP		;string termination or termination character not found
-#emac
-
-;Switch to next sibling in dictionary tree
-; args:   Y: points to a substring or to a termination character
-; result: Z-flag: cleared if successful, set if no sibling exists	
-;         Y: next sibling
-; SSTACK: none
-;         X and D are preserved 
-#macro	FCDICT_NEXT_SIBLING, 0
-SKIP_CHAR		FCDICT_SKIP_STRING 	;skip string (at least one char)
-			BRCLR	0,Y, #$FF, SKIP_CHAR
-			TST	2,+Y		;skip subtree pointer or CFA
-#emac
-
-;Switch to a branch of the dictionary tree
-; args:   Y: tree pointer
-; result: Z-flag: cleared if successful, set if no subtree exists	
-;         Y: subtree pointer or pointer to STRING_TERMINATION ($00)
-; SSTACK: none
-;         X and D are preserved 
-#macro	FCDICT_FIRST_CHILD, 0
-			FCDICT_SKIP_STRING 	;skip string
-			BRCLR	0,Y, #$FF, DONE
-			LDY	0,Y
-DONE			EQU	*
-#emac
-
-;Print CDICT word as represented on the stack
-; args:   none
-; result: none
-; SSTACK: none
-; PS:     1 cell
-; RS:     none
-; throws: nothing
-#macro	FCDICT_PRINT_WORD, 0
-			;Stack layout:
-			; +--------+--------+
-			; |  Substring ptr. | PSP+0
-			; +--------+--------+
-			; |      PSP+n      | PSP+2
-			; +--------+--------+
-			; |  Tree pointer   | PSP+4
-			; +--------+--------+
-			; :                 : 
-			; +--------+--------+
-			; |  Tree pointer   | PSP+n-2
-			; +--------+--------+
-			; |  Root pointer   | PSP+n
-			; +--------+--------+	
-			;Push substring pointer onto PS
-			PS_DUP
-			;Print substring
-FCDICT_PRINT_WORD_1	PS_DUP
-			EXEC_CF	CF_STRING_DOT
-			;Increment substring pointer
-			LDY	PSP
-			LDX	0,Y
-			LEAX	2,X
-			STX	0,Y
-			LEAX	2,X
-			CPX	PSP
-			BNE	FCDICT_PRINT_WORD_1
-			;Drop substring pointer
-			PS_DROP	1
-#emac
-
-;Count chars of CDICT word as represented on the stack
-; args:   none
-; result: D: char count
-;         Y: PSP
-; SSTACK: none
-; PS:     none
-; RS:     none
-; throws: nothing
-#macro	FCDICT_COUNT_CHARS, 0
-			;Stack layout:
-			; +--------+--------+
-			; |      PSP+n      | PSP+0
-			; +--------+--------+
-			; |  Tree pointer   | PSP+2
-			; +--------+--------+
-			; :                 : 
-			; +--------+--------+
-			; |  Tree pointer   | PSP+n-2
-			; +--------+--------+
-			; |  Root pointer   | PSP+n
-			; +--------+--------+	
-			;Initialize substring pointer and char counter
-			LDY	[PSP]
-			CLRA
-			CLRB
-			;Count substring chars (PSP+n in Y, 0 in D)
-FCDICT_COUNT_CHARS_1	LDX	2,Y-
-			STRING_SKIP_AND_COUNT
-			CPY	PSP
-			BHI	FCDICT_COUNT_CHARS_1
-#emac
-	
-;Print space or newline char depending on column length 
-; args:   none
-; result: none
-; SSTACK: ? bytes
-; PS:     >=3 cells
-; RS:     1 cell
-; throws: nothing
-#macro	FCDICT_PRINT_SEP, 0
-			;Stack layout:
-			; +--------+--------+
-			; |      PSP+n      | PSP+0
-			; +--------+--------+
-			; |  Tree pointer   | PSP+2
-			; +--------+--------+
-			; :                 : 
-			; +--------+--------+
-			; |  Tree pointer   | PSP+n-2
-			; +--------+--------+
-			; |  Root pointer   | PSP+n
-			; +--------+--------+	
-			; | Column counter  | PSP+n+2
-			; +--------+--------+
-			;Count chars 
-			FCDICT_COUNT_CHARS
-			;Check for line overflow (PSP in Y, char count in D)
-			TFR	D, X
-			LDY	0,Y
-			ADDD	2,Y
-			CPD	#(FCDICT_LINE_WIDTH+FCDICT_STR_SEP_CNT)
-			BHI	FCDICT_PRINT_SEP_2 			;print new line
-			;Print word separator (PSP+n in Y, column count in D) 
-FCDICT_PRINT_SEP_2	TFR	D, X
-			LEAX	FCDICT_STR_SEP_CNT,X
-			PS_PUSH	#FCDICT_STR_SEP
-			JOB	FCDICT_PRINT_SEP_3
-			;Print new line (PSP+n in Y, char count in X) 
-			PS_PUSH	#FCDICT_STR_NL
-FCDICT_PRINT_SEP_3	STX	2,Y
-			EXEC_CF	CF_STRING_DOT
-#emac
-	
 ;Compare substring
 ; args:   Y: dictionary pointer (points to substring)
 ;         X: string pointer
@@ -388,7 +238,7 @@ CF_SEARCH_CDICT_2	MOVW	#$0000, 2,+Y
 			STY	PSP
 			JOB	CF_SEARCH_CDICT_1 	;done
 
-;.WORDS-CDICT ( -- )
+;WORDS-CDICT ( -- )
 ;List the definition names in the core dictionary in alphabetical order.
 ; args:   none
 ; result: none
@@ -415,7 +265,7 @@ CF_WORDS_CDICT		EQU	*
 			;Print header
 			PS_PUSH	#FCDICT_WORDS_HEADER
 			EXEC_CF	CF_STRING_DOT
-			;Initialize stack
+			;Initialize PS
 			PS_CHECK_OF	2 			;new PSP -> Y
 			STY	PSP
 			MOVW	#$0000, 2,Y
@@ -440,16 +290,10 @@ CF_WORDS_CDICT_4	LDX	2,Y+
 			;Push subtree pointer (char count in D, PSP+n in Y)
 			LEAX	-4,Y
 			PS_PUSH_X
-
-
-	;; Hier weitermachen!!!!!!!!!!!!!!!
-
-	
-	
 			;Print separator (char count in D, PSP+n-4 in X) 
 			LDY	4,X				;check for first line
 			BEQ	CF_WORDS_CDICT_5		;first line (no separator required)
-			LEAY	D,Y				;new line width -> X
+			LEAY	D,Y				;new line width -> Y
 			CPY	#(FCDICT_LINE_WIDTH-1)		;check line width
 			BLS	CF_WORDS_CDICT_6		;word separator required
 			STD	4,X				;set new char count
@@ -464,102 +308,69 @@ CF_WORDS_CDICT_7	PS_CHECK_UF 1	 			;PSP -> Y
 			LDX	0,Y				;subtree pointer -> X 
 			CPX	PSP				;check for end of word
 			BLS	CF_WORDS_CDICT_8		;end of word found
-			LDD	0,X				;string pointer -> D
-			BEQ	CF_WORDS_CDICT_8		;null pointer found
-			LEAX	-2,X				;update subtree pointer
+			BRCLR	[0,X], #$FF, CF_WORDS_CDICT_8 	;check for empty string
+			LDD	2,X-				;string pointer -> D
 			STX	0,Y							
 			PS_PUSH_D 				;print substring
 			EXEC_CF	CF_STRING_PRINT
 			JOB	CF_WORDS_CDICT_7 		;print next substring
-			;Switch to next sibling (PSP in Y, subtree pointer in X)
-CF_WORDS_CDICT_8	
-
-	
-
-			PS_CHECK_UFOF 1, 1 			;new PSP -> Y
-			CPY	2,Y				;check for end of word
-			BLS	CF_WORDS_CDICT_6		;end of word
-			STY	PSP				;update PSP
-			LDX	2,Y				;set current substring
-			STY	0,Y				
-			LEAX	-2,X				;update substring pointer
-			STX	2,Y
-			EXEC_CF	XF_STRING_PRINT
-			JOB	CF_WORDS_CDICT_5			
-CF_WORDS_CDICT_6	PS_DROP 1 				;drop start of word
-			;Find next sibling 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	
-			LDX	2,Y				;start of word -> X
-			STX	0,Y
-			LEAX	-2,X
-			
-	
-	
-			;Find first leaf node (PSP in Y)
-CF_WORDS_CDICT_1
-
-
-
-
-			LDY	2,Y 			;tree pointer -> Y
-			FCDICT_FIRST_CHILD
-			BEQ	CF_WORDS_CDICT_2	;first word found
-			TFR 	Y, X			;child -> X
-			PS_CHECK_OF	1 		;new PSP -> Y
-			STY	PSP
-			MOVW	2,Y, 0,Y
-			STX	2,Y
-			JOB	CF_WORDS_CDICT_1	;stack next child
-			;First word found
-CF_WORDS_CDICT_2	FCDICT_COUNT_CHARS 		;count chars of first wors
-			LDX	0,Y			;initialize column counter
-			STD	2,X
-CF_WORDS_CDICT_3	FCDICT_PRINT_WORD 		;print word
-			;Find next sibling 
-			LDX	PSP
-CF_WORDS_CDICT_4	LDY	2,X
-			FCDICT_NEXT_SIBLING
-			BEQ	CF_WORDS_CDICT_5		;find leaf node of sibling
-			;Find next uncle (PSP in X) 
-			LDY	0,X
-			STY	2,+Y
-			STX	PSP
-			CPY	PSP
-			BLO	CF_WORDS_CDICT_4 	;check parent
+			;Drop subtree pointer
+CF_WORDS_CDICT_8	PS_DROP	1	
+			;Switch to next sibling (PSP in Y)
+			LDX	0,Y			   	;old subtree -> X
+CF_WORDS_CDICT_9	BRCLR	0,X, #$FF, CF_WORDS_CDICT_10 	;empty substring
+			BRCLR	1,X+, #$80, * 			;skip past the end of the substring
+			BRCLR	0,X, #$FF, CF_WORDS_CDICT_10 	;no subtree
+			JOB	CF_WORDS_CDICT_1		;follow subtree
+			;Switch to next uncle
+CF_WORDS_CDICT_10	PS_DROP	1 				;drop current subtree
+			LDX	0,Y			   	;parent subtree -> X
+			BNE	CF_WORDS_CDICT_9		;find sibling of parent
+			;Cleanup PS
+			PS_DROP	2 				;drop char count
 			;Done
-			PS_DROP	2
 			NEXT
-			;Find leaf node of sibling  (sibling in Y, PSP in X) 
-CF_WORDS_CDICT_5	STY	2,X 			;switch to sibling
-CF_WORDS_CDICT_6	FCDICT_FIRST_CHILD
-			BEQ	CF_WORDS_CDICT_7	;word found	
-			TFR 	Y, X			;child -> X
-			PS_CHECK_OF	1 		;new PSP -> Y
+
+;.WORD-CDICT ( xt -- flag )
+;Reverse lookup an xt and print the associated word. Return true if xt was found, false otherwise
+; args:   none
+; result: none
+; SSTACK: ? bytes
+; PS:     >=3 cells
+; RS:     1 cell
+; throws: nothing
+CF_DOT_WORD_CDICT		EQU	*
+			;Stack layout:
+			; +--------+--------+
+			; | Subtree pointer | PSP+0
+			; +--------+--------+
+			; :                 : 
+			; +--------+--------+
+			; | Subtree pointer | PSP+n-6
+			; +--------+--------+
+			; |  Root pointer   | PSP+n-4
+			; +--------+--------+	
+			; |      $0000      | PSP+n-2
+			; +--------+--------+	
+			; |       xt        | PSP+n
+			; +--------+--------+
+			; 
+			;Initialize PS
+			PS_CHECK_UFOF	1, 1 	;new PSP -> Y
 			STY	PSP
-			MOVW	2,Y, 0,Y
-			STX	2,Y
-			TFR	X, Y
-			JOB	CF_WORDS_CDICT_6	
-			;Word found
-CF_WORDS_CDICT_7	FCDICT_PRINT_SEP
-			JOB	CF_WORDS_CDICT_3	
+			MOVW	#$0000, 0,Y	
+			LDX	#FCDICT_TREE
+			;Stack word (subtree tree pointer in X, PSP in Y)
+CF_DOT_WORD_CDICT_1	PS_PUSH_X 				;stack subtree
+			BRCLR	0,X, #$FF, CF_WORDS_CDICT_2 	;check for empty string
+			BRCLR	1,X+, #$80, * 			;skip past the end of the substring
+			LDD	0,X				;check for STRING_TERMINATION
+			TBEQ	A, CF_WORDS_CDICT_2		;end of word
+			TFR	D, X				;follow subtree
+			JOB	CF_WORDS_CDICT_1 		;	
+
+	;; TBD
+
 	
 FCDICT_CODE_END		EQU	*
 FCDICT_CODE_END_LIN	EQU	@
