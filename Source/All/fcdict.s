@@ -422,28 +422,33 @@ CF_WORDS_CDICT		EQU	*
 			MOVW	#$0000, 0,Y	
 			LDX	#FCDICT_TREE
 			;Stack word (subtree tree pointer in X, PSP in Y)
-CF_WORDS_CDICT_1	BRCLR	0,X, #$FF, CF_WORDS_CDICT_2 	;check for empty string
-			PS_PUSH_X 				;stack subtree
+CF_WORDS_CDICT_1	PS_PUSH_X 				;stack subtree
+			BRCLR	0,X, #$FF, CF_WORDS_CDICT_2 	;check for empty string
 			BRCLR	1,X+, #$80, * 			;skip past the end of the substring
 			LDD	0,X				;check for STRING_TERMINATION
-			TBEQ	A, CF_WORDS_CDICT_		;end of word
+			TBEQ	A, CF_WORDS_CDICT_2		;end of word
 			TFR	D, X				;follow subtree
-			JOB	CF_WORDS_CDICT_1 		;
-CF_WORDS_CDICT_2	PS_PUSH	#$0000				;push null pointer onto PSP
+			JOB	CF_WORDS_CDICT_1 		;	
 			;Count chars (PSP in Y)
-			CLRA					;initialize char count
+CF_WORDS_CDICT_2	CLRA					;initialize char count
 			CLRB	
-			LDX	2,Y+						
-			BEQ	CF_WORDS_CDICT_4		;skip null pointer			
+			LDX	2,Y+ 				;subtree pointer -> X			
+			BRCLR	0,X, #$FF, CF_WORDS_CDICT_4 	;check for empty string
 CF_WORDS_CDICT_3	STRING_SKIP_AND_COUNT			;count chars
 CF_WORDS_CDICT_4	LDX	2,Y+						
 			BNE	CF_WORDS_CDICT_3
-			;Push string pointer (char count in D, PSP+n in Y)
+			;Push subtree pointer (char count in D, PSP+n in Y)
 			LEAX	-4,Y
 			PS_PUSH_X
+
+
+	;; Hier weitermachen!!!!!!!!!!!!!!!
+
+	
+	
 			;Print separator (char count in D, PSP+n-4 in X) 
 			LDY	4,X				;check for first line
-			BEQ	CF_WORDS_CDICT_5			;first line (no separator required)
+			BEQ	CF_WORDS_CDICT_5		;first line (no separator required)
 			LEAY	D,Y				;new line width -> X
 			CPY	#(FCDICT_LINE_WIDTH-1)		;check line width
 			BLS	CF_WORDS_CDICT_6		;word separator required
@@ -455,22 +460,21 @@ CF_WORDS_CDICT_5	STD	4,X				;set new line count
 CF_WORDS_CDICT_6	STY	4,X				;update line count
 			EXEC_CF	CF_SPACE			;print word separator (space)
 			;Print word
-CF_WORDS_CDICT_7
+CF_WORDS_CDICT_7	PS_CHECK_UF 1	 			;PSP -> Y
+			LDX	0,Y				;subtree pointer -> X 
+			CPX	PSP				;check for end of word
+			BLS	CF_WORDS_CDICT_8		;end of word found
+			LDD	0,X				;string pointer -> D
+			BEQ	CF_WORDS_CDICT_8		;null pointer found
+			LEAX	-2,X				;update subtree pointer
+			STX	0,Y							
+			PS_PUSH_D 				;print substring
+			EXEC_CF	CF_STRING_PRINT
+			JOB	CF_WORDS_CDICT_7 		;print next substring
+			;Switch to next sibling (PSP in Y, subtree pointer in X)
+CF_WORDS_CDICT_8	
 
-
-	;; continue here!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-
-
-
-
-
-
-
-
-
-
+	
 
 			PS_CHECK_UFOF 1, 1 			;new PSP -> Y
 			CPY	2,Y				;check for end of word
