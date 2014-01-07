@@ -242,9 +242,9 @@ CF_SEARCH_CDICT_2	MOVW	#$0000, 2,+Y
 ;List the definition names in the core dictionary in alphabetical order.
 ; args:   none
 ; result: none
-; SSTACK: ? bytes
+; SSTACK: 8 bytes
 ; PS:     >=3 cells
-; RS:     1 cell
+; RS:     2 cells
 ; throws: nothing
 CF_WORDS_CDICT		EQU	*
 			;Stack layout:
@@ -253,11 +253,9 @@ CF_WORDS_CDICT		EQU	*
 			; +--------+--------+
 			; :                 : 
 			; +--------+--------+
-			; | Subtree pointer | PSP+n-6
+			; | Subtree pointer | PSP+n-4
 			; +--------+--------+
-			; |  Root pointer   | PSP+n-4
-			; +--------+--------+	
-			; |      $0000      | PSP+n-2
+			; |  Root pointer   | PSP+n-2
 			; +--------+--------+	
 			; | Column counter  | PSP+n
 			; +--------+--------+
@@ -269,75 +267,50 @@ CF_WORDS_CDICT		EQU	*
 			PS_CHECK_OF	2 			;new PSP -> Y
 			STY	PSP
 			MOVW	#$0000, 2,Y
-			MOVW	#$0000, 0,Y	
-			LDX	#FCDICT_TREE
-			;Stack word (subtree tree pointer in X, PSP in Y)
-CF_WORDS_CDICT_1	PS_PUSH_X 				;stack subtree
-			BRCLR	0,X, #$FF, CF_WORDS_CDICT_2 	;check for empty string
-			BRCLR	1,X+, #$80, * 			;skip past the end of the substring
-			LDD	0,X				;check for STRING_TERMINATION
-			TBEQ	A, CF_WORDS_CDICT_2		;end of word
-			TFR	D, X				;follow subtree
-			JOB	CF_WORDS_CDICT_1 		;	
-			;Count chars (PSP in Y)
-CF_WORDS_CDICT_2	CLRA					;initialize char count
-			CLRB	
-			LDX	2,Y+ 				;subtree pointer -> X			
-			BRCLR	0,X, #$FF, CF_WORDS_CDICT_4 	;check for empty string
-CF_WORDS_CDICT_3	STRING_SKIP_AND_COUNT			;count chars
-CF_WORDS_CDICT_4	LDX	2,Y+						
-			BNE	CF_WORDS_CDICT_3
-			;Push subtree pointer (char count in D, PSP+n in Y)
-			LEAX	-4,Y
-			PS_PUSH_X
-			;Print separator (char count in D, PSP+n-4 in X) 
-			LDY	4,X				;check for first line
-			BEQ	CF_WORDS_CDICT_5		;first line (no separator required)
-			LEAY	D,Y				;new line width -> Y
-			CPY	#(FCDICT_LINE_WIDTH-1)		;check line width
-			BLS	CF_WORDS_CDICT_6		;word separator required
-			STD	4,X				;set new char count
-			EXEC_CF	CF_CR				;print line break
-			JOB	CF_WORDS_CDICT_7		;print word
-CF_WORDS_CDICT_5	STD	4,X				;set new line count
-			JOB	CF_WORDS_CDICT_7		;print word
-CF_WORDS_CDICT_6	STY	4,X				;update line count
-			EXEC_CF	CF_SPACE			;print word separator (space)
-			;Print word
-CF_WORDS_CDICT_7	PS_CHECK_UF 1	 			;PSP -> Y
-			LDX	0,Y				;subtree pointer -> X 
-			CPX	PSP				;check for end of word
-			BLS	CF_WORDS_CDICT_8		;end of word found
-			BRCLR	[0,X], #$FF, CF_WORDS_CDICT_8 	;check for empty string
-			LDD	2,X-				;string pointer -> D
-			STX	0,Y							
-			PS_PUSH_D 				;print substring
-			EXEC_CF	CF_STRING_PRINT
-			JOB	CF_WORDS_CDICT_7 		;print next substring
-			;Drop subtree pointer
-CF_WORDS_CDICT_8	PS_DROP	1	
-			;Switch to next sibling (PSP in Y)
-			LDX	0,Y			   	;old subtree -> X
-CF_WORDS_CDICT_9	BRCLR	0,X, #$FF, CF_WORDS_CDICT_10 	;empty substring
-			BRCLR	1,X+, #$80, * 			;skip past the end of the substring
-			BRCLR	0,X, #$FF, CF_WORDS_CDICT_10 	;no subtree
-			JOB	CF_WORDS_CDICT_1		;follow subtree
-			;Switch to next uncle
-CF_WORDS_CDICT_10	PS_DROP	1 				;drop current subtree
-			LDX	0,Y			   	;parent subtree -> X
-			BNE	CF_WORDS_CDICT_9		;find sibling of parent
-			;Cleanup PS
-			PS_DROP	2 				;drop char count
+			MOVW	#FCDICT_TREE, 0,Y	
+			;Find first word
+			EXEC_CF	CF_CDICT_FIRST_PATH
+			;Count chars
+			LDY	PSP				;PSP -> Y
+			CLRA					;initialize char count
+			CLRB				 
+CF_WORDS_CDICT_1	PS_CHECK_Y_UF 1				;Check if word is valid
+			LDX	2,Y+ 				;string pointer -> X				
+			CPX	#FCDICT_TREE_START	
+			BLO	CF_WORDS_CDICT_2		;Y = PSP+n+2
+			BRCLR	0,X, #$FF, CF_WORDS_CDICT_1 	;check for empty string
+			STRING_SKIP_AND_COUNT			;count chars
+			JOB	CF_WORDS_CDICT_1
+			;Determine separator (PSP+n+2 in Y, column count in X, char count in D)
+CF_WORDS_CDICT_2	TBEQ	X, CF_WORDS_CDICT_4 		;skip separator, print word
+			LEAX	D,X				;check if max. line width has been reached
+			CPX	#(FCDICT_LINE_WIDTH-1)
+			BHI	CF_WORDS_CDICT_3		;line break reqired
+			;Word separator required (PSP+n+2 in Y, new column count in X)
+			STX	-2,Y	 			;update column count
+			EXEC_CF	CF_SPACE 			;print separator (space)
+			JOB	CF_WORDS_CDICT_4			;print word
+			;Line break required (PSP+n+2 in Y, char count in D)
+CF_WORDS_CDICT_3	STD	-2,Y	 			;update column count
+			EXEC_CF	CF_CR	 			;print line break
+			;Print word 
+CF_WORDS_CDICT_4	EXEC_CF	CF_CDICT_PRINT_PATH
+			;Find next word 
+			EXEC_CF	CF_CDICT_NEXT_PATH
+			;Check if word exisis 
+			PS_COPY_X 				;leaf node -> X
+			CPX	#FCDICT_TREE_START	
+			BHS	CF_WORDS_CDICT_1 		;valid word
 			;Done
 			NEXT
 
-;.WORD-CDICT ( xt -- flag )
+;.WORD-CDICT ( xt --  true | xt false )
 ;Reverse lookup an xt and print the associated word. Return true if xt was found, false otherwise
 ; args:   none
 ; result: none
 ; SSTACK: ? bytes
 ; PS:     >=3 cells
-; RS:     1 cell
+; RS:     2 cells
 ; throws: nothing
 CF_DOT_WORD_CDICT		EQU	*
 			;Stack layout:
@@ -346,11 +319,9 @@ CF_DOT_WORD_CDICT		EQU	*
 			; +--------+--------+
 			; :                 : 
 			; +--------+--------+
-			; | Subtree pointer | PSP+n-6
+			; | Subtree pointer | PSP+n-4
 			; +--------+--------+
-			; |  Root pointer   | PSP+n-4
-			; +--------+--------+	
-			; |      $0000      | PSP+n-2
+			; |  Root pointer   | PSP+n-2
 			; +--------+--------+	
 			; |       xt        | PSP+n
 			; +--------+--------+
@@ -358,19 +329,170 @@ CF_DOT_WORD_CDICT		EQU	*
 			;Initialize PS
 			PS_CHECK_UFOF	1, 1 	;new PSP -> Y
 			STY	PSP
-			MOVW	#$0000, 0,Y	
-			LDX	#FCDICT_TREE
-			;Stack word (subtree tree pointer in X, PSP in Y)
-CF_DOT_WORD_CDICT_1	PS_PUSH_X 				;stack subtree
-			BRCLR	0,X, #$FF, CF_WORDS_CDICT_2 	;check for empty string
+			;Check xt (PSP in Y)
+			LDX	2,Y
+			CPX	#FCDICT_TREE_START	
+			BLO	CF_DOT_WORD_CDICT_2 		;valid xt
+			CPX	#FCDICT_TREE_END
+			BHS	CF_DOT_WORD_CDICT_2 		;valid xt	
+			;Invalid xt (PSP in Y) 
+CF_DOT_WORD_CDICT_1	MOVW	#FALSE, 0,Y
+			;Done
+			NEXT
+			;Find first word
+CF_DOT_WORD_CDICT_2	MOVW	#FCDICT_TREE, 0,Y
+			EXEC_CF	CF_CDICT_FIRST_PATH
+			;Check if word exists  
+CF_DOT_WORD_CDICT_3	PS_COPY_X
+			CPX	#FCDICT_TREE_START	
+			BLO	CF_DOT_WORD_CDICT_1 		;invalid node
+			CPX	#FCDICT_TREE_END
+			BHS	CF_DOT_WORD_CDICT_1 		;invalid node	
+			;Determine xt of current word (PSP in Y, leaf node in X)
+			BRCLR	0,X, #$FF, CF_DOT_WORD_CDICT_4 	;empty string
 			BRCLR	1,X+, #$80, * 			;skip past the end of the substring
+CF_DOT_WORD_CDICT_4	LDD	1,X				;xt of current word -> D
+			;Compare xt's (PSP in Y, xt of current word in D)
+			PS_CHECK_Y_UF 2
+CF_DOT_WORD_CDICT_5	LDX	2,+Y			
+			CPX	#FCDICT_TREE_START	
+			BLO	CF_DOT_WORD_CDICT_6 		;valid xt
+			CPX	#FCDICT_TREE_END
+			BHS	CF_DOT_WORD_CDICT_6 		;valid xt	
+			JOB	CF_DOT_WORD_CDICT_5
+CF_DOT_WORD_CDICT_6	CPD	0,Y
+			BEQ	CF_DOT_WORD_CDICT_7 		;match
+			;Find next word 
+			EXEC_CF	CF_CDICT_NEXT_PATH
+			JOB	CF_DOT_WORD_CDICT_3
+			;xt matches (PSP+n in Y)
+CF_DOT_WORD_CDICT_7	EXEC_CF	CF_CDICT_PRINT_PATH
+			;Clean up stack 
+			LDY	PSP
+			PS_CHECK_Y_UF 2
+CF_DOT_WORD_CDICT_8	LDX	2,+Y			
+			CPX	#FCDICT_TREE_START	
+			BLO	CF_DOT_WORD_CDICT_9 		;invalid node
+			CPX	#FCDICT_TREE_END
+			BHS	CF_DOT_WORD_CDICT_9 		;invalid node	
+			JOB	CF_DOT_WORD_CDICT_8
+CF_DOT_WORD_CDICT_9	MOVW	#TRUE, 0,Y
+			;Done
+			NEXT
+
+;CDICT-NEXT-PATH x i*c-addr -- x j*c-addr)
+;Find the next path in the dictionary tree. delimeter x must be smaller than
+;FCDICT_TREE_START or larger than FCDICT_TREE_END-1.
+; SSTACK: 0 bytes
+; PS:     >= 0 cells
+; RS:     0 cell
+; throws: FEXCPT_EC_PSUF
+;         FEXCPT_EC_PSOF
+CF_CDICT_NEXT_PATH	EQU	*
+			;Stack layout:
+			; +--------+--------+
+			; | Subtree pointer | PSP+0
+			; +--------+--------+
+			; :                 : 
+			; +--------+--------+
+			; | Subtree pointer | PSP+n-2
+			; +--------+--------+
+			; |  Root pointer   | PSP+n
+			; +--------+--------+
+			; |  Delimeter (x)  | PSP+n+2
+			; +--------+--------+
+			;Get node
+CF_CDICT_NEXT_PATH_1	PS_COPY_X 				;leaf node -> X
+			;Check if node is valid (tree pointer in X)
+			CPX	#FCDICT_TREE_START	
+			BLO	CF_CDICT_NEXT_PATH_3 		;invalid node
+			CPX	#FCDICT_TREE_END
+			BHS	CF_CDICT_NEXT_PATH_3 		;invalid node	
+			;Find sibling (tree pointer in X)
+			BRCLR	0,X, #$FF, CF_CDICT_NEXT_PATH_2 ;check for empty string
+			BRCLR	1,X+, #$80, * 			;skip past the end of the substring
+CF_CDICT_NEXT_PATH_2	LDD	3,+X
+			TBNE	A, CF_CDICT_NEXT_PATH_4		;sibling found
+			;Find parent (tree pointer in X)
+			PS_DROP	1
+			JOB	CF_CDICT_NEXT_PATH_1
+			;Done
+CF_CDICT_NEXT_PATH_3	NEXT
+			;Complete first path of sibling  (tree pointer in X)
+CF_CDICT_NEXT_PATH_4	EQU	CF_CDICT_FIRST_PATH_2
+
+;CDICT-FIRST-PATH ( c-addr0 -- c-addr0 i*c-addr )
+;Parse dictionary tree starting at root c-addr0 down to the first leaf node. Push
+;all nodes of the parsed path onto the parameter stack.
+; SSTACK: 0 bytes
+; PS:     >= 0 cells
+; RS:     0 cells
+; throws: FEXCPT_EC_PSUF
+;         FEXCPT_EC_PSOF
+CF_CDICT_FIRST_PATH	EQU	*
+			;Stack layout:
+			; +--------+--------+
+			; | Subtree pointer | PSP+0
+			; +--------+--------+
+			; :                 : 
+			; +--------+--------+
+			; | Subtree pointer | PSP+n-2
+			; +--------+--------+
+			; |  Root pointer   | PSP+n
+			; +--------+--------+
+			;Get root node  
+			PS_COPY_X 				;root node -> X			
+			;Check for children (tree pointer in X)
+CF_CDICT_FIRST_PATH_1	BRCLR	0,X, #$FF, CF_CDICT_FIRST_PATH_3;check for empty string
+CF_CDICT_FIRST_PATH_2	BRCLR	1,X+, #$80, * 			;skip past the end of the substring
 			LDD	0,X				;check for STRING_TERMINATION
-			TBEQ	A, CF_WORDS_CDICT_2		;end of word
+			TBEQ	A, CF_CDICT_FIRST_PATH_3	;end of word
 			TFR	D, X				;follow subtree
-			JOB	CF_WORDS_CDICT_1 		;	
+			PS_PUSH_X 				;stack node
+			JOB	CF_CDICT_FIRST_PATH_1
+			;Done
+CF_CDICT_FIRST_PATH_3	NEXT
 
-	;; TBD
-
+;CDICT-PRINT-PATH ( x i*c-addr -- x j*c-addr)
+;Print the concatinated substrings of a path in the dictionary tree. delimeter x
+;must be smaller than FCDICT_TREE_START or larger than FCDICT_TREE_END-1.
+; SSTACK: 8 bytes
+; PS:     0 cells
+; RS:     1 cell
+; throws: FEXCPT_EC_PSUF
+;         FEXCPT_EC_PSOF
+CF_CDICT_PRINT_PATH	EQU	*
+			;Stack layout:
+			; +--------+--------+
+			; | Subtree pointer | PSP+0
+			; +--------+--------+
+			; :                 : 
+			; +--------+--------+
+			; | Subtree pointer | PSP+n-2
+			; +--------+--------+
+			; |  Root pointer   | PSP+n
+			; +--------+--------+
+			; |  Delimeter (x)  | PSP+n+2
+			; +--------+--------+
+			;Get leaf node  
+			LDY	PSP 			;=> 3 cycles
+			;Check if node is valid (PS pointer in Y)
+CF_CDICT_PRINT_PATH_1	PS_CHECK_Y_UF 1
+			LDX	2,Y+
+			CPX	#FCDICT_TREE_START	
+			BLO	CF_CDICT_PRINT_PATH_2 		;invalid node
+			CPX	#FCDICT_TREE_END
+			BLO	CF_CDICT_PRINT_PATH_1 		;valid node	
+			;Root found (PSP+n+4 in Y)
+CF_CDICT_PRINT_PATH_2	LEAX	-2,Y 				;PSP+n -> X
+CF_CDICT_PRINT_PATH_3	CPX	PSP
+			BHS	CF_CDICT_PRINT_PATH_4 		;done
+			LDD	2,X-
+			PS_PUSH_D
+			EXEC_CF	CF_STRING_DOT
+			JOB	CF_CDICT_PRINT_PATH_3
+			;Done
+CF_CDICT_PRINT_PATH_4	NEXT
 	
 FCDICT_CODE_END		EQU	*
 FCDICT_CODE_END_LIN	EQU	@
@@ -398,7 +520,9 @@ FCDICT_WORDS_HEADER	STRING_NL_NONTERM
 			STRING_NL_TERM
 
 ;#Dictionary tree
+FCDICT_TREE_START	EQU	*	
 FCDICT_TREE		FCDICT_TREE
+FCDICT_TREE_END		EQU	*	
 
 FCDICT_TABS_END		EQU	*
 FCDICT_TABS_END_LIN	EQU	@

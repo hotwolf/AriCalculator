@@ -46,6 +46,7 @@
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+SPACE			EQU	" "
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -157,7 +158,7 @@ CF_EKEY_QUESTION	EQU	*
 ; throws: FEXCPT_EC_PSUF
 CF_SPACE		EQU	*
 			;Push space character onto PS 
-			PS_PUSH	#" "
+			PS_PUSH	#SPACE
 			;Print char 
 			;JOB	CF_EMIT
 	
@@ -480,7 +481,7 @@ CF_SPACES		EQU	*
 CF_SPACES_1		PS_COPY_X 			;space count from PS
 			BLE	CF_SPACES_3		;n < 1
 			;Try to transmit space character (char count in X)
-			LDAB	#" " 			;space char -> B
+			LDAB	#SPACE 			;space char -> B
 CF_SPACES_2		SEI				;disable interrupts
 			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
 			BCC	CF_SPACES_4		;TX queue is full

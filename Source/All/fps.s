@@ -155,6 +155,22 @@ FPS_VARS_END_LIN	EQU	@
 #endif
 #emac
 	
+;PS_CHECK_Y_UF: check for a minimum number of stack entries (PSP -> Y)
+; args:   1: required stack content (cells)
+;         Y: PSP
+; result: none
+; SSTACK: none
+; throws: FEXCPT_EC_PSUF
+;         Y, X and D are preserved 
+#macro	PS_CHECK_Y_UF, 1
+#ifndef	FPS_NO_CHECK
+			CPY	#(PS_EMPTY-(2*\1))	;=> 2 cycles
+			BHI	FPS_THROW_PSUF		;=> 3 cycles/ 4 cycles
+							;  -------------------
+							;   8 cycles/ 9 cycles
+#endif
+#emac
+	
 ;PS_CHECK_OF: check if there is room for a number of stack entries (PSP-new cells -> Y)
 ; args:   1: required stack space (cells)
 ; result: Y: PSP-new cells

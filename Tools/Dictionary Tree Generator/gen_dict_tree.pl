@@ -284,7 +284,7 @@ if ($code->{problems}) {
         printf FILEHANDLE ";###############################################################################\n";
         printf FILEHANDLE ";#    Copyright 2009-2013 Dirk Heisswolf                                       #\n";
         printf FILEHANDLE ";#    This file is part of the S12CForth framework for Freescale's S12(X) MCU  #\n";
-        printf FILEHANDLE ";#    familtree_layout_widthies.                                                                #\n";
+        printf FILEHANDLE ";#    families.                                                                #\n";
         printf FILEHANDLE ";#                                                                             #\n";
         printf FILEHANDLE ";#    S12CForth is free software: you can redistribute it and/or modify        #\n";
         printf FILEHANDLE ";#    it under the terms of the GNU General Public License as published by     #\n";
@@ -327,12 +327,17 @@ if ($code->{problems}) {
 	#Print tree
         printf FILEHANDLE "#ifndef FCDICT_TREE_EXTSTS\n";
         printf FILEHANDLE "FCDICT_TREE_EXISTS      EQU     1\n";
+	printf FILEHANDLE "\n";
+        printf FILEHANDLE ";Global constants\n";
+        printf FILEHANDLE "FCDICT_TREE_DEPTH       EQU     %d\n", get_tree_depth(\%dict_tree);
  	printf FILEHANDLE "\n";
         printf FILEHANDLE ";Dictionary tree\n";
         printf FILEHANDLE "#macro       FCDICT_TREE, 0\n";
         printf FILEHANDLE ";Local constants\n";
-        printf FILEHANDLE "STRING_TERMINATION      EQU     \$00\n";
-        printf FILEHANDLE "END_OF_SUBTREE          EQU     \$00\n";
+        #printf FILEHANDLE "STRING_TERMINATION      EQU     \$00\n";
+        printf FILEHANDLE "EMPTY_STRING            EQU     \$00\n";
+        printf FILEHANDLE "BRANCH                  EQU     \$00\n";
+        printf FILEHANDLE "END_OF_BRANCH           EQU     \$00\n";
         printf FILEHANDLE "IMMEDIATE               EQU     \$8000\n";
         #printf FILEHANDLE "\n";
 	print_tree(\%dict_tree, "", []);
@@ -414,6 +419,26 @@ sub find_zero_term {
 	}
     }
     1;
+}
+
+###############################
+# Determine depth of the tree #
+###############################
+sub get_tree_depth{
+    my $tree       = shift @_; 
+    my $depth      = 0;
+
+    foreach my $string (keys %$tree) {
+	if (($string ne "is_immediate") &&
+	    ($string ne "cfa_name")) {
+	    my $subtree_depth = get_tree_depth($tree->{$string});
+	    #printf STDERR "string: \"%s\" %d %d\n", $string, $subtree_depth, $depth;
+	    if ($depth < ($subtree_depth+1)) {
+		$depth = ($subtree_depth+1);
+	    }
+	}	
+    }
+    return $depth;
 }
 
 ##################################
@@ -586,6 +611,7 @@ sub print_tree {
 	    } else {
 		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
 	    }
+	    printf FILEHANDLE $instr_form_nc, "", "DB", "BRANCH";
 	    printf FILEHANDLE $instr_form, "", "DW", sprintf($label_format, join("_", @$position, $string_index)), sprintf("%s...", $combo_string);
 	    
 	    #Optimize subtree order
@@ -616,14 +642,14 @@ sub print_tree {
 	    }       	    
 	    if (length($nt_string) > 0) {
 		#Non-zero length
-	    if ($nt_string !~ /\"/) {
-		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
+		if ($nt_string !~ /\"/) {
+		    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
+		} else {
+		    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
+		}
+		#printf FILEHANDLE $instr_form_nc, "", "DB", "STRING_TERMINATION";
 	    } else {
-		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
-	    }
-		printf FILEHANDLE $instr_form_nc, "", "DB", "STRING_TERMINATION";
-	    } else {
-		printf FILEHANDLE $instr_form_nc, $left_col, "DB", "STRING_TERMINATION";
+		printf FILEHANDLE $instr_form_nc, $left_col, "DB", "EMPTY_STRING";
 	    }
 	    printf FILEHANDLE $instr_form, "", "DW", $cfa_entry, sprintf("-> %s", $combo_string); 
 	}
@@ -632,10 +658,10 @@ sub print_tree {
 
     #Print substree termination
     if ($subtree_reordered) {
- 	#printf FILEHANDLE $instr_form, "", ";DB", "END_OF_SUBTREE", "merged";
- 	printf FILEHANDLE $instr_form_nc, "", ";DB", "END_OF_SUBTREE";
+  	#printf FILEHANDLE $instr_form, "", ";DB", "END_OF_BRANCH", "merged";
+ 	printf FILEHANDLE $instr_form_nc, "", ";DB", "END_OF_BRANCH";
     } else {
-	printf FILEHANDLE $instr_form_nc, "", "DB", "END_OF_SUBTREE";
+	printf FILEHANDLE $instr_form_nc, "", "DB", "END_OF_BRANCH";
     }
   	
     #Print next level of subtrees
