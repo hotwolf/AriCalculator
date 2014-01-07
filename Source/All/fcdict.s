@@ -165,39 +165,45 @@ FCDICT_SEARCH		EQU	*
 			;Set dictionary tree pointer (string pointer in X, char count in D)
 			LDY	#FCDICT_TREE
 			;Compare substring (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_1		FCDICT_COMP_STRING	FCDICT_SEARCH_3    	;compare substring (SSTACK: 8 bytes)
+FCDICT_SEARCH_1		FCDICT_COMP_STRING	FCDICT_SEARCH_    	;compare substring (SSTACK: 8 bytes)
 			;Substing matches (tree pointer in Y, string pointer in X, char count in D)
-			BRCLR	0,Y, #$FF, FCDICT_SEARCH_5 		;leaf node reached
-			LDY	0,Y 					;switch to subtree
-			TST	0,Y 					;check for STRING_TERMINATION
-			BNE	FCDICT_SEARCH_1				;no end of dictionary word reached 
-			;Subtree starts with STRING_TERMINATION (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_2		TBEQ	D, FCDICT_SEARCH_6 			;match
-			LEAY	3,Y 					;switch to next sibling
-			JOB	FCDICT_SEARCH_1				;Parse sibling
-			;Try next sibling (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_3		BRCLR	1,Y+, #$FF, FCDICT_SEARCH_4		;check for STRING_TERMINATION
-			LEAY	1,Y					;skip over CFA
-			JOB	FCDICT_SEARCH_1				;compare next sibling	
-FCDICT_SEARCH_4		BRCLR	2,+Y, #$FF, FCDICT_SEARCH_8 		;check for END_OF_SUBTREE
-			JOB	FCDICT_SEARCH_1				;compare next sibling	
-			;Leaf node found (tree pointer in Y, string pointer in X, char count in D) 
-FCDICT_SEARCH_5		TBNE	D, FCDICT_SEARCH_8 			;mismatch
+			BRCLR	0,Y, #$FF, FCDICT_SEARCH_4 		;branch detected
+			TBNE	D, FCDICT_SEARCH_ 			;dictionary word too short -> unsuccessful
 			;Search successful (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_6		SSTACK_PREPULL	8 				;check stack
+FCDICT_SEARCH_2		SSTACK_PREPULL	8 				;check stack
 			LDD	1,Y 					;get CFA
 			SEC						;flag unsuccessful search
 			PULX						;remove stack entry				
-FCDICT_SEARCH_7		PULX						;restore X				
+FCDICT_SEARCH_3		PULX						;restore X				
 			PULY						;restore Y				
 			;Done
 			RTS		
+			;Branch detected (tree pointer in Y, string pointer in X, char count in D) 
+			LDY	1,Y 					;switch to subtree
+			TST	0,Y 					;check for STRING_TERMINATION
+FCDICT_SEARCH_4		BNE	FCDICT_SEARCH_1				;no end of dictionary word reached 
+			;Empty substring (tree pointer in Y, string pointer in X, char count in D)
+			TBEQ	D, FCDICT_SEARCH_6 			;match
+			LEAY	3,Y 					;switch to next sibling
+			JOB	FCDICT_SEARCH_1				;Parse sibling
+			;Try next sibling (tree pointer in Y, string pointer in X, char count in D)
+FCDICT_SEARCH_5		BRCLR	1,Y+, #$FF, FCDICT_SEARCH_6		;check for BRANCH
+			LEAY	1,Y					;skip over CFA
+			JOB	FCDICT_SEARCH_1				;compare next sibling	
+FCDICT_SEARCH_6		BRCLR	2,+Y, #$FF, FCDICT_SEARCH_7 		;END_OF_BRANCH -> unsuccessful
+			JOB	FCDICT_SEARCH_1				;compare next sibling	
 			;Search unsuccessful (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_8		SSTACK_PREPULL	8 				;check stack
+FCDICT_SEARCH_7		SSTACK_PREPULL	8 				;check stack
 			CLC						;flag successful search
 			PULD						;restore D				
-			JOB	FCDICT_SEARCH_7
+			JOB	FCDICT_SEARCH_3
 
+
+
+
+
+
+	
 ;Code fields:
 ;============
 ;SEARCH-CDICT ( c-addr u -- 0 | xt 1 | xt -1 ) 
