@@ -256,25 +256,24 @@ FCDICT_NEXT_PATH	EQU	*
 			PSHY						;save Y	
 			;Find sibling of node (end of path in X)
 			LDY	0,X 					;leaf node pointer -> Y 
-FCDICT_NEXT_PATH_1	BRCLR	0,Y, #$FF, FCDICT_NEXT_PATH_2 		;empty string found
-			BRCLR	1,Y+, #$80, * 				;skip past the end of the substring
+			BRCLR	0,Y, #$FF, FCDICT_NEXT_PATH_2 		;empty string found
+FCDICT_NEXT_PATH_1	BRCLR	1,Y+, #$80, * 				;skip past the end of the substring
 			BRCLR	0,Y, #$FF, FCDICT_NEXT_PATH_2 		;subtree pointer found
 			LEAY	-1,Y
 FCDICT_NEXT_PATH_2	BRCLR	3,+Y, #$FF, FCDICT_NEXT_PATH_4 		;no sibling found
-			;Sibling found (end of path in X, in Y) 
-			LDY	0,Y					;new node pointer -> Y 
+			;Sibling found (end of path in X, sibling in Y) 
 			STY	0,X 					;switch to sibling
 			JOB	FCDICT_NEXT_PATH_3 			;extract full path of sibling
-FCDICT_NEXT_PATH_3	EQU	FCDICT_NEXT_PATH_1	
+FCDICT_NEXT_PATH_3	EQU	FCDICT_FIRST_PATH_2	
 			;Find parent of leaf node (end of path in X)
 FCDICT_NEXT_PATH_4	LDY	2,+X 					;switch to parent
 			CPX	0,SP 					;check if parent exists
 			BLE	FCDICT_NEXT_PATH_1 			;parent
-			;Next path dues not exist
+			;Next path does not exist
 			CLRA
 			CLRB
 			JOB	FCDICT_NEXT_PATH_5
-FCDICT_NEXT_PATH_5	EQU	FCDICT_FIRST_PATH_3
+FCDICT_NEXT_PATH_5	EQU	FCDICT_FIRST_PATH_4
 
 ;Extract path (word) in dictionary
 ; args:   X: end of incomplete path
@@ -297,17 +296,17 @@ FCDICT_FIRST_PATH	EQU	*
 			PSHY						;save Y	
 			;Skip over substring (end of path in X)
 			LDY	0,X 					;node pointer -> Y 
-FCDICT_FIRST_PATH_1	BRCLR	0,Y, #$FF, FCDICT_FIRST_PATH_2		;empty string found
-			BRCLR	1,Y+, #$80, * 				;skip past the end of the substring
-			BRCLR	1,Y-, #$FF, FCDICT_FIRST_PATH_4 	;subtree pointer found
+FCDICT_FIRST_PATH_1	BRCLR	0,Y, #$FF, FCDICT_FIRST_PATH_3		;empty string found
+FCDICT_FIRST_PATH_2	BRCLR	1,Y+, #$80, * 				;skip past the end of the substring
+			BRCLR	1,Y-, #$FF, FCDICT_FIRST_PATH_5 	;subtree pointer found
 			;Get CFA (end of path in X, node pointer in Y)
-FCDICT_FIRST_PATH_2	LDD	1,Y
-FCDICT_FIRST_PATH_3	SSTACK_PREPULL	4 				;restore stack
+FCDICT_FIRST_PATH_3	LDD	1,Y
+FCDICT_FIRST_PATH_4	SSTACK_PREPULL	4 				;restore stack
 			PULY						;restore Y	
 			;Done
 			RTS
 			;Subtree found (end of path in X, node pointer in Y)			
-FCDICT_FIRST_PATH_4	LDY	2,Y 					;switch tree node to subtree
+FCDICT_FIRST_PATH_5	LDY	2,Y 					;switch tree node to subtree
 			STY	2,-X 					;append subtree to path
 			JOB	FCDICT_FIRST_PATH_1
 
@@ -326,8 +325,9 @@ FCDICT_WORD_LENGTH	EQU	*
 			PSHX						;save X	
 			;Count (path pointer in Y, char count in D)
 FCDICT_WORD_LENGTH_1	LDX	2,Y- 					;string pointer -> X
+			BEQ	FCDICT_WORD_LENGTH_2 			;skip null pointers
 			STRING_SKIP_AND_COUNT 				;count chars of substring
-			CPY	0,SP 					;check path length
+FCDICT_WORD_LENGTH_2	CPY	0,SP 					;check path length
 			BHS	FCDICT_WORD_LENGTH_1
 			;Restore registers (char count in D)
 			SSTACK_PREPULL	6
@@ -529,7 +529,9 @@ CF_FCDICT_PRINT_WORD_1	PS_CHECK_UF	2			;PSP -> Y
 			BLO	CF_FCDICT_PRINT_WORD_2 		;done
 			LDD	2,X-
 			STX	0,Y
-			;Print sybstring (string pointer in D
+			;Print sybstring (string pointer in D)
+			TFR	D, Y
+			BRCLR	0,Y, #$FF, CF_FCDICT_PRINT_WORD_1;empty string found
 			PS_PUSH_D
 			EXEC_CF	CF_STRING_DOT
 			JOB	CF_FCDICT_PRINT_WORD_1
