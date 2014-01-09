@@ -46,7 +46,7 @@
 ;# Constants                                                                   #
 ;###############################################################################
 ;Max. line length
-FCDICT_LINE_WIDTH	EQU	80
+FCDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -206,7 +206,7 @@ FCDICT_SEARCH_1		FCDICT_COMP_STRING	FCDICT_SEARCH_5    	;compare substring (SSTA
 			TBNE	D, FCDICT_SEARCH_7 			;dictionary word too short -> unsuccessful
 			;Search successful (tree pointer in Y, string pointer in X, char count in D)
 FCDICT_SEARCH_2		SSTACK_PREPULL	8 				;check stack
-			LDD	1,Y 					;get CFA
+			LDD	0,Y 					;get CFA
 			SEC						;flag unsuccessful search
 			PULX						;remove stack entry				
 FCDICT_SEARCH_3		PULX						;restore X				
@@ -214,12 +214,13 @@ FCDICT_SEARCH_3		PULX						;restore X
 			;Done
 			RTS		
 			;Branch detected (tree pointer in Y, string pointer in X, char count in D) 
-			LDY	1,Y 					;switch to subtree
+FCDICT_SEARCH_4		LDY	1,Y 					;switch to subtree
 			TST	0,Y 					;check for STRING_TERMINATION
-FCDICT_SEARCH_4		BNE	FCDICT_SEARCH_1				;no end of dictionary word reached 
+			BNE	FCDICT_SEARCH_1				;no end of dictionary word reached 
+			LEAY	1,Y 					;skip zero string
 			;Empty substring (tree pointer in Y, string pointer in X, char count in D)
-			TBEQ	D, FCDICT_SEARCH_6 			;match
-			LEAY	3,Y 					;switch to next sibling
+			TBEQ	D, FCDICT_SEARCH_2 			;match
+			LEAY	2,Y 					;switch to next sibling
 			JOB	FCDICT_SEARCH_1				;Parse sibling
 			;Try next sibling (tree pointer in Y, string pointer in X, char count in D)
 FCDICT_SEARCH_5		BRCLR	1,Y+, #$FF, FCDICT_SEARCH_6		;check for BRANCH
@@ -322,7 +323,8 @@ FCDICT_FIRST_PATH_5	LDY	2,Y 					;switch tree node to subtree
 FCDICT_WORD_LENGTH	EQU	*
 			;Save registers (start of path in Y, end of path in X, char count in D)
 			PSHY						;save Y				
-			PSHX						;save X	
+			PSHX						;save X
+			ADDD	#1 					;add length of the separator
 			;Count (path pointer in Y, char count in D)
 FCDICT_WORD_LENGTH_1	LDX	2,Y- 					;string pointer -> X
 			BEQ	FCDICT_WORD_LENGTH_2 			;skip null pointers
@@ -436,7 +438,7 @@ CF_WORDS_CDICT_1	EXEC_CF	CF_FCDICT_PRINT_WORD
 			;Print separator (start of path in Y, end of path in X)
 			LDD	(CF_WORDS_CDICT_COLCNT-CF_WORDS_CDICT_PATH),Y
 			FCDICT_WORD_LENGTH			;(SSTACK: 6 bytes)
-			CPD	#(FCDICT_LINE_WIDTH-1)
+			CPD	#(FCDICT_LINE_WIDTH+1)
 			BHI	CF_WORDS_CDICT_2 		;line break required
 			;Print space character (start of path in Y, end of path in X, char count in D)
 			STD	(CF_WORDS_CDICT_COLCNT-CF_WORDS_CDICT_PATH),Y

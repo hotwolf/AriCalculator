@@ -77,8 +77,13 @@ TIB_PADDING		EQU	4 		;default is 4 bytes
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;Text input buffer 
 TIB_START		EQU	RS_TIB_START
 
+;Default line width 
+DEFAULT_LINE_WIDTH	EQU	80
+
+;Common aliases 
 TRUE			EQU	$FFFF
 FALSE			EQU	00000	
 	
