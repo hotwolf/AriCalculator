@@ -455,12 +455,13 @@ CF_WORDS_CDICT_3	PS_CHECK_UF	FCDICT_TREE_DEPTH+3 	;PSP -> Y
 			STY	PSP
 			NEXT
 
-;.WORD-CDICT ( xt --  true | xt false )
-;Reverse lookup an xt and print the associated word. Return true if xt was found, false otherwise
+;.WORD-CDICT ( xt --  xt u )
+;Reverse lookup an xt and print the associated word. Keep xt on the PS and
+;return the number of printed characters u. 
 ; args:   none
 ; result: none
 ; SSTACK: 8 bytes
-; PS:     FCDICT_TREE_DEPTH+2 cells
+; PS:     FCDICT_TREE_DEPTH+3 cells
 ; RS:     2 cells
 ; throws: FEXCPT_EC_PSUF
 ;         FEXCPT_EC_PSOF
@@ -477,14 +478,17 @@ CF_DOT_WORD_CDICT		EQU	*
 			; +--------+--------+
 			; |   Node pointer  | PSP+(2*FCDICT_TREE_DEPTH)+2
 			; +--------+--------+
-			; |        xt       | PSP+(2*FCDICT_TREE_DEPTH)+4
+			; |        u        | PSP+(2*FCDICT_TREE_DEPTH)+4
+			; +--------+--------+
+			; |        xt       | PSP+(2*FCDICT_TREE_DEPTH)+6
 			; +--------+--------+
 CF_DOT_WORD_CDICT_SOP	EQU	0
 CF_DOT_WORD_CDICT_EOP	EQU	2
 CF_DOT_WORD_CDICT_PATH	EQU	(2*FCDICT_TREE_DEPTH)+2
-CF_DOT_WORD_CDICT_XT    EQU	(2*FCDICT_TREE_DEPTH)+4
+CF_DOT_WORD_CDICT_CCNT  EQU	(2*FCDICT_TREE_DEPTH)+4
+CF_DOT_WORD_CDICT_XT    EQU	(2*FCDICT_TREE_DEPTH)+6
 			;Initialize PS
-			PS_CHECK_UFOF	1, (FCDICT_TREE_DEPTH+2);new PSP -> Y
+			PS_CHECK_UFOF	1, (FCDICT_TREE_DEPTH+3);new PSP -> Y
 			STY	PSP
 			;Extract first word (PSP in Y)
 			LEAY	CF_DOT_WORD_CDICT_PATH,Y 	;start of path -> Y
@@ -499,16 +503,20 @@ CF_DOT_WORD_CDICT_1	LSLD
 			FCDICT_NEXT_PATH 			;(SSTACK: 4 bytes)
 			TBNE	D, CF_DOT_WORD_CDICT_1		;compare xts
 			;xt not found
-			PS_CHECK_UF	FCDICT_TREE_DEPTH+3 	;PSP -> Y
-			LEAY	(2*(FCDICT_TREE_DEPTH+1)),Y
+			PS_CHECK_UF	FCDICT_TREE_DEPTH+4 	;PSP -> Y
+			LEAY	(2*(FCDICT_TREE_DEPTH+2)),Y
 			STY	PSP
-			MOVW	#FALSE, 0,Y
+			MOVW	#$0000, 0,Y
 			NEXT
 			;xt found (start of path in Y, end of path in X)
-CF_DOT_WORD_CDICT_2	STX	(CF_DOT_WORD_CDICT_EOP-CF_DOT_WORD_CDICT_PATH),Y
+CF_DOT_WORD_CDICT_2	CLRA	
+			CLRB
+			FCDICT_WORD_LENGTH 			;determine word length
+			STD	(CF_DOT_WORD_CDICT_CCNT-CF_DOT_WORD_CDICT_PATH),Y
+			STX	(CF_DOT_WORD_CDICT_EOP-CF_DOT_WORD_CDICT_PATH),Y
 			STY	(CF_DOT_WORD_CDICT_SOP-CF_DOT_WORD_CDICT_PATH),Y
 			EXEC_CF	CF_FCDICT_PRINT_WORD
-			PS_CHECK_UF	FCDICT_TREE_DEPTH+3 	;PSP -> Y
+			PS_CHECK_UF	FCDICT_TREE_DEPTH+4 	;PSP -> Y
 			LEAY	(2*(FCDICT_TREE_DEPTH+2)),Y
 			STY	PSP
 			MOVW	#TRUE, 0,Y

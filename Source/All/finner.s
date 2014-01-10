@@ -92,7 +92,8 @@ FINNER_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FINNER_INIT, 0
-			MOVW	#NEXT, NEXT_PTR
+			MOVW	#$0000, IP
+			MOVW	#NEXT,  NEXT_PTR
 #emac
 
 ;#Abort action (to be executed in addition of quit and suspend action)
@@ -101,6 +102,7 @@ FINNER_VARS_END_LIN	EQU	@
 	
 ;#Quit action (to be executed in addition of suspend action)
 #macro	FINNER_QUIT, 0
+			MOVW	#$0000, IP
 			MOVW	#NEXT, NEXT_PTR
 #emac
 	

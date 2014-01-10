@@ -86,7 +86,14 @@ DEFAULT_LINE_WIDTH	EQU	80
 ;Common aliases 
 TRUE			EQU	$FFFF
 FALSE			EQU	00000	
-	
+
+;Prompt characters	 
+FOUTER_PROMPT_NVDICT	EQU	"!"
+FOUTER_PROMPT_SUSPEND	EQU	"S"
+FOUTER_PROMPT_INTERPRET	EQU	">"
+FOUTER_PROMPT_COMPILE	EQU	"+"
+
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -1088,18 +1095,34 @@ CF_SUSPEND_RT_10	FEXCPT_THROW	 FEXCPT_EC_UDEFWORD
 ; RS:     1 cells
 ; throws: FEXCPT_EC_PSUF
 CF_DOT_PROMPT		EQU	*
-			;Select the prompt  
-			LDX	#FOUTER_INTERPRET_PROMPT
-			LDD	STATE
-			BEQ	CF_DOT_PROMPT_1
-			LDX	#FOUTER_UCOMP_PROMPT
-			LDD	TDICT
-			BEQ	CF_DOT_PROMPT_1
-			LDX	#FOUTER_NVCOMP_PROMPT	
-CF_DOT_PROMPT_1		PS_PUSH_X 				;push prompt pointer onto the PS
-			;Print the prompt (prompt pointer in [PS+0])
-			JOB	CF_STRING_DOT
-
+			;Print line break 
+			EXEC_CF	CF_CR
+			;Check for NVM compile 
+			LDD	STATE				;check state
+			BEQ	CF_DOT_PROMPT_1			;interpretation state
+			LDD	TDICT				;check target dictionary
+			BEQ	CF_DOT_PROMPT_1			;UDICT selected
+			PS_PUSH	#FOUTER_PROMPT_NVDICT		;print prompt character
+			EXEC_CF	CF_EMIT
+			;Check for SUSPEND 
+CF_DOT_PROMPT_1		LDD	IP 				;check for suspend mode
+			BEQ	CF_DOT_PROMPT_2			;QUIT
+			PS_PUSH	#FOUTER_PROMPT_SUSPEND		;print prompt character
+			EXEC_CF	CF_EMIT
+			;Check for compile state 
+			LDD	STATE				;check state
+			BEQ	CF_DOT_PROMPT_2			;interpretation state
+			PS_PUSH	#FOUTER_PROMPT_COMPILE		;print prompt character
+			EXEC_CF	CF_EMIT
+			JOB	CF_DOT_PROMPT_3			;space
+			;Interpretation state
+CF_DOT_PROMPT_2		PS_PUSH	#FOUTER_PROMPT_INTERPRET	;print prompt character
+			EXEC_CF	CF_EMIT
+			;Print space character
+CF_DOT_PROMPT_3		EXEC_CF	CF_SPACE
+			;Done
+			NEXT
+	
 ;QUERY ( -- ) Query command line input
 ;Make the user input device the input source. Receive input into the terminal
 ;input buffer,mreplacing any previous contents. Make the result, whose address is
@@ -1317,6 +1340,14 @@ CF_INTEGER_4		LDY	PSP
 			MOVW	#$0001, 2,+Y
 			JOB	CF_INTEGER_3
 
+
+
+
+
+
+
+	
+
 	
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@
@@ -1342,10 +1373,6 @@ FOUTER_SYMTAB		EQU	NUM_SYMTAB
 #emac
 	
 ;System prompts
-FOUTER_INTERPRET_PROMPT	FOUTER_PROMPT	"> "
-FOUTER_UCOMP_PROMPT	FOUTER_PROMPT	"+ "
-FOUTER_NVCOMP_PROMPT	FOUTER_PROMPT	"NV+ "
-FOUTER_SKIP_PROMPT	FOUTER_PROMPT	"0 "
 FOUTER_SYSTEM_ACK	FCS		" ok"
 
 FOUTER_TABS_END		EQU	*
@@ -1439,6 +1466,15 @@ CFA_TO_IN		DW	CF_CONSTANT_RT
 CFA_NUMBER_TIB		DW	CF_CONSTANT_RT
 			DW	NUMBER_TIB
 
+;Word: WORDS ( -- )
+;List the definition names in the first word list of the search order. The
+;format of the display is implementation-dependent.
+;WORDS may be implemented using pictured numeric output words. Consequently, its
+;use may corrupt the transient region identified by #>.
+CFA_WORDS		DW	CF_INNER
+			DW	CFA_WORDS_CDICT
+			DW	CFA_EOW
+	
 ;S12CForth Words:
 ;================
 ;Word: QUERY-APPEND ( -- )
@@ -1489,6 +1525,6 @@ CFA_INTEGER		DW	CF_INTEGER
 ;"Parameter stack overflow"
 CFA_TIB_OFFSET		DW	CF_CONSTANT_RT
 			DW	TIB_OFFSET
-
+	
 FOUTER_WORDS_END	EQU	*
 FOUTER_WORDS_END_LIN	EQU	@
