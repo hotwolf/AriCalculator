@@ -23,67 +23,68 @@
 ;#    words.                                                                   #
 ;#                                                                             #
 ;###############################################################################
-;# Generated on Tue, Jan 07 2014                                               #
+;# Generated on Mon, Jan 13 2014                                               #
 ;###############################################################################
 
 ;###############################################################################
 ;# Dictionary Tree Structure                                                   #
 ;###############################################################################
 ;
-; -> #TIB ----------------------> CFA_NUMBER_TIB 
-;    $. ------------------------> CFA_STRING_DOT 
-;    . -------> +---------------> CFA_DOT 
-;    |          PROMPT ---------> CFA_DOT_PROMPT 
-;    |          R --------------> CFA_DOT_R 
+; -> #TIB -------------------------> CFA_NUMBER_TIB 
+;    $. ---------------------------> CFA_STRING_DOT 
+;    . -------> +------------------> CFA_DOT 
+;    |          PROMPT ------------> CFA_DOT_PROMPT 
+;    |          R -----------------> CFA_DOT_R 
 ;    |          
-;    2 -------> D ----> ROP ----> CFA_TWO_DROP 
-;    |          |       UP -----> CFA_TWO_DUP 
+;    2 -------> D ----> ROP -------> CFA_TWO_DROP 
+;    |          |       UP --------> CFA_TWO_DUP 
 ;    |          |       
-;    |          OVER -----------> CFA_TWO_OVER 
-;    |          ROT ------------> CFA_TWO_ROT 
-;    |          SWAP -----------> CFA_TWO_SWAP 
+;    |          OVER --------------> CFA_TWO_OVER 
+;    |          ROT ---------------> CFA_TWO_ROT 
+;    |          SWAP --------------> CFA_TWO_SWAP 
 ;    |          
-;    > -------> IN -------------> CFA_TO_IN 
-;    |          NUMBER ---------> CFA_TO_NUMBER 
+;    > -------> IN ----------------> CFA_TO_IN 
+;    |          NUMBER ------------> CFA_TO_NUMBER 
 ;    |          
-;    BASE ----------------------> CFA_BASE 
-;    C -------> ATCH -----------> CFA_CATCH 
-;    |          R --------------> CFA_CR 
+;    BASE -------------------------> CFA_BASE 
+;    C -------> ATCH --------------> CFA_CATCH 
+;    |          R -----------------> CFA_CR 
 ;    |          
-;    D -------> . ---> +--------> CFA_D_DOT 
-;    |          |      R -------> CFA_D_DOT_R 
+;    D -------> . ---> +-----------> CFA_D_DOT 
+;    |          |      R ----------> CFA_D_DOT_R 
 ;    |          |      
-;    |          ROP ------------> CFA_DROP 
-;    |          UP -------------> CFA_DUP 
+;    |          ROP ---------------> CFA_DROP 
+;    |          UP ----------------> CFA_DUP 
 ;    |          
-;    E -------> KEY -> +--------> CFA_EKEY 
-;    |          |      ? -------> CFA_EKEY_QUESTION 
+;    E -------> KEY -> +-----------> CFA_EKEY 
+;    |          |      ? ----------> CFA_EKEY_QUESTION 
 ;    |          |      
-;    |          MIT ------------> CFA_EMIT 
+;    |          MIT ---------------> CFA_EMIT 
 ;    |          
-;    HEX. ----------------------> CFA_HEX_DOT 
-;    INTEGER -------------------> CFA_INTEGER 
-;    NOP -----------------------> CFA_NOP 
-;    OVER ----------------------> CFA_OVER 
-;    P -------> ARSE -----------> CFA_PARSE 
-;    |          RIO ------------> CFA_PRIO 
+;    HEX. -------------------------> CFA_HEX_DOT 
+;    INTEGER ----------------------> CFA_INTEGER 
+;    NOP --------------------------> CFA_NOP 
+;    OVER -------------------------> CFA_OVER 
+;    P -------> ARSE --------------> CFA_PARSE 
+;    |          RIO ---------------> CFA_PRIO 
 ;    |          
-;    QUERY ---> +---------------> CFA_QUERY 
-;    |          -APPEND --------> CFA_QUERY_APPEND 
+;    QUERY ---> +------------------> CFA_QUERY 
+;    |          -APPEND -----------> CFA_QUERY_APPEND 
 ;    |          
-;    ROT -----------------------> CFA_ROT 
-;    S -------> EARCH-CDICT ----> CFA_SEARCH_CDICT 
-;    |          PACES ----------> CFA_SPACES 
-;    |          TATE -----------> CFA_STATE 
-;    |          WAP ------------> CFA_SWAP 
+;    ROT --------------------------> CFA_ROT 
+;    S -------> EARCH-CDICT -------> CFA_SEARCH_CDICT 
+;    |          PACES -------------> CFA_SPACES 
+;    |          TATE --------------> CFA_STATE 
+;    |          WAP ---------------> CFA_SWAP 
 ;    |          
-;    T -------> DICT -----------> CFA_TDICT 
-;    |          HROW -----------> CFA_THROW 
-;    |          IB-OFFSET ------> CFA_TIB_OFFSET 
+;    T -------> DICT --------------> CFA_TDICT 
+;    |          HROW --------------> CFA_THROW 
+;    |          IB-OFFSET ---------> CFA_TIB_OFFSET 
 ;    |          
-;    U. ------------------------> CFA_U_DOT 
-;    W -------> AIT ------------> CFA_WAIT 
-;               ORDS-CDICT -----> CFA_WORDS_CDICT 
+;    U. ---------------------------> CFA_U_DOT 
+;    W -------> AIT ---------------> CFA_WAIT 
+;               ORDS -> +----------> CFA_WORDS 
+;                       -CDICT ----> CFA_WORDS_CDICT 
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -253,7 +254,14 @@ FCDICT_TREE_17          FCS     "DICT"
 ;Subtree 19 => "W"
 FCDICT_TREE_19          FCS     "AIT"
                         DW      (CFA_WAIT>>1)                   ;-> WAIT
-                        FCS     "ORDS-CDICT"
+                        FCS     "ORDS"
+                        DB      BRANCH
+                        DW      FCDICT_TREE_19_1                ;WORDS...
+                        ;DB     END_OF_BRANCH
+;Subtree 19->1 => "WORDS"
+FCDICT_TREE_19_1        DB      EMPTY_STRING
+                        DW      (CFA_WORDS>>1)                  ;-> WORDS
+                        FCS     "-CDICT"
                         DW      (CFA_WORDS_CDICT>>1)            ;-> WORDS-CDICT
                         DB      END_OF_BRANCH
 #emac

@@ -24,9 +24,8 @@
 ;#                                                                             #
 ;#    The outer interpreter uses these registers:                              #
 ;#          STATE = 0 -> Interpretation state    	       		       #
-;#                 -1 -> Compilation state    		       		       #
-;#          TDICT = 0 -> Compile to UDICT       	       		       #
-;#                 -1 -> Compile ti NVDICT    		       		       #
+;#                  1 -> Compilation state (UDICT)   		       	       #
+;#                  2 -> Compilation state (NVDICT)   		       	       #
 ;#           BASE = Number conversion radix                                    #
 ;#     NUMBER_TIB = Number of chars in the TIB                                 #
 ;#          TO_IN = In-pointer of the TIB (>IN)	       			       #
@@ -85,14 +84,21 @@ DEFAULT_LINE_WIDTH	EQU	80
 
 ;Common aliases 
 TRUE			EQU	$FFFF
-FALSE			EQU	00000	
+FALSE			EQU	$00000	
+
+;STATE variable 
+STATE_INTERPRET		EQU	FALSE
+STATE_COMPILE		EQU	TRUE
+
+;Target dictionary 
+TDICT_UDICT		EQU	$0000
+TDICT_NVDICT		EQU	$FFFF
 
 ;Prompt characters	 
 FOUTER_PROMPT_NVDICT	EQU	"!"
 FOUTER_PROMPT_SUSPEND	EQU	"S"
 FOUTER_PROMPT_INTERPRET	EQU	">"
 FOUTER_PROMPT_COMPILE	EQU	"+"
-
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -105,8 +111,8 @@ FOUTER_VARS_START_LIN	EQU	@
 #endif	
 			ALIGN	1	
 STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
-TDICT			DS	2 		;target dictionary (0:UDICT, -1:NVDICT)
 BASE			DS	2 		;number conversion radix
+TDICT			DS	2 		;target dictionary
 
 NUMBER_TIB  		DS	2		;number of chars in the TIB
 TO_IN  			DS	2		;in pointer of the TIB (TIB_START+TO_IN point to the next empty byte)
@@ -121,12 +127,13 @@ FOUTER_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	FOUTER_INIT, 0
 			LED_BUSY_ON
-			MOVW	#$0000, STATE
-			MOVW	#$0000, TDICT
+			MOVW	#STATE_INTERPRET, STATE
+			MOVW	#TDICT_UDICT, TDICT
 			MOVW	#$0010, BASE
 			MOVW	#$0000, NUMBER_TIB 
 			MOVW	#$0000, TO_IN
 			MOVW	#$0000, TIB_OFFSET
+	
 #emac
 
 ;#Abort action (to be executed in addition of quit and suspend action)
@@ -135,7 +142,7 @@ FOUTER_VARS_END_LIN	EQU	@
 	
 ;#Quit action (to be executed in addition of suspend action)
 #macro	FOUTER_QUIT, 0
-			MOVW	#$0000, STATE
+			MOVW	#STATE_INTERPRET, STATE
 			MOVW	#$0000, NUMBER_TIB
 #emac
 	
@@ -1032,8 +1039,11 @@ CF_QUIT_RT		EQU	*
 CF_SUSPEND_RT		EQU	*
 			;Initialize SUSPEND 
 			FORTH_SUSPEND
-			;Set TIM offset 
-			MOVW	NUMBER_TIB, TIB_OFFSET ;save TIB offset
+			;Set TIM offset
+			LDD	IP 			;check for QUIT
+			BEQ	CF_SUSPEND_RT_1		;QUIT
+			MOVW	NUMBER_TIB, TIB_OFFSET	;save TIB offset
+			RS_PUSH	TIB_OFFSET
 			;Print command line prompt 
 CF_SUSPEND_RT_1		EXEC_CF	CF_DOT_PROMPT
 			;Query command line
@@ -1072,7 +1082,7 @@ CF_SUSPEND_RT_8		FOUTER_INTEGER
 			DBNE	D, CF_SUSPEND_RT_10 	;invalid number
 			;Double cell integer (int in Y:X)
 			LDD	STATE
-			BNE	CF_SUSPEND_RT_2		;parse next word
+			BNE	CF_SUSPEND_RT_11	;compile double cell
 			TFR	Y, D
 			PS_CHECK_OF	2 		;new PSP -> Y
 			STY	PSP
@@ -1081,11 +1091,17 @@ CF_SUSPEND_RT_8		FOUTER_INTEGER
 			JOB	CF_SUSPEND_RT_2		;parse next word
 			;Single cell integer (int in X)
 CF_SUSPEND_RT_9		LDD	STATE
-			BNE	CF_SUSPEND_RT_2		;parse next word
+			BNE	CF_SUSPEND_RT_12 	;compile double cell
 			PS_PUSH_X
 			JOB	CF_SUSPEND_RT_2		;parse next word
 			;Unknown word (or number out of range)
-CF_SUSPEND_RT_10	FEXCPT_THROW	 FEXCPT_EC_UDEFWORD			
+CF_SUSPEND_RT_10	FEXCPT_THROW	 FEXCPT_EC_UDEFWORD
+			;Compile double cell integer (int in Y:X)
+CF_SUSPEND_RT_11	
+
+			;Compile single cell integer (int in X)
+CF_SUSPEND_RT_12	
+			JOB	CF_SUSPEND_RT_2		;parse next word
 
 ;.PROMPT ( -- ) Print the command line prompt
 ; args:   address of a terminated string
@@ -1105,7 +1121,8 @@ CF_DOT_PROMPT		EQU	*
 			PS_PUSH	#FOUTER_PROMPT_NVDICT		;print prompt character
 			EXEC_CF	CF_EMIT
 			;Check for SUSPEND 
-CF_DOT_PROMPT_1		LDD	IP 				;check for suspend mode
+CF_DOT_PROMPT_1		RS_CHECK_UF	1 			;RSP -> X
+			LDD	0,X 				;check for suspend mode
 			BEQ	CF_DOT_PROMPT_2			;QUIT
 			PS_PUSH	#FOUTER_PROMPT_SUSPEND		;print prompt character
 			EXEC_CF	CF_EMIT
