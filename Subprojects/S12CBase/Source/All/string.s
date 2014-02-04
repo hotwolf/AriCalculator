@@ -45,19 +45,22 @@
 ;#    Apr 29, 2010                                                             #
 ;#      - Added macros "STRING_UPPER_B" and "STRING_LOWER_B"                   #
 ;#    Jul 29, 2010                                                             #
-;#      - fixed STRING_SINTCNT                                                 #
+;#      - Fixed STRING_SINTCNT                                                 #
 ;#    July 2, 2012                                                             #
 ;#      - Added support for linear PC                                          #
 ;#      - Added non-blocking functions                                         #
 ;#    June 10, 2013                                                            #
-;#      - turned STRING_UPPER and STRING_LOWER into subroutines                #
-;#      - added STRING_SKIP_WS                                                 #
+;#      - Turned STRING_UPPER and STRING_LOWER into subroutines                #
+;#      - Added STRING_SKIP_WS                                                 #
 ;#    June 11, 2013                                                            #
-;#      - added STRING_LENGTH                                                  #
+;#      - Added STRING_LENGTH                                                  #
 ;#    June 11, 2013                                                            #
-;#      - added STRING_LENGTH                                                  #
+;#      - Added STRING_LENGTH                                                  #
 ;#    October 31, 2013                                                         #
-;#      - replaced STRING_LENGTH by STRING_SKIP_AND_COUNT                      #
+;#      - Replaced STRING_LENGTH by STRING_SKIP_AND_COUNT                      #
+;#    February 5, 2014                                                         #
+;#      - Added #ifdef's for rarely used functions STRING_FILL_BL,             #
+;#        STRING_FILL_NB, STRING_SKIP_WS, and STRING_LOWER                     #
 ;###############################################################################
 	
 ;###############################################################################
@@ -69,6 +72,26 @@
 #ifndef	STRING_BLOCKING_ON
 #ifndef	STRING_BLOCKING_OFF
 STRING_BLOCKING_ON	EQU	1 	;blocking functions enabled by default
+#endif
+#endif
+
+;Enable rarely used subroutines
+;STRING_FILL_BL and STRING_FILL_NB 
+#ifndef	STRING_FILL_ON
+#ifndef	STRING_FILL_OFF
+STRING_BLOCKING_OFF	EQU	1 	;STRING_FILL_BL/STRING_FILL_NB disbled by default
+#endif
+#endif
+;STRING_SKIP_WS 
+#ifndef	STRING_SKIP_WS_ON
+#ifndef	STRING_SKIP_WS_OFF
+STRING_SKIP_WS_OFF	EQU	1 	;STRING_SKIP_WS disbled by default
+#endif
+#endif
+;STRING_LOWER 
+#ifndef	STRING_LOWER_ON
+#ifndef	STRING_LOWER_OFF
+STRING_LOWER_OFF	EQU	1 	;STRING_LOWER disbled by default
 #endif
 #endif
 
@@ -141,25 +164,29 @@ STRING_VARS_END_LIN	EQU	@
 ; result: none
 ; SSTACK: 7 bytes
 ;         X, Y and B are preserved
+#ifdef STRING_FILL_ON	
 #macro	STRING_FILL_NB, 0
 			SSTACK_JOBSR	STRING_FILL_NB, 7
 #emac	
-
+#endif
+	
 ;#Print a number of filler characters - blocking (uncomment if needed)
 ; args:   A: number of characters to be printed
 ;         B: filler character
 ; result: A: $00
 ; SSTACK: 9 bytes
 ;         X, Y and B are preserved
-;#ifdef	STRING_BLOCKING_ON
-;#macro	STRING_FILL_BL, 0
-;			SSTACK_JOBSR	STRING_FILL_BL, 9
-;#emac	
-;#else
-;#macro	STRING_FILL_BL, 0
-;			STRING_CALL_BL	STRING_FILL_NB, 7
-;#emac	
-;#endif
+#ifdef	STRING_FILL_ON
+#ifdef	STRING_BLOCKING_ON
+#macro	STRING_FILL_BL, 0
+			SSTACK_JOBSR	STRING_FILL_BL, 9
+#emac	
+#else
+#macro	STRING_FILL_BL, 0
+			STRING_CALL_BL	STRING_FILL_NB, 7
+#emac	
+#endif
+#endif
 	
 ;#Convert a lower case character to upper case
 ; args:   B: ASCII character (w/ or w/out termination)
@@ -175,9 +202,11 @@ STRING_VARS_END_LIN	EQU	@
 ; result: B: upper case ASCII character
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
-;#macro	STRING_LOWER, 0
-;			SSTACK_JOBSR	STRING_LOWER, 2
-;#emac
+#ifdef STRING_LOWER_ON
+#macro	STRING_LOWER, 0
+			SSTACK_JOBSR	STRING_LOWER, 2
+#emac
+#endif
 
 ;#Make ASCII character printable
 ; args:   B: ASCII character (w/out termination)
@@ -193,9 +222,11 @@ STRING_VARS_END_LIN	EQU	@
 ; result: X;      trimmed string
 ; SSTACK: 3 bytes
 ;         Y and D are preserved 
-;#macro	STRING_SKIP_WS, 0	
-;			SSTACK_JOBSR	STRING_SKIP_WS, 3	
-;#emac
+#ifdef STRING_SKIP_WS_ON
+#macro	STRING_SKIP_WS, 0	
+			SSTACK_JOBSR	STRING_SKIP_WS, 3	
+#emac
+#endif
 	
 ;#Skip string and count characters
 ; args:   X: start of the string
@@ -307,35 +338,39 @@ STRING_PRINT_BL		EQU	*
 ; result: none
 ; SSTACK: 7 bytes
 ;         X, Y and B are preserved
-;STRING_FILL_NB		EQU	*
-;			;Print characters (requested spaces in A)
-;			TBEQ	A, STRING_FILL_NB_2	;nothing to do
-;STRING_FILL_NB_1	JOBSR	SCI_TX_NB		;print character non blocking (SSTACK: 5 bytes)
-;			BCC	STRING_FILL_NB_3	;unsuccessful
-;			DBNE	A, STRING_FILL_NB_1
-;			;Restore registers (remaining spaces in A)
-;STRING_FILL_NB_2	SSTACK_PREPULL	2
-;			;Signal success (remaining spaces in A)
-;			SEC
-;			;Done
-;			RTS
-;			;Restore registers (remaining spaces in A)
-;STRING_FILL_NB_3	SSTACK_PREPULL	2
-;			;Signal failure (remaining spaces in A)
-;			CLC
-;			;Done
-;			RTS
-
+#ifdef STRING_FILL_ON
+STRING_FILL_NB		EQU	*
+			;Print characters (requested spaces in A)
+			TBEQ	A, STRING_FILL_NB_2	;nothing to do
+STRING_FILL_NB_1	JOBSR	SCI_TX_NB		;print character non blocking (SSTACK: 5 bytes)
+			BCC	STRING_FILL_NB_3	;unsuccessful
+			DBNE	A, STRING_FILL_NB_1
+			;Restore registers (remaining spaces in A)
+STRING_FILL_NB_2	SSTACK_PREPULL	2
+			;Signal success (remaining spaces in A)
+			SEC
+			;Done
+			RTS
+			;Restore registers (remaining spaces in A)
+STRING_FILL_NB_3	SSTACK_PREPULL	2
+			;Signal failure (remaining spaces in A)
+			CLC
+			;Done
+			RTS
+#endif
+	
 ;#Print a number of filler characters - blocking (uncomment if needed)
 ; args:   A: number of characters to be printed
 ;         B: filler character
 ; result: A: $00
 ; SSTACK: 9 bytes
 ;         X, Y and B are preserved
-;#ifdef	STRING_BLOCKING_ON
-;STRING_FILL_BL		EQU	*
-;			SCI_MAKE_BL	STRING_FILL_NB, 7	
-;#endif
+#ifdef	STRING_FILL_ON
+#ifdef	STRING_BLOCKING_ON
+STRING_FILL_BL		EQU	*
+			SCI_MAKE_BL	STRING_FILL_NB, 7	
+#endif
+#endif
 
 ;#Convert a lower case character to upper case
 ; args:   B: ASCII character (w/ or w/out termination)
@@ -361,19 +396,21 @@ STRING_UPPER_2		RTS
 ; result: B: upper case ASCII character
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
-;STRING_LOWER		EQU	*
-;			CMPB	#$41		;"A"
-;			BLO	STRING_LOWER_2
-;			CMPB	#$5A		;"Z"
-;			BLS	STRING_LOWER_1
-;			CMPB	#$C1		;"A"+$80
-;			BLO	STRING_LOWER_2
-;			CMPB	#$DA		;"Z"+$80
-;			BHI	STRING_LOWER_2
-;STRING_LOWER_1		ADDB	#$20		;"a"-"A"	
-;			;Done
-;STRING_LOWER_2		RTS
-
+#ifdef STRING_LOWER_ON
+STRING_LOWER		EQU	*
+			CMPB	#$41		;"A"
+			BLO	STRING_LOWER_2
+			CMPB	#$5A		;"Z"
+			BLS	STRING_LOWER_1
+			CMPB	#$C1		;"A"+$80
+			BLO	STRING_LOWER_2
+			CMPB	#$DA		;"Z"+$80
+			BHI	STRING_LOWER_2
+STRING_LOWER_1		ADDB	#$20		;"a"-"A"	
+			;Done
+STRING_LOWER_2		RTS
+#endif 
+	
 ;#Make ASCII character printable
 ; args:   B: ASCII character (w/out termination)
 ; result: B: printable ASCII character or "."
@@ -394,20 +431,22 @@ STRING_PRINTABLE_2	RTS
 ; result: X: trimmed string
 ; SSTACK: 3 bytes
 ;         Y and D are preserved 
-;STRING_SKIP_WS		EQU	*	
-;			;Save registers (string pointer in X)
-;			PSHB				;save B	
-;			;Skip whitespace (string pointer in X)
-;STRING_SKIP_WS_1	LDAB	1,X+ 			;check character
-;			BMI	STRING_SKIP_WS_2	;adjust pointer
-;			CMPB	#$20			;" "
-;			BLS	STRING_SKIP_WS_1  	;check next character
-;STRING_SKIP_WS_2	LEAX	-1,X	
-;			;Restore registers (updated string pointer in X)
-;			SSTACK_PREPULL	3
-;			PULB
-;			;Done
-;			RTS
+#ifdef STRING_SKIP_WS_ON
+STRING_SKIP_WS		EQU	*	
+			;Save registers (string pointer in X)
+			PSHB				;save B	
+			;Skip whitespace (string pointer in X)
+STRING_SKIP_WS_1	LDAB	1,X+ 			;check character
+			BMI	STRING_SKIP_WS_2	;adjust pointer
+			CMPB	#$20			;" "
+			BLS	STRING_SKIP_WS_1  	;check next character
+STRING_SKIP_WS_2	LEAX	-1,X	
+			;Restore registers (updated string pointer in X)
+			SSTACK_PREPULL	3
+			PULB
+			;Done
+			RTS
+#endif
 	
 STRING_CODE_END		EQU	*	
 STRING_CODE_END_LIN	EQU	@	

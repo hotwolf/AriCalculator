@@ -134,15 +134,17 @@
 ;#    April 22, 2010                                                           #
 ;#      - added functions SCI_TBE and SCI_BAUD                                 #
 ;#    June 6, 2010                                                             #
-;#      - changed selection of detectable baud rates                           #
-;#      - stop baud rate detection when receiving a corret character           #
-;#      - stop baud rate detection when manually setting the baud rate         #
+;#      - Changed selection of detectable baud rates                           #
+;#      - Stop baud rate detection when receiving a corret character           #
+;#      - Stop baud rate detection when manually setting the baud rate         #
 ;#    January 2, 2012                                                          #
 ;#      - Mini-BDM-Pod uses XON/XOFF flow control instead of RTS/CTS           #
 ;#    November 14, 2012                                                        #
 ;#      - Total redo                                                           #
 ;#    September 25, 2013                                                       #
 ;#      - Fixed reception of C0 characters                                     #
+;#    February 5, 2014                                                         #
+;#      - Made SCI_TXBUF_SIZE configurable                                     #
 ;###############################################################################
 
 ;###############################################################################
@@ -277,6 +279,10 @@ SCI_BLOCKING_OFF	EQU	1 		;blocking functions disabled by default
 #endif
 #endif
 
+;TX buffer size (minimize to 1 for debugging) 
+;-------------------------------------------- 
+;SCI_TXBUF_SIZE		EQU	  1 		;minimum size of the transmit buffer
+
 ;.MC9S12DP25625 SCI IRQ workaround (MUCts00510)
 ;---------------------------------------------- 
 ;###############################################################################
@@ -335,8 +341,9 @@ SCI_SUSPEND		EQU	$1A 		;ctrl-z (suspend program execution)
 
 ;#Buffer sizes		
 SCI_RXBUF_SIZE		EQU	 16*2		;size of the receive buffer (8 error:data entries)
-;SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
-SCI_TXBUF_SIZE		EQU	  2		;size of the transmit buffer
+#ifndef	SCI_TXBUF_SIZE	
+SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
+#endif
 SCI_RXBUF_MASK		EQU	$1F		;mask for rolling over the RX buffer
 ;SCI_TXBUF_MASK		EQU	$07		;mask for rolling over the TX buffer
 SCI_TXBUF_MASK		EQU	$01		;mask for rolling over the TX buffer
