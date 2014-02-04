@@ -76,6 +76,9 @@ SCI_DLY_OC		EQU	3		;OC3
 SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 
+;# STRING
+STRING_FILL_ON		EQU	1 		;enable STRING_FILL_BL/STRING_FILL_NB
+
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
