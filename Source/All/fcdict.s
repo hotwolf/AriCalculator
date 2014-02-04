@@ -326,8 +326,8 @@ FCDICT_WORD_LENGTH	EQU	*
 			PSHX						;save X
 			ADDD	#1 					;add length of the separator
 			;Count (path pointer in Y, char count in D)
-FCDICT_WORD_LENGTH_1	LDX	2,Y- 					;string pointer -> X
-			BEQ	FCDICT_WORD_LENGTH_2 			;skip null pointers
+FCDICT_WORD_LENGTH_1	LDX	2,Y-					;string pointer -> X
+			BRCLR	0,X, #$FF, FCDICT_WORD_LENGTH_2 	;empty string found
 			STRING_SKIP_AND_COUNT 				;count chars of substring
 FCDICT_WORD_LENGTH_2	CPY	0,SP 					;check path length
 			BHS	FCDICT_WORD_LENGTH_1
@@ -599,11 +599,11 @@ FCDICT_WORDS_START_LIN	EQU	@
 ;the word list identified by wid. If the definition is not found, return zero.
 ;If thedefinition is found, return its execution token xt and one (1) if the
 ;definition is immediate, minus-one (-1) otherwise. 
-CFA_SEARCH_CDICT	DW	CF_SEARCH_CDICT
+;CFA_SEARCH_CDICT	DW	CF_SEARCH_CDICT
 
 ;Word: WORDS-CDICT ( -- )
 ;List the definition names in the core dictionary in alphabetical order.
-CFA_WORDS_CDICT		DW	CF_WORDS_CDICT
+;CFA_WORDS_CDICT	DW	CF_WORDS_CDICT
 	
 FCDICT_WORDS_END	EQU	*
 FCDICT_WORDS_END_LIN	EQU	@

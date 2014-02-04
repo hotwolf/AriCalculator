@@ -53,120 +53,75 @@
 ;# Memory Layout                                                               #
 ;###############################################################################
 ;        
+;                           NVM usage:
 ;      	                    +--------------+--------------+	     
-;    FRAM_DICT_PS_START, -> |              |              | 	     
-;            DICT_START     |       User Dictionary       |	     
-;                           |       User Variables        |	     
+;                           |                             |		  
+;                           |           NVDICT            | PPAGE_MIN		  
+;    	                    |                             |		  
+;      	                    +--------------+--------------+	     
+;                           .                             .          
+;                           .                             .          
+;      	                    +--------------+--------------+	     
+;    	                    |                             |		  
+;                           | NVDICT_FD_EN: NVDICT        | $FD			  
+;                           |         else: Code Space    |	  
+;      	                    +--------------+--------------+	     
+;                           |                             |		  
+;                           | NVDICT_FE_EN: NVDICT        | $FE			  
+;                           |         else: Code Space    |	  
+;      	                    +--------------+--------------+	     
+;                           |                             |		  
+;                           |        Code Space           | $FF		  
+;    	                    |                             |		  
+;                           +--------------+--------------+        
+;        
+;                           NVDICT mapping:
+;      	                    +--------------+--------------+	     
+;            NVDICT_ROOT -> |              |              |
+;            = $8000        |           NVDICT            |	     
 ;                           |              |              |	     
 ;                           |              v              |	     
-;                           | --- --- --- --- --- --- --- |	     
-;                           |                             | <- [CP]  
-;                           | --- --- --- --- --- --- --- |          
-;                           |              ^              | <- [HLD]	     
-;                           |             PAD             |	     
-;                           | --- --- --- --- --- --- --- |          
-;                           |                             | <- [PAD]          
-;                           .                             .          
-;                           .                             .          
-;                           | --- --- --- --- --- --- --- |          
-;                           |              ^              | <- [PSP]	  
-;                           |              |              |		  
-;                           |       Parameter stack       |		  
-;    	                    |              |              |		  
-;                           +--------------+--------------+        
-;      FRAM_DICT_PS_END, ->   
-;              PS_EMPTY 
-;        
-;                           +--------------+--------------+        
-;     FRAM_TIB_RS_START, -> |              |              | |          
-;             TIB_START     |       Text Input Buffer     | | [TIB_CNT]
-;                           |              |              | |	       
-;                           |              v              | <	       
-;                           | --- --- --- --- --- --- --- | 	       
-;                           .                             . <- [TIB_START+TIB_CNT] 
-;                           .                             .            
-;                           | --- --- --- --- --- --- --- |            
-;                           |              ^              | <- [RSP]
-;                           |              |              |
-;                           |        Return Stack         |
-;                           |              |              |
+;                        -+-| --- --- --- --- --- --- --- |
+;                  padding| |                             |
+;                        -+-| --- --- --- --- --- --- --- |
+;                         | |          UDICT_ROOT         |
+;                         | | --- --- --- --- --- --- --- |
+;     n*NVDICT_PHRASE_SIZE| |                             |	  
+;                         | |     Unprogrammed Flash      |
+;                         | |                             |
+;                        -+-+--------------+--------------+   
+;   		  	    
+;                                           Word format:
+;                           +-----------------------------+
+;                     NFA-> |  IMMEDIATE / Previous NFA   |	
 ;                           +--------------+--------------+
-;       FRAM_TIB_RS_END, ->                                 
-;              RS_EMPTY
-
-
-
-;#Common word format:
-; ===================
-;	
-;        +-----------------------------+
-;  NFA-> |         Previous NFA        |	
-;        +--------------+--------------+
-;        |PRE|CFA offset| 
-;        +--------------+   
-;        |              | 
-;        |              | 
-;        |     Name     | 
-;        |              | 
-;        |              | 
-;        +-----------------------------+
-;  CFA-> |       Code Field Address    |	
-;        +--------------+--------------+
-;        |              | 
-;        |              | 
-;        |     Data     | 
-;        |              | 
-;        |              | 
-;        +--------------+   
-;                              
-; args: 1. name of the word
-;       2. previous word entry
-;       3. precedence bit (1:immediate, 0:compile)
-IMMEDIATE	EQU	1
-COMPILE		EQU	0
-#macro	FHEADER, 3
-PREV		DW	\2
-NAME_CNT	DB	((NAME_END-NAME_START)&$7F)|(\3<<7)
-NAME_START	FCS	\1
-		ALIGN	1
-NAME_END	
-#emac	
-
-
-
+;                           |                             | 
+;                           |            Name             | 
+;                           |                             | 
+;                           |              +--------------+ 
+;                           |              |    Padding   | 
+;                           +--------------+--------------+
+;                     CFA-> |       Code Field Address    |	
+;                           +--------------+--------------+
+;                           |                             | 
+;                           |            Data             | 
+;                           |                             | 
+;                           +--------------+--------------+   
+;        
 	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Memory boundaries
-;FRAM_DICT_PS_START	EQU	0	;start of shared DICT/PAD/PS space
-;FRAM_DICT_PS_END	EQU	0	;end of shared DICT/PAD/PS space
-;FRAM_TIB_RS_START	EQU	0	;start of shared TIB/RS space
-;FRAM_TIB_RS_END	EQU	0	;end of shared TIB/RS space
-
-;Safety distance between TIB and RS
-#ifndef FRAM_TIB_RS_DIST
-FRAM_TIB_RS_DIST	EQU	4 	;default is 4 bytes
-#endif
-
-;PAD SIZE
-#ifndef FRAM_PAD_SIZE
-FRAM_PAD_SIZE		EQU	84 	;default is 84 bytes
-#endif
-#ifndef FRAM_PAD_MINSIZE
-FRAM_PAD_MINSIZE	EQU	4 	;default is 4 bytes
-#endif
-	
-;Safety distance between TIB and PS
-#ifndef FRAM_TIB_PS_DIST
-FRAM_PAD_PS_DIST	EQU	16 	;default is 16 bytes
-#endif
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
 ;Memory boundaries
-DICT_START		EQU	FRAM_DICT_PS_START ;start of the dictionary
+NVDICT_START		EQU	$8000			 ;start of the dictionary
+NVDICT_END		EQU	$C000			 ;end of the dictionary
+#ifdef	NVM_PHRASE_SIZE
+NVDICT_PHRASE_SIZE	EQU		
+	
 PS_EMPTY		EQU	FRAM_DICT_PS_END   ;PSP on empty PS
 TIB_START		EQU	FRAM_TIB_RS_START  ;start of the TIB
 RS_EMPTY		EQU	FRAM_TIB_RS_END	   ;RSP on empty RS

@@ -46,8 +46,12 @@
 ;###############################################################################
 ;        
 ;      	                    +--------------+--------------+	     
-;        UDICT_PS_START, -> |              |              | 	     
-;           UDICT_START     |       User Dictionary       |	     
+;         UDICT_PS_START -> |                             | 	     
+;                           |     NVDICT Variables        |	     
+;                           |                             | <- [NVDICT_DP]	     
+;                           | --- --- --- --- --- --- --- |          
+;                           |              |              | <- [UDICT_ROOT]	     
+;                           |       User Dictionary       |	     
 ;                           |       User Variables        |	     
 ;                           |              |              |	     
 ;                           |              v              |	     
@@ -68,42 +72,23 @@
 ;                           +--------------+--------------+        
 ;              PS_EMPTY, ->   
 ;          UDUCT_PS_END
-	
-;#Common word format:
-; ===================
 ;	
-;        +-----------------------------+
-;  NFA-> |         Previous NFA        |	
-;        +--------------+--------------+
-;        |PRE|CFA offset| 
-;        +--------------+   
-;        |              | 
-;        |              | 
-;        |     Name     | 
-;        |              | 
-;        |              | 
-;        +-----------------------------+
-;  CFA-> |       Code Field Address    |	
-;        +--------------+--------------+
-;        |              | 
-;        |              | 
-;        |     Data     | 
-;        |              | 
-;        |              | 
-;        +--------------+   
-;                              
-; args: 1. name of the word
-;       2. previous word entry
-;       3. precedence bit (1:immediate, 0:compile)
-IMMEDIATE	EQU	1
-COMPILE		EQU	0
-#macro	FHEADER, 3
-PREV		DW	\2
-NAME_CNT	DB	((NAME_END-NAME_START)&$7F)|(\3<<7)
-NAME_START	FCS	\1
-		ALIGN	1
-NAME_END	
-#emac	
+;                           Word format:
+;                           +-----------------------------+
+;                     NFA-> |  IMMEDIATE / Previous NFA   |	
+;                           +--------------+--------------+
+;                           |                             | 
+;                           |            Name             | 
+;                           |                             | 
+;                           |              +--------------+ 
+;                           |              |    Padding   | 
+;                           +--------------+--------------+
+;                     CFA-> |       Code Field Address    |	
+;                           +--------------+--------------+
+;                           |                             | 
+;                           |            Data             | 
+;                           |                             | 
+;                           +--------------+--------------+   
 	
 ;###############################################################################
 ;# Configuration                                                               #
@@ -133,16 +118,6 @@ PS_PADDING		EQU	16 	;default is 16 bytes
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;User Dictionary start address
-UDICT_START		EQU	UDICT_PS_START	
-
-;Error codes
-;FUDICT_EC_DICTOF	EQU	FEXCPT_EC_DICTOF	;DICT overflow (-8)
-;FUDICT_EC_PADOF		EQU	FEXCPT_EC_PADOF		;PAD overflow  (-17)
-;FUDICT_EC_PSOF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
-;FUDICT_EC_PSUF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
-;FUDICT_EC_RSOF		EQU	FEXCPT_EC_RSOF		;RS overflow   (-5)
-;FUDICT_EC_RSUF		EQU	FEXCPT_EC_RSUF		;RS underflow  (-6)
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -154,6 +129,7 @@ UDICT_START		EQU	UDICT_PS_START
 FUDICT_VARS_START_LIN	EQU	@
 #endif
 
+UDICT_ROOT		DS	2 	;pointer to the first UDUCT entry 
 CP			DS	2 	;compile pointer (next free space after the dictionary) 
 CP_SAVED		DS	2 	;last compile pointer (before the current compilation)  
 HLD			DS	2	;pointer for pictured numeric output
@@ -198,9 +174,16 @@ FUDICT_VARS_END_LIN	EQU	@
 ;#Suspend action
 #macro	FUDICT_SUSPEND, 0
 #emac
-	
+
 ;#User dictionary (UDICT)
 ;----------------------- 
+
+
+
+
+
+
+
 ;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
 ; args:   1: required space (bytes)
 ; result: X: CP-new bytes
