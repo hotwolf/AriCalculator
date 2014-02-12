@@ -198,7 +198,8 @@ FRS_VARS_END_LIN	EQU	@
 	
 ;RS_PULL_Y: pull one entry from the return stack into index Y
 ; args:   none
-; result: X: RSP
+; result: Y: pulled PS content
+;	  X: RSP
 ; SSTACK: none
 ; throws: FEXCPT_EC_RSUF
 ;        Y and D are preserved 
@@ -208,6 +209,20 @@ FRS_VARS_END_LIN	EQU	@
 			STX		RSP		;			=> 3 cycles
 							;                         ---------
 							;                         14 cycles
+#emac	
+	
+;RS_COPY_Y: copy one entry from the return stack into index Y
+; args:   none
+; result: Y: copied RS content
+;	  X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSUF
+;        Y and D are preserved 
+#macro	RS_COPY_Y, 0	;1:underflow handler  
+			RS_CHECK_UF	1		;check for underflow	=> 8 cycles
+			LDY		0,X		;RS -> X		=> 3 cycles 
+							;                         ---------
+							;                         11 cycles
 #emac	
 	
 ;RS_PUSH: push a variable onto the return stack (RSP -> X)

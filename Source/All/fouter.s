@@ -23,9 +23,6 @@
 ;#    environment.                                                             #
 ;#                                                                             #
 ;#    The outer interpreter uses these registers:                              #
-;#          STATE = 0 -> Interpretation state    	       		       #
-;#                  1 -> Compilation state (UDICT)   		       	       #
-;#                  2 -> Compilation state (NVDICT)   		       	       #
 ;#           BASE = Number conversion radix                                    #
 ;#     NUMBER_TIB = Number of chars in the TIB                                 #
 ;#          TO_IN = In-pointer of the TIB (>IN)	       			       #
@@ -82,24 +79,6 @@ TIB_START		EQU	RS_TIB_START
 ;Default line width 
 DEFAULT_LINE_WIDTH	EQU	80
 
-;Common aliases 
-TRUE			EQU	$FFFF
-FALSE			EQU	$00000	
-
-;STATE variable 
-STATE_INTERPRET		EQU	FALSE
-STATE_COMPILE		EQU	TRUE
-
-;Target dictionary 
-TDICT_UDICT		EQU	$0000
-TDICT_NVDICT		EQU	$FFFF
-
-;Prompt characters	 
-FOUTER_PROMPT_NVDICT	EQU	"!"
-FOUTER_PROMPT_SUSPEND	EQU	"S"
-FOUTER_PROMPT_INTERPRET	EQU	">"
-FOUTER_PROMPT_COMPILE	EQU	"+"
-
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -110,13 +89,12 @@ FOUTER_PROMPT_COMPILE	EQU	"+"
 FOUTER_VARS_START_LIN	EQU	@
 #endif	
 			ALIGN	1	
-STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
 BASE			DS	2 		;number conversion radix
-TDICT			DS	2 		;target dictionary
 
 NUMBER_TIB  		DS	2		;number of chars in the TIB
 TO_IN  			DS	2		;in pointer of the TIB (TIB_START+TO_IN point to the next empty byte)
 TIB_OFFSET  		DS	2		;TIB buffer offset (for nested shells) 
+PROMPT  		DS	2		;Pointer to the prompt string 
 	
 FOUTER_VARS_END		EQU	*
 FOUTER_VARS_END_LIN	EQU	@
@@ -128,12 +106,11 @@ FOUTER_VARS_END_LIN	EQU	@
 #macro	FOUTER_INIT, 0
 			LED_BUSY_ON
 			MOVW	#STATE_INTERPRET, STATE
-			MOVW	#TDICT_UDICT, TDICT
 			MOVW	#$0010, BASE
 			MOVW	#$0000, NUMBER_TIB 
 			MOVW	#$0000, TO_IN
 			MOVW	#$0000, TIB_OFFSET
-	
+			MOVW	#FOUTER_QUIT_PROMPT, PROMPT	
 #emac
 
 ;#Abort action (to be executed in addition of quit and suspend action)
@@ -144,6 +121,7 @@ FOUTER_VARS_END_LIN	EQU	@
 #macro	FOUTER_QUIT, 0
 			MOVW	#STATE_INTERPRET, STATE
 			MOVW	#$0000, NUMBER_TIB
+			MOVW	#$0000, TIB_OFFSET
 #emac
 	
 ;#Suspend action
@@ -159,6 +137,11 @@ FOUTER_VARS_END_LIN	EQU	@
 
 ;#Suspend: Set suspend flag
 #macro	SCI_SUSPEND_ACTION, 0
+			LDD	NEXT_PTR
+			CPD	#SUSPEND_MODE_NEXT
+			BEQ	DONE
+			MOVW	#SUSPEND_SHELL_NEXT,  NEXT_PTR
+DONE			EQU	*
 #emac
 
 ;Functions:
@@ -178,7 +161,7 @@ FOUTER_VARS_END_LIN	EQU	@
 ; result: X: string pointer
 ;	  D: character count
 ; SSTACK: 5 bytes
-;         Y and B are preserved
+;         Y is preserved
 #macro	FOUTER_PARSE, 0
 			SSTACK_JOBSR	FOUTER_PARSE, 5
 #emac
@@ -997,6 +980,96 @@ FOUTER_INTEGER_12	LDAB	[FOUTER_INTEGER_STRPTR,SP]
 FOUTER_INTEGER_13	MOVW	#-1, FOUTER_INTEGER_RET_D,SP
 			JOB	FOUTER_INTEGER_8	
 
+;Search word in dictionary tree
+; args:   Y: dictionary tree pointer
+;         X: string pointer
+;         D: char count 
+; result: C-flag: set if word is in the dictionary	
+;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
+; SSTACK: 16  bytes
+;         X and Y are preserved 
+FOUTER_TREE_SEARCH	EQU	*
+			;Save registers (tree pointer in Y, string pointer in X, char count in D)
+			PSHY						;save Y
+			PSHX						;save X
+			PSHD						;save D	
+			;Compare substring (tree pointer in Y, string pointer in X, char count in D)
+FOUTER_TREE_SEARCH_1	FCDICT_COMP_STRING	FOUTER_TREE_SEARCH_5    ;compare substring (SSTACK: 8 bytes)
+			;Substing matches (tree pointer in Y, string pointer in X, char count in D)
+			BRCLR	0,Y, #$FF, FOUTER_TREE_SEARCH_4 	;branch detected
+			TBNE	D, FOUTER_TREE_SEARCH_7 		;dictionary word too short -> unsuccessful
+			;Search successful (tree pointer in Y, string pointer in X, char count in D)
+FOUTER_TREE_SEARCH_2	SSTACK_PREPULL	8 				;check stack
+			LDD	0,Y 					;get CFA
+			SEC						;flag unsuccessful search
+			PULX						;remove stack entry				
+FOUTER_TREE_SEARCH_3	PULX						;restore X				
+			PULY						;restore Y				
+			;Done
+			RTS		
+			;Branch detected (tree pointer in Y, string pointer in X, char count in D) 
+FOUTER_TREE_SEARCH_4	LDY	1,Y 					;switch to subtree
+			TST	0,Y 					;check for STRING_TERMINATION
+			BNE	FOUTER_TREE_SEARCH_1			;no end of dictionary word reached 
+			LEAY	1,Y 					;skip zero string
+			;Empty substring (tree pointer in Y, string pointer in X, char count in D)
+			TBEQ	D, FOUTER_TREE_SEARCH_2 		;match
+			LEAY	2,Y 					;switch to next sibling
+			JOB	FOUTER_TREE_SEARCH_1			;Parse sibling
+			;Try next sibling (tree pointer in Y, string pointer in X, char count in D)
+FOUTER_TREE_SEARCH_5	RCLR	1,Y+, #$FF, FOUTER_TREE_SEARCH_6	;check for BRANCH
+			LEAY	1,Y					;skip over CFA
+			JOB	FOUTER_TREE_SEARCH_1			;compare next sibling	
+FOUTER_TREE_SEARCH_6	BRCLR	2,+Y, #$FF, FOUTER_TREE_SEARCH_7 	;END_OF_BRANCH -> unsuccessful
+			JOB	FOUTER_TREE_SEARCH_1			;compare next sibling	
+			;Search unsuccessful (tree pointer in Y, string pointer in X, char count in D)
+FOUTER_TREE_SEARCH_7		SSTACK_PREPULL	8 			;check stack
+			CLC						;flag successful search
+			PULD						;restore D				
+			JOB	FOUTER_TREE_SEARCH_3
+
+;Inner interpreter:
+;==================
+;#SUSPEND_MODE_NEXT: Prevent interrupts and nested suspend shells
+; args:	  IP:  pointer to next instruction
+; result: IP:  pointer to subsequent instruction
+;         W/X: new CFA
+;         Y:   IP (=pointer to subsequent instruction)
+; SSTACK: none
+; PS:     none
+; RS:     none
+; throws: none
+;         No registers are preserved
+SUSPEND_MODE_NEXT	EQU	*
+			;Perform standard NEXT
+			JOB	NEXT
+
+;#SUSPEND_SHELL_NEXT: Invoke the suspend shell
+; args:	  IP:  pointer to next instruction
+; result: IP:  pointer to subsequent instruction
+;         W/X: new CFA
+;         Y:   IP (=pointer to subsequent instruction)
+; SSTACK: none
+; PS:     none
+; RS:     none
+; throws: none
+;         No registers are preserved
+SUSPEND_SHELL_NEXT	EQU	*
+			;Check stack requirements
+			
+
+	
+	;Save STATE, PROMPT, and TIB_OFFSET
+
+
+
+
+
+	
+
+
+	
+	
 ;Code fields:
 ;============
 ;ABORT run-time ( i*x -- ) ( R: j*x -- ) 
@@ -1028,24 +1101,16 @@ CF_QUIT_RT		EQU	*
 			;Suspend
 			;JOB	CF_SUSPEND_RT	
 	
-;SUSPEND run-time ( -- )
-;Interprets the input stream, indexed by >IN, until exhausted
-; args:   
-; result:
-; SSTACK: 
-; PS:     
-; RS:     
-; throws: nothing
 CF_SUSPEND_RT		EQU	*
 			;Initialize SUSPEND 
 			FORTH_SUSPEND
-			;Set TIM offset
+			;Set TIB offset
 			LDD	IP 			;check for QUIT
 			BEQ	CF_SUSPEND_RT_1		;QUIT
 			MOVW	NUMBER_TIB, TIB_OFFSET	;save TIB offset
 			RS_PUSH	TIB_OFFSET
 			;Print command line prompt 
-CF_SUSPEND_RT_1		EXEC_CF	CF_DOT_PROMPT
+CF_SUSPEND_RT_1		EXEC_CF	CF_DOT_IPROMPT
 			;Query command line
 			EXEC_CF	CF_QUERY_APPEND
 			;Parse command line
@@ -1059,30 +1124,31 @@ CF_SUSPEND_RT_2		LDAA	#" " 			;use whitespace as delimiter
 			EXEC_CF	CF_STRING_DOT
 			JOB	CF_SUSPEND_RT_1
 			;Search UDICT (string pointer in X, char count in D)
-CF_SUSPEND_RT_3	
+CF_SUSPEND_RT_3		EQU	*
+#ifdef	NVC
+			LDY	NVC
+			BNE	CF_SUSPEND_RT_4
+#endif
+			FUDICT_SEARCH
+			BCS	CF_SUSPEND_RT_5		;execute word	
+#ifdef	NVC
 			;Search NVDICT (string pointer in X, char count in D)
-CF_SUSPEND_RT_4			
+CF_SUSPEND_RT_4		FUDICT_ISEARCH
+			BCS	CF_SUSPEND_RT_5		;execute word	
+#endif
 			;Search CDICT (string pointer in X, char count in D)
-CF_SUSPEND_RT_5		FCDICT_SEARCH
-			BCC	CF_SUSPEND_RT_8		;evaluate string as integer
+			FCDICT_SEARCH
+			BCC	CF_SUSPEND_RT_6		;evaluate string as integer
 			LSLD
-			BCS	CF_SUSPEND_RT_7 	;execute immediate word
-			LDX	STATE
-			BEQ	CF_SUSPEND_RT_7 	;execute word
-			;Compile word (CFA in D)
-CF_SUSPEND_RT_6
-			JOB	CF_SUSPEND_RT_2		;parse next word
 			;Execute word (CFA in D)
-CF_SUSPEND_RT_7		TFR	D, X
+CF_SUSPEND_RT_5 	TFR	D, X
 			EXEC_CFA_X
 			JOB	CF_SUSPEND_RT_2		;parse next word	
 			;Evaluate string as integer (string pointer in X, char count in D) 
-CF_SUSPEND_RT_8		FOUTER_INTEGER
-			DBEQ	D, CF_SUSPEND_RT_9 	;single cell
-			DBNE	D, CF_SUSPEND_RT_10 	;invalid number
+CF_SUSPEND_RT_6		FOUTER_INTEGER
+			DBEQ	D, CF_SUSPEND_RT_7 	;single cell
+			DBNE	D, CF_SUSPEND_RT_8 	;invalid number
 			;Double cell integer (int in Y:X)
-			LDD	STATE
-			BNE	CF_SUSPEND_RT_11	;compile double cell
 			TFR	Y, D
 			PS_CHECK_OF	2 		;new PSP -> Y
 			STY	PSP
@@ -1090,53 +1156,329 @@ CF_SUSPEND_RT_8		FOUTER_INTEGER
 			STX	2,Y
 			JOB	CF_SUSPEND_RT_2		;parse next word
 			;Single cell integer (int in X)
-CF_SUSPEND_RT_9		LDD	STATE
-			BNE	CF_SUSPEND_RT_12 	;compile double cell
-			PS_PUSH_X
+CF_SUSPEND_RT_7		PS_PUSH_X
 			JOB	CF_SUSPEND_RT_2		;parse next word
 			;Unknown word (or number out of range)
-CF_SUSPEND_RT_10	FEXCPT_THROW	 FEXCPT_EC_UDEFWORD
-			;Compile double cell integer (int in Y:X)
-CF_SUSPEND_RT_11	
+CF_SUSPEND_RT_8		FEXCPT_THROW	 FEXCPT_EC_UDEFWORD
 
-			;Compile single cell integer (int in X)
-CF_SUSPEND_RT_12	
-			JOB	CF_SUSPEND_RT_2		;parse next word
 
-;.PROMPT ( -- ) Print the command line prompt
-; args:   address of a terminated string
+
+
+
+
+
+
+
+
+
+
+	
+
+;SHELL ( -- )  Generic interactive shell
+;Framework for any interactive S12CFort shell 
+;Word layout:	
+;   +-------------+
+;   |     CFA     |
+;   +-------------+
+;   |   Prompt    |
+;   +-------------+
+;   | Termination |
+;   +-------------+
+;   |  Subshells  |
+;   +-------------+
+; args:   none
 ; result: none
 ; SSTACK: 8 bytes
 ; PS:     1 cell
-; RS:     1 cells
+; RS:     2 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+			;Save data dointer (pointer to CFA in X)
+CF_SHELL_NOPROMPT	LEAY	2,X
+			RS_PUSH_Y
+			JOB	
+			;Save data dointer (pointer to CFA in X)
+CF_SHELL_PROMPT		EQU	*
+CF_SHELL_1		LEAY	2,X
+			RS_PUSH_Y
+			;Print command line prompt
+			EXEC_CF	CF_CR
+	`		RS_COPY_Y
+			TFR	Y, X
+			PS_PUSH_X
+			EXEC_CF	CF_DOT_STRING
+			;Query command line
+			EXEC_CF	CF_QUERY_APPEND			
+			;Parse command line
+CF_SHELL_2		LDAA	#" " 			;use whitespace as delimiter
+			FOUTER_PARSE
+			TBNE	D, CF_ISHELL_3 		;search dictionaries
+			;Parsing complete
+			MOVW	TIB_OFFSET, NUMBER_TIB 	;clear local TIB segment
+			;Print acknowledge
+			PS_PUSH	#FOUTER_SYSTEM_ACK
+			EXEC_CF	CF_STRING_DOT
+			JOB	CF_ISHELL_1
+			;Check for termination (string pointer in X, char count in D)
+CF_ISHELL_3		RS_COPY_Y
+			LDY	2,Y
+			FCDICT_SEARCH
+			BCS	CF_SHELL_ 		;terminate
+			;Search volatile user dictionary (UDICT) (string pointer in X, char count in D)
+			FUDICT_SEARCH
+			BCS	CF_ISHELL_ 		;word found
+			;Search non-volatile user dictionary (NVDICT) (string pointer in X, char count in D)
+			FNVDICT_SEARCH
+			BCS	CF_ISHELL_ 		;word found
+			;Check for subshell calls (string pointer in X, char count in D)
+CF_ISHELL_3		RS_COPY_Y
+			LDY	4,Y
+			FCDICT_SEARCH
+			BCS	CF_SHELL_ 		;terminate
+
+
+	
+			;Search core dictionary (CDICT) (string pointer in X, char count in D)
+			FNVDICT_SEARCH
+			BCS	CF_ISHELL_
+
+
+
+			;Evaluate string as integer (string pointer in X, char count in D) 
+			FOUTER_INTEGER
+			DBEQ	D, CF_ISHELL_ 	;single cell
+			DBNE	D, CF_ISHELL_ 	;invalid number			
+			;Throw an exception (syntax error)
+			BRA	*
+
+
+
+			;Parse special words: ":" ({1,CFA>>1} in D)
+			CPD	#($8000&(CFA_COLON>>1))
+	
+
+			;Parse special words: ":NONAME" ({1,CFA>>1} in D)
+			CPD	#($8000&(CFA_COLON_NONAME>>1))
+
+
+			;Parse special words: "NV{" ({1,CFA>>1} in D)
+
+
+
+	
+	
+			;Print command line prompt 
+CF_ISHELL_		EXEC_CF	CF_DOT_IPROMPT
+			;Query command line
+			EXEC_CF	CF_QUERY_APPEND
+			;Parse command line
+CF_ISHELL_		LDAA	#" " 			;use whitespace as delimiter
+			FOUTER_PARSE
+			TBNE	D, CF_ISHELL_		;search dictionaries
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+;SUSPEND-SHELL ( -- )  SUSPEND shell
+;Framework for any interactive S12CFort shell 
+; SSTACK: 16 bytes
+; PS:     2 cells
+; RS:     3 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_PSUF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+;         FEXCPT_EC_UDEFWORD
+CF_SUSPEND_SHELL	EQU	*
+			;Check it there is enough RS space available
+
+
+
+
+	
+			;Save state onto RS 
+			RS_CHECK_OF	6
+			LDX	RSP
+			MOVW	STATE		2,X-
+			MOVW	BASE		2,X-
+			MOVW	TIB_OFFSET	2,X-
+			MOVW	TO_IN		2,X-
+			MOVW	PROMPT		2,X-
+			;Initialize SUSPEND shell 
+			FORTH_SUSPEND
+			MOVW	#FOUTER_SUSPEND_PROMPT, PROMPT
+			MOVW	NUMBER_TIB, TIB_OFFSET	;save TIB offset
+
+
+
+
+
+
+	
+			;Retrieve command
+CF_SUSPEND_SHELL_1	CF_EXEC	CF_COMMAND
+			PS_CHECK_UF	2		;PSP -> Y
+			LDD	2,Y+
+			LDX	2,Y+
+			STY	PSP
+			;Search for termination word (string pointer in X, char count in D)
+			LDY	#FOUTER_SUSPEND_TREE
+			FOUTER_TREE_SEARCH
+			BCS	CF_SUSPEND_SHELL_	;termination word found	
+			;Search CDICT (string pointer in X, char count in D)
+			FCDICT_SEARCH
+			BCS	CF_SUSPEND_SHELL_	;word found	
+			;Evaluate string as integer (string pointer in X, char count in D) 
+			FOUTER_INTEGER
+			DBEQ	D, CF_QUIT_SHELL_2 	;single cell
+			DBEQ	D, CF_QUIT_SHELL_3 	;double number
+			;Unknown word (or number out of range)
+			FEXCPT_THROW	 FEXCPT_EC_UDEFWORD
+			;Single cell integer (int in X)
+CF_QUIT_SHELL_2		PS_PUSH_X
+			JOB	CF_QUIT_SHELL_1		;parse next word			
+			;Double cell integer (int in Y:X)
+CF_QUIT_SHELL_3		TFR	Y, D
+			PS_CHECK_OF	2 		;new PSP -> Y
+			STY	PSP
+			STD	0,Y
+			STX	2,Y
+			JOB	CF_QUIT_SHELL_1		;parse next word			
+			;Execute word (CFA>>1 in D)
+CF_QUIT_SHELL_4		LSLD
+			TFR	D, X
+			EXEC_CFA_X				
+			JOB	CF_QUIT_SHELL_1		;parse next word			
+
+	
+;ABORT-SHELL ( -- )  ABORT shell
+;Framework for any interactive S12CFort shell 
+; SSTACK: 16 bytes
+; PS:     2 cells
+; RS:     3 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_PSUF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+;         FEXCPT_EC_UDEFWORD
+CF_ABORT_SHELL		EQU	*
+			;Initialize ABORT shell 
+			FORTH_ABORT
+			;JOB	CF_QUIT_SHELL	
+
+;QUIT-SHELL ( -- )  QUIT shell
+;Framework for any interactive S12CFort shell 
+; SSTACK: 16 bytes
+; PS:     2 cells
+; RS:     3 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_PSUF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+;         FEXCPT_EC_UDEFWORD
+CF_QUIT_SHELL		EQU	*
+			;Initialize QUIT shell 
+			FORTH_QUIT
+			FORTH_SUSPEND
+			MOVW	#FOUTER_QUIT_PROMPT, PROMPT
+			;Retrieve command
+CF_QUIT_SHELL_1		CF_EXEC	CF_COMMAND
+			PS_CHECK_UF	2		;PSP -> Y
+			LDD	2,Y+
+			LDX	2,Y+
+			STY	PSP
+			;Search UDICT (string pointer in X, char count in D)
+			FUDICT_SEARCH
+			BCS	CF_QUIT_SHELL_4		;word found	
+			;Search NVDICT (string pointer in X, char count in D)
+			FNVDICT_SEARCH
+			BCS	CF_QUIT_SHELL_4		;word found	
+			;Search for special commands (string pointer in X, char count in D)
+			LDY	#FOUTER_QUIT_TREE
+			FOUTER_TREE_SEARCH
+			BCS	CF_QUIT_SHELL_4		;special word found	
+			;Search CDICT (string pointer in X, char count in D)
+			FCDICT_SEARCH
+			BCS	CF_QUIT_SHELL_4		;word found	
+			;Evaluate string as integer (string pointer in X, char count in D) 
+			FOUTER_INTEGER
+			DBEQ	D, CF_QUIT_SHELL_2 	;single cell
+			DBEQ	D, CF_QUIT_SHELL_3 	;double number
+			;Unknown word (or number out of range)
+			FEXCPT_THROW	 FEXCPT_EC_UDEFWORD
+			;Single cell integer (int in X)
+CF_QUIT_SHELL_2		PS_PUSH_X
+			JOB	CF_QUIT_SHELL_1		;parse next word			
+			;Double cell integer (int in Y:X)
+CF_QUIT_SHELL_3		TFR	Y, D
+			PS_CHECK_OF	2 		;new PSP -> Y
+			STY	PSP
+			STD	0,Y
+			STX	2,Y
+			JOB	CF_QUIT_SHELL_1		;parse next word			
+			;Execute word (CFA>>1 in D)
+CF_QUIT_SHELL_4		LSLD
+			TFR	D, X
+			EXEC_CFA_X				
+			JOB	CF_QUIT_SHELL_1		;parse next word			
+
+;COMMAND ( -- c-addr u)
+;Retrive a string from the command line input. c-addr and u are the location and
+;the length of the resulting string.
+; args:   PROMPT:     pointer to the prompt string
+;         NUMBER_TIB: TIB index   
+;         TIB_OFFSET: TIB offset for subshells   
+; result: c-addr:     pointer to the command string
+;         u:          length of the command string
+; SSTACK: 5 bytes
+; PS:     2 cells
+; RS:     2 cells
+; throws: nothing
+CF_COMMAND		EQU	*
+			;Check PS availability 
+CF_COMMAND_1		PS_CHECK_OF	2 		;new PSP -> Y
+			;Parse command line (new PSP in Y)
+			LDAA	#" " 			;use whitespace as delimiter
+			FOUTER_PARSE
+			TBNE	D, CF_COMMAND_2		;parsing was successful
+			;Parsing was unsuccessful
+			MOVW	TIB_OFFSET, NUMBER_TIB 	;clear local TIB segment
+			;Print command line prompt 
+			EXEC_CF	CF_DOT_PROMPT
+			;Query command line
+			EXEC_CF	CF_QUERY_APPEND
+			JOB	CF_COMMAND_1			
+			;Parsing was unsuccessful (new PSP in Y, string pointer in X, char count in D))
+CF_COMMAND_2		STY	PSP 			;reserve space on PS
+			STX	2,Y			;return c-addr
+			STD	0,Y			;return u
+			;Done
+			NEXT
+
+;.PROMPT ( -- ) Print the interpretation prompt
+; args:   PROMPT: pointer to the prompt string
+; result: none
+; SSTACK: 8 bytes
+; PS:     1 cell
+; RS:     1 cell
 ; throws: FEXCPT_EC_PSUF
 CF_DOT_PROMPT		EQU	*
 			;Print line break 
 			EXEC_CF	CF_CR
-			;Check for NVM compile 
-			LDD	STATE				;check state
-			BEQ	CF_DOT_PROMPT_1			;interpretation state
-			LDD	TDICT				;check target dictionary
-			BEQ	CF_DOT_PROMPT_1			;UDICT selected
-			PS_PUSH	#FOUTER_PROMPT_NVDICT		;print prompt character
-			EXEC_CF	CF_EMIT
-			;Check for SUSPEND 
-CF_DOT_PROMPT_1		RS_CHECK_UF	1 			;RSP -> X
-			LDD	0,X 				;check for suspend mode
-			BEQ	CF_DOT_PROMPT_2			;QUIT
-			PS_PUSH	#FOUTER_PROMPT_SUSPEND		;print prompt character
-			EXEC_CF	CF_EMIT
-			;Check for compile state 
-			LDD	STATE				;check state
-			BEQ	CF_DOT_PROMPT_2			;interpretation state
-			PS_PUSH	#FOUTER_PROMPT_COMPILE		;print prompt character
-			EXEC_CF	CF_EMIT
-			JOB	CF_DOT_PROMPT_3			;space
-			;Interpretation state
-CF_DOT_PROMPT_2		PS_PUSH	#FOUTER_PROMPT_INTERPRET	;print prompt character
-			EXEC_CF	CF_EMIT
-			;Print space character
-CF_DOT_PROMPT_3		EXEC_CF	CF_SPACE
+			;Print prompt string
+			PS_PUSH	PROMPT				
+			EXEC_CF	CF_DOT_STRING
 			;Done
 			NEXT
 	
@@ -1171,7 +1513,7 @@ CF_QUERY		EQU	*
 ;         FEXCPT_EC_COMERR
 CF_QUERY_APPEND		EQU	*
 			;Print prompt
-			;EXEC_CF	CF_DOT_PROMPT
+			;EXEC_CF	CF_DOT_IPROMPT
 			;Setup input buffer
 			MOVW	NUMBER_TIB, TO_IN
 			;Receive input
@@ -1356,15 +1698,6 @@ CF_INTEGER_3		STY	PSP
 CF_INTEGER_4		LDY	PSP
 			MOVW	#$0001, 2,+Y
 			JOB	CF_INTEGER_3
-
-
-
-
-
-
-
-	
-
 	
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@
@@ -1382,16 +1715,40 @@ FOUTER_TABS_START_LIN	EQU	@
 ;Symbol tables
 FOUTER_SYMTAB		EQU	NUM_SYMTAB
 	
-;Prompt string definition format
-; args:   1: P
-#macro	FOUTER_PROMPT, 1
-			STRING_NL_NONTERM
-			FCS	\1
-#emac
-	
 ;System prompts
-FOUTER_SYSTEM_ACK	FCS		" ok"
+FOUTER_SUSPEND_PROMPT	FCC	"S"
+FOUTER_QUIT_PROMPT	FCS	"> "
+FOUTER_SYSTEM_ACK	FCS	" ok"
 
+
+FOUTER_TREE_EOB		EQU	$00 	;end of branch
+FOUTER_TREE_BI		EQU	$00 	;branch indicator
+FOUTER_TREE_ES		EQU	$00 	;empty string
+	
+;Special words of QUIT shell
+; -> : +-------------------------> CF_QUIT_COLON
+;    | NONAME -------------------> CF_QUIT_COLON_NONAME 
+;    NV{ ------------------------> CF_NV_SHELL 
+FOUTER_QUIT_TREE	FCS     ":"
+                        DB      FOUTER_TREE_BI
+			DW      FOUTER_QUIT_TREE_1
+#ifdef	CFA_NV_SHELL	
+			FCS     "NV{"
+			DW      (CFA_NV_SHELL>>1)
+#endif
+                        DB      FOUTER_TREE_EOB
+FOUTER_QUIT_TREE_1	DB      FOUTER_TREE_ES
+                        DW      (CFA_QUIT_COLON>>1)
+                        FCS     "NONAME"
+                        DW      (CF_QUIT_COLON_NONAME>>1)
+                        DB      FOUTER_TREE_EOB
+	
+;Special words of SUSPEND shell
+; -> RESUME --------------------> CF_SUSPEND_RESUME
+FOUTER_SUSPEND_TREE	FCS    "RESUME"
+                        DW	$FFFF 		;any non-zero value
+                        DB      FOUTER_TREE_EOB
+	
 FOUTER_TABS_END		EQU	*
 FOUTER_TABS_END_LIN	EQU	@
 
@@ -1443,19 +1800,6 @@ CFA_PARSE		DW	CF_PARSE
 ;"Parameter stack underflow"
 CFA_TO_NUMBER		DW	CF_TO_NUMBER
 	
-;Word: STATE ( -- a-addr ) 
-;a-addr is the address of a cell containing the compilation-state flag. STATE is
-;true when in compilation state, false otherwise.  The true value in STATE is
-;non-zero. Only the following standard words alter the value in STATE:
-; : (colon), ; (semicolon), ABORT, QUIT, :NONAME, [ (left-bracket), and
-; ] (right-bracket). 
-;  Note:  A program shall not directly alter the contents of STATE. 
-;
-;Throws:
-;"Parameter stack overflow"
-CFA_STATE		DW	CF_CONSTANT_RT
-			DW	STATE
-
 ;Word: BASE ( -- a-addr ) 
 ;a-addr is the address of a cell containing the current number-conversion radix
 ;{{2...36}}. 
@@ -1517,12 +1861,12 @@ CFA_QUERY_APPEND	DW	CF_QUERY_APPEND
 CFA_TDICT		DW	CF_CONSTANT_RT
 			DW	TDICT
 
-;Word: .PROMPT ( -- )
-;Print the command line prompt (interpretation or compilation)
+;Word: .IPROMPT ( -- )
+;Print the interpretation prompt
 ;
 ;Throws:
 ;"Parameter stack overflow"
-CFA_DOT_PROMPT		DW	CF_DOT_PROMPT
+CFA_DOT_IPROMPT		DW	CF_DOT_IPROMPT
 	
 ;Word: INTEGER ( c-addr u -- d s | n 1 | 0)
 ;Interpret string as integer value and return a single or double cell number

@@ -135,9 +135,10 @@ FCDICT_COMP_STRING_5	SSTACK_PREPULL	6 				;restore stack
 ; result: C-flag: set if word is in the dictionary	
 ;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
 ; SSTACK: 16 bytes
-;         Y and Y are preserved 
+;         X is are preserved 
 #macro	FCDICT_SEARCH, 0
-			SSTACK_JOBSR	FCDICT_SEARCH, 16
+			LDYT		#FCDICT_TREE
+			SSTACK_JOBSR	FOUTER_TREE_SEARCH, 16
 #emac
 
 ;Extract path (word) in dictionary
@@ -184,55 +185,6 @@ FCDICT_COMP_STRING_5	SSTACK_PREPULL	6 				;restore stack
 			ORG 	FCDICT_CODE_START
 FCDICT_CODE_START_LIN	EQU	@
 #endif
-
-;Search word in dictionary
-; args:   X: string pointer
-;         D: char count 
-; result: C-flag: set if word is in the dictionary	
-;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
-; SSTACK: 16  bytes
-;         X and Y are preserved 
-FCDICT_SEARCH		EQU	*
-			;Save registers (string pointer in X, char count in D)
-			PSHY						;save Y
-			PSHX						;save X
-			PSHD						;save D	
-			;Set dictionary tree pointer (string pointer in X, char count in D)
-			LDY	#FCDICT_TREE
-			;Compare substring (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_1		FCDICT_COMP_STRING	FCDICT_SEARCH_5    	;compare substring (SSTACK: 8 bytes)
-			;Substing matches (tree pointer in Y, string pointer in X, char count in D)
-			BRCLR	0,Y, #$FF, FCDICT_SEARCH_4 		;branch detected
-			TBNE	D, FCDICT_SEARCH_7 			;dictionary word too short -> unsuccessful
-			;Search successful (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_2		SSTACK_PREPULL	8 				;check stack
-			LDD	0,Y 					;get CFA
-			SEC						;flag unsuccessful search
-			PULX						;remove stack entry				
-FCDICT_SEARCH_3		PULX						;restore X				
-			PULY						;restore Y				
-			;Done
-			RTS		
-			;Branch detected (tree pointer in Y, string pointer in X, char count in D) 
-FCDICT_SEARCH_4		LDY	1,Y 					;switch to subtree
-			TST	0,Y 					;check for STRING_TERMINATION
-			BNE	FCDICT_SEARCH_1				;no end of dictionary word reached 
-			LEAY	1,Y 					;skip zero string
-			;Empty substring (tree pointer in Y, string pointer in X, char count in D)
-			TBEQ	D, FCDICT_SEARCH_2 			;match
-			LEAY	2,Y 					;switch to next sibling
-			JOB	FCDICT_SEARCH_1				;Parse sibling
-			;Try next sibling (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_5		BRCLR	1,Y+, #$FF, FCDICT_SEARCH_6		;check for BRANCH
-			LEAY	1,Y					;skip over CFA
-			JOB	FCDICT_SEARCH_1				;compare next sibling	
-FCDICT_SEARCH_6		BRCLR	2,+Y, #$FF, FCDICT_SEARCH_7 		;END_OF_BRANCH -> unsuccessful
-			JOB	FCDICT_SEARCH_1				;compare next sibling	
-			;Search unsuccessful (tree pointer in Y, string pointer in X, char count in D)
-FCDICT_SEARCH_7		SSTACK_PREPULL	8 				;check stack
-			CLC						;flag successful search
-			PULD						;restore D				
-			JOB	FCDICT_SEARCH_3
 
 ;Find next path (word) in dictionary
 ; args:   Y: start of path

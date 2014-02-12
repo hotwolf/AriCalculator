@@ -19,15 +19,23 @@
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module implements the user dictionary, user variables, and the PAD. #
+;#    This module implements the volatile user dictionary, user variables, and #
+;#    the PAD.                                                                 #
 ;#                                                                             #
 ;#    The following registers are implemented:                                 #
+;#          STATE = 0 -> Interpretation state    	       		       #
+;#                 -1 -> Compilation state     		       	               #
 ;#             CP = Compile pointer                                            #
 ;#                  Points to the next free space after the dictionary         #
 ;#            PAD = Beginning of the PAD buffer 			       #
 ;#                  Points to the next byte after the PAD		       #
 ;#            HLD = Pointer for pictured numeric output			       #
 ;#                  Points to the first character on the PAD                   #
+;#                                                                             #
+;#    Compile strategy:                                                        #
+;#    The user dictionary is 16-bit aligned and is allocated below the NVDICT  #
+;#    variables. Both data and compile pointer are represented by the variable #
+;#    CP.                                                                      #
 ;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -48,12 +56,12 @@
 ;      	                    +--------------+--------------+	     
 ;         UDICT_PS_START -> |                             | 	     
 ;                           |     NVDICT Variables        |	     
-;                           |                             | <- [NVDICT_DP]	     
+;                           |                             | <- [DP]	     
 ;                           | --- --- --- --- --- --- --- |          
-;                           |              |              | <- [UDICT_ROOT]	     
+;                           |              |              |	     
 ;                           |       User Dictionary       |	     
 ;                           |       User Variables        |	     
-;                           |              |              |	     
+;                           |              |              | <- [UDICT_LAST_NFA]	     
 ;                           |              v              |	     
 ;                       -+- | --- --- --- --- --- --- --- |
 ;             UDICT_PADDING |                             | <- [CP]	     
@@ -118,7 +126,18 @@ PS_PADDING		EQU	16 	;default is 16 bytes
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;STATE variable 
+STATE_INTERPRET		EQU	FALSE
+STATE_COMPILE		EQU	TRUE
+
+;NVC variable 
+NVC_VOLATILE		EQU	FALSE
+NVC_NON_VOLATILE	EQU	TRUE
 	
+;Prompt characters	 
+FUDICT_PRCHAR_NVC	EQU	FOUTER_PRCHAR_NVC
+FUDICT_PRCHAR_SUSPEND	EQU	FOUTER_PRCHAR_SUSPEND
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -129,11 +148,12 @@ PS_PADDING		EQU	16 	;default is 16 bytes
 FUDICT_VARS_START_LIN	EQU	@
 #endif
 
-UDICT_ROOT		DS	2 	;pointer to the first UDUCT entry 
-CP			DS	2 	;compile pointer (next free space after the dictionary) 
-CP_SAVED		DS	2 	;last compile pointer (before the current compilation)  
+			ALIGN	1	
+STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
+CP			DS	2 	;compile pointer (next free space in the dictionary space) 
 HLD			DS	2	;pointer for pictured numeric output
 PAD                     DS	2	;end of the PAD buffer
+UDICT_LAST_NFA		DS	2 	;pointer to the most recent NFA of the UDICT
 
 FUDICT_VARS_END		EQU	*
 FUDICT_VARS_END_LIN	EQU	@
@@ -143,7 +163,12 @@ FUDICT_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FUDICT_INIT, 0
-			;Initialize dictionary
+#ifndef FNVDICT_INFO
+			;Initialize the compile data pointer
+			MOVW	#UDICT_PS_START, CP
+	
+	
+			MOVW	$#0000, UDICT_LAST_NFA
 			LDD	#UDICT_START
 			STD	CP
 			STD	CP_SAVED
@@ -152,15 +177,6 @@ FUDICT_VARS_END_LIN	EQU	@
 			STD	PAD 		;Pad is allocated on demand
 			STD	HLD
 
-			;Initialize parameter stack
-			MOVW	#PS_EMPTY,	PSP	
-	
-			;Initialize TIB
-			MOVW	#(TIB_START-1),   TO_IN
-			MOVW	#$0000,   	NUMBER_TIB
-
-			;Initialize return stack
-			MOVW	#PS_EMPTY,	PSP	
 #emac
 
 ;#Abort action (to be executed in addition of quit and suspend action)
@@ -177,13 +193,6 @@ FUDICT_VARS_END_LIN	EQU	@
 
 ;#User dictionary (UDICT)
 ;----------------------- 
-
-
-
-
-
-
-
 ;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
 ; args:   1: required space (bytes)
 ; result: X: CP-new bytes
@@ -283,6 +292,26 @@ FUDICT_VARS_END_LIN	EQU	@
 FUDICT_CODE_START_LIN	EQU	@
 #endif
 
+
+;Search word in dictionary
+; args:   X: string pointer
+;         D: char count 
+; result: C-flag: set if word is in the dictionary	
+;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
+; SSTACK: 16  bytes
+;         X and Y are preserved 
+FUDICT_SEARCH		EQU	*
+
+
+
+
+
+
+
+
+
+
+	
 ;PAD_ALLOC: allocate the PAD buffer (PAD_SIZE bytes if possible) (PAD -> D)
 ; args:   none
 ; result: D: PAD (= HLD), $0000 if no space is available
@@ -314,6 +343,53 @@ FUDICT_PAD_ALLOC_3	CPD	#(PAD_MINSIZE+PS_PADDING)
 FUDICT_PAD_ALLOC_4	LDD 	$0000 			;signal failure
 			JOB	FUDICT_PAD_ALLOC_2	;done
 
+
+;Code fields:
+;============
+
+
+
+
+
+
+
+
+
+
+
+
+	
+;.CPROMPT ( -- ) Print the interpretation prompt
+; args:   none
+; result: none
+; SSTACK: 8 bytes
+; PS:     1 cell
+; RS:     1 cells
+; throws: FEXCPT_EC_PSUF
+CF_DOT_CPROMPT		EQU	*
+			;Print line break 
+			EXEC_CF	CF_CR
+#ifdef	NVC
+			;Check for NVM compile 
+			LDD	NVC				;check non-volatile compile flag
+			BEQ	CF_DOT_CPROMPT_1		;volatile compile
+			PS_PUSH	#FOUTER_PRCHAR_NVC		;print prompt character
+			EXEC_CF	CF_EMIT
+CF_DOT_CPROMPT_1	EQU	*
+#endif
+;			;Check for SUSPEND 
+;			LDD	IP				;check instruction pointer
+;			BEQ	CF_DOT_CPROMPT_2		;QUIT shell
+;			PS_PUSH	#FOUTER_PRCHAR_SUSPEND		;print prompt character
+;			EXEC_CF	CF_EMIT
+			;Print interpretation prompt
+			PS_PUSH	#FOUTER_CPROMPT			;print prompt string
+			;Done
+			NEXT
+	
+
+;Error handlers:
+;===============
 ;#Dictionary overflow handler
 FUDICT_DICTOF_HANDLER	EQU	*
 			;FEXCPT_THROW	FMEM_EC_DICTOF
@@ -338,7 +414,7 @@ RAM_RSOF_HANDLER	EQU	*
 FUDICT_RSUF_HANDLER	EQU	*
 			;FEXCPT_THROW	FMEM_EC_RSUF
 			BGND
-	
+
 FUDICT_CODE_END		EQU	*
 FUDICT_CODE_END_LIN	EQU	@
 
@@ -351,6 +427,9 @@ FUDICT_CODE_END_LIN	EQU	@
 			ORG 	FUDICT_TABS_START
 FUDICT_TABS_START_LIN	EQU	@
 #endif	
+
+;System prompts
+FUDICT_CPROMPT		FCS	"+ "
 
 FUDICT_TABS_END		EQU	*
 FUDICT_TABS_END_LIN	EQU	@
@@ -365,6 +444,30 @@ FUDICT_TABS_END_LIN	EQU	@
 FUDICT_WORDS_START_LIN	EQU	@
 #endif	
 
-FUDICT_WORDS_END		EQU	*
+;#ANSForth Words:
+;================
+;Word: STATE ( -- a-addr ) 
+;a-addr is the address of a cell containing the compilation-state flag. STATE is
+;true when in compilation state, false otherwise. The true value in STATE is
+;non-zero. Only the following standard words alter the value in STATE:
+; : (colon), ; (semicolon), ABORT, QUIT, :NONAME, [ (left-bracket), and
+; ] (right-bracket). 
+;  Note:  A program shall not directly alter the contents of STATE. 
+;
+;Throws:
+;"Parameter stack overflow"
+CFA_STATE		DW	CF_CONSTANT_RT
+			DW	STATE
+
+;S12CForth Words:
+;================
+;Word: .CPROMPT ( -- )
+;Print the compilation prompt
+;
+;Throws:x
+;"Parameter stack overflow"
+CFA_DOT_CPROMPT		DW	CF_DOT_CPROMPT
+	
+FUDICT_WORDS_END	EQU	*
 FUDICT_WORDS_END_LIN	EQU	@
 

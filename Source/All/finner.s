@@ -70,6 +70,9 @@
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;Common aliases 
+TRUE			EQU	$FFFF
+FALSE			EQU	$00000	
 						    
 ;###############################################################################
 ;# Variables                                                                   #
@@ -179,13 +182,50 @@ CF_RESUME		EQU	*
 			RS_PULL IP 			;RS -> IP
 #emac
 
-;Execute a CFA directly from assembler code
-; args:   X: CFA
+;Execute a CF directly from assembler code
+; args:   X: CF
 ; result: see CF
 ; SSTACK: none
 ; PS:     see CF
 ; RS:     1+CF usage
-; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CF)
+; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CF )
+;         No registers are preserved
+#macro	EXEC_CF_X, 0
+			RS_PUSH_KEEP_X IP		;IP -> RS
+			MOVW	#IP_RESUME, IP 		;set next IP
+			JMP	0,X 			;execute CF
+IP_RESUME		DW	CFA_RESUME
+CFA_RESUME		DW	CF_RESUME
+CF_RESUME		EQU	*
+			RS_PULL IP 			;RS -> IP
+#emac
+
+;Execute a CFA directly from assembler code
+; args:   1: CFA
+; result: see CFA
+; SSTACK: none
+; PS:     see CFA
+; RS:     1+CF usage
+; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CFA)
+;         No registers are preserved
+#macro	EXEC_CFA, 1
+			RS_PUSH IP			;IP -> RS
+			MOVW	#IP_RESUME, IP 		;set next IP
+			LDX	#\1
+			JMP	[0,X]			;execute CF
+IP_RESUME		DW	CFA_RESUME
+CFA_RESUME		DW	CF_RESUME
+CF_RESUME		EQU	*
+			RS_PULL IP 			;RS -> IP
+#emac
+	
+;Execute a CFA directly from assembler code
+; args:   X: CFA
+; result: see CFA
+; SSTACK: none
+; PS:     see CFA
+; RS:     1+CF usage
+; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CFA)
 ;         No registers are preserved
 #macro	EXEC_CFA_X, 0
 			RS_PUSH_KEEP_X IP		;IP -> RS
@@ -248,6 +288,10 @@ JUMP_NEXT		EQU	*
 							;                   NEXT: 15 cycles
 							;                         ---------
 							;                         30 cycles
+
+;Code fields:
+;============ 	
+
 	
 ;#NEXT:	jump to the next instruction
 ; args:	  IP:   pointer to next instruction
