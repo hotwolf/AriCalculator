@@ -233,6 +233,22 @@ FPS_VARS_END_LIN	EQU	@
 							;  --------------------
 							;  16 cycles/ 18 cycles
 #emac
+
+;PS_REQUIRE: check if there is room for a number of stack entries (PSP-new cells -> Y)
+; args:   1: required stack space (cells)
+;         2: branch address is requirement is not fulfilled
+; result: Y: PSP-new cells
+; SSTACK: none
+; throws: FEXCPT_EC_PSOF
+;        X and D are preserved 
+#macro	PS_REQUIRE, 2
+			LDY	PSP 			;=> 3 cycles
+			LEAY	-(2*\1),Y		;=> 2 cycles
+			CPY	PAD			;=> 3 cycles
+			BLO	\2			;=> 3 cycle / 4 cycles
+							;  -------------------
+							;  11 cycles/ 12 cycles
+#emac
 	
 ;PS_PULL_X: Pull one entry from the parameter stack into index X (PSP -> Y)
 ; args:   none

@@ -131,7 +131,7 @@ FRS_VARS_END_LIN	EQU	@
 #macro	RS_RESET, 0
 			MOVW	#RS_EMPTY,	RSP	
 #emac
-
+	
 ;RS_CHECK_UF: check for a minimum number of stack entries (RSP -> X)
 ; args:   1: required stack content (cells)
 ; result: X: RSP
@@ -180,6 +180,22 @@ FRS_VARS_END_LIN	EQU	@
 							;  -------------------
 							;  11 cycles/12 cycles
 #endif
+#emac
+
+;RS_REQUIRE: check if there is room for a number of stack entries (X modified)
+; args:   1: required stack space (cells)
+;         2: branch address is requirement is not fulfilled
+; result: none
+; SSTACK: none
+; throws: FEXCPT_EC_RSOF
+;        Y and D are preserved 
+#macro	RS_REQUIRE, 2
+			LDX	NUMBER_TIB		;=> 3 cycles
+			LEAX	(TIB_START+(2*\1)),X	;=> 2 cycles
+			CPX	RSP			;=> 3 cycles
+			BHI	/2			;=> 3 cycles/ 4 cycles
+							;  -------------------
+							;  11 cycles/12 cycles
 #emac
 	
 ;RS_PULL: pull one entry from the return stack  (RSP -> X)

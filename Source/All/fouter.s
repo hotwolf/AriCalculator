@@ -137,13 +137,118 @@ FOUTER_VARS_END_LIN	EQU	@
 
 ;#Suspend: Set suspend flag
 #macro	SCI_SUSPEND_ACTION, 0
-			LDD	NEXT_PTR
-			CPD	#SUSPEND_MODE_NEXT
-			BEQ	DONE
+			LDD	NEXT_PTR		
+			CPD	#SUSPEND_SHELL_NEXT
+			BHS	DONE
 			MOVW	#SUSPEND_SHELL_NEXT,  NEXT_PTR
 DONE			EQU	*
 #emac
 
+;NEXT implementations:
+;=====================
+;#SUSPEND_MODE_NEXT: Prevent interrupts and nested suspend shells
+; args:	  IP:  pointer to next instruction
+; result: IP:  pointer to subsequent instruction
+;         W/X: new CFA
+;         Y:   IP (=pointer to subsequent instruction)
+; SSTACK: none
+; PS:     none
+; RS:     none
+; throws: none
+;         No registers are preserved
+#macro	SUSPEND_MODE_NEXT, 0
+			;Perform standard NEXT
+			JOB	NEXT
+#emac
+
+
+
+
+;#SHELL: Invoke the suspend shell
+; args:	  1:  prompt string pointer
+; 	  2:  TIB offset (effective address)
+; result: X:  string pointer
+;         D:  char count
+; SSTACK: none
+; PS:     1 cell
+; RS:     1 cell
+; throws: none
+;         No registers are preserved
+#macro	SHELL_PARSER, 2
+			;Parse command line (new PSP in Y)
+SHELL_PARSER_1		LDAA	#" " 			;use whitespace as delimiter
+			FOUTER_PARSE
+			TBNE	D, SHELL_PARSER_2	;parsing was successful
+			;Parsing was unsuccessful
+			MOVW	\2, NUMBER_TIB 		;clear local TIB segment
+			;Print command line prompt
+			PS_PUSH	#\1	
+			EXEC_CF	CF_STRING_DOT
+			;Query command line
+			EXEC_CF	CF_QUERY_APPEND
+			JOB	SHELL_PARSER_1			
+			;Parsing was unsuccessful (string pointer in X, char count in D))
+SHELL_PARSER_2		EQU	*
+#emac
+
+
+
+
+
+
+	
+	
+;#SUSPEND_SHELL_NEXT: Invoke the suspend shell
+; args:	  IP:  pointer to next instruction
+; result: IP:  pointer to subsequent instruction
+;         W/X: new CFA
+;         Y:   IP (=pointer to subsequent instruction)
+; SSTACK: none
+; PS:     none
+; RS:     none
+; throws: none
+;         No registers are preserved
+SUSPEND_SHELL		EQU	*	
+			;Check stack requirements -> RS 6 cells, PS 1 cell
+			RS_REQUIRE	6, SUSPEND_SHELL_
+			PS_REQUIRE	1, SUSPEND_SHELL_
+			;Save STATE, PROMPT, TIB_OFFSET, and #TIB
+			LDX	RSP
+			MOVW	STATE, 2,-X
+			MOVW	PROMPT, 2,-X
+			MOVW	TIB_OFFSET, 2,-X
+			MOVW	NUMBER_TIB, TIB_OFFSET
+			;Push exception frame onto the RS (RSP in X)	
+			MOVW	#SUSPEND_SHELL_ERROR_IP 2,-X	;IP      > RS
+			MOVW	PSP, 2,-X			;PSP     > RS
+			MOVW	HANDLER, 2,-X			;HANDLER > RS
+			STX	RSP
+			STX	HANDLER
+			;Set STATE and PROMPT
+SUSPEND_SHELL_1		MOVW	#STATE_INTERPRET, STATE
+			MOVW	#FOUTER_SUSPEND_PROMPT, PROMPT
+		
+	
+
+SUSPEND_SHELL_ERROR_IP	DW	SUSPEND_SHELL_ERROR_CFA
+SUSPEND_SHELL_ERROR_CFA	DW	SUSPEND_SHELL_ERROR_CF
+SUSPEND_SHELL_ERROR_CF	EXEC_CF	CF_DOT_ERROR	
+			JOB	SUSPEND_SHELL_1
+	
+
+			;Set STATE and PROMPT
+			
+
+	
+	LDY	PSP
+			
+
+
+
+
+
+
+	
 ;Functions:
 ;==========
 ;#Fix and load BASE
@@ -164,6 +269,17 @@ DONE			EQU	*
 ;         Y is preserved
 #macro	FOUTER_PARSE, 0
 			SSTACK_JOBSR	FOUTER_PARSE, 5
+#emac
+
+;#Find the next string (delimited by whitespace) on the TIB and terminate it. 
+; args:   none
+; result: X: string pointer
+;	  D: character count
+; SSTACK: 5 bytes
+;         Y is preserved
+#macro	FOUTER_PARSE_WS, 0
+			LDAA	" "
+			FOUTER_PARSE
 #emac
 
 ;#Convert a string into an unsugned number
@@ -365,6 +481,37 @@ DONE			EQU	*
 			SSTACK_JOBSR	FOUTER_INTEGER, 22
 #emac
 
+;Generic code sequences:
+;=======================
+;FOUTER_SHELL_COMMAND ( -- c-addr u)
+;Retrive a string from the command line input
+;the length of the resulting string.
+; args:   1: prompt string
+; result: c-addr:     pointer to the command string
+;         u:          length of the command string
+; SSTACK: 5 bytes
+; PS:     2 cells
+; RS:     2 cells
+; throws: nothing
+#macro FOUTER_SHELL_COMMAND, 1
+			;Parse command line
+			FOUTER_PARSE_WS
+			TBNE	D, FOUTER_SHELL_COMMAND_		;parsing was successful
+FOUTER_SUBSHELL_COMMAND
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -1028,40 +1175,6 @@ FOUTER_TREE_SEARCH_7		SSTACK_PREPULL	8 			;check stack
 			PULD						;restore D				
 			JOB	FOUTER_TREE_SEARCH_3
 
-;Inner interpreter:
-;==================
-;#SUSPEND_MODE_NEXT: Prevent interrupts and nested suspend shells
-; args:	  IP:  pointer to next instruction
-; result: IP:  pointer to subsequent instruction
-;         W/X: new CFA
-;         Y:   IP (=pointer to subsequent instruction)
-; SSTACK: none
-; PS:     none
-; RS:     none
-; throws: none
-;         No registers are preserved
-SUSPEND_MODE_NEXT	EQU	*
-			;Perform standard NEXT
-			JOB	NEXT
-
-;#SUSPEND_SHELL_NEXT: Invoke the suspend shell
-; args:	  IP:  pointer to next instruction
-; result: IP:  pointer to subsequent instruction
-;         W/X: new CFA
-;         Y:   IP (=pointer to subsequent instruction)
-; SSTACK: none
-; PS:     none
-; RS:     none
-; throws: none
-;         No registers are preserved
-SUSPEND_SHELL_NEXT	EQU	*
-			;Check stack requirements
-			
-
-	
-	;Save STATE, PROMPT, and TIB_OFFSET
-
-
 
 
 
@@ -1360,6 +1473,12 @@ CF_QUIT_SHELL_4		LSLD
 			TFR	D, X
 			EXEC_CFA_X				
 			JOB	CF_QUIT_SHELL_1		;parse next word			
+
+
+
+
+
+
 
 	
 ;ABORT-SHELL ( -- )  ABORT shell

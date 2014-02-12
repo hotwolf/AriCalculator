@@ -289,10 +289,8 @@ JUMP_NEXT		EQU	*
 							;                         ---------
 							;                         30 cycles
 
-;Code fields:
-;============ 	
-
-	
+;Prioritized NEXT implementations (higher address -> higher priority):
+;===================================================================== 	
 ;#NEXT:	jump to the next instruction
 ; args:	  IP:   pointer to next instruction
 ;	  IRQ: pending interrupt requests
@@ -311,6 +309,12 @@ NEXT			EQU	*
 			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
 							;                         ---------
 							;                         15 cycles
+
+;#SUSPEND_SHELL_NEXT: Invoke the suspend shell
+SUSPEND_SHELL_NEXT	SUSPEND_SHELL_NEXT	
+
+;#SUSPEND_MODE_NEXT: Prevent interrupts and nested suspend shells
+SUSPEND_MODE_NEXT	SUSPEND_MODE_NEXT	
 	
 ;Code fields:
 ;============ 	
