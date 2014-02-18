@@ -24,7 +24,8 @@
 ;#                                                                             #
 ;#    The following registers are implemented:                                 #
 ;#          STATE = 0 -> Interpretation state    	       		       #
-;#                 -1 -> Compilation state     		       	               #
+;#                 -1 -> Compilation state (UDICT)    		       	       #
+;#                 -2 -> Compilation state (NVDICT)    		       	       #
 ;#             CP = Compile pointer                                            #
 ;#                  Points to the next free space after the dictionary         #
 ;#            PAD = Beginning of the PAD buffer 			       #
@@ -282,6 +283,64 @@ FUDICT_VARS_END_LIN	EQU	@
 			STD	HLD
 #emac			
 
+
+
+;Shell components:
+;=================
+;#SHELL_COMP_WORD: Compile CFA (append to current word definition)
+; args:   D: CFA>>1
+; result: none
+; SSTACK: none
+; PS:     none
+; RS:     none
+; throws: none
+;         No registers are preserved
+#macro	SHELL_COMP_WORD, 0
+			;Compile CFA (CFA>>1 in D)
+			LSLD
+			LDY	CP
+			STD	2,Y+
+			STY	CP
+#emac
+
+;#SHELL_COMP_LITERAL: Compile literal (append to current word definition)
+; args:  X: string pointer (of integer representation)
+;        D: char count     (of integer representation)
+; result: none
+; SSTACK: 22 bytes
+; PS:     2 cells
+; RS:     none
+; throws: FEXCPT_EC_UDEFWORD
+;         FEXCPT_EC_LITOR
+;         No registers are preserved
+#macro	SHELL_COMP_LITERAL, 0
+			;Evaluate integer representation (string pointer in X, char count in D) 
+			FOUTER_INTEGER			;(SSTACK: 22 bytes)
+			;Check syntax error (cell count/error indicator in D, integer value in Y:X) 
+			TBNE	D, SHELL_COMP_LITERAL_1		
+			THROW	FEXCPT_EC_UDEFWORD
+			;Check for single cell integer (cell count/error indicator in D, integer value in Y:X) 
+SHELL_COMP_LITERAL_1	DBNE	D, SHELL_COMP_LITERAL_2
+			LDY	CP
+			MOVW	#CFA_LITERAL_RT, 2,Y+
+			STX	2,Y+
+			STY	CP
+			JOB	SHELL_COMP_LITERAL_4 	;done	
+			;Check for double cell integer (cell count/error indicator in D, integer value in Y:X) 
+SHELL_COMP_LITERAL_2	DBNE	D, SHELL_COMP_LITERAL_3
+			EXG	Y, D
+			LDY	CP
+			MOVW	#CFA_TWO_LITERAL_RT, 2,Y+
+			STD	2,Y+
+			STX	2,Y+
+			STY	CP
+			JOB	SHELL_COMP_LITERAL_4 	;done	
+			;Integer overflow 
+SHELL_COMP_LITERAL_3	THROW	FEXCPT_EC_LITOR		
+			;Done
+SHELL_COMP_LITERAL_4	EQU	*
+#emac
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -346,74 +405,30 @@ FUDICT_PAD_ALLOC_4	LDD 	$0000 			;signal failure
 
 ;Code fields:
 ;============
-
-
-
-
-
-
-
-
-
-
-
-
-	
-;.CPROMPT ( -- ) Print the interpretation prompt
-; args:   none
-; result: none
-; SSTACK: 8 bytes
+;LITERAL ( -- x ) run-time semantics of a single cell literal
+;Place x on the stack.
+; SSTACK: none
 ; PS:     1 cell
-; RS:     1 cells
-; throws: FEXCPT_EC_PSUF
-CF_DOT_CPROMPT		EQU	*
-			;Print line break 
-			EXEC_CF	CF_CR
-#ifdef	NVC
-			;Check for NVM compile 
-			LDD	NVC				;check non-volatile compile flag
-			BEQ	CF_DOT_CPROMPT_1		;volatile compile
-			PS_PUSH	#FOUTER_PRCHAR_NVC		;print prompt character
-			EXEC_CF	CF_EMIT
-CF_DOT_CPROMPT_1	EQU	*
-#endif
-;			;Check for SUSPEND 
-;			LDD	IP				;check instruction pointer
-;			BEQ	CF_DOT_CPROMPT_2		;QUIT shell
-;			PS_PUSH	#FOUTER_PRCHAR_SUSPEND		;print prompt character
-;			EXEC_CF	CF_EMIT
-			;Print interpretation prompt
-			PS_PUSH	#FOUTER_CPROMPT			;print prompt string
-			;Done
+; RS:     none
+; throws: FEXCPT_EC_PSOF
+CF_LITERAL_RT		LDX	IP			;push the value at IP onto the PS
+			PS_PUSH	(2,X+)
+			STX	IP
 			NEXT
-	
 
-;Error handlers:
-;===============
-;#Dictionary overflow handler
-FUDICT_DICTOF_HANDLER	EQU	*
-			;FEXCPT_THROW	FMEM_EC_DICTOF
-
-;#PAD overflow handler
-FUDICT_PADOF_HANDLER	EQU	*
-			;FEXCPT_THROW	FMEM_EC_PADOF
-
-;#PS overflow handler
-FUDICT_PSOF_HANDLER	EQU	*
-			;FEXCPT_THROW	FMEM_EC_PSOF
-
-;#PS underflow handler
-FUDICT_PSUF_HANDLER	EQU	*
-			;FEXCPT_THROW	FMEM_EC_PSUF
-
-;#RS overflow handler
-RAM_RSOF_HANDLER	EQU	*
-			;FEXCPT_THROW	FMEM_EC_RSOF
-	
-;#RS underflow handler
-FUDICT_RSUF_HANDLER	EQU	*
-			;FEXCPT_THROW	FMEM_EC_RSUF
-			BGND
+;2LITERAL ( -- d ) run-time semantics of a double cell literal
+;Place x on the stack.
+; SSTACK: none
+; PS:     2 cells
+; RS:     none
+; throws: FEXCPT_EC_PSOF
+CF_TWO_LITERAL_RT	LDX	IP			;push the double value at IP onto the PS
+			PS_CHECK_OF	2 		;check for PS overflow (PSP-new cells -> Y)
+			MOVW	2,X+, 0,Y		; and increment the IP
+			MOVW	2,X+, 2,Y		; and increment the IP
+			STY	PSP
+			STX	IP
+			NEXT
 
 FUDICT_CODE_END		EQU	*
 FUDICT_CODE_END_LIN	EQU	@
@@ -429,7 +444,8 @@ FUDICT_TABS_START_LIN	EQU	@
 #endif	
 
 ;System prompts
-FUDICT_CPROMPT		FCS	"+ "
+FUDICT_COMPILE_PROMPT	STRING_NL_NONTERM
+			FCS	"> "
 
 FUDICT_TABS_END		EQU	*
 FUDICT_TABS_END_LIN	EQU	@
@@ -459,15 +475,24 @@ FUDICT_WORDS_START_LIN	EQU	@
 CFA_STATE		DW	CF_CONSTANT_RT
 			DW	STATE
 
+;LITERAL ( -- x ) run-time semantics of a single cell literal
+;Place x on the stack.
+;
+;Throws:
+;"Parameter stack overflow"
+; SSTACK: none
+CFA_LITERAL_RT		DW	CFA_LITERAL_RT	
+
+;2LITERAL ( -- d ) run-time semantics of a double cell literal
+;Place x on the stack.
+;
+;Throws:
+;"Parameter stack overflow"
+CF_TWO_LITERAL_RT	DW	CFA_TWO_LITERAL_RT
+	
 ;S12CForth Words:
 ;================
-;Word: .CPROMPT ( -- )
-;Print the compilation prompt
-;
-;Throws:x
-;"Parameter stack overflow"
-CFA_DOT_CPROMPT		DW	CF_DOT_CPROMPT
-	
+;	
 FUDICT_WORDS_END	EQU	*
 FUDICT_WORDS_END_LIN	EQU	@
 

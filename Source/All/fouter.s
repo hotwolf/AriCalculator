@@ -137,117 +137,8 @@ FOUTER_VARS_END_LIN	EQU	@
 
 ;#Suspend: Set suspend flag
 #macro	SCI_SUSPEND_ACTION, 0
-			LDD	NEXT_PTR		
-			CPD	#SUSPEND_SHELL_NEXT
-			BHS	DONE
-			MOVW	#SUSPEND_SHELL_NEXT,  NEXT_PTR
 DONE			EQU	*
 #emac
-
-;NEXT implementations:
-;=====================
-;#SUSPEND_MODE_NEXT: Prevent interrupts and nested suspend shells
-; args:	  IP:  pointer to next instruction
-; result: IP:  pointer to subsequent instruction
-;         W/X: new CFA
-;         Y:   IP (=pointer to subsequent instruction)
-; SSTACK: none
-; PS:     none
-; RS:     none
-; throws: none
-;         No registers are preserved
-#macro	SUSPEND_MODE_NEXT, 0
-			;Perform standard NEXT
-			JOB	NEXT
-#emac
-
-
-
-
-;#SHELL: Invoke the suspend shell
-; args:	  1:  prompt string pointer
-; 	  2:  TIB offset (effective address)
-; result: X:  string pointer
-;         D:  char count
-; SSTACK: none
-; PS:     1 cell
-; RS:     1 cell
-; throws: none
-;         No registers are preserved
-#macro	SHELL_PARSER, 2
-			;Parse command line (new PSP in Y)
-SHELL_PARSER_1		LDAA	#" " 			;use whitespace as delimiter
-			FOUTER_PARSE
-			TBNE	D, SHELL_PARSER_2	;parsing was successful
-			;Parsing was unsuccessful
-			MOVW	\2, NUMBER_TIB 		;clear local TIB segment
-			;Print command line prompt
-			PS_PUSH	#\1	
-			EXEC_CF	CF_STRING_DOT
-			;Query command line
-			EXEC_CF	CF_QUERY_APPEND
-			JOB	SHELL_PARSER_1			
-			;Parsing was unsuccessful (string pointer in X, char count in D))
-SHELL_PARSER_2		EQU	*
-#emac
-
-
-
-
-
-
-	
-	
-;#SUSPEND_SHELL_NEXT: Invoke the suspend shell
-; args:	  IP:  pointer to next instruction
-; result: IP:  pointer to subsequent instruction
-;         W/X: new CFA
-;         Y:   IP (=pointer to subsequent instruction)
-; SSTACK: none
-; PS:     none
-; RS:     none
-; throws: none
-;         No registers are preserved
-SUSPEND_SHELL		EQU	*	
-			;Check stack requirements -> RS 6 cells, PS 1 cell
-			RS_REQUIRE	6, SUSPEND_SHELL_
-			PS_REQUIRE	1, SUSPEND_SHELL_
-			;Save STATE, PROMPT, TIB_OFFSET, and #TIB
-			LDX	RSP
-			MOVW	STATE, 2,-X
-			MOVW	PROMPT, 2,-X
-			MOVW	TIB_OFFSET, 2,-X
-			MOVW	NUMBER_TIB, TIB_OFFSET
-			;Push exception frame onto the RS (RSP in X)	
-			MOVW	#SUSPEND_SHELL_ERROR_IP 2,-X	;IP      > RS
-			MOVW	PSP, 2,-X			;PSP     > RS
-			MOVW	HANDLER, 2,-X			;HANDLER > RS
-			STX	RSP
-			STX	HANDLER
-			;Set STATE and PROMPT
-SUSPEND_SHELL_1		MOVW	#STATE_INTERPRET, STATE
-			MOVW	#FOUTER_SUSPEND_PROMPT, PROMPT
-		
-	
-
-SUSPEND_SHELL_ERROR_IP	DW	SUSPEND_SHELL_ERROR_CFA
-SUSPEND_SHELL_ERROR_CFA	DW	SUSPEND_SHELL_ERROR_CF
-SUSPEND_SHELL_ERROR_CF	EXEC_CF	CF_DOT_ERROR	
-			JOB	SUSPEND_SHELL_1
-	
-
-			;Set STATE and PROMPT
-			
-
-	
-	LDY	PSP
-			
-
-
-
-
-
-
 	
 ;Functions:
 ;==========
@@ -262,9 +153,12 @@ SUSPEND_SHELL_ERROR_CF	EXEC_CF	CF_DOT_ERROR
 #emac
 
 ;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
-; args:   A: delimiter
-; result: X: string pointer
-;	  D: character count
+; args:   A:   delimiter
+;         #TIB: char count in TIB
+;         >IN:  TIB index
+; result: X:    string pointer
+;	  D:    character count
+;         >IN:  new TIB index
 ; SSTACK: 5 bytes
 ;         Y is preserved
 #macro	FOUTER_PARSE, 0
@@ -272,9 +166,11 @@ SUSPEND_SHELL_ERROR_CF	EXEC_CF	CF_DOT_ERROR
 #emac
 
 ;#Find the next string (delimited by whitespace) on the TIB and terminate it. 
-; args:   none
-; result: X: string pointer
-;	  D: character count
+; args:   #TIB: char count in TIB
+;         >IN:  TIB index
+; result: X:    string pointer
+;	  D:    character count
+;         >IN:  new TIB index
 ; SSTACK: 5 bytes
 ;         Y is preserved
 #macro	FOUTER_PARSE_WS, 0
@@ -282,7 +178,7 @@ SUSPEND_SHELL_ERROR_CF	EXEC_CF	CF_DOT_ERROR
 			FOUTER_PARSE
 #emac
 
-;#Convert a string into an unsugned number
+;#Convert a string into an unsigned number
 ; args:   Stack:        +--------+--------+
 ;			|    Sign/Base    | SP+0
 ;			+--------+--------+
@@ -481,37 +377,110 @@ SUSPEND_SHELL_ERROR_CF	EXEC_CF	CF_DOT_ERROR
 			SSTACK_JOBSR	FOUTER_INTEGER, 22
 #emac
 
-;Generic code sequences:
-;=======================
-;FOUTER_SHELL_COMMAND ( -- c-addr u)
-;Retrive a string from the command line input
-;the length of the resulting string.
-; args:   1: prompt string
-; result: c-addr:     pointer to the command string
-;         u:          length of the command string
-; SSTACK: 5 bytes
+;Shell components:
+;=================
+;#SHELL_FIRST_QUERY: Initial query (avoiding system acknowledge) 
+; args:	  1:    prompt string pointer
+; result: #TIB: new char count in TIB
+;         >IN:  new TIB index
+; SSTACK: 8 bytes
+; PS:     1 cell
+; RS:     3 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+;         No registers are preserved
+#macro	SHELL_FIRST_QUERY, 1
+			;Print command line prompt
+			PS_PUSH	#\1			;(PS: 1 cell)	
+			EXEC_CF	CF_STRING_DOT		;(SSTACK: 8 bytes, RS: 1 cell)
+			;Query command line
+			EXEC_CF	CF_QUERY		;(SSTACK: 8 bytes, PS: 1 cell, RS: 2 cells)
+#emac
+
+;#SHELL_PARSE: Command line parser
+; args:	  1:    prompt string pointer
+; 	  2:    TIB offset (effective address)
+;         #TIB: char count in TIB
+;         >IN:  TIB index
+; result: X:    string pointer (of next command)
+;         D:    char count     (of next command)
+;         #TIB: new char count in TIB
+;         >IN:  new TIB index
+; SSTACK: 8 bytes
+; PS:     1 cell
+; RS:     3 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+;         No registers are preserved
+#macro	SHELL_PARSE, 2
+			;Parse command line (new PSP in Y)
+SHELL_PARSE_1		LDAA	#" " 			;use whitespace as delimiter
+			FOUTER_PARSE			;(SSTACK: 5 bytes)
+			TBNE	D, SHELL_PARSE_2	;parsing was successful
+			;Parsing was unsuccessful
+			MOVW	\2, NUMBER_TIB 		;clear local TIB segment
+			;Print command acknowledgement
+			PS_PUSH	#FOUTER_SYSTEM_ACK	;(PS: 1 cell)	
+			EXEC_CF	CF_STRING_DOT		;(SSTACK: 8 bytes, RS: 1 cell)
+			;Print command line prompt
+			PS_PUSH	#\1			;(PS: 1 cell)	
+			EXEC_CF	CF_STRING_DOT		;(SSTACK: 8 bytes, RS: 1 cell)
+			;Query command line
+			EXEC_CF	CF_QUERY_APPEND		;(SSTACK: 8 bytes, PS: 1 cell, RS: 2 cells)
+			JOB	SHELL_PARSE_1			
+			;Parsing was unsuccessful (string pointer in X, char count in D))
+SHELL_PARSE_2		EQU	*
+#emac
+
+;#SHELL_EXEC_WORD: Execute CFA
+; args:   D: CFA>>1
+; result: none
+; SSTACK: 22 bytes
+; PS:     none
+; RS:     1 cell
+; throws: FEXCPT_EC_RSOF
+;         No registers are preserved
+#macro	SHELL_EXEC_WORD, 0
+			;Execute CFA (CFA>>1 in D)
+			LSLD
+			TFR	D, X
+			EXEC_CFA_X
+#emac
+
+;#SHELL_EXEC_LITERAL: Execute literal (push literal onto PS)
+; args:  X: string pointer (of integer representation)
+;        D: char count     (of integer representation)
+; result: none
+; SSTACK: 22 bytes
 ; PS:     2 cells
-; RS:     2 cells
-; throws: nothing
-#macro FOUTER_SHELL_COMMAND, 1
-			;Parse command line
-			FOUTER_PARSE_WS
-			TBNE	D, FOUTER_SHELL_COMMAND_		;parsing was successful
-FOUTER_SUBSHELL_COMMAND
+; RS:     none
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_UDEFWORD
+;         FEXCPT_EC_LITOR
+;         No registers are preserved
+#macro	SHELL_EXEC_LITERAL, 0
+			;Evaluate integer representation (string pointer in X, char count in D) 
+			FOUTER_INTEGER			;(SSTACK: 22 bytes)
+			;Check syntax error (cell count/error indicator in D, integer value in Y:X) 
+			TBNE	D, SHELL_EXEC_LITERAL_1		
+			THROW	FEXCPT_EC_UDEFWORD
+			;Check for single cell integer (cell count/error indicator in D, integer value in Y:X) 
+SHELL_EXEC_LITERAL_1	DBNE	D, SHELL_EXEC_LITERAL_2
+			PS_PUSH_X
+			JOB	SHELL_EXEC_LITERAL_4 	;done	
+			;Check for double cell integer (cell count/error indicator in D, integer value in Y:X) 
+SHELL_EXEC_LITERAL_2	DBNE	D, SHELL_EXEC_LITERAL_3
+			TFR	Y, D
+			PS_PUSH_DX
+			JOB	SHELL_EXEC_LITERAL_4 	;done	
+			;Integer overflow 
+SHELL_EXEC_LITERAL_3	THROW	FEXCPT_EC_LITOR		
+			;Done
+SHELL_EXEC_LITERAL_4	EQU	*
+#emac
 
-
-
-
-
-
-
-
-
-
-
-
-
-	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -543,9 +512,12 @@ FOUTER_FIX_BASE_3	SSTACK_PREPULL	2
 			RTS
 
 ;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
-; args:   A: delimiter
-; result: X: string pointer
-;	  D: character count	
+; args:   A:    delimiter
+;         #TIB: char count in TIB
+;         >IN:  TIB index
+; result: X:    string pointer
+;	  D:    character count	
+;         >IN:  new TIB index
 ; SSTACK: 4 bytes
 ;         Y is preserved
 FOUTER_PARSE		EQU	*	
@@ -1272,7 +1244,7 @@ CF_SUSPEND_RT_6		FOUTER_INTEGER
 CF_SUSPEND_RT_7		PS_PUSH_X
 			JOB	CF_SUSPEND_RT_2		;parse next word
 			;Unknown word (or number out of range)
-CF_SUSPEND_RT_8		FEXCPT_THROW	 FEXCPT_EC_UDEFWORD
+CF_SUSPEND_RT_8		THROW	 FEXCPT_EC_UDEFWORD
 
 
 
@@ -1457,7 +1429,7 @@ CF_SUSPEND_SHELL_1	CF_EXEC	CF_COMMAND
 			DBEQ	D, CF_QUIT_SHELL_2 	;single cell
 			DBEQ	D, CF_QUIT_SHELL_3 	;double number
 			;Unknown word (or number out of range)
-			FEXCPT_THROW	 FEXCPT_EC_UDEFWORD
+			THROW	 FEXCPT_EC_UDEFWORD
 			;Single cell integer (int in X)
 CF_QUIT_SHELL_2		PS_PUSH_X
 			JOB	CF_QUIT_SHELL_1		;parse next word			
@@ -1535,7 +1507,7 @@ CF_QUIT_SHELL_1		CF_EXEC	CF_COMMAND
 			DBEQ	D, CF_QUIT_SHELL_2 	;single cell
 			DBEQ	D, CF_QUIT_SHELL_3 	;double number
 			;Unknown word (or number out of range)
-			FEXCPT_THROW	 FEXCPT_EC_UDEFWORD
+			THROW	 FEXCPT_EC_UDEFWORD
 			;Single cell integer (int in X)
 CF_QUIT_SHELL_2		PS_PUSH_X
 			JOB	CF_QUIT_SHELL_1		;parse next word			
@@ -1606,7 +1578,8 @@ CF_DOT_PROMPT		EQU	*
 ;input buffer,mreplacing any previous contents. Make the result, whose address is
 ;returned by TIB, the input buffer.  Set >IN to zero.
 ; args:   none
-; result: none
+; result: #TIB: char count in TIB
+;         >IN:  index pointing to the start of the TIB => 0x0000
 ; SSTACK: 8 bytes
 ; PS:     1 cell
 ; RS:     2 cells
@@ -1622,8 +1595,9 @@ CF_QUERY		EQU	*
 ;Set >IN to #TIB. Make the user input device the input source. Receive input into
 ;the terminal input buffer, appending previous contents. Make the result, whose
 ;address is returned by TIB+>IN, the input buffer.
-; args:   none
-; result: none
+; args:   #TIB: char count in TIB
+; result: #TIB: new  char count in TIB
+;         >IN:  index of the first new input char
 ; SSTACK: 8 bytes
 ; PS:     1 cell
 ; RS:     2 cells
@@ -1835,8 +1809,9 @@ FOUTER_TABS_START_LIN	EQU	@
 FOUTER_SYMTAB		EQU	NUM_SYMTAB
 	
 ;System prompts
-FOUTER_SUSPEND_PROMPT	FCC	"S"
-FOUTER_QUIT_PROMPT	FCS	"> "
+;FOUTER_SUSPEND_PROMPT	FCC	"S"
+FOUTER_QUIT_PROMPT	STRING_NL_NONTERM
+			FCS	"> "
 FOUTER_SYSTEM_ACK	FCS	" ok"
 
 

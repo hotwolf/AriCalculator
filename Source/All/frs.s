@@ -293,11 +293,11 @@ FRS_CODE_START_LIN	EQU	@
 ;Standard exceptions
 #ifndef FRS_NO_CHECK
 #ifdef FRS_DEBUG
-FRS_THROW_PSOF		BGND					;return stack overflow
-FRS_THROW_PSUF		BGND					;return stack underflow
+FRS_THROW_PSOF		BGND				;return stack overflow
+FRS_THROW_PSUF		BGND				;return stack underflow
 #else
-FRS_THROW_PSOF		FEXCPT_THROW	FEXCPT_EC_RSOF		;return stack overflow
-FRS_THROW_PSUF		FEXCPT_THROW	FEXCPT_EC_RSUF		;return stack underflow
+FRS_THROW_PSOF		THROW	FEXCPT_EC_RSOF		;return stack overflow
+FRS_THROW_PSUF		THROW	FEXCPT_EC_RSUF		;return stack underflow
 #endif
 #endif
 	

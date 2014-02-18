@@ -115,7 +115,6 @@ FINNER_VARS_END_LIN	EQU	@
 
 ;Inner interpreter:
 ;==================
-
 ;#NEXT:	jump to the next instruction
 ; args:	  IP:   pointer to next instruction
 ;	  IRQ: pending interrupt requests
@@ -163,7 +162,6 @@ FINNER_VARS_END_LIN	EQU	@
 	
 ;CF/CFA/ISR execution from assembly code:
 ;========================================
-	
 ;Execute a CF directly from assembler code
 ; args:   1: CF
 ; result: see CF

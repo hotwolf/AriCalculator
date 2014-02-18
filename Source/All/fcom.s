@@ -13,7 +13,7 @@
 ;#    S12CForth is distributed in the hope that it will be useful,             #
 ;#    but WITHOUT ANY WARRANTY; without even the implied warranty of           #
 ;#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #
-;#    GNU General Public License for more details.                             #
+;#    GNU General Public Licens for more details.                             #
 ;#                                                                             #
 ;#    You should have received a copy of the GNU General Public License        #
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
@@ -129,7 +129,7 @@ CF_EKEY_3		LED_BUSY_OFF 			;signal inactivity
 			LED_BUSY_ON 			;signal activity
 			JOB	CF_EKEY_1		;check NEXT_PTR again
 			;RX error
-CF_EKEY_4		FEXCPT_THROW	FEXCPT_EC_COMERR
+CF_EKEY_4		THROW	FEXCPT_EC_COMERR
 
 ;EKEY? ( -- flag ) Check for data
 ; args:   none

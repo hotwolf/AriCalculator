@@ -124,12 +124,14 @@ FEXCPT_EC_COMERR		EQU	-57	;exception in sending or receiving a character
 ;FEXCPT_EC_58			EQU	-58	;[IF], [ELSE], or [THEN] exception
 	
 ;S12CForth specific error codes 
-FEXCPT_EC_NOMSG			EQU	-59	;empty message string
-FEXCPT_EC_DICTPROT		EQU	-60	;destruction of dictionary structure
-FEXCPT_EC_RESUME		EQU	-61	;resume from suspend
+FEXCPT_EC_LITOR			EQU	-59	;literal out of range
+
+;FEXCPT_EC_NOMSG			EQU	-59	;empty message string
+;FEXCPT_EC_DICTPROT		EQU	-60	;destruction of dictionary structure
+;FEXCPT_EC_RESUME		EQU	-61	;resume from suspend
 
 ;Highest standard error code value
-FEXCPT_EC_MAX			EQU	FEXCPT_EC_RESUME
+FEXCPT_EC_MAX			EQU	FEXCPT_EC_LITOR
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -165,22 +167,17 @@ FEXCPT_VARS_END_LIN	EQU	@
 ;#Suspend action
 #macro	FEXCPT_SUSPEND, 0
 #emac
-	
-;#Print error message
-; args:   D: error code
-; result: none
-; SSTACK: 16 bytes
-;         X, Y and D are preserved
-#macro	FEXCPT_PRINT_ERROR, 0
-			SSTACK_JOBSR	FEXCPT_PRINT_ERROR, 16
-#emac
-	
+
+;CATCH and THROW from assembly code:
+;===================================
 ;#Throw an exception from within an assembler primitive (immediate error code)
 ; args:   1: error code
 ; result: none
 ; SSTACK: none
+; PS:     none
+; RS:     none
 ;         no registers are preserved 
-#macro	FEXCPT_THROW, 1
+#macro	THROW, 1
 			LDD	#\1		;set error code
 			FEXCPT_THROW_D
 #emac
@@ -189,10 +186,96 @@ FEXCPT_VARS_END_LIN	EQU	@
 ; args:   D: error code
 ; result: none
 ; SSTACK: none
+; PS:     none
+; RS:     none
 ;         no registers are preserved 
-#macro	FEXCPT_THROW_D, 0
+#macro	THROW_D, 0
 			;BGND
 			JOB	FEXCPT_THROW	;throw exception
+#emac
+
+
+
+
+;Execute a CF directly from assembler code snd catch errors
+; args:   1: CF
+; result: D: error code () if no error occured)
+; SSTACK: 
+; PS:     
+; RS:     
+; throws: FEXCPT_EC_RSOF (plus exceptions thrown by CF)
+;         No registers are preserved
+#macro	CATCH_CF, 1
+			;Push IP and exception frame onto the PS
+			RS_CHECK_OF, 4 			;four cells required on PS
+			LDX	RSP			;RSP -> X
+			MOVW	IP, 2,-X		;push IP
+			MOVW	..., 2,-X		;
+
+<==============TBD!!!!!!!!!!!!
+
+
+#macro	EXEC_CF, 1
+			RS_PUSH IP			;IP -> RS
+			MOVW	#IP_RESUME, IP 		;set next IP
+			JOB	\1			;execute CF
+IP_RESUME		DW	CFA_RESUME
+CFA_RESUME		DW	CF_RESUME
+CF_RESUME		EQU	*
+			RS_PULL IP 			;RS -> IP
+#emac
+
+
+
+	
+	
+;Functions:
+;==========
+;#Get error message
+; args:   D: error code
+; result: D: pointer to error message
+; SSTACK: 4 bytes
+;         X and Y are preserved
+#macro	FEXCPT_GET_MSG
+			SSTACK_JOBSR	FEXCPT_GET_MSG, 4
+#emac
+
+
+
+
+
+;           +---------------------+
+;     RSP-> |                     |
+;           |                     |
+;           |                     | 
+;           +---------------------+ <-+
+; HANDLER-> |  previous HANDLER   |   |
+;           +---------------------+   |error
+;           |     PSP at CATCH    |   |stack
+;           +---------------------+   |frame
+;           | xt after CATCH call |   |
+;           +---------------------+ <-+
+
+
+
+	
+
+;CF/CFA execution from assembly code:
+;====================================
+
+
+
+
+	
+
+	
+;#Print error message
+; args:   D: error code
+; result: none
+; SSTACK: 16 bytes
+;         X, Y and D are preserved
+#macro	FEXCPT_PRINT_ERROR, 0
+			SSTACK_JOBSR	FEXCPT_PRINT_ERROR, 16
 #emac
 
 ;#Error message
@@ -216,53 +299,6 @@ FEXCPT_VARS_END_LIN	EQU	@
 FEXCPT_CODE_START_LIN	EQU	@
 #endif
 
-;#Print error message
-; args:   D: error code
-; result: none
-; SSTACK: 16 bytes
-;         X, Y and D are preserved
-FEXCPT_PRINT_ERROR	EQU	*
-			;Save registers (error code in D)
-			PSHX
-			PSHD
-			;Check for standard errors (error code in D)
-			CPD	#FEXCPT_EC_MAX
-			BLO	FEXCPT_PRINT_ERROR_4 				;non-standard error
-			;Check for ABORT (error code in B)
-			CMPB	#FEXCPT_EC_ABORT
-			BEQ	FEXCPT_PRINT_ERROR_6 				;no message for ABORT
-			;Check for QUIT (error code in B)
-			CMPB	#FEXCPT_EC_QUIT
-			BEQ	FEXCPT_PRINT_ERROR_6 				;no message for QUIT
-			;Check for ABORT" (error code in B)
-			CMPB	#FEXCPT_EC_ABORTQ
-			BEQ	FEXCPT_PRINT_ERROR_7 				;print ABORT" message		
-			;Standard error code (error code in B)
-			LDX     #FEXCPT_MSGTAB_END 				;start at the beginning of the lookup table
-FEXCPT_PRINT_ERROR_1	LDAA	1,X+ 						;check the current error code
-			BEQ	FEXCPT_PRINT_ERROR_3 				;unknown error				
-			CBA							;check error code
-			BEQ	FEXCPT_PRINT_ERROR_3 				;match	
-FEXCPT_PRINT_ERROR_2	LDAA	1,X+ 						;skip string
-			BMI	FEXCPT_PRINT_ERROR_1 				;end of string found
-			JOB	FEXCPT_PRINT_ERROR_2
-			;Error entry found (message pointer in X) 
-FEXCPT_PRINT_ERROR_3	TFR	X, D
-FEXCPT_PRINT_ERROR_4	LDX	#FEXCPT_MSG_HEAD
-			STRING_PRINT_BL  					;(SSTACK: 10 bytes)
-			TFR	D, X
-FEXCPT_PRINT_ERROR_5	STRING_PRINT_BL  					;(SSTACK: 10 bytes)
-			;Restore registers
-FEXCPT_PRINT_ERROR_6	SSTACK_PREPULL	6
-			PULD
-			PULX
-			;Done
-			RTS
-			;Print ABORT" message 
-FEXCPT_PRINT_ERROR_7	;LDX	ABORT_QUOTE_MSG
-			BNE	FEXCPT_PRINT_ERROR_5 				;print  message
-			JOB	FEXCPT_PRINT_ERROR_6 				;no message
-	
 ;#Throw an exception
 ; args:   D: error code
 ; result: none
@@ -302,6 +338,37 @@ FEXCPT_THROW_2		FEXCPT_PRINT_ERROR 					;print error message
 			CPD	 #FEXCPT_EC_ABORTQ 				;check for ABORT and ABORT"
 			;BHS	CF_ABORT 					;abort
 			;JOB	CF_QUIT						;quit
+
+;#Get error message
+; args:   D: error code
+; result: D: pointer to error message
+; SSTACK: 4 bytes
+;         X and Y are preserved
+FEXCPT_GET_MSG		EQU	*
+			;Save registers (error code in D)
+			PSHX
+			;Check for user defined errors (error code in D)
+			CPD	#FEXCPT_EC_MAX
+			BLO	FEXCPT_GET_MSG_3					;user defined error code (s
+			;Standard error code 
+			LDX     #FEXCPT_MSGTAB					;start at the beginning of the lookup table
+FEXCPT_GET_MSG_1	LDAA	1,X+ 						;check the current error code
+			BEQ	FEXCPT_GET_MSG_3 				;unknown error				
+			CBA							;check error code
+			BEQ	FEXCPT_GET_MSG_3 				;match	
+FEXCPT_GET_MSG_2	LDAA	1,X+ 						;skip string
+			BMI	FEXCPT_GET_MSG_1 				;end of string found
+			JOB	FEXCPT_GET_MSG_2			
+			;Restore registers
+FEXCPT_GET_MSG_3	SSTACK_PREPULL	4
+			PULX
+			;Done
+			RTS
+
+
+
+
+
 
 ;#Code Fields:
 ;=============

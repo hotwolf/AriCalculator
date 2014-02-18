@@ -356,6 +356,21 @@ FPS_VARS_END_LIN	EQU	@
 							;                         17 cycles
 #emac	
 
+;PS_PUSH_DX: Push one entry from accu D onto the return stack (PSP -> Y)
+; args:   D:X: value to push onto the PS
+; result: Y:   PSP
+; SSTACK: none
+; throws: FEXCPT_EC_PSOF
+;         X and D are preserved 
+#macro	PS_PUSH_D, 0
+			PS_CHECK_OF	2		;check for overflow	=>11 cycles
+			STD		0,Y		;PS -> Y		=> 3 cycles 
+			STX		2,Y		;   			=> 3 cycles 
+			STY		PSP		;			=> 3 cycles
+							;                         ---------
+							;                         20 cycles
+#emac	
+
 ;PS_PUSH_D_NOCHK: Push one entry from accu D onto the return stack (PSP -> Y)
 ; args:   D: value to push onto the PS
 ; result: Y: PSP
@@ -606,8 +621,8 @@ CF_TWO_ROT_1		EQU	CF_SWAP_1
 FPS_THROW_PSOF		BGND					;parameter stack overflow
 FPS_THROW_PSUF		BGND					;parameter stack underflow
 #else
-FPS_THROW_PSOF		FEXCPT_THROW	FEXCPT_EC_PSOF		;parameter stack overflow
-FPS_THROW_PSUF		FEXCPT_THROW	FEXCPT_EC_PSUF		;parameter stack underflow
+FPS_THROW_PSOF		THROW	FEXCPT_EC_PSOF			;parameter stack overflow
+FPS_THROW_PSUF		THROW	FEXCPT_EC_PSUF			;parameter stack underflow
 #endif
 #endif
 	
