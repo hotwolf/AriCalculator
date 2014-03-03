@@ -132,6 +132,9 @@ FEXCPT_EC_LITOR			EQU	-59	;literal out of range
 
 ;Highest standard error code value
 FEXCPT_EC_MAX			EQU	FEXCPT_EC_LITOR
+
+;Character limit fopr error messages
+FEXCPT_MSG_LIMIT		EQU	64 	;Valid error messages must be shorter than 65 chars
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -341,7 +344,7 @@ FEXCPT_THROW_2		FEXCPT_PRINT_ERROR 					;print error message
 
 ;#Get error message
 ; args:   D: error code
-; result: D: pointer to error message
+; result: X: pointer to error message
 ; SSTACK: 4 bytes
 ;         X and Y are preserved
 FEXCPT_GET_MSG		EQU	*
@@ -349,26 +352,49 @@ FEXCPT_GET_MSG		EQU	*
 			PSHX
 			;Check for user defined errors (error code in D)
 			CPD	#FEXCPT_EC_MAX
-			BLO	FEXCPT_GET_MSG_3					;user defined error code (s
+			BLO	FEXCPT_GET_MSG_					;user defined error code (s
 			;Standard error code 
-			LDX     #FEXCPT_MSGTAB					;start at the beginning of the lookup table
-FEXCPT_GET_MSG_1	LDAA	1,X+ 						;check the current error code
-			BEQ	FEXCPT_GET_MSG_3 				;unknown error				
+			LDX     #(FEXCPT_MSGTAB-1)				;start at the beginning of the lookup table
+FEXCPT_GET_MSG_1	LDAA	1,+X 						;check the current error code
+			BEQ	FEXCPT_GET_MSG_2 				;unknown error				
 			CBA							;check error code
-			BEQ	FEXCPT_GET_MSG_3 				;match	
-FEXCPT_GET_MSG_2	LDAA	1,X+ 						;skip string
-			BMI	FEXCPT_GET_MSG_1 				;end of string found
-			JOB	FEXCPT_GET_MSG_2			
+			BNE	FEXCPT_GET_MSG_1 				;match	
 			;Restore registers
-FEXCPT_GET_MSG_3	SSTACK_PREPULL	4
+FEXCPT_GET_MSG_2	SSTACK_PREPULL	4
 			PULX
 			;Done
 			RTS
+			;Validate user defined error message (error code in D)
+FEXCPT_GET_MSG_		TFR	D, X
+			CLRA
+FEXCPT_GET_MSG_		LDAB	A,X 						;check next character
+			BMI	FEXCPT_GET_MSG_					;end of message			
+			STRING_IS_PRINTABLE	FEXCPT_GET_MSG_			;invalid character
+			INCA
+			CMPA	#FEXCPT_MSG_LIMIT 				;check char limit
+			BLS	FEXCPT_GET_MSG_					;loop
+			;Error message too long
+FEXCPT_GET_MSG_		LDD	#FEXCPT_MSG_UNKNOWN
+			JOB	FEXCPT_GET_MSG_
+			;End of message (start of message in X, last char in B) 
+			ANDB	#$7F 						;remove termination
+			STRING_IS_PRINTABLE	FEXCPT_GET_MSG_			;invalid character
+			;Valid error message (start of message in X)
+			TFR	X, D
+			JOB	FEXCPT_GET_MSG_
 
 
-
-
-
+;#Print error message
+; args:   D: error code
+; result: none
+; SSTACK: 4 bytes
+;         X, Y and D are preserved
+FEXCPT_PRINT_MSG	EQU	*
+			;Save registers (error code in D)
+			PSHD
+			;Print Header (error code in D)
+			LDX	#FEXCPT_MSG_HEAD
+	
 
 ;#Code Fields:
 ;=============
@@ -453,85 +479,6 @@ CF_THROW		PS_CHECK_UF	1			;PS for underflow (RSP -> Y)
 CF_THROW_1		STX	PSP
 			NEXT
 	
-;;ERROR"
-;;Non-standard S12CForth extension!
-;;Defines a new throwable error code (n).		
-;;Interpretation: ( "ccc<quote>" -- n )
-;;Parse ccc delimited by " (double-quote) and put the error code onto the parameter stack.
-;;Compilation: ( "ccc<quote>" -- )
-;;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
-;;below to the current definition.
-;;Run-time: ( -- n )
-;;Put the error code onto the parameter stack.
-;;
-;;S12CForth implementation details:
-;;Trows:
-;;"Parameter stack overflow"
-;;"Dictionary overflow"
-;;"Parsed string overflow"
-;;"Empty message string"
-;CF_ERROR_QUOTE		;Parse quote
-;			LDAA	#$22 				;double quote
-;			SSTACK_JOBSR	FCORE_PARSE
-;			TBEQ	X, CF_ERROR_QUOTE_NOMSG 	;empty quote
-;			IBEQ	A, CF_ERROR_QUOTE_STROF		;add CFA to count
-;			TAB
-;			CLRA	
-;			;Check state (string pointer in X, char count+1 in D)
-;			LDY	STATE				;ensure that compile mode is on
-;			BEQ	CF_ERROR_QUOTE_3		;interpetation mode
-;			;Compile mode (string pointer in X, char count+1 in D) 
-;			ADDD	#3				;check for dictionary overflow
-;			TFR	X, Y
-;			DICT_CHECK_OF_D	CF_ERROR_QUOTE_DICTOF 
-;			;Append run-time CFA (string pointer in Y)
-;			LDX	CP
-;			MOVW	#CFA_ERROR_QUOTE_RT, 2,X+
-;			;Append error level (CP in X, string pointer in Y)
-;CF_ERROR_QUOTE_1	MOVB	#ERROR_LEVEL_ERROR, 1,X+
-;			;Append quote (CP in X, string pointer in Y)
-;			CPSTR_Y_TO_X
-;			STX	CP
-;			INTERPRET_ONLY	CF_ERROR_QUOTE_2
-;			STX	CP_SAVED
-;			;Done
-;CF_ERROR_QUOTE_2	NEXT
-;			;Interpretation mode  (string pointer in X, char count+1 in D) 
-;CF_ERROR_QUOTE_3	ADDD	#1				;check for dictionary overflow
-;			TFR	X, Y
-;			DICT_CHECK_OF_D	CF_ERROR_QUOTE_DICTOF
-;			TFR	Y, X
-;			;Push CP onto PS (string pointer in Y)
-;			PS_CHECK_OF	1, CF_ERROR_QUOTE_PSOF 	;(PSP-2 cells -> Y)
-;			MOVW	CP, 0,Y
-;			STY	PSP
-;			TFR	X, Y
-;			LDX	CP
-;			JOB	CF_ERROR_QUOTE_1
-;	
-;CF_ERROR_QUOTE_PSOF	JOB	FEXCPT_THROW_PSOF			
-;CF_ERROR_QUOTE_DICTOF	JOB	FEXCPT_THROW_DICTOF			
-;CF_ERROR_QUOTE_STROF	JOB	FEXCPT_THROW_STROF		
-;CF_ERROR_QUOTE_NOMSG	JOB	FEXCPT_THROW_NOMSG		
-;
-;;ERROR" run-time semantics
-;;
-;;S12CForth implementation details:
-;;Throws:
-;;"Parameter stack overflow"
-;CF_ERROR_QUOTE_RT		PS_CHECK_OF	1, CF_ERROR_QUOTE_PSOF 	;(PSP-2 cells -> Y)
-;				;PUSH error code onto the PS 
-;				LDX	IP
-;				STX	0,Y
-;				STY	PSP
-;				;Advance IP (IP in X)
-;				LEAX	1,X
-;				PRINT_STRCNT
-;				LEAX	A,X
-;				STX	IP
-;				;Done
-;				NEXT
-	
 FEXCPT_CODE_END		EQU	*
 FEXCPT_CODE_END_LIN	EQU	@
 
@@ -575,7 +522,9 @@ FEXCPT_MSGTAB		EQU	*
 			FEXCPT_MSG	FEXCPT_EC_NOMSG,	"Empty message string"
 			FEXCPT_MSG	FEXCPT_EC_DICTPROT,	"Destruction of dictionary structure"
 			FEXCPT_MSG	FEXCPT_EC_COMERR,	"Corrupted RX data"
-			FEXCPT_MSG	0			"Unknown cause"
+			DB		0
+FEXCPT_MSG_UNKNOWN	FCS		"Unknown cause"
+
 FEXCPT_MSGTAB_END	EQU	*
 
 FEXCPT_TABS_END		EQU	*
