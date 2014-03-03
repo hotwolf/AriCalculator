@@ -4183,7 +4183,7 @@ sub compile_run {
 		#check macro_args
 		#@macro_args = split($del, $code_args);
 	        @macro_args = ();
-		while ($code_args =~ /^[,\s]*(\(.*?\)|\".*?\"|\'.*?\'|[^\s,]+)/) {
+		while ($code_args =~ /^[,\s]*(\([^\(\)]*?\)|\".*?\"|\'.*?\'|[^\s,]+)/) {
 		    #printf "macros args: \"%s\" (%d,%d) => %s\n", $code_args, $#macro_args, $self->{macro_argcs}->{$maro_name}, join(", ", @macro_args);
 		    my $code_arg = $1; #set current $code_arg 
 		    $code_args = $';#'  #remove current $code_arg from $code_args
@@ -4228,7 +4228,7 @@ sub compile_run {
 			foreach $macro_argc (1..$self->{macro_argcs}->{$maro_name}) {
 			    $macro_opcode_replace = $macro_args[$macro_argc-1];
 			    $macro_opcode =~ s/\\$macro_argc/$macro_opcode_replace/g;
-			    printf "replace macro opcode: %d \"%s\", \"%s\" => \"%s\"\n", $macro_argc, $macro_entry->[4], $macro_opcode_replace, $macro_opcode;
+			    #printf "replace macro opcode: %d \"%s\", \"%s\" => \"%s\"\n", $macro_argc, $macro_entry->[4], $macro_opcode_replace, $macro_opcode;
 			}
 
 			#replace macro args
