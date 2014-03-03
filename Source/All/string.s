@@ -61,6 +61,8 @@
 ;#    February 5, 2014                                                         #
 ;#      - Added #ifdef's for rarely used functions STRING_FILL_BL,             #
 ;#        STRING_FILL_NB, STRING_SKIP_WS, and STRING_LOWER                     #
+;#    March 3, 2014                                                            #
+;#      - Added macro STRING_IS_PRINTABLE                                      #
 ;###############################################################################
 	
 ;###############################################################################
@@ -207,6 +209,19 @@ STRING_VARS_END_LIN	EQU	@
 			SSTACK_JOBSR	STRING_LOWER, 2
 #emac
 #endif
+
+;#Check if ASCII character is printable
+; args:   B: ASCII character (w/out termination)
+;         1: branch address if char is not printable	 
+; result: none
+; SSTACK: 2 bytes
+;         X, Y, and A are preserved 
+#macro	STRING_IS_PRINTABLE, 1
+			CMPB	#$20		;" "
+			BLO	\1
+			CMPB	#$7E		;"~"
+			BHI	\1
+#emac
 
 ;#Make ASCII character printable
 ; args:   B: ASCII character (w/out termination)
@@ -416,11 +431,11 @@ STRING_LOWER_2		RTS
 ; result: B: printable ASCII character or "."
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
-STRING_PRINTABLE	EQU	*	
+STRING_PRINTABLE	EQU	*
 			CMPB	#$20		;" "
-			BLO	STRING_PRINTABLE_2
+			BLO	STRING_PRINTABLE_1
 			CMPB	#$7E		;"~"
-			BLS	STRING_PRINTABLE_1
+			BLS	STRING_PRINTABLE_2
 STRING_PRINTABLE_1	LDAB	#$2E		;"."	
 			;Done
 			SSTACK_PREPULL	2
