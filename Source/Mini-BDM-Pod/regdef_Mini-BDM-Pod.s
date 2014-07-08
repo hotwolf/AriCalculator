@@ -19,7 +19,7 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module defines the register map of the S12C128.                     #
+;#    This module defines the register map of the S12XEP100.                   #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    - none                                                                   #
@@ -247,7 +247,7 @@ EROMON          EQU     $04
 ROMHM           EQU     $02
 ROMON           EQU     $01
 
-;$0015 reserved
+;$0014 reserved
 
 PPAGE           EQU     $0015
 PIX7            EQU     $80
@@ -3506,162 +3506,162 @@ CAN4TXTSRL      EQU     $02BF
 
 ATD0CTL0        EQU     $02C0
 ATDCTL0         EQU     $02C0
-WRAP3    	EQU    	$08
-WRAP2    	EQU    	$04
-WRAP1    	EQU    	$02
-WRAP0    	EQU    	$01
+;WRAP3    	EQU    	$08
+;WRAP2    	EQU    	$04
+;WRAP1    	EQU    	$02
+;WRAP0    	EQU    	$01
 
 ATD0CTL1        EQU     $02C1
 ATDCTL1         EQU     $02C1
-ETRIGSEL  	EQU    	$80
-SRES1     	EQU    	$40
-SRES0     	EQU    	$20
-DIS     	EQU  	$10
-ETRIGCH3  	EQU    	$08
-ETRIGCH2  	EQU    	$04
-ETRIGCH1  	EQU    	$02
-ETRIGCH0  	EQU    	$01
+;ETRIGSEL  	EQU    	$80
+;SRES1     	EQU    	$40
+;SRES0     	EQU    	$20
+;DIS     	EQU  	$10
+;ETRIGCH3  	EQU    	$08
+;ETRIGCH2  	EQU    	$04
+;ETRIGCH1  	EQU    	$02
+;ETRIGCH0  	EQU    	$01
 
 ATD0CTL2        EQU     $02C2
 ATDCTL2         EQU     $02C2
-AFFC            EQU     $40
-ICLKSTP         EQU     $20
-ETRIGLE         EQU     $10
-ETRIGP          EQU     $08
-ETRIGE          EQU     $04
-ASCIE           EQU     $02
-ASCIF           EQU     $01
+;AFFC            EQU     $40
+;ICLKSTP         EQU     $20
+;ETRIGLE         EQU     $10
+;ETRIGP          EQU     $08
+;ETRIGE          EQU     $04
+;ASCIE           EQU     $02
+;ASCIF           EQU     $01
 
 ATD0CTL3        EQU     $02C3
 ATDCTL3         EQU     $02C3
-DJM             EQU     $80
-S8C             EQU     $40
-S4C             EQU     $20
-S2C             EQU     $10
-S1C             EQU     $08
-FIFO            EQU     $04
-FRZ1            EQU     $02
-FRZ0            EQU     $01
+;DJM             EQU     $80
+;S8C             EQU     $40
+;S4C             EQU     $20
+;S2C             EQU     $10
+;S1C             EQU     $08
+;FIFO            EQU     $04
+;FRZ1            EQU     $02
+;FRZ0            EQU     $01
 
 ATD0CTL4        EQU     $02C4
 ATDCTL4         EQU     $02C4
-SMP2	        EQU     $80
-SMP1            EQU     $40
-SMP0            EQU     $20
-PRS4            EQU     $10
-PRS3            EQU     $08
-PRS2            EQU     $04
-PRS1            EQU     $02
-PRS0            EQU     $01
+;SMP2	        EQU     $80
+;SMP1            EQU     $40
+;SMP0            EQU     $20
+;PRS4            EQU     $10
+;PRS3            EQU     $08
+;PRS2            EQU     $04
+;PRS1            EQU     $02
+;PRS0            EQU     $01
 
 ATD0CTL5        EQU     $02C5
 ATDCTL5         EQU     $02C5
-SC              EQU     $40
-SCAN            EQU     $20
-MULT            EQU     $10
-CD              EQU     $08
-CC              EQU     $04
-CB              EQU     $02
-CA              EQU     $01
+;SC              EQU     $40
+;SCAN            EQU     $20
+;MULT            EQU     $10
+;CD              EQU     $08
+;CC              EQU     $04
+;CB              EQU     $02
+;CA              EQU     $01
 
 ATD0STAT0       EQU     $02C6
 ATDSTAT0        EQU     $02C6
-SCF             EQU     $80
-ETORF           EQU     $20
-FIFOR           EQU     $10
-CC2             EQU     $04
-CC1             EQU     $02
-CC0             EQU     $01
+;SCF             EQU     $80
+;ETORF           EQU     $20
+;FIFOR           EQU     $10
+;CC2             EQU     $04
+;CC1             EQU     $02
+;CC0             EQU     $01
 
 ;$02C7 reserved
 
 ATD0CMPEH       EQU    	$02C8
 ATDCMPEH        EQU    	$02C8
-CMPE15   	EQU    	$80
-CMPE14   	EQU    	$40
-CMPE13   	EQU    	$20
-CMPE12   	EQU    	$10
-CMPE11   	EQU    	$08
-CMPE10   	EQU    	$04
-CMPE9    	EQU    	$02
-CMPE8    	EQU    	$01
+;CMPE15   	EQU    	$80
+;CMPE14   	EQU    	$40
+;CMPE13   	EQU    	$20
+;CMPE12   	EQU    	$10
+;CMPE11   	EQU    	$08
+;CMPE10   	EQU    	$04
+;CMPE9    	EQU    	$02
+;CMPE8    	EQU    	$01
 
 ATD0CMPEL       EQU     $02C9
 ATDCMPEL        EQU     $02C9
-CMPE7    	EQU     $80
-CMPE6    	EQU     $40
-CMPE5    	EQU     $20
-CMPE4    	EQU     $10
-CMPE3    	EQU     $08
-CMPE2    	EQU     $04
-CMPE1    	EQU     $02
-CMPE0    	EQU     $01
+;CMPE7    	EQU     $80
+;CMPE6    	EQU     $40
+;CMPE5    	EQU     $20
+;CMPE4    	EQU     $10
+;CMPE3    	EQU     $08
+;CMPE2    	EQU     $04
+;CMPE1    	EQU     $02
+;CMPE0    	EQU     $01
 
 ATD0STAT2H      EQU    	$02CA
 ATDSTAT2H       EQU    	$02CA
-CCF15   	EQU    	$80
-CCF14   	EQU    	$40
-CCF13   	EQU    	$20
-CCF12   	EQU    	$10
-CCF11   	EQU    	$08
-CCF10   	EQU    	$04
-CCF9    	EQU    	$02
-CCF8    	EQU    	$01
+;CCF15   	EQU    	$80
+;CCF14   	EQU    	$40
+;CCF13   	EQU    	$20
+;CCF12   	EQU    	$10
+;CCF11   	EQU    	$08
+;CCF10   	EQU    	$04
+;CCF9    	EQU    	$02
+;CCF8    	EQU    	$01
 
 ATD0STAT2L      EQU    	$02CB
 ATDSTAT2L       EQU    	$02CB
-CCF7    	EQU    	$80
-CCF6    	EQU    	$40
-CCF5    	EQU    	$20
-CCF4    	EQU    	$10
-CCF3    	EQU    	$08
-CCF2    	EQU    	$04
-CCF1    	EQU    	$02
-CCF0    	EQU    	$01
+;CCF7    	EQU    	$80
+;CCF6    	EQU    	$40
+;CCF5    	EQU    	$20
+;CCF4    	EQU    	$10
+;CCF3    	EQU    	$08
+;CCF2    	EQU    	$04
+;CCF1    	EQU    	$02
+;CCF0    	EQU    	$01
 
 ATD0DIENH       EQU    	$02CC
 ATDDIENH        EQU    	$02CC
-IEN15    	EQU    	$80
-IEN14    	EQU    	$40
-IEN13    	EQU    	$20
-IEN12    	EQU    	$10
-IEN11    	EQU    	$08
-IEN10    	EQU    	$04
-IEN9     	EQU    	$02
-IEN8     	EQU    	$01
+;IEN15    	EQU    	$80
+;IEN14    	EQU    	$40
+;IEN13    	EQU    	$20
+;IEN12    	EQU    	$10
+;IEN11    	EQU    	$08
+;IEN10    	EQU    	$04
+;IEN9     	EQU    	$02
+;IEN8     	EQU    	$01
 
 ATD0DIENL       EQU    	$02CD
 ATDDIENL        EQU    	$02CD
-IEN7     	EQU    	$80
-IEN6     	EQU    	$40
-IEN5     	EQU    	$20
-IEN4     	EQU    	$10
-IEN3     	EQU    	$08
-IEN2     	EQU    	$04
-IEN1     	EQU    	$02
-IEN0     	EQU    	$01
+;IEN7     	EQU    	$80
+;IEN6     	EQU    	$40
+;IEN5     	EQU    	$20
+;IEN4     	EQU    	$10
+;IEN3     	EQU    	$08
+;IEN2     	EQU    	$04
+;IEN1     	EQU    	$02
+;IEN0     	EQU    	$01
 
 ATD0CMPHTH      EQU    	$02CE
 ATDCMPHTH       EQU    	$02CE
-CMPHT15  	EQU    	$80
-CMPHT14  	EQU    	$40
-CMPHT13  	EQU    	$20
-CMPHT12  	EQU    	$10
-CMPHT11  	EQU    	$08
-CMPHT10  	EQU    	$04
-CMPHT9   	EQU    	$02
-CMPHT8   	EQU    	$01
+;CMPHT15  	EQU    	$80
+;CMPHT14  	EQU    	$40
+;CMPHT13  	EQU    	$20
+;CMPHT12  	EQU    	$10
+;CMPHT11  	EQU    	$08
+;CMPHT10  	EQU    	$04
+;CMPHT9   	EQU    	$02
+;CMPHT8   	EQU    	$01
 		       	
 ATD0CMPHTL      EQU    	$02CF
 ATDCMPHTL       EQU    	$02CF
-CMPHT0  	EQU    	$01
-CMPHT1  	EQU    	$02
-CMPHT2  	EQU    	$04
-CMPHT3  	EQU    	$08
-CMPHT4  	EQU    	$10
-CMPHT5  	EQU    	$20
-CMPHT6  	EQU    	$40
-CMPHT7  	EQU    	$80
+;CMPHT0  	EQU    	$01
+;CMPHT1  	EQU    	$02
+;CMPHT2  	EQU    	$04
+;CMPHT3  	EQU    	$08
+;CMPHT4  	EQU    	$10
+;CMPHT5  	EQU    	$20
+;CMPHT6  	EQU    	$40
+;CMPHT7  	EQU    	$80
 
 ATD0DR0         EQU    	$02D0
 ATDDR0          EQU    	$02D0
@@ -4567,7 +4567,7 @@ XGC          	EQU    	$01
 
 XGPC            EQU    	$039E
 
-;$03A0 to $03A2 reserved
+;$03A0 to $03A1 reserved
 
 XGR1            EQU    	$03A2
 XGR2            EQU    	$03A4

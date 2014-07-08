@@ -169,7 +169,7 @@ CLOCK_BUS_FREQ		EQU	25000000 	;default is 25MHz
 #ifndef	SCI_RXTX_ACTHI
 SCI_RXTX_ACTLO		EQU	1 		;default is active low RXD/TXD
 #endif
-#endi3f
+#endif
 	
 ;Flow control
 ;------------ 
@@ -764,7 +764,7 @@ STORE_REMCNT		STD	SCI_XONXOFF_REMCNT
 DONE			EQU	*
 #emac
 
-;#ReSET delay (approx. 2 SCI frames)
+;#RESET delay (approx. 2 SCI frames)
 ; args:   none 
 ; SSTACK: none
 ;         X, and Y are preserved 
@@ -1167,7 +1167,7 @@ SCI_SET_BAUD		EQU	*
 
 ;#Timer delay
 ; period: approx. 2 SCI frames
-; RTS/CTS:    if RTL polling is requested (SCI_FLG_POLL_RTS) -> enable TX IRQ
+; RTS/CTS:    if RTS polling is requested (SCI_FLG_POLL_RTS) -> enable TX IRQ
 ; XON/XOFF:   if reminder count == 1 -> request XON/XOFF reminder, enable TX IRQ
 ;	      if reminder count > 1  -> decrement reminder count, retrigger delay
 ; workaround: retrigger delay, jump to SCI_ISR_RXTX
