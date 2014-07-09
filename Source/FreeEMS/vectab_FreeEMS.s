@@ -203,7 +203,7 @@ ISR_PORTJ		BGND				;vector base + $CE
 ISR_ATD1		BGND				;vector base + $D0
 ISR_ATD0		BGND				;vector base + $D2
 ISR_SCI1		BGND				;vector base + $D4
-ISR_SCI0		BGND				;vector base + $D6
+ISR_SCI0		EQU	SCI_ISR_RXTX		;vector base + $D6
 ISR_SPI0		BGND				;vector base + $D8
 ISR_ECT_PAIE		BGND				;vector base + $DA
 ISR_ECT_PAOV		BGND				;vector base + $DC
@@ -321,7 +321,7 @@ ISR_PORTJ		EQU	RESET_ISR_FATAL		;vector base + $CE
 ISR_ATD1		EQU	RESET_ISR_FATAL		;vector base + $D0
 ISR_ATD0		EQU	RESET_ISR_FATAL		;vector base + $D2
 ISR_SCI1		EQU	RESET_ISR_FATAL		;vector base + $D4
-ISR_SCI0		EQU	RESET_ISR_FATAL		;vector base + $D6
+ISR_SCI0		EQU	SCI_ISR_RXTX		;vector base + $D6
 ISR_SPI0		EQU	RESET_ISR_FATAL		;vector base + $D8
 ISR_ECT_PAIE		EQU	RESET_ISR_FATAL		;vector base + $DA
 ISR_ECT_PAOV		EQU	RESET_ISR_FATAL		;vector base + $DC
