@@ -46,7 +46,8 @@
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-SPACE			EQU	" "
+FCOM_SYM_SPACE		EQU	STRING_SYM_SPACE
+FCOM_STR_NL		EQU	STRING_STR_NL
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -79,7 +80,66 @@ FCOM_VARS_END_LIN	EQU	@
 ;#Suspend action
 #macro	FCOM_SUSPEND, 0
 #emac
-		
+
+;#Functions	
+;==========
+;#Transmit one byte - non-blocking
+; args:   B:      data to be send
+; result: C-flag: set if successful
+; SSTACK: 5 bytes
+;         X, Y, and D are preserved 
+#macro	FCOM_TX_NB, 0
+			SCI_TX_NB
+#emac
+	
+;#Transmit one byte - blocking
+; args:   B: data to be send
+; SSTACK: 7 bytes
+;         X, Y, and D are preserved 
+#macro	FCOM_TX_BL, 0
+			SCI_TX_BL
+#emac
+
+;#Receive one byte - non-blocking
+; args:   none
+; result: A:      error flags 
+;         B:      received data 
+;         C-flag: set if successful
+; SSTACK: 4 bytes
+;         X and Y are preserved 
+#macro	FCOM_RX_NB, 0
+			SCI_RX_NB
+#emac
+
+;#Receive one byte - blocking
+; args:   none
+; result: A: error flags 
+;         B: received data
+; SSTACK: 6 bytes
+;         X and Y are preserved 
+#macro	FCOM_RX_BL, 0
+			SCI_RX_BL
+#emac
+
+;#Basic print function - non-blocking
+; args:   X:      start of the string
+; result: X;      remaining string (points to the byte after the string, if successful)
+;         C-flag: set if successful	
+; SSTACK: 8 bytes
+;         Y and D are preserved
+#macro	FCOM_PRINT_NB, 0
+			STRING_PRINT_NB
+#emac	
+
+;#Basic print function - blocking
+; args:   X:      start of the string
+; result: X;      points to the byte after the string
+; SSTACK: 10 bytes
+;         Y and D are preserved
+#macro	FCOM_PRINT_BL, 0
+			STRING_PRINT_BL
+#emac	
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -89,7 +149,7 @@ FCOM_VARS_END_LIN	EQU	@
 			ORG 	FCOM_CODE_START
 FCOM_CODE_START_LIN	EQU	@
 #endif
-
+	
 ;Code fields:
 ;============
 ;EKEY ( -- u )
@@ -158,7 +218,7 @@ CF_EKEY_QUESTION	EQU	*
 ; throws: FEXCPT_EC_PSUF
 CF_SPACE		EQU	*
 			;Push space character onto PS 
-			PS_PUSH	#SPACE
+			PS_PUSH	#FCOM _SYM_SPACE
 			;Print char 
 			;JOB	CF_EMIT
 	
@@ -481,7 +541,7 @@ CF_SPACES		EQU	*
 CF_SPACES_1		PS_COPY_X 			;space count from PS
 			BLE	CF_SPACES_3		;n < 1
 			;Try to transmit space character (char count in X)
-			LDAB	#SPACE 			;space char -> B
+			LDAB	#FCOM_SYM_SPACE 			;space char -> B
 CF_SPACES_2		SEI				;disable interrupts
 			SCI_TX_NB			;try to write to SCI (SSTACK: 5 bytes)
 			BCC	CF_SPACES_4		;TX queue is full
@@ -518,7 +578,7 @@ CF_SPACES_5		;LED_BUSY_OFF 			;signal inactivity
 ; throws: FEXCPT_EC_PSOF
 CF_CR			EQU	*
 			;Push string pointer onto PS
-			PS_PUSH	#STRING_STR_NL
+			PS_PUSH	#FCOM_STR_NL
 			;Print string 
 			;JOB	CF_STRING_DOT
 

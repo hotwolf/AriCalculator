@@ -1058,15 +1058,16 @@ FOUTER_TREE_SEARCH_7	SSTACK_PREPULL	8 				;check stack
 ;===================== 	
 ;Invoke the suspend shell
 NEXT_SUSPEND_ENTRY	EQU	*
-			RS_CHECK_OF	3 				;check for RS overflow
+			;Push the execution context onto the RS 
+			RS_CHECK_OF	4 				;check for RS overflow
 			LDX	RSP
-			MOVW	IP, 2,-X 				;save IP
-			MOVW	HANDLER, 2,-X 				;save HANDLER
-			MOVW	#$0000, HANDLER ;TBD
 			MOVW	NEXT_PTR, 2,-X 				;save NEXT_PTR
-			MOVW	#NEXT_SUSPEND_MODE, NEXT_PTR		;switch NEXT_PTR
+			MOVW	IP,	  2,-X				;save IP
+			MOVW	PSP,	  2,-X				;save PSP
+			MOVW	HANDLER,  2,-X				;save HANDLER
 			STX	RSP 					;update RSP
-			JOB	CF_SUSPEND_RT			;start SUSPEND shell
+			MOVW	#$0000, HANDLER 			;set defaukt handler
+			JOB	CF_SUSPEND_RT				;start SUSPEND shell
 
 ;Code fields:
 ;============
