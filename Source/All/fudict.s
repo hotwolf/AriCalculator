@@ -150,7 +150,6 @@ FUDICT_VARS_START_LIN	EQU	@
 #endif
 
 			ALIGN	1	
-STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
 CP			DS	2 	;compile pointer (next free space in the dictionary space) 
 HLD			DS	2	;pointer for pictured numeric output
 PAD                     DS	2	;end of the PAD buffer
@@ -196,7 +195,7 @@ FUDICT_VARS_END_LIN	EQU	@
 ;----------------------- 
 ;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
 ; args:   1: required space (bytes)
-; result: X: CP-new bytes
+; result: X: CP+new bytes
 ; SSTACK: none
 ; throws: FEXCPT_EC_DICTOF
 ;        Y and D are preserved 
@@ -213,7 +212,7 @@ FUDICT_VARS_END_LIN	EQU	@
 
 ;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
 ; args:   A: required space (bytes)
-; result: X: CP-new bytes
+; result: X: CP+new bytes
 ; SSTACK: none
 ; throws: FEXCPT_EC_DICTOF
 ;        Y and D are preserved 
@@ -405,30 +404,6 @@ FUDICT_PAD_ALLOC_4	LDD 	$0000 			;signal failure
 
 ;Code fields:
 ;============
-;LITERAL ( -- x ) run-time semantics of a single cell literal
-;Place x on the stack.
-; SSTACK: none
-; PS:     1 cell
-; RS:     none
-; throws: FEXCPT_EC_PSOF
-CF_LITERAL_RT		LDX	IP			;push the value at IP onto the PS
-			PS_PUSH	(2,X+)
-			STX	IP
-			NEXT
-
-;2LITERAL ( -- d ) run-time semantics of a double cell literal
-;Place x on the stack.
-; SSTACK: none
-; PS:     2 cells
-; RS:     none
-; throws: FEXCPT_EC_PSOF
-CF_TWO_LITERAL_RT	LDX	IP			;push the double value at IP onto the PS
-			PS_CHECK_OF	2 		;check for PS overflow (PSP-new cells -> Y)
-			MOVW	2,X+, 0,Y		; and increment the IP
-			MOVW	2,X+, 2,Y		; and increment the IP
-			STY	PSP
-			STX	IP
-			NEXT
 
 FUDICT_CODE_END		EQU	*
 FUDICT_CODE_END_LIN	EQU	@

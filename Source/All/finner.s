@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CForth - FINNER - Inner Interpreter                                      #
 ;###############################################################################
-;#    Copyright 2010-2013 Dirk Heisswolf                                       #
+;#    Copyright 2010-2014 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -287,9 +287,35 @@ JUMP_NEXT		EQU	*
 							;                         ---------
 							;                         30 cycles
 
-;Prioritized NEXT implementations (higher address -> higher priority):
-;===================================================================== 	
-;#NEXT:	jump to the next instruction
+;NEXT implementations:
+;=====================
+;#NEXT_SUSPEND_MODE: jump to the next instruction (SUSPEND mode indicator)
+; args:	  IP:   pointer to next instruction
+;	  IRQ: pending interrupt requests
+; result: IP:   pointer to subsequent instruction
+;         W/X:  new CFA
+;         Y:    IP (=pointer to subsequent instruction)
+; SSTACK: none
+; PS:     none
+; RS:     none
+; throws: none
+;         No registers are preserved
+NEXT_SUSPEND_MODE  	NOP
+	
+;#NEXT_BLOCK_IRQS: jump to the next instruction (block interrupt requests)
+; args:	  IP:   pointer to next instruction
+;	  IRQ: pending interrupt requests
+; result: IP:   pointer to subsequent instruction
+;         W/X:  new CFA
+;         Y:    IP (=pointer to subsequent instruction)
+; SSTACK: none
+; PS:     none
+; RS:     none
+; throws: none
+;         No registers are preserved
+NEXT_BLOCK_IQS  	NOP
+	
+;#NEXT: jump to the next instruction
 ; args:	  IP:   pointer to next instruction
 ;	  IRQ: pending interrupt requests
 ; result: IP:   pointer to subsequent instruction
@@ -309,7 +335,7 @@ NEXT			EQU	*
 							;                         15 cycles
 
 ;#SUSPEND_SHELL_NEXT: Invoke the suspend shell
-SUSPEND_SHELL_NEXT	SUSPEND_SHELL_NEXT	
+SUSPEND_ENTRY_NEXT	SUSPEND_ENTRY_NEXT	
 
 ;#SUSPEND_MODE_NEXT: Prevent interrupts and nested suspend shells
 SUSPEND_MODE_NEXT	SUSPEND_MODE_NEXT	
@@ -337,13 +363,10 @@ CF_INNER		EQU		*
 ;CF_EOW ( -- ) End of  word
 ; args:   top of RS: next execution token	
 ; result: IP:  subsequent execution token
-; 	  W/X: current CFA
-; 	  Y:   IP (= subsequent execution token)
 ; SSTACK: none
 ;        D is preserved 
 CF_EOW			EQU	*
-			RS_PULL_Y			;RS -> Y (= IP)		=>12 cycles
-			STY		IP 		;			=> 3 cycles	=> 3 cycles 
+			RS_PULL IP			;RS -> IP		=>14 cycles
 CF_EOW_1		NEXT
 
 
@@ -374,7 +397,7 @@ CF_WAIT_2		LED_BUSY_OFF 			;signal inactivity
 			ISTACK_WAIT			;wait for next interrupt
 			LED_BUSY_ON 			;signal activity
 			JOB	CF_WAIT_1		;check NEXT_PTR again
-
+	
 FINNER_CODE_END		EQU	*
 FINNER_CODE_END_LIN	EQU	@
 	
@@ -403,7 +426,7 @@ FINNER_WORDS_START_LIN	EQU	@
 			ALIGN	1
 ;#ANSForth Words:
 ;================
-
+	
 ;#S12CForth Words:
 ;================
 ;EOW ( -- )
