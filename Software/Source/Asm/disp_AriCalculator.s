@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CBase - DISP - LCD Driver (ST7565R)                                      #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2014x Dirk Heisswolf                                      #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -24,11 +24,11 @@
 ;#    interface.                                                               #
 ;#                                                                             #
 ;#    This modules  provides three functions to the main program:              #
-;#    DISP_CHECK_BUF - This function checks if the command buffer is able   #
+;#    DISP_CHECK_BUF - This function checks if the command buffer is able      #
 ;#                        to accept more data.                                 #
-;#    DISP_TX_NB -     This function send one command to the display        #
+;#    DISP_TX_NB -     This function send one command to the display           #
 ;#                        without blocking the program flow.                   #
-;#    DISP_TX_BL -     This function send one command to the display and    #
+;#    DISP_TX_BL -     This function send one command to the display and       #
 ;#                        blocks the program flow until it has been            #
 ;#                        successful.                                          #
 ;#                                                                             #
@@ -79,23 +79,17 @@ DISP_A0_PIN		EQU	PS4		;default is PS4
 
 ;#Buffer size
 #ifndef DISP_BUF_SIZE
-DISP_BUF_SIZE	EQU	8 		;depth of the command buffer
+DISP_BUF_SIZE		EQU	8 		;depth of the command buffer
 #endif
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;#Buffer
-; Entry format: 
-;  F  E  D  C  B  A  9  8  7  6  5  4  3  2  1  0
-; +-------------------+--+-----------------------+
-; |   repeat count    |A0|    command/data       |
-; +-------------------+--+-----------------------+
-DISP_BUF_REPEAT	EQU	$FE 		;repeat count     (within the high byte)
-DISP_BUF_REPEAT_DEC	EQU	$02 		;repeat increment (within the high byte)
-DISP_BUF_A0		EQU	$01 		;A0               (within the high byte)
-DISP_BUF_IDX_MASK	EQU	(DISP_BUF_SIZE-1)<<1 ;index mask
-DISP_BUF_IDX_INC	EQU	$02 		;index increment
+;#Escape sequences
+DISP_ESC_START		EQU	$E3 		;start of eccape sequence (NOP)
+DISP_ESC_CMD		EQU	$00		;switch to command mode
+DISP_ESC_DATA		EQU	$01		;switch to data mode
+DISP_ESC_ESC		EQU	$02		;transmit escape character
 
 ;#Baud rate divider
 DISP_SPPR		EQU	((CLOCK_BUS_FREQ/(2*DISP_BAUD))-1)&7
@@ -104,21 +98,28 @@ DISP_SPR		EQU	0
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
+#ifdef DISP_VARS_START_LIN
+			ORG 	DISP_VARS_START, DISP_VARS_START_LIN
+#else
 			ORG 	DISP_VARS_START
-DISP_AUTO_LOC1	EQU	* 		;1st auto-place location
+DISP_VARS_START_LIN	EQU	@			
+#endif	
+
+DISP_AUTO_LOC1		EQU	* 		;1st auto-place location
 			ALIGN	1
-	
 ;#Command buffer  
-DISP_BUF		DS	2*DISP_BUF_SIZE
+DISP_BUF		DS	DISP_BUF_SIZE
 DISP_BUF_IN		DS	1
 DISP_BUF_OUT		DS	1
 
-DISP_AUTO_LOC2	DS	1		;2nd auto-place location
-DISP_AUTO_LOC3	EQU	*		;3nd auto-place location
+DISP_AUTO_LOC2		EQU	*		;2nd auto-place location
 
 ;#Transmission counter (auto-place)
-DISP_TXCNT		EQU	((DISP_AUTO_LOC1&1)*DISP_AUTO_LOC1)+((~DISP_AUTO_LOC1&1)*DISP_AUTO_LOC2)
-DISP_VARS_END	EQU	((DISP_AUTO_LOC1&1)*DISP_AUTO_LOC2)+((~DISP_AUTO_LOC1&1)*DISP_AUTO_LOC3)
+DISP_TXCNT		EQU	((DISP_AUTO_LOC1&1)*DISP_AUTO_LOC1)+((~(DISP_AUTO_LOC1)&1)*DISP_AUTO_LOC2)
+			UNALIGN	((~DISP_AUTO_LOC1)&1)
+
+DISP_VARS_END		EQU	*
+DISP_VARS_END_LIN	EQU	@
 	
 ;###############################################################################
 ;# Macros                                                                      #
@@ -261,7 +262,7 @@ DISP_TX_NB_1		TFR	D, Y
 			ADDA    #DISP_BUF_IDX_INC
 			ANDA	#DISP_BUF_IDX_MASK
 			CBA
-			BEQ	<DISP_TX_NB_2				;buffer is full
+			BEQ	<DISP_TX_NB_2					;buffer is full
 			STAA	DISP_BUF_IN					;Update buffer (new in-index in A)
 
 			;Enable SPI transmit interrupt 

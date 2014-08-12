@@ -4,7 +4,11 @@ This is the tool chain for the AriCalculator project.
 
 HSW12
 -----
-Assembler and IDE 
+Assembler and IDE
+
+Update Subprojects
+------------------
+A shell script to keep all subprojects up to date.
 
 Test Builder
 ------------
@@ -15,3 +19,7 @@ Image Converter
 ---------------
 This Perl script converts a grayscale image into a sequence of B/W frames and
 generates ASM tables and compressed command sequences for the DISP module.
+
+Dictionary Tree Generator
+-------------------------
+A Perl script to generate a dictionary search tree for S12CForth.
