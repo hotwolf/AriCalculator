@@ -169,7 +169,7 @@ CLOCK_BUS_FREQ		EQU	25000000 	;default is 25MHz
 #ifndef	SCI_RXTX_ACTHI
 SCI_RXTX_ACTLO		EQU	1 		;default is active low RXD/TXD
 #endif
-#endi3f
+#endif
 	
 ;Flow control
 ;------------ 
@@ -425,21 +425,9 @@ SCI_TXBUF_OUT		DS	1		;points to the oldest entry
 ;#Baud rate (reset proof) 
 SCI_BVAL		DS	2		;value of the SCIBD register *SCI_BMUL
 
-SCI_AUTO_LOC2		EQU	*		;2nd auto-place location
-			UNALIGN	1
-;#Flags
-SCI_FLGS		EQU	((SCI_VARS_START&1)*SCI_AUTO_LOC1)+((~SCI_VARS_START&1)*SCI_AUTO_LOC2)
-			UNALIGN	(~SCI_AUTO_LOC1&1)
-
 ;#XON/XOFF reminder count
 #ifdef	SCI_FC_XONXOFF
 SCI_XONXOFF_REMCNT	DS	2		;counter for XON/XOFF reminder
-#endif
-	
-;#Baud rate detection registers
-#ifdef SCI_BD_ON
-;SCI_BD_RECOVCNT	DS	1		;recover counter
-SCI_BD_LIST		DS	1		;list of potential baud rates
 #endif
 
 ;#BD log buffer
@@ -450,6 +438,19 @@ SCI_BD_LOG_BUF		DS	4*32
 SCI_BD_LOG_BUF_END	EQU	*
 #endif
 #endif
+	
+SCI_AUTO_LOC2		EQU	*		;2nd auto-place location
+
+;#Flags
+SCI_FLGS		EQU	((SCI_AUTO_LOC1&1)*SCI_AUTO_LOC1)+(((~SCI_AUTO_LOC1)&1)*SCI_AUTO_LOC2)
+			UNALIGN	((~SCI_AUTO_LOC1)&1)
+	
+;#Baud rate detection registers
+#ifdef SCI_BD_ON
+;SCI_BD_RECOVCNT	DS	1		;recover counter
+SCI_BD_LIST		DS	1		;list of potential baud rates
+#endif
+
 	
 SCI_VARS_END		EQU	*
 SCI_VARS_END_LIN	EQU	@
@@ -765,7 +766,7 @@ STORE_REMCNT		STD	SCI_XONXOFF_REMCNT
 DONE			EQU	*
 #emac
 
-;#ReSET delay (approx. 2 SCI frames)
+;#RESET delay (approx. 2 SCI frames)
 ; args:   none 
 ; SSTACK: none
 ;         X, and Y are preserved 
@@ -1168,7 +1169,7 @@ SCI_SET_BAUD		EQU	*
 
 ;#Timer delay
 ; period: approx. 2 SCI frames
-; RTS/CTS:    if RTL polling is requested (SCI_FLG_POLL_RTS) -> enable TX IRQ
+; RTS/CTS:    if RTS polling is requested (SCI_FLG_POLL_RTS) -> enable TX IRQ
 ; XON/XOFF:   if reminder count == 1 -> request XON/XOFF reminder, enable TX IRQ
 ;	      if reminder count > 1  -> decrement reminder count, retrigger delay
 ; workaround: retrigger delay, jump to SCI_ISR_RXTX

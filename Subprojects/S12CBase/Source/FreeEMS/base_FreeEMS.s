@@ -1,7 +1,7 @@
 ;###############################################################################
-;# S12CBase - Base Bundle (Mini-BDM-Pod)                                  #
+;# S12CBase - Base Bundle (FreeEMS)                                            #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2014 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -22,7 +22,7 @@
 ;#    This module bundles all standard S12CBase modules into one.              #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    November 20, 2012                                                        #
+;#    July  8, 2014                                                            #
 ;#      - Initial release                                                      #
 ;###############################################################################
 
@@ -32,52 +32,37 @@
 ;# Clocks
 CLOCK_CRG		EQU	1		;old CRG
 #ifndef CLOCK_OSC_FREQ	
-CLOCK_OSC_FREQ		EQU	10000000	;10 MHz
-#endif
-#ifndef CLOCK_BUS_FREQ
-CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
-#endif
-#ifndef CLOCK_REF_FREQ
-CLOCK_REF_FREQ		EQU	CLOCK_OSC_FREQ	;4,000 MHz
-#endif
-#ifndef CLOCK_VCOFRQ
-CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
-#endif
-#ifndef CLOCK_REFFRQ
-CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
+CLOCK_OSC_FREQ		EQU	16000000	;16 MHz
 #endif
 
-;# RESET
-RESET_COP_OFF		EQU	1
-RESET_CLKFAIL_OFF	EQU	1
-	
+#ifndef CLOCK_BUS_FREQ
+CLOCK_BUS_FREQ		EQU	80000000	;80 MHz
+#endif
+
+#ifndef CLOCK_REF_FREQ
+CLOCK_REF_FREQ		EQU	CLOCK_OSC_FREQ/8;
+#endif
+
 ;# SCI
 #ifndef	SCI_FC_RTS_CTS
 #ifndef	SCI_FC_XON_XOFF
-#ifndef SCI_FC_NONE	
-SCI_FC_XON_XOFF		EQU	1 		;XON/XOFF flow control
+#ifndef SCI_FC_NONE
+SCI_FC_NONE		EQU	1 		;no flow control
 #endif
 #endif
 #endif
 
 #ifndef	SCI_BD_ON
 #ifndef	SCI_BD_OFF
-SCI_BD_ON		EQU	1 		;use baud rate detection
-SCI_BD_TIM		EQU	1 		;TIM
-SCI_BD_ICNEPE		EQU	0		;IC0
-SCI_BD_OC		EQU	2		;OC2			
-SCI_DLY_OC		EQU	3		;OC3
-#endif
-#endif
-
-#ifndef	SCI_ERRSIG_ON
-#ifndef	SCI_ERRSIG_OFF
-SCI_ERRSIG_ON		EQU	1 		;signal errors
+SCI_BD_OFF		EQU	1 		;no baud rate detection
 #endif
 #endif
 	
-;# TIM
-TIM_DIV2_ON		EQU	1 		;run TIM at half bus frequency
+#ifndef	SCI_ERRSIG_ON
+#ifndef	SCI_ERRSIG_OFF
+SCI_ERRSIG_OFF		EQU	1 		;no error signal
+#endif
+#endif
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -109,14 +94,8 @@ COP_VARS_START_LIN	EQU	CLOCK_VARS_END_LIN
 TIM_VARS_START		EQU	COP_VARS_END
 TIM_VARS_START_LIN	EQU	COP_VARS_END_LIN
 
-LED_VARS_START		EQU	TIM_VARS_END
-LED_VARS_START_LIN	EQU	TIM_VARS_END_LIN
-
-TVMON_VARS_START	EQU	LED_VARS_END
-TVMON_VARS_START_LIN	EQU	LED_VARS_END_LIN
-
-SCI_VARS_START		EQU	TVMON_VARS_END
-SCI_VARS_START_LIN	EQU	TVMON_VARS_END_LIN
+SCI_VARS_START		EQU	TIM_VARS_END
+SCI_VARS_START_LIN	EQU	TIM_VARS_END_LIN
 
 STRING_VARS_START	EQU	SCI_VARS_END
 STRING_VARS_START_LIN	EQU	SCI_VARS_END_LIN
@@ -127,11 +106,8 @@ RESET_VARS_START_LIN	EQU	STRING_VARS_END_LIN
 NUM_VARS_START		EQU	RESET_VARS_END
 NUM_VARS_START_LIN	EQU	RESET_VARS_END_LIN
 	
-NVM_VARS_START		EQU	NUM_VARS_END
-NVM_VARS_START_LIN	EQU	NUM_VARS_END_LIN
-	
-VECTAB_VARS_START	EQU	NVM_VARS_END
-VECTAB_VARS_START_LIN	EQU	NVM_VARS_END_LIN
+VECTAB_VARS_START	EQU	NUM_VARS_END
+VECTAB_VARS_START_LIN	EQU	NUM_VARS_END_LIN
 
 BASE_VARS_END		EQU	VECTAB_VARS_END	
 BASE_VARS_END_LIN	EQU	VECTAB_VARS_END_LIN
@@ -142,18 +118,15 @@ BASE_VARS_END_LIN	EQU	VECTAB_VARS_END_LIN
 ;#Initialization
 #macro	BASE_INIT, 0
 			GPIO_INIT
+			VECTAB_INIT
+			MMAP_INIT
 			CLOCK_INIT
 			COP_INIT
-			MMAP_INIT
-			VECTAB_INIT
 			ISTACK_INIT
 			SSTACK_INIT
 			TIM_INIT
 			STRING_INIT
 			NUM_INIT
-			NVM_INIT
-			LED_INIT
-			TVMON_INIT
 			CLOCK_WAIT_FOR_PLL
 			SCI_INIT	
 			RESET_INIT
@@ -189,14 +162,8 @@ COP_CODE_START_LIN	EQU	CLOCK_CODE_END_LIN
 TIM_CODE_START		EQU	COP_CODE_END
 TIM_CODE_START_LIN	EQU	COP_CODE_END_LIN
 
-LED_CODE_START		EQU	TIM_CODE_END
-LED_CODE_START_LIN	EQU	TIM_CODE_END_LIN
-
-TVMON_CODE_START	EQU	LED_CODE_END
-TVMON_CODE_START_LIN	EQU	LED_CODE_END_LIN
-
-SCI_CODE_START		EQU	TVMON_CODE_END
-SCI_CODE_START_LIN	EQU	TVMON_CODE_END_LIN
+SCI_CODE_START		EQU	TIM_CODE_END
+SCI_CODE_START_LIN	EQU	TIM_CODE_END_LIN
 
 STRING_CODE_START	EQU	SCI_CODE_END
 STRING_CODE_START_LIN	EQU	SCI_CODE_END_LIN
@@ -207,11 +174,8 @@ RESET_CODE_START_LIN	EQU	STRING_CODE_END_LIN
 NUM_CODE_START		EQU	RESET_CODE_END
 NUM_CODE_START_LIN	EQU	RESET_CODE_END_LIN
 	
-NVM_CODE_START		EQU	NUM_CODE_END
-NVM_CODE_START_LIN	EQU	NUM_CODE_END_LIN
-	
-VECTAB_CODE_START	EQU	NVM_CODE_END
-VECTAB_CODE_START_LIN	EQU	NVM_CODE_END_LIN
+VECTAB_CODE_START	EQU	NUM_CODE_END
+VECTAB_CODE_START_LIN	EQU	NUM_CODE_END_LIN
 
 BASE_CODE_END		EQU	VECTAB_CODE_END	
 BASE_CODE_END_LIN	EQU	VECTAB_CODE_END_LIN
@@ -246,14 +210,8 @@ COP_TABS_START_LIN	EQU	CLOCK_TABS_END_LIN
 TIM_TABS_START		EQU	COP_TABS_END
 TIM_TABS_START_LIN	EQU	COP_TABS_END_LIN
 
-LED_TABS_START		EQU	TIM_TABS_END
-LED_TABS_START_LIN	EQU	TIM_TABS_END_LIN
-
-TVMON_TABS_START	EQU	LED_TABS_END
-TVMON_TABS_START_LIN	EQU	LED_TABS_END_LIN
-
-SCI_TABS_START		EQU	TVMON_TABS_END
-SCI_TABS_START_LIN	EQU	TVMON_TABS_END_LIN
+SCI_TABS_START		EQU	TIM_TABS_END
+SCI_TABS_START_LIN	EQU	TIM_TABS_END_LIN
 
 STRING_TABS_START	EQU	SCI_TABS_END
 STRING_TABS_START_LIN	EQU	SCI_TABS_END_LIN
@@ -264,11 +222,8 @@ RESET_TABS_START_LIN	EQU	STRING_TABS_END_LIN
 NUM_TABS_START		EQU	RESET_TABS_END
 NUM_TABS_START_LIN	EQU	RESET_TABS_END_LIN
 	
-NVM_TABS_START		EQU	NUM_TABS_END
-NVM_TABS_START_LIN	EQU	NUM_TABS_END_LIN
-	
-VECTAB_TABS_START	EQU	NVM_TABS_END
-VECTAB_TABS_START_LIN	EQU	NVM_TABS_END_LIN
+VECTAB_TABS_START	EQU	NUM_TABS_END
+VECTAB_TABS_START_LIN	EQU	NUM_TABS_END_LIN
 
 BASE_TABS_END		EQU	VECTAB_TABS_END	
 BASE_TABS_END_LIN	EQU	VECTAB_TABS_END_LIN
@@ -276,21 +231,17 @@ BASE_TABS_END_LIN	EQU	VECTAB_TABS_END_LIN
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-			CPU	S12X
-#include ./regdef_Mini-BDM-Pod.s	;S12XEP100 register map
-#include ./gpio_Mini-BDM-Pod.s		;I/O setup
-#include ./mmap_Mini-BDM-Pod.s		;RAM memory map
+#include ./regdef_FreeEMS.s		;S12XDP512 register map
+#include ./gpio_FreeEMS.s		;I/O setup
+#include ./mmap_FreeEMS.s		;RAM memory map
 #include ../All/sstack.s		;Subroutine stack
 #include ../All/istack.s		;Interrupt stack
 #include ../All/clock.s			;CRG setup
 #include ../All/cop.s			;COP handler
-#include ../All/tim.s			;TIM driver
-#include ./led_Mini-BDM-Pod.s		;LED driver
-#include ./tvmon_Mini-BDM-Pod.s		;Target Vdd monitor
-#include ./sci_bdtab_Mini-BDM-Pod.s	;Search tree for SCI baud rate detection
 #include ../All/sci.s			;SCI driver
+#include ../All/tim.s			;TIM driver
 #include ../All/string.s		;String printing routines
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
-#include ./nvm_Mini-BDM-Pod.s		;NVM driver
-#include ./vectab_Mini-BDM-Pod.s	;S12XEP100 vector table
+#include ./vectab_FreeEMS.s		;S12XDP512 vector table
+	

@@ -6,16 +6,17 @@ HSW12
 -----
 Assembler and IDE 
 
-SCI Search Tree Generator
--------------------------
-A Perl script to generate target specific search trees for the SCI module's BAUD
-rate detection.
+Update Subprojects
+------------------
+A shell script to keep all subprojects up to date.
 
 Test Builder
 ------------
 A set of Perl scripts to compile the source code and wrap the resulting S-Record
 into command files which can be executed by a D-Bug12(X) debugger.
 
-Update Subprojects
-------------------
-A shell script to keep all subprojects up to date.
+SCI Search Tree Generator
+-------------------------
+A Perl script to generate target specific search trees for the SCI module's BAUD
+rate detection.
+
