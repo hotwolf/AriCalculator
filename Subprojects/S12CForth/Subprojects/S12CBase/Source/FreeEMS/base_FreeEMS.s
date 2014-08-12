@@ -1,7 +1,7 @@
 ;###############################################################################
-;# S12CBase - Base Bundle (S12DP256-Mini-EVB)                                  #
+;# S12CBase - Base Bundle (FreeEMS)                                            #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2014 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -22,7 +22,7 @@
 ;#    This module bundles all standard S12CBase modules into one.              #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    November 20, 2012                                                        #
+;#    July  8, 2014                                                            #
 ;#      - Initial release                                                      #
 ;###############################################################################
 
@@ -32,20 +32,22 @@
 ;# Clocks
 CLOCK_CRG		EQU	1		;old CRG
 #ifndef CLOCK_OSC_FREQ	
-CLOCK_OSC_FREQ		EQU	 4000000	;4 MHz
+CLOCK_OSC_FREQ		EQU	16000000	;16 MHz
 #endif
+
 #ifndef CLOCK_BUS_FREQ
-CLOCK_BUS_FREQ		EQU	25000000	;25 MHz
+CLOCK_BUS_FREQ		EQU	80000000	;80 MHz
 #endif
+
 #ifndef CLOCK_REF_FREQ
-CLOCK_REF_FREQ		EQU	 1000000	;1,000 MHz
+CLOCK_REF_FREQ		EQU	CLOCK_OSC_FREQ/8;
 #endif
 
 ;# SCI
 #ifndef	SCI_FC_RTS_CTS
 #ifndef	SCI_FC_XON_XOFF
-#ifndef SCI_FC_NONE	
-SCI_FC_XONXOFF		EQU	1 		;XON/XOFF flow control
+#ifndef SCI_FC_NONE
+SCI_FC_NONE		EQU	1 		;no flow control
 #endif
 #endif
 #endif
@@ -55,10 +57,10 @@ SCI_FC_XONXOFF		EQU	1 		;XON/XOFF flow control
 SCI_BD_OFF		EQU	1 		;no baud rate detection
 #endif
 #endif
-
+	
 #ifndef	SCI_ERRSIG_ON
 #ifndef	SCI_ERRSIG_OFF
-SCI_ERRSIG_OFF		EQU	1 		;don't signal errors
+SCI_ERRSIG_OFF		EQU	1 		;no error signal
 #endif
 #endif
 
@@ -104,11 +106,8 @@ RESET_VARS_START_LIN	EQU	STRING_VARS_END_LIN
 NUM_VARS_START		EQU	RESET_VARS_END
 NUM_VARS_START_LIN	EQU	RESET_VARS_END_LIN
 	
-NVM_VARS_START		EQU	NUM_VARS_END
-NVM_VARS_START_LIN	EQU	NUM_VARS_END_LIN
-	
-VECTAB_VARS_START	EQU	NVM_VARS_END
-VECTAB_VARS_START_LIN	EQU	NVM_VARS_END_LIN
+VECTAB_VARS_START	EQU	NUM_VARS_END
+VECTAB_VARS_START_LIN	EQU	NUM_VARS_END_LIN
 
 BASE_VARS_END		EQU	VECTAB_VARS_END	
 BASE_VARS_END_LIN	EQU	VECTAB_VARS_END_LIN
@@ -119,21 +118,20 @@ BASE_VARS_END_LIN	EQU	VECTAB_VARS_END_LIN
 ;#Initialization
 #macro	BASE_INIT, 0
 			GPIO_INIT
-			MMAP_INIT		
-			VECTAB_INIT		
-			ISTACK_INIT		
+			VECTAB_INIT
+			MMAP_INIT
+			CLOCK_INIT
+			COP_INIT
+			ISTACK_INIT
 			SSTACK_INIT
-			CLOCK_INIT		
-			COP_INIT		
-			TIM_INIT		
-			STRING_INIT		
-			NUM_INIT		
-			NVM_INIT		
-			CLOCK_WAIT_FOR_PLL	
-			SCI_INIT		
-			RESET_INIT              
+			TIM_INIT
+			STRING_INIT
+			NUM_INIT
+			CLOCK_WAIT_FOR_PLL
+			SCI_INIT	
+			RESET_INIT
 #emac
-	
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -176,11 +174,8 @@ RESET_CODE_START_LIN	EQU	STRING_CODE_END_LIN
 NUM_CODE_START		EQU	RESET_CODE_END
 NUM_CODE_START_LIN	EQU	RESET_CODE_END_LIN
 	
-NVM_CODE_START		EQU	NUM_CODE_END
-NVM_CODE_START_LIN	EQU	NUM_CODE_END_LIN
-	
-VECTAB_CODE_START	EQU	NVM_CODE_END
-VECTAB_CODE_START_LIN	EQU	NVM_CODE_END_LIN
+VECTAB_CODE_START	EQU	NUM_CODE_END
+VECTAB_CODE_START_LIN	EQU	NUM_CODE_END_LIN
 
 BASE_CODE_END		EQU	VECTAB_CODE_END	
 BASE_CODE_END_LIN	EQU	VECTAB_CODE_END_LIN
@@ -227,11 +222,8 @@ RESET_TABS_START_LIN	EQU	STRING_TABS_END_LIN
 NUM_TABS_START		EQU	RESET_TABS_END
 NUM_TABS_START_LIN	EQU	RESET_TABS_END_LIN
 	
-NVM_TABS_START		EQU	NUM_TABS_END
-NVM_TABS_START_LIN	EQU	NUM_TABS_END_LIN
-	
-VECTAB_TABS_START	EQU	NVM_TABS_END
-VECTAB_TABS_START_LIN	EQU	NVM_TABS_END_LIN
+VECTAB_TABS_START	EQU	NUM_TABS_END
+VECTAB_TABS_START_LIN	EQU	NUM_TABS_END_LIN
 
 BASE_TABS_END		EQU	VECTAB_TABS_END	
 BASE_TABS_END_LIN	EQU	VECTAB_TABS_END_LIN
@@ -239,18 +231,17 @@ BASE_TABS_END_LIN	EQU	VECTAB_TABS_END_LIN
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./regdef_S12DP256-Mini-EVB.s	;S12DP256 register map
-#include ./gpio_S12DP256-Mini-EVB.s	;I/O setup
-#include ./mmap_S12DP256-Mini-EVB.s	;RAM memory map
+#include ./regdef_FreeEMS.s		;S12XDP512 register map
+#include ./gpio_FreeEMS.s		;I/O setup
+#include ./mmap_FreeEMS.s		;RAM memory map
 #include ../All/sstack.s		;Subroutine stack
 #include ../All/istack.s		;Interrupt stack
 #include ../All/clock.s			;CRG setup
 #include ../All/cop.s			;COP handler
-#include ../All/tim.s			;TIM driver
 #include ../All/sci.s			;SCI driver
+#include ../All/tim.s			;TIM driver
 #include ../All/string.s		;String printing routines
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
-#include ./nvm_S12DP256-Mini-EVB.s	;NVM driver
-#include ./vectab_S12DP256-Mini-EVB.s	;S12DP256 vector table
+#include ./vectab_FreeEMS.s		;S12XDP512 vector table
 	

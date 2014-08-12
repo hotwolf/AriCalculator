@@ -134,13 +134,17 @@
 ;#    April 22, 2010                                                           #
 ;#      - added functions SCI_TBE and SCI_BAUD                                 #
 ;#    June 6, 2010                                                             #
-;#      - changed selection of detectable baud rates                           #
-;#      - stop baud rate detection when receiving a corret character           #
-;#      - stop baud rate detection when manually setting the baud rate         #
+;#      - Changed selection of detectable baud rates                           #
+;#      - Stop baud rate detection when receiving a corret character           #
+;#      - Stop baud rate detection when manually setting the baud rate         #
 ;#    January 2, 2012                                                          #
 ;#      - Mini-BDM-Pod uses XON/XOFF flow control instead of RTS/CTS           #
 ;#    November 14, 2012                                                        #
 ;#      - Total redo                                                           #
+;#    September 25, 2013                                                       #
+;#      - Fixed reception of C0 characters                                     #
+;#    February 5, 2014                                                         #
+;#      - Made SCI_TXBUF_SIZE configurable                                     #
 ;###############################################################################
 
 ;###############################################################################
@@ -165,7 +169,7 @@ CLOCK_BUS_FREQ		EQU	25000000 	;default is 25MHz
 #ifndef	SCI_RXTX_ACTHI
 SCI_RXTX_ACTLO		EQU	1 		;default is active low RXD/TXD
 #endif
-#endi3f
+#endif
 	
 ;Flow control
 ;------------ 
@@ -275,6 +279,10 @@ SCI_BLOCKING_OFF	EQU	1 		;blocking functions disabled by default
 #endif
 #endif
 
+;TX buffer size (minimize to 1 for debugging) 
+;-------------------------------------------- 
+;SCI_TXBUF_SIZE		EQU	  1 		;minimum size of the transmit buffer
+
 ;.MC9S12DP25625 SCI IRQ workaround (MUCts00510)
 ;---------------------------------------------- 
 ;###############################################################################
@@ -333,9 +341,12 @@ SCI_SUSPEND		EQU	$1A 		;ctrl-z (suspend program execution)
 
 ;#Buffer sizes		
 SCI_RXBUF_SIZE		EQU	 16*2		;size of the receive buffer (8 error:data entries)
+#ifndef	SCI_TXBUF_SIZE	
 SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
+#endif
 SCI_RXBUF_MASK		EQU	$1F		;mask for rolling over the RX buffer
-SCI_TXBUF_MASK		EQU	$07		;mask for rolling over the TX buffer
+;SCI_TXBUF_MASK		EQU	$07		;mask for rolling over the TX buffer
+SCI_TXBUF_MASK		EQU	$01		;mask for rolling over the TX buffer
 
 ;#Hardware handshake borders
 SCI_RX_FULL_LEVEL	EQU	 8*2		;RX buffer threshold to block transmissions 
@@ -414,21 +425,9 @@ SCI_TXBUF_OUT		DS	1		;points to the oldest entry
 ;#Baud rate (reset proof) 
 SCI_BVAL		DS	2		;value of the SCIBD register *SCI_BMUL
 
-SCI_AUTO_LOC2		EQU	*		;2nd auto-place location
-			UNALIGN	1
-;#Flags
-SCI_FLGS		EQU	((SCI_VARS_START&1)*SCI_AUTO_LOC1)+((~SCI_VARS_START&1)*SCI_AUTO_LOC2)
-			UNALIGN	(~SCI_AUTO_LOC1&1)
-
 ;#XON/XOFF reminder count
 #ifdef	SCI_FC_XONXOFF
 SCI_XONXOFF_REMCNT	DS	2		;counter for XON/XOFF reminder
-#endif
-	
-;#Baud rate detection registers
-#ifdef SCI_BD_ON
-;SCI_BD_RECOVCNT	DS	1		;recover counter
-SCI_BD_LIST		DS	1		;list of potential baud rates
 #endif
 
 ;#BD log buffer
@@ -439,6 +438,19 @@ SCI_BD_LOG_BUF		DS	4*32
 SCI_BD_LOG_BUF_END	EQU	*
 #endif
 #endif
+	
+SCI_AUTO_LOC2		EQU	*		;2nd auto-place location
+
+;#Flags
+SCI_FLGS		EQU	((SCI_AUTO_LOC1&1)*SCI_AUTO_LOC1)+(((~SCI_AUTO_LOC1)&1)*SCI_AUTO_LOC2)
+			UNALIGN	((~SCI_AUTO_LOC1)&1)
+	
+;#Baud rate detection registers
+#ifdef SCI_BD_ON
+;SCI_BD_RECOVCNT	DS	1		;recover counter
+SCI_BD_LIST		DS	1		;list of potential baud rates
+#endif
+
 	
 SCI_VARS_END		EQU	*
 SCI_VARS_END_LIN	EQU	@
@@ -754,7 +766,7 @@ STORE_REMCNT		STD	SCI_XONXOFF_REMCNT
 DONE			EQU	*
 #emac
 
-;#ReSET delay (approx. 2 SCI frames)
+;#RESET delay (approx. 2 SCI frames)
 ; args:   none 
 ; SSTACK: none
 ;         X, and Y are preserved 
@@ -1157,7 +1169,7 @@ SCI_SET_BAUD		EQU	*
 
 ;#Timer delay
 ; period: approx. 2 SCI frames
-; RTS/CTS:    if RTL polling is requested (SCI_FLG_POLL_RTS) -> enable TX IRQ
+; RTS/CTS:    if RTS polling is requested (SCI_FLG_POLL_RTS) -> enable TX IRQ
 ; XON/XOFF:   if reminder count == 1 -> request XON/XOFF reminder, enable TX IRQ
 ;	      if reminder count > 1  -> decrement reminder count, retrigger delay
 ; workaround: retrigger delay, jump to SCI_ISR_RXTX
@@ -1429,23 +1441,24 @@ SCI_ISR_RX_14		EQU	*
 SCI_ISR_RX_15		CMPB	#SCI_DLE
 			BNE	<SCI_ISR_RX_16				;done
 			BSET	SCI_FLGS, #SCI_FLG_RX_ESC 		;set escape marker	
-SCI_ISR_RX_16		JOB	SCI_ISR_RX_6 				;done
+			JOB	SCI_ISR_RX_6 				;done
 #else
 #ifdef	SCI_FC_XONXOFF
 			CMPB	#SCI_DLE
 			BNE	<SCI_ISR_RX_16				;done
 			BSET	SCI_FLGS, #SCI_FLG_RX_ESC 			;set escape marker	
-SCI_ISR_RX_16		JOB	SCI_ISR_RX_6 				;done
+			JOB	SCI_ISR_RX_6 				;done
 #else
 #ifdef	SCI_FC_SUSPEND
 			CMPB	#SCI_DLE
 			BNE	<SCI_ISR_RX_16				;done
 			BSET	SCI_FLGS, #SCI_FLG_RX_ESC 			;set escape marker	
-SCI_ISR_RX_16		JOB	SCI_ISR_RX_6 				;done
+			JOB	SCI_ISR_RX_6 				;done
 #endif
 #endif
 #endif
-	
+SCI_ISR_RX_16		JOB	SCI_ISR_RX_5 				;queue RX data
+
 #ifdef SCI_BD_ON
 #ifdef SCI_BD_TIM	
 ;#BD negedge ISR (default IC1)

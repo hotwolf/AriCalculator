@@ -44,6 +44,14 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;Maximum number conversion radix
+;------------------------------- 
+;Enable blocking subroutines
+#ifndef	NUM_MAX_BASE_16
+#ifndef	NUM_MAX_BASE_36
+NUM_MAX_BASE_16		EQU	1 				;default is 16
+#endif
+#endif
 	
 ;###############################################################################
 ;# Constants                                                                   #
@@ -97,7 +105,7 @@ NUM_VARS_END_LIN	EQU	@
 ;         SP+5: LSB   
 ; result: none
 ; SSTACK: 18 bytes
-;         X, Y and B are preserved
+;         X, Y and D are preserved
 #macro	NUM_CLEAN_REVERSE, 0
 			SSTACK_PREPULL	6
 			LEAS	6,SP
@@ -215,14 +223,14 @@ NUM_REVERSE_RLW		EQU	$10 ;SP+16:  |      +return address at
 
 			;Setup stack (double value in Y:X, base in B)
 			CLRA
-			MOVW	0,SP, 6,-SP 	;move return address to SP+10
-			STD	6,SP		;initialize reverse number
-			MOVW	#$0000, 4,SP    ;  reverse number = base
-			MOVW	#$0000, 2,SP
-			PSHX			;store X at SP+8
-			PSHY			;store Y at SP+6			
-			PSHD			;store count:base at SP+4
-			PSHX			;store double value at SP+0
+			MOVW	0,SP, 6,-SP 		;move return address to SP+10
+			STD	6,SP			;initialize reverse number
+			MOVW	#$0000, 4,SP    	;reverse number = base
+			MOVW	#$0000, 2,SP		
+			PSHX				;store X at SP+8
+			PSHY				;store Y at SP+6			
+			PSHD				;store count:base at SP+4
+			PSHX				;store double value at SP+0
 			PSHY
 
 			;Divide FHW by base
@@ -281,10 +289,12 @@ NUM_REVERSE_3		LDY	NUM_REVERSE_RLW,SP
 			EMUL				;Y * D => Y:D
 			ADDD	NUM_REVERSE_RMW,SP
 			STD	NUM_REVERSE_RMW,SP
-
-			;Multiply RHW by base (carry-over in Y)
-			LDD	NUM_REVERSE_RHW,SP
-			EXG	D, Y
+			TFR	Y, D
+ 			ADCB	#$00	
+			ADCA	#$00
+ 			
+			;Multiply RHW by base (carry-over in D)
+			LDY	NUM_REVERSE_RHW,SP
 			STD	NUM_REVERSE_RHW,SP
 			CLRA
 			LDAB	NUM_REVERSE_BASE,SP
@@ -412,22 +422,44 @@ NUM_CODE_END_LIN	EQU	@
 			ORG 	NUM_TABS_START
 #endif	
 
-NUM_SYMTAB		DB	"0"
-			DB	"1"
-			DB	"2"
-			DB	"3"
-			DB	"4"
-			DB	"5"
-			DB	"6"
-			DB	"7"
-			DB	"8"
-			DB	"9"
-			DB	"A"
-			DB	"B"
-			DB	"C"
-			DB	"D"
-			DB	"E"
-			DB	"F"
+NUM_SYMTAB		DB	"0"	; 0
+			DB	"1"	; 1
+			DB	"2"	; 2
+			DB	"3"	; 3
+			DB	"4"	; 4
+			DB	"5"	; 5
+			DB	"6"	; 6
+			DB	"7"	; 7
+			DB	"8"	; 8
+			DB	"9"	; 9
+			DB	"A"	;10
+			DB	"B"	;11
+			DB	"C"	;12
+			DB	"D"	;13
+			DB	"E"	;14
+			DB	"F"	;15
+#ifdef	NUM_MAX_BASE_32	
+			DB	"G"	;16
+			DB	"H"	;17
+			DB	"I"	;18
+			DB	"J"	;19
+			DB	"K"	;20
+			DB	"L"	;21
+			DB	"M"	;22
+			DB	"N"	;23
+			DB	"O"	;24
+			DB	"P"	;25
+			DB	"Q"	;26
+			DB	"R"	;27
+			DB	"S"	;28
+			DB	"T"	;29
+			DB	"U"	;30
+			DB	"V"	;31
+			DB	"W"	;32
+			DB	"X"	;33
+			DB	"Y"	;34
+			DB	"Z"	;35
+#endif	
 NUM_SYMTAB_END	DB	*
 	
 NUM_TABS_END		EQU	*

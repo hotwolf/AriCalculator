@@ -59,9 +59,6 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;PPAGE for error message look-up
-;FEXCEPT_ERRPP			EQU	$FE 
-
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -84,7 +81,7 @@ FEXCPT_EC_COMPONLY		EQU	-14	;interpreting a compile-only word
 ;FEXCPT_EC_15			EQU	-15	;invalid FORGET
 FEXCPT_EC_NONAME		EQU	-16	;attempt to use zero-length string as a name
 FEXCPT_EC_PADOF			EQU	-17	;pictured numeric output string overflow
-FEXCPT_EC_STROF			EQU	-18	;parsed string overflow
+;FEXCPT_EC_STROF		EQU	-18	;parsed string overflow
 ;FEXCPT_EC_19			EQU	-19	;definition name too long
 ;FEXCPT_EC_20			EQU	-20	;write to a read-only location
 ;FEXCPT_EC_21			EQU	-21	;unsupported operation (e.g., AT-XY on a too-dumb terminal)
@@ -119,33 +116,40 @@ FEXCPT_EC_INVALBASE		EQU	-40	;invalid BASE for floating point conversion
 ;FEXCPT_EC_50			EQU	-50	;search-order underflow
 ;FEXCPT_EC_51			EQU	-51	;compilation word list changed
 ;FEXCPT_EC_52			EQU	-52	;control-flow stack overflow
-FEXCPT_EC_CESF			EQU	-53	;exception stack overflow
+;FEXCPT_EC_53  			EQU	-53	;exception stack overflow
 ;FEXCPT_EC_54			EQU	-54	;floating-point underflow
 ;FEXCPT_EC_55			EQU	-55	;floating-point unidentified fault
 FEXCPT_EC_QUIT			EQU	-56	;QUIT
-;FEXCPT_EC_57			EQU	-57	;exception in sending or receiving a character
+FEXCPT_EC_COMERR		EQU	-57	;exception in sending or receiving a character
 ;FEXCPT_EC_58			EQU	-58	;[IF], [ELSE], or [THEN] exception
 	
-;Non-standard error codes 
-FEXCPT_EC_NOMSG			EQU	-59	;empty message string
-FEXCPT_EC_DICTPROT		EQU	-60	;destruction of dictionary structure
-FEXCPT_EC_COMERR		EQU	-61	;invalid RX data
-FEXCPT_EC_COMOF			EQU	-62	;RX buffer overflow
+;S12CForth specific error codes 
+FEXCPT_EC_LITOR			EQU	-59	;literal out of range
+
+;FEXCPT_EC_NOMSG			EQU	-59	;empty message string
+;FEXCPT_EC_DICTPROT		EQU	-60	;destruction of dictionary structure
+;FEXCPT_EC_RESUME		EQU	-61	;resume from suspend
+
+;Highest standard error code value
+FEXCPT_EC_MAX			EQU	FEXCPT_EC_LITOR
+
+;Character limit fopr error messages
+FEXCPT_MSG_LIMIT		EQU	64 	;Valid error messages must be shorter than 65 chars
 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef FEXCEPT_VARS_START_LIN
-			ORG 	FEXCEPT_VARS_START, FEXCEPT_VARS_START_LIN
+#ifdef FEXCPT_VARS_START_LIN
+			ORG 	FEXCPT_VARS_START, FEXCPT_VARS_START_LIN
 #else
-			ORG 	FEXCEPT_VARS_START
-FEXCEPT_VARS_START_LIN	EQU	@
+			ORG 	FEXCPT_VARS_START
+FEXCPT_VARS_START_LIN	EQU	@
 #endif	
 
 HANDLER			DS	2 	;pointer tho the most recent exception
 					;handler 
-FEXCEPT_VARS_END		EQU	*
-FEXCEPT_VARS_END_LIN	EQU	@
+FEXCPT_VARS_END		EQU	*
+FEXCPT_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -155,12 +159,39 @@ FEXCEPT_VARS_END_LIN	EQU	@
 			MOVW	#$0000, HANDLER ;reset exception handler
 #emac
 
+;#Abort action (to be executed in addition of quit and suspend action)
+#macro	FEXCPT_ABORT, 0
+#emac
+	
+;#Quit action (to be executed in addition of suspend action)
+#macro	FEXCPT_QUIT, 0
+#emac
+	
+;#Suspend action
+#macro	FEXCPT_SUSPEND, 0
+#emac
+
+;Functions:
+;==========
+;#Print error message
+; args:   D: error code
+; result: none
+; SSTACK: 26 bytes
+;         X, Y and D are preserved
+#macro	FEXCPT_PRINT_MSG
+			SSTACK_JOBSR	FEXCPT_PRINT_MSG, 26
+#emac
+
+;CATCH and THROW from assembly code:
+;===================================
 ;#Throw an exception from within an assembler primitive (immediate error code)
 ; args:   1: error code
 ; result: none
 ; SSTACK: none
+; PS:     none
+; RS:     none
 ;         no registers are preserved 
-#macro	FEXCPT_THROW, 1
+#macro	THROW, 1
 			LDD	#\1		;set error code
 			FEXCPT_THROW_D
 #emac
@@ -169,275 +200,161 @@ FEXCEPT_VARS_END_LIN	EQU	@
 ; args:   D: error code
 ; result: none
 ; SSTACK: none
+; PS:     none
+; RS:     none
 ;         no registers are preserved 
-#macro	FEXCPT_THROW, 0
+#macro	THROW_D, 0
 			;BGND
 			JOB	FEXCPT_THROW	;throw exception
-emac
-
-;#Throw a fatal erroe from within an assembler primitive (immediate error code)
-; args:   1: error code
-; result: none
-; SSTACK: none
-;         no registers are preserved 
-#macro	FEXCPT_FATAL, 1
-			RESET_FATAL, \1	
 #emac
-
-;#Throw a fatal error from within an assembler primitive (error code in X)
-; args:   X, error code
-; result: none
-; SSTACK: none
-;         no registers are preserved 
-#macro	FEXCPT_FATAL_X, 0
-			RESET_FATAL_X
+	
+;Error message table:
+;====================
+;#Error message table entry
+; args: 1: error code
+; 	2: message string
+#macro	FEXCPT_MSG, 2
+			DB	\1		 ;error code
+			FCS	\2		 ;error message
 #emac
-
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef FEXCEPT_CODE_START_LIN
-			ORG 	FEXCEPT_CODE_START, FEXCEPT_CODE_START_LIN
+#ifdef FEXCPT_CODE_START_LIN
+			ORG 	FEXCPT_CODE_START, FEXCPT_CODE_START_LIN
 #else
-			ORG 	FEXCEPT_CODE_START
-FEXCEPT_CODE_START_LIN	EQU	@
+			ORG 	FEXCPT_CODE_START
+FEXCPT_CODE_START_LIN	EQU	@
 #endif
-#ifdef	FEXCEPT_ON
 
-
-;#Check if SCI has received data
-; args:   none
-; result: PSP+0: flag (true if data is available)
-; SSTACK: 4 bytes
-; PS:     1 cell
-; RS:     none
-; throws: FEXCPT_EC_PSOF
-
-
-
-
-
-
-	
+;#Print error message
+; args:   D: error code
+; result: none
+; SSTACK: 26 bytes
+;         X, Y and D are preserved
+FEXCPT_PRINT_MSG	EQU	*
+			;Check if a message is to be printed (error code in D)			
+			TBEQ	D, FEXCPT_PRINT_MSG_6				;no error message (error code =  0)
+			CPD	#FEXCPT_EC_ABORTQ 				;check for ABORT code (-1 or -2)
+			BHS	FEXCPT_PRINT_MSG_6				;no error message (error code = -1 or -2)
+			CPD	#FEXCPT_EC_QUIT					;check for QUIT code (-56)
+			BEQ	FEXCPT_PRINT_MSG_6				;no error message (error code = -56)
+			;Save registers (error code in D)
+			PSHX
+			PSHY		
+			PSHD
+			;Print message header (error code in D)			
+			LDX	#FEXCPT_MSG_HEAD 				;messeage head
+			FCOM_PRINT_BL						;(SSTACK: 10 bytes)
+			;Check for standard error messages (error code in D)
+			CPD	#FEXCPT_EC_MAX 					;check for user defined error message
+			BLS	FEXCPT_PRINT_MSG_				;check user defined error message
+			;Determine standard error message (error code in D)			
+			LDX     #FEXCPT_MSGTAB					;start at the beginning of the lookup table
+FEXCPT_PRINT_MSG_1	LDAA	1,X+ 						;check the current error code
+			BEQ	FEXCPT_PRINT_MSG_3 				;unknown error				
+			CBA							;check error code
+			BEQ	FEXCPT_PRINT_MSG_7 				;error message found
+FEXCPT_PRINT_MSG_2	LDAA	1,X+ 						;skip over message string
+			BPL	FEXCPT_PRINT_MSG_2
+			JOB	FEXCPT_PRINT_MSG_1			
+			;Print unknown error code as signed decimal (error code in B)
+FEXCPT_PRINT_MSG_3	LDX	#FEXCPT_MSG_UNKNOWN_NEG 			;messsage string for unknown error codes
+			FCOM_PRINT_BL						;(SSTACK: 10 bytes)
+			CLRA							;negate error code
+			SBA							;positive error code -> A
+			TAB							;positive error code -> X
+			CLRA						
+			TFR	D, X	
+			CLRB							;positive error code -> Y:X
+			TFR	D, Y	
+			LDAB	#10 						;decimal base -> B
+			NUM_REVERSE 						;calculate reverse number (SSTACK: 18 bytes)
+FEXCPT_PRINT_MSG_4	NUM_REVPRINT_BL						;print reverse number
+			NUM_CLEAN_REVERSE 					;clean up stack
+			;Restore registers
+FEXCPT_PRINT_MSG_5	PULD
+			PULY
+			PULX
+			;Done
+FEXCPT_PRINT_MSG_6	RTS
+			;Print error message (string pointer in X)	
+FEXCPT_PRINT_MSG_7	FCOM_PRINT_BL						;print message
+			JOB	FEXCPT_PRINT_MSG_5				;restore registers
+			;Check user defined error message (error code in D)
+			TFR	D, X 						;string pointer -> X
+			TFR	D, Y 						;string pointer -> Y
+			LDAA	#FEXCPT_MSG_LIMIT 				;max. message length 
+FEXCPT_PRINT_MSG_8	LDAB	1,Y+		  				;get char
+			CMPB	#$20						;char < " "?
+			BMI	FEXCPT_PRINT_MSG_10 				;termination found
+			CMPB	#$20		;" "
+			1BLO	FEXCPT_PRINT_MSG_9 				;invalid char found
+			CMPB	#$7E		;"~"
+			BHI	FEXCPT_PRINT_MSG_9 				;invalid char found
+			DBNE	FEXCPT_PRINT_MSG_8 				;check next char
+			;Print unknown error code as hexadecimal number (error code in X)
+FEXCPT_PRINT_MSG_9	LDY	$#0000 						;error code -> Y:X
+			LDAB	#16 						;hexadecimal base -> B
+			NUM_REVERSE 						;calculate reverse number (SSTACK: 18 bytes)			
+			LDX	#FEXCPT_MSG_UNKNOWN_HEX 			;messsage string for unknown error codes
+			FCOM_PRINT_BL						;(SSTACK: 10+6 bytes)
+			TAB							;calculate number of leading zeros
+			LDAA	#4
+			SBA
+			LDAB	#"0" 						;print leading zeros
+			FCOM_FILL_BL 						;(SSTACK: 9+6 bytes)
+			JOB	FEXCPT_PRINT_MSG_4 				;print error code
+			;Check termination char Print (char in B, error code in X)
+FEXCPT_PRINT_MSG_10	CMPB	#$A0		;" "
+			BLO	FEXCPT_PRINT_MSG_9 				;invalid char found
+			CMPB	#$FE		;"~"
+			BHI	FEXCPT_PRINT_MSG_9 				;invalid char found
+			JOB	FEXCPT_PRINT_MSG_7				;print error message
 	
 ;#Throw an exception
 ; args:   D: error code
 ; result: none
-; SSTACK: none
+; SSTACK: 16 bytes
 ;         no registers are preserved 
 FEXCPT_THROW		EQU	*
-			;Check if exception is cought
+			;Check if the excption is cought (error code in D)
 			LDX	HANDLER						;check if an exception handler exists
-			BEQ	FEXCPT_THROW_2					;no exception handler
-			;Cought exception, verify stack frame (RSP in X, error code in D)
-			STX	RSP						;restore RS	
-			RS_CHECK_UF	3, FEXCPT_THROW_1			;three entries must be on the RS  
-			RS_CHECK_OF	0, FEXCPT_THROW_1			;check for RS overflow
- 			;Restore stacks (RSP in X, error code in D)
-			LDX	RSP
+			BNE	FEXCPT_THROW_2					;check exception handler
+			;Default exception handler (error code in D)
+FEXCPT_THROW_1		CPD	#FEXCPT_EC_ABORTQ 				;check for ABORT code (-1 or -2)
+			BHS	CF_ABORT_RT 					;ABORT (-1 or -2)
+			CPD	#FEXCPT_EC_QUIT					;check for QUIT code (-56)
+			BEQ	CF_QUIT_RT					;QUIT (error code = -56)
+			FEXCPT_PRINT_MSG 					;print error message (SSTACK: 26 bytes) 
+			LDX	NEXT_PTR 					;check for SUSPEND mode
+			CPX	#NEXT_SUSPEND_MODE
+			BEQ	CF_QUIT_RT					;SUSPEND
+			JOB	CF_ABORT_RT 					;ABORT
+			;Cought exception, verify error frame location (HANDLER in X, error code in D)
+FEXCPT_THROW_2		CPX	RSP 						;check that HANDLER is on the RS
+			BLO	FEXCPT_THROW_1  				;error frame is located above the stack
+			CPX	#(RS_EMPTY-6)					;check for 3 cell exception frame
+			BHI	FEXCPT_THROW_1 					;error frame is located above the stack
+			;Restore stacks (HANDLER in X, error code in D)
 			MOVW	2,X+, HANDLER					;pull previous HANDLER (RSP -> X)
-			MOVW	2,X+, PSP					;pull previous PSP (RSP -> X)		
+			LDY	2,X+						;pull previous PSP (RSP -> X)		
 			MOVW	2,X+, IP					;pull next IP (RSP -> X)		
-			;Check if PSP is valid (RSP in X, error code in D)
-			PS_CHECK_UFOF 0,FEXCPT_THROW_1,1,FEXCPT_THROW_1		;check PSP (PSP -> Y)
-			;Return error code (RSP in X, error code in D)
-			STD	0,Y						;push error code onto PS
-			STX	RSP						;set RSP
+			STX	RSP
+			;Check if PSP is valid (new PSP in Y, error code in D)
+			CPY	#PS_EMPTY 					;check for PS underflow
+			BHI	FEXCPT_THROW_1 					;invalid exception handler
+			LDX	PAD
+			LEAX	2,X	     					;make sure there is room for the return value
+			BLO	FEXCPT_THROW_1 					;invalid exception handler
+			;Push error code onto PS (new in Y, error code in D)
+			STD	2,-Y						;push error code onto PS
 			STY	PSP						;set PSP
 			NEXT
-FEXCPT_THROW_CESF	;Corrupt exception stack frame (error code in D)
-FEXCPT_THROW_1		LDY	#FEXCPT_EC_CESF
-			JOB	FEXCPT_THROW_4 					;print error message
-			;Uncought exception, check for special error codes (error code in D)
-FEXCPT_THROW_2		CPD	#FEXCPT_EC_ABORT 				;check for ABORT				
-			BEQ	FEXCPT_THROW_6
-			CPD	#FEXCPT_EC_ABORTQ 				;check for ABORT"				
-			BEQ	FEXCPT_THROW_7
-			CPD	#FEXCPT_EC_QUIT 				;check for QUIT				
-			BEQ	FEXCPT_THROW_8
-			CPD	#-((FEXCPT_MSGTAB_END-FEXCPT_MSGTAB_START)/2) 	;check for standard error code
-			BLO	FEXCPT_THROW_3					;custom error message
-			;Standard error code (error code in D)
-			LDX     #FEXCPT_MSGTAB_END 				;look-up standard error message
-			LSLD
-			LDD	D,X	
-			;Custom error code (error message in D)
-FEXCPT_THROW_3		TFR	D, Y						;error message -> Y
-			;Check message format (error message in Y)
-			LEAX	1,Y						;count chars in message
-			PRINT_STRCNT						
-			IBEQ	A, FEXCPT_THROW_9 				;invalid error message
-			;Check error level (error message in Y)
-			LDAA	0,Y
-			CMPA	#ERROR_LEVEL_FATAL
-			BEQ	FEXCPT_THROW_5 					;fatal error
-			CMPA	#ERROR_LEVEL_ERROR
-			BNE	FEXCPT_THROW_9 					;invalid error message
-			;Error (error message in Y)
-FEXCPT_THROW_4		ERROR_PRINT						
-			JOB	CF_ABORT_RT	
-			;Fatal error (error message in Y)
-FEXCPT_THROW_5		TFR	Y, D
-			JOB	ERROR_RESTART
-			;ABORT
-FEXCPT_THROW_6		EQU	CF_ABORT_RT
-			;JOB	CF_ABORT_RT	
-			;ABORT" (message pointer in ABORT_QUOTE_MSG)
-FEXCPT_THROW_7		LDX	ABORT_QUOTE_MSG
-			BEQ	FEXCPT_THROW_9
-			PRINT_STRCNT						
-			IBEQ	A, FEXCPT_THROW_9				;invalid error message
-			PRINT_LINE_BREAK
-			PRINT_STR
-			JOB	CF_ABORT_RT
-			;QUIT
-FEXCPT_THROW_8		EQU	CF_QUIT_RT
-			;JOB	CF_QUIT_RT
-			;Invalid error message 
-FEXCPT_THROW_9		LDY	#FEXCPT_MSG_UNKNOWN
-			JOB	FEXCPT_THROW_5
-			
-FEXCEPT_CODE_END		EQU	*
-FEXCEPT_CODE_END_LIN	EQU	@
 
-;###############################################################################
-;# Tables                                                                      #
-;###############################################################################
-;Tabes in unpaged address space
-;------------------------------ 
-#ifdef FEXCEPT_TABS_START_LIN
-			ORG 	FEXCEPT_TABS_START, FEXCEPT_TABS_START_LIN
-#else
-			ORG 	FEXCEPT_TABS_START
-FEXCEPT_TABS_START_LIN	EQU	@
-#endif	
-
-FEXCEPT_CODE_END	EQU	*
-FEXCEPT_CODE_END_LIN	EQU	@
-
-;Tabes in paged address space
-;---------------------------- 
-#ifdef FEXCEPT_PAGTABS_START_LIN
-			ORG 	FEXCEPT_PAGTABS_START, FEXCEPT_PAGTABS_START_LIN
-#else
-			ORG 	FEXCEPT_PAGTABS_START
-FEXCEPT_PAGTABS_START_LIN	EQU	@
-#endif	
-
-				;Assign error messages to error codes 
-FEXCPT_MSGTAB_START	EQU	*
-
-FEXCPT_MSGTAB_FBDM	FBDM_MSGTAB	
-			DW	FEXCPT_MSG_COMOF	;-62 RX buffer overflow
-			DW	FEXCPT_MSG_COMERR	;-61 invalid RX data
-			DW	FEXCPT_MSG_DICTPROT	;-60 destruction of dictionary structure
-			DW	FEXCPT_MSG_NOMSG	;-59 empty message string	
-			DW	FEXCPT_MSG_UNKNOWN	;-58 [IF], [ELSE], or [THEN] exception
-			DW	FEXCPT_MSG_UNKNOWN	;-57 exception in sending or receiving a character
-			DW	FEXCPT_MSG_UNKNOWN	;-56 QUIT
-			DW	FEXCPT_MSG_UNKNOWN	;-55 floating-point unidentified fault
-			DW	FEXCPT_MSG_UNKNOWN	;-54 floating-point underflow
-			DW	FEXCPT_MSG_CESF		;-53 exception stack overflow
-			DW	FEXCPT_MSG_UNKNOWN	;-52 control-flow stack overflow
-			DW	FEXCPT_MSG_UNKNOWN	;-51 compilation word list changed
-			DW	FEXCPT_MSG_UNKNOWN	;-50 search-order underflow
-			DW	FEXCPT_MSG_UNKNOWN	;-49 search-order overflow
-			DW	FEXCPT_MSG_UNKNOWN	;-48 invalid POSTPONE
-			DW	FEXCPT_MSG_UNKNOWN	;-47 compilation word list deleted
-			DW	FEXCPT_MSG_UNKNOWN	;-46 floating-point invalid argument
-			DW	FEXCPT_MSG_UNKNOWN	;-45 floating-point stack underflow
-			DW	FEXCPT_MSG_UNKNOWN	;-44 floating-point stack overflow
-			DW	FEXCPT_MSG_UNKNOWN	;-43 floating-point result out of range
-			DW	FEXCPT_MSG_UNKNOWN	;-42 floating-point divide by zero
-			DW	FEXCPT_MSG_UNKNOWN	;-41 loss of precision
-			DW	FEXCPT_MSG_INVALBASE	;-40 invalid BASE for floating point conversion
-			DW	FEXCPT_MSG_UNKNOWN	;-39 unexpected end of file
-			DW	FEXCPT_MSG_UNKNOWN	;-38 non-existent file
-			DW	FEXCPT_MSG_UNKNOWN	;-37 file I/O exception
-			DW	FEXCPT_MSG_UNKNOWN	;-36 invalid file position
-			DW	FEXCPT_MSG_UNKNOWN	;-35 invalid block number
-			DW	FEXCPT_MSG_UNKNOWN	;-34 block write exception
-			DW	FEXCPT_MSG_UNKNOWN	;-33 block read exception
-			DW	FEXCPT_MSG_UNKNOWN	;-32 invalid name argument (e.g., TO xxx)
-			DW	FEXCPT_MSG_NONCREATE	;-31 >BODY used on non-CREATEd definition
-			DW	FEXCPT_MSG_UNKNOWN	;-30 obsolescent feature
-			DW	FEXCPT_MSG_COMPNEST	;-29 compiler nesting
-			DW	FEXCPT_MSG_UNKNOWN	;-28 user interrupt
-			DW	FEXCPT_MSG_UNKNOWN	;-27 invalid recursion
-			DW	FEXCPT_MSG_UNKNOWN	;-26 loop parameters unavailable
-			DW	FEXCPT_MSG_UNKNOWN	;-25 return stack imbalance
-			DW	FEXCPT_MSG_UNKNOWN	;-24 invalid numeric argument
-			DW	FEXCPT_MSG_UNKNOWN	;-23 address alignment exception
-			DW	FEXCPT_MSG_CTRLSTRUC	;-22 control structure mismatch
-			DW	FEXCPT_MSG_UNKNOWN	;-21 unsupported operation (e.g., AT-XY on a too-dumb terminal)
-			DW	FEXCPT_MSG_UNKNOWN	;-20 write to a read-only location
-			DW	FEXCPT_MSG_UNKNOWN	;-19 definition name too long
-			DW	FEXCPT_MSG_STROF	;-18 parsed string overflow
-			DW	FEXCPT_MSG_PADOF	;-17 pictured numeric output string overflow
-			DW	FEXCPT_MSG_NONAME	;-16 attempt to use zero-length string as a name
-			DW	FEXCPT_MSG_UNKNOWN	;-15 invalid FORGET
-			DW	FEXCPT_MSG_COMPONLY	;-14 interpreting a compile-only word
-			DW	FEXCPT_MSG_UDEFWORD	;-13 undefined word
-			DW	FEXCPT_MSG_UNKNOWN	;-12 argument type mismatch
-			DW	FEXCPT_MSG_RESOR	;-11 result out of range
-			DW	FEXCPT_MSG_0DIV		;-10 division by zero
-			DW	FEXCPT_MSG_UNKNOWN	;-9  invalid memory address
-			DW	FEXCPT_MSG_DICTOF	;-8  dictionary overflow
-			DW	FEXCPT_MSG_UNKNOWN	;-7  do-loops nested too deeply during execution
-			DW	FEXCPT_MSG_RSUF		;-6  return stack underflow
-			DW	FEXCPT_MSG_RSOF		;-5  return stack overflow
-			DW	FEXCPT_MSG_PSUF		;-4  stack underflow
-			DW	FEXCPT_MSG_PSOF		;-3  stack overflow
-			DW	FEXCPT_MSG_UNKNOWN	;-2  ABORT"
-			DW	FEXCPT_MSG_UNKNOWN	;-1  ABORT
-FEXCPT_MSGTAB_END	EQU	*
-			
-;Standard error messages 
-;FEXCPT_MSG_UNKNOWN	FCS	"Unknown problem"
-FEXCPT_MSG_UNKNOWN	EQU	ERROR_MSG_UNKNOWN
-FEXCPT_MSG_PSOF		FCS	"Parameter stack overflow"
-FEXCPT_MSG_PSUF		FCS	"Parameter stack underflow" 
-FEXCPT_MSG_RSOF		FCS	"Return stack overflow"
-FEXCPT_MSG_RSUF		FCS	"Return stack underflow"
-;FEXCPT_MSG_DOOF	FCS	"DO-loop nested too deeply"	
-FEXCPT_MSG_DICTOF	FCS	"Dictionary overflow"
-;FEXCPT_MSG_INVALADR	FCS	"Invalid memory address"
-FEXCPT_MSG_0DIV		FCS	"Division by zero"
-FEXCPT_MSG_RESOR	FCS	"Result out of range"
-FEXCPT_MSG_UDEFWORD	FCS	"Undefined word"
-FEXCPT_MSG_COMPONLY	FCS	"Compile-only word"
-FEXCPT_MSG_NONAME	FCS	"Missing name argument"
-FEXCPT_MSG_PADOF	FCS	"PAD overflow"
-FEXCPT_MSG_STROF	FCS	"String too long"
-FEXCPT_MSG_CTRLSTRUC	FCS	"Control structure mismatch"
-;FFEXCPT_MSG_INVALNUM	FCS	"Invalid numeric argument"
-FEXCPT_MSG_COMPNEST	FCS	"Nested compilation"
-FEXCPT_MSG_NONCREATE	FCS	"Illegal operation on non-CREATEd definition"
-;FEXCPT_MSG_INVALNAME	FCS	"Invalid name argument"
-FEXCPT_MSG_INVALBASE	FCS	"Invalid BASE"
-FEXCPT_MSG_CESF		FCS	"Corrupt exception stack frame"
-2
-;Non-standard error messages 
-FEXCPT_MSG_NOMSG	FCS	"Empty message string"
-FEXCPT_MSG_DICTPROT	FCS	"Destruction of dictionary structure"
-FEXCPT_MSG_COMERR	FCS	"Invalid RX data"
-FEXCPT_MSG_COMOF	FCS	"RX buffer overflow"
-	
-FEXCEPT_PAGTABS_END	EQU	*
-FEXCEPT_PAGTABS_END_LIN	EQU	@
-
-;###############################################################################
-;# Words                                                                       #
-;###############################################################################
-#ifdef FEXCEPT_WORDS_START_LIN
-			ORG 	FEXCEPT_WORDS_START, FEXCEPT_WORDS_START_LIN
-#else
-			ORG 	FEXCEPT_WORDS_START
-FEXCEPT_WORDS_START_LIN	EQU	@
-#endif	
-
-;#EXception words (EXCEPTION):
-; ============================
+;#Code Fields:
+;=============
 
 ;CATCH ( i*x xt -- j*x 0 | i*x n )
 ;Push an exception frame on the exception stack and then execute the execution
@@ -455,13 +372,10 @@ FEXCEPT_WORDS_START_LIN	EQU	@
 ;"Parameter stack overflow"
 ;"Return stack overflow"
 ;"Corrupt exception stack frame"
-;
-			ALIGN	1
-NFA_CATCH		FHEADER, "CATCH", FEXCPT_PREV_NFA, COMPILE
-CFA_CATCH		DW	CF_CATCH			;
-CF_CATCH		PS_CHECK_UF	1, CF_CATCH_PSUF 	;check PS requirements (PSP -> Y)
-			RS_CHECK_OF	3, CF_CATCH_RSOF	;check RS requirements 
-			;Build exception stack frame 
+CF_CATCH		EQU	*
+			RS_CHECK_OF	3			;check RS requirements 
+			PS_CHECK_UF	1			;check PS requirements (PSP -> Y)
+			;Build exception stack frame (PSP in Y)
 			LDX	RSP				;RSP -> X
 			MOVW	IP,	 2,-X			;IP      > RS
 			LEAY	2,Y
@@ -470,32 +384,25 @@ CF_CATCH		PS_CHECK_UF	1, CF_CATCH_PSUF 	;check PS requirements (PSP -> Y)
 			STX	RSP
 			STX	HANDLER		      		;RSP -> HANDLER
 			;Execute xt (RSP in X, PSP+2 in Y)
-			MOVW	#IP_CATCH_RESUME, IP 		;set next IP	
-			LDX	-2,Y 				;execute xt
-			STY	PSP
-			JMP	[0,X]
-			;Resume CATCH, no exception was thrown
-IP_CATCH_RESUME		DW	CFA_CATCH_RESUME
-CFA_CATCH_RESUME	DW	CF_CATCH_RESUME
-CF_CATCH_RESUME		RS_CHECK_UF 	3, CF_CATCH_CESF	;check for RS underflow (RSP -> X)
-			PS_CHECK_OF	1, CF_CATCH_PSOF	;check for PS overflow (PSP-2 -> Y)
+			LDX	-2,Y 				;fetch xt
+			STY	PSP				;update PSP
+			EXEC_CFA_X				;execute xt
+			RS_CHECK_UF 	3			;check for RS underflow (RSP -> X)
+			PS_CHECK_OF	1			;check for PS overflow (PSP-2 -> Y)
 			;Check if HANDLER points to the top of the RS (RSP in X, PSP-2 in Y)
 			CPX	HANDLER				;check if RSP==HANDLER
-			BNE	CF_CATCH_CESF			;corrupt exception stack frame
-			;Restore error stack frame (RSP in X, PSP-2 in Y)
-			LEAX	4,X
+			BEQ	CF_CATCH_1			;HANDLER is ok
+			MOVW	#$0000, HANDLER			;reset HANDLER
+			;JOB	FEXCPT_THROW_CESF		;throw exception stack frame error
+			;Restore previous HANDLER (RSP in X, PSP-2 in Y)
+CF_CATCH_1		LEAX	4,X
 			MOVW	2,X+, IP
 			STX	RSP
 			;Push 0x0 onto the PS (RSP in X, PSP-2 in Y)
 			MOVW	#$0000, 0,Y			;push 0 onto PS
 			STY	PSP
 			;Done 
-			NEXT
-	
-CF_CATCH_PSUF		JOB	FEXCPT_THROW_PSUF			
-CF_CATCH_PSOF		JOB	FEXCPT_THROW_PSOF			
-CF_CATCH_RSOF		JOB	FEXCPT_THROW_RSOF			
-CF_CATCH_CESF		JOB	FEXCPT_THROW_CESF		;corrupt exception stack frame 
+			NEXT	
 
 ;THROW ( k*x n -- k*x | i*x n )
 ;If any bits of n are non-zero, pop the topmost exception frame from the
@@ -521,170 +428,126 @@ CF_CATCH_CESF		JOB	FEXCPT_THROW_CESF		;corrupt exception stack frame
 ;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack underflow"
-;
-			ALIGN	1
-NFA_THROW		FHEADER, "THROW", NFA_FATAL_QUOTE, COMPILE
-CFA_THROW		DW	CF_THROW
-CF_THROW		PS_CHECK_UF	1, CF_THROW_PSUF	;PS for underflow (RSP -> Y)
+CF_THROW		PS_CHECK_UF	1			;PS for underflow (PSP -> Y)
 			LDD	2,Y+				;check if TOS is 0
 			BEQ	CF_THROW_1			;NEXT
 			STX	PSP
 			JOB	FEXCPT_THROW
 CF_THROW_1		STX	PSP
 			NEXT
-
-CF_THROW_PSUF		JOB	FEXCPT_THROW_PSUF			
-
-;#Non-standard S12CForth extensions:
-; ==================================
 	
-;ERROR" Non-standard S12CForth extension!
-;Defines a new throwable error code (n).		
-;Interpretation: ( "ccc<quote>" -- n )
-;Parse ccc delimited by " (double-quote) and put the error code onto the parameter stack.
-;Compilation: ( "ccc<quote>" -- )
-;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
-;below to the current definition.
-;Run-time: ( -- n )
-;Put the error code onto the parameter stack.
-;
-;S12CForth implementation details:
-;Trows:
-;"Parameter stack overflow"
-;"Dictionary overflow"
-;"Parsed string overflow"
-;"Empty message string"
-;
+FEXCPT_CODE_END		EQU	*
+FEXCPT_CODE_END_LIN	EQU	@
+
+;###############################################################################
+;# Tables                                                                      #
+;###############################################################################
+;Tabes in unpaged address space
+;------------------------------ 
+#ifdef FEXCPT_TABS_START_LIN
+			ORG 	FEXCPT_TABS_START, FEXCPT_TABS_START_LIN
+#else
+			ORG 	FEXCPT_TABS_START
+FEXCPT_TABS_START_LIN	EQU	@
+#endif	
+
+FEXCPT_MSG_HEAD		STRING_NL_NONTERM
+			FCS		"Error! "
+
+FEXCPT_MSG_UNKNOWN_NEG	FCS		"Code: -"
+FEXCPT_MSG_UNKNOWN_HEX	FCS		"Code: 0x"
+	
+FEXCPT_MSGTAB		EQU	*
+			FEXCPT_MSG	FEXCPT_EC_PSOF,		"Parameter stack overflow"
+			FEXCPT_MSG	FEXCPT_EC_PSUF,		"Parameter stack underflow" 
+			FEXCPT_MSG	FEXCPT_EC_RSOF,		"Return stack overflow"
+			FEXCPT_MSG	FEXCPT_EC_RSUF,		"Return stack underflow"
+			;FEXCPT_MSG	FEXCPT_EC_DOOF,		"DO-loop nested too deeply"	
+			FEXCPT_MSG	FEXCPT_EC_DICTOF,	"Dictionary overflow"
+			;FEXCPT_MSG	FEXCPT_EC_INVALAD,R	"Invalid memory address"
+			FEXCPT_MSG	FEXCPT_EC_0DIV,		"Division by zero"
+			FEXCPT_MSG	FEXCPT_EC_RESOR,	"Result out of range"
+			FEXCPT_MSG	FEXCPT_EC_UDEFWORD,	"Undefined word"
+			FEXCPT_MSG	FEXCPT_EC_COMPONLY,	"Compile-only word"
+			FEXCPT_MSG	FEXCPT_EC_NONAME,	"Missing name argument"
+			FEXCPT_MSG	FEXCPT_EC_PADOF,	"PAD overflow"
+			;FEXCPT_MSG	FEXCPT_EC_STROF,	"String too long"
+			FEXCPT_MSG	FEXCPT_EC_CTRLSTRUC,	"Control structure mismatch"
+			;FEXCPT_MSG	FFEXCPT_EC_INVALNUM,	"Invalid numeric argument"
+			FEXCPT_MSG	FEXCPT_EC_COMPNEST,	"Nested compilation"
+			FEXCPT_MSG	FEXCPT_EC_NONCREATE,	"Illegal operation on non-CREATEd definition"
+			;FEXCPT_MSG	FEXCPT_EC_INVALNAME,	"Invalid name argument"
+			FEXCPT_MSG	FEXCPT_EC_INVALBASE,	"Invalid BASE"
+			;FEXCPT_MSG	FEXCPT_EC_CESF,		"Corrupt exception stack frame"
+			FEXCPT_MSG	FEXCPT_EC_NOMSG,	"Empty message string"
+			FEXCPT_MSG	FEXCPT_EC_DICTPROT,	"Destruction of dictionary structure"
+			FEXCPT_MSG	FEXCPT_EC_COMERR,	"Corrupted RX data"
+			DB		0
+
+FEXCPT_MSGTAB_END	EQU	*
+
+FEXCPT_TABS_END		EQU	*
+FEXCPT_TABS_END_LIN	EQU	@
+
+;###############################################################################
+;# Words                                                                       #
+;###############################################################################
+#ifdef FEXCPT_WORDS_START_LIN
+			ORG 	FEXCPT_WORDS_START, FEXCPT_WORDS_START_LIN
+#else
+			ORG 	FEXCPT_WORDS_START
+FEXCPT_WORDS_START_LIN	EQU	@
+#endif	
 			ALIGN	1
-NFA_ERROR_QUOTE		FHEADER, 'ERROR"', NFA_CATCH, IMMEDIATE ;"
-CFA_ERROR_QUOTE		DW	CF_ERROR_QUOTE 			
-CF_ERROR_QUOTE		;Parse quote
-			LDAA	#$22 				;double quote
-			SSTACK_JOBSR	FCORE_PARSE
-			TBEQ	X, CF_ERROR_QUOTE_NOMSG 	;empty quote
-			IBEQ	A, CF_ERROR_QUOTE_STROF		;add CFA to count
-			TAB
-			CLRA	
-			;Check state (string pointer in X, char count+1 in D)
-			LDY	STATE				;ensure that compile mode is on
-			BEQ	CF_ERROR_QUOTE_3		;interpetation mode
-			;Compile mode (string pointer in X, char count+1 in D) 
-			ADDD	#3				;check for dictionary overflow
-			TFR	X, Y
-			DICT_CHECK_OF_D	CF_ERROR_QUOTE_DICTOF 
-			;Append run-time CFA (string pointer in Y)
-			LDX	CP
-			MOVW	#CFA_ERROR_QUOTE_RT, 2,X+
-			;Append error level (CP in X, string pointer in Y)
-CF_ERROR_QUOTE_1	MOVB	#ERROR_LEVEL_ERROR, 1,X+
-			;Append quote (CP in X, string pointer in Y)
-			CPSTR_Y_TO_X
-			STX	CP
-			INTERPRET_ONLY	CF_ERROR_QUOTE_2
-			STX	CP_SAVED
-			;Done
-CF_ERROR_QUOTE_2	NEXT
-			;Interpretation mode  (string pointer in X, char count+1 in D) 
-CF_ERROR_QUOTE_3	ADDD	#1				;check for dictionary overflow
-			TFR	X, Y
-			DICT_CHECK_OF_D	CF_ERROR_QUOTE_DICTOF
-			TFR	Y, X
-			;Push CP onto PS (string pointer in Y)
-			PS_CHECK_OF	1, CF_ERROR_QUOTE_PSOF 	;(PSP-2 cells -> Y)
-			MOVW	CP, 0,Y
-			STY	PSP
-			TFR	X, Y
-			LDX	CP
-			JOB	CF_ERROR_QUOTE_1
-	
-CF_ERROR_QUOTE_PSOF	JOB	FEXCPT_THROW_PSOF			
-CF_ERROR_QUOTE_DICTOF	JOB	FEXCPT_THROW_DICTOF			
-CF_ERROR_QUOTE_STROF	JOB	FEXCPT_THROW_STROF		
-CF_ERROR_QUOTE_NOMSG	JOB	FEXCPT_THROW_NOMSG		
+;#ANSForth Words:
+;================
+;Word: CATCH ( i*x xt -- j*x 0 | i*x n )
+;Push an exception frame on the exception stack and then execute the execution
+;token xt (as with EXECUTE) in such a way that control can be transferred to a
+;point just after CATCH if THROW is executed during the execution of xt.
+;If the execution of xt completes normally (i.e., the2 exception frame pushed by
+;this CATCH is not popped by an execution of THROW) pop the exception frame and
+;return zero on top of the data stack, above whatever stack items would have
+;been returned by xt EXECUTE. Otherwise, the remainder of the execution
+;semantics are given by THROW.
+CFA_CATCH		DW	CF_CATCH
 
-;ERROR" run-time semantics
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack overflow"
-CFA_ERROR_QUOTE_RT		DW	CF_ERROR_QUOTE_RT 			
-CF_ERROR_QUOTE_RT		PS_CHECK_OF	1, CF_ERROR_QUOTE_PSOF 	;(PSP-2 cells -> Y)
-				;PUSH error code onto the PS 
-				LDX	IP
-				STX	0,Y
-				STY	PSP
-				;Advance IP (IP in X)
-				LEAX	1,X
-				PRINT_STRCNT
-				LEAX	A,X
-				STX	IP
-				;Done
-				NEXT
-	
-;FATAL" ( "ccc<quote>" -- n )  Non-standard S12CForth extension!
-;Defines a new throwable fatal error code (n).		
-;Interpretation: ( "ccc<quote>" -- n )
-;Parse ccc delimited by " (double-quote) and put the error code onto the parameter stack.
-;Compilation: ( "ccc<quote>" -- )
-;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
-;below to the current definition.
-;Run-time: ( -- n )
-;Put the error code onto the parameter stack.
-;
-;S12CForth implementation details:
-;Trows:
-;"Parameter stack overflow"
-;"Dictionary overflow"
-;"Parsed string overflow"
-;
-			ALIGN	1
-NFA_FATAL_QUOTE		FHEADER, 'FATAL"', NFA_ERROR_QUOTE, IMMEDIATE ;"
-CFA_FATAL_QUOTE		DW	CF_FATAL_QUOTE 			
-CF_FATAL_QUOTE		;Parse quote
-			LDAA	#$22 				;double quote
-			SSTACK_JOBSR	FCORE_PARSE
-			TBEQ	X, CF_FATAL_QUOTE_NOMSG 	;empty quote
-			IBEQ	A, CF_FATAL_QUOTE_STROF		;add CFA to count
-			TAB
-			CLRA	
-			;Check state (string pointer in X, char count+1 in D)
-			LDY	STATE				;ensure that compile mode is on
-			BEQ	CF_FATAL_QUOTE_3		;interpetation mode
-			;Compile mode (string pointer in X, char count+1 in D) 
-			ADDD	#3				;check for dictionary overflow
-			TFR	X, Y
-			DICT_CHECK_OF_D	CF_FATAL_QUOTE_DICTOF 
-			;Append run-time CFA (string pointer in Y)
-			LDX	CP
-			MOVW	#CFA_FATAL_QUOTE_RT, 2,X+
-			;Append error level (CP in X, string pointer in Y)
-CF_FATAL_QUOTE_1	MOVB	#ERROR_LEVEL_FATAL, 1,X+
-			;Append quote (CP in X, string pointer in Y)
-			CPSTR_Y_TO_X
-			STX	CP
-			INTERPRET_ONLY	CF_FATAL_QUOTE_2
-			STX	CP_SAVED
-			;Done
-CF_FATAL_QUOTE_2	NEXT
-			;Interpretation mode  (string pointer in X, char count+1 in D) 
-CF_FATAL_QUOTE_3	ADDD	#1				;check for dictionary overflow
-			TFR	X, Y
-			DICT_CHECK_OF_D	CF_FATAL_QUOTE_DICTOF
-			TFR	Y, X
-			;Push CP onto PS (string pointer in Y)
-			PS_CHECK_OF	1, CF_FATAL_QUOTE_PSOF 	;(PSP-2 cells -> Y)
-			MOVW	CP, 0,Y
-			STY	PSP
-			TFR	X, Y
-			LDX	CP
-			JOB	CF_FATAL_QUOTE_1
-	
-CF_FATAL_QUOTE_PSOF	JOB	FEXCPT_THROW_PSOF			
-CF_FATAL_QUOTE_DICTOF	JOB	FEXCPT_THROW_DICTOF			
-CF_FATAL_QUOTE_STROF	JOB	FEXCPT_THROW_STROF		
-CF_FATAL_QUOTE_NOMSG	JOB	FEXCPT_THROW_NOMSG		
+;Word: THROW ( k*x n -- k*x | i*x n )
+;If any bits of n are non-zero, pop the topmost exception frame from the
+;exception stack, along with everything on the return stack above that frame.
+;Then restore the input source specification in use before the corresponding
+;CATCH and adjust the depths of all stacks defined by this Standard so that they
+;are the same as the depths saved in the exception frame (i is the same number
+;as the i in the input arguments to the corresponding CATCH), put n on top of
+;the data stack, and transfer control to a point just after the CATCH that
+;pushed that exception frame.
+;If the top of the stack is non zero and there is no exception frame on the
+;exception stack, the behavior is as follows:
+;If n is minus-one (-1), perform the function of ABORT (the version of
+;ABORT in the Core word set), displaying no message.
+;If n is minus-two, perform the function of ABORT" (the version of
+;ABORT" in the Core word set), displaying the characters ccc associated with the
+;ABORT" that generated the THROW.
+;Otherwise, the system may display an implementation-dependent message giving
+;information about the condition associated with the THROW code n. Subsequently,
+;the system shall perform the function of ABORT (the version of ABORT
+;in the Core word set).
+CFA_THROW		DW	CF_THROW
 
-CFA_FATAL_QUOTE_RT	EQU	CFA_ERROR_QUOTE_RT
+;QUIT ( -- )  ( R:  i*x -- )
+;Empty the return stack, store zero in SOURCE-ID if it is present, make the user
+;input device the input source, and enter interpretation state. Do not display a
+;message. Repeat the following:
+;Accept a line from the input source into the input buffer, set >IN to zero, and
+;interpret.
+;Display the implementation-defined system prompt if in interpretation state,
+;all processing has been completed, and no ambiguous condition exists.
+CFA_QUIT		DW	CF_INNER
+			DW	CFA_LITERAL
+			DW
+
+;S12CForth Words:
+;================
 	
-FEXCEPT_WORDS_END		EQU	*
-FEXCEPT_WORDS_END_LIN	EQU	@
+FEXCPT_WORDS_END		EQU	*
+FEXCPT_WORDS_END_LIN		EQU	@

@@ -19,8 +19,8 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module module performs all the necessary steps to initialize the    #
-;#    device after each reset.                                                 #
+;#    This module performs all the necessary steps to initialize the device    #
+;#    after each reset.                                                        #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    REGDEF - Register Definitions                                            #
