@@ -1,3 +1,5 @@
+#ifndef	GPIO
+#define	GPIO
 ;###############################################################################
 ;# S12CBase - GPIO - GPIO Handler (AriCalculator)                              #
 ;###############################################################################
@@ -225,8 +227,9 @@ GPIO_CODE_END_LIN	EQU	@
 			ORG 	GPIO_TABS_START, GPIO_TABS_START_LIN
 #else
 			ORG 	GPIO_TABS_START
-GPIO_CODE_START_LIN	EQU	@			
+GPIO_TABS_START_LIN	EQU	@			
 #endif	
 
 GPIO_TABS_END		EQU	*	
 GPIO_TABS_END_LIN	EQU	@	
+#endif

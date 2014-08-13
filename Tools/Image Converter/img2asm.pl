@@ -195,6 +195,8 @@ if ($out_handle = IO::File->new($out_file,  O_CREAT|O_WRONLY)) {
 }
 
 #print header
+printf $out_handle "#ifndef\tDISP_SPLASH\n";
+printf $out_handle "#define\tDISP_SPLASH\n";
 printf $out_handle ";###############################################################################\n"; 
 if ($color_depth == 1) {
     printf $out_handle ";# AriCalculator - Image: %-50s   #\n", sprintf("%s (single frame)", $src_file);
@@ -221,10 +223,10 @@ printf $out_handle ";#    along with AriCalculator.  If not, see <http://www.gnu
 printf $out_handle ";###############################################################################\n";
 printf $out_handle ";# Description:                                                                #\n";
 printf $out_handle ";#    This file contains the two macros:                                       #\n";
-printf $out_handle ";#       IMG_TAB:                                                              #\n";
+printf $out_handle ";#       DISP_SPLASH_TAB:                                                      #\n";
 printf $out_handle ";#           This macro allocates a table of raw image data.                   #\n";
 printf $out_handle ";#                                                                             #\n";
-printf $out_handle ";#       IMG_STREAM:                                                           #\n";
+printf $out_handle ";#       DISP_SPLASH_STREAM:                                                   #\n";
 printf $out_handle ";#           This macro allocates a compressed stream of image data and        #\n";
 printf $out_handle ";#           control commands, which can be directly driven to the display     #\n";
 printf $out_handle ";#           driver.                                                           #\n";
@@ -236,7 +238,7 @@ printf $out_handle "\n";
 #write data table 
 @out_buffer = @paged_buffer;
 
-printf $out_handle "#macro IMG_TAB, 0\n";
+printf $out_handle "#macro DISP_SPLASH_TAB, 0\n";
 printf $out_handle "\n";
 
 foreach $color (0..$color_depth-1) {
@@ -263,7 +265,7 @@ printf $out_handle "\n";
 @out_buffer = @paged_buffer;
 #printf STDOUT "Out Buffer: %4d\n", $#out_buffer; 
 
-printf $out_handle "#macro IMG_STREAM, 0\n";
+printf $out_handle "#macro DISP_SPLASH_STREAM, 0\n";
 printf $out_handle "\n";
 
 $stream_count = 0;
@@ -286,9 +288,9 @@ foreach $color (0..$color_depth-1) {
 	    } else {
 		if ( ($repeat_count >  3) ||
                     (($repeat_count >= 2) && ($current_data == $escape_char))) {
-		    printf $out_handle "\n\t\tDB  DISP_ESC_START \$%.2X \$%.2X          ;repeat %d times", $repeat_count, 
-		                                                                                         $current_data, 
-                                                                                                         $repeat_count;
+		    printf $out_handle "\n\t\tDB  DISP_ESC_START \$%.2X \$%.2X          ;repeat %d times", ($repeat_count-1), 
+		                                                                                            $current_data, 
+                                                                                                            $repeat_count;
 		    $stream_count += 3;		
 		    $column_group =  8;
 		    $repeat_count =  1;
@@ -326,7 +328,7 @@ foreach $color (0..$color_depth-1) {
 }
 printf $out_handle "#emac\n";
 printf $out_handle ";Size = %d bytes\n", $stream_count;
-printf $out_handle "\n";
+printf $out_handle "#endif\n";
 
 #close file
 $out_handle->close();

@@ -1,3 +1,5 @@
+#ifndef DISP
+#define	DISP	
 ;###############################################################################
 ;# S12CBase - DISP - LCD Driver (ST7565R)                                      #
 ;###############################################################################
@@ -63,6 +65,14 @@ CLOCK_BUS_FREQ		EQU	25000000	;default is 25 MHz
 DISP_BAUD		EQU	12000000	;default is 12 Mbit/s
 #endif
 
+;#RESET output
+#ifndef DISP_RESET_PORT
+DISP_RESET_PORT		EQU	PTJ 		;default is port J	
+#endif
+#ifndef DISP_RESET_PIN
+DISP_RESET_PIN		EQU	PJ0		;default is PJ0	
+#endif
+	
 ;#A0 output
 #ifndef DISP_A0_PORT
 DISP_A0_PORT		EQU	PTS 		;default is port S	
@@ -73,7 +83,8 @@ DISP_A0_PIN		EQU	PS4		;default is PS4
 
 ;#Splash screen
 #ifndef DISP_SPLASH
-#macro	SPLASH_STREAM, 0
+#define DISP_SPLASH	
+#macro	DISP_SPLASH_STREAM, 0
 #emac
 #endif
 
@@ -87,9 +98,9 @@ DISP_BUF_SIZE		EQU	8 		;depth of the command buffer
 ;###############################################################################
 ;#Escape sequences
 DISP_ESC_START		EQU	$E3 		;start of eccape sequence (NOP)
-DISP_ESC_CMD		EQU	$00		;switch to command mode
-DISP_ESC_DATA		EQU	$01		;switch to data mode
-DISP_ESC_ESC		EQU	$02		;transmit escape character
+DISP_ESC_ESC		EQU	$FF		;transmit escape character
+DISP_ESC_CMD		EQU	$FE		;switch to command mode
+DISP_ESC_DATA		EQU	$FD		;switch to data mode
 
 ;#Baud rate divider
 DISP_SPPR		EQU	((CLOCK_BUS_FREQ/(2*DISP_BAUD))-1)&7
@@ -126,12 +137,15 @@ DISP_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	DISP_INIT, 0
+			;Deassert display reset 
+			MOVB	#DISP_RESET_PIN, DISP_RESET_PORT	
+
 			;Initialize Variables 
 			MOVW	#$0000, DISP_BUF_IN
 			CLR	DISP_TXCNT
 	
 			;Initialize SPI	
-			MOVW	#%11011110_00011001, SPICR1
+			MOVW	#%01011110_00011001, SPICR1
 				 ;SSSMCCSL  X MB SS
 				 ;PPPSPPSS  F OI PP
 				 ;IETTOHOB  R DD IC
@@ -142,25 +156,219 @@ DISP_VARS_END_LIN	EQU	@
 			MOVB	#((DISP_SPPR<<4|(DISP_SPR))), SPIBR
 			;MOVB	#$FF, SPISR
 
-			;Initialize display	
-			CLRA				
-			LDX	#SETUP_START		
-			LDY	#(SETUP_END-SETUP_START)	
+			;Setup display	
+			LDX	#DISP_SETUP_START
+			LDY	#(DISP_SETUP_END-DISP_SETUP_START)	
 INIT_LOOP		LDAB	1,X+
 			JOBSR	DISP_TX_BL
 			DBNE	Y, INIT_LOOP
+#emac
 
-			;Show splash screen	
-#ifdef	DISP_SPLASH
-			LDX	#SPLASH_START
-			LDY	#(SPLASH_END-SPLASH_START)	
-SPLASH_LOOP		LDD	2,X+
+;# Functions
+;-----------
+;#Determine how much space is left on the buffer
+; args:   none
+; result: B: Space left on the buffer in bytes
+; SSTACK: 3 bytes
+;         X, Y and B are preserved 
+#macro	DISP_BUF_FRxEE, 0
+			SSTACK_JOBSR	DISP_BUF_FREE, 3
+#emac	
+	
+;#Transmit commands and data (non-blocking)
+; args:   B: buffer entry
+; result: C: 1=successful, 0=nothing has been done
+; SSTACK: 5 bytes
+;         X, Y and D are preserved 
+#macro	DISP_TX_NB, 0
+			JOBSR	DISP_TX_NB
+#emac
+
+;#Transmit commands and data (blocking)
+; args:   B: buffer entry
+; result: none
+; SSTACK: 7 bytes
+;         X, Y and D are preserved 
+#macro	DISP_TX_BL, 0
 			JOBSR	DISP_TX_BL
-			DBNE	Y, SPLASH_LOOP
-#endif			
-			JOB	DONE
+#emac
+	
+;# Macros for internal use
+;-------------------------
+;#Turn a non-blocking subroutine into a blocking subroutine	
+; args:   1: non-blocking function
+;         2: subroutine stack usage of non-blocking function 
+; SSTACK: stack usage of non-blocking function + 2
+;         rgister output of the non-blocking function is preserved 
+#macro	DISP_MAKE_BL, 2
+			SCI_MAKE_BL \1 \2
+#emac
 
-SETUP_START		DB	$40 				;start display at line 0
+;###############################################################################
+;# Code                                                                        #
+;###############################################################################
+#ifdef DISP_CODE_START_LIN
+			ORG 	DISP_CODE_START, DISP_CODE_START_LIN
+#else
+			ORG 	DISP_CODE_START
+#endif
+	
+;#Determine how much space is left on the buffer
+; args:   none
+; result: A: Space left on the buffer in bytes
+; SSTACK: 3 bytes
+;         X, Y and B are preserved 
+DISP_BUF_FREE		EQU	*
+			;Save registers
+			PSHB							;push accu B onto the SSTACK
+			;Check if the buffer is full
+			LDD	DISP_BUF_IN 					;IN->A; OUT->B
+			SBA
+			BITA	(DISP_BUF_SIZE-1) 				;buffer usage->A
+			NEGA
+			ADDA	#(DISP_BUF_SIZE-1)
+			;Restore registers
+			SSTACK_PREPULL	3
+			SSTACK_PULB						;pull accu B from the SSTACK
+			;Done
+			RTS
+	
+;#Transmit commands and data (non-blocking)
+; args:   B: buffer entry
+; result: C: 1 = successful, 0=buffer full
+; SSTACK: 5 bytes
+;         X, Y and D are preserved 
+DISP_TX_NB		EQU	*
+			;Save registers (buffer entry in B)
+			PSHX							;push index X onto the SSTACK
+			PSHA							;push accu A onto the SSTACK
+			;Store buffer entry (buffer entry in B)
+			LDX	#DISP_BUF 					;buffer address->X
+			LDAA	DISP_BUF_IN
+			STAB	X,A		  				;write data into buffer
+			INCA			  				;advance IN index
+			BITA	(DISP_BUF_SIZE-1) 				;buffer usage->A
+			CMPA	DISP_BUF_OUT 					;check if the buffer is full
+			BEQ	DISP_TX_NB_2 					;buffer is full
+			STAA	DISP_BUF_IN
+			;Enable SPI transmit interrupt 
+			BSET	SPICR1, #SPTIE
+			;Return positive status
+			SSTACK_PREPULL	5
+			SEC							;return positive status
+DISP_TX_NB_1		PULA							;pull accu A from the SSTACK
+			PULX							;pull index B from the SSTACK
+			;Done
+			RTS
+			;Return negative status
+DISP_TX_NB_2		SSTACK_PREPULL	5
+			CLC							;return negative status
+			JOB	DISP_TX_NB_1	
+
+;#Transmit commands and data (blocking)
+; args:   B: buffer entry
+; result: none
+; SSTACK: 7 bytes
+;         X, Y and D are preserved 
+DISP_TX_BL		EQU	*
+			DISP_MAKE_BL	DISP_TX_NB, 5	
+	
+;#SPI ISR for transmitting data to the ST7565R display controller
+DISP_ISR		EQU	*
+			;Peek into the TX buffer
+			LDD	DISP_BUF_IN 					;IN->A, OUT->B
+			CBA							;check if buffer is empty
+			BEQ	DISP_ISR_4 					;buffer is empty
+			;Check transmission counter (OUT in B) 
+			LDX	#DISP_BUF
+			LDAA	DISP_TXCNT 					
+			BNE	DISP_ISR_5 					;repeat transmission
+			;Check for escape character (buffer pointer in X, OUT in B)
+			LDAA	X,B 						;next char->A
+			CPAA	#DISP_ESC_START	
+			BEQ	DISP_ISR_6 					;escape character found
+			;Transmit character (char in A, OUT in B)
+			STAA	SPIDRL 						;transmit character
+DISP_ISR_1		INCB							;advance OUT index
+			BITB	(DISP_BUF_SIZE-1)
+			STAB	DISP_BUF_OUT
+			;Done
+DISP_ISR_2		MOVB	#%01111110, SPICR1 				;enable TX buffer empty interrupt
+				 ;SSSMCCSL
+				 ;PPPSPPSS
+				 ;IETTOHOB
+				 ;E IRLAEF
+				 ;  E    E
+DISP_ISR_3		ISTACK_RTI
+			;Transmit buffer is empty
+DISP_ISR_4		MOVB	#%01011110, SPICR1 				;enable TX buffer empty interrupt
+				 ;SSSMCCSL
+				 ;PPPSPPSS
+				 ;IETTOHOB
+				 ;E IRLAEF
+				 ;  E    E
+			JOB	DISP_ISR_3
+			;Repeat last transmission  (buffer pointer in X, TX count in A, OUT in B)
+DISP_ISR_5		DECA 							;decrement TX counter
+			STAA	DISP_TXCNT
+			MOVB	X,B, SPIDRL 					;transmit byte
+			JOB	DISP_ISR_2
+			;Escape character found (buffer pointer in X, OUT in B) 
+DISP_ISR_6		LDAA	DISP_BUF_IN 					;make sure that the escape command is in the buffer
+			SBA
+			BITA	(DISP_BUF_SIZE-1)
+			CMPA	#2
+			BLO	DISP_ISR_4 					;wait for the escape command
+			;Evaluate the escape command (buffer pointer in X, OUT in B)
+			LDAA	#1 						;get escape command
+			ABA
+			BITA	(DISP_BUF_SIZE-1)
+			LDAA	X,A 						;escape command->A
+			IBEQ	A, DISP_ISR_8 					;transmit escape character
+			IBEQ	A, DISP_ISR_9 					;switch to command mode
+			IBEQ	A, DISP_ISR_10 					;switch to data mode
+			;Set TX counter (TX count+3 in A, OUT in B)
+			SUBA	#3 						;restore TX count
+			STAA	DISP_TXCNT 					;set TX count
+			;Remove escape sequence from buffer (OUT in B) 
+DISP_ISR_7		INCB						
+			JOB	DISP_ISR_1
+			;Transmit escape character (OUT in B) 
+DISP_ISR_8		MOVB	#DISP_ESC_START, SPIDRL
+			JOB	DISP_ISR_7
+			;Switch to command mode (OUT in B) 
+DISP_ISR_9		BRCLR	DISP_A0_PORT, #DISP_A0_PIN, DISP_ISR_7 		;already in command mode
+			BRCLR	SPISR, #SPIF, DISP_ISR_11			;transmission in progress
+			BCLR	DISP_A0_PORT, #DISP_A0_PIN 			;switch to command mode
+			JOB	DISP_ISR_7 					;escape sequence processed
+			;Switch to data mode (OUT in B) 
+DISP_ISR_10		BRSET	DISP_A0_PORT, #DISP_A0_PIN, DISP_ISR_7 		;already in data mode
+			BRCLR	SPISR, #SPIF, DISP_ISR_11			;transmission in progress
+			BSET	DISP_A0_PORT, #DISP_A0_PIN 			;switch to data mode
+			JOB	DISP_ISR_7 					;escape sequence processed	
+			;Wait for ongoing transmission to complete
+DISP_ISR_11		MOVB	#%11011110, SPICR1 				;enable TX buffer empty interrupt
+				 ;SSSMCCSL
+				 ;PPPSPPSS
+				 ;IETTOHOB
+				 ;E IRLAEF
+				 ;  E    E
+			JOB	DISP_ISR_3
+	
+DISP_CODE_END		EQU	*	
+DISP_CODE_END_LIN	EQU	@	
+	
+;###############################################################################
+;# Tables                                                                      #
+;###############################################################################
+#ifdef DISP_START_LIN
+			ORG 	DISP_TABS_START, DISP_TABS_START_LIN
+#else
+			ORG 	DISP_TABS_START
+#endif	
+
+;#Setup stream
+DISP_SETUP_START	DB	$40 				;start display at line 0
 			DB	$A0				;flip display
 			DB	$C8				;COM0 -> 
 			;DB	$A1				;flip display
@@ -175,196 +383,10 @@ SETUP_START		DB	$40 				;start display at line 0
 			DB	$AC				;no static indicator
 			DB	$00
 			DB	$AF 				;enable display
-SETUP_END		EQU	*
 
-SPLASH_START		EQU	*
-			SPLASH_STREAM
-SPLASH_END
+			DISP_SPLASH_STREAM 			;display splash screen
+DISP_SETUP_END		EQU	*
 
-DONE			EQU	*
-#emac
-
-;#Convenience macros
-
-;#Check if buffer is full
-; args:   none
-; result: C: 1=buffer not full, 0=buffer full
-; SSTACK: 4 bytes
-;         X, Y and D are preserved 
-#macro	DISP_CHECK_BUF, 0
-			JOBSR	DISP_CHECK_BUF
-#emac
-
-;#Transmit commands and data (non-blocking)
-; args:   D: buffer entry
-; result: C: 1=successful, 0=nothing has been done
-; SSTACK: 8 bytes
-;         X, Y and D are preserved 
-#macro	DISP_TX_NB, 0
-			JOBSR	DISP_TX_NB
-#emac
-
-;#Transmit commands and data (blocking)
-; args:   D: buffer entry
-; result: none
-; SSTACK: 10 bytes
-;         X, Y and D are preserved 
-#macro	DISP_TX_BL, 0
-			JOBSR	DISP_TX_BL
-#emac
-	
-;###############################################################################
-;# Code                                                                        #
-;###############################################################################
-			ORG	DISP_CODE_START
-
-;#Check if buffer is full
-; args:   none
-; result: C: 1=buffer not full, 0=buffer full
-; SSTACK: 4 bytes
-;         X, Y and D are preserved 
-DISP_CHECK_BUF	EQU	*
-			;Save registers (buffer entry in D)
-			SSTACK_PSHD						;push accu D onto the SSTACK
-
-			;Check if the buffer is full
-			LDD	DISP_BUF_IN
-			ADDA    #DISP_BUF_IDX_INC
-			CBA
-			BEQ	<DISP_CHECK_BUF_1				;buffer is full
-
-			;Return positive status 
-			SSTACK_PULD						;pull accu D from the SSTACK
-			SEC
-			SSTACK_RTS
-
-			;Return negative status 
-DISP_CHECK_BUF_1	SSTACK_PULD						;pull accu D from the SSTACK
-			CLC
-			SSTACK_RTS
-	
-;#Transmit commands and data (non-blocking)
-; args:   D: buffer entry
-; result: C: 1 = successful
-; SSTACK: 8 bytes
-;         X, Y and D are preserved 
-DISP_TX_NB		EQU	*
-			;Save registers (buffer entry in D)
-			SSTACK_PSHYXD						;push all registers onto the SSTACK
-
-			;Store buffer entry (buffer entry in D)
-DISP_TX_NB_1		TFR	D, Y
-			LDX	#DISP_BUF 					;store buffer
-			LDD	DISP_BUF_IN
-			STY	A,X						
-
-			;Check if the buffer is full (in-index in A, out-index in B)
-			ADDA    #DISP_BUF_IDX_INC
-			ANDA	#DISP_BUF_IDX_MASK
-			CBA
-			BEQ	<DISP_TX_NB_2					;buffer is full
-			STAA	DISP_BUF_IN					;Update buffer (new in-index in A)
-
-			;Enable SPI transmit interrupt 
-			BSET	SPICR1, #SPTIE
-	
-			;Return positive status 
-			SSTACK_PULDXY						;pull all registers from the SSTACK
-			SEC
-			SSTACK_RTS
-
-			;Return negative status 
-DISP_TX_NB_2		SSTACK_PULDXY						;pull all registers from the SSTACK
-			CLC
-			SSTACK_RTS
-
-;#Transmit commands and data (blocking)
-; args:   D: buffer entry
-; result: none
-; SSTACK: 10 bytes
-;         X, Y and D are preserved 
-DISP_TX_BL		EQU	*
-
-DISP_TX_BL_1		SEI
-			JOBSR	DISP_TX_NB
-			BCS	DISP_TX_BL_2 				;done
-			ISTACK_WAIT
-			JOB	DISP_TX_BL_1
-
-			;Done 
-DISP_TX_BL_2		CLI
-			SSTACK_RTS
-	
-;#SPI ISR for transmitting data to the ST7565R display controller
-DISP_ISR		EQU	*
-			;Service SPIF if necessary 
-DISP_ISR_1		BRCLR	SPISR, #SPIF, DISP_ISR_2 			;SPIF not set
-			TST	SPIDRL
-			DEC	DISP_TXCNT
-			BMI	<DISP_ISR_8					;this should never happen			
-			BRSET	SPISR, #SPIF, DISP_ISR_1 			;SPIF still set
-	
-			;Check if SPIDRL is empty
-DISP_ISR_2		BRCLR	SPISR, #SPTEF, DISP_ISR_5 			;done
-
-			;Check if there is data to be transmitted 
-			LDD	DISP_BUF_IN
-			CBA
-			BEQ	<DISP_ISR_8					;disable SPI transmit interrupt
-
-			;Check if A0 must be switched (out-index in B) 
-			LDX	#DISP_BUF
-			BRCLR	B,X, #DISP_BUF_A0, DISP_ISR_3 		;A0 is to be cleared
-			BRSET	DISP_A0_PORT, #DISP_A0_PIN, DISP_ISR_4 ;check transmit count
-			TST	DISP_TXCNT
-			BNE	<DISP_ISR_5					;done
-			BSET	DISP_A0_PORT, #DISP_A0_PIN 		;set A0
-			JOB	DISP_ISR_4 					;check transmit count
-DISP_ISR_3		BRCLR	DISP_A0_PORT, #DISP_A0_PIN, DISP_ISR_4 ;check transmit countr
-			TST	DISP_TXCNT
-			BNE	<DISP_ISR_5					;done
-			BCLR	DISP_A0_PORT, #DISP_A0_PIN 		;clear A0
-
-			;Check transmit count (out-index in B, buffer pointer in X) 
-DISP_ISR_4		LDAA	DISP_TXCNT
-			CMPA	#$03
-			BHS	<DISP_ISR					;this should never happen			
-			INCA	
-			STAA	DISP_TXCNT
-	
-			;Transmit data (out-index in B, buffer pointer in X)
-			LDD	B,X 						;get current buffer entry
-			STAB	SPIDRL 						;transmit data
-			BITA	#DISP_BUF_REPEAT 				;check repeat count
-			BNE	<DISP_ISR_7					;decrement repeat count
-			LDD	DISP_BUF_IN					;remove data from buffer
-			ADDB	#DISP_BUF_IDX_INC
-			ANDB	#DISP_BUF_IDX_MASK 
-			STAB	DISP_BUF_OUT					;check if queue is empty now
-			CBA	
-			BEQ	<DISP_ISR_8					;disable SPI transmit interrupt
-		
-			;Done
-DISP_ISR_5		ISTACK_RTI
-
-			;Reset transmission count and wait 
-DISP_ISR_6		CLR	DISP_TXCNT
-			JOB	DISP_ISR_5 					;done
-	
-			;Decrement repeat count (buffer entry in D, buffer pointer in X)
-DISP_ISR_7		SUBA	#DISP_BUF_REPEAT_DEC				;decrement repeat count
-			LDAB	DISP_BUF_OUT					;store repeat count
-			STAA	B,X
-			JOB	DISP_ISR_5 					;done
-
-			;Disable SPI transmit interrupt
-DISP_ISR_8		BCLR	SPICR1, #SPTIE	 				;clear SPTIE bit
-			JOB	DISP_ISR_5 					;done
-	
-DISP_CODE_END	EQU	*
-	
-;###############################################################################
-;# Tables                                                                      #
-;###############################################################################
-			ORG	DISP_TABS_START
-DISP_TABS_END	EQU	*
+DISP_TABS_END		EQU	*
+DISP_TABS_END_LIN	EQU	@
+#endif

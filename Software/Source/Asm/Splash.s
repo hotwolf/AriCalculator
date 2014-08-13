@@ -1,3 +1,5 @@
+#ifndef	DISP_SPLASH
+#define	DISP_SPLASH
 ;###############################################################################
 ;# AriCalculator - Image: Splash.raw (single frame)                            #
 ;###############################################################################
@@ -20,10 +22,10 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#    This file contains the two macros:                                       #
-;#       IMG_TAB:                                                              #
+;#       DISP_SPLASH_TAB:                                                      #
 ;#           This macro allocates a table of raw image data.                   #
 ;#                                                                             #
-;#       IMG_STREAM:                                                           #
+;#       DISP_SPLASH_STREAM:                                                   #
 ;#           This macro allocates a compressed stream of image data and        #
 ;#           control commands, which can be directly driven to the display     #
 ;#           driver.                                                           #
@@ -31,7 +33,7 @@
 ;# Generated on Wed, Aug 13 2014                                               #
 ;###############################################################################
 
-#macro IMG_TAB, 0
+#macro DISP_SPLASH_TAB, 0
 
 ;#Frame 0:
 ;#----------------------------------------------------------------------
@@ -175,7 +177,7 @@
 #emac
 ;Size = 1024 bytes
 
-#macro IMG_STREAM, 0
+#macro DISP_SPLASH_STREAM, 0
 
 ;#Frame 0:
 ;#----------------------------------------------------------------------
@@ -338,4 +340,4 @@
 		DB  DISP_ESC_START DISP_ESC_CMD     ;switch to command input
 #emac
 ;Size = 799 bytes
-
+#endif
