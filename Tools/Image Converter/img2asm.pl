@@ -43,6 +43,7 @@ use IO::File;
 #############
 # constants #
 #############
+$escape_char       =  0xe3;
 
 ###############
 # global vars #
@@ -272,36 +273,56 @@ foreach $color (0..$color_depth-1) {
 
     foreach $page (0..7) {
 	printf $out_handle ";#Page %d:\n", $page;
-	printf $out_handle "\t\tDW  \$00B%.1X \$0010 \$0004 ;set page and column address", ($page & 0xF);
-	$stream_count += 6;
-	$column_group = -1;
-	$repeat_count = 0;
+	printf $out_handle "\t\tDB  \$B%.1X \$10 \$04                     ;set page and column address\n", ($page & 0xF);
+	printf $out_handle "\t\tDB  DISP_ESC_START DISP_ESC_DATA    ;switch to data input";
+	$stream_count += 5;
+	$column_group = 8;
+	$repeat_count = 1;
 	$current_data = shift @out_buffer;	
-	printf $out_handle "\n\t\tDW ";
 	foreach $column (0..126) {
 	    $next_data = shift @out_buffer;
 	    if ($current_data == $next_data) {
 		$repeat_count++;
 	    } else {
-		if (++$column_group >= 8) {
-		    $column_group = 0;
-		    printf $out_handle "\n\t\tDW ";
+		if ( ($repeat_count >  3) ||
+                    (($repeat_count >= 2) && ($current_data == $escape_char))) {
+		    printf $out_handle "\n\t\tDB  DISP_ESC_START \$%.2X \$%.2X          ;repeat %d times", $repeat_count, 
+		                                                                                         $current_data, 
+                                                                                                         $repeat_count;
+		    $stream_count += 3;		
+		    $column_group =  8;
+		    $repeat_count =  1;
+		} elsif ($current_data == $escape_char) {
+		    printf $out_handle "\n\t\tDB  DISP_ESC_START DISP_ESC_ESC     ;escape \$%.2X", $escape_char;
+		    $stream_count += 2;		
+		    $column_group =  8;
+		    $repeat_count =  1;
+		} else {
+		    foreach my $double_count (1..$repeat_count) {
+			if (++$column_group >= 8) {
+			    $column_group = 0;
+			    printf $out_handle "\n\t\tDB ";
+			}
+			printf $out_handle " \$%.2X", $current_data;
+			$stream_count += 1;
+			$repeat_count =  1;
+		    }		
 		}
-		printf $out_handle " \$%.2X%.2X", ($repeat_count<<1)|1, $current_data;
-		$stream_count += 2;		
-		$repeat_count = 0;
 		$current_data = $next_data;
 	    }
-	}
-	
-	if (++$column_group >= 8) {
-	    $column_group = 0;
-	    printf $out_handle "\n\t\tDW ";
-	}
-	printf $out_handle " \$%.2X%.2X", ($repeat_count<<1)|1, $current_data;
-	printf $out_handle "\n";
+	}	
+	foreach my $double_count (1..$repeat_count) {
+		if (++$column_group >= 8) {
+		    $column_group = 0;
+		    printf $out_handle "\n\t\tDB ";
+		}
+		printf $out_handle " \$%.2X", $current_data;
+		;$stream_count += 1;
+		;$repeat_count =  1;
+	}		
+	printf $out_handle "\n\t\tDB  DISP_ESC_START DISP_ESC_CMD     ;switch to command input\n";
+	$stream_count += 3;
     }
-    printf $out_handle "\n";
 }
 printf $out_handle "#emac\n";
 printf $out_handle ";Size = %d bytes\n", $stream_count;
