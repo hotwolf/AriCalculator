@@ -1,3 +1,5 @@
+#ifndef	LED
+#define	LED
 ;###############################################################################
 ;# S12CBase - LED - LED Driver (Mini-BDM-Port)                                 #
 ;###############################################################################
@@ -144,3 +146,4 @@ LED_TABS_START_LIN	EQU	@
 
 LED_TABS_END		EQU	*	
 LED_TABS_END_LIN	EQU	@	
+#endif	

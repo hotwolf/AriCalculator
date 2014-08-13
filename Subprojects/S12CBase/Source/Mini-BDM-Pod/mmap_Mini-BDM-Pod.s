@@ -1,3 +1,5 @@
+#ifndef	MMAP
+#define	MMAP
 ;###############################################################################
 ;# S12CBase - MMAP - Memory Map (Mini-BDM-Pod)                                 #
 ;###############################################################################
@@ -343,4 +345,5 @@ MMAP_STR_MPU		FCS	"MPU error"
 
 MMAP_TABS_END		EQU	*	
 MMAP_TABS_END_LIN	EQU	@	
+#endif	
 

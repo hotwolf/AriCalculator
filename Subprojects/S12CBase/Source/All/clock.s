@@ -1,3 +1,5 @@
+#ifndef	CLOCK
+#define	CLOCK
 ;###############################################################################
 ;# S12CBase - CLOCK - Clock Driver                                             #
 ;###############################################################################
@@ -206,3 +208,4 @@ CLOCK_TABS_START_LIN	EQU	@
 
 CLOCK_TABS_END		EQU	*	
 CLOCK_TABS_END_LIN	EQU	@	
+#endif

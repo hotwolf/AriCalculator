@@ -67,6 +67,9 @@ SCI_BD_OFF		EQU	1 		;no baud rate detection
 SCI_ERRSIG_OFF		EQU	1 		;don't signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 	
+;# STRING
+STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
+	
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################

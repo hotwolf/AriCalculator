@@ -1,3 +1,5 @@
+#ifndef BASE
+#define BASE
 ;###############################################################################
 ;# S12CBase - Base Bundle (SIMHC12)                                            #
 ;###############################################################################
@@ -231,6 +233,6 @@ BASE_TABS_END_LIN	EQU	VECTAB_TABS_END_LIN
 #include ../All/num.s	   		;Number printing routines
 #include ./nvm_SIMHC12.s		;NVM driver
 #include ./vectab_SIMHC12.s		;HC12A4 vector table
-	
+#endif	
 
 

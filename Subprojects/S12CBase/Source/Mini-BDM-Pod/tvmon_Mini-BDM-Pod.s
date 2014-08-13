@@ -1,3 +1,5 @@
+#ifndef	TVMON
+#define	TVMON
 ;###############################################################################
 ;# S12CBase - TVMON - Target Vdd Monitor (Mini-BDM-Pod)                        #
 ;###############################################################################
@@ -193,3 +195,4 @@ TVMON_TABS_START_LIN	EQU	@
 
 TVMON_TABS_END		EQU	*	
 TVMON_TABS_END_LIN	EQU	@	
+#endif

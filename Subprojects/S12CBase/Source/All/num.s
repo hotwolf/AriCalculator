@@ -1,3 +1,5 @@
+#ifndef	NUM
+#define	NUM
 ;###############################################################################
 ;# S12CBase - NUM - Number printing routines                                   #
 ;###############################################################################
@@ -464,3 +466,4 @@ NUM_SYMTAB_END	DB	*
 	
 NUM_TABS_END		EQU	*
 NUM_TABS_END_LIN	EQU	@
+#endif

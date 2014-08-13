@@ -1,3 +1,5 @@
+#ifndef	VECTAB
+#define VECTAB
 ;###############################################################################
 ;# S12CBase - VECTAB - Vector Table (S12DP256-Mini-EVB)                        #
 ;###############################################################################
@@ -181,8 +183,7 @@ ISR_SWI			EQU	SCI_ISR_RXTX
 ISR_SWI			BGND
 #endif
 ISR_TRAP		BGND				;vector base + $F8
-#endif
-#else								
+#else
 ISR_RES80		EQU	RESET_ISR_FATAL		;vector base + $80
 ISR_RES82		EQU	RESET_ISR_FATAL		;vector base + $82
 ISR_RES84		EQU	RESET_ISR_FATAL		;vector base + $84
@@ -355,3 +356,4 @@ VEC_TRAP		DW	ISR_TRAP		;vector base + $F8
 VEC_RESET_COP		DW	RES_COP			;vector base + $FA
 VEC_RESET_CM		DW	RES_CM			;vector base + $FC
 VEC_RESET_EXT		DW	RES_EXT			;vector base + $FE
+#endif

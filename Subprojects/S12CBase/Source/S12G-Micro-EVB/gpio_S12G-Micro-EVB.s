@@ -1,3 +1,5 @@
+#ifndef	GPIO
+#define GPIO
 ;###############################################################################
 ;# S12CBase - GPIO - GPIO Handler (S12G-Micro-EVB)                             #
 ;###############################################################################
@@ -231,3 +233,4 @@ GPIO_CODE_START_LIN	EQU	@
 
 GPIO_TABS_END		EQU	*	
 GPIO_TABS_END_LIN	EQU	@	
+#endif	

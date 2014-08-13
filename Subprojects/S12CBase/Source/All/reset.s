@@ -1,3 +1,5 @@
+#ifndef RESET
+#define	RESET
 ;###############################################################################
 ;# S12CBase - RESET - Reset Handler                                            #
 ;###############################################################################
@@ -397,3 +399,4 @@ RESET_STR_ILLIRQ	FCS	"Illegal interrupt"
 	
 RESET_TABS_END		EQU	*
 RESET_TABS_END_LIN	EQU	@
+#endif

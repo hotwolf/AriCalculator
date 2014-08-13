@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - Demo (S12DP256-Mini-EVB)                                              #
+;# S12CBase - Demo (S12DP256-Mini-EVB)                                         #
 ;###############################################################################
 ;#    Copyright 2010-2012 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -63,6 +63,9 @@ SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 	
 ;# NUM
 NUM_BLOCKING_ON		EQU	1		;enable blocking subroutines
+	
+;# STRING
+STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
 	
 ;###############################################################################
 ;# Resource mapping                                                            #

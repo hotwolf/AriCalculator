@@ -1,3 +1,5 @@
+#ifndef	BASE
+#define	BASE
 ;###############################################################################
 ;# S12CBase - Base Bundle (S12G-Micro-EVB)                                     #
 ;###############################################################################
@@ -263,7 +265,7 @@ NVM_TABS_START_LIN	EQU	NUM_TABS_END_LIN
 	
 VECTAB_TABS_START	EQU	NVM_TABS_END
 VECTAB_TABS_START_LIN	EQU	NVM_TABS_END_LIN
-
+	
 BASE_TABS_END		EQU	VECTAB_TABS_END	
 BASE_TABS_END_LIN	EQU	VECTAB_TABS_END_LIN
 
@@ -286,3 +288,4 @@ BASE_TABS_END_LIN	EQU	VECTAB_TABS_END_LIN
 #include ../All/num.s	   		;Number printing routines
 #include ./nvm_S12G-Micro-EVB.s		;NVM driver
 #include ./vectab_S12G-Micro-EVB.s	;S12G vector table
+#endif

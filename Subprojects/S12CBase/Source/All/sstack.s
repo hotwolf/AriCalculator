@@ -1,3 +1,5 @@
+#ifndef SSTACK
+#define SSTACK
 ;###############################################################################
 ;# S12CBase - SSTACK - Subroutine Stack Handler                                #
 ;###############################################################################
@@ -239,3 +241,4 @@ SSTACK_MSG_UF		FCS	"Subroutine stack underflow"
 
 SSTACK_TABS_END		EQU	*
 SSTACK_TABS_END_LIN	EQU	@
+#endif
