@@ -1,3 +1,5 @@
+#ifndef	NVM
+#define NVM
 ;###############################################################################
 ;# S12CBase - NVM - NVM Driver (S12DP256-Mini-EVB)                             #
 ;###############################################################################
@@ -278,4 +280,5 @@ NVM_TABS_START_LIN	EQU	@
 
 NVM_TABS_END		EQU	*	
 NVM_TABS_END_LIN	EQU	@	
+#endif	
 

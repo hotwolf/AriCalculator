@@ -1,3 +1,5 @@
+#ifndef SCI
+#define SCI
 ;###############################################################################
 ;# S12CBase - SCI - Serial Communication Interface Driver                      #
 ;###############################################################################
@@ -1616,3 +1618,4 @@ SCI_BD_HIGH_PULSE_TREE	SCI_BD_HIGH_PULSE_TREE
 
 SCI_TABS_END		EQU	*
 SCI_TABS_END_LIN	EQU	@
+#endif

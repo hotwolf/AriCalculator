@@ -1,3 +1,5 @@
+#ifndef BASE
+#define	BASE
 ;###############################################################################
 ;# S12CBase - Base Bundle (Mini-BDM-Pod)                                  #
 ;###############################################################################
@@ -294,3 +296,4 @@ BASE_TABS_END_LIN	EQU	VECTAB_TABS_END_LIN
 #include ../All/num.s	   		;Number printing routines
 #include ./nvm_Mini-BDM-Pod.s		;NVM driver
 #include ./vectab_Mini-BDM-Pod.s	;S12XEP100 vector table
+#endif

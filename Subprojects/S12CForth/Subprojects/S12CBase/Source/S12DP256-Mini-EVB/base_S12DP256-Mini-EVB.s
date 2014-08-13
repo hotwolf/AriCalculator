@@ -1,3 +1,5 @@
+#ifndef	BASE
+#define	BASE
 ;###############################################################################
 ;# S12CBase - Base Bundle (S12DP256-Mini-EVB)                                  #
 ;###############################################################################
@@ -253,4 +255,4 @@ BASE_TABS_END_LIN	EQU	VECTAB_TABS_END_LIN
 #include ../All/num.s	   		;Number printing routines
 #include ./nvm_S12DP256-Mini-EVB.s	;NVM driver
 #include ./vectab_S12DP256-Mini-EVB.s	;S12DP256 vector table
-	
+#endif	

@@ -1,3 +1,5 @@
+#ifndef	RTI
+#define	RTI	
 ;###############################################################################
 ;# S12CBase - RTI - Real-Time Interrupt Handler (OpenBDC)                      #
 ;###############################################################################
@@ -104,3 +106,4 @@ RTI_VARS_START_LIN	EQU	@
 
 RTI_TABS_END		EQU	*	
 RTI_TABS_END_LIN	EQU	@	
+#endif	

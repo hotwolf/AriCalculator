@@ -467,6 +467,8 @@ foreach $table (@tables) {
 
 	#Print header
 	#------------ 
+        printf FILEHANDLE "#ifndef SCI_BD\n"; 
+        printf FILEHANDLE "#define SCI_BD\n"; 
         printf FILEHANDLE ";###############################################################################\n"; 
         printf FILEHANDLE ";# S12CBase - SCI Baud Detection Search Trees                                  #\n";
         printf FILEHANDLE ";###############################################################################\n";
@@ -582,6 +584,7 @@ foreach $table (@tables) {
         printf FILEHANDLE "		BNE	LOOP		;1/3 cycs	;parse branch if it exists\n";
         printf FILEHANDLE "DONE		EQU	*				;done, result in X\n";
 	print  FILEHANDLE "#emac\n";
+	print  FILEHANDLE "#endif\n";
     }
     close FILEHANDLE
 }

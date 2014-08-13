@@ -1,3 +1,5 @@
+#ifndef	REDDEF
+#define REGDEF
 ;###############################################################################
 ;# S12CBase - REGDEF - Register Definitions (OpenBDC)                          #
 ;###############################################################################
@@ -1632,3 +1634,4 @@ CAN4TXTSRL	EQU	$2BF
 ; $2c0 to $2ff reserved
 
 ; $300 to $3ff unimplememted
+#endif

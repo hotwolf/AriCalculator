@@ -1,3 +1,5 @@
+#ifndef STRING
+#define STRING
 ;###############################################################################
 ;# S12CBase - STRING - String Printing routines                                #
 ;###############################################################################
@@ -81,19 +83,19 @@ STRING_BLOCKING_ON	EQU	1 	;blocking functions enabled by default
 ;STRING_FILL_BL and STRING_FILL_NB 
 #ifndef	STRING_FILL_ON
 #ifndef	STRING_FILL_OFF
-STRING_BLOCKING_OFF	EQU	1 	;STRING_FILL_BL/STRING_FILL_NB disbled by default
+STRING_BLOCKING_OFF	EQU	1 	;STRING_FILL_BL/STRING_FILL_NB disabled by default
 #endif
 #endif
 ;STRING_SKIP_WS 
 #ifndef	STRING_SKIP_WS_ON
 #ifndef	STRING_SKIP_WS_OFF
-STRING_SKIP_WS_OFF	EQU	1 	;STRING_SKIP_WS disbled by default
+STRING_SKIP_WS_OFF	EQU	1 	;STRING_SKIP_WS disabled by default
 #endif
 #endif
 ;STRING_LOWER 
 #ifndef	STRING_LOWER_ON
 #ifndef	STRING_LOWER_OFF
-STRING_LOWER_OFF	EQU	1 	;STRING_LOWER disbled by default
+STRING_LOWER_OFF	EQU	1 	;STRING_LOWER disabled by default
 #endif
 #endif
 
@@ -481,3 +483,4 @@ STRING_STR_NL		STRING_NL_TERM	;new line
 
 STRING_TABS_END		EQU	*
 STRING_TABS_END_LIN	EQU	@
+#endif
