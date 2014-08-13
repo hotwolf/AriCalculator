@@ -1,3 +1,5 @@
+#ifndef	LED
+#define	LED
 ;###############################################################################
 ;# S12CBase - LED - LED Driver (OpenBDC)                                       #
 ;###############################################################################
@@ -201,3 +203,4 @@ LED_JMPTAB		EQU	*    			;VVVV
 
 LED_TABS_END		EQU	*	
 LED_TABS_END_LIN	EQU	@	
+#endif	

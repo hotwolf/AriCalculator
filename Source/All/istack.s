@@ -1,3 +1,5 @@
+#ifndef ISTACK
+#define ISTACK
 ;###############################################################################
 ;# S12CBase - ISTACK - Interrupt Stack Handler                                 #
 ;###############################################################################
@@ -300,3 +302,4 @@ ISTACK_MSG_UF		FCS	"Interrupt stack underflow"
 	
 ISTACK_TABS_END		EQU	*
 ISTACK_TABS_END_LIN	EQU	@
+#endif

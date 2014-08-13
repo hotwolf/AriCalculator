@@ -1,3 +1,5 @@
+#ifndef	REGDEF
+#define REGDEF
 ;###############################################################################
 ;# S12CBase - REGDEF - Register Definitions (S12G-Micro-EVB)                   #
 ;###############################################################################
@@ -2167,4 +2169,5 @@ DAC1VOLTAGE    	EQU    	$03CA
 ;VOLTAGE0       EQU     $01
 
 ; $03CBto $03FF reserved
+#endif
 

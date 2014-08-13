@@ -81,6 +81,9 @@ SCI_DLY_OC		EQU	3		;OC3
 SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 	
+;# STRING
+STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
+	
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
@@ -209,7 +212,7 @@ DEMO_LOOP		SCI_RX_BL
 			NEGA
 			ADDA	#8
 			LDAB	#"0"
-			STRING_fill_BL
+			STRING_FILL_BL
 			LDAB	#2
 			NUM_REVPRINT_BL
 			NUM_CLEAN_REVERSE

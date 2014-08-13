@@ -1,3 +1,5 @@
+#ifndef	NVM
+#define	NVM
 ;###############################################################################
 ;# S12CBase - NVM - NVM Driver (Mini-BDM-Pod)                                  #
 ;###############################################################################
@@ -321,4 +323,5 @@ NVM_STR_ECCERR		FCS	"ECC error"
 
 NVM_TABS_END		EQU	*	
 NVM_TABS_END_LIN	EQU	@	
+#endif	
 

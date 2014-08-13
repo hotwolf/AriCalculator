@@ -1,3 +1,5 @@
+#ifndef MMAP
+#define MMAP
 ;###############################################################################
 ;# S12CBase - MMAP - Memory Map (S12G-Micro-EVB)                               #
 ;###############################################################################
@@ -228,5 +230,6 @@ MMAP_TABS_START_LIN	EQU	@
 
 MMAP_TABS_END		EQU	*	
 MMAP_TABS_END_LIN	EQU	@	
+#endif	
 
 

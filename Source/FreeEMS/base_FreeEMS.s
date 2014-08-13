@@ -1,3 +1,5 @@
+#ifndef BASE
+#define BASE
 ;###############################################################################
 ;# S12CBase - Base Bundle (FreeEMS)                                            #
 ;###############################################################################
@@ -244,4 +246,4 @@ BASE_TABS_END_LIN	EQU	VECTAB_TABS_END_LIN
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
 #include ./vectab_FreeEMS.s		;S12XDP512 vector table
-	
+#endif	

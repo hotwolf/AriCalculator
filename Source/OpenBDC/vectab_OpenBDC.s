@@ -1,3 +1,5 @@
+#ifndef	VECTAB
+#define	VECTAB
 ;###############################################################################
 ;# S12CBase - VECTAB - Vector Table (OpenBDC)                                  #
 ;###############################################################################
@@ -368,3 +370,4 @@ VEC_TRAP     		DW	ISR_TRAP     		;vector base + $F8
 VEC_RESET_COP		DW	RES_COP			;vector base + $FA
 VEC_RESET_CM 		DW	RES_CM 			;vector base + $FC
 VEC_RESET_EXT		DW	RES_EXT			;vector base + $FE
+#endif

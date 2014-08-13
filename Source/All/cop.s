@@ -1,3 +1,5 @@
+#ifndef	COP
+#define	COP
 ;###############################################################################
 ;# S12CBase - COP - Watchdog Handler                                           #
 ;###############################################################################
@@ -132,3 +134,4 @@ COP_TABS_START_LIN	EQU	@
 
 COP_TABS_END		EQU	*
 COP_TABS_END_LIN	EQU	@
+#endif

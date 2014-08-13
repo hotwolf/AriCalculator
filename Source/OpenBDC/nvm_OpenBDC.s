@@ -1,3 +1,5 @@
+#ifndef	NVM
+#define NVM
 ;###############################################################################
 ;# S12CBase - NVM - NVM Driver (OpenBDC)                                       #
 ;###############################################################################
@@ -170,7 +172,7 @@ NVM_PROGRAM_PHRASE	EQU	*
 			PULA					;pull A from the SSTACK
 			;Check result
 			SEC
-			BRCLR	FSTAT, #(ACCERR|PVIOL|FAIL), NVM_PROGRAM_PHRASE_2
+			BRCLR	FSTAT, #(ACCERR|PVIOL), NVM_PROGRAM_PHRASE_2
 NVM_PROGRAM_PHRASE_1	CLC
 			;Done
 NVM_PROGRAM_PHRASE_2	RTS
@@ -197,7 +199,7 @@ NVM_ERASE_SECTOR	EQU	*
 			PULA					;pull A from the SSTACK
 			;Check result
 			SEC
-			BRCLR	FSTAT, #(ACCERR|PVIOL|FAIL), NVM_PROGRAM_PHRASE_2
+			BRCLR	FSTAT, #(ACCERR|PVIOL), NVM_PROGRAM_PHRASE_2
 NVM_ERASE_SECTOR_1	CLC
 			;Done
 NVM_ERASE_SECTOR_2	RTS
@@ -278,4 +280,5 @@ NVM_TABS_START_LIN	EQU	@
 
 NVM_TABS_END		EQU	*	
 NVM_TABS_END_LIN	EQU	@	
+#endif	
 

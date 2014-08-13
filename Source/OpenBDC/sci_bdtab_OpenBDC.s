@@ -1,3 +1,5 @@
+#ifndef	SCI_BD
+#define	SCI_BD
 ;###############################################################################
 ;# S12CBase - SCI Baud Detection Search Trees                                  #
 ;###############################################################################
@@ -582,3 +584,4 @@ LOOP		TST	0,Y	     	;  3 cycs	;check if lower boundary exists
 		BNE	LOOP		;1/3 cycs	;parse branch if it exists
 DONE		EQU	*				;done, result in X
 #emac
+#endif

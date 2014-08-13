@@ -1,3 +1,5 @@
+#ifndef	NVM
+#define	NVM
 ;###############################################################################
 ;# S12CBase - NVM - NVM Driver (S12G-Micro-EVB)                                #
 ;###############################################################################
@@ -319,4 +321,5 @@ NVM_STR_ECCERR		FCS	"ECC error"
 
 NVM_TABS_END		EQU	*	
 NVM_TABS_END_LIN	EQU	@	
+#endif
 

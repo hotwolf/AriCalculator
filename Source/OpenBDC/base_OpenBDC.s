@@ -1,3 +1,5 @@
+#ifndef	BASE
+#define	BASE
 ;###############################################################################
 ;# S12CBase - Base Bundle (OpenBDC)                                            #
 ;###############################################################################
@@ -313,4 +315,4 @@ BASE_TABS_END_LIN	EQU	VECTAB_TABS_END_LIN
 #include ../All/num.s	   		;Number printing routines
 #include ./nvm_OpenBDC.s		;NVM driver
 #include ./vectab_OpenBDC.s		;S12C128 vector table
-	
+#endif	

@@ -1,3 +1,5 @@
+#ifndef	VECTAB
+#define	VECTAB
 ;###############################################################################
 ;# S12CBase - VECTAB - Vector Table (SIMHC12)                                  #
 ;###############################################################################
@@ -309,3 +311,4 @@ VEC_TRAP     		DW	ISR_TRAP     		;vector base + $F8
 VEC_RESET_COP		DW	RESET_COP_ENTRY		;vector base + $FA
 VEC_RESET_CM 		DW	RESET_CM_ENTRY 		;vector base + $FC
 VEC_RESET_EXT		DW	RESET_EXT_ENTRY		;vector base + $FE
+#endif
