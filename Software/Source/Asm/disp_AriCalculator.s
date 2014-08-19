@@ -229,7 +229,7 @@ DISP_BUF_FREE		EQU	*
 			ADDA	#(DISP_BUF_SIZE-1)
 			;Restore registers
 			SSTACK_PREPULL	3
-			SSTACK_PULB						;pull accu B from the SSTACK
+			PULB							;pull accu B from the SSTACK
 			;Done
 			RTS
 	
@@ -245,7 +245,7 @@ DISP_TX_NB		EQU	*
 			;Store buffer entry (buffer entry in B)
 			LDX	#DISP_BUF 					;buffer address->X
 			LDAA	DISP_BUF_IN
-			STAB	X,A		  				;write data into buffer
+			STAB	A,X		  				;write data into buffer
 			INCA			  				;advance IN index
 			BITA	(DISP_BUF_SIZE-1) 				;buffer usage->A
 			CMPA	DISP_BUF_OUT 					;check if the buffer is full
@@ -284,8 +284,8 @@ DISP_ISR		EQU	*
 			LDAA	DISP_TXCNT 					
 			BNE	DISP_ISR_5 					;repeat transmission
 			;Check for escape character (buffer pointer in X, OUT in B)
-			LDAA	X,B 						;next char->A
-			CPAA	#DISP_ESC_START	
+			LDAA	B,X 						;next char->A
+			CMPA	#DISP_ESC_START	
 			BEQ	DISP_ISR_6 					;escape character found
 			;Transmit character (char in A, OUT in B)
 			STAA	SPIDRL 						;transmit character
@@ -311,7 +311,7 @@ DISP_ISR_4		MOVB	#%01011110, SPICR1 				;enable TX buffer empty interrupt
 			;Repeat last transmission  (buffer pointer in X, TX count in A, OUT in B)
 DISP_ISR_5		DECA 							;decrement TX counter
 			STAA	DISP_TXCNT
-			MOVB	X,B, SPIDRL 					;transmit byte
+			MOVB	B,X, SPIDRL 					;transmit byte
 			JOB	DISP_ISR_2
 			;Escape character found (buffer pointer in X, OUT in B) 
 DISP_ISR_6		LDAA	DISP_BUF_IN 					;make sure that the escape command is in the buffer
@@ -323,7 +323,7 @@ DISP_ISR_6		LDAA	DISP_BUF_IN 					;make sure that the escape command is in the b
 			LDAA	#1 						;get escape command
 			ABA
 			BITA	(DISP_BUF_SIZE-1)
-			LDAA	X,A 						;escape command->A
+			LDAA	A,X 						;escape command->A
 			IBEQ	A, DISP_ISR_8 					;transmit escape character
 			IBEQ	A, DISP_ISR_9 					;switch to command mode
 			IBEQ	A, DISP_ISR_10 					;switch to data mode

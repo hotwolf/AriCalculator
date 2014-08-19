@@ -191,8 +191,8 @@ GPIO_VARS_END_LIN	EQU	@
 	        MOVB	PKGCR, PKGCR 				;lock PKGCR
 		;#Port P
 		;MOVB	#$00,   PTP 			
-		;MOVB	#$00,   DDRP 			
-		MOVB	#$FF	PERP
+		MOVB	#$1F,   DDRP 			
+		MOVB	#$E0	PERP
 		;MOVB	#$00,   PPSP 			
 		;MOVB	#$00FF,	PIEP				;PIEP/PIFP 			
 		;#Port S

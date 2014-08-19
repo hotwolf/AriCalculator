@@ -1,3 +1,5 @@
+#ifndef	VECTAB
+#define	VECTAB
 ;###############################################################################
 ;# S12CBase - VECTAB - Vector Table (AriCalculator)                            #
 ;###############################################################################
@@ -25,7 +27,7 @@
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    KEYS    - Keypad controller                                              #
-;#    BATMON  - Battery monitor                                                #
+;#    LVMON  - Battery monitor                                                #
 ;#    SCI     - UART driver                                                    #
 ;#    DISP    - ST7565R display driver                                         #
 ;#    ERROR   - Error handler                                                  #
@@ -80,7 +82,7 @@ VECTAB_VARS_END_LIN	EQU	@
 			ORG 	VECTAB_CODE_START, VECTAB_CODE_START_LIN
 #else
 			ORG 	VECTAB_CODE_START
-VECTAB_VARS_START_LIN	EQU	@			
+VECTAB_CODE_START_LIN	EQU	@			
 #endif	
 
 VECTAB_CODE_END		EQU	*	
@@ -93,7 +95,7 @@ VECTAB_CODE_END_LIN	EQU	@
 			ORG 	VECTAB_TABS_START, VECTAB_TABS_START_LIN
 #else
 			ORG 	VECTAB_TABS_START
-VECTAB_VARS_START_LIN	EQU	@			
+VECTAB_TABS_START_LIN	EQU	@			
 #endif	
 
 ;#Interrupt service routines
@@ -105,8 +107,8 @@ ISR_PAD			EQU	KEYS_ISR_ROW
 #else
 ISR_PAD			BGND
 #endif
-#ifdef	BATMON_ISR					;vector base + $84
-ISR_ADCCOMP		EQU	BATMON_ISR
+#ifdef	LVMON_ISR					;vector base + $84
+ISR_ADCCOMP		EQU	LVMON_ISR
 #else
 ISR_ADCCOMP		BGND
 #endif
@@ -203,8 +205,8 @@ ISR_PAD			EQU	KEYS_ISR_ROW
 #else
 ISR_PAD			EQU	RESET_ISR_FATAL
 #endif
-#ifdef	BATMON_ISR					;vector base + $84
-ISR_ADCCOMP		EQU	BATMON_ISR
+#ifdef	LVMON_ISR					;vector base + $84
+ISR_ADCCOMP		EQU	LVMON_ISR
 #else
 ISR_ADCCOMP		EQU	RESET_ISR_FATAL
 #endif
@@ -385,4 +387,4 @@ VEC_TRAP		DW	ISR_TRAP		;vector base + $F8
 VEC_RESET_COP		DW	RES_COP			;vector base + $FA
 VEC_RESET_CM		DW	RES_CM			;vector base + $FC
 VEC_RESET_EXT		DW	RES_EXT			;vector base + $FE
-V
+#endif
