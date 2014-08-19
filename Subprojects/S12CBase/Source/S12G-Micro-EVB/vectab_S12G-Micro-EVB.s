@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - VECTAB - Vector Table (S12G-Micro-EVB)                           #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2014 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
 ;#    families.                                                                #
 ;#                                                                             #
@@ -27,9 +27,8 @@
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    KEYS    - Keypad controller                                              #
-;#    BATMON  - Battery monitor                                                #
+;#    LVMON   - Low Vdd monitor                                                #
 ;#    SCI     - UART driver                                                    #
-;#    DISP    - ST7565R display driver                                         #
 ;#    ERROR   - Error handler                                                  #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
@@ -113,8 +112,8 @@ ISR_PAD			EQU	KEYS_ISR_ROW
 #else
 ISR_PAD			BGND
 #endif
-#ifdef	BATMON_ISR					;vector base + $84
-ISR_ADCCOMP		EQU	BATMON_ISR
+#ifdef	LVMON_ISR					;vector base + $84
+ISR_ADCCOMP		EQU	LVMON_ISR
 #else
 ISR_ADCCOMP		BGND
 #endif
@@ -171,11 +170,7 @@ ISR_SCI0		EQU	SCI_ISR_RXTX
 #else
 ISR_SCI0		BGND
 #endif
-#ifdef	DISP_ISR					;vector base + $D8
-ISR_SPI0		EQU	DISP_ISR
-#else
 ISR_SPI0		BGND
-#endif
 ISR_TIM_PAIE		BGND				;vector base + $DA
 ISR_TIM_PAOV		BGND				;vector base + $DC
 ISR_TIM_TOV		BGND				;vector base + $DE
@@ -211,8 +206,8 @@ ISR_PAD			EQU	KEYS_ISR_ROW
 #else
 ISR_PAD			EQU	RESET_ISR_FATAL
 #endif
-#ifdef	BATMON_ISR					;vector base + $84
-ISR_ADCCOMP		EQU	BATMON_ISR
+#ifdef	LVMON_ISR					;vector base + $84
+ISR_ADCCOMP		EQU	LVMON_ISR
 #else
 ISR_ADCCOMP		EQU	RESET_ISR_FATAL
 #endif
@@ -269,11 +264,7 @@ ISR_SCI0		EQU	SCI_ISR_RXTX
 #else
 ISR_SCI0		EQU	RESET_ISR_FATAL
 #endif
-#ifdef	DISP_ISR					;vector base + $D8
-ISR_SPI0		EQU	DISP_ISR
-#else
 ISR_SPI0		EQU	RESET_ISR_FATAL
-#endif
 ISR_TIM_PAIE		EQU	RESET_ISR_FATAL		;vector base + $DA
 ISR_TIM_PAOV		EQU	RESET_ISR_FATAL		;vector base + $DC
 ISR_TIM_TOV		EQU	RESET_ISR_FATAL		;vector base + $DE

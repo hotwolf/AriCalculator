@@ -1,9 +1,9 @@
-#ifndef	TVMON
-#define	TVMON
+#ifndef	LVMON
+#define	LVMON
 ;###############################################################################
-;# S12CBase - TVMON - Target Vdd Monitor (Mini-BDM-Pod)                        #
+;# S12CBase - LVMON - Low Vdd Monitor (S12G-Micro-EVB)                         #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2014 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
 ;#    families                                                                 #
 ;#                                                                             #
@@ -21,16 +21,13 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module monitors the target voltage on the LFMPGMR pod.              #
+;#    This module monitors the supply voltage of the S12G-Mini-EVB.            #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    February 13, 2012                                                        #
+;#    August 19, 2014                                                          #
 ;#      - Initial release                                                      #
-;#    August 7, 2012                                                           #
-;#      - Added support for linear PC                                          #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    LED - LED driver                                                         #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -41,31 +38,47 @@
 ;###############################################################################
 ;Voltage thresholds
 ;------------------
-#ifndef TVMON_UPPER_THRESHOLD
-TVMON_UPPER_THRESHOLD	EQU	(30*$FFFF)/(2*50) ;default 3.0V
+#ifndef LVMON_UPPER_THRESHOLD
+LVMON_UPPER_THRESHOLD	EQU	(24*$FFFF)/33 ;default 2.4V
 #endif	
 
-#ifndef TVMON_LOWER_THRESHOLD
-TVMON_LOWER_THRESHOLD	EQU	 (5*$FFFF)/(2*50) ;default 0.5V
+#ifndef LVMON_LOWER_THRESHOLD
+LVMON_LOWER_THRESHOLD	EQU	 (20*$FFFF)/33 ;default 2.0V
 #endif	
 
+;LV/HV condition handling
+;------------------------ 
+;Act on low voltage detection (use LVMON_LV_ACTION macro)
+#ifndef	LVMON_HANDLE_LV
+#ifndef	LVMON_IGNORE_LV
+LVMON_IGNORE_LV		EQU	1 		;default is to ignore LV conditions
+#endif
+#endif
+	
+;Act on low voltage detection (use LVMON_HV_ACTION macro)
+#ifndef	LVMON_HANDLE_HV
+#ifndef	LVMON_IGNORE_HV
+LVMON_IGNORE_HV		EQU	1 		;default is to ignore HV conditions
+#endif
+#endif
+	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
 ;ADC configuration
 ;-----------------
-;TVMON_ATDCTL0_CONFIG	EQU	 %00001111 ;reset value
+;LVMON_ATDCTL0_CONFIG	EQU	%00001111 ;reset value
 			;             ^  ^
 			;    WRAP-----+--+ 
 	
-TVMON_ATDCTL1_CONFIG	EQU	 %01000000
+LVMON_ATDCTL1_CONFIG	EQU	 %01000000
 			;         ^^^^^  ^
 			;ETRIGSEL-+||||  | 
 			;    SRES--++||  | 
 			; SMP_DIS----+|  | 
 			; ETRIGCH-----+--+ 
 
-TVMON_ATDCTL2_CONFIG	EQU	 %01000001
+LVMON_ATDCTL2_CONFIG	EQU	 %01000001
 			;          ^^^^^^^
 			;    AFFC--+|||||| 
 			; ICLKSTP---+||||| 
@@ -75,7 +88,7 @@ TVMON_ATDCTL2_CONFIG	EQU	 %01000001
 			;   ASCIE-------+| 
 			;  ACMPIE--------+ 
 
-TVMON_ATDCTL3_CONFIG	EQU	 %00010011
+LVMON_ATDCTL3_CONFIG	EQU	 %00010011
 			;         ^^^^^^^^
 			;     DJM-+||||||| 
 			;     S8C--+|||||| 
@@ -85,12 +98,12 @@ TVMON_ATDCTL3_CONFIG	EQU	 %00010011
 			;    FIFO------+|| 
 			;     FRZ-------++ 
 
-TVMON_ATDCTL4_CONFIG	EQU	%11111111
+LVMON_ATDCTL4_CONFIG	EQU	 %11111111
 			;         ^ ^^   ^
 			;     SMP-+-+|   | 
 			;     PRS----+---+ 
 
-TVMON_ATDCTL5_CONFIG	EQU	 %00101011
+LVMON_ATDCTL5_CONFIG	EQU	 %00100000
 			;          ^^^^^^^
 			;      SC--+|||||| 
 			;    SCAN---+||||| 
@@ -103,94 +116,81 @@ TVMON_ATDCTL5_CONFIG	EQU	 %00101011
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef TVMON_VARS_START_LIN
-			ORG 	TVMON_VARS_START, TVMON_VARS_START_LIN
+#ifdef LVMON_VARS_START_LIN
+			ORG 	LVMON_VARS_START, LVMON_VARS_START_LIN
 #else
-			ORG 	TVMON_VARS_START
-TVMON_VARS_START_LIN	EQU	@			
+			ORG 	LVMON_VARS_START
+LVMON_VARS_START_LIN	EQU	@			
 #endif	
 
-TVMON_VARS_END		EQU	*
-TVMON_VARS_END_LIN	EQU	@
+LVMON_VARS_END		EQU	*
+LVMON_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
 ;#--------------
-#macro	TVMON_INIT, 0
+#macro	LVMON_INIT, 0
 			;Configure ADC
-			MOVB	#TVMON_ATDCTL1_CONFIG, ATDCTL1
-			MOVW	#((TVMON_ATDCTL2_CONFIG<<8)|TVMON_ATDCTL3_CONFIG), ATDCTL2
-			MOVB	#TVMON_ATDCTL4_CONFIG, ATDCTL4
+			MOVB	#LVMON_ATDCTL1_CONFIG, ATDCTL1
+			MOVW	#((LVMON_ATDCTL2_CONFIG<<8)|LVMON_ATDCTL3_CONFIG), ATDCTL2
+			MOVB	#LVMON_ATDCTL4_CONFIG, ATDCTL4
 			MOVB	#$01, ATDCMPEL
 			MOVB	#$01, ATDCMPHTL
-			MOVW	#TVMON_UPPER_THRESHOLD, ATDDR0
-
-			;Initially flag missing target
-			LED_BICOLOR_RED
+			MOVW	#LVMON_UPPER_THRESHOLD, ATDDR0
 
 			;Start ATD conversions
-			MOVB	#TVMON_ATDCTL5_CONFIG, ATDCTL5
+			MOVB	#LVMON_ATDCTL5_CONFIG, ATDCTL5
 #emac
 
-;#Functions	
-;#---------
-;#Branch if no target is detected
-#macro	TVMON_BRNOTGT, 1
-			BRSET	ATDCMPHTL, #$01, \1	
-#emac
-
-;#Branch if no target is detected
-#macro	TVMON_BRTGT, 1
-			BRCLR	ATDCMPHTL, #$01, \1	
-#emac
-	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef TVMON_CODE_START_LIN
-			ORG 	TVMON_CODE_START, TVMON_CODE_START_LIN
+#ifdef LVMON_CODE_START_LIN
+			ORG 	LVMON_CODE_START, LVMON_CODE_START_LIN
 #else
-			ORG 	TVMON_CODE_START
-TVMON_CODE_START_LIN	EQU	@			
+			ORG 	LVMON_CODE_START
+LVMON_CODE_START_LIN	EQU	@			
 #endif	
 
-TVMON_ISR		EQU	*
-			BRSET	ATDCMPHTH+$1, #$01, TVMON_ISR_1 ;target Vdd detected
+LVMON_ISR		EQU	*
+			BRSET	ATDCMPHTH+$1, #$01, LVMON_ISR_1 ;target Vdd detected
 
-			;Target Vdd missing
-			LED_BICOLOR_RED				;flag missing target Vdd
+			;Low Vdd
 			BSET	ATDCMPHTL, #$01			;target Vdd must be higher than threshold			
-			MOVW	#TVMON_UPPER_THRESHOLD, ATDDR0	;set upper threshold value
-			CLR	PTM				;disable target interface
-			JOB	TVMON_ISR_2			;restart ADC conversion
+			MOVW	#LVMON_UPPER_THRESHOLD, ATDDR0	;set upper threshold value
+#ifdef	LVMON_HANDLE_LV
+			LVMON_LV_ACTION				;LV action
+#endif
+			JOB	LVMON_ISR_2			;restart ADC conversion
 			
-			;Target Vdd detected
-TVMON_ISR_1		LED_BICOLOR_GREEN			;flag detected target Vdd
-			BCLR	ATDCMPHTL, #$01			;target Vdd must be lower than threshold			
-			MOVW	#TVMON_LOWER_THRESHOLD, ATDDR0	;set lower threshold value
-			MOVB	#PM7, PTM			;enable target interface
-
+			;High Vdd
+LVMON_ISR_1		BCLR	ATDCMPHTL, #$01			;target Vdd must be lower than threshold			
+			MOVW	#LVMON_LOWER_THRESHOLD, ATDDR0	;set lower threshold value
+#ifdef	LVMON_HANDLE_HV
+			LVMON_HV_ACTION				;HV action
+#endif
+	
 			;Restart ATD conversions
-TVMON_ISR_2		MOVB	#TVMON_ATDCTL5_CONFIG, ATDCTL5
+LVMON_ISR_2		MOVB	#LVMON_ATDCTL5_CONFIG, ATDCTL5
 	
 			;Done 
 			ISTACK_RTI	
 
-TVMON_CODE_END		EQU	*	
-TVMON_CODE_END_LIN	EQU	@	
+LVMON_CODE_END		EQU	*	
+LVMON_CODE_END_LIN	EQU	@	
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef TVMON_TABS_START_LIN
-			ORG 	TVMON_TABS_START, TVMON_TABS_START_LIN
+#ifdef LVMON_TABS_START_LIN
+			ORG 	LVMON_TABS_START, LVMON_TABS_START_LIN
 #else
-			ORG 	TVMON_TABS_START
-TVMON_TABS_START_LIN	EQU	@			
+			ORG 	LVMON_TABS_START
+LVMON_TABS_START_LIN	EQU	@			
 #endif	
 
-TVMON_TABS_END		EQU	*	
-TVMON_TABS_END_LIN	EQU	@	
+LVMON_TABS_END		EQU	*	
+LVMON_TABS_END_LIN	EQU	@	
 #endif
