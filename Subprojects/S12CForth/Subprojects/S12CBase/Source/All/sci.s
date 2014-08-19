@@ -209,14 +209,14 @@ SCI_DLY_OC		EQU	$3		;default is OC3
 	
 ;C0 character handling
 ;--------------------- 
-;Detect BREAK character
+;Detect BREAK character (use SCI_BREAK_ACTION macro)
 #ifdef	SCI_HANDLE_BREAK
 #ifdef	SCI_IGNORE_BREAK
 SCI_IGNORE_BREAK	EQU	1 		;default is to ignore break chars
 #endif
 #endif
 	
-;Detect SUSPEND character
+;Detect SUSPEND character (use SCI_SUSPEND_ACTION macro)
 #ifdef	SCI_HANDLE_SUSPEND
 #ifdef	SCI_IGNORE_SUSPEND
 SCI_IGNORE_SUSPEND	EQU	1 		;default is to ignore suspend chars

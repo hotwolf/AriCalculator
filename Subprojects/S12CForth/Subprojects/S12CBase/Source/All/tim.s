@@ -28,9 +28,9 @@
 ;#      OC2:     SCI baud rate detection (timeout)                             #
 ;#      OC3:     SCI (timeout)                                                 #
 ;#      OC4:     unasigned                                                     #
-;#      IC5:     BDM (capture posedges on BKGD pin)                            #
-;#      IC6/OC5: BDM (capture negedges on BKGD pin/toggle BKGD pin)            #
-;#      OC7:     BDM (toggle BKGD pin/timeouts)                                #
+;#      OC5:     unasigned                                                     #
+;#      OC5:     unasigned                                                     #
+;#      OC7:     unasigned                                                     #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
@@ -92,13 +92,13 @@ TIM_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	TIM_INIT, 0		 ;7 6 5 4 3 2 1 0
-			;MOVB	#%1_0_0_1_1_1_0_0, TIOS 	;default setup
+			;MOVB	#%1_1_1_1_1_1_0_0, TIOS 	;default setup
 			;MOVB	#%0_0_0_0_0_0_0_0, TIOS 	;keep at zero, for configuration with BSET
-				 ;B B B   S S S S 		;  0=input capture
-				 ;D D D   C C C C 		;  1=output compare
-				 ;M M M   I I I I
-				 ;T N P   T B B B
-				 ;O E E   O D D D
+				 ;        S S S S 		;  0=input capture
+				 ;        C C C C 		;  1=output compare
+				 ;        I I I I
+				 ;        T B B B
+				 ;        O D D D
 				 ;          T N P
 				 ;          O E E
 
@@ -106,13 +106,13 @@ TIM_VARS_END_LIN	EQU	@
 			;OC7M 
 
 			 	 ;7 6 5 4 3 2 1 0
-			;MOVB	#%0_1_0_0_0_0_0_0, TOC7D	;default setup
+			;MOVB	#%0_0_0_0_0_0_0_0, TOC7D	;default setup
 			;MOVB	#%0_0_0_0_0_0_0_0, TOC7D	;keep at zero, for configuration with BSET
-				 ;B B B   S S S S
-				 ;D D D   C C C C
-				 ;M M M   I I I I
-				 ;T N P   T B B B
-				 ;O E E   O D D D
+				 ;        S S S S
+				 ;        C C C C
+				 ;        I I I I
+				 ;        T B B B
+				 ;        O D D D
 				 ;          T N P
 				 ;          O E E
 
@@ -126,21 +126,21 @@ TIM_VARS_END_LIN	EQU	@
 	
 				 ;7 6 5 4 3 2 1 0
 			;MOVW	#%0000000000000000, TCTL1 	;keep at zero, for configuration with BSET
-				 ;B B B   S S S S		;  00=no OC
-				 ;D D D   C C C C		;  01=toggle
-				 ;M M M   I I I I		;  10=clear
-				 ;T N P   T B B B		;  11=set
-				 ;O E E   O D D D
+				 ;        S S S S		;  00=no OC
+				 ;        C C C C		;  01=toggle
+				 ;        I I I I		;  10=clear
+				 ;        T B B B		;  11=set
+				 ;        O D D D
 				 ;          T N P
 				 ;          O E E
 
 			 	 ;7 6 5 4 3 2 1 0
 			;MOVW	#%0000000000000000, TCTL3 	;keep at zero, for configuration with BSET
-				 ;B B B   S S S S		;  00=no capture	
-				 ;D D D   C C C C		;  01=posedge
-				 ;M M M   I I I I		;  10=negedge
-				 ;T N P   T B B B		;  11=any edge
-				 ;O E E   O D D D
+				 ;        S S S S		;  00=no capture	
+				 ;        C C C C		;  01=posedge
+				 ;        I I I I		;  10=negedge
+				 ;        T B B B		;  11=any edge
+				 ;        O D D D
 				 ;          T N P
 				 ;          O E E
 
