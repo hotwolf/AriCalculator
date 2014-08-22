@@ -112,7 +112,11 @@ DEMO_VARS_END_LIN	EQU	@
 ;Application code
 START_OF_CODE		EQU	*		;Start of code
 			BASE_INIT		;initialization
-DEMO_LOOP		ISTACK_WAIT		;idle loop
+
+			LDX	#DEMO_KEY_TAB
+DEMO_LOOP		KEYS_GET_BL
+			LDAB	A,X
+			SCI_TX_BL
 			JOB	DEMO_LOOP
 	
 BASE_CODE_START		EQU	*
@@ -138,6 +142,8 @@ DEMO_CODE_END_LIN	EQU	@
 #else
 			ORG 	DEMO_TABS_START
 #endif	
+
+DEMO_KEY_TAB		FCC	"ABCDEFGHIJKLMNOPQRSTUVWXYZ0124"
 
 DEMO_WELCOME		FCS	"This is the AriCalculator Demo"
 
