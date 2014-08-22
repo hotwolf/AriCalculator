@@ -46,16 +46,16 @@ DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
 			ORG	DEMO_CODE_END, 	DEMO_CODE_END_LIN
 
-;Variables
-DEMO_VARS_START		EQU	*
-DEMO_VARS_START_LIN	EQU	@
-			ORG	DEMO_VARS_END, 	DEMO_VARS_END_LIN
-
 ;Tables
 DEMO_TABS_START		EQU	*
 DEMO_TABS_START_LIN	EQU	@
 			ORG	DEMO_TABS_END, 	DEMO_TABS_END_LIN
 	
+;Variables
+DEMO_VARS_START		EQU	*
+DEMO_VARS_START_LIN	EQU	@
+			ORG	DEMO_VARS_END, 	DEMO_VARS_END_LIN
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -161,8 +161,8 @@ DEMO_TABS_END_LIN	EQU	@
 ;###############################################################################
 #include ./gpio_AriCalculator.s	   									;I/O setup
 #include ./vectab_AriCalculator.s									;Vector table
-#include ./disp_AriCalculator.s										;Display driver
 #include ./disp_splash.s										;Splash screen image
+#include ./disp_AriCalculator.s										;Display driver
 #include ./keys_AriCalculator.s										;keypad driver
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/S12G-Micro-EVB/base_S12G-Micro-EVB.s;RAM memory map
 	
