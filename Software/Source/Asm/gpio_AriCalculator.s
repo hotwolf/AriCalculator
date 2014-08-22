@@ -191,7 +191,7 @@ GPIO_VARS_END_LIN	EQU	@
 	        MOVB	PKGCR, PKGCR 				;lock PKGCR
 		;#Port P
 		;MOVB	#$00,   PTP 			
-		MOVB	#$1F,   DDRP 			
+		MOVB	#$1F,   DDRP 				;drive keyboard columns low
 		MOVB	#$E0	PERP
 		;MOVB	#$00,   PPSP 			
 		;MOVB	#$00FF,	PIEP				;PIEP/PIFP 			

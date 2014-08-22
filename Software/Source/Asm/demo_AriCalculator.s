@@ -73,9 +73,9 @@ DISP_VARS_START		EQU	*
 DISP_VARS_START_LIN	EQU	@
 			ORG	DISP_VARS_END, 	DISP_VARS_END_LIN
 
-;KEYS_VARS_START		EQU	*
-;KEYS_VARS_START_LIN	EQU	@
-;			ORG	KEYS_VARS_END, 	KEYS_VARS_END_LIN
+KEYS_VARS_START		EQU	*
+KEYS_VARS_START_LIN	EQU	@
+			ORG	KEYS_VARS_END, 	KEYS_VARS_END_LIN
 
 DEMO_VARS_END		EQU	*
 DEMO_VARS_END_LIN	EQU	@
@@ -123,9 +123,9 @@ DISP_CODE_START		EQU	*
 DISP_CODE_START_LIN	EQU	@
 			ORG	DISP_CODE_END, 	DISP_CODE_END_LIN
 
-;KEYS_CODE_START		EQU	*
-;KEYS_CODE_START_LIN	EQU	@
-;			ORG	KEYS_CODE_END, 	KEYS_CODE_END_LIN
+KEYS_CODE_START		EQU	*
+KEYS_CODE_START_LIN	EQU	@
+			ORG	KEYS_CODE_END, 	KEYS_CODE_END_LIN
 
 DEMO_CODE_END		EQU	*
 DEMO_CODE_END_LIN	EQU	@
@@ -149,9 +149,9 @@ DISP_TABS_START		EQU	*
 DISP_TABS_START_LIN	EQU	@
 			ORG	DISP_TABS_END, 	DISP_TABS_END_LIN
 
-;KEYS_TABS_START		EQU	*
-;KEYS_TABS_START_LIN	EQU	@
-;			ORG	KEYS_TABS_END, 	KEYS_TABS_END_LIN
+KEYS_TABS_START		EQU	*
+KEYS_TABS_START_LIN	EQU	@
+			ORG	KEYS_TABS_END, 	KEYS_TABS_END_LIN
 
 DEMO_TABS_END		EQU	*
 DEMO_TABS_END_LIN	EQU	@
@@ -163,7 +163,7 @@ DEMO_TABS_END_LIN	EQU	@
 #include ./vectab_AriCalculator.s									;Vector table
 #include ./disp_AriCalculator.s										;Display driver
 #include ./disp_splash.s										;Splash screen image
-;#include ./keys_AriCalculator.s									;keyboard driver
+#include ./keys_AriCalculator.s										;keypad driver
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/S12G-Micro-EVB/base_S12G-Micro-EVB.s;RAM memory map
 	
 
