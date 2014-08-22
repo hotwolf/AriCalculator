@@ -27,7 +27,7 @@
 ;#      IC1:     SCI baud rate detection (capture negedges on RX pin)          #
 ;#      OC2:     SCI baud rate detection (timeout)                             #
 ;#      OC3:     SCI (timeout)                                                 #
-;#      OC4:     unasigned                                                     #
+;#      OC4:     delay driver                                                  #
 ;#      OC5:     unasigned                                                     #
 ;#      OC5:     unasigned                                                     #
 ;#      OC7:     unasigned                                                     #
@@ -94,13 +94,13 @@ TIM_VARS_END_LIN	EQU	@
 #macro	TIM_INIT, 0		 ;7 6 5 4 3 2 1 0
 			;MOVB	#%1_1_1_1_1_1_0_0, TIOS 	;default setup
 			;MOVB	#%0_0_0_0_0_0_0_0, TIOS 	;keep at zero, for configuration with BSET
-				 ;        S S S S 		;  0=input capture
-				 ;        C C C C 		;  1=output compare
-				 ;        I I I I
-				 ;        T B B B
-				 ;        O D D D
-				 ;          T N P
-				 ;          O E E
+				 ;      D S S S 		;  0=input capture
+				 ;      E C C C 		;  1=output compare
+				 ;      L I I I
+				 ;      A B B B
+				 ;      Y D D D
+				 ;        T N P
+				 ;        O E E
 
 			;CFORC
 			;OC7M 
@@ -108,11 +108,11 @@ TIM_VARS_END_LIN	EQU	@
 			 	 ;7 6 5 4 3 2 1 0
 			;MOVB	#%0_0_0_0_0_0_0_0, TOC7D	;default setup
 			;MOVB	#%0_0_0_0_0_0_0_0, TOC7D	;keep at zero, for configuration with BSET
-				 ;        S S S S
-				 ;        C C C C
-				 ;        I I I I
-				 ;        T B B B
-				 ;        O D D D
+				 ;      D S S S S
+				 ;      E C C C C
+				 ;      L I I I I
+				 ;      A T B B B
+				 ;      Y O D D D
 				 ;          T N P
 				 ;          O E E
 
@@ -126,21 +126,21 @@ TIM_VARS_END_LIN	EQU	@
 	
 				 ;7 6 5 4 3 2 1 0
 			;MOVW	#%0000000000000000, TCTL1 	;keep at zero, for configuration with BSET
-				 ;        S S S S		;  00=no OC
-				 ;        C C C C		;  01=toggle
-				 ;        I I I I		;  10=clear
-				 ;        T B B B		;  11=set
-				 ;        O D D D
+				 ;      D S S S S		;  00=no OC
+				 ;      E C C C C		;  01=toggle
+				 ;      L I I I I		;  10=clear
+				 ;      A T B B B		;  11=set
+				 ;      Y O D D D
 				 ;          T N P
 				 ;          O E E
 
 			 	 ;7 6 5 4 3 2 1 0
 			;MOVW	#%0000000000000000, TCTL3 	;keep at zero, for configuration with BSET
-				 ;        S S S S		;  00=no capture	
-				 ;        C C C C		;  01=posedge
-				 ;        I I I I		;  10=negedge
-				 ;        T B B B		;  11=any edge
-				 ;        O D D D
+				 ;      D S S S S		;  00=no capture	
+				 ;      E C C C C		;  01=posedge
+				 ;      L I I I I		;  10=negedge
+				 ;      A T B B B		;  11=any edge
+				 ;      Y O D D D
 				 ;          T N P
 				 ;          O E E
 
@@ -159,9 +159,9 @@ TIM_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         X, Y, and D are preserved 
 #macro	TIM_MULT_EN, 1
-			MOVB	#\1, TFLG1 		;clear interrupt flags
-			BSET	TIE, #\1		;enable interrupts
-			MOVB	#(TEN|TSFRZ), TSCR1	;enable timer
+			MOVB	#\1, TFLG1 			;clear interrupt flags
+			BSET	TIE, #\1			;enable interrupts
+			MOVB	#(TEN|TSFRZ), TSCR1		;enable timer
 #emac
 
 ;#Enable one timer channel
@@ -219,8 +219,8 @@ DONE			EQU	*
 #else
 			LDD	#\2		
 #endif
-			ADDD	TCNT		;RPO
-			STD	(TC0+(2*\1))	;PWO
+			ADDD	TCNT				;RPO
+			STD	(TC0+(2*\1))			;PWO
 #emac
 
 ;#Setup timer delay
@@ -242,10 +242,10 @@ DONE			EQU	*
 ; SSTACK: none
 ;         X, and Y are preserved 
 #macro	TIM_START_DLY, 1
-			BRSET	TIE, #(1<<\1), DONE ;skip if timer channel is already active
-			TIM_SET_DLY	\1
-			BSET	TIE, #(1<<\1)		;enable interrupts
-			MOVB	#(TEN|TSFRZ), TSCR1	;enable timer
+			BRSET	TIE, #(1<<\1), DONE 		;skip if timer channel is already active
+			TIM_SET_DLY	\1			
+			BSET	TIE, #(1<<\1)			;enable interrupts
+			MOVB	#(TEN|TSFRZ), TSCR1		;enable timer
 DONE			EQU		*
 #emac
 	
