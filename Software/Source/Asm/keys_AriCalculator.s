@@ -78,9 +78,9 @@
 ;----------------
 ;#Column port
 #ifndef KEYS_COL_PORT	
-KEYS_COL_PORT		EQU	PT0AD		;default is PAD			
-KEYS_COL_IE		EQU	PIE0AD		;default is PAD			
-KEYS_COL_IF		EQU	PIF0AD		;default is PAD			
+KEYS_COL_PORT		EQU	PT1AD		;default is PAD			
+KEYS_COL_IE		EQU	PIE1AD		;default is PAD			
+KEYS_COL_IF		EQU	PIF1AD		;default is PAD			
 #endif
 #ifndef KEYS_COL_MSB	
 KEYS_COL_MSB		EQU	6 		;default is PAD6
@@ -108,7 +108,7 @@ KEYS_OC			EQU	$5		;default is OC5	(must be >4)
 #endif
 
 ;Debounce delay (TIM cycles)
-#ifndef	SCI_BD_OC
+#ifndef	KEYS_DEBOUNCE_DELAY
 KEYS_DEBOUNCE_DELAY	EQU	5		;default is 5*2.6214ms			
 #endif
 	

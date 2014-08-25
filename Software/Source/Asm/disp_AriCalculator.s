@@ -224,7 +224,7 @@ DISP_BUF_FREE		EQU	*
 			;Check if the buffer is full
 			LDD	DISP_BUF_IN 					;IN->A; OUT->B
 			SBA
-			BITA	(DISP_BUF_SIZE-1) 				;buffer usage->A
+			ANDA	#(DISP_BUF_SIZE-1) 				;buffer usage->A
 			NEGA
 			ADDA	#(DISP_BUF_SIZE-1)
 			;Restore registers
@@ -247,7 +247,7 @@ DISP_TX_NB		EQU	*
 			LDAA	DISP_BUF_IN
 			STAB	A,X		  				;write data into buffer
 			INCA			  				;advance IN index
-			BITA	(DISP_BUF_SIZE-1) 				;buffer usage->A
+			ANDA	#(DISP_BUF_SIZE-1) 				;buffer usage->A
 			CMPA	DISP_BUF_OUT 					;check if the buffer is full
 			BEQ	DISP_TX_NB_2 					;buffer is full
 			STAA	DISP_BUF_IN
@@ -290,7 +290,7 @@ DISP_ISR		EQU	*
 			;Transmit character (char in A, OUT in B)
 			STAA	SPIDRL 						;transmit character
 DISP_ISR_1		INCB							;advance OUT index
-			BITB	(DISP_BUF_SIZE-1)
+			ANDB	#(DISP_BUF_SIZE-1)
 			STAB	DISP_BUF_OUT
 			;Done
 DISP_ISR_2		MOVB	#%01111110, SPICR1 				;enable TX buffer empty interrupt
@@ -316,13 +316,13 @@ DISP_ISR_5		DECA 							;decrement TX counter
 			;Escape character found (buffer pointer in X, OUT in B) 
 DISP_ISR_6		LDAA	DISP_BUF_IN 					;make sure that the escape command is in the buffer
 			SBA
-			BITA	(DISP_BUF_SIZE-1)
+			ANDA	#(DISP_BUF_SIZE-1)
 			CMPA	#2
 			BLO	DISP_ISR_4 					;wait for the escape command
 			;Evaluate the escape command (buffer pointer in X, OUT in B)
 			LDAA	#1 						;get escape command
 			ABA
-			BITA	(DISP_BUF_SIZE-1)
+			ANDA	#(DISP_BUF_SIZE-1)
 			LDAA	A,X 						;escape command->A
 			IBEQ	A, DISP_ISR_8 					;transmit escape character
 			IBEQ	A, DISP_ISR_9 					;switch to command mode
