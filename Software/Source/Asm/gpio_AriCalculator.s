@@ -192,13 +192,13 @@ GPIO_VARS_END_LIN	EQU	@
 		;#Port P
 		;MOVB	#$00,   PTP 			
 		MOVB	#$1F,   DDRP 				;drive keyboard columns low
-		MOVB	#$E0	PERP
+		MOVB	#$FF	PERP
 		;MOVB	#$00,   PPSP 			
 		;MOVB	#$00FF,	PIEP				;PIEP/PIFP 			
 		;#Port S
-		MOVB	#$80, PTS	
-		MOVB	#$F2, DDRS
-		MOVW	#$01, PERS 				;PERS/PPSS
+		MOVB	#$80, 	PTS	
+		MOVB	#$F2, 	DDRS
+		MOVW	#$0D01, PERS 				;PERS/PPSS
 		;MOVB	#$02,	WOMS
 		;#Port T
 		;MOVB	#$00,   PTT 			

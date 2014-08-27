@@ -81,13 +81,6 @@ DISP_A0_PORT		EQU	PTS 		;default is port S
 DISP_A0_PIN		EQU	PS4		;default is PS4	
 #endif
 
-;#Splash screen
-#ifndef DISP_SPLASH
-#define DISP_SPLASH	
-#macro	DISP_SPLASH_STREAM, 0
-#emac
-#endif
-
 ;#Buffer size
 #ifndef DISP_BUF_SIZE
 DISP_BUF_SIZE		EQU	8 		;depth of the command buffer
@@ -167,11 +160,9 @@ DISP_VARS_END_LIN	EQU	@
 			MOVW	#((DISP_SPICR1_CONFIG<<8)|DISP_SPICR2_CONFIG), SPICR1
 			MOVB	#DISP_SPIBR_CONFIG, SPIBR
 			;Setup display	
-			LDX	#DISP_SETUP_START
-			LDY	#(DISP_SETUP_END-DISP_SETUP_START)	
-INIT_LOOP		LDAB	1,X+
-			JOBSR	DISP_TX_BL
-			DBNE	Y, INIT_LOOP
+			LDX	#DISP_SEQ_INIT_START
+			LDY	#(DISP_SEQ_INIT_END-DISP_SEQ_INIT_START)
+			DISP_STREAM_BL
 #emac
 
 ;# Functions
@@ -181,7 +172,7 @@ INIT_LOOP		LDAB	1,X+
 ; result: B: Space left on the buffer in bytes
 ; SSTACK: 3 bytes
 ;         X, Y and B are preserved 
-#macro	DISP_BUF_FRxEE, 0
+#macro	DISP_BUF_FREE, 0
 			SSTACK_JOBSR	DISP_BUF_FREE, 3
 #emac	
 	
@@ -191,7 +182,7 @@ INIT_LOOP		LDAB	1,X+
 ; SSTACK: 5 bytes
 ;         X, Y and D are preserved 
 #macro	DISP_TX_NB, 0
-			JOBSR	DISP_TX_NB
+			SSTACK_JOBSR	DISP_TX_NB, 5
 #emac
 
 ;#Transmit commands and data (blocking)
@@ -200,7 +191,43 @@ INIT_LOOP		LDAB	1,X+
 ; SSTACK: 7 bytes
 ;         X, Y and D are preserved 
 #macro	DISP_TX_BL, 0
-			JOBSR	DISP_TX_BL
+			SSTACK_JOBSR	DISP_TX_BL, 7
+#emac
+
+;#Transmit a sequence of commands and data (non-blocking)
+; args:   X: pointer to the start of the sequence
+;         Y: number of bytes to transmit
+; result: X: pointer to the start of the remaining sequence
+;         Y: number of remaining bytes to transmit
+;         C: 1 = successful, 0=buffer full
+; SSTACK: 8 bytes
+;         D is preserved 
+#macro	DISP_STREAM_NB, 0
+			SSTACK_JOBSR	DISP_STREAM_NB, 9
+#emac
+
+;#Transmit a sequence of commands and data (non-blocking)
+; args:   X: pointer to the start of the sequence
+;         Y: number of bytes to transmit
+; result: X: points to the byte after the sequence
+;         Y: $0000
+; SSTACK: 10 bytes
+;         D is preserved 
+#macro	DISP_STREAM_BL, 0
+			SSTACK_JOBSR	DISP_STREAM_NB, 11
+#emac
+
+
+;#Transmit a sequence of commands and data (non-blocking)
+; args:   1: pointer to the start of the sequence
+;         2: pointer past the end of the sequence
+; result: none
+; SSTACK: 10 bytes
+;         D is preserved 
+#macro	DISP_STREAM_FROM_TO_BL, 2
+			LDX	#\1
+			LDY	#(\2-\1)
+			DISP_STREAM_BL
 #emac
 	
 ;# Macros for internal use
@@ -282,6 +309,45 @@ DISP_TX_NB_2		SSTACK_PREPULL	5
 ;         X, Y and D are preserved 
 DISP_TX_BL		EQU	*
 			DISP_MAKE_BL	DISP_TX_NB, 5	
+
+;#Transmit a sequence of commands and data (non-blocking)
+; args:   X: pointer to the start of the sequence
+;         Y: number of bytes to transmit
+; result: X: pointer to the start of the remaining sequence
+;         Y: number of remaining bytes to transmit
+;         C: 1 = successful, 0=buffer full
+; SSTACK: 8 bytes
+;         D is preserved 
+DISP_STREAM_NB		EQU	*
+			;Save registers (start pointer in X, byte count in Y)
+			PSHB							;push accu B onto the SSTACK
+			;Transmit next byte (start pointer in X, byte count in Y)
+DISP_STREAM_NB_1	LDAB	1,X+ 						;get data
+			DISP_TX_NB 						;transmit data (SSTACK: 5 bytes)
+			BCC	DISP_STREAM_NB_3				;TX buffer is full
+			DBNE	Y, DISP_STREAM_NB_1 				;transmit next byte
+			;Successful transmission (new start pointer in X, $0000 in Y)
+			SSTACK_PREPULL	3
+			SEC							;signal success
+DISP_STREAM_NB_2	PULB							;pull accu B from the SSTACK
+			;Done
+			RTS
+			;TX buffer is full (new start pointer+1 in X, new byte count in Y)
+DISP_STREAM_NB_3	LEAX	-1,X 						;restore pointer
+			;Unsucessful transmission (new start pointer in X, new byte count in Y)			
+			SSTACK_PREPULL	3
+			CLC							;signal success
+			JOB	DISP_STREAM_NB_2 				; done
+
+;#Transmit a sequence of commands and data (non-blocking)
+; args:   X: pointer to the start of the sequence
+;         Y: number of bytes to transmit
+; result: X: points to the byte after the sequence
+;         Y: $0000
+; SSTACK: 10 bytes
+;         D is preserved 
+DISP_STREAM_BL		EQU	*
+			DISP_MAKE_BL	DISP_STREAM_NB, 8	
 	
 ;#SPI ISR for transmitting data to the ST7565R display controller
 DISP_ISR		EQU	*
@@ -370,7 +436,7 @@ DISP_CODE_END_LIN	EQU	@
 #endif	
 
 ;#Setup stream
-DISP_SETUP_START	DB	$40 				;start display at line 0
+DISP_SEQ_INIT_START	DB	$40 				;start display at line 0
 			DB	$A0				;flip display
 			DB	$C8				;COM0 -> 
 			;DB	$A1				;flip display
@@ -386,9 +452,51 @@ DISP_SETUP_START	DB	$40 				;start display at line 0
 			DB	$00
 			DB	$AF 				;enable display
 
-			DISP_SPLASH_STREAM 			;display splash screen
-DISP_SETUP_END		EQU	*
+;#Splash screen
+#ifdef DISP_SPLASH
+DISP_SEQ_SPLASH_START	DISP_SPLASH_STREAM 			;display splash screen
+DISP_SEQ_SPLASH_END	EQU	*
+DISP_SEQ_INIT_END	EQU	*
+#endif
 
+;#Clear screen
+DISP_SEQ_CLEAR_START	DB  $B0 $10 $04                     	;set page 0
+			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+			DB  $B1 $10 $04                     	;set page 1
+			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+			DB  $B2 $10 $04                     	;set page 2
+			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+			DB  $B3 $10 $04                     	;set page 3
+			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+			DB  $B4 $10 $04                     	;set page 4
+			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+			DB  $B5 $10 $04                     	;set page 5
+			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+			DB  $B6 $10 $04                     	;set page 6
+			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+			DB  $B7 $10 $04                     	;set page 7
+			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+DISP_SEQ_CLEAR_END	EQU	*
+#ifndef DISP_SPLASH
+DISP_SEQ_INIT_END	EQU	*
+#endif
+	
 DISP_TABS_END		EQU	*
 DISP_TABS_END_LIN	EQU	@
 #endif

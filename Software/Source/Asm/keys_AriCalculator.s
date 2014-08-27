@@ -137,10 +137,14 @@ KEYS_BUF_MASK		EQU	KEYS_BUF_SIZE-1 ;index mask
 ;#Keypad dimensions
 KEYS_COL_SIZE		EQU	1+KEYS_COL_MSB-KEYS_COL_LSB
 KEYS_ROW_SIZE		EQU	1+KEYS_ROW_MSB-KEYS_ROW_LSB
+
+;#Workaround for short at PAD2
+KEYS_COL_SHORT	EQU	$04
+
 	
 ;#Port masks
-KEYS_COL_MASK		EQU	($FF>>(7-KEYS_COL_MSB))|($FF<<KEYS_COL_LSB)
-KEYS_ROW_MASK		EQU	($FF>>(7-KEYS_ROW_MSB))|($FF<<KEYS_ROW_LSB)
+KEYS_COL_MASK		EQU	($FF>>(7-KEYS_COL_MSB))&($FF<<KEYS_COL_LSB)&(~KEYS_COL_SHORT)
+KEYS_ROW_MASK		EQU	($FF>>(7-KEYS_ROW_MSB))&($FF<<KEYS_ROW_LSB)
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -324,12 +328,13 @@ KEYS_ISR_KWU_4		LEAX	KEYS_ROW_SIZE,X 			;switch column in keycode
 			;Key code determined (key code in X, column selector in DDRP)
 			TFR	X,B 					;kec code -> B
 			LDAA	KEYS_BUF_IN 				;IN index -> A
-			LDX	KEYS_BUF				;put key code into the buffer
+			LDX	#KEYS_BUF				;put key code into the buffer
 			STAB	A,X
 			INCA						;adjust IN index
 			ANDA	#KEYS_BUF_MASK
 			CMPA	KEYS_BUF_OUT 				;check for buffer overvlow
 			BEQ	KEYS_ISR_KWU_5 				;buffer overflow
+			STAA	KEYS_BUF_IN 				;update IN index
 			;Setup debounce delay 
 			MOVB	#KEYS_DEBOUNCE_DELAY, KEYS_DELAY_COUNT	;set delay counter
 			MOVW	TCNT, (TC0+(2*KEYS_OC))			;set OC to max delay
@@ -354,7 +359,7 @@ KEYS_ISR_TIM_2		MOVB	#KEYS_COL_MASK, KEYS_COL_IF 		;clear KWU interrupt flag
 			MOVB	#KEYS_DEBOUNCE_DELAY, KEYS_DELAY_COUNT	;restart delay counter
 			JOB	KEYS_ISR_TIM_1 				;done
 			;All keys have been released
-KEYS_ISR_TIM_3		TIM_DIS		KEYS_OC				;disable timer
+KEYS_ISR_TIM_3		TIM_DIS	KEYS_OC					;disable timer
 			MOVB	#KEYS_COL_MASK, KEYS_COL_IE 		;enable KWU interrupt
 			JOB	KEYS_ISR_TIM_1 				;done
 			
