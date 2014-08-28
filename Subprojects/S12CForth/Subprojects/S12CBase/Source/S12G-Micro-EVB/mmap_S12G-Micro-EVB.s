@@ -108,11 +108,15 @@ MMAP_FLASH		EQU	1 	;default is flash
 ;###############################################################################
 ;# Security and Protection                                                     #
 ;###############################################################################
-			;Set within bootloader code 
 #ifdef	MMAP_FLASH
-			ORG	$FF0D	;unprotect
+			;Align to D-Bug12XZ programming granularity
+			ORG	$FF08, $03FF08	;unprotect		
+			FILL	$FF, 8		
+	
+			;Set within bootloader code
+			ORG	$FF0D, $03FF0D	;unprotect
 			DB	$FF
-			ORG	$FF0F	;unsecure
+			ORG	$FF0F, $03FF0F	;unsecure
 			DB	$FE
 #endif
 
@@ -166,25 +170,14 @@ MMAP_FLASH_END		EQU	$10000
 #ifndef VECTAB_START
 #ifdef	MMAP_RAM
 VECTAB_START		EQU	$3F80    
-VECTAB_START_LIN	EQU	$003F80   
+VECTAB_START_LIN	EQU	$03F80   
 #endif
 #ifdef	MMAP_FLASH
 VECTAB_START		EQU	$FF80    
-VECTAB_START_LIN	EQU	$3FFF80   
+VECTAB_START_LIN	EQU	$3FF80   
 #endif
 #endif
 	
-;###############################################################################
-;# Security and Protection                                                     #
-;###############################################################################
-#ifdef	MMAP_FLASH
-			;Set within bootloader code 
-			ORG	$FF0D	;unprotect
-			DB	$FF
-			ORG	$FF0F	;unsecure
-			DB	$FE
-#endif
-
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
