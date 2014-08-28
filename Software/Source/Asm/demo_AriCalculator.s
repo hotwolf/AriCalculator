@@ -33,6 +33,13 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;# LRE or flash
+#ifndef DEMO_LRE
+#ifndef DEMO_FLASH
+DEMO_LRE		EQU	1 		;default is LRE
+#endif
+#endif
+
 ;# Clocks
 CLOCK_CPMU		EQU	1		;CPMU
 CLOCK_IRC		EQU	1		;use IRC
@@ -44,24 +51,28 @@ CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
 
 ;# Memory map:
 MMAP_S12G128		EQU	1 		;S12G128
+#ifdef DEMO_LRE
 MMAP_RAM		EQU	1 		;use RAM memory map
-
+#else
+MMAP_FLASH		EQU	1 		;use FLASH memory map
+#endif
+	
 ;# Interrupt stack
 ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
-ISTACK_DEBUG		EQU	1 		;don't enter wait mode
+;ISTACK_DEBUG		EQU	1 		;don't enter wait mode
 
 ;# Subroutine stack
 SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
-SSTACK_DEBUG		EQU	1 		;debug behavior
+;SSTACK_DEBUG		EQU	1 		;debug behavior
 
 ;# COP
-COP_DEBUG		EQU	1 		;disable COP
+;COP_DEBUG		EQU	1 		;disable COP
 
 ;# RESET
 RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
 	
 ;# Vector table
-VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
+;VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 	
 ;# SCI
 SCI_FC_RTSCTS		EQU	1 		;RTS/CTS flow control
@@ -87,7 +98,8 @@ STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_START
+			ORG	MMAP_RAM_START, MMAP_RAM_START 
+#ifdef DEMO_LRE
 ;Code
 DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
@@ -97,11 +109,27 @@ DEMO_CODE_START_LIN	EQU	@
 DEMO_TABS_START		EQU	*
 DEMO_TABS_START_LIN	EQU	@
 			ORG	DEMO_TABS_END, 	DEMO_TABS_END_LIN
+#endif
 	
 ;Variables
 DEMO_VARS_START		EQU	*
 DEMO_VARS_START_LIN	EQU	@
 			ORG	DEMO_VARS_END, 	DEMO_VARS_END_LIN
+
+#ifndef DEMO_LRE
+			ORG	$E000, $3E000
+;Code
+DEMO_CODE_START		EQU	*
+DEMO_CODE_START_LIN	EQU	@
+			ORG	DEMO_CODE_END, 	DEMO_CODE_END_LIN
+
+;Tables
+DEMO_TABS_START		EQU	*
+DEMO_TABS_START_LIN	EQU	@
+			ORG	DEMO_TABS_END, 	DEMO_TABS_END_LIN
+
+			ALIGN 	7, $FF ;align to D-Bug12XZ programming granularity
+#endif
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -112,10 +140,10 @@ DEMO_VARS_START_LIN	EQU	@
 			ORG 	DEMO_VARS_START
 #endif	
 
-DEMO_KEY_CODE		DB	1 	;pushed key stroke
-DEMO_PAGE   		DB	1	;current display page
-DEMO_COL    		DB	1	;current key pad ccolumn
-DEMO_CUR_KEY 		DB	1	;current key code
+DEMO_KEY_CODE		DS	1 	;pushed key stroke
+DEMO_PAGE   		DS	1	;current display page
+DEMO_COL    		DS	1	;current key pad ccolumn
+DEMO_CUR_KEY 		DS	1	;current key code
 	
 BASE_VARS_START		EQU	*
 BASE_VARS_START_LIN	EQU	@
@@ -128,7 +156,7 @@ DISP_VARS_START_LIN	EQU	@
 KEYS_VARS_START		EQU	*
 KEYS_VARS_START_LIN	EQU	@
 			ORG	KEYS_VARS_END, 	KEYS_VARS_END_LIN
-
+	
 DEMO_VARS_END		EQU	*
 DEMO_VARS_END_LIN	EQU	@
 	
@@ -317,6 +345,6 @@ DEMO_TABS_END_LIN	EQU	@
 #include ./disp_AriCalculator.s										;Display driver
 #include ./keys_AriCalculator.s										;keypad driver
 #include ./vectab_AriCalculator.s									;Vector table
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/S12G-Micro-EVB/base_S12G-Micro-EVB.s;RAM memory map
+#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/S12G-Micro-EVB/base_S12G-Micro-EVB.s;S12CBase framework
 	
 

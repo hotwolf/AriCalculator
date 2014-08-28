@@ -99,9 +99,9 @@
 ;#     PP2 - Keyboard column 3            (input        pull-up  )             #
 ;#     PP3 - Keyboard column 4            (input        pull-up  )             #
 ;#     PP4 - Keyboard column 5 (right)    (input        pull-up  )             #
-;#     PP5 - NC                           (input        pull-up  )             #
-;#     PP6 - NC                           (input        pull-up  )             #
-;#     PP7 - NC                           (input        pull-up  )             #
+;#     PP5 - NC (used by KEYS driver)     (input        pull-up  )             #
+;#     PP6 - NC (used by KEYS driver)     (input        pull-up  )             #
+;#     PP7 - NC (used by KEYS driver)     (input        pull-up  )             #
 ;#    Port S:                                                                  #
 ;#     PS0 - SCI RX                       (input        pull-down)             #
 ;#     PS1 - SCI TX                       (output       no pull  )             #
@@ -140,12 +140,7 @@
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef GPIO_VARS_START_LIN
 			ORG 	GPIO_VARS_START, GPIO_VARS_START_LIN
-#else
-			ORG 	GPIO_VARS_START
-GPIO_VARS_START_LIN	EQU	@			
-#endif	
 
 GPIO_VARS_END		EQU	*
 GPIO_VARS_END_LIN	EQU	@
@@ -210,12 +205,7 @@ GPIO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef GPIO_CODE_START_LIN
 			ORG 	GPIO_CODE_START, GPIO_CODE_START_LIN
-#else
-			ORG 	GPIO_CODE_START
-GPIO_CODE_START_LIN	EQU	@			
-#endif	
 
 GPIO_CODE_END		EQU	*	
 GPIO_CODE_END_LIN	EQU	@	
@@ -223,12 +213,7 @@ GPIO_CODE_END_LIN	EQU	@
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef GPIO_TABS_START_LIN
 			ORG 	GPIO_TABS_START, GPIO_TABS_START_LIN
-#else
-			ORG 	GPIO_TABS_START
-GPIO_TABS_START_LIN	EQU	@			
-#endif	
 
 GPIO_TABS_END		EQU	*	
 GPIO_TABS_END_LIN	EQU	@	

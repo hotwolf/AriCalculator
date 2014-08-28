@@ -91,7 +91,10 @@ KEYS_COL_LSB		EQU	1 		;default is PAD1
 	
 ;#Row port
 #ifndef KEYS_ROW_PORT	
-KEYS_ROW_PORT		EQU	DDRP		;default is PP	
+KEYS_ROW_PORT		EQU	PTP		;default is PP	
+#endif
+#ifndef KEYS_ROW_DDR	
+KEYS_ROW_DDR		EQU	DDRP		;default is PP	
 #endif
 #ifndef KEYS_ROW_MSB	
 KEYS_ROW_MSB		EQU	4 		;default is PP4
@@ -140,7 +143,6 @@ KEYS_ROW_SIZE		EQU	1+KEYS_ROW_MSB-KEYS_ROW_LSB
 
 ;#Workaround for short at PAD2
 KEYS_COL_SHORT	EQU	$04
-
 	
 ;#Port masks
 KEYS_COL_MASK		EQU	($FF>>(7-KEYS_COL_MSB))&($FF<<KEYS_COL_LSB)&(~KEYS_COL_SHORT)
@@ -267,8 +269,8 @@ KEYS_GET_NB		EQU	*
 			INCB					        ;increment out pointer
 			ANDB	#KEYS_BUF_MASK
 			STAB	KEYS_BUF_OUT
-			TST	KEYS_DELAY_COUNT
 			;Recover from buffer overflow 
+			TST	KEYS_DELAY_COUNT
 			BNE	KEYS_GET_NB_1		    		;debounce delay active
 			MOVB	#KEYS_COL_MASK, KEYS_COL_IE 		;enable KWU interrupt
 			;Restore registers
@@ -298,33 +300,42 @@ KEYS_GET_BL		EQU	*
 KEYS_ISR_KWU		EQU	*
 			;Clear interrupt flag
 			MOVB	#KEYS_COL_MASK, KEYS_COL_IF 		;clear interrupt flag
-			;Check for any keystroke (shortcut)
+			;Check for active debounce delay
+			TST	KEYS_DELAY_COUNT
+			BNE	KEYS_ISR_KWU_3				;debounce delay ongoing
+			;Check for missed keystrokes (shortcut)
 			BRSET	KEYS_COL_PORT, #KEYS_COL_MASK, KEYS_ISR_KWU_2;all keys released
 			;Scan colums for keystrokes
-			LDX	#$0000 					;initialize column count
+			LDX	#$0000			      		;initialize key code
 			LDAA	#(1<<KEYS_ROW_MSB)			;initialize column selector
-KEYS_ISR_KWU_1		STAA	KEYS_ROW_PORT				;drive column selector 
-			LDAB	KEYS_COL_PORT 				;capture column pattern 
+KEYS_ISR_KWU_1		MOVB	#KEYS_ROW_MASK, KEYS_ROW_PORT 		;drive speed-up pulse
+			STAA	KEYS_ROW_DDR 				;drive unselected colums by pull-ups
+			CLR	KEYS_ROW_PORT 				;drive selected column low
+			NOP						;wait for input synchronizers
+			LDAB	#(~KEYS_COL_MASK)			;capture column pattern 
+			ORAB	KEYS_COL_PORT
 			COMB
-			ANDB	#KEYS_COL_MASK
-			BNE	KEYS_ISR_KWU_3  			;keystroke column determined
-			LEAX	1,X 					;increment column count
+			BNE	KEYS_ISR_KWU_4  			;keystroke column detected
+			LEAX	1,X 					;switch to next keycode
 			LSRA		      				;switch to next column
 			BCC	KEYS_ISR_KWU_1 				;check next column (shortcut for KEYS_ROW_LSB==0)
 			;ANDA	#KEYS_ROW_MASK 				;check next column (generic)
 			;BNE	KEYS_ISR_KWU_1
 			;No keystroke detected 
-			MOVB	#KEYS_ROW_MASK, KEYS_ROW_PORT 		;observe all columns (shortcut for unshared row port)
-			;BSET	KEYS_ROW_PORT, #KEYS_ROW_MASK		;observe all columns (generic)
+			MOVB	#KEYS_ROW_MASK, KEYS_ROW_DDR 		;observe all columns
 			;Done
 KEYS_ISR_KWU_2		ISTACK_RTI
-			;Keystroke column determined (row pattern in B, column count in X, column selector in KEYS_ROW_PORT)
-KEYS_ISR_KWU_3		MOVB	#KEYS_ROW_MASK, KEYS_ROW_PORT 		;observe all columns (shortcut for unshared row port)
-			;BSET	KEYS_ROW_PORT, #KEYS_ROW_MASK		;observe all columns (generic)
+			;Debounce delay is active (disable KWU interrupts)
+KEYS_ISR_KWU_3		CLR	KEYS_COL_IE 				;disable interrupts (shortcut for unshared col port)
+			;BCLR	KEYS_COL_IE, #KEYS_COL_MASK		;disable interrupts (generic)
+			JOB	KEYS_ISR_KWU_2 				;done
+			;Keystroke column determined (column selector in A row pattern in B, key code in X, column selector in KEYS_ROW_PORT)
+KEYS_ISR_KWU_4		MOVB	#KEYS_ROW_MASK, KEYS_ROW_DDR 		;observe all columns
+			STAA	KEYS_COL_IF 				;clear retriggered interrupt flag
 			LEAX	-(KEYS_ROW_SIZE*(KEYS_COL_LSB+1)),X 	;consider row offset
-KEYS_ISR_KWU_4		LEAX	KEYS_ROW_SIZE,X 			;switch column in keycode
+KEYS_ISR_KWU_5		LEAX	KEYS_ROW_SIZE,X 			;switch column in keycode
 			LSRB						;check next column
-			BCC	KEYS_ISR_KWU_4				;check next row
+			BCC	KEYS_ISR_KWU_5				;check next row
 			;Key code determined (key code in X, column selector in DDRP)
 			TFR	X,B 					;kec code -> B
 			LDAA	KEYS_BUF_IN 				;IN index -> A
@@ -333,17 +344,14 @@ KEYS_ISR_KWU_4		LEAX	KEYS_ROW_SIZE,X 			;switch column in keycode
 			INCA						;adjust IN index
 			ANDA	#KEYS_BUF_MASK
 			CMPA	KEYS_BUF_OUT 				;check for buffer overvlow
-			BEQ	KEYS_ISR_KWU_5 				;buffer overflow
+			BEQ	KEYS_ISR_KWU_3 				;buffer overflow (disable KWU interrupts)
 			STAA	KEYS_BUF_IN 				;update IN index
 			;Setup debounce delay 
 			MOVB	#KEYS_DEBOUNCE_DELAY, KEYS_DELAY_COUNT	;set delay counter
 			MOVW	TCNT, (TC0+(2*KEYS_OC))			;set OC to max delay
 			TIM_EN	KEYS_OC					;enable timer
-			;Stop keypad obervation
-KEYS_ISR_KWU_5		CLR	KEYS_COL_IE 				;disable interrupts (shortcut for unshared col port)
-			;BCLR	KEYS_COL_IE, #KEYS_ROW_MASK		;disable interrupts (generic)
-			JOB	KEYS_ISR_KWU_2
-			
+			JOB	KEYS_ISR_KWU_3 				;disable KWU interrupts
+
 ;#Timer ISR for debounce delay
 KEYS_ISR_TIM		EQU	*
 			;Clear interrupt flag
@@ -359,7 +367,7 @@ KEYS_ISR_TIM_2		MOVB	#KEYS_COL_MASK, KEYS_COL_IF 		;clear KWU interrupt flag
 			MOVB	#KEYS_DEBOUNCE_DELAY, KEYS_DELAY_COUNT	;restart delay counter
 			JOB	KEYS_ISR_TIM_1 				;done
 			;All keys have been released
-KEYS_ISR_TIM_3		TIM_DIS	KEYS_OC					;disable timer
+KEYS_ISR_TIM_3		TIM_DIS	KEYS_OC					;disable timer	
 			MOVB	#KEYS_COL_MASK, KEYS_COL_IE 		;enable KWU interrupt
 			JOB	KEYS_ISR_TIM_1 				;done
 			

@@ -1,3 +1,15 @@
 Aricalculator - Binaries
 ========================
 These are the RAM and flash images to be executed on the AriCalculator.
+
+Hardware demo:
+--------------
+demo_AriCalculator_lre.txt  - LRE (load RAM and execute) version of the demo
+                              This file is to be execuded by an D-Bug12(XE) pod.
+
+demo_AriCalculator.s28      - S-Record (S28 fromat, global address space) to 
+                              execute the demo from flash.
+
+demo_AriCalculator_sym.s    - Symbols and macro definitions of the flash based
+                              executable. Makes it possible to use the flash
+                              content in LRE programs.

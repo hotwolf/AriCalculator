@@ -429,7 +429,7 @@ DISP_CODE_END_LIN	EQU	@
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef DISP_START_LIN
+#ifdef DISP_TABS_START_LIN
 			ORG 	DISP_TABS_START, DISP_TABS_START_LIN
 #else
 			ORG 	DISP_TABS_START
