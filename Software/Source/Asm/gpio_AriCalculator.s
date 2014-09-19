@@ -104,7 +104,7 @@
 ;#     PP7 - NC (used by KEYS driver)     (input        pull-up  )             #
 ;#    Port S:                                                                  #
 ;#     PS0 - SCI RX                       (input        pull-down)             #
-;#     PS1 - SCI TX                       (output       no pull  )             #
+;#     PS1 - SCI TX                       (output       low      )             #
 ;#     PS2 - NC                           (input        pull-up  )             #
 ;#     PS3 - NC                           (input        pull-up  )             #
 ;#     PS4 - Display A0                   (output       low      )             #
