@@ -729,7 +729,7 @@ DONE			CLI
 ;         X, Y, and D are preserved 
 #macro	SCI_DEASSERT_CTS, 0
 #ifdef	SCI_FC_RTSCTS
-			BSET	SCI_CTS_PORT, #SCI_CTS_PIN 		;set CTS (allow RX data)
+			BSET	SCI_CTS_PORT, #SCI_CTS_PIN 		;set CTS (prohibit RX data)
 #endif	
 #emac	
 
