@@ -27,7 +27,7 @@
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    KEYS    - Keypad controller                                              #
-;#    LVMON   - Low Vdd monitor                                                #
+;#    VMON    - Voltage monitor                                                #
 ;#    SCI     - UART driver                                                    #
 ;#    ERROR   - Error handler                                                  #
 ;#                                                                             #
@@ -44,6 +44,8 @@
 ;#      - Restructured table                                                   #
 ;#    June 12, 2013                                                            #
 ;#      - Added ECC error interrupt                                            #
+;#    September 30, 2014                                                       #
+;#      - Added USB supply voltage monitor for RevB boards                     #
 ;###############################################################################
 
 ;###############################################################################
@@ -112,8 +114,8 @@ ISR_PAD			EQU	KEYS_ISR_ROW
 #else
 ISR_PAD			BGND
 #endif
-#ifdef	LVMON_ISR					;vector base + $84
-ISR_ADCCOMP		EQU	LVMON_ISR
+#ifdef	VMON_ISR					;vector base + $84
+ISR_ADCCOMP		EQU	VMON_ISR
 #else
 ISR_ADCCOMP		BGND
 #endif
@@ -206,8 +208,8 @@ ISR_PAD			EQU	KEYS_ISR_ROW
 #else
 ISR_PAD			EQU	RESET_ISR_FATAL
 #endif
-#ifdef	LVMON_ISR					;vector base + $84
-ISR_ADCCOMP		EQU	LVMON_ISR
+#ifdef	VMON_ISR					;vector base + $84
+ISR_ADCCOMP		EQU	VMON_ISR
 #else
 ISR_ADCCOMP		EQU	RESET_ISR_FATAL
 #endif
