@@ -113,6 +113,7 @@ CLOCK_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
+;#--------------
 #macro	CLOCK_INIT, 0
 #ifdef	CLOCK_CPMU
 			MOVB	#$FF, CPMUFLG 					;clear all flags
@@ -153,6 +154,7 @@ CLOCK_VARS_END_LIN	EQU	@
 #emac	
 
 ;#Wait for PLL
+;#------------
 #macro	CLOCK_WAIT_FOR_PLL, 0
 LOOP		SEI	
 #ifdef	CLOCK_CPMU

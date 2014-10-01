@@ -53,7 +53,14 @@ CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
 #endif
 
 ;# SCI
+#ifndef	SCI_ENABLE_AT_INIT_ON
+#ifndef	SCI_ENABLE_AT_INIT_OFF
+SCI_ENABLE_AT_INIT_OFF	EQU	1 		;only enable SCI if VUSB is detected
+#endif
+#endif
+
 SCI_RXTX_ACTHI		EQU	1 		;RXD/TXD are inverted (active high)
+
 #ifndef	SCI_FC_RTS_CTS
 #ifndef	SCI_FC_XON_XOFF
 #ifndef SCI_FC_NONE	
@@ -61,7 +68,10 @@ SCI_FC_RTS_CTS		EQU	1 		;RTS/CTS flow control
 SCI_RTS_PORT		EQU	PTM 		;PTM
 SCI_RTS_PIN		EQU	PM0		;PM0
 SCI_CTS_PORT		EQU	PTM 		;PTM
+SCI_CTS_DDR		EQU	DDRM 		;DDRM
+SCI_CTS_PPS		EQU	PPSM 		;PPSM
 SCI_CTS_PIN		EQU	PM1		;PM1
+SCI_CTS_WEAK_DRIVE	EQU	1
 #endif
 #endif
 #endif
@@ -162,6 +172,7 @@ BASE_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
+;--------------- 
 #macro	BASE_INIT, 0
 			GPIO_INIT
 			CLOCK_INIT
@@ -175,10 +186,38 @@ BASE_VARS_END_LIN	EQU	@
 			NUM_INIT
 			NVM_INIT
 			LED_INIT
+#ifdef	SCI_ENABLE_AT_INIT_OFF
+			SCI_INIT
 			CLOCK_WAIT_FOR_PLL
-			SCI_INIT	
+			VMON_WAIT_FOR_1ST_RESULTS
+#else
+			CLOCK_WAIT_FOR_PLL
+			SCI_INIT
+#endif
 			RESET_INIT
 #emac
+
+#ifdef	SCI_ENABLE_AT_INIT_OFF
+;#Enable SCI whenever VUSB is present
+;------------------------------------ 
+#ifndef	VMON_VUSB_LVACTION_ON
+#ifndef	VMON_VUSB_LVACTION_OFF
+VMON_VUSB_LVACTION_ON		EQU	1 		;define VUSB LV action
+#macro	VMON_VUSB_LVACTION, 0
+	SCI_DISABLE
+#emac
+#endif
+#endif
+
+#ifndef	VMON_VUSB_HVACTION_ON
+#ifndef	VMON_VUSB_HVACTION_OFF
+VMON_VUSB_HVACTION_ON		EQU	1 		;define VUSB HV action
+#macro	VMON_VUSB_HVACTION, 0
+	SCI_ENABLE
+#emac
+#endif
+#endif
+#endif
 	
 ;###############################################################################
 ;# Code                                                                        #

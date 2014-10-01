@@ -249,7 +249,17 @@ VMON_VARS_END_LIN	EQU	@
 #endif
 #endif
 #emac
-	
+
+;#Wait for first connversion results
+;#----------------------------------
+#macro	VMON_WAIT_FOR_1ST_RESULTS, 0
+LOOP		SEI	
+		BRSET	ATDSTAT0, #SCF, DONE 			;Conversion sequence complete
+		ISTACK_WAIT
+		JOB	LOOP
+DONE		CLI	
+#emac
+
 ;#Conditional branches
 ;#--------------------
 ;#Branch on VBAT HV condition

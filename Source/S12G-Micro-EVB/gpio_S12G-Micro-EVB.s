@@ -89,8 +89,8 @@
 ;#     PJ6 - NC                           (input        pull-up  )             #
 ;#     PJ7 - NC                           (input        pull-up  )             #
 ;#    Port M:                                                                  #
-;#     PM0 - RTS                          (input        pull_down)             #
-;#     PM1 - CTS                          (output       low      )             #
+;#     PM0 - RTS                          (input        pull-down)             #
+;#     PM1 - CTS (output)                 (input        pull-down)             #
 ;#     PM2 - NC                           (input        pull_up  )             #
 ;#     PM3 - NC                           (input        pull_up  )             #
 ;#    Port P:                                                                  #
@@ -104,7 +104,7 @@
 ;#     PP7 - NC                           (input        pull-up  )             #
 ;#    Port S:                                                                  #
 ;#     PS0 - SCI RX                       (input        pull-down)             #
-;#     PS1 - SCI TX                       (output       no pull  )             #
+;#     PS1 - SCI TX (output)              (input        pull-down)             #
 ;#     PS2 - NC                           (input        pull-up  )             #
 ;#     PS3 - NC                           (input        pull-up  )             #
 ;#     PS4 - Display A0                   (output       low      )             #
@@ -186,8 +186,9 @@ GPIO_VARS_END_LIN	EQU	@
 		;MOVB	#$00FF,	PIEJ				;PIEJ/PIFJ 			
 		;#Port M
 		;MOVB	#$00,   PTM 			
-		MOVB	#$02,   DDRM 			
-		MOVW	#$0D01	PERM 				;PERM/PPSM
+		MOVB	#$00,   DDRM 			
+		;MOVW	#$0D01	PERM 				;PERM/PPSM
+		MOVW	#$0F03	PERM 				;PERM/PPSM
 		;MOVB	#$02,	WOMM
 	        MOVB	PKGCR, PKGCR 				;lock PKGCR
 		;#Port P
@@ -198,8 +199,10 @@ GPIO_VARS_END_LIN	EQU	@
 		;MOVB	#$00FF,	PIEP				;PIEP/PIFP 			
 		;#Port S
 		MOVB	#$80, PTS	
-		MOVB	#$F2, DDRS
-		MOVW	#$01, PERS 				;PERS/PPSS
+		;MOVB	#$F2, DDRS
+		;MOVW	#$01, PERS 				;PERS/PPSS
+		MOVB	#$F0, DDRS
+		MOVW	#$03, PERS 				;PERS/PPSS
 		;MOVB	#$02,	WOMS
 		;#Port T
 		;MOVB	#$00,   PTT 			

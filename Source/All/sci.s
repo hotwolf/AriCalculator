@@ -147,6 +147,8 @@
 ;#      - Fixed reception of C0 characters                                     #
 ;#    February 5, 2014                                                         #
 ;#      - Made SCI_TXBUF_SIZE configurable                                     #
+;#    October 1, 2014                                                          #
+;#      - Added dynamic enable/disable feature                                 #
 ;###############################################################################
 
 ;###############################################################################
@@ -170,6 +172,13 @@ CLOCK_BUS_FREQ		EQU	25000000 	;default is 25MHz
 #ifndef	SCI_RXTX_ACTLO
 #ifndef	SCI_RXTX_ACTHI
 SCI_RXTX_ACTLO		EQU	1 		;default is active low RXD/TXD
+#endif
+#endif
+
+;Enable SCI at initialization
+#ifndef	SCI_ENABLE_AT_INIT_ON
+#ifndef	SCI_ENABLE_AT_INIT_OFF
+SCI_ENABLE_AT_INIT_ON	EQU	1 		;enable SCI during initialization by default
 #endif
 #endif
 	
@@ -197,7 +206,16 @@ SCI_RTS_PIN		EQU	PM0		;default is PM0
 #endif
 #ifndef	SCI_CTS_PORT
 SCI_CTS_PORT		EQU	PTM 		;default is PTM
+SCI_CTS_DDR		EQU	DDRM 		;default is DDRM
+SCI_CTS_PPS		EQU	PPSM 		;default is PPSM
 SCI_CTS_PIN		EQU	PM1		;default is PM1
+#endif
+#endif
+
+;CTS drive strength
+#ifndef	SCI_CTS_WEAK_DRIVE
+#ifndef	SCI_CTS_STRONG_DRIVE
+SCI_CTS_STRONG_DRIVE	EQU	1		;default is strong drive
 #endif
 #endif
 
@@ -368,6 +386,7 @@ SCI_SET_TIOS		EQU	1
 SCI_BD_TIOS_VAL		EQU	(1<<SCI_BD_OC)
 SCI_SET_TCTL3		EQU	1
 SCI_BD_TCTL3_VAL	EQU 	(1<<(2*SCI_BD_ICPE))|(2<<(2*SCI_BD_ICNE))
+SCI_BD_TCS		EQU	(1<<SCI_BD_OC)|(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)
 #else
 #ifdef	SCI_BD_ECT
 SCI_SET_TIOS		EQU	1
@@ -375,26 +394,33 @@ SCI_BD_TIOS_VAL		EQU	(1<<SCI_BD_OC)
 SCI_SET_TCTL3		EQU	1
 SCI_BD_TCTL3_VAL	EQU 	(3<<(2*SCI_BD_IC))
 SCI_SET_ICSYS		EQU	1
+SCI_BD_TCS		EQU	(1<<SCI_BD_OC)|(1<<SCI_BD_IC)
 #else
 SCI_BD_TIOS_VAL		EQU	0
+SCI_BD_TC_CHANNELS	EQU	0
 #endif	
 #endif
 #else
 SCI_BD_TIOS_VAL		EQU	0
+SCI_BD_TCS		EQU	0
 #endif	
 #ifdef	SCI_FC_RTSCTS
 SCI_SET_TIOS		EQU	1
 SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
+SCI_DLY_TCS		EQU	(1<<SCI_DLY_OC)
 #else
 #ifdef	SCI_FC_XONXOFF
 SCI_SET_TIOS		EQU	1
 SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
+SCI_DLY_TCS		EQU	(1<<SCI_DLY_OC)
 #else
 #ifdef	SCI_IRQ_WORKAROUND_ON
 SCI_SET_TIOS		EQU	1
 SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
+SCI_DLY_TCS		EQU	(1<<SCI_DLY_OC)
 #else
 SCI_DLY_TIOS_VAL	EQU	0
+SCI_DLY_TCS		EQU	0
 #endif
 #endif
 #endif	
@@ -460,22 +486,8 @@ SCI_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
+;#--------------
 #macro	SCI_INIT, 0
-			;Initialize queues and state flags	
-			LDD	#$0000
-			STD	SCI_TXBUF_IN 				;reset in and out pointer of the TX buffer
-			STD	SCI_RXBUF_IN 				;reset in and out pointer of the RX buffer
-#ifdef SCI_FC_XONXOFF
-			MOVB	#SCI_FLG_SEND_XONXOFF,	SCI_FLGS 	;request transmission of XON/XOFF
-#else
-			STAA	SCI_FLGS
-#endif
-			;Initialize baud rate detection
-#ifdef SCI_BD_ON	
-;			STD	SCI_BD_RECOVCNT 			;reset baud rate check list and recovery count
-			STAA	SCI_BD_LIST	 			;reset baud rate check list
-#endif	
-
 			;Initialize timer
 #ifdef	SCI_SET_TIOS
 			BSET	TIOS, #(SCI_DLY_TIOS_VAL|SCI_BD_TIOS_VAL)
@@ -515,25 +527,59 @@ SCI_INIT_2		LDX	#SCI_BDEF	 			;default baud rate
 			;Match 
 SCI_INIT_3		STX	SCIBDH					;set baud rate
 
-			;Set frame format and enable transmission
-#ifdef	SCI_FC_XONXOFF	
-			MOVW	#((SCI_8N1<<8)|TXIE|RIE|TE|RE), SCICR1 	;8N1 (transmit XON)
-#else
-			MOVW	#((SCI_8N1<<8)|RIE|TE|RE), SCICR1 	;8N1 (keep TX IRQs disabled)
-#endif	
-			;Initialize CTS 
-			SCI_ASSERT_CTS
+			;Set frame format
+			MOVB	#SCI_8N1, SCICR1 			;8N1
 
 			;Initialize baud rate detection
 #ifdef	SCI_BD_ON
 			;BSET	TCTL3, #(SCI_BD_TCTL3_VAL>>8)
 			BSET	TCTL4, #(SCI_BD_TCTL3_VAL&$00FF)
+#endif
+#ifdef	SCI_ENABLE_AT_INIT_ON
+			SCI_ENABLE					;enable SCI	
+#endif
+#emac
+
+;#Enable SCI
+;#----------
+#macro	SCI_ENABLE, 0
+			;Initialize queues and state flags	
+			LDD	#$0000
+			STD	SCI_TXBUF_IN 				;reset in and out pointer of the TX buffer
+			STD	SCI_RXBUF_IN 				;reset in and out pointer of the RX buffer
+#ifdef SCI_FC_XONXOFF
+			MOVB	#SCI_FLG_SEND_XONXOFF,	SCI_FLGS 	;request transmission of XON/XOFF
+#else
+			STAA	SCI_FLGS
+#endif
+			;Initialize baud rate detection
+#ifdef SCI_BD_ON	
+;			STD	SCI_BD_RECOVCNT 			;reset baud rate check list and recovery count
+			STAA	SCI_BD_LIST	 			;reset baud rate check list
 #endif	
-	
+			;Initialize CTS 
+			SCI_ASSERT_CTS
+			;Enable transmission
+#ifdef	SCI_FC_XONXOFF	
+			MOVB	#(TXIE|RIE|TE|RE), SCICR2 		;transmit XON
+#else
+			MOVB	#(RIE|TE|RE), SCICR2 			;keep TX IRQs disabled
+#endif	
 #ifdef	SCI_IRQ_WORKAROUND_ON
 			;Trigger periodic interrupt
-			SCI_ISR_DELAY_RETRIGGER 
+			SCI_START_DELAY
 #endif
+#emac
+
+;#Disable SCI
+;#-----------
+#macro	SCI_DISABLE, 0
+			;Disable transmission, disable IRQs
+			CLR	SCICR2 		;transmit XON
+			;Clear CTS 
+			SCI_ASSERT_CTS
+			;Stop timer channels
+			TIM_MULT_DIS	(SCI_BD_TCS|SCI_DLY_TCS)
 #emac
 	
 ;#Functions	
@@ -719,7 +765,14 @@ DONE			CLI
 ;         X, Y, and D are preserved 
 #macro	SCI_ASSERT_CTS, 0
 #ifdef	SCI_FC_RTSCTS
+#ifdef	SCI_CTS_WEAK_DRIVE
+			BCLR	SCI_CTS_PORT, #SCI_CTS_PIN 		;clear CTS (allow RX data
+			BSET	SCI_CTS_DDR, #SCI_CTS_PIN		;drive speed-up pulse
+			BSET	SCI_CTS_PPS, #SCI_CTS_PIN 		;select pull-down device
+			BCLR	SCI_CTS_DDR, #SCI_CTS_PIN		;end speed-up pulse
+#else
 			BCLR	SCI_CTS_PORT, #SCI_CTS_PIN 		;clear CTS (allow RX data)
+#endif	
 #endif	
 #emac	
 
@@ -729,7 +782,14 @@ DONE			CLI
 ;         X, Y, and D are preserved 
 #macro	SCI_DEASSERT_CTS, 0
 #ifdef	SCI_FC_RTSCTS
+#ifdef	SCI_CTS_WEAK_DRIVE
 			BSET	SCI_CTS_PORT, #SCI_CTS_PIN 		;set CTS (prohibit RX data)
+			BSET	SCI_CTS_DDR, #SCI_CTS_PIN		;drive speed-up pulse
+			BCLR	SCI_CTS_PPS, #SCI_CTS_PIN 		;select pull-up device
+			BCLR	SCI_CTS_DDR, #SCI_CTS_PIN		;end speed-up pulse
+#else
+			BSET	SCI_CTS_PORT, #SCI_CTS_PIN 		;set CTS (prohibit RX data)
+#endif	
 #endif	
 #emac	
 
@@ -933,6 +993,8 @@ DONE		TFR	D,Y
 ; SSTACK: 5 bytes
 ;         X, Y, and D are preserved 
 SCI_TX_NB		EQU	*
+			;Check if SCI transmitter is enabled 
+			BRCLR	SCICR2, #TE, SCI_TX_NB_1 		;do nothing and flag success
 			;Save registers (data in B)
 			PSHY
 			PSHA
@@ -944,7 +1006,7 @@ SCI_TX_NB		EQU	*
 			INCA						;increment index
 			ANDA	#SCI_TXBUF_MASK
 			CMPA	SCI_TXBUF_OUT
-			BEQ	SCI_TX_NB_1 				;buffer is full
+			BEQ	SCI_TX_NB_2 				;buffer is full
 			;Update buffer
 			STAA	SCI_TXBUF_IN
 			;Enable interrupts 
@@ -954,12 +1016,12 @@ SCI_TX_NB		EQU	*
 			PULA
 			PULY
 			;Signal success
-			SEC
+SCI_TX_NB_1		SEC
 			;Done
 			RTS
 			;Buffer is full 
 			;Restore registers
-SCI_TX_NB_1		SSTACK_PREPULL	5
+SCI_TX_NB_2		SSTACK_PREPULL	5
 			PULA
 			PULY
 			;Signal failure
@@ -979,10 +1041,12 @@ SCI_TX_BL		EQU	*
 	
 ;#Check if a transmission is ongoing
 ; args:   none
-; result:  C-flag: set if all transmissionsare complete
+; result:  C-flag: set if all transmissions are complete
 ; SSTACK: 4 bytes
 ;         X, Y, and D are preserved 
 SCI_TX_DONE_NB		EQU	*
+			;Check if SCI transmitter is enabled 
+			BRCLR	SCICR2, #TE, SCI_TX_DONE_NB_3 		;do nothing and flag success
 			;Save registers
 			PSHD
 			;Check TX queue
@@ -990,7 +1054,7 @@ SCI_TX_DONE_NB		EQU	*
 			CBA
 			BNE	SCI_TX_DONE_NB_1 ;transmissions queued
 			;Check SCI status
-			BRSET	SCISR1, #(TDRE|TC), SCI_TX_DONE_NB_2 ;all transmissionscomplete
+			BRSET	SCISR1, #(TDRE|TC), SCI_TX_DONE_NB_2 	;all transmissionscomplete
 			;Transmissions ongoing
 			;Restore registers	
 SCI_TX_DONE_NB_1	SSTACK_PREPULL	4
@@ -1003,8 +1067,8 @@ SCI_TX_DONE_NB_1	SSTACK_PREPULL	4
 			;Restore registers	
 SCI_TX_DONE_NB_2	SSTACK_PREPULL	4
 			PULD
-			;Signal failure
-			SEC
+			;Signal success
+SCI_TX_DONE_NB_3	SEC
 			;Done
 			RTS
 		
@@ -1024,6 +1088,8 @@ SCI_TX_DONE_BL		EQU	*
 ; SSTACK: 4 bytes
 ;         X, Y, and D are preserved 
 SCI_TX_READY_NB		EQU	*
+			;Check if SCI transmitter is enabled 
+			BRCLR	SCICR2, #TE, SCI_TX_READY_NB_1 		;do nothing and flag success
 			;Save registers
 			PSHD
 			;Check if there is room for this entry
@@ -1031,15 +1097,15 @@ SCI_TX_READY_NB		EQU	*
 			INCA
 			ANDA	#SCI_TXBUF_MASK
 			CMPA	SCI_TXBUF_OUT
-			BEQ	SCI_TX_READY_NB_1 				;buffer is full			
+			BEQ	SCI_TX_READY_NB_2 				;buffer is full			
 			;Restore registers
 			SSTACK_PREPULL	4
 			PULD
 			;Done
-			SEC
+SCI_TX_READY_NB_1	SEC
 			RTS
 			;TX buffer is full
-SCI_TX_READY_NB_1	SSTACK_PREPULL	4
+SCI_TX_READY_NB_2	SSTACK_PREPULL	4
 			PULD
 			;Done
 			CLC
@@ -1063,6 +1129,8 @@ SCI_TX_READY_BL		EQU	*
 ; SSTACK: 4 bytes
 ;         X and Y are preserved 
 SCI_RX_NB		EQU	*
+			;Check if SCI receiver is enabled 
+			BRCLR	SCICR2, #TE, SCI_RX_NB_3 		;do nothing and flag failure
 			;Save registers
 			PSHX
 			;Check if there is data in the RX queue
@@ -1071,7 +1139,7 @@ SCI_RX_NB		EQU	*
 			BEQ	SCI_RX_NB_2 				;RX buffer is empty
 			ANDA	#SCI_RXBUF_MASK
 			CMPA	#SCI_RX_EMPTY_LEVEL
-			BEQ	SCI_RX_NB_3 				;unblock flow control
+			BEQ	SCI_RX_NB_4 				;unblock flow control
 			;Pull entry from the RX queue (out-index in B)
 SCI_RX_NB_1		LDX	#SCI_RXBUF
 			LDX	B,X
@@ -1090,10 +1158,10 @@ SCI_RX_NB_1		LDX	#SCI_RXBUF
 SCI_RX_NB_2		SSTACK_PREPULL	4
 			PULX
 			;Done
-			CLC
+SCI_RX_NB_3		CLC
 			RTS
 			;Unblock flow control (out-index in B, CCR in X)			
-SCI_RX_NB_3		EQU	*
+SCI_RX_NB_4		EQU	*
 			SCI_ASSERT_CTS
 			SCI_SEND_XONXOFF
 			JOB	SCI_RX_NB_1	
@@ -1116,6 +1184,8 @@ SCI_RX_BL		EQU	*
 ; SSTACK: 4 bytes
 ;         X, Y and D are preserved 
 SCI_RX_READY_NB		EQU	*
+			;Check if SCI receiver is enabled 
+			BRCLR	SCICR2, #TE, SCI_RX_READY_NB_2 		;do nothing and flag failure
 			;Save registers
 			PSHD
 			;Check if there is data in the RX queue
@@ -1132,7 +1202,7 @@ SCI_RX_READY_NB		EQU	*
 SCI_RX_READY_NB_1	SSTACK_PREPULL	4
 			PULD
 			;Done
-			CLC
+SCI_RX_READY_NB_2	CLC
 			RTS
 
 ;#Wait until there is data in the RX queue
