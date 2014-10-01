@@ -362,7 +362,7 @@ FPS_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ; throws: FEXCPT_EC_PSOF
 ;         X and D are preserved 
-#macro	PS_PUSH_D, 0
+#macro	PS_PUSH_DX, 0
 			PS_CHECK_OF	2		;check for overflow	=>11 cycles
 			STD		0,Y		;PS -> Y		=> 3 cycles 
 			STX		2,Y		;   			=> 3 cycles 

@@ -132,7 +132,7 @@ FOUTER_VARS_END_LIN	EQU	@
 	
 ;#Suspend action
 #macro	FOUTER_SUSPEND, 0
-			MOVW	IP, SUSPENDED_IP 	;save IP
+			;MOVW	IP, SUSPENDED_IP 	;save IP
 			MOVW	NUMBER_TIB, TIB_OFFSET	;save TIB offset	
 #emac
 	
@@ -1043,7 +1043,7 @@ FOUTER_TREE_SEARCH_4	LDY	1,Y 					;switch to subtree
 			LEAY	2,Y 					;switch to next sibling
 			JOB	FOUTER_TREE_SEARCH_1			;Parse sibling
 			;Try next sibling (tree pointer in Y, string pointer in X, char count in D)
-FOUTER_TREE_SEARCH_5	RCLR	1,Y+, #$FF, FOUTER_TREE_SEARCH_6	;check for BRANCH
+FOUTER_TREE_SEARCH_5	BRCLR	1,Y+, #$FF, FOUTER_TREE_SEARCH_6	;check for BRANCH
 			LEAY	1,Y					;skip over CFA
 			JOB	FOUTER_TREE_SEARCH_1			;compare next sibling	
 FOUTER_TREE_SEARCH_6	BRCLR	2,+Y, #$FF, FOUTER_TREE_SEARCH_7 	;END_OF_BRANCH -> unsuccessful
@@ -1147,12 +1147,12 @@ CF_SHELL		EQU	*
 			;Check for INTERACTIVE mode
 			LDX	FOUTER_INTERACT_PROMPT
 			LDD	STATE
-			TBEQ	CF_SHELL_1 		;print prompt
+			TBEQ	D, CF_SHELL_1 		;print prompt
 			;Check for NV COMPILE mode
 #ifdef NVC	
 			LDX	FOUTER_NVCOMPILE_PROMPT
 			LDD	NVC
-			TBNE	CF_SHELL_1 		;print prompt
+			TBNE	D, CF_SHELL_1 		;print prompt
 #endif
 			;Assume NV COMPILE mode  
 			LDX	FOUTER_NVCOMPILE_PROMPT
@@ -1177,7 +1177,7 @@ CF_SHELL_3		EQU	*
 			LDY	NVC
 			BNE	CF_SHELL_4 		;skip UDICT search
 #endif
-			FUDICT_SEARCH
+			;FUDICT_SEARCH
 			BCS	CF_SHELL_5		;process word	
 #ifdef	NVC
 			;Search NVDICT (string pointer in X, char count in D)

@@ -137,7 +137,7 @@ FCDICT_COMP_STRING_5	SSTACK_PREPULL	6 				;restore stack
 ; SSTACK: 16 bytes
 ;         X is are preserved 
 #macro	FCDICT_SEARCH, 0
-			LDYT		#FCDICT_TREE
+			LDY		#FCDICT_TREE
 			SSTACK_JOBSR	FOUTER_TREE_SEARCH, 16
 #emac
 

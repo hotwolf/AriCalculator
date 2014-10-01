@@ -178,24 +178,12 @@ FEXCPT_VARS_END_LIN	EQU	@
 ; result: none
 ; SSTACK: 26 bytes
 ;         X, Y and D are preserved
-#macro	FEXCPT_PRINT_MSG
+#macro	FEXCPT_PRINT_MSG, 0
 			SSTACK_JOBSR	FEXCPT_PRINT_MSG, 26
 #emac
 
 ;CATCH and THROW from assembly code:
 ;===================================
-;#Throw an exception from within an assembler primitive (immediate error code)
-; args:   1: error code
-; result: none
-; SSTACK: none
-; PS:     none
-; RS:     none
-;         no registers are preserved 
-#macro	THROW, 1
-			LDD	#\1		;set error code
-			FEXCPT_THROW_D
-#emac
-
 ;#Throw an exception from within an assembler primitive (error code in D)
 ; args:   D: error code
 ; result: none
@@ -208,6 +196,18 @@ FEXCPT_VARS_END_LIN	EQU	@
 			JOB	FEXCPT_THROW	;throw exception
 #emac
 	
+;#Throw an exception from within an assembler primitive (immediate error code)
+; args:   1: error code
+; result: none
+; SSTACK: none
+; PS:     none
+; RS:     none
+;         no registers are preserved 
+#macro	THROW, 1
+			LDD	#\1		;set error code
+			THROW_D
+#emac
+
 ;Error message table:
 ;====================
 ;#Error message table entry
@@ -290,12 +290,12 @@ FEXCPT_PRINT_MSG_8	LDAB	1,Y+		  				;get char
 			CMPB	#$20						;char < " "?
 			BMI	FEXCPT_PRINT_MSG_10 				;termination found
 			CMPB	#$20		;" "
-			1BLO	FEXCPT_PRINT_MSG_9 				;invalid char found
+			BLO	FEXCPT_PRINT_MSG_9 				;invalid char found
 			CMPB	#$7E		;"~"
 			BHI	FEXCPT_PRINT_MSG_9 				;invalid char found
-			DBNE	FEXCPT_PRINT_MSG_8 				;check next char
+			DBNE	A, FEXCPT_PRINT_MSG_8 				;check next char
 			;Print unknown error code as hexadecimal number (error code in X)
-FEXCPT_PRINT_MSG_9	LDY	$#0000 						;error code -> Y:X
+FEXCPT_PRINT_MSG_9	LDY	#0000 						;error code -> Y:X
 			LDAB	#16 						;hexadecimal base -> B
 			NUM_REVERSE 						;calculate reverse number (SSTACK: 18 bytes)			
 			LDX	#FEXCPT_MSG_UNKNOWN_HEX 			;messsage string for unknown error codes
@@ -304,7 +304,7 @@ FEXCPT_PRINT_MSG_9	LDY	$#0000 						;error code -> Y:X
 			LDAA	#4
 			SBA
 			LDAB	#"0" 						;print leading zeros
-			FCOM_FILL_BL 						;(SSTACK: 9+6 bytes)
+			;FCOM_FILL_BL 						;(SSTACK: 9+6 bytes)
 			JOB	FEXCPT_PRINT_MSG_4 				;print error code
 			;Check termination char Print (char in B, error code in X)
 FEXCPT_PRINT_MSG_10	CMPB	#$A0		;" "
