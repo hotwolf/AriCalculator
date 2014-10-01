@@ -335,10 +335,10 @@ NEXT			EQU	*
 							;                         15 cycles
 
 ;#SUSPEND_SHELL_NEXT: Invoke the suspend shell
-SUSPEND_ENTRY_NEXT	SUSPEND_ENTRY_NEXT	
+SUSPEND_ENTRY_NEXT	BGND	;SUSPEND_ENTRY_NEXT
 
 ;#SUSPEND_MODE_NEXT: Prevent interrupts and nested suspend shells
-SUSPEND_MODE_NEXT	SUSPEND_MODE_NEXT	
+SUSPEND_MODE_NEXT	BGND	;SUSPEND_MODE_NEXT	
 	
 ;Code fields:
 ;============ 	

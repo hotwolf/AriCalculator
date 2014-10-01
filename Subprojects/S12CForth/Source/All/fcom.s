@@ -218,7 +218,7 @@ CF_EKEY_QUESTION	EQU	*
 ; throws: FEXCPT_EC_PSUF
 CF_SPACE		EQU	*
 			;Push space character onto PS 
-			PS_PUSH	#FCOM _SYM_SPACE
+			PS_PUSH	#FCOM_SYM_SPACE
 			;Print char 
 			;JOB	CF_EMIT
 	
