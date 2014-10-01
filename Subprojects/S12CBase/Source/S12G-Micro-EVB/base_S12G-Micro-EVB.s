@@ -53,7 +53,14 @@ CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
 #endif
 
 ;# SCI
+#ifndef	SCI_ENABLE_AT_INIT_ON
+#ifndef	SCI_ENABLE_AT_INIT_OFF
+SCI_ENABLE_AT_INIT_OFF	EQU	1 		;only enable SCI if VUSB is detected
+#endif
+#endif
+
 SCI_RXTX_ACTHI		EQU	1 		;RXD/TXD are inverted (active high)
+
 #ifndef	SCI_FC_RTS_CTS
 #ifndef	SCI_FC_XON_XOFF
 #ifndef SCI_FC_NONE	
@@ -61,7 +68,10 @@ SCI_FC_RTS_CTS		EQU	1 		;RTS/CTS flow control
 SCI_RTS_PORT		EQU	PTM 		;PTM
 SCI_RTS_PIN		EQU	PM0		;PM0
 SCI_CTS_PORT		EQU	PTM 		;PTM
+SCI_CTS_DDR		EQU	DDRM 		;DDRM
+SCI_CTS_PPS		EQU	PPSM 		;PPSM
 SCI_CTS_PIN		EQU	PM1		;PM1
+SCI_CTS_WEAK_DRIVE	EQU	1
 #endif
 #endif
 #endif
@@ -131,9 +141,9 @@ SCI_VARS_START		EQU	*
 SCI_VARS_START_LIN	EQU	@
 			ORG	SCI_VARS_END, SCI_VARS_END_LIN
 
-LVMON_VARS_START	EQU	*
-LVMON_VARS_START_LIN	EQU	@
-			ORG	LVMON_VARS_END, LVMON_VARS_END_LIN
+VMON_VARS_START	EQU	*
+VMON_VARS_START_LIN	EQU	@
+			ORG	VMON_VARS_END, VMON_VARS_END_LIN
 
 STRING_VARS_START	EQU	*
 STRING_VARS_START_LIN	EQU	@
@@ -162,6 +172,7 @@ BASE_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
+;--------------- 
 #macro	BASE_INIT, 0
 			GPIO_INIT
 			CLOCK_INIT
@@ -169,16 +180,44 @@ BASE_VARS_END_LIN	EQU	@
 			MMAP_INIT
 			VECTAB_INIT
 			ISTACK_INIT
-			LVMON_INIT
+			VMON_INIT
 			TIM_INIT
 			STRING_INIT
 			NUM_INIT
 			NVM_INIT
 			LED_INIT
+#ifdef	SCI_ENABLE_AT_INIT_OFF
+			SCI_INIT
 			CLOCK_WAIT_FOR_PLL
-			SCI_INIT	
+			VMON_WAIT_FOR_1ST_RESULTS
+#else
+			CLOCK_WAIT_FOR_PLL
+			SCI_INIT
+#endif
 			RESET_INIT
 #emac
+
+#ifdef	SCI_ENABLE_AT_INIT_OFF
+;#Enable SCI whenever VUSB is present
+;------------------------------------ 
+#ifndef	VMON_VUSB_LVACTION_ON
+#ifndef	VMON_VUSB_LVACTION_OFF
+VMON_VUSB_LVACTION_ON		EQU	1 		;define VUSB LV action
+#macro	VMON_VUSB_LVACTION, 0
+	SCI_DISABLE
+#emac
+#endif
+#endif
+
+#ifndef	VMON_VUSB_HVACTION_ON
+#ifndef	VMON_VUSB_HVACTION_OFF
+VMON_VUSB_HVACTION_ON		EQU	1 		;define VUSB HV action
+#macro	VMON_VUSB_HVACTION, 0
+	SCI_ENABLE
+#emac
+#endif
+#endif
+#endif
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -225,9 +264,9 @@ SCI_CODE_START		EQU	*
 SCI_CODE_START_LIN	EQU	@
 			ORG	SCI_CODE_END, SCI_CODE_END_LIN
 
-LVMON_CODE_START	EQU	*
-LVMON_CODE_START_LIN	EQU	@
-			ORG	LVMON_CODE_END, LVMON_CODE_END_LIN
+VMON_CODE_START	EQU	*
+VMON_CODE_START_LIN	EQU	@
+			ORG	VMON_CODE_END, VMON_CODE_END_LIN
 
 STRING_CODE_START	EQU	*
 STRING_CODE_START_LIN	EQU	@
@@ -297,9 +336,9 @@ SCI_TABS_START		EQU	*
 SCI_TABS_START_LIN	EQU	@
 			ORG	SCI_TABS_END, SCI_TABS_END_LIN
 
-LVMON_TABS_START	EQU	*
-LVMON_TABS_START_LIN	EQU	@
-			ORG	LVMON_TABS_END, LVMON_TABS_END_LIN
+VMON_TABS_START	EQU	*
+VMON_TABS_START_LIN	EQU	@
+			ORG	VMON_TABS_END, VMON_TABS_END_LIN
 
 STRING_TABS_START	EQU	*
 STRING_TABS_START_LIN	EQU	@
@@ -338,7 +377,7 @@ BASE_TABS_END_LIN	EQU	@
 #include ./led_S12G-Micro-EVB.s		;LED driver
 #include ./sci_bdtab_S12G-Micro-EVB.s	;Search tree for SCI baud rate detection
 #include ../All/sci.s			;SCI driver
-#include ./lvmon_S12G-Micro-EVB.s	;Low Vdd monitor
+#include ./vmon_S12G-Micro-EVB.s	;Voltage monitor
 #include ../All/string.s		;String printing routines	
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
