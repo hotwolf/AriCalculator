@@ -25,12 +25,12 @@
 ;#    assumes the following I/O pin configuration of the S12G128 MCU:          #
 ;#    Port AD:                                                                 #
 ;#     PAD0  - Vin                        (analog       no pull  )             #
-;#     PAD1  - Keyboard row 6 (bottom)    (input        pull-up  )             #
-;#     PAD2  - Keyboard row 5             (input        pull-up  )             #
-;#     PAD3  - Keyboard row 4             (input        pull-up  )             #
-;#     PAD4  - Keyboard row 3             (input        pull-up  )             #
-;#     PAD5  - Keyboard row 2             (input        pull-up  )             #
-;#     PAD6  - Keyboard row 1 (top)       (input        pull-up  )             #
+;#     PAD1  - Keyboard row A (bottom)    (input        pull-up  )             #
+;#     PAD2  - Keyboard row B             (input        pull-up  )             #
+;#     PAD3  - Keyboard row C             (input        pull-up  )             #
+;#     PAD4  - Keyboard row D             (input        pull-up  )             #
+;#     PAD5  - Keyboard row E             (input        pull-up  )             #
+;#     PAD6  - Keyboard row F (top)       (input        pull-up  )             #
 ;#     PAD7  - NC                         (input        pull-up  )             #
 ;#     PAD8  - NC                         (input        pull-up  )             #
 ;#     PAD9  - NC                         (input        pull-up  )             #
@@ -94,11 +94,11 @@
 ;#     PM2 - NC                           (input        pull_up  )             #
 ;#     PM3 - NC                           (input        pull_up  )             #
 ;#    Port P:                                                                  #
-;#     PP0 - Keyboard column 1 (left)     (input        pull-up  )             #
-;#     PP1 - Keyboard column 2            (input        pull-up  )             #
-;#     PP2 - Keyboard column 3            (input        pull-up  )             #
-;#     PP3 - Keyboard column 4            (input        pull-up  )             #
-;#     PP4 - Keyboard column 5 (right)    (input        pull-up  )             #
+;#     PP0 - Keyboard column 4 (left)     (input        pull-up  )             #
+;#     PP1 - Keyboard column 3            (input        pull-up  )             #
+;#     PP2 - Keyboard column 2            (input        pull-up  )             #
+;#     PP3 - Keyboard column 1            (input        pull-up  )             #
+;#     PP4 - Keyboard column 0 (right)    (input        pull-up  )             #
 ;#     PP5 - NC (used by KEYS driver)     (input        pull-up  )             #
 ;#     PP6 - NC (used by KEYS driver)     (input        pull-up  )             #
 ;#     PP7 - NC (used by KEYS driver)     (input        pull-up  )             #
