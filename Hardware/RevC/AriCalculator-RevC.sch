@@ -1,12 +1,13 @@
 EESchema Schematic File Version 2
 LIBS:AriCalculator
+LIBS:AriCalculator-RevC-cache
 EELAYER 27 0
 EELAYER END
 $Descr User 8268 5827
 encoding utf-8
 Sheet 1 6
 Title "AriCalulator"
-Date "29 oct 2014"
+Date "3 nov 2014"
 Rev "RevC"
 Comp "Dirk Heisswolf"
 Comment1 ""

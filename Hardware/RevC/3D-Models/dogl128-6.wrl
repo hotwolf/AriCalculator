@@ -4,13 +4,13 @@ DEF Cube4_copy31 Transform {
   children [
     Shape {
       appearance Appearance {
-        material DEF Metal Material {
-          diffuseColor 0.75 0.75 0.75
-          emissiveColor 0.75 0.75 0.75
-          specularColor 0.0 0.0 0.0
-          ambientIntensity 0.75
+        material DEF Pins Material {
+          diffuseColor 0.7 0.7 0.7
+          emissiveColor 0.7 0.7 0.7
+          specularColor 0.7 0.7 0.7
+          ambientIntensity 0.6999999999999998
           transparency 0.0
-          shininess 0.0
+          shininess 1.0
         }
       }
       geometry IndexedFaceSet {
@@ -107,7 +107,7 @@ DEF Cube4_copy30 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -203,7 +203,7 @@ DEF Cube4_copy28 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -299,7 +299,7 @@ DEF Cube4_copy27 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -395,7 +395,7 @@ DEF Cube4_copy26 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -491,7 +491,7 @@ DEF Cube4_copy25 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -587,7 +587,7 @@ DEF Cube4_copy23 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -683,7 +683,7 @@ DEF Cube4_copy22 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -779,7 +779,7 @@ DEF Cube4_copy21 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -875,7 +875,7 @@ DEF Cube4_copy20 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -971,7 +971,7 @@ DEF Cube4_copy19 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -1067,7 +1067,7 @@ DEF Cube4_copy18 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -1163,7 +1163,7 @@ DEF Cube4_copy17 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -1259,7 +1259,7 @@ DEF Cube4_copy16 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -1355,7 +1355,7 @@ DEF Cube4_copy15 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -1451,7 +1451,7 @@ DEF Cube4_copy14 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -1547,7 +1547,7 @@ DEF Cube4_copy13 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -1643,7 +1643,7 @@ DEF Cube4_copy12 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -1739,7 +1739,7 @@ DEF Cube4_copy11 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -1835,7 +1835,7 @@ DEF Cube4_copy10 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -1931,7 +1931,7 @@ DEF Cube4_copy9 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -2027,7 +2027,7 @@ DEF Cube4_copy8 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -2123,7 +2123,7 @@ DEF Cube4_copy7 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -2219,7 +2219,7 @@ DEF Cube4_copy6 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -2315,7 +2315,7 @@ DEF Cube4_copy5 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -2411,7 +2411,7 @@ DEF Cube4 Transform {
   children [
     Shape {
       appearance Appearance {
-        material USE Metal
+        material USE Pins
       }
       geometry IndexedFaceSet {
         normalPerVertex TRUE
@@ -3037,13 +3037,13 @@ DEF Cube1 Transform {
   children [
     Shape {
       appearance Appearance {
-        material DEF default Material {
-          diffuseColor 0.7898538076923077 0.8133333333333334 0.6940444444444445
-          emissiveColor 0.0 0.0 0.0
-          specularColor 0.0 0.0 0.0
-          ambientIntensity 0.765743861823362
-          transparency 0.0
-          shininess 0.0
+        material DEF Glas Material {
+          diffuseColor 0.9 1.0 0.9
+          emissiveColor 0.9 1.0 0.9
+          specularColor 0.9 1.0 0.9
+          ambientIntensity 0.9333333333333332
+          transparency 0.7
+          shininess 1.0
         }
       }
       geometry IndexedFaceSet {
