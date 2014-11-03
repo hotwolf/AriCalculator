@@ -1,4 +1,4 @@
-PCBNEW-LibModule-V1  11/3/2014 7:22:18 PM
+PCBNEW-LibModule-V1  11/4/2014 12:49:17 AM
 # encoding utf-8
 Units mm
 $INDEX
@@ -526,7 +526,7 @@ Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE conn_usb_B_mini_smd
 $MODULE enclosure
-Po 0 0 0 15 5457C7D5 00000000 ~~
+Po 0 0 0 15 5457E0ED 00000000 ~~
 Li enclosure
 Sc 0
 AR 
@@ -547,7 +547,6 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 5.08 137.16
-.SolderMask 1.2
 .LocalClearance 1.2
 $EndPAD
 $PAD
@@ -556,7 +555,6 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 71.12 137.16
-.SolderMask 1.2
 .LocalClearance 1.2
 $EndPAD
 $PAD
@@ -565,7 +563,6 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 5.08 10.16
-.SolderMask 1.2
 .LocalClearance 1.2
 $EndPAD
 $PAD
@@ -574,7 +571,6 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 71.12 10.16
-.SolderMask 1.2
 .LocalClearance 1.2
 $EndPAD
 $PAD
@@ -583,7 +579,6 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 5.08 73.66
-.SolderMask 1.2
 .LocalClearance 1.2
 $EndPAD
 $PAD
@@ -592,9 +587,14 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 71.12 73.66
-.SolderMask 1.2
 .LocalClearance 1.2
 $EndPAD
+$SHAPE3D
+Na "3D-Models/enclosure.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
 $EndMODULE enclosure
 $MODULE inductor_smd_0805
 Po 0 0 0 15 50CC7939 00000000 ~~
