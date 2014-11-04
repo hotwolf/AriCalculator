@@ -1,15 +1,5 @@
-update=11/3/2014 4:00:47 PM
-last_client=pcbnew
-[eeschema]
-version=1
-LibDir=.
-NetFmtName=
-RptD_X=0
-RptD_Y=100
-RptLab=1
-LabSize=60
-[eeschema/libraries]
-LibName1=AriCalculator
+update=11/4/2014 5:18:26 PM
+last_client=eeschema
 [general]
 version=1
 [cvpcb]
@@ -38,4 +28,14 @@ BoardOutlineThickness=0.100000000000
 ModuleOutlineThickness=0.150000000000
 [pcbnew/libraries]
 LibDir=../../../KiCad Libraries/walter
+LibName1=AriCalculator
+[eeschema]
+version=1
+LibDir=.
+NetFmtName=
+RptD_X=0
+RptD_Y=100
+RptLab=1
+LabSize=60
+[eeschema/libraries]
 LibName1=AriCalculator

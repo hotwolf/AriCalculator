@@ -7,7 +7,7 @@ $Descr User 8268 5827
 encoding utf-8
 Sheet 3 6
 Title ""
-Date "3 nov 2014"
+Date "4 nov 2014"
 Rev "RevC"
 Comp "Dirk Heisswolf"
 Comment1 ""
@@ -15,622 +15,770 @@ Comment2 ""
 Comment3 ""
 Comment4 ""
 $EndDescr
+Text HLabel 1500 1150 0    60   Output ~ 0
+KEYPAD_ROW_F
+Text HLabel 1500 1600 0    60   Output ~ 0
+KEYPAD_ROW_E
+Text HLabel 1500 2050 0    60   Output ~ 0
+KEYPAD_ROW_D
+Text HLabel 1500 2500 0    60   Output ~ 0
+KEYPAD_ROW_C
+Text HLabel 1500 2950 0    60   Output ~ 0
+KEYPAD_ROW_B
+Text HLabel 1500 3400 0    60   Output ~ 0
+KEYPAD_ROW_A
+Text HLabel 7400 3850 3    60   3State ~ 0
+KEYPAD_COL_0
+Text HLabel 6400 3850 3    60   3State ~ 0
+KEYPAD_COL_1
+Text HLabel 5400 3850 3    60   3State ~ 0
+KEYPAD_COL_2
+Text HLabel 4400 3850 3    60   3State ~ 0
+KEYPAD_COL_3
+Text HLabel 3400 3850 3    60   BiDi ~ 0
+KEYPAD_COL_4
+Text HLabel 1500 700  0    60   Output ~ 0
+KEYPAD_ROW_G
+Text HLabel 2400 3850 3    60   BiDi ~ 0
+KEYPAD_COL_5
 $Comp
-L KEY KEY_A4
-U 1 1 544F7F53
-P 1900 4300
-F 0 "KEY_A4" H 1900 4500 60  0000 C CNN
-F 1 "KEY" H 1900 4050 60  0000 C CNN
-F 2 "~" H 2400 3550 60  0000 C CNN
-F 3 "~" H 2400 3550 60  0000 C CNN
-	1    1900 4300
+L KEY KEY_G5
+U 1 1 545A267F
+P 1950 800
+F 0 "KEY_G5" H 1850 750 60  0000 C CNN
+F 1 "KEY" H 2300 750 60  0001 C CNN
+F 2 "~" H 2450 50  60  0000 C CNN
+F 3 "~" H 2450 50  60  0000 C CNN
+	1    1950 800 
 	1    0    0    -1  
 $EndComp
 $Comp
-L KEY KEY_A3
-U 1 1 544F7F62
-P 3000 4300
-F 0 "KEY_A3" H 3000 4500 60  0000 C CNN
-F 1 "KEY" H 3000 4050 60  0000 C CNN
-F 2 "~" H 3500 3550 60  0000 C CNN
-F 3 "~" H 3500 3550 60  0000 C CNN
-	1    3000 4300
+L KEY KEY_G4
+U 1 1 545A268E
+P 2950 800
+F 0 "KEY_G4" H 2850 750 60  0000 C CNN
+F 1 "KEY" H 3300 750 60  0001 C CNN
+F 2 "~" H 3450 50  60  0000 C CNN
+F 3 "~" H 3450 50  60  0000 C CNN
+	1    2950 800 
 	1    0    0    -1  
 $EndComp
 $Comp
-L KEY KEY_A2
-U 1 1 544F7F71
-P 4100 4300
-F 0 "KEY_A2" H 4100 4500 60  0000 C CNN
-F 1 "KEY" H 4100 4050 60  0000 C CNN
-F 2 "~" H 4600 3550 60  0000 C CNN
-F 3 "~" H 4600 3550 60  0000 C CNN
-	1    4100 4300
+L KEY KEY_G3
+U 1 1 545A269D
+P 3950 800
+F 0 "KEY_G3" H 3850 750 60  0000 C CNN
+F 1 "KEY" H 4300 750 60  0001 C CNN
+F 2 "~" H 4450 50  60  0000 C CNN
+F 3 "~" H 4450 50  60  0000 C CNN
+	1    3950 800 
 	1    0    0    -1  
 $EndComp
 $Comp
-L KEY KEY_A1
-U 1 1 544F7F80
-P 5200 4300
-F 0 "KEY_A1" H 5200 4500 60  0000 C CNN
-F 1 "KEY" H 5200 4050 60  0000 C CNN
-F 2 "~" H 5700 3550 60  0000 C CNN
-F 3 "~" H 5700 3550 60  0000 C CNN
-	1    5200 4300
+L KEY KEY_G2
+U 1 1 545A26AC
+P 4950 800
+F 0 "KEY_G2" H 4850 750 60  0000 C CNN
+F 1 "KEY" H 5300 750 60  0001 C CNN
+F 2 "~" H 5450 50  60  0000 C CNN
+F 3 "~" H 5450 50  60  0000 C CNN
+	1    4950 800 
 	1    0    0    -1  
 $EndComp
 $Comp
-L KEY KEY_A0
-U 1 1 544F7F8F
-P 6300 4300
-F 0 "KEY_A0" H 6300 4500 60  0000 C CNN
-F 1 "KEY" H 6300 4050 60  0000 C CNN
-F 2 "~" H 6800 3550 60  0000 C CNN
-F 3 "~" H 6800 3550 60  0000 C CNN
-	1    6300 4300
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_B4
-U 1 1 544F7FD3
-P 1900 3600
-F 0 "KEY_B4" H 1900 3800 60  0000 C CNN
-F 1 "KEY" H 1900 3350 60  0000 C CNN
-F 2 "~" H 2400 2850 60  0000 C CNN
-F 3 "~" H 2400 2850 60  0000 C CNN
-	1    1900 3600
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_B3
-U 1 1 544F7FD9
-P 3000 3600
-F 0 "KEY_B3" H 3000 3800 60  0000 C CNN
-F 1 "KEY" H 3000 3350 60  0000 C CNN
-F 2 "~" H 3500 2850 60  0000 C CNN
-F 3 "~" H 3500 2850 60  0000 C CNN
-	1    3000 3600
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_B2
-U 1 1 544F7FDF
-P 4100 3600
-F 0 "KEY_B2" H 4100 3800 60  0000 C CNN
-F 1 "KEY" H 4100 3350 60  0000 C CNN
-F 2 "~" H 4600 2850 60  0000 C CNN
-F 3 "~" H 4600 2850 60  0000 C CNN
-	1    4100 3600
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_B1
-U 1 1 544F7FE5
-P 5200 3600
-F 0 "KEY_B1" H 5200 3800 60  0000 C CNN
-F 1 "KEY" H 5200 3350 60  0000 C CNN
-F 2 "~" H 5700 2850 60  0000 C CNN
-F 3 "~" H 5700 2850 60  0000 C CNN
-	1    5200 3600
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_B0
-U 1 1 544F7FEB
-P 6300 3600
-F 0 "KEY_B0" H 6300 3800 60  0000 C CNN
-F 1 "KEY" H 6300 3350 60  0000 C CNN
-F 2 "~" H 6800 2850 60  0000 C CNN
-F 3 "~" H 6800 2850 60  0000 C CNN
-	1    6300 3600
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_C4
-U 1 1 544F7FF1
-P 1900 2900
-F 0 "KEY_C4" H 1900 3100 60  0000 C CNN
-F 1 "KEY" H 1900 2650 60  0000 C CNN
-F 2 "~" H 2400 2150 60  0000 C CNN
-F 3 "~" H 2400 2150 60  0000 C CNN
-	1    1900 2900
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_C3
-U 1 1 544F7FF7
-P 3000 2900
-F 0 "KEY_C3" H 3000 3100 60  0000 C CNN
-F 1 "KEY" H 3000 2650 60  0000 C CNN
-F 2 "~" H 3500 2150 60  0000 C CNN
-F 3 "~" H 3500 2150 60  0000 C CNN
-	1    3000 2900
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_C2
-U 1 1 544F7FFD
-P 4100 2900
-F 0 "KEY_C2" H 4100 3100 60  0000 C CNN
-F 1 "KEY" H 4100 2650 60  0000 C CNN
-F 2 "~" H 4600 2150 60  0000 C CNN
-F 3 "~" H 4600 2150 60  0000 C CNN
-	1    4100 2900
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_C1
-U 1 1 544F8003
-P 5200 2900
-F 0 "KEY_C1" H 5200 3100 60  0000 C CNN
-F 1 "KEY" H 5200 2650 60  0000 C CNN
-F 2 "~" H 5700 2150 60  0000 C CNN
-F 3 "~" H 5700 2150 60  0000 C CNN
-	1    5200 2900
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_C0
-U 1 1 544F8009
-P 6300 2900
-F 0 "KEY_C0" H 6300 3100 60  0000 C CNN
-F 1 "KEY" H 6300 2650 60  0000 C CNN
-F 2 "~" H 6800 2150 60  0000 C CNN
-F 3 "~" H 6800 2150 60  0000 C CNN
-	1    6300 2900
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_D4
-U 1 1 544F800F
-P 1900 2200
-F 0 "KEY_D4" H 1900 2400 60  0000 C CNN
-F 1 "KEY" H 1900 1950 60  0000 C CNN
-F 2 "~" H 2400 1450 60  0000 C CNN
-F 3 "~" H 2400 1450 60  0000 C CNN
-	1    1900 2200
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_D3
-U 1 1 544F8015
-P 3000 2200
-F 0 "KEY_D3" H 3000 2400 60  0000 C CNN
-F 1 "KEY" H 3000 1950 60  0000 C CNN
-F 2 "~" H 3500 1450 60  0000 C CNN
-F 3 "~" H 3500 1450 60  0000 C CNN
-	1    3000 2200
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_D2
-U 1 1 544F801B
-P 4100 2200
-F 0 "KEY_D2" H 4100 2400 60  0000 C CNN
-F 1 "KEY" H 4100 1950 60  0000 C CNN
-F 2 "~" H 4600 1450 60  0000 C CNN
-F 3 "~" H 4600 1450 60  0000 C CNN
-	1    4100 2200
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_D1
-U 1 1 544F8021
-P 5200 2200
-F 0 "KEY_D1" H 5200 2400 60  0000 C CNN
-F 1 "KEY" H 5200 1950 60  0000 C CNN
-F 2 "~" H 5700 1450 60  0000 C CNN
-F 3 "~" H 5700 1450 60  0000 C CNN
-	1    5200 2200
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_D0
-U 1 1 544F8027
-P 6300 2200
-F 0 "KEY_D0" H 6300 2400 60  0000 C CNN
-F 1 "KEY" H 6300 1950 60  0000 C CNN
-F 2 "~" H 6800 1450 60  0000 C CNN
-F 3 "~" H 6800 1450 60  0000 C CNN
-	1    6300 2200
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_E4
-U 1 1 544F802D
-P 1900 1500
-F 0 "KEY_E4" H 1900 1700 60  0000 C CNN
-F 1 "KEY" H 1900 1250 60  0000 C CNN
-F 2 "~" H 2400 750 60  0000 C CNN
-F 3 "~" H 2400 750 60  0000 C CNN
-	1    1900 1500
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_E3
-U 1 1 544F8033
-P 3000 1500
-F 0 "KEY_E3" H 3000 1700 60  0000 C CNN
-F 1 "KEY" H 3000 1250 60  0000 C CNN
-F 2 "~" H 3500 750 60  0000 C CNN
-F 3 "~" H 3500 750 60  0000 C CNN
-	1    3000 1500
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_E2
-U 1 1 544F8039
-P 4100 1500
-F 0 "KEY_E2" H 4100 1700 60  0000 C CNN
-F 1 "KEY" H 4100 1250 60  0000 C CNN
-F 2 "~" H 4600 750 60  0000 C CNN
-F 3 "~" H 4600 750 60  0000 C CNN
-	1    4100 1500
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_E1
-U 1 1 544F803F
-P 5200 1500
-F 0 "KEY_E1" H 5200 1700 60  0000 C CNN
-F 1 "KEY" H 5200 1250 60  0000 C CNN
-F 2 "~" H 5700 750 60  0000 C CNN
-F 3 "~" H 5700 750 60  0000 C CNN
-	1    5200 1500
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_E0
-U 1 1 544F8045
-P 6300 1500
-F 0 "KEY_E0" H 6300 1700 60  0000 C CNN
-F 1 "KEY" H 6300 1250 60  0000 C CNN
-F 2 "~" H 6800 750 60  0000 C CNN
-F 3 "~" H 6800 750 60  0000 C CNN
-	1    6300 1500
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_F4
-U 1 1 544F804B
-P 1900 800
-F 0 "KEY_F4" H 1900 1000 60  0000 C CNN
-F 1 "KEY" H 1900 550 60  0000 C CNN
-F 2 "~" H 2400 50  60  0000 C CNN
-F 3 "~" H 2400 50  60  0000 C CNN
-	1    1900 800 
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_F3
-U 1 1 544F8051
-P 3000 800
-F 0 "KEY_F3" H 3000 1000 60  0000 C CNN
-F 1 "KEY" H 3000 550 60  0000 C CNN
-F 2 "~" H 3500 50  60  0000 C CNN
-F 3 "~" H 3500 50  60  0000 C CNN
-	1    3000 800 
-	1    0    0    -1  
-$EndComp
-$Comp
-L KEY KEY_F2
-U 1 1 544F8057
-P 4100 800
-F 0 "KEY_F2" H 4100 1000 60  0000 C CNN
-F 1 "KEY" H 4100 550 60  0000 C CNN
-F 2 "~" H 4600 50  60  0000 C CNN
-F 3 "~" H 4600 50  60  0000 C CNN
-	1    4100 800 
+L KEY KEY_G1
+U 1 1 545A26BB
+P 5950 800
+F 0 "KEY_G1" H 5850 750 60  0000 C CNN
+F 1 "KEY" H 6300 750 60  0001 C CNN
+F 2 "~" H 6450 50  60  0000 C CNN
+F 3 "~" H 6450 50  60  0000 C CNN
+	1    5950 800 
 	1    0    0    -1  
 $EndComp
 $Comp
 L KEY KEY_F1
-U 1 1 544F805D
-P 5200 800
-F 0 "KEY_F1" H 5200 1000 60  0000 C CNN
-F 1 "KEY" H 5200 550 60  0000 C CNN
-F 2 "~" H 5700 50  60  0000 C CNN
-F 3 "~" H 5700 50  60  0000 C CNN
-	1    5200 800 
+U 1 1 545A26D4
+P 5950 1250
+F 0 "KEY_F1" H 5850 1200 60  0000 C CNN
+F 1 "KEY" H 6300 1200 60  0001 C CNN
+F 2 "~" H 6450 500 60  0000 C CNN
+F 3 "~" H 6450 500 60  0000 C CNN
+	1    5950 1250
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_E1
+U 1 1 545A26E3
+P 5950 1700
+F 0 "KEY_E1" H 5850 1650 60  0000 C CNN
+F 1 "KEY" H 6300 1650 60  0001 C CNN
+F 2 "~" H 6450 950 60  0000 C CNN
+F 3 "~" H 6450 950 60  0000 C CNN
+	1    5950 1700
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_D1
+U 1 1 545A26F2
+P 5950 2150
+F 0 "KEY_D1" H 5850 2100 60  0000 C CNN
+F 1 "KEY" H 6300 2100 60  0001 C CNN
+F 2 "~" H 6450 1400 60  0000 C CNN
+F 3 "~" H 6450 1400 60  0000 C CNN
+	1    5950 2150
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_C1
+U 1 1 545A2701
+P 5950 2600
+F 0 "KEY_C1" H 5850 2550 60  0000 C CNN
+F 1 "KEY" H 6300 2550 60  0001 C CNN
+F 2 "~" H 6450 1850 60  0000 C CNN
+F 3 "~" H 6450 1850 60  0000 C CNN
+	1    5950 2600
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_B1
+U 1 1 545A2710
+P 5950 3050
+F 0 "KEY_B1" H 5850 3000 60  0000 C CNN
+F 1 "KEY" H 6300 3000 60  0001 C CNN
+F 2 "~" H 6450 2300 60  0000 C CNN
+F 3 "~" H 6450 2300 60  0000 C CNN
+	1    5950 3050
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_A1
+U 1 1 545A271F
+P 5950 3500
+F 0 "KEY_A1" H 5850 3450 60  0000 C CNN
+F 1 "KEY" H 6300 3450 60  0001 C CNN
+F 2 "~" H 6450 2750 60  0000 C CNN
+F 3 "~" H 6450 2750 60  0000 C CNN
+	1    5950 3500
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_F2
+U 1 1 545A272E
+P 4950 1250
+F 0 "KEY_F2" H 4850 1200 60  0000 C CNN
+F 1 "KEY" H 5300 1200 60  0001 C CNN
+F 2 "~" H 5450 500 60  0000 C CNN
+F 3 "~" H 5450 500 60  0000 C CNN
+	1    4950 1250
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_E2
+U 1 1 545A273D
+P 4950 1700
+F 0 "KEY_E2" H 4850 1650 60  0000 C CNN
+F 1 "KEY" H 5300 1650 60  0001 C CNN
+F 2 "~" H 5450 950 60  0000 C CNN
+F 3 "~" H 5450 950 60  0000 C CNN
+	1    4950 1700
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_D2
+U 1 1 545A274C
+P 4950 2150
+F 0 "KEY_D2" H 4850 2100 60  0000 C CNN
+F 1 "KEY" H 5300 2100 60  0001 C CNN
+F 2 "~" H 5450 1400 60  0000 C CNN
+F 3 "~" H 5450 1400 60  0000 C CNN
+	1    4950 2150
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_C2
+U 1 1 545A275B
+P 4950 2600
+F 0 "KEY_C2" H 4850 2550 60  0000 C CNN
+F 1 "KEY" H 5300 2550 60  0001 C CNN
+F 2 "~" H 5450 1850 60  0000 C CNN
+F 3 "~" H 5450 1850 60  0000 C CNN
+	1    4950 2600
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_B2
+U 1 1 545A276A
+P 4950 3050
+F 0 "KEY_B2" H 4850 3000 60  0000 C CNN
+F 1 "KEY" H 5300 3000 60  0001 C CNN
+F 2 "~" H 5450 2300 60  0000 C CNN
+F 3 "~" H 5450 2300 60  0000 C CNN
+	1    4950 3050
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_A2
+U 1 1 545A2779
+P 4950 3500
+F 0 "KEY_A2" H 4850 3450 60  0000 C CNN
+F 1 "KEY" H 5300 3450 60  0001 C CNN
+F 2 "~" H 5450 2750 60  0000 C CNN
+F 3 "~" H 5450 2750 60  0000 C CNN
+	1    4950 3500
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_A3
+U 1 1 545A2788
+P 3950 3500
+F 0 "KEY_A3" H 3850 3450 60  0000 C CNN
+F 1 "KEY" H 4300 3450 60  0001 C CNN
+F 2 "~" H 4450 2750 60  0000 C CNN
+F 3 "~" H 4450 2750 60  0000 C CNN
+	1    3950 3500
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_A4
+U 1 1 545A2797
+P 2950 3500
+F 0 "KEY_A4" H 2850 3450 60  0000 C CNN
+F 1 "KEY" H 3300 3450 60  0001 C CNN
+F 2 "~" H 3450 2750 60  0000 C CNN
+F 3 "~" H 3450 2750 60  0000 C CNN
+	1    2950 3500
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_B3
+U 1 1 545A27A6
+P 3950 3050
+F 0 "KEY_B3" H 3850 3000 60  0000 C CNN
+F 1 "KEY" H 4300 3000 60  0001 C CNN
+F 2 "~" H 4450 2300 60  0000 C CNN
+F 3 "~" H 4450 2300 60  0000 C CNN
+	1    3950 3050
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_C3
+U 1 1 545A27B5
+P 3950 2600
+F 0 "KEY_C3" H 3850 2550 60  0000 C CNN
+F 1 "KEY" H 4300 2550 60  0001 C CNN
+F 2 "~" H 4450 1850 60  0000 C CNN
+F 3 "~" H 4450 1850 60  0000 C CNN
+	1    3950 2600
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_D3
+U 1 1 545A27C4
+P 3950 2150
+F 0 "KEY_D3" H 3850 2100 60  0000 C CNN
+F 1 "KEY" H 4300 2100 60  0001 C CNN
+F 2 "~" H 4450 1400 60  0000 C CNN
+F 3 "~" H 4450 1400 60  0000 C CNN
+	1    3950 2150
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_E3
+U 1 1 545A27D3
+P 3950 1700
+F 0 "KEY_E3" H 3850 1650 60  0000 C CNN
+F 1 "KEY" H 4300 1650 60  0001 C CNN
+F 2 "~" H 4450 950 60  0000 C CNN
+F 3 "~" H 4450 950 60  0000 C CNN
+	1    3950 1700
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_B4
+U 1 1 545A27E2
+P 2950 3050
+F 0 "KEY_B4" H 2850 3000 60  0000 C CNN
+F 1 "KEY" H 3300 3000 60  0001 C CNN
+F 2 "~" H 3450 2300 60  0000 C CNN
+F 3 "~" H 3450 2300 60  0000 C CNN
+	1    2950 3050
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_C4
+U 1 1 545A27F1
+P 2950 2600
+F 0 "KEY_C4" H 2850 2550 60  0000 C CNN
+F 1 "KEY" H 3300 2550 60  0001 C CNN
+F 2 "~" H 3450 1850 60  0000 C CNN
+F 3 "~" H 3450 1850 60  0000 C CNN
+	1    2950 2600
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_D4
+U 1 1 545A2800
+P 2950 2150
+F 0 "KEY_D4" H 2850 2100 60  0000 C CNN
+F 1 "KEY" H 3300 2100 60  0001 C CNN
+F 2 "~" H 3450 1400 60  0000 C CNN
+F 3 "~" H 3450 1400 60  0000 C CNN
+	1    2950 2150
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_E4
+U 1 1 545A280F
+P 2950 1700
+F 0 "KEY_E4" H 2850 1650 60  0000 C CNN
+F 1 "KEY" H 3300 1650 60  0001 C CNN
+F 2 "~" H 3450 950 60  0000 C CNN
+F 3 "~" H 3450 950 60  0000 C CNN
+	1    2950 1700
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_F3
+U 1 1 545A281E
+P 3950 1250
+F 0 "KEY_F3" H 3850 1200 60  0000 C CNN
+F 1 "KEY" H 4300 1200 60  0001 C CNN
+F 2 "~" H 4450 500 60  0000 C CNN
+F 3 "~" H 4450 500 60  0000 C CNN
+	1    3950 1250
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_F4
+U 1 1 545A282D
+P 2950 1250
+F 0 "KEY_F4" H 2850 1200 60  0000 C CNN
+F 1 "KEY" H 3300 1200 60  0001 C CNN
+F 2 "~" H 3450 500 60  0000 C CNN
+F 3 "~" H 3450 500 60  0000 C CNN
+	1    2950 1250
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_F5
+U 1 1 545A283C
+P 1950 1250
+F 0 "KEY_F5" H 1850 1200 60  0000 C CNN
+F 1 "KEY" H 2300 1200 60  0001 C CNN
+F 2 "~" H 2450 500 60  0000 C CNN
+F 3 "~" H 2450 500 60  0000 C CNN
+	1    1950 1250
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_E5
+U 1 1 545A284B
+P 1950 1700
+F 0 "KEY_E5" H 1850 1650 60  0000 C CNN
+F 1 "KEY" H 2300 1650 60  0001 C CNN
+F 2 "~" H 2450 950 60  0000 C CNN
+F 3 "~" H 2450 950 60  0000 C CNN
+	1    1950 1700
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_G0
+U 1 1 545A2877
+P 6950 800
+F 0 "KEY_G0" H 6850 750 60  0000 C CNN
+F 1 "KEY" H 7300 750 60  0001 C CNN
+F 2 "~" H 7450 50  60  0000 C CNN
+F 3 "~" H 7450 50  60  0000 C CNN
+	1    6950 800 
 	1    0    0    -1  
 $EndComp
 $Comp
 L KEY KEY_F0
-U 1 1 544F8063
-P 6300 800
-F 0 "KEY_F0" H 6300 1000 60  0000 C CNN
-F 1 "KEY" H 6300 550 60  0000 C CNN
-F 2 "~" H 6800 50  60  0000 C CNN
-F 3 "~" H 6800 50  60  0000 C CNN
-	1    6300 800 
+U 1 1 545A2886
+P 6950 1250
+F 0 "KEY_F0" H 6850 1200 60  0000 C CNN
+F 1 "KEY" H 7300 1200 60  0001 C CNN
+F 2 "~" H 7450 500 60  0000 C CNN
+F 3 "~" H 7450 500 60  0000 C CNN
+	1    6950 1250
 	1    0    0    -1  
 $EndComp
-Text HLabel 1400 1100 0    60   Output ~ 0
-KEYPAD_ROW_F
-Text HLabel 1400 1800 0    60   Output ~ 0
-KEYPAD_ROW_E
-Text HLabel 1400 2500 0    60   Output ~ 0
-KEYPAD_ROW_D
-Text HLabel 1400 3200 0    60   Output ~ 0
-KEYPAD_ROW_C
-Text HLabel 1400 3900 0    60   Output ~ 0
-KEYPAD_ROW_B
-Text HLabel 1400 4600 0    60   Output ~ 0
-KEYPAD_ROW_A
-Text HLabel 6850 4000 2    60   3State ~ 0
-KEYPAD_COL_0
-Text HLabel 6850 3300 2    60   3State ~ 0
-KEYPAD_COL_1
-Text HLabel 6850 2600 2    60   3State ~ 0
-KEYPAD_COL_2
-Text HLabel 6850 1900 2    60   3State ~ 0
-KEYPAD_COL_3
-Text HLabel 6850 1200 2    60   BiDi ~ 0
-KEYPAD_COL_4
+$Comp
+L KEY KEY_E0
+U 1 1 545A2895
+P 6950 1700
+F 0 "KEY_E0" H 6850 1650 60  0000 C CNN
+F 1 "KEY" H 7300 1650 60  0001 C CNN
+F 2 "~" H 7450 950 60  0000 C CNN
+F 3 "~" H 7450 950 60  0000 C CNN
+	1    6950 1700
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_D0
+U 1 1 545A28A4
+P 6950 2150
+F 0 "KEY_D0" H 6850 2100 60  0000 C CNN
+F 1 "KEY" H 7300 2100 60  0001 C CNN
+F 2 "~" H 7450 1400 60  0000 C CNN
+F 3 "~" H 7450 1400 60  0000 C CNN
+	1    6950 2150
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_C0
+U 1 1 545A28B3
+P 6950 2600
+F 0 "KEY_C0" H 6850 2550 60  0000 C CNN
+F 1 "KEY" H 7300 2550 60  0001 C CNN
+F 2 "~" H 7450 1850 60  0000 C CNN
+F 3 "~" H 7450 1850 60  0000 C CNN
+	1    6950 2600
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_B0
+U 1 1 545A28C2
+P 6950 3050
+F 0 "KEY_B0" H 6850 3000 60  0000 C CNN
+F 1 "KEY" H 7300 3000 60  0001 C CNN
+F 2 "~" H 7450 2300 60  0000 C CNN
+F 3 "~" H 7450 2300 60  0000 C CNN
+	1    6950 3050
+	1    0    0    -1  
+$EndComp
+$Comp
+L KEY KEY_A0
+U 1 1 545A28D1
+P 6950 3500
+F 0 "KEY_A0" H 6850 3450 60  0000 C CNN
+F 1 "KEY" H 7300 3450 60  0001 C CNN
+F 2 "~" H 7450 2750 60  0000 C CNN
+F 3 "~" H 7450 2750 60  0000 C CNN
+	1    6950 3500
+	1    0    0    -1  
+$EndComp
 Wire Wire Line
-	6750 700  6750 4450
-Connection ~ 6750 3600
-Connection ~ 6750 2900
-Connection ~ 6750 2200
-Connection ~ 6750 1500
-Connection ~ 5900 1500
+	1550 700  1500 700 
 Wire Wire Line
-	5900 2500 5900 2100
-Connection ~ 5900 2200
+	1550 700  1550 1050
+Connection ~ 1550 800 
 Wire Wire Line
-	5900 3200 5900 2800
-Connection ~ 5900 2900
+	1550 1050 6550 1050
 Wire Wire Line
-	5650 700  5650 4450
-Connection ~ 5650 2900
-Connection ~ 5650 1500
-Connection ~ 6750 800 
-Connection ~ 5900 800 
-Connection ~ 5650 800 
-Connection ~ 4800 800 
-Connection ~ 4800 1500
+	2550 700  2550 1050
+Connection ~ 1550 950 
+Connection ~ 2550 950 
+Connection ~ 2550 800 
 Wire Wire Line
-	4550 700  4550 4450
-Connection ~ 4550 1500
-Connection ~ 4550 800 
-Connection ~ 3700 800 
-Connection ~ 3700 1500
+	3550 700  3550 1050
+Connection ~ 2550 1050
+Connection ~ 3550 950 
+Connection ~ 3550 800 
 Wire Wire Line
-	3450 700  3450 4450
-Connection ~ 3450 800 
-Connection ~ 2600 800 
-Connection ~ 1500 800 
-Wire Wire Line
-	2350 700  2350 4450
-Connection ~ 2350 800 
-Connection ~ 1500 1500
-Connection ~ 2350 1500
-Connection ~ 2600 1500
-Connection ~ 3450 1500
-Wire Wire Line
-	1500 2100 1500 2500
-Connection ~ 1500 2200
-Connection ~ 2350 2200
-Wire Wire Line
-	2600 2500 2600 2100
-Connection ~ 2600 2200
-Connection ~ 3450 2200
-Wire Wire Line
-	3700 2500 3700 2100
-Connection ~ 3700 2200
-Connection ~ 4550 2200
-Wire Wire Line
-	4800 2500 4800 2100
-Connection ~ 4800 2200
-Connection ~ 5650 2200
-Wire Wire Line
-	1500 2800 1500 3200
-Connection ~ 1500 2900
-Connection ~ 2350 2900
-Wire Wire Line
-	2600 3200 2600 2800
-Connection ~ 2600 2900
-Connection ~ 3450 2900
-Wire Wire Line
-	3700 3200 3700 2800
-Connection ~ 3700 2900
-Connection ~ 4550 2900
-Wire Wire Line
-	4800 3200 4800 2800
-Connection ~ 4800 2900
-Wire Wire Line
-	1500 3500 1500 3900
-Connection ~ 1500 3600
-Wire Wire Line
-	1500 4200 1500 4600
-Connection ~ 1500 4300
-Connection ~ 2350 4300
-Wire Wire Line
-	2600 4600 2600 4200
-Connection ~ 2600 4300
-Connection ~ 3450 4300
-Wire Wire Line
-	3700 4600 3700 4200
-Connection ~ 3700 4300
-Connection ~ 4550 4300
-Wire Wire Line
-	4800 4600 4800 4200
-Connection ~ 4800 4300
-Connection ~ 5650 4300
-Wire Wire Line
-	5900 4600 5900 4200
-Connection ~ 5900 4300
-Wire Wire Line
-	5900 3900 5900 3500
-Connection ~ 5900 3600
-Connection ~ 5650 3600
-Wire Wire Line
-	4800 3900 4800 3500
-Connection ~ 4800 3600
-Connection ~ 4550 3600
-Wire Wire Line
-	3700 3900 3700 3500
-Connection ~ 3700 3600
-Connection ~ 3450 3600
-Wire Wire Line
-	2600 3900 2600 3500
-Connection ~ 2600 3600
-Connection ~ 2350 3600
-Connection ~ 6750 4300
-Connection ~ 5900 950 
-Connection ~ 4800 950 
-Connection ~ 3700 950 
-Connection ~ 2600 950 
-Connection ~ 1500 950 
-Connection ~ 5900 1650
-Connection ~ 4800 1650
-Connection ~ 3700 1650
-Connection ~ 2600 1650
-Connection ~ 1500 1650
-Wire Wire Line
-	5900 1100 5900 700 
-Connection ~ 6750 1400
-Connection ~ 6750 950 
-Connection ~ 6750 2100
-Connection ~ 6750 1650
-Connection ~ 6750 2800
-Connection ~ 6750 2350
-Connection ~ 6750 3500
-Connection ~ 6750 3050
-Connection ~ 6750 4200
-Connection ~ 6750 3750
-Connection ~ 5650 4200
-Connection ~ 5650 3750
-Connection ~ 4550 4200
-Connection ~ 4550 3750
-Connection ~ 3450 4200
-Connection ~ 3450 3750
-Connection ~ 2350 4200
-Connection ~ 2350 3750
-Connection ~ 2350 3050
-Connection ~ 2350 3500
-Connection ~ 2350 2350
-Connection ~ 2350 2800
-Connection ~ 3450 2350
-Connection ~ 3450 2800
-Connection ~ 4550 2350
-Connection ~ 4550 2800
-Connection ~ 5650 2350
-Connection ~ 5650 2800
-Connection ~ 3450 3050
-Connection ~ 3450 3500
-Connection ~ 4550 3050
-Connection ~ 4550 3500
-Connection ~ 5650 3050
-Connection ~ 5650 3500
-Connection ~ 5650 1650
-Connection ~ 5650 2100
-Connection ~ 4550 1650
-Connection ~ 4550 2100
-Connection ~ 3450 1650
-Connection ~ 3450 2100
-Connection ~ 2350 1650
-Connection ~ 2350 2100
-Wire Wire Line
-	4800 1800 4800 1400
-Connection ~ 5650 950 
-Connection ~ 5650 1400
-Wire Wire Line
-	5900 1800 5900 1400
-Wire Wire Line
-	3700 1800 3700 1400
+	4550 700  4550 1050
+Connection ~ 3550 1050
 Connection ~ 4550 950 
+Connection ~ 4550 800 
+Wire Wire Line
+	5550 700  5550 1050
+Connection ~ 4550 1050
+Connection ~ 5550 950 
+Connection ~ 5550 800 
+Wire Wire Line
+	6550 1050 6550 700 
+Connection ~ 5550 1050
+Connection ~ 6550 950 
+Connection ~ 6550 800 
+Wire Wire Line
+	1550 1150 1500 1150
+Wire Wire Line
+	1550 1150 1550 1500
+Connection ~ 1550 1250
+Wire Wire Line
+	1550 1500 6550 1500
+Wire Wire Line
+	2550 1150 2550 1500
+Connection ~ 1550 1400
+Connection ~ 2550 1400
+Connection ~ 2550 1250
+Wire Wire Line
+	3550 1150 3550 1500
+Connection ~ 2550 1500
+Wire Wire Line
+	4550 1150 4550 1500
+Connection ~ 3550 1500
+Wire Wire Line
+	5550 1150 5550 1500
+Connection ~ 4550 1500
+Wire Wire Line
+	6550 1500 6550 1150
+Connection ~ 5550 1500
+Connection ~ 3550 1400
+Connection ~ 3550 1250
 Connection ~ 4550 1400
+Connection ~ 4550 1250
+Connection ~ 5550 1400
+Connection ~ 5550 1250
 Wire Wire Line
-	3700 1100 3700 700 
+	1500 1600 1550 1600
 Wire Wire Line
-	4800 1100 4800 700 
+	1550 1600 1550 1950
+Connection ~ 1550 1700
 Wire Wire Line
-	2600 1800 2600 1400
+	1550 1950 6550 1950
 Wire Wire Line
-	2600 1100 2600 700 
-Connection ~ 3450 950 
-Connection ~ 3450 1400
-Connection ~ 2350 950 
-Connection ~ 2350 1400
+	2550 1600 2550 1950
+Connection ~ 1550 1850
 Wire Wire Line
-	1500 1400 1500 1800
+	3550 1600 3550 1950
+Connection ~ 2550 1950
 Wire Wire Line
-	1500 700  1500 1100
+	4550 1600 4550 1950
+Connection ~ 3550 1950
 Wire Wire Line
-	1400 1100 5900 1100
-Connection ~ 4800 1100
-Connection ~ 3700 1100
-Connection ~ 2600 1100
-Connection ~ 1500 1100
+	5550 1600 5550 1950
+Connection ~ 4550 1950
 Wire Wire Line
-	1400 1800 5900 1800
-Connection ~ 4800 1800
-Connection ~ 3700 1800
-Connection ~ 2600 1800
-Connection ~ 1500 1800
+	6550 1950 6550 1600
+Connection ~ 5550 1950
 Wire Wire Line
-	1400 2500 5900 2500
-Connection ~ 5900 2350
-Connection ~ 4800 2500
-Connection ~ 4800 2350
-Connection ~ 3700 2500
-Connection ~ 3700 2350
-Connection ~ 2600 2500
-Connection ~ 2600 2350
-Connection ~ 1500 2500
-Connection ~ 1500 2350
+	1500 2050 2550 2050
 Wire Wire Line
-	1400 3200 5900 3200
-Connection ~ 5900 3050
-Connection ~ 4800 3200
-Connection ~ 4800 3050
-Connection ~ 3700 3200
-Connection ~ 3700 3050
-Connection ~ 2600 3050
-Connection ~ 2600 3200
-Connection ~ 1500 3200
-Connection ~ 1500 3050
-Connection ~ 5900 3750
-Connection ~ 4800 3900
-Connection ~ 4800 3750
-Connection ~ 3700 3900
-Connection ~ 3700 3750
-Connection ~ 2600 3900
-Connection ~ 2600 3750
-Connection ~ 1500 3900
-Connection ~ 1500 3750
+	2550 2050 2550 2400
+Connection ~ 2550 2150
 Wire Wire Line
-	1400 4600 5900 4600
-Connection ~ 5900 4450
-Connection ~ 4800 4600
-Connection ~ 4800 4450
-Connection ~ 3700 4600
-Connection ~ 3700 4450
-Connection ~ 2600 4600
-Connection ~ 2600 4450
-Connection ~ 1500 4600
-Connection ~ 1500 4450
-Connection ~ 6750 4450
-Connection ~ 5650 4450
-Connection ~ 4550 4450
-Connection ~ 3450 4450
-Connection ~ 2350 4450
+	2550 2400 6550 2400
 Wire Wire Line
-	1400 3900 5900 3900
+	3550 2050 3550 2400
+Connection ~ 2550 2300
 Wire Wire Line
-	2350 1200 6850 1200
-Connection ~ 2350 1200
+	4550 2050 4550 2400
+Connection ~ 3550 2400
 Wire Wire Line
-	3450 1900 6850 1900
-Connection ~ 3450 1900
+	5550 2050 5550 2400
+Connection ~ 4550 2400
 Wire Wire Line
-	4550 2600 6850 2600
+	6550 2400 6550 2050
+Connection ~ 5550 2400
+Wire Wire Line
+	1500 2500 2550 2500
+Wire Wire Line
+	2550 2500 2550 2850
+Connection ~ 2550 2600
+Wire Wire Line
+	2550 2850 6550 2850
+Wire Wire Line
+	3550 2500 3550 2850
+Connection ~ 2550 2750
+Wire Wire Line
+	4550 2500 4550 2850
+Connection ~ 3550 2850
+Wire Wire Line
+	5550 2500 5550 2850
+Connection ~ 4550 2850
+Wire Wire Line
+	6550 2850 6550 2500
+Connection ~ 5550 2850
+Connection ~ 2550 1700
+Connection ~ 2550 1850
+Connection ~ 3550 1850
+Connection ~ 3550 1700
+Connection ~ 4550 1850
+Connection ~ 4550 1700
+Connection ~ 5550 1850
+Connection ~ 5550 1700
+Connection ~ 6550 1400
+Connection ~ 6550 1250
+Connection ~ 6550 1850
+Connection ~ 6550 1700
+Connection ~ 3550 2300
+Connection ~ 3550 2150
+Connection ~ 4550 2300
+Connection ~ 4550 2150
+Connection ~ 5550 2300
+Connection ~ 5550 2150
+Connection ~ 6550 2150
+Connection ~ 6550 2300
+Connection ~ 3550 2750
+Connection ~ 3550 2600
+Connection ~ 4550 2750
 Connection ~ 4550 2600
+Connection ~ 5550 2750
+Connection ~ 5550 2600
+Connection ~ 6550 2750
+Connection ~ 6550 2600
 Wire Wire Line
-	5650 3300 6850 3300
-Connection ~ 5650 3300
+	2400 700  2400 3850
+Connection ~ 2400 1250
+Connection ~ 2400 1400
+Connection ~ 2400 1600
+Connection ~ 2400 1700
 Wire Wire Line
-	6750 4000 6850 4000
-Connection ~ 6750 4000
+	3400 700  3400 3850
+Connection ~ 3400 1250
+Connection ~ 3400 1400
+Connection ~ 2400 1150
+Connection ~ 2400 950 
+Connection ~ 2400 800 
+Connection ~ 3400 1150
+Connection ~ 3400 950 
+Connection ~ 3400 800 
+Connection ~ 3400 1600
+Connection ~ 3400 1700
+Connection ~ 3400 1850
+Connection ~ 3400 2050
+Connection ~ 3400 2150
+Wire Wire Line
+	4400 700  4400 3400
+Connection ~ 4400 800 
+Connection ~ 4400 950 
+Connection ~ 4400 1150
+Connection ~ 4400 1250
+Connection ~ 4400 1400
+Connection ~ 4400 1600
+Connection ~ 4400 1700
+Connection ~ 4400 1850
+Connection ~ 4400 2050
+Connection ~ 4400 2150
+Wire Wire Line
+	5400 700  5400 3850
+Connection ~ 5400 800 
+Connection ~ 5400 950 
+Connection ~ 5400 1150
+Connection ~ 5400 1250
+Connection ~ 5400 1400
+Connection ~ 5400 1600
+Connection ~ 5400 1700
+Connection ~ 5400 1850
+Connection ~ 5400 2050
+Connection ~ 5400 2150
+Wire Wire Line
+	1500 2950 2550 2950
+Wire Wire Line
+	2550 2950 2550 3300
+Connection ~ 2550 3050
+Wire Wire Line
+	2550 3300 6550 3300
+Wire Wire Line
+	3550 2950 3550 3300
+Connection ~ 2550 3200
+Connection ~ 3550 3200
+Connection ~ 3550 3050
+Wire Wire Line
+	4550 2950 4550 3300
+Connection ~ 3550 3300
+Wire Wire Line
+	5550 2950 5550 3300
+Connection ~ 4550 3300
+Wire Wire Line
+	6550 3300 6550 2950
+Connection ~ 5550 3300
+Connection ~ 4550 3200
+Connection ~ 4550 3050
+Connection ~ 5550 3200
+Connection ~ 5550 3050
+Connection ~ 6550 3200
+Connection ~ 6550 3050
+Connection ~ 3400 2300
+Connection ~ 3400 2500
+Connection ~ 3400 2600
+Connection ~ 3400 2750
+Connection ~ 3400 2950
+Connection ~ 3400 3050
+Connection ~ 4400 2300
+Connection ~ 4400 2500
+Connection ~ 4400 2600
+Connection ~ 4400 2750
+Connection ~ 4400 2950
+Connection ~ 4400 3050
+Connection ~ 5400 2300
+Connection ~ 5400 2500
+Connection ~ 5400 2600
+Connection ~ 5400 2750
+Connection ~ 5400 2950
+Connection ~ 5400 3050
+Wire Wire Line
+	1500 3400 2550 3400
+Wire Wire Line
+	2550 3400 2550 3750
+Connection ~ 2550 3500
+Wire Wire Line
+	2550 3750 6550 3750
+Wire Wire Line
+	3550 3750 3550 3400
+Connection ~ 2550 3650
+Connection ~ 3550 3650
+Connection ~ 3550 3500
+Wire Wire Line
+	4550 3400 4550 3750
+Connection ~ 3550 3750
+Wire Wire Line
+	5550 3400 5550 3750
+Connection ~ 4550 3750
+Wire Wire Line
+	6550 3750 6550 3400
+Connection ~ 5550 3750
+Connection ~ 6550 3650
+Connection ~ 6550 3500
+Connection ~ 5550 3650
+Connection ~ 5550 3500
+Connection ~ 4550 3650
+Connection ~ 4550 3500
+Connection ~ 2400 1850
+Connection ~ 3400 3200
+Connection ~ 3400 3400
+Connection ~ 3400 3500
+Connection ~ 3400 3650
+Connection ~ 4400 3200
+Wire Wire Line
+	4400 3500 4400 3850
+Connection ~ 4400 3650
+Connection ~ 5400 3200
+Connection ~ 5400 3400
+Connection ~ 5400 3500
+Connection ~ 5400 3650
+Wire Wire Line
+	6400 700  6400 1850
+Connection ~ 6400 800 
+Connection ~ 6400 950 
+Connection ~ 6400 1150
+Connection ~ 6400 1250
+Connection ~ 6400 1400
+Wire Wire Line
+	6400 2150 6400 3850
+Connection ~ 6400 2300
+Connection ~ 6400 2500
+Connection ~ 6400 2600
+Connection ~ 6400 2750
+Connection ~ 6400 2950
+Connection ~ 6400 3050
+Connection ~ 6400 3200
+Connection ~ 6400 1700
+Connection ~ 6400 1600
+Wire Wire Line
+	7400 700  7400 1400
+Connection ~ 7400 800 
+Connection ~ 7400 950 
+Connection ~ 7400 1150
+Connection ~ 7400 1250
+Wire Wire Line
+	7400 1700 7400 3850
+Connection ~ 7400 1850
+Connection ~ 7400 2050
+Connection ~ 7400 2150
+Connection ~ 7400 2300
+Connection ~ 7400 2500
+Connection ~ 7400 2600
+Connection ~ 7400 2750
+Connection ~ 7400 2950
+Connection ~ 7400 3050
+Connection ~ 7400 3400
+Connection ~ 7400 3200
+Connection ~ 7400 3500
+Connection ~ 7400 3650
+Connection ~ 6400 3500
+Connection ~ 6400 3400
+Connection ~ 6400 3650
 $EndSCHEMATC

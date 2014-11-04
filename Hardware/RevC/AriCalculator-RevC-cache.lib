@@ -1,4 +1,4 @@
-EESchema-LIBRARY Version 2.3  Date: 11/3/2014 11:07:50 AM
+EESchema-LIBRARY Version 2.3  Date: 11/4/2014 7:41:24 PM
 #encoding utf-8
 #
 # +BATT
@@ -209,9 +209,9 @@ ENDDEF
 #
 # KEY
 #
-DEF KEY KEY 0 40 Y Y 1 F N
-F0 "KEY" 0 200 60 H V C CNN
-F1 "KEY" 0 -250 60 H V C CNN
+DEF ~KEY KEY 0 40 Y Y 1 F N
+F0 "KEY" -100 -50 60 H V C CNN
+F1 "KEY" 350 -50 60 H I C CNN
 F2 "~" 500 -750 60 H V C CNN
 F3 "~" 500 -750 60 H V C CNN
 DRAW
