@@ -740,14 +740,12 @@ Connection ~ 5400 3400
 Connection ~ 5400 3500
 Connection ~ 5400 3650
 Wire Wire Line
-	6400 700  6400 1850
+	6400 700  6400 3850
 Connection ~ 6400 800 
 Connection ~ 6400 950 
 Connection ~ 6400 1150
 Connection ~ 6400 1250
 Connection ~ 6400 1400
-Wire Wire Line
-	6400 2150 6400 3850
 Connection ~ 6400 2300
 Connection ~ 6400 2500
 Connection ~ 6400 2600
@@ -758,13 +756,11 @@ Connection ~ 6400 3200
 Connection ~ 6400 1700
 Connection ~ 6400 1600
 Wire Wire Line
-	7400 700  7400 1400
+	7400 700  7400 3850
 Connection ~ 7400 800 
 Connection ~ 7400 950 
 Connection ~ 7400 1150
 Connection ~ 7400 1250
-Wire Wire Line
-	7400 1700 7400 3850
 Connection ~ 7400 1850
 Connection ~ 7400 2050
 Connection ~ 7400 2150
@@ -781,4 +777,12 @@ Connection ~ 7400 3650
 Connection ~ 6400 3500
 Connection ~ 6400 3400
 Connection ~ 6400 3650
+Connection ~ 6400 1850
+Connection ~ 6400 2150
+Connection ~ 6400 2050
+Wire Wire Line
+	6400 2150 6400 2300
+Connection ~ 7400 1700
+Connection ~ 7400 1400
+Connection ~ 7400 1600
 $EndSCHEMATC

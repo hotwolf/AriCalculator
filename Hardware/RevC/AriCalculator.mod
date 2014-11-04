@@ -1,4 +1,4 @@
-PCBNEW-LibModule-V1  11/4/2014 12:49:17 AM
+PCBNEW-LibModule-V1  11/4/2014 11:42:41 PM
 # encoding utf-8
 Units mm
 $INDEX
@@ -22,7 +22,7 @@ ssop-28
 switch
 $EndINDEX
 $MODULE AAA-BATTERY
-Po 0 0 0 15 5453A925 00000000 ~~
+Po 0 0 0 15 5459564F 00000000 ~~
 Li AAA-BATTERY
 Sc 0
 AR 
@@ -34,18 +34,18 @@ DS -25.5 -13 -25.5 0 0.15 21
 DS -25.5 0 25.5 0 0.15 21
 DS 25.5 0 25.5 -13 0.15 21
 $PAD
-Sh "2" R 5 10 0 0 0
+Sh "2" T 4 6 3 0 0
 Dr 0.5 -1 0
 At STD N 00E0FFFF
 Ne 0 ""
-Po 29.5 -6.5
+Po 28.5 -6.5
 $EndPAD
 $PAD
-Sh "1" R 5 10 0 0 1800
+Sh "1" T 4 6 3 0 1800
 Dr 0.5 -1 0
 At STD N 00E0FFFF
 Ne 0 ""
-Po -29.5 -6.5
+Po -28.5 -6.5
 $EndPAD
 $SHAPE3D
 Na "3D-Models/AAA-Battery.wrl"
@@ -526,7 +526,7 @@ Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE conn_usb_B_mini_smd
 $MODULE enclosure
-Po 0 0 0 15 5457E0ED 00000000 ~~
+Po 0 0 0 15 54594CD8 00000000 ~~
 Li enclosure
 Sc 0
 AR 
@@ -547,7 +547,7 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 5.08 137.16
-.LocalClearance 1.2
+.LocalClearance 1.4
 $EndPAD
 $PAD
 Sh "" C 3.4 3.4 0 0 0
@@ -555,7 +555,7 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 71.12 137.16
-.LocalClearance 1.2
+.LocalClearance 1.4
 $EndPAD
 $PAD
 Sh "" C 3.4 3.4 0 0 0
@@ -563,7 +563,7 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 5.08 10.16
-.LocalClearance 1.2
+.LocalClearance 1.4
 $EndPAD
 $PAD
 Sh "" C 3.4 3.4 0 0 0
@@ -571,7 +571,7 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 71.12 10.16
-.LocalClearance 1.2
+.LocalClearance 1.4
 $EndPAD
 $PAD
 Sh "" C 3.4 3.4 0 0 0
@@ -579,7 +579,7 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 5.08 73.66
-.LocalClearance 1.2
+.LocalClearance 1.4
 $EndPAD
 $PAD
 Sh "" C 3.4 3.4 0 0 0
@@ -587,7 +587,7 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 71.12 73.66
-.LocalClearance 1.2
+.LocalClearance 1.4
 $EndPAD
 $SHAPE3D
 Na "3D-Models/enclosure.wrl"
