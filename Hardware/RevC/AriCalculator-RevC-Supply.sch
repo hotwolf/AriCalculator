@@ -7,7 +7,7 @@ $Descr User 8268 5827
 encoding utf-8
 Sheet 2 6
 Title "Supply"
-Date "4 nov 2014"
+Date "5 nov 2014"
 Rev "RevC"
 Comp "Dirk Heisswolf"
 Comment1 ""
@@ -70,7 +70,7 @@ F 1 "POWER SWITCH" H 2450 2050 50  0000 C CNN
 F 2 "~" H 2650 2200 60  0000 C CNN
 F 3 "~" H 2650 2200 60  0000 C CNN
 	1    2650 2200
-	0    1    1    0   
+	0    -1   1    0   
 $EndComp
 $Comp
 L GND #PWR03

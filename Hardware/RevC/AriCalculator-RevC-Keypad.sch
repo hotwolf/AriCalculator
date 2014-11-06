@@ -7,7 +7,7 @@ $Descr User 8268 5827
 encoding utf-8
 Sheet 3 6
 Title ""
-Date "4 nov 2014"
+Date "5 nov 2014"
 Rev "RevC"
 Comp "Dirk Heisswolf"
 Comment1 ""
@@ -631,7 +631,7 @@ Connection ~ 3400 1850
 Connection ~ 3400 2050
 Connection ~ 3400 2150
 Wire Wire Line
-	4400 700  4400 3400
+	4400 700  4400 3850
 Connection ~ 4400 800 
 Connection ~ 4400 950 
 Connection ~ 4400 1150
@@ -732,8 +732,6 @@ Connection ~ 3400 3400
 Connection ~ 3400 3500
 Connection ~ 3400 3650
 Connection ~ 4400 3200
-Wire Wire Line
-	4400 3500 4400 3850
 Connection ~ 4400 3650
 Connection ~ 5400 3200
 Connection ~ 5400 3400
@@ -785,4 +783,6 @@ Wire Wire Line
 Connection ~ 7400 1700
 Connection ~ 7400 1400
 Connection ~ 7400 1600
+Connection ~ 4400 3500
+Connection ~ 4400 3400
 $EndSCHEMATC

@@ -1,4 +1,4 @@
-Cmp-Mod V01 Created by CvPcb (2013-07-07 BZR 4022)-stable date = 11/4/2014 11:44:39 PM
+Cmp-Mod V01 Created by PcbNew date = 11/5/2014 5:58:39 PM
 
 BeginCmp
 TimeStamp = /544A6FCE/544A80D6;
@@ -193,7 +193,7 @@ BeginCmp
 TimeStamp = /544A6636/544AC281;
 Reference = IC3;
 ValeurCmp = FT232RL;
-IdModule  = msop-8;
+IdModule  = ssop-28;
 EndCmp
 
 BeginCmp
