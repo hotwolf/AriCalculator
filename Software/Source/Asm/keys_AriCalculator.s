@@ -1,9 +1,9 @@
 #ifndef	KEYS
 #define	KEYS
 ;###############################################################################
-;# S12CBase - KEYS - Keypad Driver                                             #
+;# AriCalculator - KEYS - Keypad Driver (AriCalculator RevC)                   #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2014 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -21,26 +21,13 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This is the low level driver for LCD using a ST7565R controller. This    #
-;#    driver assumes, that the ST7565R is connected via the 4-wire SPI         #
-;#    interface.                                                               #
-;#                                                                             #
-;#    This modules  provides three functions to the main program:              #
-;#    DISPLAY_CHECK_BUF - This function checks if the command buffer is able   #
-;#                        to accept more data.                                 #
-;#    DISPLAY_TX_NB -     This function send one command to the display        #
-;#                        without blocking the program flow.                   #
-;#    DISPLAY_TX_BL -     This function send one command to the display and    #
-;#                        blocks the program flow until it has been            #
-;#                        successful.                                          #
+;#    This is the key pad driver for the AriCalculator hardware RevC.          #
 ;#                                                                             #
 ;#    For convinience, all of these functions may also be called as macro.     #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    REGDEF - Register Definitions                                            #
 ;#    VECMAP - Vector Map                                                      #
-;#    CLOCK  - Clock driver                                                    #
-;#    GPIO   - GPIO driver                                                     #
 ;#    ISTACK - Interrupt Stack Handler                                         #
 ;#    SSTACK - Subroutine Stack Handler                                        #
 ;#    GPIO   - GPIO driver                                                     #
@@ -54,24 +41,26 @@
 ;#
 ;# Keypad layout:
 ;#
-;#           P  P  P  P  P
-;#           P  P  P  P  P
-;#           0  1  2  3  4
-;#           
-;#           |  |  |  |  |
-;#  PAD6 ---1D-1C-1B-1A-19 |F
-;#           |  |  |  |  | |
-;#  PAD5 ---18-17-16-15-14 |E
-;#           |  |  |  |  | |
-;#  PAD4 ---13-12-11-10--F |D
-;#           |  |  |  |  | |
-;#  PAD3 ----E--D--C--B--A |C
-;#           |  |  |  |  | |
-;#  PAD2 ----9--8--7--6--5 |B
-;#           |  |  |  |  | |
-;#  PAD1 ----4--3--2--1--O |A
-;#           _____________
-;#           4  3  2  1  0
+;#           P  P  P  P  P  P
+;#           P  P  P  P  P  P
+;#           0  1  2  3  4  5
+;#               
+;#           |  |  |  |  |  |
+;#  PAD7 ---28-27-26-25-24-23 |G
+;#           |  |  |  |  |  | |
+;#  PAD6 ---22-21-20-1F-1E-1D |F
+;#           |  |  |  |  |  | |
+;#  PAD5 ---1C-1B-1A-19-18-17 |E
+;#              |  |  |  |  | |
+;#  PAD4 ------15-14-13-13-12 |D
+;#              |  |  |  |  | |
+;#  PAD3 ------10--F--E--D--C |C
+;#              |  |  |  |  | |
+;#  PAD2 -------A--9--8--7--6 |B
+;#              |  |  |  |  | |
+;#  PAD1 -------4--3--2--1--O |A
+;#           ________________
+;#           5  4  3  2  1  0
 ;#           
 ;###############################################################################
 ;# Configuration                                                               #
@@ -85,10 +74,10 @@ KEYS_COL_IE		EQU	PIE1AD		;default is PAD
 KEYS_COL_IF		EQU	PIF1AD		;default is PAD			
 #endif
 #ifndef KEYS_COL_MSB	
-KEYS_COL_MSB		EQU	6 		;default is PAD6
+KEYS_COL_MSB		EQU	7 		;default is PAD7
 #endif	
 #ifndef KEYS_COL_LSB	
-KEYS_COL_LSB		EQU	1 		;default is PAD1
+KEYS_COL_LSB		EQU	0 		;default is PAD0
 #endif
 	
 ;#Row port
@@ -99,7 +88,7 @@ KEYS_ROW_PORT		EQU	PTP		;default is PP
 KEYS_ROW_DDR		EQU	DDRP		;default is PP	
 #endif
 #ifndef KEYS_ROW_MSB	
-KEYS_ROW_MSB		EQU	4 		;default is PP4
+KEYS_ROW_MSB		EQU	5 		;default is PP5
 #endif	
 #ifndef KEYS_ROW_LSB	
 KEYS_ROW_LSB		EQU	0 		;default is PP0
@@ -109,7 +98,7 @@ KEYS_ROW_LSB		EQU	0 		;default is PP0
 ;--------------
 ;Output compare channel  
 #ifndef	KEYS_OC
-KEYS_OC			EQU	$5		;default is OC5	(must be >4)		
+KEYS_OC			EQU	$6		;default is OC6	(must be >5)		
 #endif
 
 ;Debounce delay (TIM cycles)

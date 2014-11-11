@@ -1,7 +1,7 @@
 #ifndef	GPIO
 #define	GPIO
 ;###############################################################################
-;# S12CBase - GPIO - GPIO Handler (AriCalculator)                              #
+;# S12CBase - GPIO - GPIO Handler (AriCalculator RevC)                         #
 ;###############################################################################
 ;#    Copyright 2010-2014 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
@@ -21,20 +21,21 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module initializes all unused GPIO ports. The OpenBDM firmware      #
-;#    assumes the following I/O pin configuration of the S12G128 MCU:          #
+;#    This module initializes all GPIO ports of the AriCalculator hardware     #
+;#    RevC (not compatible to RevA or RevB). It assumes the following I/O pin  #
+;# 	configuration of the S12G MCU:                                         #
 ;#    Port AD:                                                                 #
-;#     PAD0  - Vin                        (analog       no pull  )             #
-;#     PAD1  - Keyboard row A (bottom)    (input        pull-up  )             #
-;#     PAD2  - Keyboard row B             (input        pull-up  )             #
-;#     PAD3  - Keyboard row C             (input        pull-up  )             #
-;#     PAD4  - Keyboard row D             (input        pull-up  )             #
-;#     PAD5  - Keyboard row E             (input        pull-up  )             #
-;#     PAD6  - Keyboard row F (top)       (input        pull-up  )             #
+;#     PAD0  - Keyboard row A (bottom)    (input        pull-up  )             #
+;#     PAD1  - Keyboard row B             (input        pull-up  )             #
+;#     PAD2  - Keyboard row C             (input        pull-up  )             #
+;#     PAD3  - Keyboard row D             (input        pull-up  )             #
+;#     PAD4  - Keyboard row E             (input        pull-up  )             #
+;#     PAD5  - Keyboard row F             (input        pull-up  )             #
+;#     PAD6  - Keyboard row G (top)       (input        pull-up  )             #
 ;#     PAD7  - NC                         (input        pull-up  )             #
-;#     PAD8  - NC                         (input        pull-up  )             #
-;#     PAD9  - NC                         (input        pull-up  )             #
-;#     PAD10 - NC                         (input        pull-up  )             #
+;#     PAD8  - Vin                        (analog       no pull  )             #
+;#     PAD9  - Vusb                       (analog       no pull  )             #
+;#     PAD10 - NC                         (input        pull-up  )             # 
 ;#     PAD11 - NC                         (input        pull-up  )             #
 ;#     PAD12 - NC                         (input        pull-up  )             #
 ;#     PAD13 - NC                         (input        pull-up  )             #
@@ -80,10 +81,10 @@
 ;#     PE0 - LED (green)                  (output       high     )             #
 ;#     PE1 - LED (red)                    (output       high     )             #
 ;#    Port J:                                                                  #
-;#     PJ0 - Display reset input          (output       low      )             #
-;#     PJ1 - NC                           (input        pull-up  )             #
-;#     PJ2 - NC                           (input        pull-up  )             #
-;#     PJ3 - NC                           (input        pull-up  )             #
+;#     PJ0 - SPI port MISO                (input        pull-down)             #
+;#     PJ1 - SPI port MOSI                (input        pull-down)             #
+;#     PJ2 - SPI port SCK                 (input        pull-down)             #
+;#     PJ3 - SPI port /SS                 (input        pull-down)             #
 ;#     PJ4 - NC                           (input        pull-up  )             #
 ;#     PJ5 - NC                           (input        pull-up  )             #
 ;#     PJ6 - NC                           (input        pull-up  )             #
@@ -94,30 +95,30 @@
 ;#     PM2 - NC                           (input        pull_up  )             #
 ;#     PM3 - NC                           (input        pull_up  )             #
 ;#    Port P:                                                                  #
-;#     PP0 - Keyboard column 4 (left)     (input        pull-up  )             #
-;#     PP1 - Keyboard column 3            (input        pull-up  )             #
-;#     PP2 - Keyboard column 2            (input        pull-up  )             #
-;#     PP3 - Keyboard column 1            (input        pull-up  )             #
-;#     PP4 - Keyboard column 0 (right)    (input        pull-up  )             #
-;#     PP5 - NC (used by KEYS driver)     (input        pull-up  )             #
+;#     PP0 - Keyboard column 5 (left)     (output       low      )             #
+;#     PP1 - Keyboard column 4            (output       low      )             #
+;#     PP2 - Keyboard column 3            (output       low      )             #
+;#     PP3 - Keyboard column 2            (output       low      )             #
+;#     PP4 - Keyboard column 1            (output       low      )             #
+;#     PP5 - Keyboard column 0 (right)    (output       low      )             #
 ;#     PP6 - NC (used by KEYS driver)     (input        pull-up  )             #
 ;#     PP7 - NC (used by KEYS driver)     (input        pull-up  )             #
 ;#    Port S:                                                                  #
 ;#     PS0 - SCI RX                       (input        pull-down)             #
 ;#     PS1 - SCI TX                       (output       low      )             #
 ;#     PS2 - NC                           (input        pull-up  )             #
-;#     PS3 - NC                           (input        pull-up  )             #
+;#     PS3 - Display RESET                (output       low      )             #
 ;#     PS4 - Display A0                   (output       low      )             #
-;#     PS5 - SPI MOSI                     (output       low      )             #
-;#     PS6 - SPI SCK                      (output       low      )             #
-;#     PS7 - /SS                          (output       high     )             #
+;#     PS5 - Display MOSI                 (output       low      )             #
+;#     PS6 - Display SCK                  (output       low      )             #
+;#     PS7 - Display /SS                  (output       high     )             #
 ;#    Port T:                                                                  #
 ;#     PT0 - SCI RX                       (input        no pull  )             #
 ;#     PT1 - SCI_RX                       (input        no pull  )             #
 ;#     PT2 - NC                           (input        pull-up  )             #
 ;#     PT3 - NC                           (input        pull-up  )             #
 ;#     PT4 - NC                           (input        pull-up  )             #
-;#     PT5 - NC                           (input        pull-up  )             #
+;#     PT5 - Backlight enable             (output       low      )             #
 ;#     PT6 - NC                           (input        pull-up  )             #
 ;#     PT7 - NC                           (input        pull-up  )             #
 ;###############################################################################
@@ -152,15 +153,11 @@ GPIO_VARS_END_LIN	EQU	@
 #macro	GPIO_INIT, 0
 		;#Urgent initializations
 		MOVB	#03, PPSS 				;switch to pull-downs on PS[1:0] (TX/RX)	
-		;#General
-		LDAA	#MODC					;lock MODE register into NSC mode
-		STAA	MODE		
-		STAA	MODE
 		;#Port AD
-		MOVW	#%1111_1111_1111_1110, ATDDIEN   	;switch unused pins to digital
+		MOVW	#%1111_1100_1111_1111, ATDDIEN   	;switch unused pins to digital
 		;MOVW	#$0000, PT0AD
 		;MOVW	#$0000, DDR0AD
-		MOVW	#$FFFE, PER0AD
+		MOVW	#%1111_1100_1111_1111, PER0AD
 		;MOVW	#$0000, PPS0AD
 		;MOVW	#$0000, PIE0AD
 		;#Port A, B, C, D, and E
@@ -174,32 +171,37 @@ GPIO_VARS_END_LIN	EQU	@
 		;MOVB	#$00,	IRQCR
 		;#Port J
 		;MOVB	#$00,   PTJ 			
-		MOVB	#$01,   DDRJ 			
-		MOVB	#$FE	PERJ
-		;MOVB	#$00,   PPSJ 			
+		;MOVB	#$00,   DDRJ 			
+		;MOVB	#$FF	PERJ
+		MOVB	#$0F,   PPSJ 			
 		;MOVB	#$00FF,	PIEJ				;PIEJ/PIFJ 			
 		;#Port M
 		;MOVB	#$00,   PTM 			
 		MOVB	#$02,   DDRM 			
 		MOVW	#$0D01	PERM 				;PERM/PPSM
 		;MOVB	#$02,	WOMM
-	        MOVB	PKGCR, PKGCR 				;lock PKGCR
 		;#Port P
 		;MOVB	#$00,   PTP 			
-		MOVB	#$1F,   DDRP 				;drive keyboard columns low
+		MOVB	#$3F,   DDRP 				;drive keyboard columns low
 		MOVB	#$FF	PERP
 		;MOVB	#$00,   PPSP 			
 		;MOVB	#$00FF,	PIEP				;PIEP/PIFP 			
 		;#Port S
 		MOVB	#$80, 	PTS	
-		MOVB	#$F2, 	DDRS
-		MOVW	#$0D01, PERS 				;PERS/PPSS
+		MOVB	#$FA, 	DDRS
+		MOVW	#$0A01, PERS 				;PERS/PPSS
 		;MOVB	#$02,	WOMS
 		;#Port T
-		;MOVB	#$00,   PTT 			
-		;MOVB	#$00,   DDRT 			
-		MOVB	#$FC	PERT
+		MOVB	#$20,   PTT 			
+		MOVB	#$20,   DDRT 			
+		MOVB	#$DC	PERT
 		;MOVB	#$00,   PPST 			
+
+		;General setup
+		LDAA	#MODC					;lock MODE register into NSC mode
+		STAA	MODE		
+		STAA	MODE
+		MOVB	PKGCR, PKGCR 				;lock PKGCR
 #emac
 	
 ;###############################################################################
