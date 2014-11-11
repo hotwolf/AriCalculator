@@ -1,4 +1,4 @@
-update=12/3/2014 10:59:32 AM
+update=12/4/2014 8:53:48 PM
 last_client=pcbnew
 [general]
 version=1
@@ -10,7 +10,7 @@ EquName1=devcms
 [eeschema]
 version=1
 LibDir=.
-NetFmtName=
+NetFmtName=PcbnewAdvanced
 RptD_X=0
 RptD_Y=100
 RptLab=1
@@ -19,7 +19,7 @@ LabSize=60
 LibName1=AriCalculator
 [pcbnew]
 version=1
-LastNetListRead=
+LastNetListRead=AriCalculator-RevC.net
 UseCmpFile=1
 PadDrill=0.000000000000
 PadDrillOvalY=0.000000000000

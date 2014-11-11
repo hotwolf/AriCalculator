@@ -7,7 +7,7 @@ $Descr User 8268 5827
 encoding utf-8
 Sheet 1 6
 Title "AriCalulator"
-Date "25 nov 2014"
+Date "4 dec 2014"
 Rev "RevC"
 Comp "Dirk Heisswolf"
 Comment1 ""

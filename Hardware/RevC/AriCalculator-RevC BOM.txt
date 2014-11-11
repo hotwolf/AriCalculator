@@ -1,0 +1,59 @@
+Bill of Materials for the AriCalculator RevC:
+=============================================
+
+ICs:
+
+1x      MC9S12G...LF            48LQFP                  IC1
+1x      MCP1640(C)              SOT23-6                 IC2             
+1x      FT232RL                 SSOP-28                 IC3
+1x      MCP1643                 MSOP-8                  IC4 (optional)
+
+Capacitors:
+
+1x       10nF                   0805                    C15
+5x      100nF                   0805                    C1, C2, C17, C18, C21 
+9x        1uF                   0805                    C5, C6, C7, C8, C9, C10, C11, C12, C13
+2x      4.7uF                   0805                    C3, C16
+2x       10uF                   0805                    C4, C19 (optional)
+1x       20uF                   0805                    C20 (optional)
+
+Inductors:
+
+1x       10nH                   0805                    FB1
+2x      4.7uH                   LQH3C                   L1, L2 (optional)
+
+Resistors:
+
+1x       0.66                   1206                    R14 (optional)
+6x        100                   0805                    R3, R4, R5, R6, R7, R8
+3x        120                   0805                    R1, R2, R13
+1x       4.7K                   0805                    R11
+1x        10K                   0805                    R12
+1x       470K                   0805                    R10
+1x       820K                   0805                    R9
+
+LEDs:
+
+1x      red                     0805                    LED3
+1x      green                   0805                    LED2
+1x      yellow                  0805                    LED1
+18x     backlight               1206                    LED3..LED21 (all optional)
+1x      EA LED68x51             print                   (optional)
+
+Display:
+
+1x      EA DOGL128-6            print                   DISP1
+
+Buttons and switches:
+
+1x      switch                  print                   SW1
+38x     button                  print (6mmx6mm)         KEY_A0..KEY_G5
+
+Connectors:
+
+2x      2X3  bent               print                   CON1, CON2
+1x      USB-Mini-B              SMD                     CON3
+
+Battery Holders:
+
+2x      AAA-battery             AAA size                BAT1, BAT2

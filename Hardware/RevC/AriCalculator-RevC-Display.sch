@@ -7,7 +7,7 @@ $Descr User 8268 5827
 encoding utf-8
 Sheet 4 6
 Title "Display"
-Date "25 nov 2014"
+Date "4 dec 2014"
 Rev "RevC"
 Comp "Dirk Heisswolf"
 Comment1 ""
@@ -31,7 +31,7 @@ L C C13
 U 1 1 544AB3ED
 P 3100 3600
 F 0 "C13" H 3100 3700 40  0000 L CNN
-F 1 "1uf" H 3106 3515 40  0000 L CNN
+F 1 "1uF" H 3106 3515 40  0000 L CNN
 F 2 "~" H 3138 3450 30  0000 C CNN
 F 3 "~" H 3100 3600 60  0000 C CNN
 	1    3100 3600
