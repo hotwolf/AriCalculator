@@ -1,4 +1,4 @@
-PCBNEW-LibModule-V1  11/12/2014 9:30:34 AM
+PCBNEW-LibModule-V1  11/19/2014 7:17:33 PM
 # encoding utf-8
 Units mm
 $INDEX
@@ -21,9 +21,9 @@ pin_strip_3x2-90
 r_0805
 r_1206
 sot23-6
-spark_gap_0.8_double
-spark_gap_0.8_single
+spark_gap_pad_0.6
 spark_gap_pad_0.8
+spark_gap_pad_1.0
 ssop-28
 switch
 $EndINDEX
@@ -1457,58 +1457,26 @@ Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE sot23-6
-$MODULE spark_gap_0.8_double
-Po 0 0 0 15 545D1FBE 00000000 ~~
-Li spark_gap_0.8_double
+$MODULE spark_gap_pad_0.6
+Po 0 0 0 15 546CDEB7 00000000 ~~
+Li spark_gap_pad_0.6
 Sc 0
 AR 
 Op 0 0 0
-T0 -1.5 0 0.127 0.127 0 0.03175 N I 21 N "spark_gap_0.8_double"
-T1 0.7 0 0.127 0.127 0 0.03175 N I 21 N "SG**"
+T0 -1.4 0 0.127 0.127 0 0.03175 N I 21 N "spark_gap_pad_0.6"
+T1 0.6 0 0.127 0.127 0 0.03175 N I 21 N "SG"
 $PAD
-Sh "" C 0.6476 0.6476 0 0 0
+Sh "" C 0.4476 0.4476 0 0 0
 Dr 0 0 0
 At SMD N 00008000
 Ne 0 ""
 Po 0 0
-.SolderMask -0.32
-.LocalClearance 0.1534
+.SolderMask -0.001
+.SolderPaste -0.001
+.LocalClearance 0.1524
 .ZoneConnection 2
 $EndPAD
-$PAD
-Sh "" R 0.6476 0.8 0 0 0
-Dr 0 0 0
-At SMD N 00800000
-Ne 0 ""
-Po 0 0
-$EndPAD
-$EndMODULE spark_gap_0.8_double
-$MODULE spark_gap_0.8_single
-Po 0 0 0 15 545D1F75 00000000 ~~
-Li spark_gap_0.8_single
-Sc 0
-AR 
-Op 0 0 0
-T0 -1.5 0 0.127 0.127 0 0.03175 N I 21 N "spark_gap_0.8_single"
-T1 0.7 0 0.127 0.127 0 0.03175 N I 21 N "SG**"
-$PAD
-Sh "" C 0.6476 0.6476 0 0 0
-Dr 0 0 0
-At SMD N 00008000
-Ne 0 ""
-Po 0 0
-.SolderMask -0.32
-.LocalClearance 0.1534
-.ZoneConnection 2
-$EndPAD
-$PAD
-Sh "" R 0.6476 0.4 0 0 0
-Dr 0 0 0
-At SMD N 00800000
-Ne 0 ""
-Po 0 -0.2
-$EndPAD
-$EndMODULE spark_gap_0.8_single
+$EndMODULE spark_gap_pad_0.6
 $MODULE spark_gap_pad_0.8
 Po 0 0 0 15 5462607C 00000000 ~~
 Li spark_gap_pad_0.8
@@ -1529,6 +1497,26 @@ Po 0 0
 .ZoneConnection 2
 $EndPAD
 $EndMODULE spark_gap_pad_0.8
+$MODULE spark_gap_pad_1.0
+Po 0 0 0 15 546B7388 00000000 ~~
+Li spark_gap_pad_1.0
+Sc 0
+AR 
+Op 0 0 0
+T0 -1.4 0 0.127 0.127 0 0.03175 N I 21 N "spark_gap_pad_1.0"
+T1 0.6 0 0.127 0.127 0 0.03175 N I 21 N "SG"
+$PAD
+Sh "" C 0.8476 0.8476 0 0 0
+Dr 0 0 0
+At SMD N 00008000
+Ne 0 ""
+Po 0 0
+.SolderMask -0.001
+.SolderPaste -0.001
+.LocalClearance 0.1524
+.ZoneConnection 2
+$EndPAD
+$EndMODULE spark_gap_pad_1.0
 $MODULE ssop-28
 Po 0 0 0 15 4D455CB3 00000000 ~~
 Li ssop-28

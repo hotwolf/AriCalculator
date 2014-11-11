@@ -1,4 +1,4 @@
-Cmp-Mod V01 Created by CvPcb (2013-07-07 BZR 4022)-stable date = 11/11/2014 6:18:52 PM
+Cmp-Mod V01 Created by CvPcb (2013-07-07 BZR 4022)-stable date = 11/15/2014 8:40:24 AM
 
 BeginCmp
 TimeStamp = /544A6FCE/544A80D6;
@@ -626,15 +626,43 @@ EndCmp
 BeginCmp
 TimeStamp = /544A65A6/54624222;
 Reference = LED20;
-ValeurCmp = IR;
-IdModule  = led_5mm_bend;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/54624228;
 Reference = LED21;
-ValeurCmp = IR;
-IdModule  = led_5mm_bend;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A6636/54631CDD;
+Reference = NC1;
+ValeurCmp = NC;
+IdModule  = ;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A6636/54631CF7;
+Reference = NC2;
+ValeurCmp = NC;
+IdModule  = ;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A6636/54631D07;
+Reference = NC3;
+ValeurCmp = NC;
+IdModule  = ;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A6636/54631D16;
+Reference = NC4;
+ValeurCmp = NC;
+IdModule  = ;
 EndCmp
 
 BeginCmp

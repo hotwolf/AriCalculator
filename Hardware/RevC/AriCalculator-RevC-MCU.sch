@@ -7,7 +7,7 @@ $Descr User 8268 5827
 encoding utf-8
 Sheet 6 6
 Title "MCU"
-Date "12 nov 2014"
+Date "15 nov 2014"
 Rev "RevC"
 Comp "Dirk Heisswolf"
 Comment1 ""
