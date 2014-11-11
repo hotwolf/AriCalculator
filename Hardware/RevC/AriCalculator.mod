@@ -1,31 +1,47 @@
-PCBNEW-LibModule-V1  11/25/2014 4:43:06 PM
+PCBNEW-LibModule-V1  11/29/2014 1:55:41 AM
 # encoding utf-8
 Units mm
 $INDEX
 AAA-BATTERY
-DOGL128-6
-HOLE_3.4
-KEY
-Led_0805
-Led_1206
-VIA
 c_0805
+c_0805_with_dimensions
 conn_usb_B_mini_smd
+conn_usb_B_mini_smd_with_dimensions
+dogl128-6
+dogl128-6_with_dimensions
 enclosure
+hole_3.4
 inductor_smd_0805
+inductor_smd_0805_with_dimensions
+key
+key_with_dimensions
+led_0805
+led_0805_with_dimensions
+led_1206
+led_1206_with_dimensions
 led_5mm_bend
 lqfp48
+lqfp48_with_dimensions
 lqh3c
+lqh3c_with_dimensions
 msop-8
+msop-8_with_dimensions
 pin_strip_3x2-90
+pin_strip_3x2-90_with_dimensions
 r_0805
+r_0805_with_dimensions
 r_1206
+r_1206_with_dimensions
 sot23-6
+sot23-6_with_dimensions
 spark_gap_pad_0.6
 spark_gap_pad_0.8
 spark_gap_pad_1.0
 ssop-28
+ssop-28_with_dimensions
 switch
+switch_with_dimensions
+via
 $EndINDEX
 $MODULE AAA-BATTERY
 Po 0 0 0 15 5460FE39 00000000 ~~
@@ -60,9 +76,474 @@ Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE AAA-BATTERY
-$MODULE DOGL128-6
+$MODULE c_0805
+Po 0 0 0 15 5478DD62 00000000 ~~
+Li c_0805
+Cd SMT capacitor, 0805
+Sc 0
+AR 
+Op 0 0 0
+T0 2.6 0 1 1 900 0.16 N I 21 N "c_0805"
+T1 -2.4 0 1 1 900 0.16 N I 21 N "C**"
+$PAD
+Sh "1" R 1.30048 1.4986 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.9525 0
+$EndPAD
+$PAD
+Sh "2" R 1.30048 1.4986 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.9525 0
+$EndPAD
+$SHAPE3D
+Na "3D-Models/c_0805.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE c_0805
+$MODULE c_0805_with_dimensions
+Po 0 0 0 15 49047394 00000000 ~~
+Li c_0805_with_dimensions
+Cd SMT capacitor, 0805
+Sc 0
+AR 
+Op 0 0 0
+T0 0 -0.9906 0.29972 0.29972 0 0.06096 N V 21 N "c_0805"
+T1 0 0.9906 0.29972 0.29972 0 0.06096 N I 21 N "C***"
+DS 0.635 -0.635 0.635 0.635 0.127 21
+DS -0.635 -0.635 -0.635 0.6096 0.127 21
+DS -1.016 -0.635 1.016 -0.635 0.127 21
+DS 1.016 -0.635 1.016 0.635 0.127 21
+DS 1.016 0.635 -1.016 0.635 0.127 21
+DS -1.016 0.635 -1.016 -0.635 0.127 21
+$PAD
+Sh "1" R 1.30048 1.4986 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.9525 0
+$EndPAD
+$PAD
+Sh "2" R 1.30048 1.4986 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.9525 0
+$EndPAD
+$SHAPE3D
+Na "3D-Models/c_0805.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE c_0805_with_dimensions
+$MODULE conn_usb_B_mini_smd
+Po 0 0 0 15 5478F2A3 00000000 ~~
+Li conn_usb_B_mini_smd
+Cd USB B mini SMD connector
+Sc 0
+AR conn_usb_B_micro_smd
+Op 0 0 0
+T0 -0.1 -0.1 1 1 0 0.16 N I 21 N "conn_usb_B_mini_smd"
+T1 0.1 2.1 1 1 0 0.16 N I 21 N "VAL**"
+$PAD
+Sh "6" R 2.1971 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.42976 -3.6195
+$EndPAD
+$PAD
+Sh "1" R 0.49784 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1.59766 -3.8989
+$EndPAD
+$PAD
+Sh "2" R 0.49784 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.79756 -3.8989
+$EndPAD
+$PAD
+Sh "3" R 0.49784 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0 -3.8989
+$EndPAD
+$PAD
+Sh "4" R 0.49784 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.79756 -3.8989
+$EndPAD
+$PAD
+Sh "5" R 0.49784 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1.59766 -3.8989
+$EndPAD
+$PAD
+Sh "" C 0.89916 0.89916 0 0 0
+Dr 0.89916 0 0
+At HOLE N 00E0FFFF
+Ne 0 ""
+Po -2.1971 -1.3716
+$EndPAD
+$PAD
+Sh "" C 0.89916 0.89916 0 0 0
+Dr 0.89916 0 0
+At HOLE N 00E0FFFF
+Ne 0 ""
+Po 2.19964 -1.3716
+$EndPAD
+$PAD
+Sh "9" R 2.1971 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.42976 -3.6195
+$EndPAD
+$PAD
+Sh "8" R 2.1971 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.42976 1.8796
+$EndPAD
+$PAD
+Sh "7" R 2.1971 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.42976 1.8796
+$EndPAD
+$SHAPE3D
+Na "3D-Models/usb_B_mini_smd.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE conn_usb_B_mini_smd
+$MODULE conn_usb_B_mini_smd_with_dimensions
+Po 0 0 0 15 545D0111 00000000 ~~
+Li conn_usb_B_mini_smd_with_dimensions
+Cd USB B mini SMD connector
+Sc 0
+AR conn_usb_B_micro_smd
+Op 0 0 0
+T0 0 6.10108 0.99822 0.99822 0 0.19558 N V 21 N "conn_usb_B_mini_smd"
+T1 0 -5.90042 0.99822 0.99822 0 0.19812 N V 21 N "VAL**"
+DS -3.8989 -4.40436 -5.00126 -4.40436 0.3048 21
+DS -5.00126 -4.40436 -5.00126 -2.90322 0.3048 21
+DS -5.00126 -2.90322 -3.8989 -2.90322 0.3048 21
+DS 5.00126 -2.90068 3.8989 -2.90068 0.3048 21
+DS 5.00126 -4.40182 5.00126 -2.90068 0.3048 21
+DS 3.8989 -4.40182 5.00126 -4.40182 0.3048 21
+DS 3.8989 1.09982 5.00126 1.09982 0.3048 21
+DS 5.00126 1.09982 5.00126 2.60096 0.3048 21
+DS 5.00126 2.60096 3.8989 2.60096 0.3048 21
+DS -3.8989 1.09982 -5.00126 1.09982 0.3048 21
+DS -5.00126 1.09982 -5.00126 2.60096 0.3048 21
+DS -5.00126 2.60096 -3.8989 2.60096 0.3048 21
+DS -3.8989 5.00126 3.8989 5.00126 0.3048 21
+DS 3.8989 5.00126 3.8989 -5.00126 0.3048 21
+DS 3.8989 -5.00126 -3.8989 -5.00126 0.3048 21
+DS -3.8989 -5.00126 -3.8989 5.00126 0.3048 21
+$PAD
+Sh "6" R 2.1971 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.42976 -3.6195
+$EndPAD
+$PAD
+Sh "1" R 0.49784 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1.59766 -3.8989
+$EndPAD
+$PAD
+Sh "2" R 0.49784 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.79756 -3.8989
+$EndPAD
+$PAD
+Sh "3" R 0.49784 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0 -3.8989
+$EndPAD
+$PAD
+Sh "4" R 0.49784 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.79756 -3.8989
+$EndPAD
+$PAD
+Sh "5" R 0.49784 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1.59766 -3.8989
+$EndPAD
+$PAD
+Sh "" C 0.89916 0.89916 0 0 0
+Dr 0.89916 0 0
+At HOLE N 00E0FFFF
+Ne 0 ""
+Po -2.1971 -1.3716
+$EndPAD
+$PAD
+Sh "" C 0.89916 0.89916 0 0 0
+Dr 0.89916 0 0
+At HOLE N 00E0FFFF
+Ne 0 ""
+Po 2.19964 -1.3716
+$EndPAD
+$PAD
+Sh "9" R 2.1971 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.42976 -3.6195
+$EndPAD
+$PAD
+Sh "8" R 2.1971 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.42976 1.8796
+$EndPAD
+$PAD
+Sh "7" R 2.1971 2.1971 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.42976 1.8796
+$EndPAD
+$SHAPE3D
+Na "3D-Models/usb_B_mini_smd.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE conn_usb_B_mini_smd_with_dimensions
+$MODULE dogl128-6
+Po 0 0 0 15 5478CC57 00000000 ~~
+Li dogl128-6
+Sc 0
+AR 
+Op 0 0 0
+T0 -8 -24 1 1 0 0.16 N I 21 N "DOGL128-6"
+T1 8 -24 1 1 0 0.16 N I 21 N "VAL**"
+$PAD
+Sh "21" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 24.13 -26.45
+$EndPAD
+$PAD
+Sh "22" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 21.59 -26.45
+$EndPAD
+$PAD
+Sh "23" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 19.05 -26.45
+$EndPAD
+$PAD
+Sh "24" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 16.51 -26.45
+$EndPAD
+$PAD
+Sh "25" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 13.97 -26.45
+$EndPAD
+$PAD
+Sh "26" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 11.43 -26.45
+$EndPAD
+$PAD
+Sh "27" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 8.89 -26.45
+$EndPAD
+$PAD
+Sh "28" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 6.35 -26.45
+$EndPAD
+$PAD
+Sh "29" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 3.81 -26.45
+$EndPAD
+$PAD
+Sh "30" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 1.27 -26.45
+$EndPAD
+$PAD
+Sh "31" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -1.27 -26.45
+$EndPAD
+$PAD
+Sh "32" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -3.81 -26.45
+$EndPAD
+$PAD
+Sh "33" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -6.35 -26.45
+$EndPAD
+$PAD
+Sh "34" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -8.89 -26.45
+$EndPAD
+$PAD
+Sh "35" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -11.43 -26.45
+$EndPAD
+$PAD
+Sh "36" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -13.97 -26.45
+$EndPAD
+$PAD
+Sh "37" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -16.51 -26.45
+$EndPAD
+$PAD
+Sh "38" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -19.05 -26.45
+$EndPAD
+$PAD
+Sh "39" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -21.59 -26.45
+$EndPAD
+$PAD
+Sh "40" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -24.13 -26.45
+$EndPAD
+$PAD
+Sh "20" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 24.13 21.81
+$EndPAD
+$PAD
+Sh "19" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 21.59 21.81
+$EndPAD
+$PAD
+Sh "18" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 19.05 21.81
+$EndPAD
+$PAD
+Sh "1" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -24.13 21.81
+$EndPAD
+$PAD
+Sh "2" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -21.59 21.81
+$EndPAD
+$PAD
+Sh "3" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -19.05 21.81
+$EndPAD
+$SHAPE3D
+Na "3D-Models/dogl128-6.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE dogl128-6
+$MODULE dogl128-6_with_dimensions
 Po 0 0 0 15 545189A1 00000000 ~~
-Li DOGL128-6
+Li dogl128-6_with_dimensions
 Sc 0
 AR 
 Op 0 0 0
@@ -264,10 +745,81 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE DOGL128-6
-$MODULE HOLE_3.4
+$EndMODULE dogl128-6_with_dimensions
+$MODULE enclosure
+Po 0 0 0 15 5478D2CC 00000000 ~~
+Li enclosure
+Sc 0
+AR 
+Op 0 0 0
+T0 45 -1 1 1 0 0.16 N I 21 N "enclosure"
+T1 30 -1 1 1 0 0.16 N I 21 N "AriCalculator"
+DS 0 5.08 0 142.24 0.2 24
+DS 76.2 142.24 76.2 5.08 0.2 24
+DS 5.08 147.32 71.12 147.32 0.2 24
+DA 71.12 142.24 76.2 142.24 900 0.2 24
+DA 5.08 142.24 5.08 147.32 900 0.2 24
+DS 71.12 0 5.08 0 0.2 24
+DA 71.12 5.08 71.12 0 900 0.2 24
+DA 5.08 5.08 0 5.08 900 0.2 24
+$PAD
+Sh "" C 3.4 3.4 0 0 0
+Dr 3.4 0 0
+At HOLE N 00E0FFFF
+Ne 0 ""
+Po 5.08 137.16
+.LocalClearance 1.8
+$EndPAD
+$PAD
+Sh "" C 3.4 3.4 0 0 0
+Dr 3.4 0 0
+At HOLE N 00E0FFFF
+Ne 0 ""
+Po 71.12 137.16
+.LocalClearance 1.8
+$EndPAD
+$PAD
+Sh "" C 3.4 3.4 0 0 0
+Dr 3.4 0 0
+At HOLE N 00E0FFFF
+Ne 0 ""
+Po 5.08 10.16
+.LocalClearance 1.8
+$EndPAD
+$PAD
+Sh "" C 3.4 3.4 0 0 0
+Dr 3.4 0 0
+At HOLE N 00E0FFFF
+Ne 0 ""
+Po 71.12 10.16
+.LocalClearance 1.8
+$EndPAD
+$PAD
+Sh "" C 3.4 3.4 0 0 0
+Dr 3.4 0 0
+At HOLE N 00E0FFFF
+Ne 0 ""
+Po 5.08 73.66
+.LocalClearance 1.8
+$EndPAD
+$PAD
+Sh "" C 3.4 3.4 0 0 0
+Dr 3.4 0 0
+At HOLE N 00E0FFFF
+Ne 0 ""
+Po 71.12 73.66
+.LocalClearance 1.8
+$EndPAD
+$SHAPE3D
+Na "3D-Models/enclosure.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE enclosure
+$MODULE hole_3.4
 Po 0 0 0 15 5453BE70 00000000 ~~
-Li HOLE_3.4
+Li hole_3.4
 Sc 0
 AR 
 Op 0 0 0
@@ -281,10 +833,140 @@ Ne 0 ""
 Po 0 0
 .LocalClearance 2
 $EndPAD
-$EndMODULE HOLE_3.4
-$MODULE KEY
+$EndMODULE hole_3.4
+$MODULE inductor_smd_0805
+Po 0 0 0 15 54790D5B 00000000 ~~
+Li inductor_smd_0805
+Cd Inductor SMD, 0805
+Sc 0
+AR 
+Op 0 0 0
+T0 0 -1.8 1 1 0 0.16 N I 21 N "inductor_smd_0805"
+T1 0 1.9 1 1 0 0.16 N I 21 N "VAL**"
+$PAD
+Sh "1" R 1.016 1.778 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.889 0
+$EndPAD
+$PAD
+Sh "2" R 1.016 1.778 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.889 0
+$EndPAD
+$SHAPE3D
+Na "3D-Models/inductor_smd_0805.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE inductor_smd_0805
+$MODULE inductor_smd_0805_with_dimensions
+Po 0 0 0 15 50CC7939 00000000 ~~
+Li inductor_smd_0805_with_dimensions
+Cd Inductor SMD, 0805
+Sc 0
+AR 
+Op 0 0 0
+T0 0 -1.69926 0.7493 0.7493 0 0.14986 N V 21 N "inductor_smd_0805"
+T1 0 1.80086 0.7493 0.7493 0 0.14986 N V 21 N "VAL**"
+DS 0.20066 1.00076 0.20066 -1.00076 0.14986 21
+DS -0.20066 -1.00076 -0.20066 1.00076 0.14986 21
+DS -1.50114 -1.00076 1.50114 -1.00076 0.14986 21
+DS 1.50114 -1.00076 1.50114 1.00076 0.14986 21
+DS 1.50114 1.00076 -1.50114 1.00076 0.14986 21
+DS -1.50114 1.00076 -1.50114 -1.00076 0.14986 21
+$PAD
+Sh "1" R 1.016 1.778 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.889 0
+$EndPAD
+$PAD
+Sh "2" R 1.016 1.778 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.889 0
+$EndPAD
+$SHAPE3D
+Na "3D-Models/inductor_smd_0805.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE inductor_smd_0805_with_dimensions
+$MODULE key
+Po 0 0 0 15 5479070A 00000000 ~~
+Li key
+Kw key button
+Sc 0
+AR 
+Op 0 0 0
+T0 -4.3 0 1 1 900 0.16 N I 21 N "KEY_**"
+T1 0 -2.3 1 1 900 0.16 N I 21 N "KEY"
+DS 0 1 0 1.3 0.2 21
+DS 0 0.7 0 0.4 0.2 21
+DS 0.6 1.3 -0.6 1.3 0.2 21
+DS 0.8 0 -0.8 0.7 0.2 21
+DS -1.6 0 -0.8 0 0.2 21
+DS 1.6 0 0.8 0 0.2 21
+$PAD
+Sh "1" C 2 2 0 0 0
+Dr 1 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -2.25 -3.25
+$EndPAD
+$PAD
+Sh "4" C 2 2 0 0 0
+Dr 1 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 2.25 3.25
+$EndPAD
+$PAD
+Sh "2" C 2 2 0 0 0
+Dr 1 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 2.25 -3.25
+$EndPAD
+$PAD
+Sh "3" C 2 2 0 0 0
+Dr 1 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -2.25 3.25
+$EndPAD
+$PAD
+Sh "6" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 2.54 0
+$EndPAD
+$PAD
+Sh "5" C 1.6 1.6 0 0 0
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -2.54 0
+$EndPAD
+$SHAPE3D
+Na "3D-Models/key.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE key
+$MODULE key_with_dimensions
 Po 0 0 0 15 54520735 00000000 ~~
-Li KEY
+Li key_with_dimensions
 Kw key button
 Sc 0
 AR 
@@ -344,10 +1026,41 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE KEY
-$MODULE Led_0805
+$EndMODULE key_with_dimensions
+$MODULE led_0805
+Po 0 0 0 15 5478C886 00000000 ~~
+Li led_0805
+Cd SMD LED, 0805
+Sc 0
+AR 
+Op 0 0 0
+T0 4.15 0 1 1 0 0.16 N I 21 N "LED**"
+T1 -5.45 0 1 1 0 0.16 N I 21 N "Led_0805"
+DS 2 -0.85 2 0.85 0.2 21
+$PAD
+Sh "1" R 1.19888 1.19888 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1.04902 0
+$EndPAD
+$PAD
+Sh "2" R 1.19888 1.19888 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1.04902 0
+$EndPAD
+$SHAPE3D
+Na "3D-Models/led_0805.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE led_0805
+$MODULE led_0805_with_dimensions
 Po 0 0 0 15 50CDB2D1 00000000 ~~
-Li Led_0805
+Li led_0805_with_dimensions
 Cd SMD LED, 0805
 Sc 0
 AR 
@@ -385,10 +1098,48 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE Led_0805
-$MODULE Led_1206
+$EndMODULE led_0805_with_dimensions
+$MODULE led_1206
+Po 0 0 0 15 5478C734 00000000 ~~
+Li led_1206
+Cd SMD LED, 1206
+Sc 0
+AR 
+Op 0 0 0
+T0 0 -1.651 1 1 0 0.16 N I 21 N "LD**"
+T1 0 1.80086 1 1 0 0.16 N I 21 N "led_1206"
+DS 2.85 -1 2.85 1 0.2 21
+DS -0.7 0 0.7 0 0.2 21
+DS 0.4 -0.7 0.4 0.6 0.2 21
+DS 0 -0.15066 0 0.14906 0.2 21
+DS -0.14906 0.29972 -0.14906 -0.29972 0.2 21
+DS -0.29972 -0.59944 -0.29972 0.59944 0.2 21
+DS -0.29972 0.59944 0.29972 0 0.2 21
+DS 0.29972 0 -0.29972 -0.59944 0.2 21
+$PAD
+Sh "1" R 1.4986 1.4986 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1.74752 0
+$EndPAD
+$PAD
+Sh "2" R 1.4986 1.4986 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1.74752 0
+$EndPAD
+$SHAPE3D
+Na "3D-Models/led_1206.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE led_1206
+$MODULE led_1206_with_dimensions
 Po 0 0 0 15 50CDAAE4 00000000 ~~
-Li Led_1206
+Li led_1206_with_dimensions
 Cd SMD LED, 1206
 Sc 0
 AR 
@@ -426,276 +1177,7 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE Led_1206
-$MODULE VIA
-Po 0 0 0 15 54631A94 00000000 ~~
-Li VIA
-Sc 0
-AR 
-Op 0 0 0
-T0 0 0 0.5 0.5 0 0.125 N I 21 N ""
-T1 0 -0.1 0.5 0.5 0 0.125 N I 21 N ""
-$PAD
-Sh "" C 0.62 0.62 0 0 0
-Dr 0.3 0 0
-At STD N 0000FFFF
-Ne 0 ""
-Po 0 0
-.ZoneConnection 2
-$EndPAD
-$EndMODULE VIA
-$MODULE c_0805
-Po 0 0 0 15 49047394 00000000 ~~
-Li c_0805
-Cd SMT capacitor, 0805
-Sc 0
-AR 
-Op 0 0 0
-T0 0 -0.9906 0.29972 0.29972 0 0.06096 N V 21 N "c_0805"
-T1 0 0.9906 0.29972 0.29972 0 0.06096 N I 21 N "C***"
-DS 0.635 -0.635 0.635 0.635 0.127 21
-DS -0.635 -0.635 -0.635 0.6096 0.127 21
-DS -1.016 -0.635 1.016 -0.635 0.127 21
-DS 1.016 -0.635 1.016 0.635 0.127 21
-DS 1.016 0.635 -1.016 0.635 0.127 21
-DS -1.016 0.635 -1.016 -0.635 0.127 21
-$PAD
-Sh "1" R 1.30048 1.4986 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po 0.9525 0
-$EndPAD
-$PAD
-Sh "2" R 1.30048 1.4986 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po -0.9525 0
-$EndPAD
-$SHAPE3D
-Na "3D-Models/c_0805.wrl"
-Sc 1 1 1
-Of 0 0 0
-Ro 0 0 0
-$EndSHAPE3D
-$EndMODULE c_0805
-$MODULE conn_usb_B_mini_smd
-Po 0 0 0 15 545D0111 00000000 ~~
-Li conn_usb_B_mini_smd
-Cd USB B mini SMD connector
-Sc 0
-AR conn_usb_B_micro_smd
-Op 0 0 0
-T0 0 6.10108 0.99822 0.99822 0 0.19558 N V 21 N "conn_usb_B_mini_smd"
-T1 0 -5.90042 0.99822 0.99822 0 0.19812 N V 21 N "VAL**"
-DS -3.8989 -4.40436 -5.00126 -4.40436 0.3048 21
-DS -5.00126 -4.40436 -5.00126 -2.90322 0.3048 21
-DS -5.00126 -2.90322 -3.8989 -2.90322 0.3048 21
-DS 5.00126 -2.90068 3.8989 -2.90068 0.3048 21
-DS 5.00126 -4.40182 5.00126 -2.90068 0.3048 21
-DS 3.8989 -4.40182 5.00126 -4.40182 0.3048 21
-DS 3.8989 1.09982 5.00126 1.09982 0.3048 21
-DS 5.00126 1.09982 5.00126 2.60096 0.3048 21
-DS 5.00126 2.60096 3.8989 2.60096 0.3048 21
-DS -3.8989 1.09982 -5.00126 1.09982 0.3048 21
-DS -5.00126 1.09982 -5.00126 2.60096 0.3048 21
-DS -5.00126 2.60096 -3.8989 2.60096 0.3048 21
-DS -3.8989 5.00126 3.8989 5.00126 0.3048 21
-DS 3.8989 5.00126 3.8989 -5.00126 0.3048 21
-DS 3.8989 -5.00126 -3.8989 -5.00126 0.3048 21
-DS -3.8989 -5.00126 -3.8989 5.00126 0.3048 21
-$PAD
-Sh "6" R 2.1971 2.1971 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po 4.42976 -3.6195
-$EndPAD
-$PAD
-Sh "1" R 0.49784 2.1971 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po -1.59766 -3.8989
-$EndPAD
-$PAD
-Sh "2" R 0.49784 2.1971 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po -0.79756 -3.8989
-$EndPAD
-$PAD
-Sh "3" R 0.49784 2.1971 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po 0 -3.8989
-$EndPAD
-$PAD
-Sh "4" R 0.49784 2.1971 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po 0.79756 -3.8989
-$EndPAD
-$PAD
-Sh "5" R 0.49784 2.1971 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po 1.59766 -3.8989
-$EndPAD
-$PAD
-Sh "" C 0.89916 0.89916 0 0 0
-Dr 0.89916 0 0
-At HOLE N 00E0FFFF
-Ne 0 ""
-Po -2.1971 -1.3716
-$EndPAD
-$PAD
-Sh "" C 0.89916 0.89916 0 0 0
-Dr 0.89916 0 0
-At HOLE N 00E0FFFF
-Ne 0 ""
-Po 2.19964 -1.3716
-$EndPAD
-$PAD
-Sh "9" R 2.1971 2.1971 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po -4.42976 -3.6195
-$EndPAD
-$PAD
-Sh "8" R 2.1971 2.1971 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po -4.42976 1.8796
-$EndPAD
-$PAD
-Sh "7" R 2.1971 2.1971 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po 4.42976 1.8796
-$EndPAD
-$SHAPE3D
-Na "3D-Models/usb_B_mini_smd.wrl"
-Sc 1 1 1
-Of 0 0 0
-Ro 0 0 0
-$EndSHAPE3D
-$EndMODULE conn_usb_B_mini_smd
-$MODULE enclosure
-Po 0 0 0 15 5461D9AA 00000000 ~~
-Li enclosure
-Sc 0
-AR 
-Op 0 0 0
-T0 15.24 -2.54 1 1 0 0.15 N I 21 N "enclosure"
-T1 27.94 -2.54 1 1 0 0.15 N I 21 N "VAL**"
-DS 0 5.08 0 142.24 0.15 21
-DS 76.2 142.24 76.2 5.08 0.15 21
-DS 5.08 147.32 71.12 147.32 0.15 21
-DA 71.12 142.24 76.2 142.24 900 0.15 21
-DA 5.08 142.24 5.08 147.32 900 0.15 21
-DS 71.12 0 5.08 0 0.15 21
-DA 71.12 5.08 71.12 0 900 0.15 21
-DA 5.08 5.08 0 5.08 900 0.15 21
-$PAD
-Sh "" C 3.4 3.4 0 0 0
-Dr 3.4 0 0
-At HOLE N 00E0FFFF
-Ne 0 ""
-Po 5.08 137.16
-.LocalClearance 1.8
-$EndPAD
-$PAD
-Sh "" C 3.4 3.4 0 0 0
-Dr 3.4 0 0
-At HOLE N 00E0FFFF
-Ne 0 ""
-Po 71.12 137.16
-.LocalClearance 1.8
-$EndPAD
-$PAD
-Sh "" C 3.4 3.4 0 0 0
-Dr 3.4 0 0
-At HOLE N 00E0FFFF
-Ne 0 ""
-Po 5.08 10.16
-.LocalClearance 1.8
-$EndPAD
-$PAD
-Sh "" C 3.4 3.4 0 0 0
-Dr 3.4 0 0
-At HOLE N 00E0FFFF
-Ne 0 ""
-Po 71.12 10.16
-.LocalClearance 1.8
-$EndPAD
-$PAD
-Sh "" C 3.4 3.4 0 0 0
-Dr 3.4 0 0
-At HOLE N 00E0FFFF
-Ne 0 ""
-Po 5.08 73.66
-.LocalClearance 1.8
-$EndPAD
-$PAD
-Sh "" C 3.4 3.4 0 0 0
-Dr 3.4 0 0
-At HOLE N 00E0FFFF
-Ne 0 ""
-Po 71.12 73.66
-.LocalClearance 1.8
-$EndPAD
-$SHAPE3D
-Na "3D-Models/enclosure.wrl"
-Sc 1 1 1
-Of 0 0 0
-Ro 0 0 0
-$EndSHAPE3D
-$EndMODULE enclosure
-$MODULE inductor_smd_0805
-Po 0 0 0 15 50CC7939 00000000 ~~
-Li inductor_smd_0805
-Cd Inductor SMD, 0805
-Sc 0
-AR 
-Op 0 0 0
-T0 0 -1.69926 0.7493 0.7493 0 0.14986 N V 21 N "inductor_smd_0805"
-T1 0 1.80086 0.7493 0.7493 0 0.14986 N V 21 N "VAL**"
-DS 0.20066 1.00076 0.20066 -1.00076 0.14986 21
-DS -0.20066 -1.00076 -0.20066 1.00076 0.14986 21
-DS -1.50114 -1.00076 1.50114 -1.00076 0.14986 21
-DS 1.50114 -1.00076 1.50114 1.00076 0.14986 21
-DS 1.50114 1.00076 -1.50114 1.00076 0.14986 21
-DS -1.50114 1.00076 -1.50114 -1.00076 0.14986 21
-$PAD
-Sh "1" R 1.016 1.778 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po -0.889 0
-$EndPAD
-$PAD
-Sh "2" R 1.016 1.778 0 0 0
-Dr 0 0 0
-At SMD N 00888000
-Ne 0 ""
-Po 0.889 0
-$EndPAD
-$SHAPE3D
-Na "3D-Models/inductor_smd_0805.wrl"
-Sc 1 1 1
-Of 0 0 0
-Ro 0 0 0
-$EndSHAPE3D
-$EndMODULE inductor_smd_0805
+$EndMODULE led_1206_with_dimensions
 $MODULE led_5mm_bend
 Po 0 0 0 15 532D9A66 00000000 ~~
 Li led_5mm_bend
@@ -734,8 +1216,363 @@ Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE led_5mm_bend
 $MODULE lqfp48
-Po 0 0 0 15 545778C6 00000000 ~~
+Po 0 0 0 15 54791982 00000000 ~~
 Li lqfp48
+Cd LQFP-48
+Sc 0
+AR lqfp48
+Op 0 0 0
+T0 0 -2.4 1 1 0 0.16 N I 21 N "IC**"
+T1 0 0 1 1 0 0.16 N V 21 N "48LQFP"
+DC -2.5 2.5 -2.5 2.8 0.2 21
+DC -2.5 2.5 -2.5 2.6 0.2 21
+DC -2.5 2.5 -2.5 2.7 0.2 21
+$PAD
+Sh "4" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1.24968 4.09956
+$EndPAD
+$PAD
+Sh "5" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.7493 4.09956
+$EndPAD
+$PAD
+Sh "6" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.24892 4.09956
+$EndPAD
+$PAD
+Sh "7" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.24892 4.09956
+$EndPAD
+$PAD
+Sh "8" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.7493 4.09956
+$EndPAD
+$PAD
+Sh "1" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -2.75082 4.09956
+$EndPAD
+$PAD
+Sh "2" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -2.25044 4.09956
+$EndPAD
+$PAD
+Sh "3" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1.75006 4.09956
+$EndPAD
+$PAD
+Sh "13" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.09956 2.75082
+$EndPAD
+$PAD
+Sh "14" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.09956 2.25044
+$EndPAD
+$PAD
+Sh "15" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.09956 1.75006
+$EndPAD
+$PAD
+Sh "16" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.09956 1.24968
+$EndPAD
+$PAD
+Sh "17" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.09956 0.7493
+$EndPAD
+$PAD
+Sh "18" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.09956 0.24892
+$EndPAD
+$PAD
+Sh "19" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.09956 -0.24892
+$EndPAD
+$PAD
+Sh "20" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.09956 -0.7493
+$EndPAD
+$PAD
+Sh "25" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 2.75082 -4.09956
+$EndPAD
+$PAD
+Sh "26" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 2.25044 -4.09956
+$EndPAD
+$PAD
+Sh "27" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1.75006 -4.09956
+$EndPAD
+$PAD
+Sh "28" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1.24968 -4.09956
+$EndPAD
+$PAD
+Sh "29" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.7493 -4.09956
+$EndPAD
+$PAD
+Sh "30" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.24892 -4.09956
+$EndPAD
+$PAD
+Sh "31" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.24892 -4.09956
+$EndPAD
+$PAD
+Sh "32" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.7493 -4.09956
+$EndPAD
+$PAD
+Sh "37" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.09956 -2.75082
+$EndPAD
+$PAD
+Sh "38" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.09956 -2.25044
+$EndPAD
+$PAD
+Sh "39" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.09956 -1.75006
+$EndPAD
+$PAD
+Sh "40" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.09956 -1.24968
+$EndPAD
+$PAD
+Sh "41" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.09956 -0.7493
+$EndPAD
+$PAD
+Sh "42" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.09956 -0.24892
+$EndPAD
+$PAD
+Sh "43" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.09956 0.24892
+$EndPAD
+$PAD
+Sh "44" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.09956 0.7493
+$EndPAD
+$PAD
+Sh "9" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1.24968 4.09956
+$EndPAD
+$PAD
+Sh "10" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1.75006 4.09956
+$EndPAD
+$PAD
+Sh "11" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 2.25044 4.09956
+$EndPAD
+$PAD
+Sh "12" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 2.75082 4.09956
+$EndPAD
+$PAD
+Sh "21" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.09956 -1.24968
+$EndPAD
+$PAD
+Sh "22" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.09956 -1.75006
+$EndPAD
+$PAD
+Sh "23" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.09956 -2.25044
+$EndPAD
+$PAD
+Sh "24" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.09956 -2.75082
+$EndPAD
+$PAD
+Sh "33" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1.24968 -4.09956
+$EndPAD
+$PAD
+Sh "34" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1.75006 -4.09956
+$EndPAD
+$PAD
+Sh "35" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -2.25044 -4.09956
+$EndPAD
+$PAD
+Sh "36" R 0.29972 1.30048 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -2.75082 -4.09956
+$EndPAD
+$PAD
+Sh "45" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.09956 1.24968
+$EndPAD
+$PAD
+Sh "46" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.09956 1.75006
+$EndPAD
+$PAD
+Sh "47" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.09956 2.25044
+$EndPAD
+$PAD
+Sh "48" R 1.30048 0.29972 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.09956 2.75082
+$EndPAD
+$SHAPE3D
+Na "3D-Models/lqfp-48.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE lqfp48
+$MODULE lqfp48_with_dimensions
+Po 0 0 0 15 545778C6 00000000 ~~
+Li lqfp48_with_dimensions
 Cd LQFP-48
 Sc 0
 AR lqfp48
@@ -1106,10 +1943,54 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE lqfp48
+$EndMODULE lqfp48_with_dimensions
 $MODULE lqh3c
-Po 0 0 0 15 54631921 00000000 ~~
+Po 0 0 0 15 5478EB50 00000000 ~~
 Li lqh3c
+Cd SMT resistor, 1206
+Sc 0
+AR 
+Op 0 0 0
+T0 0 -1.7 1 1 0 0.16 N I 21 N "LQH3C"
+T1 0 1.9 1 1 0 0.16 N I 21 N "L**"
+$PAD
+Sh "1" R 1 2 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1 0
+$EndPAD
+$PAD
+Sh "2" R 1 2 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1 0
+$EndPAD
+$PAD
+Sh "1" R 1.25 1 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 2.125 0
+$EndPAD
+$PAD
+Sh "2" R 1.25 1 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -2.125 0
+$EndPAD
+$SHAPE3D
+Na "3D-Models/lqh3c.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE lqh3c
+$MODULE lqh3c_with_dimensions
+Po 0 0 0 15 54631921 00000000 ~~
+Li lqh3c_with_dimensions
 Cd SMT resistor, 1206
 Sc 0
 AR 
@@ -1154,10 +2035,89 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE lqh3c
+$EndMODULE lqh3c_with_dimensions
 $MODULE msop-8
-Po 0 0 0 15 54579690 00000000 ~~
+Po 0 0 0 15 547906BE 00000000 ~~
 Li msop-8
+Cd MSOP-12
+Sc 0
+AR msoic-10
+Op 0 0 0
+.SolderMask 0.06858
+.SolderPaste -0.04826
+.LocalClearance 0.09906
+At SMD
+T0 0 -3.5 1 1 0 0.16 N I 21 N "IC**"
+T1 0 0.1 1 1 0 0.16 N I 21 N "MSOP-8"
+DC -0.95 1.1 -1.05 1.1 0.3 21
+DC -0.95 1.1 -1.15 1.1 0.127 21
+DC -0.9502 1.10236 -1.15086 1.30048 0.127 21
+$PAD
+Sh "1" R 0.42 1.45 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.975 2.2
+$EndPAD
+$PAD
+Sh "2" R 0.42 1.45 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.325 2.2
+$EndPAD
+$PAD
+Sh "3" R 0.42 1.45 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.325 2.2
+$EndPAD
+$PAD
+Sh "4" R 0.42 1.45 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.975 2.2
+$EndPAD
+$PAD
+Sh "5" R 0.42 1.45 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.975 -2.2
+$EndPAD
+$PAD
+Sh "6" R 0.42 1.45 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.325 -2.2
+$EndPAD
+$PAD
+Sh "7" R 0.42 1.45 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.325 -2.2
+$EndPAD
+$PAD
+Sh "8" R 0.42 1.45 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.975 -2.2
+$EndPAD
+$SHAPE3D
+Na "3D-Models/msop-8.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE msop-8
+$MODULE msop-8_with_dimensions
+Po 0 0 0 15 54579690 00000000 ~~
+Li msop-8_with_dimensions
 Cd MSOP-12
 Sc 0
 AR msoic-10
@@ -1245,10 +2205,69 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE msop-8
+$EndMODULE msop-8_with_dimensions
 $MODULE pin_strip_3x2-90
-Po 0 0 0 15 54578A00 00000000 ~~
+Po 0 0 0 15 5478CEC7 00000000 ~~
 Li pin_strip_3x2-90
+Cd Pin strip 3x2pin 90
+Kw CONN DEV
+Sc 0
+AR pin_strip_3x2-90
+Op 0 0 0
+T0 0 -3.2 1 1 0 0.16 N I 21 N "PIN_STRIP_3x2-90"
+T1 0 3.6 1 1 0 0.16 N I 21 N "CON**"
+$PAD
+Sh "1" R 1.8 1.8 0 0 0
+Dr 1 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -2.54 1.27
+$EndPAD
+$PAD
+Sh "2" C 1.8 1.8 0 0 0
+Dr 1 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -2.54 -1.27
+$EndPAD
+$PAD
+Sh "3" C 1.8 1.8 0 0 0
+Dr 1 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 0 1.27
+$EndPAD
+$PAD
+Sh "4" C 1.8 1.8 0 0 0
+Dr 1 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 0 -1.27
+$EndPAD
+$PAD
+Sh "5" C 1.8 1.8 0 0 0
+Dr 1 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 2.54 1.27
+$EndPAD
+$PAD
+Sh "6" C 1.8 1.8 0 0 0
+Dr 1 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 2.54 -1.27
+$EndPAD
+$SHAPE3D
+Na "3D-Models/pin_strip_3x2-90.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE pin_strip_3x2-90
+$MODULE pin_strip_3x2-90_with_dimensions
+Po 0 0 0 15 54578A00 00000000 ~~
+Li pin_strip_3x2-90_with_dimensions
 Cd Pin strip 3x2pin 90
 Kw CONN DEV
 Sc 0
@@ -1314,10 +2333,40 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE pin_strip_3x2-90
+$EndMODULE pin_strip_3x2-90_with_dimensions
 $MODULE r_0805
-Po 0 0 0 15 49047384 00000000 ~~
+Po 0 0 0 15 5478E812 00000000 ~~
 Li r_0805
+Cd SMT resistor, 0805
+Sc 0
+AR 
+Op 0 0 0
+T0 -2.6 0 1 1 900 0.16 N I 21 N "r_0805"
+T1 2.6 0 1 1 900 0.16 N I 21 N "R**"
+$PAD
+Sh "1" R 1.30048 1.4986 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.9525 0
+$EndPAD
+$PAD
+Sh "2" R 1.30048 1.4986 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.9525 0
+$EndPAD
+$SHAPE3D
+Na "3D-Models/r_0805.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE r_0805
+$MODULE r_0805_with_dimensions
+Po 0 0 0 15 49047384 00000000 ~~
+Li r_0805_with_dimensions
 Cd SMT resistor, 0805
 Sc 0
 AR 
@@ -1350,10 +2399,40 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE r_0805
+$EndMODULE r_0805_with_dimensions
 $MODULE r_1206
-Po 0 0 0 15 490473CD 00000000 ~~
+Po 0 0 0 15 5478E70D 00000000 ~~
 Li r_1206
+Cd SMT resistor, 1206
+Sc 0
+AR 
+Op 0 0 0
+T0 0 -1.8 1 1 0 0.16 N I 21 N "r_1206"
+T1 0 1.9 1 1 0 0.16 N I 21 N "R**"
+$PAD
+Sh "1" R 1.6002 1.8034 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1.397 0
+$EndPAD
+$PAD
+Sh "2" R 1.6002 1.8034 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1.397 0
+$EndPAD
+$SHAPE3D
+Na "3D-Models/r_1206.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE r_1206
+$MODULE r_1206_with_dimensions
+Po 0 0 0 15 490473CD 00000000 ~~
+Li r_1206_with_dimensions
 Cd SMT resistor, 1206
 Sc 0
 AR 
@@ -1386,10 +2465,69 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE r_1206
+$EndMODULE r_1206_with_dimensions
 $MODULE sot23-6
-Po 0 0 0 15 490475C6 00000000 ~~
+Po 0 0 0 15 54790A94 00000000 ~~
 Li sot23-6
+Cd SOT23-6
+Sc 0
+AR 
+Op 0 0 0
+T0 -2.2 0 1 1 900 0.16 N I 21 N "SOT23-6"
+T1 2.2 0 1 1 900 0.16 N I 21 N "IC**"
+DC -1.5 0.3 -1.5 0.4 0.2 21
+$PAD
+Sh "1" R 0.59944 1.00076 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.9525 1.05664
+$EndPAD
+$PAD
+Sh "3" R 0.59944 1.00076 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.9525 1.05664
+$EndPAD
+$PAD
+Sh "2" R 0.59944 1.00076 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0 1.05664
+$EndPAD
+$PAD
+Sh "4" R 0.59944 1.00076 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.9525 -1.05664
+$EndPAD
+$PAD
+Sh "6" R 0.59944 1.00076 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.9525 -1.05664
+$EndPAD
+$PAD
+Sh "5" R 0.59944 1.00076 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0 -1.05664
+$EndPAD
+$SHAPE3D
+Na "3D-Models/sot23-6.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE sot23-6
+$MODULE sot23-6_with_dimensions
+Po 0 0 0 15 490475C6 00000000 ~~
+Li sot23-6_with_dimensions
 Cd SOT23-6
 Sc 0
 AR 
@@ -1456,15 +2594,15 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE sot23-6
+$EndMODULE sot23-6_with_dimensions
 $MODULE spark_gap_pad_0.6
-Po 0 0 0 15 546CDEB7 00000000 ~~
+Po 0 0 0 15 5478F6EB 00000000 ~~
 Li spark_gap_pad_0.6
 Sc 0
 AR 
 Op 0 0 0
-T0 -1.4 0 0.127 0.127 0 0.03175 N I 21 N "spark_gap_pad_0.6"
-T1 0.6 0 0.127 0.127 0 0.03175 N I 21 N "SG"
+T0 0.3 0.3 0.127 0.127 0 0.03175 N I 21 N "SG"
+T1 -0.3 -0.3 0.127 0.127 0 0.03175 N I 21 N "0.6"
 $PAD
 Sh "" C 0.4476 0.4476 0 0 0
 Dr 0 0 0
@@ -1478,13 +2616,13 @@ Po 0 0
 $EndPAD
 $EndMODULE spark_gap_pad_0.6
 $MODULE spark_gap_pad_0.8
-Po 0 0 0 15 5462607C 00000000 ~~
+Po 0 0 0 15 5478F6C4 00000000 ~~
 Li spark_gap_pad_0.8
 Sc 0
 AR 
 Op 0 0 0
-T0 -1.4 0 0.127 0.127 0 0.03175 N I 21 N "spark_gap_pad_0.8"
-T1 0.6 0 0.127 0.127 0 0.03175 N I 21 N "SG"
+T0 -0.4 -0.4 0.127 0.127 0 0.03175 N I 21 N "SG"
+T1 0.4 0.4 0.127 0.127 0 0.03175 N I 21 N "0.8"
 $PAD
 Sh "" C 0.6476 0.6476 0 0 0
 Dr 0 0 0
@@ -1498,13 +2636,13 @@ Po 0 0
 $EndPAD
 $EndMODULE spark_gap_pad_0.8
 $MODULE spark_gap_pad_1.0
-Po 0 0 0 15 546B7388 00000000 ~~
+Po 0 0 0 15 5478F718 00000000 ~~
 Li spark_gap_pad_1.0
 Sc 0
 AR 
 Op 0 0 0
-T0 -1.4 0 0.127 0.127 0 0.03175 N I 21 N "spark_gap_pad_1.0"
-T1 0.6 0 0.127 0.127 0 0.03175 N I 21 N "SG"
+T0 -0.5 -0.5 0.127 0.127 0 0.03175 N I 21 N "SG"
+T1 0.5 0.5 0.127 0.127 0 0.03175 N I 21 N "1.0"
 $PAD
 Sh "" C 0.8476 0.8476 0 0 0
 Dr 0 0 0
@@ -1518,8 +2656,223 @@ Po 0 0
 $EndPAD
 $EndMODULE spark_gap_pad_1.0
 $MODULE ssop-28
-Po 0 0 0 15 4D455CB3 00000000 ~~
+Po 0 0 0 15 547912B1 00000000 ~~
 Li ssop-28
+Cd SSOP-16
+Sc 0
+AR 
+Op 0 0 0
+T0 0 -1.7 1 1 0 0.16 N I 21 N "SSOP-28"
+T1 0.1 0.1 1 1 0 0.16 N V 21 N "IC**"
+DC -4.3 1.7 -4.3 1.8 0.2 21
+DC -4.3 1.7 -4.3 2 0.2 21
+DC -4.3 1.7 -4.3 1.9 0.2 21
+$PAD
+Sh "7" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.32512 3.59918
+$EndPAD
+$PAD
+Sh "8" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.32512 3.59918
+$EndPAD
+$PAD
+Sh "9" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.97536 3.59918
+$EndPAD
+$PAD
+Sh "10" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1.6256 3.59918
+$EndPAD
+$PAD
+Sh "25" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -2.27584 -3.59918
+$EndPAD
+$PAD
+Sh "4" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -2.27584 3.59918
+$EndPAD
+$PAD
+Sh "5" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1.6256 3.59918
+$EndPAD
+$PAD
+Sh "6" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.97536 3.59918
+$EndPAD
+$PAD
+Sh "18" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 2.27584 -3.59918
+$EndPAD
+$PAD
+Sh "19" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1.6256 -3.59918
+$EndPAD
+$PAD
+Sh "20" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.97536 -3.59918
+$EndPAD
+$PAD
+Sh "21" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 0.32512 -3.59918
+$EndPAD
+$PAD
+Sh "22" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.32512 -3.59918
+$EndPAD
+$PAD
+Sh "23" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -0.97536 -3.59918
+$EndPAD
+$PAD
+Sh "11" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 2.27584 3.59918
+$EndPAD
+$PAD
+Sh "24" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1.6256 -3.59918
+$EndPAD
+$PAD
+Sh "26" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -2.92608 -3.59918
+$EndPAD
+$PAD
+Sh "27" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -3.57378 -3.59918
+$EndPAD
+$PAD
+Sh "28" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.22402 -3.59918
+$EndPAD
+$PAD
+Sh "1" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -4.22402 3.59918
+$EndPAD
+$PAD
+Sh "2" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -3.57378 3.59918
+$EndPAD
+$PAD
+Sh "3" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -2.92608 3.59918
+$EndPAD
+$PAD
+Sh "12" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 2.92608 3.59918
+$EndPAD
+$PAD
+Sh "13" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 3.57378 3.59918
+$EndPAD
+$PAD
+Sh "14" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.22402 3.59918
+$EndPAD
+$PAD
+Sh "15" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 4.22402 -3.59918
+$EndPAD
+$PAD
+Sh "16" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 3.57378 -3.59918
+$EndPAD
+$PAD
+Sh "17" R 0.4064 1.651 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 2.92608 -3.59918
+$EndPAD
+$SHAPE3D
+Na "3D-Models/ssop-28.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE ssop-28
+$MODULE ssop-28_with_dimensions
+Po 0 0 0 15 4D455CB3 00000000 ~~
+Li ssop-28_with_dimensions
 Cd SSOP-16
 Sc 0
 AR 
@@ -1733,10 +3086,88 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE ssop-28
+$EndMODULE ssop-28_with_dimensions
 $MODULE switch
-Po 0 0 0 15 5474A1C6 00000000 ~~
+Po 0 0 0 15 5478D13C 00000000 ~~
 Li switch
+Sc 0
+AR 
+Op 0 0 0
+T0 0 2.1 1 1 0 0.16 N I 21 N "switch"
+T1 0 3.8 1 1 0 0.16 N I 21 N "SW**"
+$PAD
+Sh "3" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 2.54 -2.54
+$EndPAD
+$PAD
+Sh "2" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 0 -2.54
+$EndPAD
+$PAD
+Sh "1" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -2.54 -2.54
+$EndPAD
+$PAD
+Sh "3" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 2.54 0
+$EndPAD
+$PAD
+Sh "2" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 0 0
+$EndPAD
+$PAD
+Sh "1" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -2.54 0
+$EndPAD
+$PAD
+Sh "1" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -2.54 0
+$EndPAD
+$PAD
+Sh "2" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 0 0
+$EndPAD
+$PAD
+Sh "3" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 2.54 0
+$EndPAD
+$SHAPE3D
+Na "3D-Models/switch.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE switch
+$MODULE switch_with_dimensions
+Po 0 0 0 15 5474A1C6 00000000 ~~
+Li switch_with_dimensions
 Sc 0
 AR 
 Op 0 0 0
@@ -1826,5 +3257,22 @@ Sc 1 1 1
 Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
-$EndMODULE switch
+$EndMODULE switch_with_dimensions
+$MODULE via
+Po 0 0 0 15 5478D029 00000000 ~~
+Li via
+Sc 0
+AR 
+Op 0 0 0
+T0 0 0.7 0.5 0.5 0 0.125 N I 21 N "VIA"
+T1 0 -0.7 0.5 0.5 0 0.125 N I 21 N "GND"
+$PAD
+Sh "" C 0.62 0.62 0 0 0
+Dr 0.3 0 0
+At STD N 0000FFFF
+Ne 0 ""
+Po 0 0
+.ZoneConnection 2
+$EndPAD
+$EndMODULE via
 $EndLIBRARY

@@ -1,4 +1,4 @@
-Cmp-Mod V01 Created by CvPcb (2013-07-07 BZR 4022)-stable date = 11/15/2014 8:40:24 AM
+Cmp-Mod V01 Created by PcbNew date = 11/28/2014 8:43:09 PM
 
 BeginCmp
 TimeStamp = /544A6FCE/544A80D6;
@@ -172,7 +172,7 @@ BeginCmp
 TimeStamp = /544A65A6/544AB361;
 Reference = DISP1;
 ValeurCmp = DOGL128-6;
-IdModule  = DOGL128-6;
+IdModule  = dogl128-6;
 EndCmp
 
 BeginCmp
@@ -214,266 +214,266 @@ BeginCmp
 TimeStamp = /544A66C8/545A28D1;
 Reference = KEY_A0;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A271F;
 Reference = KEY_A1;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A2779;
 Reference = KEY_A2;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A2788;
 Reference = KEY_A3;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A2797;
 Reference = KEY_A4;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A28C2;
 Reference = KEY_B0;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A2710;
 Reference = KEY_B1;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A276A;
 Reference = KEY_B2;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A27A6;
 Reference = KEY_B3;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A27E2;
 Reference = KEY_B4;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A28B3;
 Reference = KEY_C0;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A2701;
 Reference = KEY_C1;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A275B;
 Reference = KEY_C2;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A27B5;
 Reference = KEY_C3;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A27F1;
 Reference = KEY_C4;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A28A4;
 Reference = KEY_D0;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A26F2;
 Reference = KEY_D1;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A274C;
 Reference = KEY_D2;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A27C4;
 Reference = KEY_D3;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A2800;
 Reference = KEY_D4;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A2895;
 Reference = KEY_E0;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A26E3;
 Reference = KEY_E1;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A273D;
 Reference = KEY_E2;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A27D3;
 Reference = KEY_E3;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A280F;
 Reference = KEY_E4;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A284B;
 Reference = KEY_E5;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A2886;
 Reference = KEY_F0;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A26D4;
 Reference = KEY_F1;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A272E;
 Reference = KEY_F2;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A281E;
 Reference = KEY_F3;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A282D;
 Reference = KEY_F4;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A283C;
 Reference = KEY_F5;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A2877;
 Reference = KEY_G0;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A26BB;
 Reference = KEY_G1;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A26AC;
 Reference = KEY_G2;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A269D;
 Reference = KEY_G3;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A268E;
 Reference = KEY_G4;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A66C8/545A267F;
 Reference = KEY_G5;
 ValeurCmp = KEY;
-IdModule  = KEY;
+IdModule  = key;
 EndCmp
 
 BeginCmp
@@ -494,147 +494,147 @@ BeginCmp
 TimeStamp = /544A64C5/544FF88C;
 Reference = LED1;
 ValeurCmp = GREEN;
-IdModule  = Led_0805;
+IdModule  = led_0805;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A64C5/544FF89B;
 Reference = LED2;
 ValeurCmp = RED;
-IdModule  = Led_0805;
+IdModule  = led_0805;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A6636/54504211;
 Reference = LED3;
 ValeurCmp = YELLOW;
-IdModule  = Led_0805;
+IdModule  = led_0805;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/54623198;
 Reference = LED4;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/5462333F;
 Reference = LED5;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/54623359;
 Reference = LED6;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/5462335F;
 Reference = LED7;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/54623365;
 Reference = LED8;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/5462336B;
 Reference = LED9;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/54623371;
 Reference = LED10;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/54623377;
 Reference = LED11;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/5462337D;
 Reference = LED12;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/54623383;
 Reference = LED13;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/54623389;
 Reference = LED14;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/5462338F;
 Reference = LED15;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/546233DC;
 Reference = LED16;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/546233E2;
 Reference = LED17;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/546233E8;
 Reference = LED18;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/546233EE;
 Reference = LED19;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/54624222;
 Reference = LED20;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A65A6/54624228;
 Reference = LED21;
 ValeurCmp = BACKLIGHT;
-IdModule  = Led_1206;
+IdModule  = led_1206;
 EndCmp
 
 BeginCmp
