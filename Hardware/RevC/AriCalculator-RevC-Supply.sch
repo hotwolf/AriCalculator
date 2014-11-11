@@ -7,7 +7,7 @@ $Descr User 8268 5827
 encoding utf-8
 Sheet 2 6
 Title "Supply"
-Date "11 nov 2014"
+Date "12 nov 2014"
 Rev "RevC"
 Comp "Dirk Heisswolf"
 Comment1 ""

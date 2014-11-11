@@ -7,7 +7,7 @@ $Descr User 8268 5827
 encoding utf-8
 Sheet 5 6
 Title "UART"
-Date "11 nov 2014"
+Date "12 nov 2014"
 Rev "RevC"
 Comp "Dirk Heisswolf"
 Comment1 ""
@@ -315,8 +315,56 @@ Text Label 2650 2300 0    60   ~ 0
 USBD+
 Text Label 2650 2200 0    60   ~ 0
 USBD-
-NoConn ~ 1500 2000
-NoConn ~ 1500 2150
-NoConn ~ 1500 2450
-NoConn ~ 1500 2600
+$Comp
+L NC NC?
+U 1 1 54631CDD
+P 1450 2000
+F 0 "NC?" H 1300 1950 20  0001 C CNN
+F 1 "NC" H 1300 2050 20  0001 C CNN
+F 2 "" H 1300 1600 60  0000 C CNN
+F 3 "" H 1300 1600 60  0000 C CNN
+	1    1450 2000
+	1    0    0    -1  
+$EndComp
+$Comp
+L NC NC?
+U 1 1 54631CF7
+P 1450 2150
+F 0 "NC?" H 1300 2100 20  0001 C CNN
+F 1 "NC" H 1300 2200 20  0001 C CNN
+F 2 "" H 1300 1750 60  0000 C CNN
+F 3 "" H 1300 1750 60  0000 C CNN
+	1    1450 2150
+	1    0    0    -1  
+$EndComp
+$Comp
+L NC NC?
+U 1 1 54631D07
+P 1450 2450
+F 0 "NC?" H 1300 2400 20  0001 C CNN
+F 1 "NC" H 1300 2500 20  0001 C CNN
+F 2 "" H 1300 2050 60  0000 C CNN
+F 3 "" H 1300 2050 60  0000 C CNN
+	1    1450 2450
+	1    0    0    -1  
+$EndComp
+$Comp
+L NC NC?
+U 1 1 54631D16
+P 1450 2600
+F 0 "NC?" H 1300 2550 20  0001 C CNN
+F 1 "NC" H 1300 2650 20  0001 C CNN
+F 2 "" H 1300 2200 60  0000 C CNN
+F 3 "" H 1300 2200 60  0000 C CNN
+	1    1450 2600
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	1500 2000 1450 2000
+Wire Wire Line
+	1500 2150 1450 2150
+Wire Wire Line
+	1500 2450 1450 2450
+Wire Wire Line
+	1500 2600 1450 2600
 $EndSCHEMATC

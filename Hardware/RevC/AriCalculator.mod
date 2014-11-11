@@ -1,4 +1,4 @@
-PCBNEW-LibModule-V1  11/11/2014 8:16:17 PM
+PCBNEW-LibModule-V1  11/12/2014 9:30:34 AM
 # encoding utf-8
 Units mm
 $INDEX
@@ -8,6 +8,7 @@ HOLE_3.4
 KEY
 Led_0805
 Led_1206
+VIA
 c_0805
 conn_usb_B_mini_smd
 enclosure
@@ -426,6 +427,23 @@ Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE Led_1206
+$MODULE VIA
+Po 0 0 0 15 54631A94 00000000 ~~
+Li VIA
+Sc 0
+AR 
+Op 0 0 0
+T0 0 0 0.5 0.5 0 0.125 N I 21 N ""
+T1 0 -0.1 0.5 0.5 0 0.125 N I 21 N ""
+$PAD
+Sh "" C 0.62 0.62 0 0 0
+Dr 0.3 0 0
+At STD N 0000FFFF
+Ne 0 ""
+Po 0 0
+.ZoneConnection 2
+$EndPAD
+$EndMODULE VIA
 $MODULE c_0805
 Po 0 0 0 15 49047394 00000000 ~~
 Li c_0805
@@ -1090,7 +1108,7 @@ Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE lqfp48
 $MODULE lqh3c
-Po 0 0 0 15 5457AE36 00000000 ~~
+Po 0 0 0 15 54631921 00000000 ~~
 Li lqh3c
 Cd SMT resistor, 1206
 Sc 0
@@ -1103,14 +1121,14 @@ DS -1.6 1.2 1.6 1.2 0.15 21
 DS 1.6 1.2 1.6 -1.2 0.15 21
 DS 1.6 -1.2 -1.6 -1.2 0.15 21
 $PAD
-Sh "" R 1 2 0 0 0
+Sh "1" R 1 2 0 0 0
 Dr 0 0 0
 At SMD N 00888000
 Ne 0 ""
 Po 1 0
 $EndPAD
 $PAD
-Sh "" R 1 2 0 0 0
+Sh "2" R 1 2 0 0 0
 Dr 0 0 0
 At SMD N 00888000
 Ne 0 ""
