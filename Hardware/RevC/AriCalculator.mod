@@ -1,4 +1,4 @@
-PCBNEW-LibModule-V1  11/19/2014 7:17:33 PM
+PCBNEW-LibModule-V1  11/25/2014 4:43:06 PM
 # encoding utf-8
 Units mm
 $INDEX
@@ -1735,13 +1735,16 @@ Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE ssop-28
 $MODULE switch
-Po 0 0 0 15 5457BB33 00000000 ~~
+Po 0 0 0 15 5474A1C6 00000000 ~~
 Li switch
 Sc 0
 AR 
 Op 0 0 0
-T0 0 -2.54 1 1 0 0.15 N V 21 N "switch"
-T1 0 8.89 1 1 0 0.15 N V 21 N "SW**"
+T0 0 4.2 1 1 0 0.15 N I 21 N "switch"
+T1 0 2.3 1 1 0 0.15 N V 21 N "SW**"
+DS -2.6 0 -2.6 1.2 0.15 21
+DS 0 0 0 1.2 0.15 21
+DS 2.5 0.1 2.5 1.2 0.15 21
 DS 4.6 5.7 4.6 6.2 0.15 21
 DS 4.6 6.2 2.1 7.7 0.15 21
 DS 2.1 7.7 1.2 7.7 0.15 21
@@ -1754,6 +1757,48 @@ DS -5 5.7 -5 1.2 0.15 21
 DS 2.5 0.1 2.5 1.2 0.15 21
 DS 0 0 0 1.2 0.15 21
 DS -2.6 0 -2.6 1.2 0.15 21
+$PAD
+Sh "3" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 2.54 -2.54
+$EndPAD
+$PAD
+Sh "2" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 0 -2.54
+$EndPAD
+$PAD
+Sh "1" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -2.54 -2.54
+$EndPAD
+$PAD
+Sh "3" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 2.54 0
+$EndPAD
+$PAD
+Sh "2" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 0 0
+$EndPAD
+$PAD
+Sh "1" C 1.6 1.6 0 0 900
+Dr 0.8 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po -2.54 0
+$EndPAD
 $PAD
 Sh "1" C 1.6 1.6 0 0 900
 Dr 0.8 0 0
