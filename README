@@ -1,18 +1,37 @@
 AriCalculator
 =============
-A homemade and fully customizable calculator.
+A homemade calculator.
 
 This design is based on the S12G Micro EVB (https://github.com/hotwolf/S12G-Micro-EVB).
 
-Files:
-"AriCalculator BOM.txt"         - Bill of materials
+Directories:
+============
+|
++-Hardware                      - Everything needed to build AriCalculator RevA, RevB, and RevC.
+|
++-Software                      - Source files (ASM and Forth) of the calculators firmware
+|
++-Tools                         - Tools written for the development of the AriCalculator
+|
++-Subprojects                   - Repository clones of the projects that AriCalculator is based on
 
-"Enclosure and Board RevA.svg"  - First version of the enclosure (for laser 
-                                  cutting or milling) and the PCB (for isolation
-                                  milling) -> Inkscape SVG file 
-
-"Enclosure and Board RevB.svg"  - Updated version of the enclosure (for laser
-                                  cutting or milling) and the (PCB (for isolation
-                                  milling) -> Inkscape SVG file 
 
 This work is licensed under a Creative Commons Attribution-ShareAlike 3.0 Unported License (http://creativecommons.org/licenses/by-sa/3.0/).
+
+Hardware RevC uses Kicad library components by Walter Lain which are licensed under a Creative Commons Attribution-ShareAlike 3.0 License (http://creativecommons.org/licenses/by-sa/3.0/).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+have been released under the terms of Creative Commons license v3.0, Attribution-Share Alike. 
