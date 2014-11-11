@@ -1,5 +1,5 @@
-update=11/4/2014 5:18:26 PM
-last_client=eeschema
+update=11/11/2014 11:16:19 PM
+last_client=pcbnew
 [general]
 version=1
 [cvpcb]
@@ -7,14 +7,24 @@ version=1
 NetIExt=net
 [cvpcb/libraries]
 EquName1=devcms
+[eeschema]
+version=1
+LibDir=.
+NetFmtName=
+RptD_X=0
+RptD_Y=100
+RptLab=1
+LabSize=60
+[eeschema/libraries]
+LibName1=AriCalculator
 [pcbnew]
 version=1
 LastNetListRead=
 UseCmpFile=1
 PadDrill=0.000000000000
 PadDrillOvalY=0.000000000000
-PadSizeH=0.420000000000
-PadSizeV=1.450000000000
+PadSizeH=0.647600000000
+PadSizeV=0.647600000000
 PcbTextSizeV=1.500000000000
 PcbTextSizeH=1.500000000000
 PcbTextThickness=0.300000000000
@@ -28,14 +38,4 @@ BoardOutlineThickness=0.100000000000
 ModuleOutlineThickness=0.150000000000
 [pcbnew/libraries]
 LibDir=../../../KiCad Libraries/walter
-LibName1=AriCalculator
-[eeschema]
-version=1
-LibDir=.
-NetFmtName=
-RptD_X=0
-RptD_Y=100
-RptLab=1
-LabSize=60
-[eeschema/libraries]
 LibName1=AriCalculator

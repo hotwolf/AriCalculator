@@ -1,4 +1,4 @@
-PCBNEW-LibModule-V1  11/4/2014 11:42:41 PM
+PCBNEW-LibModule-V1  11/11/2014 8:16:17 PM
 # encoding utf-8
 Units mm
 $INDEX
@@ -7,10 +7,12 @@ DOGL128-6
 HOLE_3.4
 KEY
 Led_0805
+Led_1206
 c_0805
 conn_usb_B_mini_smd
 enclosure
 inductor_smd_0805
+led_5mm_bend
 lqfp48
 lqh3c
 msop-8
@@ -18,34 +20,37 @@ pin_strip_3x2-90
 r_0805
 r_1206
 sot23-6
+spark_gap_0.8_double
+spark_gap_0.8_single
+spark_gap_pad_0.8
 ssop-28
 switch
 $EndINDEX
 $MODULE AAA-BATTERY
-Po 0 0 0 15 5459564F 00000000 ~~
+Po 0 0 0 15 5460FE39 00000000 ~~
 Li AAA-BATTERY
 Sc 0
-AR 
+AR /544A6FCE/544A80D6
 Op 0 0 0
-T0 0 -10.5 1 1 0 0.15 N V 21 N "BAT_?"
-T1 0 -5 1 1 0 0.15 N V 21 N "AAA-Battery"
+T0 0 -10.5 1 1 0 0.15 N V 21 N "BAT1"
+T1 0 -5 1 1 0 0.15 N V 21 N "AAA-BATTERY"
 DS 25.5 -13 -25.5 -13 0.15 21
 DS -25.5 -13 -25.5 0 0.15 21
 DS -25.5 0 25.5 0 0.15 21
 DS 25.5 0 25.5 -13 0.15 21
 $PAD
-Sh "2" T 4 6 3 0 0
+Sh "2" R 3 5 0 0 0
 Dr 0.5 -1 0
 At STD N 00E0FFFF
-Ne 0 ""
-Po 28.5 -6.5
+Ne 2 "N-0000096"
+Po 28 -6.5
 $EndPAD
 $PAD
-Sh "1" T 4 6 3 0 1800
+Sh "1" R 3 5 0 0 1800
 Dr 0.5 -1 0
 At STD N 00E0FFFF
-Ne 0 ""
-Po -28.5 -6.5
+Ne 1 "N-0000095"
+Po -28 -6.5
 $EndPAD
 $SHAPE3D
 Na "3D-Models/AAA-Battery.wrl"
@@ -380,6 +385,47 @@ Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE Led_0805
+$MODULE Led_1206
+Po 0 0 0 15 50CDAAE4 00000000 ~~
+Li Led_1206
+Cd SMD LED, 1206
+Sc 0
+AR 
+Op 0 0 0
+T0 0 -1.651 0.8001 0.8001 0 0.14986 N V 21 N "LD**"
+T1 0 1.80086 0.8001 0.8001 0 0.14986 N V 21 N "Led_1206"
+DS 0 -0.20066 0 0.09906 0.254 21
+DS -0.09906 0.29972 -0.09906 -0.29972 0.254 21
+DS -0.29972 -0.59944 -0.29972 0.59944 0.254 21
+DS -0.29972 0.59944 0.29972 0 0.254 21
+DS 0.29972 0 -0.29972 -0.59944 0.254 21
+DS 0.8001 0.89916 0.8001 -0.89916 0.254 21
+DS -0.8001 -0.89916 -0.8001 0.89916 0.254 21
+DS -1.6002 -0.89916 1.6002 -0.89916 0.254 21
+DS 1.6002 -0.89916 1.6002 0.89916 0.254 21
+DS 1.6002 0.89916 -1.6002 0.89916 0.254 21
+DS -1.6002 0.89916 -1.6002 -0.89916 0.254 21
+$PAD
+Sh "1" R 1.4986 1.4986 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po -1.74752 0
+$EndPAD
+$PAD
+Sh "2" R 1.4986 1.4986 0 0 0
+Dr 0 0 0
+At SMD N 00888000
+Ne 0 ""
+Po 1.74752 0
+$EndPAD
+$SHAPE3D
+Na "3D-Models/led_1206.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE Led_1206
 $MODULE c_0805
 Po 0 0 0 15 49047394 00000000 ~~
 Li c_0805
@@ -417,7 +463,7 @@ Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE c_0805
 $MODULE conn_usb_B_mini_smd
-Po 0 0 0 15 50432EF1 00000000 ~~
+Po 0 0 0 15 545D0111 00000000 ~~
 Li conn_usb_B_mini_smd
 Cd USB B mini SMD connector
 Sc 0
@@ -442,7 +488,7 @@ DS 3.8989 5.00126 3.8989 -5.00126 0.3048 21
 DS 3.8989 -5.00126 -3.8989 -5.00126 0.3048 21
 DS -3.8989 -5.00126 -3.8989 5.00126 0.3048 21
 $PAD
-Sh "" R 2.1971 2.1971 0 0 0
+Sh "6" R 2.1971 2.1971 0 0 0
 Dr 0 0 0
 At SMD N 00888000
 Ne 0 ""
@@ -498,21 +544,21 @@ Ne 0 ""
 Po 2.19964 -1.3716
 $EndPAD
 $PAD
-Sh "" R 2.1971 2.1971 0 0 0
+Sh "9" R 2.1971 2.1971 0 0 0
 Dr 0 0 0
 At SMD N 00888000
 Ne 0 ""
 Po -4.42976 -3.6195
 $EndPAD
 $PAD
-Sh "" R 2.1971 2.1971 0 0 0
+Sh "8" R 2.1971 2.1971 0 0 0
 Dr 0 0 0
 At SMD N 00888000
 Ne 0 ""
 Po -4.42976 1.8796
 $EndPAD
 $PAD
-Sh "" R 2.1971 2.1971 0 0 0
+Sh "7" R 2.1971 2.1971 0 0 0
 Dr 0 0 0
 At SMD N 00888000
 Ne 0 ""
@@ -526,13 +572,13 @@ Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE conn_usb_B_mini_smd
 $MODULE enclosure
-Po 0 0 0 15 54594CD8 00000000 ~~
+Po 0 0 0 15 5461D9AA 00000000 ~~
 Li enclosure
 Sc 0
 AR 
 Op 0 0 0
-T0 15.24 -2.54 1 1 0 0.15 N V 21 N "enclosure"
-T1 27.94 -2.54 1 1 0 0.15 N V 21 N "VAL**"
+T0 15.24 -2.54 1 1 0 0.15 N I 21 N "enclosure"
+T1 27.94 -2.54 1 1 0 0.15 N I 21 N "VAL**"
 DS 0 5.08 0 142.24 0.15 21
 DS 76.2 142.24 76.2 5.08 0.15 21
 DS 5.08 147.32 71.12 147.32 0.15 21
@@ -547,7 +593,7 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 5.08 137.16
-.LocalClearance 1.4
+.LocalClearance 1.8
 $EndPAD
 $PAD
 Sh "" C 3.4 3.4 0 0 0
@@ -555,7 +601,7 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 71.12 137.16
-.LocalClearance 1.4
+.LocalClearance 1.8
 $EndPAD
 $PAD
 Sh "" C 3.4 3.4 0 0 0
@@ -563,7 +609,7 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 5.08 10.16
-.LocalClearance 1.4
+.LocalClearance 1.8
 $EndPAD
 $PAD
 Sh "" C 3.4 3.4 0 0 0
@@ -571,7 +617,7 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 71.12 10.16
-.LocalClearance 1.4
+.LocalClearance 1.8
 $EndPAD
 $PAD
 Sh "" C 3.4 3.4 0 0 0
@@ -579,7 +625,7 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 5.08 73.66
-.LocalClearance 1.4
+.LocalClearance 1.8
 $EndPAD
 $PAD
 Sh "" C 3.4 3.4 0 0 0
@@ -587,7 +633,7 @@ Dr 3.4 0 0
 At HOLE N 00E0FFFF
 Ne 0 ""
 Po 71.12 73.66
-.LocalClearance 1.4
+.LocalClearance 1.8
 $EndPAD
 $SHAPE3D
 Na "3D-Models/enclosure.wrl"
@@ -632,6 +678,43 @@ Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE inductor_smd_0805
+$MODULE led_5mm_bend
+Po 0 0 0 15 532D9A66 00000000 ~~
+Li led_5mm_bend
+Cd 5mm bend led
+Kw led
+Sc 0
+AR led_5mm_bend
+Op 0 0 0
+T0 0 4 1 1 0 0.2 N V 21 N "led_5mm_bend"
+T1 0 -4 1 1 0 0.2 N V 21 N "VAL**"
+DS -1.47066 2.49936 1.47066 2.49936 0.29972 21
+DA 0 0 2.4892 -1.49098 900 0.29972 21
+DA 0 0 -1.47066 2.49936 900 0.29972 21
+DA 0 0 0 -2.90068 900 0.29972 21
+DA 0 0 -2.90068 0 900 0.29972 21
+DC 0 0 -2.49936 0 0.29972 21
+$PAD
+Sh "1" C 1.99898 1.99898 0 0 0
+Dr 0.8001 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 0 -1.27
+$EndPAD
+$PAD
+Sh "2" C 1.99898 1.99898 0 0 0
+Dr 0.8001 0 0
+At STD N 00E0FFFF
+Ne 0 ""
+Po 0 1.27
+$EndPAD
+$SHAPE3D
+Na "3D-Models/led_5mm_bend.wrl"
+Sc 1 1 1
+Of 0 0 0
+Ro 0 0 0
+$EndSHAPE3D
+$EndMODULE led_5mm_bend
 $MODULE lqfp48
 Po 0 0 0 15 545778C6 00000000 ~~
 Li lqfp48
@@ -1356,6 +1439,78 @@ Of 0 0 0
 Ro 0 0 0
 $EndSHAPE3D
 $EndMODULE sot23-6
+$MODULE spark_gap_0.8_double
+Po 0 0 0 15 545D1FBE 00000000 ~~
+Li spark_gap_0.8_double
+Sc 0
+AR 
+Op 0 0 0
+T0 -1.5 0 0.127 0.127 0 0.03175 N I 21 N "spark_gap_0.8_double"
+T1 0.7 0 0.127 0.127 0 0.03175 N I 21 N "SG**"
+$PAD
+Sh "" C 0.6476 0.6476 0 0 0
+Dr 0 0 0
+At SMD N 00008000
+Ne 0 ""
+Po 0 0
+.SolderMask -0.32
+.LocalClearance 0.1534
+.ZoneConnection 2
+$EndPAD
+$PAD
+Sh "" R 0.6476 0.8 0 0 0
+Dr 0 0 0
+At SMD N 00800000
+Ne 0 ""
+Po 0 0
+$EndPAD
+$EndMODULE spark_gap_0.8_double
+$MODULE spark_gap_0.8_single
+Po 0 0 0 15 545D1F75 00000000 ~~
+Li spark_gap_0.8_single
+Sc 0
+AR 
+Op 0 0 0
+T0 -1.5 0 0.127 0.127 0 0.03175 N I 21 N "spark_gap_0.8_single"
+T1 0.7 0 0.127 0.127 0 0.03175 N I 21 N "SG**"
+$PAD
+Sh "" C 0.6476 0.6476 0 0 0
+Dr 0 0 0
+At SMD N 00008000
+Ne 0 ""
+Po 0 0
+.SolderMask -0.32
+.LocalClearance 0.1534
+.ZoneConnection 2
+$EndPAD
+$PAD
+Sh "" R 0.6476 0.4 0 0 0
+Dr 0 0 0
+At SMD N 00800000
+Ne 0 ""
+Po 0 -0.2
+$EndPAD
+$EndMODULE spark_gap_0.8_single
+$MODULE spark_gap_pad_0.8
+Po 0 0 0 15 5462607C 00000000 ~~
+Li spark_gap_pad_0.8
+Sc 0
+AR 
+Op 0 0 0
+T0 -1.4 0 0.127 0.127 0 0.03175 N I 21 N "spark_gap_pad_0.8"
+T1 0.6 0 0.127 0.127 0 0.03175 N I 21 N "SG"
+$PAD
+Sh "" C 0.6476 0.6476 0 0 0
+Dr 0 0 0
+At SMD N 00008000
+Ne 0 ""
+Po 0 0
+.SolderMask -0.001
+.SolderPaste -0.001
+.LocalClearance 0.1524
+.ZoneConnection 2
+$EndPAD
+$EndMODULE spark_gap_pad_0.8
 $MODULE ssop-28
 Po 0 0 0 15 4D455CB3 00000000 ~~
 Li ssop-28

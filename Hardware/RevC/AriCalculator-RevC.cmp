@@ -1,4 +1,4 @@
-Cmp-Mod V01 Created by PcbNew date = 11/5/2014 5:58:39 PM
+Cmp-Mod V01 Created by CvPcb (2013-07-07 BZR 4022)-stable date = 11/11/2014 6:18:52 PM
 
 BeginCmp
 TimeStamp = /544A6FCE/544A80D6;
@@ -134,6 +134,20 @@ IdModule  = c_0805;
 EndCmp
 
 BeginCmp
+TimeStamp = /544A65A6/546245AD;
+Reference = C19;
+ValeurCmp = 10uF;
+IdModule  = c_0805;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/54623065;
+Reference = C20;
+ValeurCmp = 20uF;
+IdModule  = c_0805;
+EndCmp
+
+BeginCmp
 TimeStamp = /544A64C5/544FF341;
 Reference = CON1;
 ValeurCmp = BDM;
@@ -152,13 +166,6 @@ TimeStamp = /544A6636/544AC290;
 Reference = CON3;
 ValeurCmp = USB-MINI-B;
 IdModule  = conn_usb_B_mini_smd;
-EndCmp
-
-BeginCmp
-TimeStamp = /544A6636/54504211;
-Reference = D1;
-ValeurCmp = YELLOW;
-IdModule  = Led_0805;
 EndCmp
 
 BeginCmp
@@ -194,6 +201,13 @@ TimeStamp = /544A6636/544AC281;
 Reference = IC3;
 ValeurCmp = FT232RL;
 IdModule  = ssop-28;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/54622D0E;
+Reference = IC4;
+ValeurCmp = MCP1643;
+IdModule  = msop-8;
 EndCmp
 
 BeginCmp
@@ -470,6 +484,13 @@ IdModule  = lqh3c;
 EndCmp
 
 BeginCmp
+TimeStamp = /544A65A6/54622FB1;
+Reference = L2;
+ValeurCmp = 4.7uH;
+IdModule  = lqh3c;
+EndCmp
+
+BeginCmp
 TimeStamp = /544A64C5/544FF88C;
 Reference = LED1;
 ValeurCmp = GREEN;
@@ -481,6 +502,139 @@ TimeStamp = /544A64C5/544FF89B;
 Reference = LED2;
 ValeurCmp = RED;
 IdModule  = Led_0805;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A6636/54504211;
+Reference = LED3;
+ValeurCmp = YELLOW;
+IdModule  = Led_0805;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/54623198;
+Reference = LED4;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/5462333F;
+Reference = LED5;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/54623359;
+Reference = LED6;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/5462335F;
+Reference = LED7;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/54623365;
+Reference = LED8;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/5462336B;
+Reference = LED9;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/54623371;
+Reference = LED10;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/54623377;
+Reference = LED11;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/5462337D;
+Reference = LED12;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/54623383;
+Reference = LED13;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/54623389;
+Reference = LED14;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/5462338F;
+Reference = LED15;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/546233DC;
+Reference = LED16;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/546233E2;
+Reference = LED17;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/546233E8;
+Reference = LED18;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/546233EE;
+Reference = LED19;
+ValeurCmp = BACKLIGHT;
+IdModule  = Led_1206;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/54624222;
+Reference = LED20;
+ValeurCmp = IR;
+IdModule  = led_5mm_bend;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/54624228;
+Reference = LED21;
+ValeurCmp = IR;
+IdModule  = led_5mm_bend;
 EndCmp
 
 BeginCmp
@@ -572,6 +726,13 @@ TimeStamp = /544A6636/54504202;
 Reference = R13;
 ValeurCmp = 120;
 IdModule  = r_0805;
+EndCmp
+
+BeginCmp
+TimeStamp = /544A65A6/54623083;
+Reference = R14;
+ValeurCmp = 0.66;
+IdModule  = r_1206;
 EndCmp
 
 BeginCmp
