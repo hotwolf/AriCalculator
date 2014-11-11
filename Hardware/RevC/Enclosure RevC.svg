@@ -24,17 +24,17 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="1533"
-     inkscape:window-height="788"
+     inkscape:window-width="1600"
+     inkscape:window-height="850"
      id="namedview3092"
      showgrid="true"
      inkscape:snap-grids="true"
      inkscape:zoom="3.8695652"
-     inkscape:cx="108.13718"
-     inkscape:cy="93.371919"
-     inkscape:window-x="247"
-     inkscape:window-y="534"
-     inkscape:window-maximized="0"
+     inkscape:cx="112.21694"
+     inkscape:cy="287.78336"
+     inkscape:window-x="-9"
+     inkscape:window-y="-9"
+     inkscape:window-maximized="1"
      inkscape:current-layer="layer2"
      fit-margin-top="0"
      fit-margin-left="0"
@@ -99,7 +99,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -405,18 +405,18 @@
          id="tspan7741-1"
          style="font-size:12px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:40.0000006%;letter-spacing:0px;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro">y</tspan></text>
     <text
-       x="167.125"
-       y="259.37439"
+       x="156.53752"
+       y="261.62439"
        id="text7743-3"
        xml:space="preserve"
        style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
        sodipodi:linespacing="125%"><tspan
-         x="167.125"
-         y="259.37439"
+         x="160.375"
+         y="261.62439"
          id="tspan7745-8"
-         style="font-size:10px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique">x<tspan
+         style="font-size:8px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique">x<tspan
    style="font-size:65.00091553%;baseline-shift:super"
-   id="tspan5379">2</tspan></tspan></text>
+   id="tspan3502">2</tspan></tspan></text>
     <text
        x="374.12494"
        y="266.12439"
@@ -440,28 +440,28 @@
          id="tspan7759-3"
          style="font-size:14px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Droid Sans;-inkscape-font-specification:Droid Sans Bold">Swap</tspan></text>
     <text
-       x="61.375"
+       x="37.852173"
        y="414.62439"
        id="text7761-1"
        xml:space="preserve"
        style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
        sodipodi:linespacing="125%"
        inkscape:transform-center-y="4.3439941"><tspan
-         x="61.375"
+         x="47.875"
          y="414.62439"
          id="tspan7763-9"
-         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro">Pick</tspan></text>
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;letter-spacing:0px;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro">Pick</tspan></text>
     <text
-       x="459.625"
-       y="221.1243"
+       x="40.111938"
+       y="306.62439"
        id="text7765-8"
        xml:space="preserve"
        style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
        sodipodi:linespacing="125%"><tspan
-         x="459.625"
-         y="221.1243"
+         x="47.875"
+         y="306.62439"
          id="tspan7767-6"
-         style="font-size:14px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Droid Sans;-inkscape-font-specification:Droid Sans Bold">sin</tspan></text>
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro">sin</tspan></text>
     <text
        x="504.625"
        y="221.1243"
@@ -796,7 +796,7 @@
            height="25.067415"
            x="108.02247"
            y="375.47192" /></flowRegion><flowPara
-         id="flowPara4527"></flowPara></flowRoot>    <text
+         id="flowPara4527" /></flowRoot>    <text
        x="135.625"
        y="448.37439"
        id="text4529"
@@ -818,7 +818,7 @@
            height="138"
            x="235.68539"
            y="285.28088" /></flowRegion><flowPara
-         id="flowPara4539"></flowPara></flowRoot>    <text
+         id="flowPara4539" /></flowRoot>    <text
        x="225.625"
        y="450.62439"
        id="text4541"
@@ -870,7 +870,7 @@
        y="270.62439"
        x="45.625"
        inkscape:transform-center-y="8.4461206"><tspan
-         style="font-size:14px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Bold"
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Bold"
          id="tspan4559"
          y="270.62439"
          x="45.625">Bin</tspan></text>
@@ -885,7 +885,7 @@
          x="81.625"
          y="270.62439"
          id="tspan4563"
-         style="font-size:14px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Bold">Dec</tspan></text>
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Bold">Dec</tspan></text>
     <text
        sodipodi:linespacing="125%"
        style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
@@ -894,7 +894,7 @@
        y="270.62439"
        x="117.625"
        inkscape:transform-center-y="8.4461206"><tspan
-         style="font-size:14px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Bold"
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Bold"
          id="tspan4567"
          y="270.62439"
          x="117.625">Hex</tspan></text>
@@ -927,7 +927,7 @@
            height="59.179775"
            x="309.85394"
            y="195.34831" /></flowRegion><flowPara
-         id="flowPara5377"></flowPara></flowRoot>    <text
+         id="flowPara5377" /></flowRoot>    <text
        sodipodi:linespacing="125%"
        style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
        xml:space="preserve"
@@ -949,7 +949,7 @@
            height="43.932583"
            x="29.460674"
            y="310.34833" /></flowRegion><flowPara
-         id="flowPara5391"></flowPara></flowRoot>    <text
+         id="flowPara5391" /></flowRoot>    <text
        x="45.625"
        y="342.62439"
        id="text5393"
@@ -971,9 +971,9 @@
          x="189.625"
          y="270.62439"
          id="tspan5399"
-         style="font-size:14px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Bold">x<tspan
-   style="font-size:65.00091553%;baseline-shift:super"
-   id="tspan5401">y</tspan></tspan></text>
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Bold">x<tspan
+   style="font-size:65%;baseline-shift:super"
+   id="tspan3500">y</tspan></tspan></text>
     <g
        id="g5413"
        transform="translate(-90.000001,99.000001)">
@@ -1007,34 +1007,38 @@
          d="m 311.16043,164.25036 c 6.69685,0 8.92914,0 8.92914,0 l 0,0"
          style="fill:none;stroke:#000000;stroke-width:0.99605519px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
     </g>
-    <path
-       sodipodi:nodetypes="cccccc"
-       inkscape:connector-curvature="0"
-       id="path5420"
-       d="m 199.13832,259.84139 0.88169,0 0.81152,3.0189 2.29347,-5.73591 4.23425,-10e-6 -0.15236,0.90709"
-       style="fill:none;stroke:#000000;stroke-width:0.70866144;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
-    <text
-       sodipodi:linespacing="125%"
-       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
-       xml:space="preserve"
-       id="text5422"
-       y="258.97528"
-       x="200.07455"><tspan
-         style="font-size:8px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique"
-         id="tspan5424"
+    <g
+       id="g3504"
+       transform="translate(-2.2500015,-5e-6)">
+      <path
+         style="fill:none;stroke:#000000;stroke-width:0.70866144;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+         d="m 199.13832,259.84139 0.88169,0 0.81152,3.0189 2.29347,-5.73591 4.23425,-10e-6 -0.15236,0.90709"
+         id="path5420"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cccccc" />
+      <text
+         x="200.07455"
          y="258.97528"
-         x="200.07455">x</tspan></text>
-    <text
-       x="204.37456"
-       y="263.12482"
-       id="text5428"
-       xml:space="preserve"
-       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
-       sodipodi:linespacing="125%"><tspan
-         x="204.37456"
+         id="text5422"
+         xml:space="preserve"
+         style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+         sodipodi:linespacing="125%"><tspan
+           x="200.07455"
+           y="258.97528"
+           id="tspan5424"
+           style="font-size:8px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique">x</tspan></text>
+      <text
+         sodipodi:linespacing="125%"
+         style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+         xml:space="preserve"
+         id="text5428"
          y="263.12482"
-         id="tspan5430"
-         style="font-size:8px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique">y</tspan></text>
+         x="204.37456"><tspan
+           style="font-size:8px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique"
+           id="tspan5430"
+           y="263.12482"
+           x="204.37456">y</tspan></text>
+    </g>
     <text
        sodipodi:linespacing="125%"
        style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
@@ -1053,13 +1057,13 @@
        xml:space="preserve"
        id="text5438"
        y="414.62439"
-       x="32.125"
+       x="51.695679"
        inkscape:transform-center-x="-18.521496"
        inkscape:transform-center-y="-27.371923"><tspan
-         style="font-size:14px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;line-height:125%;writing-mode:lr-tb;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
          id="tspan5440"
          y="414.62439"
-         x="32.125">Exp</tspan></text>
+         x="43.375">Exp</tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:0.35433072;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
        d="m 45.624999,307.47475 0,-12.10038"
@@ -1138,7 +1142,371 @@
        id="path5478"
        d="m 45.624999,415.47474 0,-12.10037"
        style="fill:none;stroke:#000000;stroke-width:0.35433072;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
-  </g>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text4557-9"
+       y="306.62439"
+       x="47.140961"
+       inkscape:transform-center-y="8.4461206"><tspan
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;line-height:125%;writing-mode:lr-tb;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan4559-8"
+         y="306.62439"
+         x="43.375">A</tspan></text>
+    <text
+       inkscape:transform-center-y="8.4461206"
+       x="190.091"
+       y="306.62439"
+       id="text5501"
+       xml:space="preserve"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       sodipodi:linespacing="125%"><tspan
+         x="187.375"
+         y="306.62439"
+         id="tspan5503"
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;line-height:125%;writing-mode:lr-tb;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro">E</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text5505"
+       y="306.62439"
+       x="118.784"
+       inkscape:transform-center-y="8.4461206"><tspan
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;line-height:125%;writing-mode:lr-tb;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan5507"
+         y="306.62439"
+         x="115.375">C</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text5509"
+       y="306.62439"
+       x="82.581055"
+       inkscape:transform-center-y="8.4461206"><tspan
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;line-height:125%;writing-mode:lr-tb;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan5511"
+         y="306.62439"
+         x="79.375">B</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text5513"
+       y="306.62439"
+       x="154.69299"
+       inkscape:transform-center-y="8.4461206"><tspan
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;line-height:125%;writing-mode:lr-tb;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan5515"
+         y="306.62439"
+         x="151.375">D</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text5517"
+       y="306.62439"
+       x="226.02798"
+       inkscape:transform-center-y="8.4461206"><tspan
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;line-height:125%;writing-mode:lr-tb;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan5519"
+         y="306.62439"
+         x="223.375">F</tspan></text>
+    <text
+       inkscape:transform-center-y="8.4461206"
+       x="45.924927"
+       y="234.62437"
+       id="text5521"
+       xml:space="preserve"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       sodipodi:linespacing="125%"><tspan
+         x="43.375"
+         y="234.62437"
+         id="tspan5523"
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;line-height:125%;writing-mode:lr-tb;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro">p</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text5525"
+       y="234.62437"
+       x="81.709045"
+       inkscape:transform-center-y="8.4461206"><tspan
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;line-height:125%;writing-mode:lr-tb;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan5527"
+         y="234.62437"
+         x="79.375">n</tspan></text>
+    <text
+       inkscape:transform-center-y="8.4461206"
+       x="83.849609"
+       y="234.62437"
+       id="text5529"
+       xml:space="preserve"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan5545"
+         x="88.375"
+         y="234.62437"
+         style="font-size:12px;font-weight:normal;-inkscape-font-specification:Source Sans Pro;text-anchor:start;text-align:start;font-family:Source Sans Pro;font-style:normal;font-stretch:normal;font-variant:normal">π</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text5533"
+       y="234.62437"
+       x="226.65698"
+       inkscape:transform-center-y="8.4461206"><tspan
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;line-height:125%;writing-mode:lr-tb;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan5535"
+         y="234.62437"
+         x="223.375">M</tspan></text>
+    <text
+       inkscape:transform-center-y="8.4461206"
+       x="155.40094"
+       y="234.62437"
+       id="text5537"
+       xml:space="preserve"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       sodipodi:linespacing="125%"><tspan
+         x="151.375"
+         y="234.62437"
+         id="tspan5539"
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;line-height:125%;writing-mode:lr-tb;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro">m</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text5541"
+       y="234.62437"
+       x="189.79895"
+       inkscape:transform-center-y="8.4461206"><tspan
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;line-height:125%;writing-mode:lr-tb;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan5543"
+         y="234.62437"
+         x="187.375">k</tspan></text>
+    <text
+       inkscape:transform-center-y="8.4461206"
+       x="115.375"
+       y="234.62437"
+       id="text5547"
+       xml:space="preserve"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan5551"
+         x="115.375"
+         y="234.62437"
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:end;text-anchor:end;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro">µ</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text3424"
+       y="306.62439"
+       x="74.501648"><tspan
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan3426"
+         y="306.62439"
+         x="83.875">cos</tspan></text>
+    <text
+       x="110.79858"
+       y="306.62439"
+       id="text3428"
+       xml:space="preserve"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       sodipodi:linespacing="125%"><tspan
+         x="119.875"
+         y="306.62439"
+         id="tspan3430"
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro">tan</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text3432"
+       y="306.62439"
+       x="151.34705"><tspan
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan3434"
+         y="306.62439"
+         x="155.875">ld</tspan></text>
+    <text
+       x="187.36093"
+       y="306.62439"
+       id="text3436"
+       xml:space="preserve"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       sodipodi:linespacing="125%"><tspan
+         x="191.875"
+         y="306.62439"
+         id="tspan3438"
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro">ln</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text3440"
+       y="306.62439"
+       x="219.41318"><tspan
+         style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan3442"
+         y="306.62439"
+         x="227.875">log</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text3444"
+       y="297.62439"
+       x="44.611938"><tspan
+         style="font-size:8px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique"
+         id="tspan3446"
+         y="297.62439"
+         x="52.375">asin</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text3452"
+       y="297.62439"
+       x="79.001648"><tspan
+         style="font-size:8px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique"
+         id="tspan3454"
+         y="297.62439"
+         x="88.375">acos</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text3456"
+       y="297.62439"
+       x="115.29858"
+       inkscape:transform-center-x="4.0877671"
+       inkscape:transform-center-y="11.479904"><tspan
+         style="font-size:8px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique"
+         id="tspan3458"
+         y="297.62439"
+         x="124.375">atan</tspan></text>
+    <text
+       inkscape:transform-center-y="11.479904"
+       inkscape:transform-center-x="4.0877671"
+       x="155.79857"
+       y="297.62439"
+       id="text3478"
+       xml:space="preserve"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       sodipodi:linespacing="125%"><tspan
+         x="164.875"
+         y="297.62439"
+         id="tspan3480"
+         style="font-size:8px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique">2<tspan
+   style="font-size:65.00091553%;baseline-shift:super"
+   id="tspan3482">x</tspan></tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text3484"
+       y="297.62439"
+       x="189.54857"
+       inkscape:transform-center-x="4.0877671"
+       inkscape:transform-center-y="11.479904"><tspan
+         style="font-size:8px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique"
+         id="tspan3486"
+         y="297.62439"
+         x="198.625">e<tspan
+   id="tspan3488"
+   style="font-size:65.00091553%;baseline-shift:super">x</tspan></tspan></text>
+    <text
+       inkscape:transform-center-y="11.479904"
+       inkscape:transform-center-x="4.0877671"
+       x="227.79857"
+       y="297.62439"
+       id="text3490"
+       xml:space="preserve"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       sodipodi:linespacing="125%"><tspan
+         x="236.875"
+         y="297.62439"
+         id="tspan3492"
+         style="font-size:8px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique">10<tspan
+   style="font-size:65.00091553%;baseline-shift:super"
+   id="tspan3494">x</tspan></tspan></text>
+    <text
+       inkscape:transform-center-y="4.3439941"
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text3496"
+       y="403.37439"
+       x="44.602173"><tspan
+         style="font-size:10px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;letter-spacing:0px;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro Oblique"
+         id="tspan3498"
+         y="403.37439"
+         x="54.625">Swap</tspan></text>
+    <text
+       inkscape:transform-center-y="8.4461206"
+       x="218.31323"
+       y="234.62437"
+       id="text3511"
+       xml:space="preserve"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       sodipodi:linespacing="125%"><tspan
+         x="227.875"
+         y="234.62437"
+         id="tspan3513"
+         style="font-size:9px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro">Menu</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:25.41560364px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text3515"
+       y="212.96857"
+       x="202.85858"
+       inkscape:transform-center-y="8.4461282"
+       transform="scale(0.9077001,1.1016855)"><tspan
+         style="font-size:8.16930103px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan3517"
+         y="212.96857"
+         x="211.5378">Macro</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       xml:space="preserve"
+       id="text3519"
+       y="225.62437"
+       x="54.625"
+       inkscape:transform-center-y="8.4461206"><tspan
+         style="font-size:6px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro"
+         id="tspan3521"
+         y="225.62437"
+         x="54.625">RAD</tspan></text>
+    <text
+       inkscape:transform-center-y="8.4461206"
+       x="54.625"
+       y="234.62437"
+       id="text3527"
+       xml:space="preserve"
+       style="font-size:28px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Droid Sans Mono;-inkscape-font-specification:Droid Sans Mono Bold"
+       sodipodi:linespacing="125%"><tspan
+         x="54.625"
+         y="234.62437"
+         id="tspan3529"
+         style="font-size:6px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Source Sans Pro;-inkscape-font-specification:Source Sans Pro">GRAD</tspan></text>
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot3535"
+       style="fill:black;stroke:none;stroke-opacity:1;stroke-width:1px;stroke-linejoin:miter;stroke-linecap:butt;fill-opacity:1;font-family:Aharoni;font-style:normal;font-weight:bold;font-size:12px;line-height:125%;letter-spacing:0px;word-spacing:0px;-inkscape-font-specification:Aharoni Bold;font-stretch:normal;font-variant:normal;text-anchor:end;text-align:end"><flowRegion
+         id="flowRegion3537"><rect
+           id="rect3539"
+           width="70.80899"
+           height="23"
+           x="-8.5280895"
+           y="166.4045" /></flowRegion><flowPara
+         id="flowPara3541"></flowPara></flowRoot>  </g>
   <g
      transform="translate(-0.6249985,-0.624375)"
      style="display:none"

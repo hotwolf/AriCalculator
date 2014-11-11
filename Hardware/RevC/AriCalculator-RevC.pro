@@ -1,4 +1,4 @@
-update=11/11/2014 11:16:19 PM
+update=12/3/2014 10:59:32 AM
 last_client=pcbnew
 [general]
 version=1
@@ -23,8 +23,8 @@ LastNetListRead=
 UseCmpFile=1
 PadDrill=0.000000000000
 PadDrillOvalY=0.000000000000
-PadSizeH=0.647600000000
-PadSizeV=0.647600000000
+PadSizeH=0.447600000000
+PadSizeV=0.447600000000
 PcbTextSizeV=1.500000000000
 PcbTextSizeH=1.500000000000
 PcbTextThickness=0.300000000000
@@ -33,9 +33,9 @@ ModuleTextSizeH=1.000000000000
 ModuleTextSizeThickness=0.150000000000
 SolderMaskClearance=0.000000000000
 SolderMaskMinWidth=0.000000000000
-DrawSegmentWidth=0.200000000000
+DrawSegmentWidth=0.400000000000
 BoardOutlineThickness=0.100000000000
-ModuleOutlineThickness=0.150000000000
+ModuleOutlineThickness=0.200000000000
 [pcbnew/libraries]
 LibDir=../../../KiCad Libraries/walter
 LibName1=AriCalculator
