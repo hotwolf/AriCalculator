@@ -1,19 +1,23 @@
 AriCalculator
 =============
-A homemade calculator.
+A homemade pocket calculator.
 
 This design is based on the S12G Micro EVB (https://github.com/hotwolf/S12G-Micro-EVB).
 
 Directories:
 ============
 |
-+-Hardware                      - Everything needed to build AriCalculator RevA, RevB, and RevC.
++-Hardware                      - Everything needed to build AriCalculator RevA,
+                                  RevB, and RevC.
 |
-+-Software                      - Source files (ASM and Forth) of the calculators firmware
++-Software                      - Source files (ASM and Forth) of the
+                                  calculators firmware
 |
-+-Tools                         - Tools written for the development of the AriCalculator
++-Tools                         - Tools written for the development of the
+                                  AriCalculator
 |
-+-Subprojects                   - Repository clones of the projects that AriCalculator is based on
++-Subprojects                   - Repository clones of the projects that
+                                  AriCalculator is based on
 
 
 This work is licensed under a Creative Commons Attribution-ShareAlike 3.0 Unported License (http://creativecommons.org/licenses/by-sa/3.0/).
