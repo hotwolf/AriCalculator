@@ -1,17 +1,17 @@
-Cmp-Mod V01 Created by PcbNew date = 11/28/2014 8:43:09 PM
+Cmp-Mod V01 Created by PcbNew date = 12/4/2014 2:04:45 AM
 
 BeginCmp
 TimeStamp = /544A6FCE/544A80D6;
 Reference = BAT1;
 ValeurCmp = AAA-BATTERY;
-IdModule  = AAA-BATTERY;
+IdModule  = AAA-battery;
 EndCmp
 
 BeginCmp
 TimeStamp = /544A6FCE/544A80E5;
 Reference = BAT2;
 ValeurCmp = AAA-BATTERY;
-IdModule  = AAA-BATTERY;
+IdModule  = AAA-battery;
 EndCmp
 
 BeginCmp
