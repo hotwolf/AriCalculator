@@ -1,7 +1,7 @@
 #ifndef DISP
 #define	DISP	
 ;###############################################################################
-;# S12CBase - DISP - LCD Driver (ST7565R)                                      #
+;# AriCalculator - DISP - LCD Driver (ST7565R) (AriCalculator RevC)            #
 ;###############################################################################
 ;#    Copyright 2010-2014x Dirk Heisswolf                                      #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
@@ -23,7 +23,7 @@
 ;# Description:                                                                #
 ;#    This is the low level driver for LCD using a ST7565R controller. This    #
 ;#    driver assumes, that the ST7565R is connected via the 4-wire SPI         #
-;#    interface.                                                               #
+;#    interface. The default pin mapping matches AriCalculator hardware RevC   #
 ;#                                                                             #
 ;#    This modules  provides three functions to the main program:              #
 ;#    DISP_CHECK_BUF - This function checks if the command buffer is able      #
@@ -67,10 +67,10 @@ DISP_BAUD		EQU	12000000	;default is 12 Mbit/s
 
 ;#RESET output
 #ifndef DISP_RESET_PORT
-DISP_RESET_PORT		EQU	PTJ 		;default is port J	
+DISP_RESET_PORT		EQU	PTS 		;default is port S	
 #endif
 #ifndef DISP_RESET_PIN
-DISP_RESET_PIN		EQU	PJ0		;default is PJ0	
+DISP_RESET_PIN		EQU	PS3		;default is PS3	
 #endif
 	
 ;#A0 output
