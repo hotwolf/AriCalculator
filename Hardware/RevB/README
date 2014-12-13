@@ -1,0 +1,18 @@
+AriCalculator
+=============
+A homemade pocket calculator.
+
+This is the first prototype of the AriCalculator.
+
+Files:
+======
+|
++-AriCalculator-RevB Enclosure and Board.svg    - Design files of the laser cut 
+|                                                 enclosure and the milled PCB.
+|                                                 The format is Inkscape SVG.
+|
++-AriCalculator-RevB BOM.svg                    - Bill of materials
+
+
+This work is licensed under a Creative Commons Attribution-ShareAlike 3.0
+Unported License (http://creativecommons.org/licenses/by-sa/3.0/).

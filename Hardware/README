@@ -1,0 +1,30 @@
+AriCalculator
+=============
+A homemade pocket calculator.
+
+These direcories contain the design files of all three hardware revisions.
+
+Directories:
+============
+|
++-RevA                  - This is the first prototype of the AriCalculator. It
+|                         is based on the S12G-Mini-EVB RevA board in
+|                         combination with a milled base PCB.
+|
++-RevB                  - RevB fixes bugs found on RevA. It is based on 
+|                         S12G-Mini-EVB RevB, also with a milled base PCB
+|                         RevB has never been build.
+|
++-RevC                  - RevC uses a single PCB instead of a combination of
+                          S12G-Mini-EVB and milled base PCB. It breaks 
+                          compatibility with its predecessors in terms of user
+                          interface (more keys) and GPIO assignments of the S12G
+                          MCU. All firmware development will be done on RevC. 
+
+
+This work is licensed under a Creative Commons Attribution-ShareAlike 3.0
+Unported License (http://creativecommons.org/licenses/by-sa/3.0/).
+
+Hardware RevC uses Kicad library components by Walter Lain which are licensed
+under a Creative Commons Attribution-ShareAlike 3.0 License 
+(http://creativecommons.org/licenses/by-sa/3.0/).
