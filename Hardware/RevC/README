@@ -1,3 +1,38 @@
+AriCalculator
+=============
+A homemade pocket calculator.
+
+RevC is a redesign of the AriCalculator which breaks compatibility with the 
+previous revisions. It is build with a single PCB instead of a combination of
+S12G-Mini-EVB and millede base PCB. RevC has 38 keys (instead of 30) and
+features an expansion port (SPI). All firmware development of the AriCalculator 
+will be done on RevC. 
+
+Directories:
+============
+|
++-.			- KiCad project files, enclosure design, BOM, and 
+|                         Mounting plan
+|
++-Gerber                - Gerber files for manufactoring
+|
+|
+|
+|
+|
+|
+|
+
+
+
+
+
+
+
+
+
+
+
 AriCalculator is designed using KiCad footprints and 3D models designed by Walter Lain:
 
 

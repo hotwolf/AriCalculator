@@ -2,7 +2,8 @@ AriCalculator
 =============
 A homemade pocket calculator.
 
-This is the first prototype of the AriCalculator.
+This is the second revision of the AriCalculator. It is based on S12G-Mini-EVB 
+RevB, in combination with a milled base PCB. RevB fixes bugs found on RevA.
 
 Files:
 ======
