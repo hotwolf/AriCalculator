@@ -3,7 +3,7 @@ layout: post
 title: Redesign Complete
 ---
 
-The prototype of the AriCalculator (RevA) is no longer usable. It has been destroyed in an attempt to replace a broken FTDI USB to serial converter. After a first attempt to fix the prototyps design flaws with incremental changes (RevB), I've decided to do a full redesign (RevC):
+The prototype of the AriCalculator (RevA) is no longer usable. It has been destroyed in an attempt to replace a broken FTDI USB to serial converter. After a first attempt to fix the prototype's design flaws with incremental changes (RevB), I've decided to do a full redesign (RevC):
 
 p=. !{{ site.url}}/images/AriCalculatorRevC3dModel.png!
 
