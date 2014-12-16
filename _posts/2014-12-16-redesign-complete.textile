@@ -1,0 +1,12 @@
+---
+layout: post
+title: Redesign Complete
+---
+
+The prototype of the AriCalculator (RevA) is no longer usable. It has been destroyed in an attempt to replace a broken FTDI USB to serial converter. After a first attempt to fix the prototyps design flaws with incremental changes (RevB), I've decided to do a full redesign (RevC):
+
+p=. !{{ site.url}}/images/AriCalculatorRevC3dModel.png!
+
+The new design no longer uses a milled PCB in combination with an "S12-Micro-EVB":http://hotwolf.github.io/S12G-Micro-EVB. Instead it uses a single PCB, which makes assembly and repairs much easier. The new design has new features like an extended keypad (38 instead of 30 keys), an expansion port (SPI), and a back ight option for the display. However, it is not fully compatible to the previous designs. 
+
+PCBs and enclosures have already been ordered and should arrive in January 2015.
