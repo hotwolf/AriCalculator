@@ -21,25 +21,24 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module initializes all unused GPIO ports. The OpenBDM firmware      #
-;#    assumes the following I/O pin configuration of the S12C128 MCU:          #
+;#    This module initializes all unused GPIO ports                            #
 ;#    Port AD:                                                                 #
-;#     PAD00 - unused                     (analog       no pull  )             #
-;#     PAD01 - unused                     (analog       no pull  )             #
-;#     PAD02 - NC                         (input        pull-up  )             #
-;#     PAD03 - NC                         (input        pull-up  )             #
-;#     PAD04 - NC                         (input        pull-up  )             #
-;#     PAD05 - NC                         (input        pull-up  )             #
-;#     PAD06 - NC                         (input        pull-up  )             #
-;#     PAD07 - NC                         (input        pull-up  )             #
-;#     PAD08 - unused                     (analog       no pull  )             #
-;#     PAD09 - unused                     (analog       no pull  )             #
-;#     PAD10 - unused                     (analog       no pull  )             #
-;#     PAD11 - Target VDD                 (analog       no pull  )             #
-;#     PAD12 - NC                         (input        pull-up  )             #
-;#     PAD13 - NC                         (input        pull-up  )             #
-;#     PAD14 - NC                         (input        pull-up  )             #
-;#     PAD15 - NC                         (input        pull-up  )             #
+;#     PAD00 - ATD0  0 (K5)               (analog       no pull  )             #
+;#     PAD01 - ATD0  1 (K4)               (analog       no pull  )             #
+;#     PAD02 - ATD0  2 (K3)               (analog       no pull  )             #
+;#     PAD03 - ATD0  3 (K2)               (analog       no pull  )             #
+;#     PAD04 - ATD0  4 (K1)               (analog       no pull  )             #
+;#     PAD05 - ATD0  5 (RV10)             (analog       no pull  )             #
+;#     PAD06 - ATD0  6 (RV9)              (analog       no pull  )             #
+;#     PAD07 - ATD0  7 (K6)               (analog       no pull  )             #
+;#     PAD08 - ATD0  8 (RV8)              (analog       no pull  )             #
+;#     PAD09 - ATD0  9 (RV7)              (analog       no pull  )             #
+;#     PAD10 - ATD0 10 (RV6)              (analog       no pull  )             #
+;#     PAD11 - ATD0 11 (RV5)              (analog       no pull  )             #
+;#     PAD12 - ATD0 12 (RV4)              (analog       no pull  )             #
+;#     PAD13 - ATD0 13 (RV3)              (analog       no pull  )             #
+;#     PAD14 - ATD0 14 (P3)               (analog       no pull  )             #
+;#     PAD15 - ATD0 15 (P2)               (analog       no pull  )             #
 ;#     PAD16 - NC                         (input        pull-up  )             #
 ;#     PAD17 - NC                         (input        pull-up  )             #
 ;#     PAD18 - NC                         (input        pull-up  )             #
@@ -57,23 +56,23 @@
 ;#     PAD30 - NC                         (input        pull-up  )             #
 ;#     PAD30 - NC                         (input        pull-up  )             #
 ;#    Port A:                                                                  #
-;#     PA0 - unused                       (output       low      )             #
-;#     PA1 - unused                       (output       low      )             #
-;#     PA2 - unused                       (output       low      )             #
-;#     PA3 - unused                       (output       low      )             #
-;#     PA4 - unused                       (output       low      )             #
-;#     PA5 - unused                       (output       low      )             #
-;#     PA6 - unused                       (output       low      )             #
-;#     PA7 - unused                       (output       low      )             #
+;#     PA0 - SW7                          (input        pull-up  )             #
+;#     PA1 - SW3                          (input        pull-up  )             #
+;#     PA2 - SW6                          (input        pull-up  )             #
+;#     PA3 - SW2                          (input        pull-up  )             #
+;#     PA4 - SW5                          (input        pull-up  )             #
+;#     PA5 - SW1                          (input        pull-up  )             #
+;#     PA6 - SW2 (run/load)               (input        pull-up  )             #
+;#     PA7 - SW4                          (input        pull-up  )             #
 ;#    Port B:                                                                  #
-;#     PB0 - unused                       (output       low      )             #
-;#     PB1 - unused                       (output       low      )             #
-;#     PB2 - unused                       (output       low      )             #
-;#     PB3 - unused                       (output       low      )             #
-;#     PB4 - unused                       (output       low      )             #
-;#     PB5 - unused                       (output       low      )             #
-;#     PB6 - unused                       (output       low      )             #
-;#     PB7 - unused                       (output       low      )             #
+;#     PB0 - LED red (D9)                 (output       low      )             #
+;#     PB1 - LED red (D23)                (output       low      )             #
+;#     PB2 - LED red (D4)                 (output       low      )             #
+;#     PB3 - LED red (D20)                (output       low      )             #
+;#     PB4 - LED red (D10)                (output       low      )             #
+;#     PB5 - LED red (D1)                 (output       low      )             #
+;#     PB6 - LED red (D10)                (output       low      )             #
+;#     PB7 - LED red (D2)                 (output       low      )             #
 ;#    Port C:                                                                  #
 ;#     PC0 - NC                           (input        pull-up  )             #
 ;#     PC1 - NC                           (input        pull-up  )             #
@@ -93,14 +92,14 @@
 ;#     PD6 - NC                           (input        pull-up  )             #
 ;#     PD7 - NC                           (input        pull-up  )             #
 ;#    Port E:                                                                  #
-;#     PE0 - unused                       (input        no pull  )             #
-;#     PE1 - unused                       (input        no pull  )             #
-;#     PE2 - unused                       (output       low      )             #
-;#     PE3 - NC                           (input        pull-up  )             #
-;#     PE4 - NC                           (input        pull-up  )             #
-;#     PE5 - MODA                         (input        pull-down)             #
-;#     PE6 - MODB                         (input        pull-down)             #
-;#     PE7 - unused                       (input        no pull  )             #
+;#     PE0 - XIRQ (gear tooth sensor)     (input        pull-up  )             #
+;#     PE1 - IRQ  (gear tooth sensor)     (input        pull-up  )             #
+;#     PE2 - SD card detect               (input        pull_up  )             #
+;#     PE3 - SW5                          (input        pull-up  )             #
+;#     PE4 - SW2                          (input        pull-up  )             #
+;#     PE5 - SW4 (MODA)                   (input        pull-up  )             #
+;#     PE6 - SW1 (MODB)                   (input        pull-up  )             #
+;#     PE7 - SW6                          (input        pull-up  )             #
 ;#    Port F:                                                                  #
 ;#     PF0 - NC                           (input        pull-up  )             #
 ;#     PF1 - NC                           (input        pull-up  )             #
@@ -111,41 +110,41 @@
 ;#     PF6 - NC                           (input        pull-up  )             #
 ;#     PF7 - NC                           (input        pull-up  )             #
 ;#    Port H:                                                                  #
-;#     PH0 - unused                       (input        pull-up  )             #
-;#     PH1 - unused                       (input        pull-up  )             #
-;#     PH2 - unused                       (input        pull-up  )             #
-;#     PH3 - unused                       (input        pull-up  )             #
-;#     PH4 - unused                       (input        pull-up  )             #
-;#     PH5 - unused                       (input        pull-up  )             #
-;#     PH6 - unused                       (input        pull-up  )             #
-;#     PH7 - unused                       (input        pull-up  )             #
+;#     PH0 - SD data out     (MISO1)      (input        pull-down)             #
+;#     PH1 - SD CMD          (MOSI1)      (output       low      )             #
+;#     PH2 - SD CLK          (SCK1)       (output       low      )             #
+;#     PH3 - SD CD           (SS1)        (output       low      )             #
+;#     PH4 - Real time clock (MISO2)      (input        pull-down)             #
+;#     PH5 - Real time clock (MOSI2)      (output       low      )             #
+;#     PH6 - Real time clock (SCK2)       (output       low      )             #
+;#     PH7 - Real time clock (SS2)        (output       low      )             #
 ;#    Port J:                                                                  #
-;#     PJ0 - NC                           (input        pull-up  )             #
-;#     PJ1 - NC                           (input        pull-up  )             #
+;#     PJ0 - SCI2 RXD                     (input        pull-up  )             #
+;#     PJ1 - SCI2 TXD                     (output       high     )             #
 ;#     PJ2 - NC                           (input        pull-up  )             #
 ;#     PJ3 - NC                           (input        pull-up  )             #
 ;#     PJ4 - NC                           (input        pull-up  )             #
 ;#     PJ5 - NC                           (input        pull-up  )             #
-;#     PJ6 - unused                       (input        no pull  )             #
-;#     PJ7 - unused                       (input        no pull  )             #
+;#     PJ6 - SW4                          (input        pull-up  )             #
+;#     PJ7 - SW2                          (input        pull-up  )             #
 ;#    Port K:                                                                  #
-;#     PK0 - unused                       (output       high     )             #
-;#     PK1 - unused                       (output       high     )             #
-;#     PK2 - unused                       (output       high     )             #
-;#     PK3 - NC                           (input        pull-up  )             #
-;#     PK4 - NC                           (input        pull-up  )             #
-;#     PK5 - NC                           (input        pull-up  )             #
+;#     PK0 - LED red (D22)                (output       low      )             #
+;#     PK1 - LED red (D6)                 (output       low      )             #
+;#     PK2 - LED red (D25)                (output       low      )             #
+;#     PK3 - LED red (D2)                 (output       low      )             #
+;#     PK4 - LED red (D19)                (output       low      )             #
+;#     PK5 - LED red (D3)                 (output       low      )             #
 ;#     PK6 - NC                           (input        pull-up  )             #
-;#     PK7 - NC                           (input        pull-up  )             #
+;#     PK7 - LED red (D2)                 (output       low      )             #
 ;#    Port M:                                                                  #
-;#     PM0 - unused                       (output       low      )             #
-;#     PM1 - unused                       (output       low      )             #
-;#     PM2 - unused                       (output       low      )             #
-;#     PM3 - unused                       (output       low      )             #
-;#     PM4 - unused                       (output       low      )             #
-;#     PM5 - unused                       (output       low      )             #
-;#     PM6 - Switch                       (input        no pull  )             #
-;#     PM7 - Target interface enable      (open-drain   no-pull  )             #
+;#     PM0 - RXCAN0                       (input        pull-up  )             #
+;#     PM1 - TXCAN0                       (output       high     )             #
+;#     PM2 - RXCAN1                       (input        pull-up  )             #
+;#     PM3 - TXCAN1                       (output       high     )             #
+;#     PM4 - SW3                          (input        pull-up  )             #
+;#     PM5 - SW1                          (input        pull-up  )             #
+;#     PM6 - SCI3 RXD                     (input        pull-up  )             #
+;#     PM7 - SCI3 TXD                     (output       high     )             #
 ;#    Port L:                                                                  #
 ;#     PL0 - NC                           (input        pull-up  )             #
 ;#     PL1 - NC                           (input        pull-up  )             #
@@ -156,14 +155,14 @@
 ;#     PL6 - NC                           (input        pull-up  )             #
 ;#     PL7 - NC                           (input        pull-up  )             #
 ;#    Port P:                                                                  #
-;#     PP0 - unused                       (output       low      )             #
-;#     PP1 - unused                       (output       low      )             #
-;#     PP2 - LED switch                   (output       high     )             #
-;#     PP3 - LED switch                   (output       high     )             #
-;#     PP4 - LED 4 green                  (output       high     )             #
-;#     PP5 - LED 3 green                  (output       high     )             #
-;#     PP6 - LED 2 green                  (output       high     )             #
-;#     PP7 - LED 1 red                    (output       high     )             #
+;#     PP0 - TIM1 OC4 (P8)                (output       low      )             #
+;#     PP1 - TIM1 OC5 (P4)                (output       low      )             #
+;#     PP2 - TIM1 OC6 (P7)                (output       low      )             #
+;#     PP3 - TIM1 OC7 (P3)                (output       low      )             #
+;#     PP4 - TIM1 OC4 (P3)                (output       low      )             #
+;#     PP5 - TIM1 OC5 (P6)                (output       low      )             #
+;#     PP6 - TIM1 OC6 (P2)                (output       low      )             #
+;#     PP7 - TIM1 OC7 (P7)                (output       low      )             #
 ;#    Port R:                                                                  #
 ;#     PR0 - NC                           (input        pull-up  )             #
 ;#     PR1 - NC                           (input        pull-up  )             #
@@ -174,23 +173,23 @@
 ;#     PR6 - NC                           (input        pull-up  )             #
 ;#     PR7 - NC                           (input        pull-up  )             #
 ;#    Port S:                                                                  #
-;#     PS0 - SCI RX                       (input        no pull  )             #
-;#     PS1 - SCI TX                       (output       high     )             #
-;#     PS2 - NC                           (input        pull-up  )             #
-;#     PS3 - NC                           (input        pull-up  )             #
-;#     PS4 - NC                           (input        pull-up  )             #
-;#     PS5 - unused                       (output       low      )             #
-;#     PS6 - unused                       (output       low      )             #
-;#     PS7 - unused                       (output       high     )             #
+;#     PS0 - SCI0 RXD                     (input        pull-up  )             #
+;#     PS1 - SCI0 TXD                     (output       high     )             #
+;#     PS2 - SCI1 RXD                     (input        pull-up  )             #
+;#     PS3 - SCI1 TXD                     (output       high     )             #
+;#     PS4 - MISO0 (P8)                   (input        pull-down)             #
+;#     PS5 - MOSI0 (P8)                   (output       low      )             #
+;#     PS6 - SCK0  (P8)                   (output       low      )             #
+;#     PS7 - SS0   (P8)                   (output       high     )             #
 ;#    Port T:                                                                  #
-;#     PT0 - SCI RX                       (input        no pull  )             #
-;#     PT1 - NC                           (input        pull-up  )             #
-;#     PT2 - NC                           (input        pull-up  )             #
-;#     PT3 - NC                           (input        pull-up  )             #
-;#     PT4 - NC                           (input        pull-up  )             #
-;#     PT5 - NC                           (input        pull-up  )             #
-;#     PT6 - Target BKGD                  (input/output pull-up  )             #
-;#     PT7 - Target RESET                 (input/output pull-up  )             #
+;#     PT0 - LED red (D7)                 (output       low      )             #
+;#     PT1 - TIM0 IC1                     (input        pull-down)             #
+;#     PT2 - LED red (D8)                 (output       low      )             #
+;#     PT3 - TIM0 IC3                     (input        pull-down)             #
+;#     PT4 - TIM0 IC4                     (input        pull-down)             #
+;#     PT5 - TIM0 IC5                     (input        pull-down)             #
+;#     PT6 - TIM0 IC6                     (input        pull-down)             #
+;#     PT7 - TIM0 IC7                     (input        pull-down)             #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    REGDEF - Register Definitions                                            #
