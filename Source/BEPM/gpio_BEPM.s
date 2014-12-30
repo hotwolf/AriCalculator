@@ -229,59 +229,53 @@ GPIO_VARS_END_LIN	EQU	@
 		STAA	MODE		
 		STAA	MODE
 		;#Port AD
-		MOVW	#%1111_1111_1111_1111, ATD1DIENH 	;switch unused pins to digital
-		MOVW	#%1111_0000_1111_1100, ATD0DIENH
+		MOVW	#$FFFF, ATD1DIENH 	;switch unused pins to digital
+		;MOVW	#$0000, ATD0DIENH
 
 		MOVW	#%1111_1111_1111_1111, PER0AD1 		;enable pull-up on all unused pins
-		MOVW	#%1111_0000_1111_1100, PER0AD0
+		;MOVW	#%0000_0000_0000_0000, PER0AD0
 		;#Port A & B
-		MOVW	#(((PUPKE|BKPUE|PUPEE|PUPDE|PUPCE)<<8)|RDPK|RDPE|RDPD|RDPC|PUPBE|PUPAE), PUCR ;enable pull-ups and reduced drive	
+		MOVW	#(((PUPKE|BKPUE|PUPEE|PUPDE|PUPCE|PUPAE)<<8)|RDPK|RDPE|RDPD|RDPC|PUPBE|PUPAE), PUCR ;enable pull-ups and reduced drive	
 		;MOVW	#$0000, PORTA
-		MOVW	#$FFFF, DDRA
+		MOVW	#$00FF, DDRA
 		;#Port C & D
 		;MOVW	#$0000, PORTC
 		;MOVW	#$0000, DDRC
 		;#Port E
 		;MOVB	#$00, PORTE
-		MOVB	#$04, DDRE
-		CLR	IRQCR		;disable IRQ
+		;CLR	IRQCR		;disable IRQ
 		;#Port F
 		;CLR	DDRF
 		;MOVB	#$FF, PERF
 		;#Port H
-		;CLR	DDRH
-		;MOVB	#$FF, PERH
+		MOVB	#$EE, DDRH
+		MOVW	#$1111, PERH
 		;#Port J
-		;CLR	DDRJ
-		MOVB	#$FC, PERJ
+		MOVB	#$02, PTJ
+		MOVB	#$02, DDRJ
+		;MOVB	#$FD, PERJ
 		;#Port K
-		MOVW	#$0707, PORTK
+		MOVB	#$FD, DDRK
 		;#Port M
-		;CLR	PTM
-		MOVW	#$BFFF, DDRM
-		;CLR	PERM
-		MOVB	#$80, WOMM
+		MOVB	#$8A, PTM
+		MOVB	#$8A, DDRM
+		MOVB	#$75, PERM
 		;#Port L
 		;CLR	DDRL
 		;MOVW	$#FF00, PERL
 		;#Port P
-		MOVB	#$F3, PTP
 		MOVB	#$FF, DDRP
-		;CLR	RDRP
 		;#Port R
 		;CLR	DDRR
 		MOVB	#$FF, PERR
 		;CLR	PPSR	
 		;#Port S
-		MOVB	#$82, PTS
-		MOVB	#$70, DDRS
-		MOVB	#$1C, PERS
-		;CLR	PPSS	
+		MOVB	#$8A, PTS
+		MOVB	#$EA, DDRS
+		MOVB	#$10, PPSS	
 		;#Port T
-		;CLR	DDRT
-		;CLR	RDRT
-		MOVB	#$FE, PERT
-		;CLR	PPST
+		MOVW	#$0505, DDRT
+		MOVW	#$FAFA, PERT
 #emac
 	
 ;###############################################################################
