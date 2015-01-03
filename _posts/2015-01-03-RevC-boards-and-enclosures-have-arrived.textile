@@ -1,0 +1,34 @@
+---
+layout: post
+title: RevC Boards and Enclosures Have Arrived
+---
+
+My order of RevC boards and enclosures has come in the mail.
+
+p=. !{{ site.url}}/images/AriCalculatorRevCPcbs.png!
+This is the first time, that I've added tiny spark gaps to all exposed board inputs. They turned out well (no shorts).
+
+p=. !{{ site.url}}/images/AriCalculatorRevCSparkGaps2.png! !{{ site.url}}/images/AriCalculatorRevCSparkGaps1.png!
+
+For the enclosure of RevC, I've tried out "Seeedstudio's":http://www.seeedstudio.com new laser engraving service.
+
+p=. !{{ site.url}}/images/AriCalculatorRevCEnclosuresPacked.png!
+
+I'm sure it wasn't easy to burn the small print of the calculator's keyboard lables into the clear acrylic cover. 
+The people at "Seeedstudio":http://www.seeedstudio.com were so nice to and experimented with my design to improve 
+readability. In the end they send me two versions of the engraved front covers. One has a filled font (this is basically 
+what my original design looked like):
+
+p=. !{{ site.url}}/images/AriCalculatorRevCEnclosureFilledFontFront.png! !{{ site.url}}/images/AriCalculatorRevCEnclosureFilledFontBack.png!
+
+The other variation uses an outlined font.
+
+p=. !{{ site.url}}/images/AriCalculatorRevCEnclosureHollowFontFront.png! !{{ site.url}}/images/AriCalculatorRevCEnclosureHollowFontBack.png!
+
+I think they both turned out well. 
+
+Now I need to come up with a good way to color the engraved labeling. Maybe I should have ordered black PCBs instead of white ones.
+ 
+
+    
+
