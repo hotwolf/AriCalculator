@@ -7,7 +7,7 @@ $Descr User 8268 5827
 encoding utf-8
 Sheet 5 6
 Title "UART"
-Date "4 dec 2014"
+Date "4 jan 2015"
 Rev "RevC"
 Comp "Dirk Heisswolf"
 Comment1 ""

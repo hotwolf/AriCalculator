@@ -7,7 +7,7 @@ $Descr User 8268 5827
 encoding utf-8
 Sheet 6 6
 Title "MCU"
-Date "4 dec 2014"
+Date "4 jan 2015"
 Rev "RevC"
 Comp "Dirk Heisswolf"
 Comment1 ""
@@ -167,7 +167,7 @@ F 1 "GREEN" H 1850 2150 50  0000 C CNN
 F 2 "~" H 2050 2200 60  0000 C CNN
 F 3 "~" H 2050 2200 60  0000 C CNN
 	1    2050 2200
-	-1   0    0    -1  
+	1    0    0    1   
 $EndComp
 $Comp
 L LED LED2
@@ -178,7 +178,7 @@ F 1 "RED" H 1900 2350 50  0000 C CNN
 F 2 "~" H 2050 2400 60  0000 C CNN
 F 3 "~" H 2050 2400 60  0000 C CNN
 	1    2050 2400
-	-1   0    0    -1  
+	1    0    0    1   
 $EndComp
 $Comp
 L 3V3 #PWR26
