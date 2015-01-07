@@ -27,7 +27,7 @@
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    KEYS    - Keypad controller                                              #
-;#    LVMON  - Battery monitor                                                #
+;#    VMON    - Voltage monitor                                                #
 ;#    SCI     - UART driver                                                    #
 ;#    DISP    - ST7565R display driver                                         #
 ;#    ERROR   - Error handler                                                  #
@@ -88,7 +88,7 @@ VECTAB_CODE_END_LIN	EQU	@
 #ifdef VECTAB_DEBUG
 ISR_SPURIOUS		BGND				;vector base + $80
 ISR_PAD			EQU	KEYS_ISR_KWU		;vector base + $82
-ISR_ADCCOMP		EQU	LVMON_ISR		;vector base + $84
+ISR_ADCCOMP		EQU	VMON_ISR		;vector base + $84
 ISR_RES86		BGND				;vector base + $86
 ISR_API			BGND				;vector base + $88
 ISR_LVI			BGND				;vector base + $8A
@@ -150,7 +150,7 @@ ISR_TRAP		BGND				;vector base + $F8
 #else								
 ISR_SPURIOUS		EQU	RESET_ISR_FATAL		;vector base + $80
 ISR_PAD			EQU	KEYS_ISR_KWU		;vector base + $82
-ISR_ADCCOMP		EQU	LVMON_ISR		;vector base + $84
+ISR_ADCCOMP		EQU	VMON_ISR		;vector base + $84
 ISR_RES86		EQU	RESET_ISR_FATAL		;vector base + $86
 ISR_API			EQU	RESET_ISR_FATAL		;vector base + $88
 ISR_LVI			EQU	RESET_ISR_FATAL		;vector base + $8A

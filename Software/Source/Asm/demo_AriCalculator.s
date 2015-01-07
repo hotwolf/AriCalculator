@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# AriCalculator - Demo                                                        #
 ;###############################################################################
-;#    Copyright 2010-2014 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -344,6 +344,7 @@ DEMO_TABS_END_LIN	EQU	@
 #include ./disp_splash.s										;Splash screen image
 #include ./disp_AriCalculator.s										;Display driver
 #include ./keys_AriCalculator.s										;keypad driver
+;#include ./vmon_AriCalculator.s	  									;Voltage monitor
 #include ./vectab_AriCalculator.s									;Vector table
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/S12G-Micro-EVB/base_S12G-Micro-EVB.s;S12CBase framework
 	

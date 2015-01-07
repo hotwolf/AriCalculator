@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# AriCalculator - KEYS - Keypad Driver (AriCalculator RevC)                   #
 ;###############################################################################
-;#    Copyright 2010-2014 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
