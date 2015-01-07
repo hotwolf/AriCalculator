@@ -29,7 +29,7 @@
 ;#      OC3:     SCI (timeout)                                                 #
 ;#      OC4:     delay driver                                                  #
 ;#      OC5:     unasigned                                                     #
-;#      OC5:     unasigned                                                     #
+;#      OC6:     unasigned                                                     #
 ;#      OC7:     unasigned                                                     #
 ;###############################################################################
 ;# Version History:                                                            #

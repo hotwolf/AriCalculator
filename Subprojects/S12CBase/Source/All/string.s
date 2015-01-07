@@ -83,7 +83,7 @@ STRING_BLOCKING_ON	EQU	1 	;blocking functions enabled by default
 ;STRING_FILL_BL and STRING_FILL_NB 
 #ifndef	STRING_FILL_ON
 #ifndef	STRING_FILL_OFF
-STRING_BLOCKING_OFF	EQU	1 	;STRING_FILL_BL/STRING_FILL_NB disabled by default
+STRING_FILL_OFF		EQU	1 	;STRING_FILL_BL/STRING_FILL_NB disabled by default
 #endif
 #endif
 ;STRING_SKIP_WS 
