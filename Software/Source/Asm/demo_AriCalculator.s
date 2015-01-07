@@ -40,15 +40,6 @@ DEMO_LRE		EQU	1 		;default is LRE
 #endif
 #endif
 
-;# Clocks
-CLOCK_CPMU		EQU	1		;CPMU
-CLOCK_IRC		EQU	1		;use IRC
-CLOCK_OSC_FREQ		EQU	 1000000	; 1 MHz IRC frequency
-CLOCK_BUS_FREQ		EQU	25000000	; 25 MHz bus frequency
-CLOCK_REF_FREQ		EQU	 1000000	; 1 MHz reference clock frequency
-CLOCK_VCOFRQ		EQU	$1		; 10 MHz VCO frequency
-CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
-
 ;# Memory map:
 MMAP_S12G128		EQU	1 		;S12G128
 #ifdef DEMO_LRE
