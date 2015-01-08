@@ -46,19 +46,19 @@
 ;#           0  1  2  3  4  5
 ;#               
 ;#           |  |  |  |  |  |
-;#  PAD7 ---28-27-26-25-24-23 |G
+;#  PAD6 ---28-27-26-25-24-23 |G
 ;#           |  |  |  |  |  | |
-;#  PAD6 ---22-21-20-1F-1E-1D |F
+;#  PAD5 ---22-21-20-1F-1E-1D |F
 ;#           |  |  |  |  |  | |
-;#  PAD5 ---1C-1B-1A-19-18-17 |E
+;#  PAD4 ---1C-1B-1A-19-18-17 |E
 ;#              |  |  |  |  | |
-;#  PAD4 ------15-14-13-13-12 |D
+;#  PAD3 ------15-14-13-13-12 |D
 ;#              |  |  |  |  | |
-;#  PAD3 ------10--F--E--D--C |C
+;#  PAD2 ------10--F--E--D--C |C
 ;#              |  |  |  |  | |
-;#  PAD2 -------A--9--8--7--6 |B
+;#  PAD1 -------A--9--8--7--6 |B
 ;#              |  |  |  |  | |
-;#  PAD1 -------4--3--2--1--O |A
+;#  PAD0 -------4--3--2--1--O |A
 ;#           ________________
 ;#           5  4  3  2  1  0
 ;#           
@@ -74,7 +74,7 @@ KEYS_COL_IE		EQU	PIE1AD		;default is PAD
 KEYS_COL_IF		EQU	PIF1AD		;default is PAD			
 #endif
 #ifndef KEYS_COL_MSB	
-KEYS_COL_MSB		EQU	7 		;default is PAD7
+KEYS_COL_MSB		EQU	6 		;default is PAD6
 #endif	
 #ifndef KEYS_COL_LSB	
 KEYS_COL_LSB		EQU	0 		;default is PAD0
@@ -98,7 +98,7 @@ KEYS_ROW_LSB		EQU	0 		;default is PP0
 ;--------------
 ;Output compare channel  
 #ifndef	KEYS_OC
-KEYS_OC			EQU	$6		;default is OC6	(must be >5)		
+KEYS_OC			EQU	$4		;default is OC4	(must be >5)		
 #endif
 
 ;Debounce delay (TIM cycles)

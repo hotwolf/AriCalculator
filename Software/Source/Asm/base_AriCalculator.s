@@ -32,20 +32,23 @@
 ;#      IC1:     SCI baud rate detection (capture negedges on RX pin)          #
 ;#      OC2:     SCI baud rate detection (timeout)                             #
 ;#      OC3:     SCI (timeout)                                                 #
-;#      OC4:     delay driver                                                  #
+;#      OC4:     KEYS (debounce delay)                                                  #
 ;#      OC5:     LCD backlight PWM                                             #
-;#      OC5:     unasigned                                                     #
+;#      OC6:     unasigned                                                     #
 ;#      OC7:     unasigned                                                     #
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;# VECTAB
+VECTAB_DEBUG		EQU	1 		;BGND on error
+
 ;# SSTACK
-;SSTACK_DEBUG		EQU	1 		;BGND on error
+SSTACK_DEBUG		EQU	1 		;BGND on error
 ;SSTACK_NO_CHECK	EQU	1 		;disable range checks
 SSTACK_DEPTH		EQU	27 		;subroutine stack size
 
 ;# ISTACK
-;ISTACK_DEBUG		EQU	1 		;BGND on error
+ISTACK_DEBUG		EQU	1 		;BGND on error
 ;ISTACK_NO_CHECK	EQU	1 		;disable range checks
 ISTACK_LEVELS		EQU	4 		;max. interrupt nesting levels
 ISTACK_S12		EQU	1 		;S12 stack frames
@@ -391,7 +394,7 @@ LED_TABS_START		EQU	*
 LED_TABS_START_LIN	EQU	@
 			ORG	LED_TABS_END, LED_TABS_END_LIN
 
-VMON_TABS_START	EQU	*
+VMON_TABS_START		EQU	*
 VMON_TABS_START_LIN	EQU	@
 			ORG	VMON_TABS_END, VMON_TABS_END_LIN
 

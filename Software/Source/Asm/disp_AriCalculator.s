@@ -152,7 +152,8 @@ DISP_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	DISP_INIT, 0
 			;Deassert display reset 
-			MOVB	#DISP_RESET_PIN, DISP_RESET_PORT	
+			;BSET	DISP_RESET_PORT, #DISP_RESET_PIN
+			MOVB	#DISP_RESET_PIN, DISP_RESET_PORT ;shortcut
 			;Initialize Variables 
 			MOVW	#$0000, DISP_BUF_IN
 			CLR	DISP_STAT
@@ -415,12 +416,14 @@ DISP_ISR_10		LDAA	#DISP_ESC_START
 			;Switch to command mode (new OUT in B) 
 DISP_ISR_11		BRCLR	DISP_A0_PORT, #DISP_A0_PIN, DISP_ISR_3		;already in command mode
 			BRSET	DISP_STAT, #DISP_STAT_BUSY, DISP_ISR_6		;transmission in progress
-			BCLR	DISP_A0_PORT, #DISP_A0_PIN 			;switch to command mode
+			;BCLR	DISP_A0_PORT, #DISP_A0_PIN 			;switch to command mode
+			MOVB	#DISP_RESET_PIN, DISP_A0_PORT  			; shortcut
 			JOB	DISP_ISR_3					;escape sequence processed
 			;Switch to data mode (new OUT in B) 
 DISP_ISR_12		BRSET	DISP_A0_PORT, #DISP_A0_PIN, DISP_ISR_3		;already in data mode
 			BRSET	DISP_STAT, #DISP_STAT_BUSY, DISP_ISR_6		;transmission in progress
-			BSET	DISP_A0_PORT, #DISP_A0_PIN 			;switch to data mode
+			;BSET	DISP_A0_PORT, #DISP_A0_PIN 			;switch to data mode
+			MOVB	#(DISP_A0_PIN|DISP_RESET_PIN), DISP_A0_PORT  	; shortcut
 			JOB	DISP_ISR_3					;escape sequence processed	
 	
 DISP_CODE_END		EQU	*	
