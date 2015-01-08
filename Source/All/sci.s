@@ -365,7 +365,8 @@ SCI_RXBUF_SIZE		EQU	 16*2		;size of the receive buffer (8 error:data entries)
 SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
 #endif
 SCI_RXBUF_MASK		EQU	$1F		;mask for rolling over the RX buffer
-SCI_TXBUF_MASK		EQU	$07		;mask for rolling over the TX buffer
+;SCI_TXBUF_MASK		EQU	$07		;mask for rolling over the TX buffer
+SCI_TXBUF_MASK		EQU	$01		;mask for rolling over the TX buffer
 
 ;#Hardware handshake borders
 SCI_RX_FULL_LEVEL	EQU	 8*2		;RX buffer threshold to block transmissions 
@@ -580,6 +581,13 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 			SCI_ASSERT_CTS
 			;Stop timer channels
 			TIM_MULT_DIS	(SCI_BD_TCS|SCI_DLY_TCS)
+#emac
+
+;#Check if disabled
+;#-----------------
+#macro	SCI_BR_DISABLED, 1
+			;Branch if disabled
+			BRCLR	SCICR2, #(TE|RE), \1
 #emac
 	
 ;#Functions	
