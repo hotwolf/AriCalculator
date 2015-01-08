@@ -133,6 +133,8 @@ RESET_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	RESET_INIT, 0
+			;Check if SCI is enabled 
+			SCI_BR_DISABLED	RESET_INIT_6	
 			;Check for POR
 			LDAA	RESET_FLGS
 			BITA	#RESET_FLG_POR
@@ -196,7 +198,9 @@ RESET_INIT_5		LDD	$0000
 			STD	RESET_MSG
 			STAA	RESET_MSG_CHKSUM
 			;Wait until message has been transmitted
-			SCI_TX_DONE_BL	
+			SCI_TX_DONE_BL
+			;Done 
+RESET_INIT_6		EQU	*
 #emac
 	
 ;#Perform a reset due to a fatal error (immediate error code)

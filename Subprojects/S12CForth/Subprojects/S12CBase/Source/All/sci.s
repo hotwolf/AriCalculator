@@ -582,6 +582,13 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 			;Stop timer channels
 			TIM_MULT_DIS	(SCI_BD_TCS|SCI_DLY_TCS)
 #emac
+
+;#Check if disabled
+;#-----------------
+#macro	SCI_BR_DISABLED, 1
+			;Branch if disabled
+			BRCLR	SCICR2, #(TE|RE), \1
+#emac
 	
 ;#Functions	
 ;#Transmit one byte - non-blocking
