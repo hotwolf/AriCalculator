@@ -67,7 +67,7 @@ TIM_DIV2_OFF		EQU	1 		;run TIM at full bus clock
 	
 ;# SCI
 SCI_RXTX_ACTHI		EQU	1 		;RXD/TXD are inverted (active high)
-;SCI_ENABLE_AT_INIT_OFF	EQU	1 		;only enable SCI if VUSB is detected
+SCI_ENABLE_AT_INIT_OFF	EQU	1 		;only enable SCI if VUSB is detected
 SCI_FC_RTSCTS		EQU	1 		;RTS/CTS flow control
 SCI_RTS_PORT		EQU	PTM 		;PTM
 SCI_RTS_PIN		EQU	PM0		;PM0
@@ -413,6 +413,8 @@ BASE_TABS_END_LIN	EQU	@
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
+#include ./sci_bdtab_AriCalculator.s							;Search tree for SCI baud rate detection
+#include ./disp_splash.s								;NVM driver
 #include ./regdef_AriCalculator.s							;S12G register map
 #include ./mmap_AriCalculator.s								;Memory map
 #include ./vectab_AriCalculator.s							;S12G vector table
@@ -431,5 +433,4 @@ BASE_TABS_END_LIN	EQU	@
 #include ./nvm_AriCalculator.s								;NVM driver
 #include ./disp_AriCalculator.s								;NVM driver
 #include ./keys_AriCalculator.s								;NVM driver
-#include ./sci_bdtab_AriCalculator.s							;Search tree for SCI baud rate detection
 #endif
