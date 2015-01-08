@@ -1,7 +1,7 @@
 #ifndef	VMON
 #define	VMON
 ;###############################################################################
-;# AriCalculator - VMON - Voltage Monitor (AriCalculator RevC)                 #
+;# AriCalculator - VMON - Voltage Monitor (AriCalculator)                      #
 ;###############################################################################
 ;#    Copyright 2010-2014 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
@@ -41,12 +41,6 @@
 ;###############################################################################
 ;Battery voltage monitor (PAD8)
 ;------------------------------
-;Enable 
-#ifndef	VMON_VBAT_ON
-#ifndef	VMON_VBAT_OFF
-VMON_VBAT_ON			EQU	1 		;VBAT monitor enabled by default
-#endif
-#endif
 ;Upper threshold
 #ifndef VMON_VBAT_UPPER_THRESHOLD
 VMON_VBAT_UPPER_THRESHOLD	EQU	(24*$FFFF)/33 	;default 2.4V
@@ -55,27 +49,9 @@ VMON_VBAT_UPPER_THRESHOLD	EQU	(24*$FFFF)/33 	;default 2.4V
 #ifndef VMON_VBAT_LOWER_THRESHOLD
 VMON_VBAT_LOWER_THRESHOLD	EQU	 (20*$FFFF)/33 	;default 2.0V
 #endif	
-;Act on low voltage detection (use VMON_VBAT_LVACTION macro)
-#ifndef	VMON_VBAT_LVACTION_ON
-#ifndef	VMON_VBAT_LVACTION_OFF
-VMON_VBAT_LVACTION_OFF		EQU	1 		;don't act on LV conditions by default
-#endif
-#endif
-;Act on high voltage detection (use VMON_VBAT_HVACTION macro)
-#ifndef	VMON_VBAT_HVACTION_ON
-#ifndef	VMON_VBAT_HVACTION_OFF
-VMON_VBAT_HVACTION_OFF		EQU	1 		;don't act on HV conditions by default
-#endif
-#endif
 	
 ;USB voltage monitor (PAD9)
 ;--------------------------
-;Enable 
-#ifndef	VMON_VUSB_ON
-#ifndef	VMON_VUSB_OFF
-VMON_VUSB_ON			EQU	1 		;VUSB monitor enabled by default
-#endif
-#endif
 ;Upper threshold
 #ifndef VMON_VUSB_UPPER_THRESHOLD
 VMON_VUSB_UPPER_THRESHOLD	EQU	(24*$FFFF)/33 	;default 2.4V
@@ -84,18 +60,6 @@ VMON_VUSB_UPPER_THRESHOLD	EQU	(24*$FFFF)/33 	;default 2.4V
 #ifndef VMON_VUSB_LOWER_THRESHOLD
 VMON_VUSB_LOWER_THRESHOLD	EQU	 (20*$FFFF)/33 	;default 2.0V
 #endif	
-;Act on low voltage detection (use VMON_VUSB_LVACTION macro)
-#ifndef	VMON_VUSB_LVACTION_ON
-#ifndef	VMON_VUSB_LVACTION_OFF
-VMON_VUSB_LVACTION_OFF		EQU	1 		;don't act on LV conditions by default
-#endif
-#endif
-;Act on high voltage detection (use VMON_VUSB_HVACTION macro)
-#ifndef	VMON_VUSB_HVACTION_ON
-#ifndef	VMON_VUSB_HVACTION_OFF
-VMON_VUSB_HVACTION_OFF		EQU	1 		;don't act on HV conditions by default
-#endif
-#endif
 	
 ;###############################################################################
 ;# Constants                                                                   #
@@ -141,8 +105,6 @@ VMON_ATDCTL4_CONFIG	EQU	 %11111111
 
 ;Configuration specific settings
 ;-------------------------------
-#ifdef	VMON_VBAT_ON
-#ifdef	VMON_VUSB_ON
 			;Monitor VBAT and VUSB
 VMON_VBAT_CONVERSION	EQU	$02
 VMON_VUSB_CONVERSION	EQU	$01
@@ -157,38 +119,6 @@ VMON_ATDCTL5_CONFIG	EQU	 %00110111
 			;      CC------+|| 
 			;      CB-------+| 
 			;      CA--------+
-#else
-			;Monitor VBAT only
-VMON_VBAT_CONVERSION	EQU	$01
-VMON_VUSB_CONVERSION	EQU	$00
-VMON_VBAT_ATDDR		EQU	ATDDR0
-VMON_ATDCTL5_CONFIG	EQU	 %00100000
-			;          ^^^^^^^
-			;      SC--+|||||| 
-			;    SCAN---+||||| 
-			;    MULT----+|||| 
-			;      CD-----+||| 
-			;      CC------+|| 
-			;      CB-------+| 
-			;      CA--------+
-#endif
-#else
-#ifdef	VMON_VUSB_ON
-			;Monitor VUSB only
-VMON_VBAT_CONVERSION	EQU	$00
-VMON_VUSB_CONVERSION	EQU	$01
-VMON_VUSB_ATDDR		EQU	ATDDR0
-VMON_ATDCTL5_CONFIG	EQU	 %00100111
-			;          ^^^^^^^
-			;      SC--+|||||| 
-			;    SCAN---+||||| 
-			;    MULT----+|||| 
-			;      CD-----+||| 
-			;      CC------+|| 
-			;      CB-------+| 
-			;      CA--------+
-#endif
-#endif
 
 ;Monitor status
 ;--------------
@@ -215,8 +145,6 @@ VMON_VARS_END_LIN	EQU	@
 ;#Initialization
 ;#--------------
 #macro	VMON_INIT, 0
-#ifdef	VMON_VBAT_ON
-#ifdef	VMON_VUSB_ON
 			;Monitor VBAT and VUSB
 			MOVW	#((VMON_ATDCTL0_CONFIG<<8)|VMON_ATDCTL1_CONFIG), ATDCTL1
 			MOVW	#((VMON_ATDCTL2_CONFIG<<8)|VMON_ATDCTL3_CONFIG), ATDCTL2
@@ -227,30 +155,6 @@ VMON_VARS_END_LIN	EQU	@
 			MOVW	#VMON_VBAT_UPPER_THRESHOLD, ATDDR1
 			;Start ATD conversions
 			MOVB	#VMON_ATDCTL5_CONFIG, ATDCTL5
-#else
-			;Monitor VBAT only
-			MOVB	#VMON_ATDCTL1_CONFIG, ATDCTL1
-			MOVW	#((VMON_ATDCTL2_CONFIG<<8)|VMON_ATDCTL3_CONFIG), ATDCTL2
-			MOVB	#VMON_ATDCTL4_CONFIG, ATDCTL4
-			MOVB	#VMON_VBAT_CONVERSION, ATDCMPEL
-			MOVB	#VMON_VBAT_CONVERSION, ATDCMPHTL
-			MOVW	#VMON_VBAT_UPPER_THRESHOLD, ATDDR0
-			;Start ATD conversions
-			MOVB	#VMON_ATDCTL5_CONFIG, ATDCTL5
-#endif
-#else
-#ifdef	VMON_VUSB_ON
-			;Monitor VUSB only
-			MOVB	#VMON_ATDCTL1_CONFIG, ATDCTL1
-			MOVW	#((VMON_ATDCTL2_CONFIG<<8)|VMON_ATDCTL3_CONFIG), ATDCTL2
-			MOVB	#VMON_ATDCTL4_CONFIG, ATDCTL4
-			MOVB	#VMON_VUSB_CONVERSION, ATDCMPEL
-			MOVB	#VMON_VUSB_CONVERSION, ATDCMPHTL
-			MOVW	#VMON_VUSB_UPPER_THRESHOLD, ATDDR0
-			;Start ATD conversions
-			MOVB	#VMON_ATDCTL5_CONFIG, ATDCTL5
-#endif
-#endif
 #emac
 
 ;#Wait for first connversion results
@@ -270,9 +174,7 @@ DONE		CLI
 ; SSTACK: none
 ;         All registers are preserved 
 #macro VMON_VBAT_BRHV, 1
-#ifdef	VMON_VBAT_ON
 	BRCLR	VMON_STATUS, #VMON_STATUS_VBAT, \1
-#endif
 #emac
 
 ;#Branch on VBAT LV condition
@@ -280,9 +182,7 @@ DONE		CLI
 ; SSTACK: none
 ;         All registers are preserved 
 #macro VMON_VBAT_BRLV, 1
-#ifdef	VMON_VBAT_ON
 	BRSET	VMON_STATUS, #VMON_STATUS_VBAT, \1
-#endif
 #emac
 
 ;#Branch on VUSB HV condition
@@ -290,9 +190,7 @@ DONE		CLI
 ; SSTACK: none
 ;         All registers are preserved 
 #macro VMON_VUSB_BRHV, 1
-#ifdef	VMON_VUSB_ON
 	BRCLR	VMON_STATUS, #VMON_STATUS_VUSB, \1
-#endif
 #emac
 
 ;#Branch on VUSB LV condition
@@ -300,9 +198,7 @@ DONE		CLI
 ; SSTACK: none
 ;         All registers are preserved 
 #macro VMON_VUSB_BRLV, 1
-#ifdef	VMON_VUSB_ON
 	BRSET	VMON_STATUS, #VMON_STATUS_VUSB, \1
-#endif
 #emac
 	
 ;###############################################################################
@@ -318,50 +214,34 @@ VMON_CODE_START_LIN	EQU	@
 ;#ADC Compare ISR
 ;#---------------
 VMON_ISR		EQU	*
-#ifdef	VMON_VUSB_ON
 			;Check VUSB
 			BRCLR	ATDCMPHTL,  #VMON_VUSB_CONVERSION, VMON_ISR_2 	;skip if state hasn't changed
 			BRSET	ATDCMPHTL, #VMON_VUSB_CONVERSION, VMON_ISR_1 	;HV condition detected
 			;LV condition detected
 			BSET	ATDCMPHTL, #VMON_VUSB_CONVERSION   		;VUSB must be higher than threshold
 			MOVW	#VMON_VUSB_UPPER_THRESHOLD, VMON_VUSB_ATDDR	;set upper threshold value
-#ifdef	VMON_VUSB_LVACTION_ON			
 			VMON_VUSB_LVACTION
-#endif
 			JOB	VMON_ISR_2					;VUSB check done
 			;HV condition detected
 VMON_ISR_1		BCLR	ATDCMPHTL, #VMON_VUSB_CONVERSION   		;VUSB must be lower (or same) than threshold
 			MOVW	#VMON_VUSB_LOWER_THRESHOLD, VMON_VUSB_ATDDR	;set upper threshold value
-#ifdef	VMON_VUSB_HVACTION_ON			
 			VMON_VUSB_HVACTION
-#endif
 			;VUSB check done
 VMON_ISR_2		EQU	*
-#endif
-#ifdef	VMON_VBAT_ON
 			;Check VBAT
 			BRCLR	ATDCMPHTL,  #VMON_VBAT_CONVERSION, VMON_ISR_3 	;skip if state hasn't changed
 			BRSET	ATDCMPHTL, #VMON_VBAT_CONVERSION, VMON_ISR_4 	;HV condition detected
 			;LV condition detected
 			BSET	ATDCMPHTL, #VMON_VBAT_CONVERSION   		;VBAT must be higher than threshold
 			MOVW	#VMON_VBAT_UPPER_THRESHOLD, VMON_VBAT_ATDDR	;set upper threshold value
-#ifdef	VMON_VBAT_LVACTION_ON			
 			VMON_VBAT_LVACTION
-#endif
 			JOB	VMON_ISR_4					;VBAT check done
 			;HV condition detected
 VMON_ISR_3		BCLR	ATDCMPHTL, #VMON_VBAT_CONVERSION   		;VBAT must be lower (or same) than threshold
 			MOVW	#VMON_VBAT_LOWER_THRESHOLD, VMON_VBAT_ATDDR	;set upper threshold value
-#ifdef	VMON_VBAT_HVACTION_ON			
 			VMON_VBAT_HVACTION
-#endif
 			;VBAT check done
 VMON_ISR_4		ISTACK_RTI
-#else
-#ifdef	VMON_VBAT_ON
-			ISTACK_RTI
-#endif
-#endif
 
 VMON_CODE_END		EQU	*	
 VMON_CODE_END_LIN	EQU	@	
