@@ -90,11 +90,6 @@ SCI_BD_OC		EQU	2		;OC2	#endif
 SCI_DLY_OC		EQU	3		;OC3
 #endif
 
-#ifndef	SCI_ERRSIG_ON
-#ifndef	SCI_ERRSIG_OFF
-SCI_ERRSIG_ON		EQU	1 		;signal errors
-#endif
-#endif
 	
 ;###############################################################################
 ;# Variables                                                                   #
