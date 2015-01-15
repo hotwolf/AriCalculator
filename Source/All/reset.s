@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - RESET - Reset Handler                                            #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -47,14 +47,11 @@
 ;#  	  errors                                                               #
 ;#    June 20, 2013                                                            #
 ;#      - Added macros "RESET_RESTART" and "RESET_RESTART_NO_MSG"              #
+;#    January 15, 2015                                                         #
+;#      - Changed configuration options                                        #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    STRING - String printing routines                                        #
-;#    CLOCK  - Clock driver                                                    #
-;#    COP    - Watchdog handler                                                #
-;#                                                                             #
-;# Requirements to Software Using this Module:                                 #
-;#    - none                                                                   #
+;#    REGDEF - Register definitions                                            #
 ;###############################################################################
 
 ;###############################################################################
@@ -117,7 +114,7 @@ RESET_AUTO_LOC1		EQU	* 		;1st auto-place location
 			ALIGN	1
 	
 RESET_MSG		DS	2 		;error message to be displayed
-RESET_MSG_CHKSUM	DS	1		;checksum for the errormessage
+RESET_MSG_CHKSUM	DS	1		;checksum for the error message
 	
 RESET_AUTO_LOC2		EQU	*		;2nd auto-place location
 
@@ -133,12 +130,16 @@ RESET_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	RESET_INIT, 0
-			;Check if SCI is enabled 
-			SCI_BR_DISABLED	RESET_INIT_6	
-			;Check for POR
-			LDAA	RESET_FLGS
+			LDAA	RESET_FLGS 		;flags -> A
+			;Check for power failure (flags in A)
 			BITA	#RESET_FLG_POR
-			BNE	<RESET_INIT_3		 ;print welcome message	
+			BNE	<RESET_INIT_		 ;print welcome message	
+			
+
+
+	
+
+
 			;Check for power failure (flags in A)
 #ifdef	RESET_POWFAIL_ON
 	
@@ -299,7 +300,7 @@ RESET_RESTART		EQU	RESET_FATAL_X_4
 	
 ;#Perform a system restart without welcome message
 ; args: none
-RESET_RESTART_NO_MSG	EQu	*
+RESET_RESTART_NO_MSG	EQU	*
 			LDX	#$0000
 			JOB	RESET_FATAL_X_1
 	

@@ -127,9 +127,6 @@
 ;#    CLOCK  - Clock driver                                                    #
 ;#    GPIO   - GPIO driver                                                     #
 ;#    TIM    - Timer driver                                                    #
-;#                                                                             #
-;# Requirements to Software Using this Module:                                 #
-;#    - The bus clock must be set to 24.576MHz                                 #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
@@ -1867,7 +1864,7 @@ SCI_ISR_RX_1		TFR	D, Y					;flags:data -> Y
                 	BEQ	<SCI_ISR_RX_8				;buffer overflow
 			STAA	SCI_RXBUF_IN				;update IN pointer
 #ifdef	SCI_FC_EN
-			;Check id flow control must be applied (in:out in D, flags:data in Y)
+			;Check if flow control must be applied (in:out in D, flags:data in Y)
 			SBA
 			ANDA	#SCI_RXBUF_MASK
 			CMPA	#SCI_RX_FULL_LEVEL
@@ -1878,6 +1875,7 @@ SCI_ISR_RX_2		EQU	*
 			;Check for RX errors (flags:data in Y)
 			BITA	#(NF|FE|PF) 				;check for noise, frame errors, parity errors
 			BNE	<SCI_ISR_RX_10 				;RX error detected
+SCI_ISR_RX_2a		EQU	*
 #ifdef	SCI_BD_ON
 			SCI_STOP_BD 					;stop baud rate detection
 #endif
@@ -1946,10 +1944,11 @@ SCI_ISR_RX_9		SCI_DEASSERT_CTS
 			;Transmit XON/XOFF (flags:data in Y)
 SCI_ISR_RX_9		SCI_SEND_XONXOFF
 #endif	
-#endif	
+#endif
+SCI_ISR_RX_9a		EQU	*	
 #ifdef	SCI_CHECK_RX_ERR
 			BITA	#(NF|FE|PF) 				;check for noise, frame errors, parity errors
-			BEQ	<SCI_ISR_RX_3 				;done			
+			BEQ	<SCI_ISR_RX_2a 				;stop error signaling			
 			;RX error detected
 SCI_ISR_RX_10		EQU	*
 #ifdef	SCI_BD_ON
@@ -1977,8 +1976,12 @@ SCI_ISR_RX_14		BSET	SCI_FLGS, #SCI_FLG_TX_BLOCKED		;allow transmissions
 			JOB	SCI_ISR_RX_11 				;done
 #endif
 			;Handle DLE 
-SCI_ISR_RX_15		;???
-			JOB	SCI_ISR_RX_11 				;done
+SCI_ISR_RX_15		BSET	SCI_FLGS, #SCI_FLG_RX_ESC 		;remember start of escape sequence
+			LDD	SCI_RXBUF_IN				;in:out -> A:B
+			ANDA	#SCI_RXBUF_MASK
+			CMPA	#(SCI_RX_FULL_LEVEL-2)
+			BHS	<SCI_ISR_RX_9 				;buffer is getting full			
+			JOB	SCI_ISR_RX_9a				;check for RX errors
 
 #ifmac	SCI_BREAK_ACTION
 			;Handle BREAK 
@@ -2102,8 +2105,10 @@ SCI_ISR_BD_NEPE_6	SCI_STOP_BD
 			LDX	#SCI_BTAB-2 				;look up prescaler value
 			LDD	A,X					;look up divider value
 			SCI_SET_BAUD
-			;Clear error signal
-			;SCI_ERRSIG_OFF
+;#ifmac	SCI_ERRSIG_STOP	
+;			;Clear error signal
+;			SCI_ERRSIG_STOP
+;#endif
 			JOB	SCI_ISR_BD_NEPE_4 			;done
 #endif	
 
