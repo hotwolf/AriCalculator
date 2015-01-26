@@ -175,13 +175,6 @@ CLOCK_BUS_FREQ		EQU	25000000 	;default is 25MHz
 SCI_RXTX_ACTLO		EQU	1 		;default is active low RXD/TXD
 #endif
 #endif
-
-;Enable SCI at initialization
-#ifndef	SCI_ENABLE_AT_INIT_ON
-#ifndef	SCI_ENABLE_AT_INIT_OFF
-SCI_ENABLE_AT_INIT_ON	EQU	1 		;enable SCI during initialization by default
-#endif
-#endif
 	
 ;Flow control
 ;------------ 
@@ -977,9 +970,6 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 			;Initialize baud rate detection
 			;BSET	TCTL3, #(SCI_BD_TCTL3_VAL>>8)
 			BSET	TCTL4, #(SCI_BD_TCTL3_VAL&$00FF)
-#endif
-#ifdef	SCI_ENABLE_AT_INIT_ON
-			SCI_ENABLE					;enable SCI	
 #endif
 #emac
 

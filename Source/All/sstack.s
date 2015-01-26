@@ -51,11 +51,8 @@
 ;#      - Removed PSH/PUL macros                                               #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    ISTACK - Interrupt Stack Handler                                         #
-;#    ERROR  - Error Handler                                                   #
-;#                                                                             #
-;# Requirements to Software Using this Module:                                 #
-;#    - none                                                                   #
+;#    SSTACK - Subroutine stack handler                                        #
+;#    RESET  - Reset handler                                                   #
 ;###############################################################################
 ;###############################################################################
 ;# Stack Layout                                                                #
@@ -234,8 +231,8 @@ SSTACK_CODE_END_LIN	EQU	@
 ;#Error Messages
 #ifndef	SSTACK_NO_CHECK 
 #ifndef	SSTACK_DEBUG
-SSTACK_MSG_OF		FCS	"Subroutine stack overflow"
-SSTACK_MSG_UF		FCS	"Subroutine stack underflow"
+SSTACK_MSG_OF		RESET_MSG	"Subroutine stack overflow"
+SSTACK_MSG_UF		RESET_MSG	"Subroutine stack underflow"
 #endif
 #endif
 
