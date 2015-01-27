@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - RESET - Reset Handler                                            #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -47,62 +47,71 @@
 ;#  	  errors                                                               #
 ;#    June 20, 2013                                                            #
 ;#      - Added macros "RESET_RESTART" and "RESET_RESTART_NO_MSG"              #
+;#    January 15, 2015                                                         #
+;#      - Changed configuration options                                        #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    STRING - String printing routines                                        #
-;#    CLOCK  - Clock driver                                                    #
-;#    COP    - Watchdog handler                                                #
-;#                                                                             #
-;# Requirements to Software Using this Module:                                 #
-;#    - none                                                                   #
+;#    REGDEF - Register definitions                                            #
 ;###############################################################################
-
+;# Error Detection:                                                            #
+;# +-------------------------+-------+-------+---------+---------------------+ #
+;# |                         |       | P L I |         |                     | #
+;# |                         |       | O V L |         |                     | #
+;# |                         | Reset | R R A | Message |                     | #
+;# | Cause                   | Vector| F F F | Pointer | Display             | #
+;# +-------------------------+-------+-------+---------+---------------------+ #
+;# | Power-On Reset          | $FFFE | 1 0 0 |  $0000  | Welcome message     | #
+;# +-------------------------+-------+-------+---------+---------------------+ #
+;# | External Pin Reset      | $FFFE | 0 0 0 |  $0000  | Welcome message     | #
+;# +-------------------------+-------+-------+---------+---------------------+ #
+;# | Low Voltage Reset       | $FFFE | - 1 - |    -    | Error (Low voltage) | #
+;# +-------------------------+-------+-------+---------+---------------------+ #
+;# | Illegal Address Reset   | $FFFE |  -0 1 |	  -    | Error (Code fail)   | #
+;# +-------------------------+-------+-------+---------+---------------------+ #
+;# | Clock Monitor Reset     | $FFFC | - - - | CLK Msg | Error (Clock fail)  | #
+;# +-------------------------+-------+-------+---------+---------------------+ #
+;# | COP Reset               | $FFFA | - - - | COP Msg | Error (Inresponsive)| #
+;# +-------------------------+-------+-------+---------+---------------------+ #
+;# | Fatal Application Error | $FFFA | - - - |  Valid  | Error (Application) | #
+;# +-------------------------+-------+-------+---------+---------------------+ #
+;###############################################################################
+	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Error detection
-;---------------
-;COP detection
-#ifndef	RESET_COP_ON
-#ifndef	RESET_COP_OFF
-RESET_COP_ON		EQU	1 		;default is RESET_COP_ON
+;Replace system resets by BGND instructions
+;RESET_DEBUG		EQU	1 
+
+;Monitor low voltage reset
+#ifndef	RESET_LVR_CHECK_ON
+#ifndef	RESET_LVR_CHECK_OFF
+#ifdef LVRF
+RESET_LVR_CHECK_ON	EQU	1 		;enable LVR check if LVRF flag exists
+#else
+RESET_LVR_CHECK_OFF	EQU	1 		;disable LVR check if LVRF flag doesn't exist
+#endif
 #endif
 #endif
 
-;Clock failure detection
-#ifndef	RESET_CLKFAIL_ON
-#ifndef	RESET_CLKFAIL_OFF
-RESET_CLKFAIL_ON	EQU	1 		;default is RESET_CLKFAIL_ON
+;Monitor illegal address reset
+#ifndef	RESET_IAR_CHECK_ON
+#ifndef	RESET_IAR_CHECK_OFF
+#ifdef ILAF
+RESET_IAR_CHECK_ON	EQU	1 		;enable IAR check if ILAF flag exists
+#else
+RESET_LVR_CHECK_OFF	EQU	1 		;disable IAR check if ILAF flag doesn't exist
 #endif
-#endif
-
-;Power failure detection
-#ifndef	RESET_POWFAIL_ON
-#ifndef	RESET_POWFAIL_OFF
-RESET_POWFAIL_ON	EQU	1 		;default is RESET_POWFAIL_ON
 #endif
 #endif
 
-;Code runaway detection
-#ifndef	RESET_CODERUN_ON
-#ifndef	RESET_CODERUN_OFF
-RESET_CODERUN_OFF	EQU	1 		;default is RESET_CODERUN_OFF
+;Maximum error message length
+#ifndef			RESET_MSG_LENGTH
+RESET_MSG_LENGTH 	EQU	64
 #endif
-#endif
-
-;Welcome message
-;---------------
-;RESET_WELCOME		FCS	"Hello, this is S12CBase!"
-	
+		
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Flags
-RESET_FLG_POR		EQU	$40 		;power on     (PORF)
-RESET_FLG_POWFAIL	EQU	$20 		;power loss   (LVRF)
-RESET_FLG_CODERUN	EQU	$04 		;code runaway (ILAF)
-RESET_FLG_COP		EQU	$02		;watchdog timeout
-RESET_FLG_CLKFAIL	EQU	$01		;clock faiure
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -112,19 +121,10 @@ RESET_FLG_CLKFAIL	EQU	$01		;clock faiure
 #else
 			ORG 	RESET_VARS_START
 #endif	
-
-RESET_AUTO_LOC1		EQU	* 		;1st auto-place location
-			ALIGN	1
+			;ALIGN	1
+RESET_MSG_REQ		DS	2 		;requested error message
+RESET_MSG_PTR		DS	2 		;validated error message
 	
-RESET_MSG		DS	2 		;error message to be displayed
-RESET_MSG_CHKSUM	DS	1		;checksum for the errormessage
-	
-RESET_AUTO_LOC2		EQU	*		;2nd auto-place location
-
-;#Flags
-RESET_FLGS		EQU	((RESET_AUTO_LOC1&1)*RESET_AUTO_LOC1)+(((~RESET_AUTO_LOC1)&1)*RESET_AUTO_LOC2)
-			UNALIGN	((~RESET_AUTO_LOC1)&1)
-
 RESET_VARS_END		EQU	*
 RESET_VARS_END_LIN	EQU	@
 
@@ -133,115 +133,123 @@ RESET_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	RESET_INIT, 0
-			;Check if SCI is enabled 
-			SCI_BR_DISABLED	RESET_INIT_6	
-			;Check for POR
-			LDAA	RESET_FLGS
-			BITA	#RESET_FLG_POR
-			BNE	<RESET_INIT_3		 ;print welcome message	
-			;Check for power failure (flags in A)
-#ifdef	RESET_POWFAIL_ON
-	
-			LDY	#RESET_STR_POWFAIL
-			BITA	#RESET_FLG_POWFAIL
-			BNE	<RESET_INIT_2		 ;print error message
-#endif
-			;Check for clock failure (flags in A)
-#ifdef	RESET_CLKFAIL_ON
-			LDY	#RESET_STR_CLKFAIL
-			BITA	#RESET_FLG_CLKFAIL
-			BNE	<RESET_INIT_2		 ;print error message
-#endif
-			;Check for code runaway (flags in A)
-#ifdef	RESET_CODERUN_ON
-			LDY	#RESET_STR_CODERUN
-			BITA	#RESET_FLG_CODERUN
-			BNE	<RESET_INIT_2		 ;print error message
-#endif
-			;Check for COP reset (flags in A)
-#ifdef	RESET_COP_ON
-			BITA	#RESET_FLG_COP
-			BEQ	<RESET_INIT_3		 ;print welcome message
-#endif
-			;Check custom error
-			LDX	RESET_MSG
-			LDY	#RESET_INIT_1
-			JOB	RESET_CALC_CHECKSUM	
-RESET_INIT_1		EQU	*
-#ifdef	RESET_COP_ON
-			;Check if error message is valid (checksum in A, valid/invalid in C)
-			LDY	#RESET_STR_COP
-			BCC	<RESET_INIT_2		 ;print error message
+			;Capture and clear CRG/CPMU flags
+#ifdef	CRGFLG
+			LDAA	CRGFLG 			;capture flags
+			MOVB	#$FF, CRGFLG		;clear flags
 #else
-			BCC	<RESET_INIT_3		 ;print welcome message
+#ifdef	CPMUFLG
+			LDAA	CPMUFLG			;capture flags;
+			MOVB	#$FF, CPMUFLG		;clear flags
 #endif
-			;Verify checksum (checksum in A)
-			CMPA	RESET_MSG_CHKSUM
-			BNE	<RESET_INIT_3		 ;print welcome message
-			LDY	RESET_MSG
-			;BEQ	RESET_INIT_5 		 ;empty message
-			BEQ	RESET_INIT_4 		 ;empty message
+#endif
+#ifdef	RESET_LVR_CHECK_ON
+			;Check for low voltage reset (flags in A)
+			LDY	#RESET_MSG_POWFAIL
+			BITA	#LVRF
+			BNE	RESET_INIT_4 		;low voltage reset detected
+#endif
+#ifdef	RESET_IAR_CHECK_ON
+			;Check for illegal address reset (flags in A)
+			LDY	#RESET_MSG_ILLADDR
+			BITA	#ILAF
+			BNE	RESET_INIT_4 		;illegal address reset detected
+#endif
+			;Check for power-on or external pin reset (flags in A)
+			LDY	RESET_MSG_PTR
+			BEQ	RESET_INIT_5 		;power-on or external pin reset detected
+			;Check if error message is valid (string in Y)
+			CLRA	  			;initialize C0
+			LDX	#((RESET_MSG_LENGTH-1)<<8);initialize char limit and C1
+			;Validate next character (striing pointer in Y, char limit:C1 in X, C0 in A)
+			LDAB	1,Y+ 			;next char -> B
+			BMI	RESET_INIT_2		;string termination found
+			;Validate next character (string pointer in Y, char limit:C1 in X, C0:char in D)
+RESET_INIT_1		CMPB	#$20		;" "	;check if character is printable
+			BLO	RESET_INIT_3 		;invalid message
+			CMPB	#$7E		;"~"    ;check if character is printable
+			BHI	RESET_INIT_3		;invalid message
+			;Update Fletcher's checksum (string in pointer Y, char limit:C1 in X, C0:char in D)
+			ABA				;new C0 -> A
+			TBA				;new C0 -> B
+			TFR	X, A			;old C1 -> A
+			ABA				;new C1 -> A
+			EXG	A, B			;C0:C1  -> D	
+			EXG	X, D			;C0:C1  -> X, char limit -> A 
+			TFR	X, B			;char limit:C1 -> D 
+			;Check character limit ((string pointer in Y, C0:C1 in X, char limit:C1 in D)
+			DBEQ	A, RESET_INIT_3		;invalid message
+			EXG	X, D			;C0:C1  -> D, char limit:C1 ->  X
+			LDAB	1,Y+ 			;next char -> B
+			BPL	RESET_INIT_1		;string termination found
+			;String termination found (string pointer in Y, char limit:C1 in X, C0:char in D)		
+RESET_INIT_2		;ANDB	#$7F 			;ignore termination			
+			;;Validate next character (string pointer in Y, char limit:C1 in X, C0:char in D)
+			;CMPB	#$20		;" "	;check if character is printable
+			;BLO	RESET_INIT_3 		;invalid message
+			;CMPB	#$7E		;"~"    ;check if character is printable
+			;BHI	RESET_INIT_3		;invalid message			
+			CMPB	#$A0		;" "	;check if character is printable
+			BLO	RESET_INIT_3 		;invalid message
+			CMPB	#$FE		;"~"    ;check if character is printable
+			BHI	RESET_INIT_3		;invalid message			
+			;Update Fletcher's checksum (string in pointer Y, char limit:C1 in X, C0:char in D)
+			ABA				;new C0 -> A
+			TBA				;new C0 -> B
+			TFR	X, A			;old C1 -> A
+			ABA				;new C1 -> A
+			;Check Fletcher's checksum (string in pointer Y, C1 in A, C0 in B)
+			CMPA	1,Y+ 			;check C1 
+			BNE	RESET_INIT_3		;invalid message
+			CMPB	1,Y+ 			;check C1 
+			BEQ	RESET_INIT_5		;valid message
+			;Invalid error message
+RESET_INIT_3		LDY	#RESET_MSG_UNKNOWN 	;unknown error
+			;Update error message
+RESET_INIT_4		STY	RESET_MSG_PTR		;set error message
+			;Done
+RESET_INIT_5		EQU	*
+#emac
+
+;Branch on error
+; args:   1: branch address 
+; result: Y: error message pointer
+; SSTACK: none
+;         X, and D are preserved 
+#macro	RESET_BR_ERR, 1
+	LDY	RESET_MSG_PTR
+	BNE	\1
+#emac
 	
-			;Print error message (error message in Y)
-RESET_INIT_2		LDX	#RESET_STR_FATAL
-			STRING_PRINT_BL
-			TFR	Y, X
-			JOB	RESET_INIT_4	
-			;Print welcome message
-RESET_INIT_3		LDX	#RESET_WELCOME
-RESET_INIT_4		STRING_PRINT_BL
-			;Print exlamation mark and new line
-			;LDX	#STRING_STR_EXCLAM_NL
-			;STRING_PRINT_BL
-			;Remove custom error message
-RESET_INIT_5		LDD	$0000
-			STD	RESET_MSG
-			STAA	RESET_MSG_CHKSUM
-			;Wait until message has been transmitted
-			SCI_TX_DONE_BL
-			;Done 
-RESET_INIT_6		EQU	*
+;Branch on no error
+; args:   1: branch address 
+; result: Y: error message pointer
+; SSTACK: none
+;         X, and D are preserved 
+#macro	RESET_BR_NOERR, 1
+	LDY	RESET_MSG_PTR
+	BEQ	\1
 #emac
 	
 ;#Perform a reset due to a fatal error (immediate error code)
 ; args: 1: message pointer	
+;          System is reset and initialized
 #macro	RESET_FATAL, 1
-			;BGND
 			LDX	#\1
 			JOB	RESET_FATAL_X
 #emac
 
 ;#Perform a reset due to a fatal error (error code in X)
 ; args: X: message pointer	
+;          System is reset and initialized
 #macro	RESET_FATAL_X, 0
-			;BGND
 			JOB	RESET_FATAL_X
 #emac
 
-;#Perform a system restart
-; args: none
-#macro	RESET_RESTART 0
-			;BGND
-			COP_RESET
-#emac
-	
-;#Perform a system restart without welcome message
-; args: none
-#macro	RESET_RESTART_NO_MSG 0
-			;BGND
-			JOB	RESET_RESTART_NO_MSG
-#emac
-	
-;#Calculate the checksum of the custom error message
-; args:   X:      error message	
-;         Y:      return address	
-; result: A:      checksum
-;         C-flag: set if message is valid
-;         none of the registers are preserved 
-#macro	RESET_CALC_CHECKSUM, 1
-			LDY	#DONE
-			JOB	RESET_CALC_CHECKSUM
-DONE			EQU	*
+;#Error message (w/ Fletcher-16 checksum)
+#macro	RESET_MSG, 1
+RESET_MSG		FCS	\1
+			FLET16	RESET_MSG, *-1	
 #emac
 	
 ;###############################################################################
@@ -253,117 +261,36 @@ DONE			EQU	*
 			ORG 	RESET_CODE_START
 #endif
 
-;#COP reset entry point
-;----------------------
-#ifdef	RESET_COP_ON
-RESET_COP_ENTRY		EQU	*
-			;Capture COP  
-			MOVB	#RESET_FLG_COP, RESET_FLGS	
-			JOB	START_OF_CODE
-#else
-RESET_COP_ENTRY		EQU	RESET_EXT_ENTRY
-#endif
-
-;#Clock monitor reset entry point
-;--------------------------------
-#ifdef	RESET_CLKFAIL_ON
-RESET_CM_ENTRY		EQU	*
-			;Capture clock failure
-			MOVB	#RESET_FLG_CLKFAIL, RESET_FLGS	
-			JOB	START_OF_CODE
-#else
-RESET_CM_ENTRY		EQU	RESET_EXT_ENTRY
-#endif
-	
-;#External reset entry point
-;---------------------------
+;#Reset entry points
+;--------------------
+;Power-on and external reset
 RESET_EXT_ENTRY		EQU	*
-			;Capture CRG/CPMU flags
-#ifdef	CRGFLG
-			MOVB	CRGFLG, RESET_FLGS
-#else
-#ifdef	CPMUFLG
-			MOVB	CPMUFLG, RESET_FLGS
-#else
-			CLR	RESET_FLGS
-#endif
-#endif
+			MOVW	#RESET_MSG_COP, RESET_MSG_REQ 		;set default request (COP)
+			MOVW	#$0000, RESET_MSG_PTR 			;check reset flags 
 			JOB	START_OF_CODE
-
-;#Subroutines
-;------------
-
-;#Perform a system restart
-; args: none
-RESET_RESTART		EQU	RESET_FATAL_X_4
-	
-;#Perform a system restart without welcome message
-; args: none
-RESET_RESTART_NO_MSG	EQu	*
-			LDX	#$0000
-			JOB	RESET_FATAL_X_1
-	
+;#Clock monitor reset
+RESET_CM_ENTRY		MOVW	#RESET_MSG_COP, RESET_MSG_REQ 		;set default request (COP)
+			MOVB	#RESET_MSG_CLKFAIL, RESET_MSG_PTR 	;set clock failure message
+			JOB	START_OF_CODE
+;COP and user reset
+RESET_COP_ENTRY		EQU	START_OF_CODE
+			MOVB	#RESET_MSG_REQ, RESET_MSG_PTR 		;preserve error message
+			MOVW	#RESET_MSG_COP, RESET_MSG_REQ 		;set default request (COP)
+			JOB	START_OF_CODE
+				
+;#Reset trigger
+;--------------
 ;#Perform a reset due to a fatal error
 ; args: X: message pointer	
+;          System is reset and initialized
 RESET_FATAL_X		EQU	*
-			STX	RESET_MSG
-RESET_FATAL_X_1		LDY	RESET_FATAL_X_2
-
-;#Calculate the checksum of the custom error message
-; args:   X:      error message	
-;         Y:      return address	
-; result: A:      checksum
-;;        C-flag: set if message is valid
-;         none of the registers are preserved 
-RESET_CALC_CHECKSUM	EQU	*
-			;Initialize checksum generation
-			CLRA
-			;Check for empty message 
-			TBEQ	X, RESET_CALC_checksum_3
-	
-			;Get next character
-RESET_CALC_CHECKSUM_1	LDAB	1,X+
-			BMI	RESET_CALC_CHECKSUM_2 	;last charcter reached
-			CMPB	#STRING_SYM_SPACE
-			BLO	<RESET_CALC_CHECKSUM_4 	;message is invalid
-			CMPB	#STRING_SYM_TILDE
-			BHI	<RESET_CALC_CHECKSUM_4 	;message is invalid
-			ABA
-			ROLA
-			ADCA	#$00
-			JOB	RESET_CALC_CHECKSUM_1
-			;Last charcter reached
-RESET_CALC_CHECKSUM_2	CMPB	#(STRING_SYM_SPACE|$80)
-			BLO	<RESET_CALC_CHECKSUM_4 	;message is invalid
-			CMPB	#(STRING_SYM_TILDE|80)
-			BHI	<RESET_CALC_CHECKSUM_4 	;message is invalid
-			;Message is valid
-			ABA
-			ROLA
-			ADCA	#$00
-RESET_CALC_CHECKSUM_3	COMA
-			SEC
-			JMP	0,Y
-			;Message is invalid
-RESET_CALC_CHECKSUM_4	CLC
-			JMP	0,Y
-			
-;#Perform a reset due to a fatal error...continued
-			;Check if message is valid (checksum in A, valid/invalid in C-flag)  
-RESET_FATAL_X_2		BCC	RESET_FATAL_X_4		;clear message
-			STAA	RESET_MSG_CHKSUM
-			;Trigger COP 	
-RESET_FATAL_X_3		COP_RESET
-			;Clear message
-RESET_FATAL_X_4		CLRA
-			CLRB
-			STD	RESET_MSG
-			STAA	RESET_MSG_CHKSUM
-			JOB	RESET_FATAL_X_3 	;trigger COP
-
-;#Trigger a fatal error if a reset accurs
-RESET_ISR_FATAL		EQU	*
-			RESET_FATAL	RESET_STR_ILLIRQ	
+			STX	RESET_MSG_REQ
+			;Trigger COP
+#ifdef RESET_DEBUG
+RESET_FATAL_X_1		BGND		
+#else	
+RESET_FATAL_X_1		COP_RESET
+#endif
 
 RESET_CODE_END		EQU	*	
 RESET_CODE_END_LIN	EQU	@	
@@ -377,29 +304,16 @@ RESET_CODE_END_LIN	EQU	@
 			ORG 	RESET_TABS_START
 #endif	
 
-;#Welcome string
-#ifndef	RESET_WELCOME
-RESET_WELCOME       	FCS	"Hello, this is S12CBase"
-#endif
-
-;#Error indicator
-RESET_STR_FATAL		FCS	"Fatal! "
-
 ;#Error messages
-#ifdef	RESET_COP_ON
-RESET_STR_COP		FCS	"Watchdog timeout"
+RESET_MSG_COP		RESET_MSG	"System inresponsive"
+RESET_MSG_CLKFAIL	RESET_MSG	"Clock failure"
+#ifdef RESET_LVR_CHECK_ON	
+RESET_MSG_POWFAIL	RESET_MSG	"Power loss"
 #endif
-#ifdef	RESET_CLKFAIL_ON
-RESET_STR_CLKFAIL	FCS	"Clock failure"
+#ifdef	RESET_IAR_CHECK_ON
+RESET_MSG_ILLADDR	RESET_MSG	"Code runaway"
 #endif
-#ifdef	RESET_POWFAIL_ON
-RESET_STR_POWFAIL	FCS	"Power loss"
-#endif
-#ifdef	RESET_CODERUN_ON
-RESET_STR_CODERUN	FCS	"Code runaway"
-#endif
-RESET_STR_ILLIRQ	FCS	"Illegal interrupt"
-
+RESET_MSG_UNKNOWN	RESET_MSG	"Unknown cause"
 	
 RESET_TABS_END		EQU	*
 RESET_TABS_END_LIN	EQU	@
