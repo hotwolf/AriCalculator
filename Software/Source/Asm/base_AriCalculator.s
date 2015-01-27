@@ -32,27 +32,15 @@
 ;#      IC1:     SCI baud rate detection (capture negedges on RX pin)          #
 ;#      OC2:     SCI baud rate detection (timeout)                             #
 ;#      OC3:     SCI (timeout)                                                 #
-;#      OC4:     KEYS (debounce delay)                                                  #
+;#      OC4:     KEYS (debounce delay)                                         #
 ;#      OC5:     LCD backlight PWM                                             #
 ;#      OC6:     unasigned                                                     #
 ;#      OC7:     unasigned                                                     #
 ;###############################################################################
+
+;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# VECTAB
-VECTAB_DEBUG		EQU	1 		;BGND on error
-
-;# SSTACK
-SSTACK_DEBUG		EQU	1 		;BGND on error
-;SSTACK_NO_CHECK	EQU	1 		;disable range checks
-SSTACK_DEPTH		EQU	27 		;subroutine stack size
-
-;# ISTACK
-ISTACK_DEBUG		EQU	1 		;BGND on error
-;ISTACK_NO_CHECK	EQU	1 		;disable range checks
-ISTACK_LEVELS		EQU	4 		;max. interrupt nesting levels
-ISTACK_S12		EQU	1 		;S12 stack frames
-
 ;# CLOCK
 CLOCK_CPMU		EQU	1		;CPMU
 CLOCK_IRC		EQU	1		;use IRC
@@ -62,15 +50,11 @@ CLOCK_REF_FREQ		EQU	 1000000	; 1 MHz reference clock frequency
 CLOCK_VCOFRQ		EQU	$1		; 10 MHz VCO frequency
 CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
 
-;# COP
-;COP_DEBUG		EQU	1 		;disable COP timeout
-
-;# TIM
-TIM_DIV2_OFF		EQU	1 		;run TIM at full bus clock
+;# ISTACK
+ISTACK_LEVELS		EQU	4 		;max. interrupt nesting levels
 	
 ;# SCI
 SCI_RXTX_ACTHI		EQU	1 		;RXD/TXD are inverted (active high)
-SCI_ENABLE_AT_INIT_OFF	EQU	1 		;only enable SCI if VUSB is detected
 SCI_FC_RTSCTS		EQU	1 		;RTS/CTS flow control
 SCI_RTS_PORT		EQU	PTM 		;PTM
 SCI_RTS_PIN		EQU	PM0		;PM0
@@ -80,33 +64,16 @@ SCI_CTS_PPS		EQU	PPSM 		;PPSM
 SCI_CTS_PIN		EQU	PM1		;PM1
 SCI_CTS_WEAK_DRIVE	EQU	1		;weak CTS drive
 SCI_DLY_OC		EQU	3		;delay timer OC3
-SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
-SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
 SCI_BD_ON		EQU	1 		;use baud rate detection
 SCI_BD_TIM		EQU	1 		;TIM
 SCI_BD_ICPE		EQU	0		;RX posedge capture IC0
 SCI_BD_ICNE		EQU	1		;RX negedge capture IC1	
 SCI_BD_OC		EQU	2		;BD delay timer OC2	
-SCI_BD_LOG_OFF		EQU	1		;don't log captured BD pulses
-SCI_ERRSIG_ON		EQU	1 		;signal errors
 SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
-SCI_IRQ_WORKAROUND_OFF	EQU	1 		;IRQ workaround not required
-
-;# STRING
-STRING_BLOCKING_ON	EQU	1 		;blocking functions enabled
-STRING_FILL_OFF		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB disabled
-STRING_SKIP_WS_OFF	EQU	1 		;STRING_SKIP_WS disabled
-STRING_LOWER_OFF	EQU	1 		;STRING_LOWER disabled
 
 ;# NUM
-;NUM_MAX_BASE_16	EQU	1 		;BASE<=16
+NUM_MAX_BASE_16		EQU	1 		;BASE<=16
 
-;# RESET
-RESET_COP_ON		EQU	1 		;detect COP reset
-RESET_CLKFAIL_ON	EQU	1 		;detect clock monitor reset
-RESET_POWFAIL_ON	EQU	1 		;detect low voltage reset
-RESET_CODERUN_OFF	EQU	1 		;detect code runaway	
-	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -196,58 +163,73 @@ BASE_VARS_END_LIN	EQU	@
 			;Urgent initialization
 			GPIO_INIT	;urgent!
 			COP_INIT	;urgent!
-			CLOCK_INIT	;urgent!
-			ISTACK_INIT     ;urgent!
-
+			CLOCK_INIT	;urgent!	
 			;Initialization w/o PLL lock
+			RESET_INIT
 			MMAP_INIT
 			VECTAB_INIT
 			SSTACK_INIT
+			ISTACK_INIT
+			VMON_INIT	
 			TIM_INIT
+			LED_INIT
+			KEYS_INIT
 			SCI_INIT
 			STRING_INIT
 			NUM_INIT
-			LED_INIT
-			KEYS_INIT
-
-			;Wait for PLL lock
-			CLOCK_WAIT_FOR_PLL
-
-			;Initialization w/ PLL lock
-			VMON_INIT
 			DISP_INIT
-
-			;Wait for VMON results
+			;Display welcome or error message on LCD 
+			RESET_BR_ERR	ERROR_MESSAGE_DISP	;severe error detected 
+			WELCOME_MESSAGE_DISP
+			JOB	WAIT_FOR_PLL
+ERROR_MESSAGE_DISP	ERROR_MESSAGE_DISP				
+			;Wait for PLL lock
+WAIT_FOR_PLL		CLOCK_WAIT_FOR_PLL
+			;Wait for voltage monitor
 			VMON_WAIT_FOR_1ST_RESULTS
-
-			;Hardware initialized
-			RESET_INIT
+			;;Display welcome or error message on LCD if connected
+			VMON_VUSB_BRLV	DONE 	;no termunal connected			
+			SCI_ENABLE
+			RESET_BR_ERR	ERROR_MESSAGE_SCI	;severe error detected 
+			WELCOME_MESSAGE_SCI
+			JOB	DONE	
+ERROR_MESSAGE_SCI	ERROR_MESSAGE_SCI					
+DONE			EQU	*
 #emac
 
-;#VMON actions
-;------------- 
-;Battery voltage rises above threshold
-#macro VMON_VBAT_HVACTION, 0
-	LED_COMERR_ON
+;#Enable SCI whenever USB is connected, disable otherwise
+;-------------------------------------------------------- 
+#macro	VMON_VUSB_LVACTION, 0
+	SCI_DISABLE
 #emac
-
-;Battery voltage falls below threshold
-#macro VMON_VBAT_LVACTION, 0
-	LED_COMERR_OFF
-#emac
-
-;USB voltage rises above threshold
-#macro VMON_VUSB_HVACTION, 0
-	LED_BUSY_ON
+#macro	VMON_VUSB_HVACTION, 0
 	SCI_ENABLE
 #emac
 
-;USB voltage falls below threshold
-#macro VMON_VUSB_LVACTION, 0
-	LED_BUSY_OFF
-	SCI_DISABLE
+;#Welcome messages
+;----------------- 
+#macro	WELCOME_MESSAGE_SCI, 0
+			LDX	#WELCOME_MESSAGE	;print welcome message
+			STRING_PRINT_BL
+#emac
+
+#macro	WELCOME_MESSAGE_DISP, 0
 #emac
 	
+;#Error messages
+;--------------- 
+#macro	ERROR_MESSAGE_SCI, 0
+			LDX	#ERROR_HEADER		;print error header
+			STRING_PRINT_BL
+			TFR	Y, X			;print error message
+			STRING_PRINT_BL
+			LDX	#ERROR_TRAILER		;print error TRAILER
+			STRING_PRINT_BL
+#emac
+
+#macro	ERROR_MESSAGE_DISP, 0
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -337,10 +319,13 @@ BASE_CODE_END_LIN	EQU	@
 			ORG 	BASE_TABS_START
 #endif	
 
-;#Welcome string
-#ifndef	RESET_WELCOME
-RESET_WELCOME       	FCS	"Hello, I'm AriCalculator"
-#endif
+;#Welcome message
+WELCOME_MESSAGE		FCC	"Hello, I'm  AriCalculator!"
+			STRING_NL_TERM
+;#Error message format
+ERROR_HEADER		FCS	"FATAL ERROR! "
+ERROR_TRAILER		FCC	"!"
+			STRING_NL_TERM
 
 MMAP_TABS_START		EQU	*	 
 MMAP_TABS_START_LIN	EQU	@
