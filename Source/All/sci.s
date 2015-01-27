@@ -1216,7 +1216,6 @@ DONE			CLI
 ;         X, Y, and D are preserved 
 #macro	SCI_ASSERT_CTS, 0
 #ifdef	SCI_CTS_WEAK_DRIVE
-#endif	
 			BCLR	SCI_CTS_PORT, #SCI_CTS_PIN 		;clear CTS (allow RX data
 			BSET	SCI_CTS_DDR, #SCI_CTS_PIN		;drive speed-up pulse
 			BSET	SCI_CTS_PPS, #SCI_CTS_PIN 		;select pull-down device
