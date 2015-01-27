@@ -49,10 +49,6 @@ CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
 CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
 #endif
 
-;# RESET
-RESET_COP_OFF		EQU	1
-RESET_CLKFAIL_OFF	EQU	1
-	
 ;# SCI
 #ifndef	SCI_FC_RTS_CTS
 #ifndef	SCI_FC_XON_XOFF
@@ -159,21 +155,22 @@ BASE_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	BASE_INIT, 0
 			GPIO_INIT
-			CLOCK_INIT
 			COP_INIT
+			CLOCK_INIT
+			RESET_INIT
 			MMAP_INIT
 			VECTAB_INIT
 			ISTACK_INIT
 			SSTACK_INIT
+			LED_INIT
+			TVMON_INIT	
 			TIM_INIT
 			STRING_INIT
 			NUM_INIT
 			NVM_INIT
-			LED_INIT
-			TVMON_INIT
+			SCI_INIT		
 			CLOCK_WAIT_FOR_PLL
-			SCI_INIT	
-			RESET_INIT
+			SCI_ENABLE
 #emac
 
 ;###############################################################################
