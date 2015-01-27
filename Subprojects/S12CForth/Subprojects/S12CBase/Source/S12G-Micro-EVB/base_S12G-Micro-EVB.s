@@ -54,7 +54,6 @@ CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
 
 ;# SCI
 SCI_RXTX_ACTHI		EQU	1 		;RXD/TXD are inverted (active high)
-
 #ifndef	SCI_FC_RTS_CTS
 #ifndef	SCI_FC_XON_XOFF
 #ifndef SCI_FC_NONE	
@@ -160,17 +159,38 @@ BASE_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Welcome message
+;---------------- 
+#ifnmac	WELCOME_MESSAGE
+#macro	WELCOME_MESSAGE, 0
+			LDX	#WELCOME_MESSAGE	;print welcome message
+			STRING_PRINT_BL
+#emac
+#endif
+
+;#Error message
+;-------------- 
+#ifnmac	ERROR_MESSAGE
+#macro	ERROR_MESSAGE, 0
+			LDX	#ERROR_HEADER		;print error header
+			STRING_PRINT_BL
+			TFR	Y, X			;print error message
+			STRING_PRINT_BL
+			LDX	#ERROR_TRAILER		;print error TRAILER
+			STRING_PRINT_BL
+#emac
+#endif
+
 ;#Initialization
 ;--------------- 
 #macro	BASE_INIT, 0
 			GPIO_INIT
 			COP_INIT
 			CLOCK_INIT
-			RESET_INIT
 			MMAP_INIT
 			VECTAB_INIT
-			ISTACK_INIT
 			SSTACK_INIT
+			ISTACK_INIT
 			VMON_INIT
 			TIM_INIT
 			STRING_INIT
@@ -180,11 +200,17 @@ BASE_VARS_END_LIN	EQU	@
 			SCI_INIT
 			CLOCK_WAIT_FOR_PLL
 			VMON_WAIT_FOR_1ST_RESULTS
-			#SCI_ENABLE
+			VMON_VUSB_BRLV	DONE 	;no termunal connected
+			SCI_ENABLE
+			RESET_BR_ERR	ERROR	;severe error detected 
+			WELCOME_MESSAGE
+			JOB	DONE	
+ERROR			ERROR_MESSAGE					
+DONE			EQU	*
 #emac
 
-;#Only enable SCI if VUSB is available
-;------------------------------------- 
+;#Enable SCI whenever USB is connected, disable otherwise
+;-------------------------------------------------------- 
 #ifnmac	VMON_VUSB_LVACTION
 #macro	VMON_VUSB_LVACTION, 0
 	SCI_DISABLE

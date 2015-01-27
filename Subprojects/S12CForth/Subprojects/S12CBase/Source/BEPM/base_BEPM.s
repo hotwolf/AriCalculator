@@ -131,6 +131,7 @@ BASE_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Welcome message
+;------------_--- 
 #ifnmac	WELCOME_MESSAGE
 #macro	WELCOME_MESSAGE, 0
 			LDX	#WELCOME_MESSAGE	;print welcome message
@@ -139,6 +140,7 @@ BASE_VARS_END_LIN	EQU	@
 #endif
 
 ;#Error message
+;-------------- 
 #ifnmac	ERROR_MESSAGE
 #macro	ERROR_MESSAGE, 0
 			LDX	#ERROR_HEADER		;print error header
@@ -151,6 +153,7 @@ BASE_VARS_END_LIN	EQU	@
 #endif
 
 ;#Initialization
+;--------------- 
 #macro	BASE_INIT, 0
 			GPIO_INIT
 			COP_INIT	
@@ -158,8 +161,8 @@ BASE_VARS_END_LIN	EQU	@
 			RESET_INIT
 			MMAP_INIT
 			VECTAB_INIT
-			ISTACK_INIT
 			SSTACK_INIT
+			ISTACK_INIT
 			TIM_INIT
 			STRING_INIT
 			NUM_INIT
@@ -169,7 +172,6 @@ BASE_VARS_END_LIN	EQU	@
 			RESET_BR_ERR	ERROR	;severe error detected 
 			WELCOME_MESSAGE
 			JOB	DONE	
-			WELCOME_MESSAGE
 ERROR			ERROR_MESSAGE					
 DONE			EQU	*
 #emac

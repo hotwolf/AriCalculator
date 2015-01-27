@@ -152,7 +152,30 @@ BASE_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Welcome message
+;------------_--- 
+#ifnmac	WELCOME_MESSAGE
+#macro	WELCOME_MESSAGE, 0
+			LDX	#WELCOME_MESSAGE	;print welcome message
+			STRING_PRINT_BL
+#emac
+#endif
+
+;#Error message
+;-------------- 
+#ifnmac	ERROR_MESSAGE
+#macro	ERROR_MESSAGE, 0
+			LDX	#ERROR_HEADER		;print error header
+			STRING_PRINT_BL
+			TFR	Y, X			;print error message
+			STRING_PRINT_BL
+			LDX	#ERROR_TRAILER		;print error TRAILER
+			STRING_PRINT_BL
+#emac
+#endif
+
 ;#Initialization
+;--------------- 
 #macro	BASE_INIT, 0
 			GPIO_INIT
 			COP_INIT
@@ -160,8 +183,8 @@ BASE_VARS_END_LIN	EQU	@
 			RESET_INIT
 			MMAP_INIT
 			VECTAB_INIT
-			ISTACK_INIT
 			SSTACK_INIT
+			ISTACK_INIT
 			LED_INIT
 			TVMON_INIT	
 			TIM_INIT
@@ -171,6 +194,11 @@ BASE_VARS_END_LIN	EQU	@
 			SCI_INIT		
 			CLOCK_WAIT_FOR_PLL
 			SCI_ENABLE
+			RESET_BR_ERR	ERROR	;severe error detected 
+			WELCOME_MESSAGE
+			JOB	DONE	
+ERROR			ERROR_MESSAGE					
+DONE			EQU	*
 #emac
 
 ;###############################################################################
