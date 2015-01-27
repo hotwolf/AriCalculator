@@ -63,7 +63,7 @@ CLOCK_VCOFRQ		EQU	$1		; 10 MHz VCO frequency
 CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
 
 ;# COP
-;COP_DEBUG		EQU	1 		;sisable COP timeout
+;COP_DEBUG		EQU	1 		;disable COP timeout
 
 ;# TIM
 TIM_DIV2_OFF		EQU	1 		;run TIM at full bus clock
