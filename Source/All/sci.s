@@ -248,11 +248,7 @@ SCI_IRQ_WORKAROUND_OFF	EQU	1 		;IRQ workaround disabled by default
 
 ;Delay counter 
 ;------------- 
-#ifdef	SCI_DLY_EN
-#ifndef	SCI_DLY_OC
-SCI_DLY_OC		EQU	$3		;default is OC3
-#endif
-#endif
+;SCI_DLY_OC		EQU	$3		;default is OC3
 	
 ;Baud rate detection 
 ;------------------- 
@@ -457,6 +453,13 @@ SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
 #endif
 #endif	
 
+;#Delay counter 
+#ifdef	SCI_DLY_EN
+#ifndef	SCI_DLY_OC
+SCI_DLY_OC		EQU	$3		;default is OC3
+#endif
+#endif
+	
 ;Communication error signaling
 ;----------------------------- 
 ;Signal RX errors -> define macros SCI_ERRSIG_START and SCI_ERRSIG_STOP
@@ -2029,7 +2032,7 @@ SCI_ISR_BD_PE		EQU	*
 			TBEQ	X, SCI_ISR_BD_NEPE_4 			;discard zero-length pulses (for whatever reasson they may occur)
 			;Select search tree tree (pulse length in X)
 			LDY	#SCI_BD_LOW_PULSE_TREE
-			JOB	SCI_ISR_BD_NEPE_2 			;parse search tree
+			;JOB	SCI_ISR_BD_NEPE_2 			;parse search tree
 #endif	
 #ifdef SCI_BD_ECT	
 ;#Edge on RX pin captured (default IC0)

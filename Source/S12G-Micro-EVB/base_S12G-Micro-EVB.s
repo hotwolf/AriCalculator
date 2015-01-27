@@ -53,12 +53,6 @@ CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
 #endif
 
 ;# SCI
-#ifndef	SCI_ENABLE_AT_INIT_ON
-#ifndef	SCI_ENABLE_AT_INIT_OFF
-SCI_ENABLE_AT_INIT_OFF	EQU	1 		;only enable SCI if VUSB is detected
-#endif
-#endif
-
 SCI_RXTX_ACTHI		EQU	1 		;RXD/TXD are inverted (active high)
 
 #ifndef	SCI_FC_RTS_CTS
@@ -136,7 +130,7 @@ SCI_VARS_START		EQU	*
 SCI_VARS_START_LIN	EQU	@
 			ORG	SCI_VARS_END, SCI_VARS_END_LIN
 
-VMON_VARS_START	EQU	*
+VMON_VARS_START		EQU	*
 VMON_VARS_START_LIN	EQU	@
 			ORG	VMON_VARS_END, VMON_VARS_END_LIN
 
@@ -170,49 +164,37 @@ BASE_VARS_END_LIN	EQU	@
 ;--------------- 
 #macro	BASE_INIT, 0
 			GPIO_INIT
-			CLOCK_INIT
 			COP_INIT
+			CLOCK_INIT
+			RESET_INIT
 			MMAP_INIT
 			VECTAB_INIT
 			ISTACK_INIT
+			SSTACK_INIT
 			VMON_INIT
 			TIM_INIT
 			STRING_INIT
 			NUM_INIT
 			NVM_INIT
 			LED_INIT
-#ifdef	SCI_ENABLE_AT_INIT_OFF
 			SCI_INIT
 			CLOCK_WAIT_FOR_PLL
 			VMON_WAIT_FOR_1ST_RESULTS
-#else
-			CLOCK_WAIT_FOR_PLL
-			SCI_INIT
-#endif
-			RESET_INIT
+			#SCI_ENABLE
 #emac
 
-#ifdef	SCI_ENABLE_AT_INIT_OFF
-;#Enable SCI whenever VUSB is present
-;------------------------------------ 
-#ifndef	VMON_VUSB_LVACTION_ON
-#ifndef	VMON_VUSB_LVACTION_OFF
-VMON_VUSB_LVACTION_ON		EQU	1 		;define VUSB LV action
+;#Only enable SCI if VUSB is available
+;------------------------------------- 
+#ifnmac	VMON_VUSB_LVACTION
 #macro	VMON_VUSB_LVACTION, 0
 	SCI_DISABLE
 #emac
-#endif
-#endif
-
-#ifndef	VMON_VUSB_HVACTION_ON
-#ifndef	VMON_VUSB_HVACTION_OFF
-VMON_VUSB_HVACTION_ON		EQU	1 		;define VUSB HV action
+#endif	
+#ifnmac	VMON_VUSB_HVACTION
 #macro	VMON_VUSB_HVACTION, 0
 	SCI_ENABLE
 #emac
-#endif
-#endif
-#endif
+#endif	
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -295,6 +277,20 @@ BASE_CODE_END_LIN	EQU	@
 			ORG 	BASE_TABS_START
 #endif	
 
+;#Welcome message
+#ifndef	WELCOME_MESSAGE
+WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase BEPM port!"
+			STRING_NL_TERM
+#endif
+;#Error message format
+#ifndef	ERROR_HEADER
+ERROR_HEADER		FCS	"FATAL ERROR! "
+#endif
+#ifndef	ERROR_TRAILER
+ERROR_TRAILER		FCC	"!"
+			STRING_NL_TERM
+#endif
+	
 GPIO_TABS_START		EQU	*
 GPIO_TABS_START_LIN	EQU	@
 			ORG	GPIO_TABS_END, GPIO_TABS_END_LIN

@@ -145,7 +145,7 @@ RESET_VARS_END_LIN	EQU	@
 #endif
 #ifdef	RESET_LVR_CHECK_ON
 			;Check for low voltage reset (flags in A)
-			LDY	#RESET_MSG_POWERFAIL
+			LDY	#RESET_MSG_POWFAIL
 			BITA	#LVRF
 			BNE	RESET_INIT_4 		;low voltage reset detected
 #endif
@@ -209,30 +209,6 @@ RESET_INIT_3		LDY	#RESET_MSG_UNKNOWN 	;unknown error
 RESET_INIT_4		STY	RESET_MSG_PTR		;set error message
 			;Done
 RESET_INIT_5		EQU	*
-
-
-
-
-
-
-	LDAB	1,Y+			;check next character
-	
-			TFR	Y, X		  	;save string pointer
-RESET_INIT_1		LDAB	#RESET_MSG_LENGTH 	;Maximum message length in B
-			LDAA	1,Y+			;check next character
-			BMI	RESET_INIT_3 		;end of dtring reached 
-			CMPA	#$20		;" "	;check if character is printable
-			BLO	RESET_INIT_2 		;invalid message
-			CMPB	#$7E		;"~"    ;check if character is printable
-			BHI	\1			;invalid message
-			DBNE	A, RESET_INIT_1		;check next character
-			;String is not valid 
-RESET_INIT_2		LDY	#RESET_MSG_COP
-			JOB	RESET_INIT_ 		;COP reset detected
-			;Check Fletcher's checksum (end of string in Y, start of string in X)
-RESET_INIT_3		TFR	X, D 			;start of string -> D
-			COMA				;
-			COMB
 #emac
 
 ;Branch on error
@@ -242,7 +218,7 @@ RESET_INIT_3		TFR	X, D 			;start of string -> D
 ;         X, and D are preserved 
 #macro	RESET_BR_ERR, 1
 	LDY	RESET_MSG_PTR
-	BNE	/1
+	BNE	\1
 #emac
 	
 ;Branch on no error
@@ -252,7 +228,7 @@ RESET_INIT_3		TFR	X, D 			;start of string -> D
 ;         X, and D are preserved 
 #macro	RESET_BR_NOERR, 1
 	LDY	RESET_MSG_PTR
-	BEQ	/1
+	BEQ	\1
 #emac
 	
 ;#Perform a reset due to a fatal error (immediate error code)
@@ -335,7 +311,7 @@ RESET_MSG_CLKFAIL	RESET_MSG	"Clock failure"
 RESET_MSG_POWFAIL	RESET_MSG	"Power loss"
 #endif
 #ifdef	RESET_IAR_CHECK_ON
-RESET_MSG_CODERUN	RESET_MSG	"Code runaway"
+RESET_MSG_ILLADDR	RESET_MSG	"Code runaway"
 #endif
 RESET_MSG_UNKNOWN	RESET_MSG	"Unknown cause"
 	

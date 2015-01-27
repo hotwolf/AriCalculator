@@ -186,7 +186,7 @@ CLOCK_CODE_START_LIN	EQU	@
 
 ;#Service routine for the PLL lock interrupt
 #ifdef	CLOCK_CPMU
-CLOCK_ISR		EQU	RESET_ISR_FATAL
+CLOCK_ISR		EQU	VECTAB_ISR_ILLIRQ
 #endif
 #ifdef	CLOCK_CRG
 CLOCK_ISR		EQU	*

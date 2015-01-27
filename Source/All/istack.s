@@ -50,8 +50,8 @@
 ;#      - Added macro "ISTACK_CALL_ISR"                                        #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    SSTACK - Subroutine Stack Handler                                        #
-;#    ERROR  - Error Handler                                                   #
+;#    SSTACK - Subroutine stack handler                                        #
+;#    RESET  - Reset handler                                                   #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #

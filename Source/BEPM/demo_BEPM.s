@@ -33,17 +33,8 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Clocks
-CLOCK_CPMU		EQU	1		;CPMU
-CLOCK_IRC		EQU	1		;use IRC
-CLOCK_OSC_FREQ		EQU	 1000000	; 1 MHz IRC frequency
-CLOCK_BUS_FREQ		EQU	25000000	; 25 MHz bus frequency
-CLOCK_REF_FREQ		EQU	 1000000	; 1 MHz reference clock frequency
-CLOCK_VCOFRQ		EQU	$1		; 10 MHz VCO frequency
-CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
-
 ;# Memory map:
-MMAP_S12G128		EQU	1 		;S12G128
+MMAP_S12XEP100		EQU	1 		;S12XEP100
 MMAP_RAM		EQU	1 		;use RAM memory map
 
 ;# Interrupt stack
@@ -57,30 +48,9 @@ SSTACK_DEBUG		EQU	1 		;debug behavior
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 
-;# RESET
-RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
-	
 ;# Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
-	
-;# SCI
-SCI_FC_RTSCTS		EQU	1 		;RTS/CTS flow control
-SCI_RTS_PORT		EQU	PTM 		;PTM
-SCI_RTS_PIN		EQU	PM0		;PM0
-SCI_CTS_PORT		EQU	PTM 		;PTM
-SCI_CTS_PIN		EQU	PM1		;PM1
-SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
-SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
-SCI_BD_ON		EQU	1 		;use baud rate detection
-SCI_BD_TIM		EQU	1 		;TIM
-SCI_BD_ICPE		EQU	0		;IC0
-SCI_BD_ICNE		EQU	1		;IC1			
-SCI_BD_OC		EQU	2		;OC2			
-SCI_BD_LOG_ON		EQU	1		;log captured BD pulses			
-SCI_DLY_OC		EQU	3		;OC3
-SCI_ERRSIG_ON		EQU	1 		;signal errors
-SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
-	
+		
 ;# STRING
 STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
 	
@@ -113,7 +83,7 @@ BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./base_S12G-Micro-EVB.s		;S12CBase bundle
+#include ./base_BEPM.s		;S12CBase bundle
 	
 ;###############################################################################
 ;# Variables                                                                   #

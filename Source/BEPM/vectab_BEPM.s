@@ -25,14 +25,14 @@
 ;#    Unexpected inerrupts are cought and trigger a fatal error in the reset   #
 ;#    handler.                                                                 #
 ;###############################################################################
+;# Version History:                                                            #
+;#    December 28, 2014                                                        #
+;#      - Initial release                                                      #
+;###############################################################################
 ;# Required Modules:                                                           #
 ;#    RESET   - Reset handler                                                  #
 ;#    CLOCK   - Clock handler                                                  #
 ;#    SCI     - UART driver                                                    #
-;###############################################################################
-;# Version History:                                                            #
-;#    December 28, 2014                                                        #
-;#      - Initial release                                                      #
 ;###############################################################################
 
 ;###############################################################################
@@ -368,7 +368,7 @@ ISR_TRAP		EQU	VECTAB_ISR_ILLIRQ	;vector base + $F8
 
 ;#Error message
 VECTAB_MSG_ILLIRQ	FCS	"Unexpected interrupt"
-VECTAB_MSG_ILLIRQ_CHECK	DW	$00			;vector base + $F8
+			FLET16	VECTAB_MSG_ILLIRQ *-1
 #endif
 	
 VECTAB_TABS_END		EQU	*	
@@ -496,6 +496,6 @@ VEC_XIRQ		DW	ISR_XIRQ		;vector base + $F4
 VEC_SWI			DW	ISR_SWI			;vector base + $F6
 VEC_TRAP		DW	ISR_TRAP		;vector base + $F8
 VEC_RESET_COP		DW	RESET_COP_ENTRY		;vector base + $FA
-VEC_RESET_CM		DW	RESET_CM_ENTRY		;vector base + $FC
+VEC_RESET_CM		DW	RESET_CM_ENTRY 		;vector base + $FC
 VEC_RESET_EXT		DW	RESET_EXT_ENTRY		;vector base + $FE
 #endif
