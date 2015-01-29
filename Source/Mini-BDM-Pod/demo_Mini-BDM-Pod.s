@@ -33,48 +33,15 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Clocks
-CLOCK_CRG		EQU	1		;CPMU
-CLOCK_OSC_FREQ		EQU	10000000	;10 MHz
-CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
-CLOCK_REF_FREQ		EQU	10000000	;10 MHz
-CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
-CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
-
 ;# Memory map:
+MMAP_S12XEP100		EQU	1 		;S12XEP100
 MMAP_RAM		EQU	1 		;use RAM memory map
 
-;# Interrupt stack
-ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
-;ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-ISTACK_NO_WAI		EQU	1	 	;keep WAIs out
-ISTACK_S12X		EQU	1	 	;S12X interrupt handling
-
-;# Subroutine stack
-SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
-;SSTACK_DEBUG		EQU	1 		;debug behavior
-
 ;# COP
-;COP_DEBUG		EQU	1 		;disable COP
+COP_DEBUG		EQU	1 		;disable COP
 
-;# RESET
-RESET_CODERUN_OFF	EQU	1 		;don't report code runaways
-RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
-	
 ;# Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
-	
-;# SCI
-SCI_FC_XONXOFF		EQU	1 		;XON/XOFF flow control
-SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
-SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
-SCI_BD_ON		EQU	1 		;use baud rate detection
-SCI_BD_ECT		EQU	1 		;TIM
-SCI_BD_IC		EQU	0		;IC0
-SCI_BD_OC		EQU	2		;OC2			
-SCI_DLY_OC		EQU	3		;OC3
-SCI_ERRSIG_ON		EQU	1 		;signal errors
-SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 
 ;# STRING
 STRING_FILL_ON		EQU	1 		;enable STRING_FILL_BL/STRING_FILL_NB
@@ -141,7 +108,7 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;Initialization
 			BASE_INIT
-
+	
 ;;Setup trace buffer
 ;			;Configure DBG module
 ;			CLR	DBGC1
@@ -160,6 +127,11 @@ DEMO_VARS_END_LIN	EQU	@
 ;			MOVB	#ARM, DBGC1
 			
 ;Application code
+			;Print header string
+			LDX	#DEMO_HEADER
+			STRING_PRINT_BL
+
+			;Loop
 DEMO_LOOP		SCI_RX_BL
 			;Ignore RX errors 
 			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
@@ -259,8 +231,7 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"This is the S12CBase Demo for the Mini-BDM-Pod"
-			STRING_NL_NONTERM
+DEMO_HEADER		STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM

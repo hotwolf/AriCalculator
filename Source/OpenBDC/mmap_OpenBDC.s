@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - MMAP - Memory Map (OpenBDC Pod)                                  #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2015 Dirk Heisswolf                                            #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -36,6 +36,8 @@
 ;#    July 9, 2012                                                             #
 ;#      - Added support for linear PC                                          #
 ;#      - Updated memory mapping                                               #
+;#    January 29, 2015                                                         #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 ;  Flash Memory Map:
 ;  -----------------  
@@ -95,6 +97,23 @@ MMAP_FLASH		EQU	1 		;default is flash
 #endif
 
 ;###############################################################################
+;# Security and Protection                                                     #
+;###############################################################################
+#ifdef	MMAP_FLASH
+			;Align to D-Bug12XZ programming granularity
+			ORG	$FF0C, $FFFF0C	;unprotect		
+			FILL	$FF, 4		
+			;ORG	$FF08, $FFFF08	;unprotect		
+			;FILL	$FF, 8		
+
+			;Set within bootloader code
+			ORG	$FF0D, $FFFF0D	;unprotect
+			DB	$FF
+			ORG	$FF0F, $FFFF0F	;unsecure
+			DB	$FE
+#endif
+
+;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
 ;# Memory sizes
@@ -133,15 +152,17 @@ MMAP_FLASH3F_END	EQU	$10000
 MMAP_FLASH3F_START_LIN	EQU	$FC000	
 MMAP_FLASH3F_END_LIN	EQU	$100000
 #endif
-	
-;###############################################################################
-;# Security and Protection                                                     #
-;###############################################################################
+
+;# Vector table
+#ifndef VECTAB_START
+#ifdef	MMAP_RAM
+VECTAB_START		EQU	$3F80    
+VECTAB_START_LIN	EQU	$03F80   
+#endif
 #ifdef	MMAP_FLASH
-			ORG	$FF0D	;unprotect
-			DB	$FF
-			ORG	$FF0F	;unsecure
-			DB	$FE
+VECTAB_START		EQU	$FF80    
+VECTAB_START_LIN	EQU	$3FF80   
+#endif
 #endif
 
 ;###############################################################################
