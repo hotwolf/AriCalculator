@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - GPIO - GPIO Handler (S12G-Micro-EVB)                             #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
 ;#    families.                                                                #
 ;#                                                                             #

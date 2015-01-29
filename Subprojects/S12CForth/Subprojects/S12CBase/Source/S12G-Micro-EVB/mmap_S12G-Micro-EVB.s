@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - MMAP - Memory Map (S12G-Micro-EVB)                               #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
 ;#    families.                                                                #
 ;#                                                                             #
@@ -36,6 +36,8 @@
 ;#    August 10, 2012                                                          #
 ;#      - Added support for linear PC                                          #
 ;#      - Updated memory mapping                                               #
+;#    January 29, 2015                                                         #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 ;  Flash Memory Map:
 ;  -----------------  
@@ -110,8 +112,10 @@ MMAP_FLASH		EQU	1 	;default is flash
 ;###############################################################################
 #ifdef	MMAP_FLASH
 			;Align to D-Bug12XZ programming granularity
-			ORG	$FF08, $03FF08	;unprotect		
-			FILL	$FF, 8		
+			ORG	$FF0C, $03FF0C	;unprotect		
+			FILL	$FF, 4		
+			;ORG	$FF08, $03FF08	;unprotect		
+			;FILL	$FF, 8		
 	
 			;Set within bootloader code
 			ORG	$FF0D, $03FF0D	;unprotect

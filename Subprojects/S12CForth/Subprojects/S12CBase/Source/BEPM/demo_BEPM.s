@@ -37,14 +37,6 @@
 MMAP_S12XEP100		EQU	1 		;S12XEP100
 MMAP_RAM		EQU	1 		;use RAM memory map
 
-;# Interrupt stack
-ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
-ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-
-;# Subroutine stack
-SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
-SSTACK_DEBUG		EQU	1 		;debug behavior
-
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 
@@ -115,7 +107,29 @@ DEMO_VARS_END_LIN	EQU	@
 ;Initialization
 			BASE_INIT
 	
+;;Setup trace buffer
+;			;Configure DBG module
+;			CLR	DBGC1
+;			;MOVB	#$40, DBGTCR  ;trace CPU in normal mode
+;			MOVB	#$4C, DBGTCR  ;trace CPU in pure PC mode
+;			MOVB	#$02, DBGC2   ;Comparators A/B outside range
+;			MOVB	#$02, DBGSCRX ;first match triggers final state
+;			;Comperator A
+;			MOVW	#(((BRK|TAG|COMPE)<<8)|(MMAP_RAM_START_LIN>>16)), DBGXCTL
+;			MOVW	#(MMAP_RAM_START_LIN&$FFFF),                      DBGXAM
+;			;Comperator A
+;			MOVB	#$01, DBGC1
+;			MOVW	#(((BRK|TAG|COMPE)<<8)|(MMAP_RAM_END_LIN>>16)), DBGXCTL
+;			MOVW	#(MMAP_RAM_END_LIN&$FFFF),                      DBGXAM
+;			;Arm DBG module
+;			MOVB	#ARM, DBGC1
+			
 ;Application code
+			;Print header string
+			LDX	#DEMO_HEADER
+			STRING_PRINT_BL
+
+			;Loop
 DEMO_LOOP		SCI_RX_BL
 			;Ignore RX errors 
 			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
@@ -200,8 +214,7 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"This is the S12CBase Demo for the S12G-Micro-EVB"
-			STRING_NL_NONTERM
+DEMO_HEADER		STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM

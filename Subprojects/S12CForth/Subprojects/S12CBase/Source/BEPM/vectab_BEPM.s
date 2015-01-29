@@ -28,6 +28,8 @@
 ;# Version History:                                                            #
 ;#    December 28, 2014                                                        #
 ;#      - Initial release                                                      #
+;#    January 29, 2015                                                         #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    RESET   - Reset handler                                                  #
