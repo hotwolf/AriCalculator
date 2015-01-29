@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - Base Bundle (S12G-Micro-EVB)                                     #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -26,6 +26,8 @@
 ;# Version History:                                                            #
 ;#    November 20, 2012                                                        #
 ;#      - Initial release                                                      #
+;#    January 29, 2015                                                         #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 
 ;###############################################################################
@@ -82,7 +84,6 @@ SCI_BD_OC		EQU	2		;OC2	#endif
 #ifndef	SCI_DLY_OC
 SCI_DLY_OC		EQU	3		;OC3
 #endif
-
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -201,7 +202,7 @@ BASE_VARS_END_LIN	EQU	@
 			CLOCK_WAIT_FOR_PLL
 			VMON_WAIT_FOR_1ST_RESULTS
 			VMON_VUSB_BRLV	DONE 	;no termunal connected
-			SCI_ENABLE
+			;SCI_ENABLE
 			RESET_BR_ERR	ERROR	;severe error detected 
 			WELCOME_MESSAGE
 			JOB	DONE	

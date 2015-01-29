@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - VECTAB - Vector Table (S12G-Micro-EVB)                           #
 ;###############################################################################
-;#    Copyright 2010-2014 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
 ;#    families.                                                                #
 ;#                                                                             #
@@ -37,6 +37,8 @@
 ;#      - Added ECC error interrupt                                            #
 ;#    September 30, 2014                                                       #
 ;#      - Added USB supply voltage monitor for RevB boards                     #
+;#    January 29, 2015                                                         #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    RESET   - Reset handler                                                  #

@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CBase - Demo (S12G-Micro-EVB)                                              #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -28,58 +28,22 @@
 ;# Version History:                                                            #
 ;#    November 14, 2012                                                        #
 ;#      - Initial release                                                      #
+;#    January 29, 2015                                                         #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Clocks
-CLOCK_CPMU		EQU	1		;CPMU
-CLOCK_IRC		EQU	1		;use IRC
-CLOCK_OSC_FREQ		EQU	 1000000	; 1 MHz IRC frequency
-CLOCK_BUS_FREQ		EQU	25000000	; 25 MHz bus frequency
-CLOCK_REF_FREQ		EQU	 1000000	; 1 MHz reference clock frequency
-CLOCK_VCOFRQ		EQU	$1		; 10 MHz VCO frequency
-CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
-
 ;# Memory map:
 MMAP_S12G128		EQU	1 		;S12G128
 MMAP_RAM		EQU	1 		;use RAM memory map
 
-;# Interrupt stack
-ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
-ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-
-;# Subroutine stack
-SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
-SSTACK_DEBUG		EQU	1 		;debug behavior
-
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 
-;# RESET
-RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
-	
 ;# Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
-	
-;# SCI
-SCI_FC_RTSCTS		EQU	1 		;RTS/CTS flow control
-SCI_RTS_PORT		EQU	PTM 		;PTM
-SCI_RTS_PIN		EQU	PM0		;PM0
-SCI_CTS_PORT		EQU	PTM 		;PTM
-SCI_CTS_PIN		EQU	PM1		;PM1
-SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
-SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
-SCI_BD_ON		EQU	1 		;use baud rate detection
-SCI_BD_TIM		EQU	1 		;TIM
-SCI_BD_ICPE		EQU	0		;IC0
-SCI_BD_ICNE		EQU	1		;IC1			
-SCI_BD_OC		EQU	2		;OC2			
-SCI_BD_LOG_ON		EQU	1		;log captured BD pulses			
-SCI_DLY_OC		EQU	3		;OC3
-SCI_ERRSIG_ON		EQU	1 		;signal errors
-SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
 	
 ;# STRING
 STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
@@ -146,6 +110,11 @@ DEMO_VARS_END_LIN	EQU	@
 			BASE_INIT
 	
 ;Application code
+			;Print header string
+			LDX	#DEMO_HEADER
+			STRING_PRINT_BL
+
+			;Loop
 DEMO_LOOP		SCI_RX_BL
 			;Ignore RX errors 
 			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
@@ -230,8 +199,7 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"This is the S12CBase Demo for the S12G-Micro-EVB"
-			STRING_NL_NONTERM
+DEMO_HEADER		STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM

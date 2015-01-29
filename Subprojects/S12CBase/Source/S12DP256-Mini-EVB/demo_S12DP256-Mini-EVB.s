@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CBase - Demo (S12DP256-Mini-EVB)                                         #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -28,44 +28,24 @@
 ;# Version History:                                                            #
 ;#    November 14, 2012                                                        #
 ;#      - Initial release                                                      #
+;#    January 29, 2015                                                         #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Clocks
-CLOCK_CRG		EQU	1		;CRG
-;CLOCK_OSC_FREQ		EQU	 8000000	; 8 MHz
-;CLOCK_OSC_FREQ		EQU	16000000	;16 MHz
-
 ;# Memory map:
 MMAP_RAM		EQU	1 		;use RAM memory map
 
-;# Interrupt stack
-ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
-ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-
-;# Subroutine stack
-SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
-;SSTACK_DEBUG		EQU	1 		;debug behavior
-
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
-
-;# RESET
-RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
-	
-;# Vector table
-VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
-	
-;# SCI
-SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
-	
-;# NUM
-NUM_BLOCKING_ON		EQU	1		;enable blocking subroutines
 	
 ;# STRING
 STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
+	
+;# VECTAB
+COP_DEBUG		EQU	1 		;break on false interrupt
 	
 ;###############################################################################
 ;# Resource mapping                                                            #
@@ -120,6 +100,11 @@ DEMO_VARS_END_LIN	EQU	@
 			BASE_INIT
 	
 ;Application code
+			;Print header string
+			LDX	#DEMO_HEADER
+			STRING_PRINT_BL
+
+			;Loop
 DEMO_LOOP		SCI_RX_BL
 			;Ignore RX errors 
 			TBNE	A, DEMO_LOOP
@@ -194,8 +179,6 @@ DEMO_LOOP		SCI_RX_BL
 			STRING_PRINT_BL
 			JOB	DEMO_LOOP
 
-			;ALIGN 1		;
-	
 DEMO_CODE_END		EQU	*	
 DEMO_CODE_END_LIN	EQU	@	
 
@@ -204,8 +187,7 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"This is the S12CBase Demo for the S12DP256-Mini-EVB"
-			STRING_NL_NONTERM
+DEMO_HEADER		STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM

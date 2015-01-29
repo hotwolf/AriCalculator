@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - MMAP - Memory Map (S12DP256-Mini-EVB)                            #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -124,6 +124,18 @@ MMAP_FLASH3F_START	EQU	$C000
 MMAP_FLASH3F_END	EQU	$10000
 MMAP_FLASH3F_START_LIN	EQU	$FC000	
 MMAP_FLASH3F_END_LIN	EQU	$100000
+#endif
+	
+;# Vector table
+#ifndef VECTAB_START
+#ifdef	MMAP_RAM
+VECTAB_START		EQU	$3F80    
+VECTAB_START_LIN	EQU	$03F80   
+#endif
+#ifdef	MMAP_FLASH
+VECTAB_START		EQU	$FF80    
+VECTAB_START_LIN	EQU	$3FF80   
+#endif
 #endif
 	
 ;###############################################################################

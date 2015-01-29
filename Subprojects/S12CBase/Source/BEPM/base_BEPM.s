@@ -247,7 +247,7 @@ BASE_CODE_END_LIN	EQU	@
 
 ;#Welcome message
 #ifndef	WELCOME_MESSAGE
-WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase BEPM port!"
+WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
 			STRING_NL_TERM
 #endif
 ;#Error message format

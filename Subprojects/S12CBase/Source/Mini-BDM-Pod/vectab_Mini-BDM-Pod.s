@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - VECTAB - Vector Table (Mini-BDM-Pod)                             #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -45,6 +45,8 @@
 ;#      - Restructured table                                                   #
 ;#    June 12, 2013                                                            #
 ;#      - Added ECC error interrupt                                            #
+;#    January 29, 2015                                                         #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 
 ;###############################################################################
