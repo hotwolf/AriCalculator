@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CBase - Demo (SIMHC12)                                                   #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -28,47 +28,24 @@
 ;# Version History:                                                            #
 ;#    November 14, 2012                                                        #
 ;#      - Initial release                                                      #
+;#    January 30, 2015                                                         #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Clocks
-CLOCK_CRG		EQU	1		;CPMU
-CLOCK_OSC_FREQ		EQU	10000000	;10 MHz
-CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
-CLOCK_REF_FREQ		EQU	10000000	;10 MHz
-CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
-CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
-
 ;# Memory map:
-MMAP_RAM		EQU	1 		;use RAM memory map
+;MMAP_RAM		EQU	1 		;use RAM memory map
 
-;# Interrupt stack
-ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
-;ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-
-;# Subroutine stack
-SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
-;SSTACK_DEBUG		EQU	1 		;debug behavior
-
-;# RESET
-RESET_CLKFAIL_OFF	EQU	1 		;no clock monitor reset
-RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
-	
-;# Vector table
-;VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
-	
-;# SCI
-SCI_FC_NONE		EQU	1 		;no flow control
-SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
-SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
-SCI_BD_OFF		EQU	1 		;no baud rate detection
-SCI_ERRSIG_OFF		EQU	1 		;don't signal errors
-SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
+;# COP
+COP_DEBUG		EQU	1 		;disable COP
 	
 ;# STRING
 STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
+	
+;# VECTAB
+VECTAB_DEBUG		EQU	1 		;break on false interrupt
 	
 ;###############################################################################
 ;# Resource mapping                                                            #
@@ -218,8 +195,7 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
-DEMO_WELCOME		FCC	"This is the S12CBase Demo for the SIMHC12 simulator!"
-			STRING_NL_NONTERM
+DEMO_HEADER		STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM

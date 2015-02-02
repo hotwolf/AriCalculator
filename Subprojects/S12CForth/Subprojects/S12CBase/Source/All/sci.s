@@ -1952,8 +1952,10 @@ SCI_ISR_RX_10		SCI_DEASSERT_CTS
 #ifdef	SCI_FC_XONXOFF
 			;Transmit XON/XOFF (flags:data in Y)
 SCI_ISR_RX_10		SCI_SEND_XONXOFF
-#endif	
 #endif
+#else
+SCI_ISR_RX_10		EQU	*	
+#endif	
 SCI_ISR_RX_11		EQU	*	
 #ifdef	SCI_CHECK_RX_ERR
 			BITA	#(NF|FE|PF) 				;check for noise, frame errors, parity errors

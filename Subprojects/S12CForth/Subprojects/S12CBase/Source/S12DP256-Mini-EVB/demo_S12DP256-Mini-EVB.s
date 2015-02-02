@@ -45,7 +45,7 @@ COP_DEBUG		EQU	1 		;disable COP
 STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
 	
 ;# VECTAB
-COP_DEBUG		EQU	1 		;break on false interrupt
+VECTAB_DEBUG		EQU	1 		;break on false interrupt
 	
 ;###############################################################################
 ;# Resource mapping                                                            #
