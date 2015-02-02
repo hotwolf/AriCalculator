@@ -83,7 +83,7 @@ DISP_A0_PIN		EQU	PS4		;default is PS4
 
 ;#Buffer size
 #ifndef DISP_BUF_SIZE
-DISP_BUF_SIZE		EQU	8 		;depth of the command buffer
+DISP_BUF_SIZE		EQU	16 		;depth of the command buffer
 #endif
 
 ;###############################################################################

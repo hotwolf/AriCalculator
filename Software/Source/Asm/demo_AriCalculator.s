@@ -113,12 +113,21 @@ DEMO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;Break handler
 #macro	SCI_BREAK_ACTION, 0
-			;LED_BUSY_ON 
+			LED_BUSY_ON 
 #emac
 	
 ;Suspend handler
 #macro	SCI_SUSPEND_ACTION, 0
-			;LED_BUSY_OFF
+			LED_BUSY_OFF
+#emac
+
+#macro	VMON_VUSB_LVACTION, 0
+			SCI_DISABLE
+			LED_ERROR_OFF
+#emac
+#macro	VMON_VUSB_HVACTION, 0
+			SCI_ENABLE
+			LED_ERROR_ON
 #emac
 
 ;###############################################################################
@@ -136,45 +145,42 @@ START_OF_CODE		EQU	*		;Start of code
 			;Initialization
 			BASE_INIT
 
-DEMO_LOOP		ISTACK_WAIT
-			JOB	DEMO_LOOP
+DEMO_LOOP		;Wait for key stroke
+			KEYS_GET_BL 		;key code -> A
+			STAA	DEMO_KEY_CODE
+
+			;Print key code (key code in A)
+			LDX	#DEMO_PRINT_HEADER 		;print header
+			STRING_PRINT_BL
+			LDY	#$0000 				;reverse digits
+			TFR	A, X
+			LDAB	#16 				;set base
+			NUM_REVERSE
+			NUM_REVPRINT_BL
+			NUM_CLEAN_REVERSE
 	
-;DEMO_LOOP		;Wait for key stroke
-;			KEYS_GET_BL 		;key code -> A
-;			STAA	DEMO_KEY_CODE
-;
-;			;Print key code (key code in A)
-;			LDX	#DEMO_PRINT_HEADER 		;print header
-;			STRING_PRINT_BL
-;			LDY	#$0000 				;reverse digits
-;			TFR	A, X
-;			LDAB	#16 				;set base
-;			NUM_REVERSE
-;			NUM_REVPRINT_BL
-;			NUM_CLEAN_REVERSE
-;
-;			;Display keystroke
-;			;Initialize variables
-;			MOVB	#$B0, DEMO_PAGE
-;			CLR	DEMO_COL
-;			CLR	DEMO_CUR_KEY
-;
+			;Display keystroke
+			;Initialize variables
+			MOVB	#$B0, DEMO_PAGE
+			CLR	DEMO_COL
+			CLR	DEMO_CUR_KEY
+
 ;			;Draw empty line
 ;			JOBSR	DEMO_NEW_PAGE
 ;			JOBSR	DEMO_BLANK_PAGE
-;
-;			;Draw next line
-;DEMO_1			JOBSR	DEMO_MARGIN
-;			JOBSR	DEMO_NEW_PAGE
-;			CLR	DEMO_COL
-;
+
+			;Draw next line
+DEMO_1			JOBSR	DEMO_MARGIN
+			JOBSR	DEMO_NEW_PAGE
+			CLR	DEMO_COL
+
 ;			;Draw next box
-;DEMO_2 			LDAA	DEMO_CUR_KEY
+;DEMO_2 		LDAA	DEMO_CUR_KEY
 ;			CMPA	DEMO_KEY_CODE
 ;			BEQ	DEMO_3 			;draw black box
 ;			JOBSR	DEMO_WHITE_BOX
 ;			JOB	DEMO_4
-;DEMO_3 			JOBSR	DEMO_BLACK_BOX
+;DEMO_3 		JOBSR	DEMO_BLACK_BOX
 ;
 ;			;Switch to next key code
 ;DEMO_4			INC	DEMO_CUR_KEY
@@ -193,9 +199,15 @@ DEMO_LOOP		ISTACK_WAIT
 ;			JOBSR	DEMO_NEW_PAGE
 ;			JOBSR	DEMO_BLANK_PAGE
 ;			JOBSR	DEMO_MARGIN
-;
-;			JOB	DEMO_LOOP
-;	
+
+			JOB	DEMO_LOOP
+
+
+
+
+
+
+	
 ;			;Start new page 
 ;DEMO_NEW_PAGE		DISP_STREAM_FROM_TO_BL	DEMO_CMD_START, DEMO_CMD_END ;switch to command mode
 ;			LDAB	DEMO_PAGE	
@@ -237,31 +249,28 @@ DEMO_CODE_END_LIN	EQU	@
 			ORG 	DEMO_TABS_START
 #endif	
 
-;DEMO_CMD_START		DB	DISP_ESC_START DISP_ESC_CMD
-;DEMO_CMD_END		EQU	*
-;
-;DEMO_NEW_PAGE_START	DB	$10 $04
-;			DB	DISP_ESC_START DISP_ESC_DATA
-;			DB      DISP_ESC_START $10 $00
-;DEMO_NEW_PAGE_END	EQU	*
-;	
-;DEMO_BLANK_PAGE_START	DB      DISP_ESC_START 40 $00
-;DEMO_BLANK_PAGE_END	EQU	*
-;	
-;DEMO_MARGIN_START	DB      DISP_ESC_START $0C $00
-;DEMO_MARGIN_END	EQU	*
-;	
-;DEMO_WHITE_BOX_START	DB	$00 $7E DISP_ESC_START $04 $42 $7E $00
-;DEMO_WHITE_BOX_END	EQU	*
-;
-;DEMO_BLACK_BOX_START	DB	$00 DISP_ESC_START $06 $7E $00
-;DEMO_BLACK_BOX_END	EQU	*
-;	
-;DEMO_PRINT_HEADER	STRING_NL_NONTERM
-;			FCS	"Key code: "
-;
-;DEMO_WELCOME		FCC	"This is the AriCalculator Demo"
-;			STRING_NL_TERM
+DEMO_CMD_START		DB	DISP_ESC_START DISP_ESC_CMD
+DEMO_CMD_END		EQU	*
+
+DEMO_NEW_PAGE_START	DB	$10 $04
+			DB	DISP_ESC_START DISP_ESC_DATA
+			DB      DISP_ESC_START $10 $00
+DEMO_NEW_PAGE_END	EQU	*
+	
+DEMO_BLANK_PAGE_START	DB      DISP_ESC_START 40 $00
+DEMO_BLANK_PAGE_END	EQU	*
+	
+DEMO_MARGIN_START	DB      DISP_ESC_START $0C $00
+DEMO_MARGIN_END		EQU	*
+	
+DEMO_WHITE_BOX_START	DB	$00 $7E DISP_ESC_START $04 $42 $7E $00
+DEMO_WHITE_BOX_END	EQU	*
+
+DEMO_BLACK_BOX_START	DB	$00 DISP_ESC_START $06 $7E $00
+DEMO_BLACK_BOX_END	EQU	*
+	
+DEMO_PRINT_HEADER	STRING_NL_NONTERM
+			FCS	"Key code: "
 	
 BASE_TABS_START		EQU	*
 BASE_TABS_START_LIN	EQU	@

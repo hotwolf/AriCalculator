@@ -178,56 +178,71 @@ BASE_VARS_END_LIN	EQU	@
 			STRING_INIT
 			NUM_INIT
 			DISP_INIT
-			;Display welcome or error message on LCD 
-			RESET_BR_ERR	ERROR_MESSAGE_DISP	;severe error detected 
-			WELCOME_MESSAGE_DISP
-			JOB	WAIT_FOR_PLL
-ERROR_MESSAGE_DISP	ERROR_MESSAGE_DISP				
+			;Show welcome/error screen on DISP
+			RESET_BR_ERR	BASE_DISP_ERROR    
+			BASE_DISP_WELCOME
+			JOB	BASE_DISP_DONE
+BASE_DISP_ERROR		BASE_DISP_ERROR  			
+BASE_DISP_DONE		EQU	*
 			;Wait for PLL lock
-WAIT_FOR_PLL		CLOCK_WAIT_FOR_PLL
+            		CLOCK_WAIT_FOR_PLL
 			;Wait for voltage monitor
-			VMON_WAIT_FOR_1ST_RESULTS
-			;;Display welcome or error message on LCD if connected
-			VMON_VUSB_BRLV	DONE 	;no termunal connected			
-			SCI_ENABLE
-			RESET_BR_ERR	ERROR_MESSAGE_SCI	;severe error detected 
-			WELCOME_MESSAGE_SCI
-			JOB	DONE	
-ERROR_MESSAGE_SCI	ERROR_MESSAGE_SCI					
-DONE			EQU	*
+			VMON_WAIT_FOR_1ST_RESUSCILTS
+			;Send welcome/error message through 
+			SCI_BR_DISABLED	BASE_SCI_DONE
+			RESET_BR_ERR	BASE_SCI_ERROR 
+			BASE_SCI_WELCOME
+			JOB	BASE_SCI_DONE	
+BASE_SCI_ERROR		BASE_SCI_ERROR				
+BASE_SCI_DONE		EQU	*
 #emac
 
 ;#Enable SCI whenever USB is connected, disable otherwise
 ;-------------------------------------------------------- 
+#ifnmac VMON_VUSB_LVACTION
 #macro	VMON_VUSB_LVACTION, 0
 	SCI_DISABLE
 #emac
+#endif	
+#ifnmac VMON_VUSB_HVACTION
 #macro	VMON_VUSB_HVACTION, 0
 	SCI_ENABLE
 #emac
+#endif	
 
 ;#Welcome messages
 ;----------------- 
-#macro	WELCOME_MESSAGE_SCI, 0
-			LDX	#WELCOME_MESSAGE	;print welcome message
+;#SCI
+#macro	BASE_SCI_WELCOME, 0
+			LDX	#BASE_SCI_WELCOME_MSG	;print welcome message
 			STRING_PRINT_BL
 #emac
 
-#macro	WELCOME_MESSAGE_DISP, 0
+;#DISP
+#macro	BASE_DISP_WELCOME, 0
+			LDX	#BASE_DISP_WELCOME_SCR
+			LDY	#BASE_DISP_WELCOME_SIZE
+			DISP_STREAM_BL
 #emac
 	
 ;#Error messages
 ;--------------- 
-#macro	ERROR_MESSAGE_SCI, 0
-			LDX	#ERROR_HEADER		;print error header
+; args:   Y: error message 
+;#SCI
+#macro	BASE_SCI_ERROR, 0
+			LDX	#BASE_SCI_ERROR_HEADER	;print error header
 			STRING_PRINT_BL
 			TFR	Y, X			;print error message
 			STRING_PRINT_BL
-			LDX	#ERROR_TRAILER		;print error TRAILER
+			LDX	#BASE_SCI_ERROR_TRAILER	;print error TRAILER
 			STRING_PRINT_BL
 #emac
 
-#macro	ERROR_MESSAGE_DISP, 0
+;#DISP
+#macro	BASE_DISP_ERROR, 0
+			LDX	#BASE_DISP_ERROR_SCR
+			LDY	#BASE_DISP_ERROR_SIZE
+			DISP_STREAM_BL
 #emac
 
 ;###############################################################################
@@ -319,12 +334,24 @@ BASE_CODE_END_LIN	EQU	@
 			ORG 	BASE_TABS_START
 #endif	
 
-;#Welcome message
-WELCOME_MESSAGE		FCC	"Hello, I'm  AriCalculator!"
+;#DISP screens
+;-------------
+;Welcome screen
+BASE_DISP_WELCOME_SCR	DISP_WELCOME_STREAM 			;display splash screen
+BASE_DISP_WELCOME_SIZE	EQU	*-BASE_DISP_WELCOME_SCR
+
+;Error Screen
+BASE_DISP_ERROR_SCR	DISP_ERROR_STREAM 			;display splash screen
+BASE_DISP_ERROR_SIZE	EQU	*-BASE_DISP_ERROR_SCR
+
+;#SCI messages	
+;-------------
+;Welcome message
+BASE_SCI_WELCOME_MSG	FCC	"Hello, I'm  AriCalculator!"
 			STRING_NL_TERM
-;#Error message format
-ERROR_HEADER		FCS	"FATAL ERROR! "
-ERROR_TRAILER		FCC	"!"
+;Error message format
+BASE_SCI_ERROR_HEADER	FCS	"FATAL ERROR! "
+BASE_SCI_ERROR_TRAILER	FCC	"!"
 			STRING_NL_TERM
 
 MMAP_TABS_START		EQU	*	 
@@ -402,7 +429,8 @@ BASE_TABS_END_LIN	EQU	@
 ;# Includes                                                                    #
 ;###############################################################################
 #include ./sci_bdtab_AriCalculator.s							;Search tree for SCI baud rate detection
-#include ./disp_splash.s								;NVM driver
+#include ./disp_welcome.s								;Welcome screen
+#include ./disp_error.s									;Error screen
 #include ./regdef_AriCalculator.s							;S12G register map
 #include ./mmap_AriCalculator.s								;Memory map
 #include ./vectab_AriCalculator.s							;S12G vector table
@@ -417,7 +445,7 @@ BASE_TABS_END_LIN	EQU	@
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/num.s	   	;Number printing routines
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/reset.s		;Reset driver
 #include ./led_AriCalculator.s								;LED driver
-#include ./vmon_AriCalculator.s							;Voltage monitor
+#include ./vmon_AriCalculator.s								;Voltage monitor
 #include ./nvm_AriCalculator.s								;NVM driver
 #include ./disp_AriCalculator.s								;NVM driver
 #include ./keys_AriCalculator.s								;NVM driver

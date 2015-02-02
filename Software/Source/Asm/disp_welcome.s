@@ -1,9 +1,9 @@
-#ifndef	DISP_SPLASH
-#define	DISP_SPLASH
+#ifndef	DISP_WELCOME
+#define	DISP_WELCOME
 ;###############################################################################
 ;# AriCalculator - Image: Splash.raw (single frame)                            #
 ;###############################################################################
-;#    Copyright 2012 - 2014 Dirk Heisswolf                                     #
+;#    Copyright 2012 - 2015 Dirk Heisswolf                                     #
 ;#    This file is part of the AriCalculator framework for Freescale's S12(X)  #
 ;#    MCU families.                                                            #
 ;#                                                                             #
@@ -22,10 +22,10 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#    This file contains the two macros:                                       #
-;#       DISP_SPLASH_TAB:                                                      #
+;#       DISP_WELCOME_TAB:                                                     #
 ;#           This macro allocates a table of raw image data.                   #
 ;#                                                                             #
-;#       DISP_SPLASH_STREAM:                                                   #
+;#       DISP_WELCOME_STREAM:                                                  #
 ;#           This macro allocates a compressed stream of image data and        #
 ;#           control commands, which can be directly driven to the display     #
 ;#           driver.                                                           #
@@ -33,7 +33,7 @@
 ;# Generated on Wed, Aug 13 2014                                               #
 ;###############################################################################
 
-#macro DISP_SPLASH_TAB, 0
+#macro DISP_WELCOME_TAB, 0
 
 ;#Frame 0:
 ;#----------------------------------------------------------------------
@@ -177,7 +177,7 @@
 #emac
 ;Size = 1024 bytes
 
-#macro DISP_SPLASH_STREAM, 0
+#macro DISP_WELCOME_STREAM, 0
 
 ;#Frame 0:
 ;#----------------------------------------------------------------------
