@@ -80,7 +80,7 @@ VECTAB_VARS_END_LIN	EQU	@
 			ORG 	VECTAB_CODE_START, VECTAB_CODE_START_LIN
 #else
 			ORG 	VECTAB_CODE_START
-VECTAB_VARS_START_LIN	EQU	@			
+VECTAB_CODE_START_LIN	EQU	@			
 #endif	
 	
 ;Illegal interrupt catcher
@@ -100,7 +100,7 @@ VECTAB_CODE_END_LIN	EQU	@
 			ORG 	VECTAB_TABS_START, VECTAB_TABS_START_LIN
 #else
 			ORG 	VECTAB_TABS_START
-VECTAB_VARS_START_LIN	EQU	@			
+VECTAB_TABS_START_LIN	EQU	@			
 #endif	
 
 ;#Interrupt service routines
@@ -257,7 +257,12 @@ VECTAB_TABS_END_LIN	EQU	@
 ;###############################################################################
 ;# HC12A4 Vector Table                                                         #
 ;###############################################################################
-			ORG	VECTAB_START, VECTAB_START_LIN 	
+#ifdef VECTAB_START_LIN
+			ORG 	VECTAB_START, VECTAB_START_LIN
+#else
+			ORG 	VECTAB_START
+VECTAB_START_LIN	EQU	@			
+#endif	
 VEC_RES80    		DW	ISR_RES80    		;vector base + $80
 VEC_RES82    		DW	ISR_RES82    		;vector base + $82
 VEC_RES84    		DW	ISR_RES84    		;vector base + $84

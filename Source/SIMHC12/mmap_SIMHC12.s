@@ -74,6 +74,10 @@ MMAP_REG_START		EQU	$0000
 MMAP_RAM_START		EQU	$0800
 MMAP_EEPROM_START	EQU	$F000
 	
+;# Vector table
+VECTAB_START		EQU	$FF80    
+;VECTAB_START_LIN	EQU	$3FF80   
+
 ;###############################################################################
 ;# Security and Protection                                                     #
 ;###############################################################################

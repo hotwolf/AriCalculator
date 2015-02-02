@@ -237,6 +237,20 @@ BASE_CODE_END_LIN	EQU	@
 			ORG 	BASE_TABS_START
 #endif	
 
+#Welcome message
+#ifndef	WELCOME_MESSAGE
+WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
+			STRING_NL_TERM
+#endif
+;#Error message format
+#ifndef	ERROR_HEADER
+ERROR_HEADER		FCS	"FATAL ERROR! "
+#endif
+#ifndef	ERROR_TRAILER
+ERROR_TRAILER		FCC	"!"
+			STRING_NL_TERM
+#endif
+	
 GPIO_TABS_START		EQU	*
 GPIO_TABS_START_LIN	EQU	@
 			ORG	GPIO_TABS_END, GPIO_TABS_END_LIN
