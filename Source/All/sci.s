@@ -399,6 +399,11 @@ SCI_FC_EN		EQU	1
 SCI_FC_EN		EQU	1
 #endif	
 	
+;#Baud rate detection
+#ifdef	SCI_BD_ON
+SCI_BD_LIST_INIT	EQU	$FF
+#endif	
+
 ;#Timer setup for baud rate detection
 #ifdef	SCI_BD_TIM
 SCI_SET_TIOS		EQU	1
@@ -430,7 +435,12 @@ SCI_DLY_EN		EQU	1		;enable delay counter for RTS polling
 #ifdef	SCI_IRQ_WORKAROUND_ON
 SCI_DLY_EN		EQU	1		;enable delay counter for periodic ISR execution
 #endif
+
+;#Delay counter 
 #ifdef	SCI_DLY_EN
+#ifndef	SCI_DLY_OC
+SCI_DLY_OC		EQU	$3		;default is OC3
+#endif
 SCI_SET_TIOS		EQU	1
 SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
 SCI_DLY_TCS		EQU	(1<<SCI_DLY_OC)
@@ -447,136 +457,16 @@ SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty XON/XOFF symbols
 SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty BREAK symbols
 #endif
 #ifmac	SCI_SUSPEND_ACTION
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errorsignore faulty SUSPEND symbols 
-#ifndef	SCI_CHECK_RX_ERR
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
-#endif
+SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty SUSPEND symbols 
 #endif	
-
-;#Delay counter 
-#ifdef	SCI_DLY_EN
-#ifndef	SCI_DLY_OC
-SCI_DLY_OC		EQU	$3		;default is OC3
-#endif
-#endif
-	
-;Communication error signaling
-;----------------------------- 
-;Signal RX errors -> define macros SCI_ERRSIG_START and SCI_ERRSIG_STOP
-;#mac SCI_ERRSIG_START, 0
-;	...code to start error signaling (inside ISR)
-;#emac
-;#mac SCI_ERRSIG_STOP, 0			;X, Y, and D are preserved 
-;	...code to stop error signaling (inside ISR)
-;#emac
 #ifmac	SCI_ERRSIG_START
 ;Check for RX errors to start the error signal
-#ifndef	SCI_CHECK_RX_ERR
 SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
-#endif
 #endif	
 #ifmac	SCI_ERRSIG_STOP
 ;Check for RX errors to stop the error signal
-#ifndef	SCI_CHECK_RX_ERR
 SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
-#endif
 #endif	
-	
-;###############################################################################
-;# Constants                                                                   #
-;###############################################################################
-;#Baud rate devider settings
-; SCIBD = 25MHz / (16*baud rate)
-SCI_1200        	EQU	(CLOCK_BUS_FREQ/(16*  1200))+(((2*CLOCK_BUS_FREQ)/(16*  1200))&1)	
-SCI_2400        	EQU	(CLOCK_BUS_FREQ/(16*  2400))+(((2*CLOCK_BUS_FREQ)/(16*  2400))&1)	
-SCI_4800        	EQU	(CLOCK_BUS_FREQ/(16*  4800))+(((2*CLOCK_BUS_FREQ)/(16*  4800))&1)	
-SCI_7200        	EQU	(CLOCK_BUS_FREQ/(16*  7200))+(((2*CLOCK_BUS_FREQ)/(16*  7200))&1)	
-SCI_9600        	EQU	(CLOCK_BUS_FREQ/(16*  9600))+(((2*CLOCK_BUS_FREQ)/(16*  9600))&1)	
-SCI_14400       	EQU	(CLOCK_BUS_FREQ/(16* 14400))+(((2*CLOCK_BUS_FREQ)/(16* 14400))&1)	
-SCI_19200       	EQU	(CLOCK_BUS_FREQ/(16* 19200))+(((2*CLOCK_BUS_FREQ)/(16* 19200))&1)	
-SCI_28800       	EQU	(CLOCK_BUS_FREQ/(16* 28800))+(((2*CLOCK_BUS_FREQ)/(16* 28800))&1)	
-SCI_38400       	EQU	(CLOCK_BUS_FREQ/(16* 38400))+(((2*CLOCK_BUS_FREQ)/(16* 38400))&1)	
-SCI_57600       	EQU	(CLOCK_BUS_FREQ/(16* 57600))+(((2*CLOCK_BUS_FREQ)/(16* 57600))&1)	
-SCI_76800       	EQU	(CLOCK_BUS_FREQ/(16* 76800))+(((2*CLOCK_BUS_FREQ)/(16* 76800))&1)	
-SCI_115200		EQU	(CLOCK_BUS_FREQ/(16*115200))+(((2*CLOCK_BUS_FREQ)/(16*115200))&1)	
-SCI_153600		EQU	(CLOCK_BUS_FREQ/(16*153600))+(((2*CLOCK_BUS_FREQ)/(16*153600))&1)
-SCI_BDEF		EQU	SCI_9600 			;default baud rate
-SCI_BMUL		EQU	$FFFF/SCI_153600	 	;Multiplicator for storing the baud rate
-		
-;#Frame format
-SCI_8N1			EQU	  ILT		;8N1
-SCI_8E1			EQU	  ILT|PE	;8E1
-SCI_8O1			EQU	  ILT|PE|PT	;8O1
-SCI_8N2		 	EQU	M|ILT		;8N2 TX8=1
-	
-;#C0 characters
-SCI_C0_MASK		EQU	$E0 		;mask for C0 character range
-SCI_BREAK		EQU	$03 		;ctrl-c (terminate program execution)
-SCI_DLE			EQU	$10		;data link escape (treat next byte as data)
-SCI_XON			EQU	$11 		;unblock transmission 
-SCI_XOFF		EQU	$13		;block transmission
-SCI_SUSPEND		EQU	$1A 		;ctrl-z (suspend program execution)
-
-;#Buffer sizes		
-SCI_RXBUF_SIZE		EQU	 16*2		;size of the receive buffer (8 error:data entries)
-#ifndef	SCI_TXBUF_SIZE	
-SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
-#endif
-SCI_RXBUF_MASK		EQU	$1F		;mask for rolling over the RX buffer
-;SCI_TXBUF_MASK		EQU	$07		;mask for rolling over the TX buffer
-SCI_TXBUF_MASK		EQU	$01		;mask for rolling over the TX buffer
-
-;#Hardware handshake borders
-SCI_RX_FULL_LEVEL	EQU	 8*2		;RX buffer threshold to block transmissions 
-SCI_RX_EMPTY_LEVEL	EQU	 2*2		;RX buffer threshold to unblock transmissions
-	
-;#Flag definitions
-SCI_FLG_SEND_XONXOFF	EQU	$80		;send XON/XOFF symbol asap
-SCI_FLG_POLL_RTS	EQU	$40		;poll RTS input
-SCI_FLG_SWOR		EQU	$10		;software buffer overrun (RX buffer)
-SCI_FLG_TX_BLOCKED	EQU	$08		;don't transmit (XOFF received)
-SCI_FLG_RX_ESC		EQU	$04		;character is to be escaped
-SCI_FLG_TX_ESC		EQU	$02		;character is to be escaped
-	
-;#Timer setup for baud rate detection
-#ifdef	SCI_BD_TIM
-SCI_SET_TIOS		EQU	1
-SCI_BD_TIOS_VAL		EQU	(1<<SCI_BD_OC)
-SCI_SET_TCTL3		EQU	1
-SCI_BD_TCTL3_VAL	EQU 	(1<<(2*SCI_BD_ICPE))|(2<<(2*SCI_BD_ICNE))
-SCI_BD_TCS		EQU	(1<<SCI_BD_OC)|(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)
-#else
-#ifdef	SCI_BD_ECT
-SCI_SET_TIOS		EQU	1
-SCI_BD_TIOS_VAL		EQU	(1<<SCI_BD_OC)
-SCI_SET_TCTL3		EQU	1
-SCI_BD_TCTL3_VAL	EQU 	(3<<(2*SCI_BD_IC))
-SCI_SET_ICSYS		EQU	1
-SCI_BD_TCS		EQU	(1<<SCI_BD_OC)|(1<<SCI_BD_IC)
-#else
-SCI_BD_TIOS_VAL		EQU	0
-SCI_BD_TCS		EQU	0
-#endif	
-#endif
-
-;#Timer setup for the delay counter
-#ifdef	SCI_FC_XONXOFF
-SCI_DLY_EN		EQU	1		;enable delay counter for XON/XOFF reminders
-#endif
-#ifdef SCI_FC_RTSCTS
-SCI_DLY_EN		EQU	1		;enable delay counter for RTS polling
-#endif
-#ifdef	SCI_IRQ_WORKAROUND_ON
-SCI_DLY_EN		EQU	1		;enable delay counter for periodic ISR execution
-#endif
-#ifdef	SCI_DLY_EN
-SCI_SET_TIOS		EQU	1
-SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
-SCI_DLY_TCS		EQU	(1<<SCI_DLY_OC)
-#else
-SCI_DLY_TIOS_VAL	EQU	0
-SCI_DLY_TCS		EQU	0
-#endif
 
 ;#C0 character handling
 #ifdef	SCI_FC_XONXOFF
@@ -588,289 +478,6 @@ SCI_DETECT_C0		EQU	1		;detect BREAK symbol
 #ifmac	SCI_SUSPEND_ACTION
 SCI_DETECT_C0		EQU	1		;detect SUSPEND symbol 
 #endif	
-	
-;#RX error detection
-#ifdef	SCI_DETECT_C0
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty C0 symbols 
-#endif
-#ifmac	SCI_ERRSIG_START
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to start the error signaling
-#endif
-#ifmac	SCI_ERRSIG_STOP
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to stop the error signaling
-#endif
-
-;Communication error signaling
-;----------------------------- 
-;Signal RX errors -> define macros SCI_ERRSIG_START and SCI_ERRSIG_STOP
-;#mac SCI_ERRSIG_START, 0
-;	...code to start error signaling (inside ISR)
-;#emac
-;#mac SCI_ERRSIG_STOP, 0			;X, Y, and D are preserved 
-;	...code to stop error signaling (inside ISR)
-;#emac
-#ifmac	SCI_ERRSIG_START
-;Check for RX errors to start the error signal
-#ifndef	SCI_CHECK_RX_ERR
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
-#endif
-#endif	
-#ifmac	SCI_ERRSIG_STOP
-;Check for RX errors to stop the error signal
-#ifndef	SCI_CHECK_RX_ERR
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
-#endif
-#endif	
-	
-;###############################################################################
-;# Constants                                                                   #
-;###############################################################################
-;#Baud rate devider settings
-; SCIBD = 25MHz / (16*baud rate)
-SCI_1200        	EQU	(CLOCK_BUS_FREQ/(16*  1200))+(((2*CLOCK_BUS_FREQ)/(16*  1200))&1)	
-SCI_2400        	EQU	(CLOCK_BUS_FREQ/(16*  2400))+(((2*CLOCK_BUS_FREQ)/(16*  2400))&1)	
-SCI_4800        	EQU	(CLOCK_BUS_FREQ/(16*  4800))+(((2*CLOCK_BUS_FREQ)/(16*  4800))&1)	
-SCI_7200        	EQU	(CLOCK_BUS_FREQ/(16*  7200))+(((2*CLOCK_BUS_FREQ)/(16*  7200))&1)	
-SCI_9600        	EQU	(CLOCK_BUS_FREQ/(16*  9600))+(((2*CLOCK_BUS_FREQ)/(16*  9600))&1)	
-SCI_14400       	EQU	(CLOCK_BUS_FREQ/(16* 14400))+(((2*CLOCK_BUS_FREQ)/(16* 14400))&1)	
-SCI_19200       	EQU	(CLOCK_BUS_FREQ/(16* 19200))+(((2*CLOCK_BUS_FREQ)/(16* 19200))&1)	
-SCI_28800       	EQU	(CLOCK_BUS_FREQ/(16* 28800))+(((2*CLOCK_BUS_FREQ)/(16* 28800))&1)	
-SCI_38400       	EQU	(CLOCK_BUS_FREQ/(16* 38400))+(((2*CLOCK_BUS_FREQ)/(16* 38400))&1)	
-SCI_57600       	EQU	(CLOCK_BUS_FREQ/(16* 57600))+(((2*CLOCK_BUS_FREQ)/(16* 57600))&1)	
-SCI_76800       	EQU	(CLOCK_BUS_FREQ/(16* 76800))+(((2*CLOCK_BUS_FREQ)/(16* 76800))&1)	
-SCI_115200		EQU	(CLOCK_BUS_FREQ/(16*115200))+(((2*CLOCK_BUS_FREQ)/(16*115200))&1)	
-SCI_153600		EQU	(CLOCK_BUS_FREQ/(16*153600))+(((2*CLOCK_BUS_FREQ)/(16*153600))&1)
-SCI_BDEF		EQU	SCI_9600 			;default baud rate
-SCI_BMUL		EQU	$FFFF/SCI_153600	 	;Multiplicator for storing the baud rate
-		
-;#Frame format
-SCI_8N1			EQU	  ILT		;8N1
-SCI_8E1			EQU	  ILT|PE	;8E1
-SCI_8O1			EQU	  ILT|PE|PT	;8O1
-SCI_8N2		 	EQU	M|ILT		;8N2 TX8=1
-	
-;#C0 characters
-SCI_C0_MASK		EQU	$E0 		;mask for C0 character range
-SCI_BREAK		EQU	$03 		;ctrl-c (terminate program execution)
-SCI_DLE			EQU	$10		;data link escape (treat next byte as data)
-SCI_XON			EQU	$11 		;unblock transmission 
-SCI_XOFF		EQU	$13		;block transmission
-SCI_SUSPEND		EQU	$1A 		;ctrl-z (suspend program execution)
-
-;#Buffer sizes		
-SCI_RXBUF_SIZE		EQU	 16*2		;size of the receive buffer (8 error:data entries)
-#ifndef	SCI_TXBUF_SIZE	
-SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
-#endif
-SCI_RXBUF_MASK		EQU	$1F		;mask for rolling over the RX buffer
-;SCI_TXBUF_MASK		EQU	$07		;mask for rolling over the TX buffer
-SCI_TXBUF_MASK		EQU	$01		;mask for rolling over the TX buffer
-
-;#Hardware handshake borders
-SCI_RX_FULL_LEVEL	EQU	 8*2		;RX buffer threshold to block transmissions 
-SCI_RX_EMPTY_LEVEL	EQU	 2*2		;RX buffer threshold to unblock transmissions
-	
-;#Flag definitions
-SCI_FLG_SEND_XONXOFF	EQU	$80		;send XON/XOFF symbol asap
-SCI_FLG_POLL_RTS	EQU	$40		;poll RTS input
-SCI_FLG_SWOR		EQU	$10		;software buffer overrun (RX buffer)
-SCI_FLG_TX_BLOCKED	EQU	$08		;don't transmit (XOFF received)
-SCI_FLG_RX_ESC		EQU	$04		;character is to be escaped
-SCI_FLG_TX_ESC		EQU	$02		;character is to be escaped
-	
-;#Timer setup for baud rate detection
-#ifdef	SCI_BD_TIM
-SCI_SET_TIOS		EQU	1
-SCI_BD_TIOS_VAL		EQU	(1<<SCI_BD_OC)
-SCI_SET_TCTL3		EQU	1
-SCI_BD_TCTL3_VAL	EQU 	(1<<(2*SCI_BD_ICPE))|(2<<(2*SCI_BD_ICNE))
-SCI_BD_TCS		EQU	(1<<SCI_BD_OC)|(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)
-#else
-#ifdef	SCI_BD_ECT
-SCI_SET_TIOS		EQU	1
-SCI_BD_TIOS_VAL		EQU	(1<<SCI_BD_OC)
-SCI_SET_TCTL3		EQU	1
-SCI_BD_TCTL3_VAL	EQU 	(3<<(2*SCI_BD_IC))
-SCI_SET_ICSYS		EQU	1
-SCI_BD_TCS		EQU	(1<<SCI_BD_OC)|(1<<SCI_BD_IC)
-#else
-SCI_BD_TIOS_VAL		EQU	0
-SCI_BD_TCS		EQU	0
-#endif	
-#endif
-
-;#Timer setup for the delay counter
-#ifdef	SCI_FC_XONXOFF
-SCI_DLY_EN		EQU	1		;enable delay counter for XON/XOFF reminders
-#endif
-#ifdef SCI_FC_RTSCTS
-SCI_DLY_EN		EQU	1		;enable delay counter for RTS polling
-#endif
-#ifdef	SCI_IRQ_WORKAROUND_ON
-SCI_DLY_EN		EQU	1		;enable delay counter for periodic ISR execution
-#endif
-#ifdef	SCI_DLY_EN
-SCI_SET_TIOS		EQU	1
-SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
-SCI_DLY_TCS		EQU	(1<<SCI_DLY_OC)
-#else
-SCI_DLY_TIOS_VAL	EQU	0
-SCI_DLY_TCS		EQU	0
-#endif
-
-;#RX error detection
-#ifdef	SCI_FC_XONXOFF
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty XON/XOFF symbols 
-#endif
-#ifmac	SCI_BREAK_ACTION
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty BREAK symbols
-#endif
-#ifmac	SCI_SUSPEND_ACTION
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
-
-ignore faulty SUSPEND symbols 
-#ifndef	SCI_CHECK_RX_ERR
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
-#endif
-#endif	
-
-;Communication error signaling
-;----------------------------- 
-;Signal RX errors -> define macros SCI_ERRSIG_START and SCI_ERRSIG_STOP
-;#mac SCI_ERRSIG_START, 0
-;	...code to start error signaling (inside ISR)
-;#emac
-;#mac SCI_ERRSIG_STOP, 0			;X, Y, and D are preserved 
-;	...code to stop error signaling (inside ISR)
-;#emac
-#ifmac	SCI_ERRSIG_START
-;Check for RX errors to start the error signal
-#ifndef	SCI_CHECK_RX_ERR
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
-#endif
-#endif	
-#ifmac	SCI_ERRSIG_STOP
-;Check for RX errors to stop the error signal
-#ifndef	SCI_CHECK_RX_ERR
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
-#endif
-#endif	
-	
-;###############################################################################
-;# Constants                                                                   #
-;###############################################################################
-;#Baud rate devider settings
-; SCIBD = 25MHz / (16*baud rate)
-SCI_1200        	EQU	(CLOCK_BUS_FREQ/(16*  1200))+(((2*CLOCK_BUS_FREQ)/(16*  1200))&1)	
-SCI_2400        	EQU	(CLOCK_BUS_FREQ/(16*  2400))+(((2*CLOCK_BUS_FREQ)/(16*  2400))&1)	
-SCI_4800        	EQU	(CLOCK_BUS_FREQ/(16*  4800))+(((2*CLOCK_BUS_FREQ)/(16*  4800))&1)	
-SCI_7200        	EQU	(CLOCK_BUS_FREQ/(16*  7200))+(((2*CLOCK_BUS_FREQ)/(16*  7200))&1)	
-SCI_9600        	EQU	(CLOCK_BUS_FREQ/(16*  9600))+(((2*CLOCK_BUS_FREQ)/(16*  9600))&1)	
-SCI_14400       	EQU	(CLOCK_BUS_FREQ/(16* 14400))+(((2*CLOCK_BUS_FREQ)/(16* 14400))&1)	
-SCI_19200       	EQU	(CLOCK_BUS_FREQ/(16* 19200))+(((2*CLOCK_BUS_FREQ)/(16* 19200))&1)	
-SCI_28800       	EQU	(CLOCK_BUS_FREQ/(16* 28800))+(((2*CLOCK_BUS_FREQ)/(16* 28800))&1)	
-SCI_38400       	EQU	(CLOCK_BUS_FREQ/(16* 38400))+(((2*CLOCK_BUS_FREQ)/(16* 38400))&1)	
-SCI_57600       	EQU	(CLOCK_BUS_FREQ/(16* 57600))+(((2*CLOCK_BUS_FREQ)/(16* 57600))&1)	
-SCI_76800       	EQU	(CLOCK_BUS_FREQ/(16* 76800))+(((2*CLOCK_BUS_FREQ)/(16* 76800))&1)	
-SCI_115200		EQU	(CLOCK_BUS_FREQ/(16*115200))+(((2*CLOCK_BUS_FREQ)/(16*115200))&1)	
-SCI_153600		EQU	(CLOCK_BUS_FREQ/(16*153600))+(((2*CLOCK_BUS_FREQ)/(16*153600))&1)
-SCI_BDEF		EQU	SCI_9600 			;default baud rate
-SCI_BMUL		EQU	$FFFF/SCI_153600	 	;Multiplicator for storing the baud rate
-		
-;#Frame format
-SCI_8N1			EQU	  ILT		;8N1
-SCI_8E1			EQU	  ILT|PE	;8E1
-SCI_8O1			EQU	  ILT|PE|PT	;8O1
-SCI_8N2		 	EQU	M|ILT		;8N2 TX8=1
-	
-;#C0 characters
-SCI_C0_MASK		EQU	$E0 		;mask for C0 character range
-SCI_BREAK		EQU	$03 		;ctrl-c (terminate program execution)
-SCI_DLE			EQU	$10		;data link escape (treat next byte as data)
-SCI_XON			EQU	$11 		;unblock transmission 
-SCI_XOFF		EQU	$13		;block transmission
-SCI_SUSPEND		EQU	$1A 		;ctrl-z (suspend program execution)
-
-;#Buffer sizes		
-SCI_RXBUF_SIZE		EQU	 16*2		;size of the receive buffer (8 error:data entries)
-#ifndef	SCI_TXBUF_SIZE	
-SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
-#endif
-SCI_RXBUF_MASK		EQU	$1F		;mask for rolling over the RX buffer
-;SCI_TXBUF_MASK		EQU	$07		;mask for rolling over the TX buffer
-SCI_TXBUF_MASK		EQU	$01		;mask for rolling over the TX buffer
-
-;#Hardware handshake borders
-SCI_RX_FULL_LEVEL	EQU	 8*2		;RX buffer threshold to block transmissions 
-SCI_RX_EMPTY_LEVEL	EQU	 2*2		;RX buffer threshold to unblock transmissions
-	
-;#Flag definitions
-SCI_FLG_SEND_XONXOFF	EQU	$80		;send XON/XOFF symbol asap
-SCI_FLG_POLL_RTS	EQU	$40		;poll RTS input
-SCI_FLG_SWOR		EQU	$10		;software buffer overrun (RX buffer)
-SCI_FLG_TX_BLOCKED	EQU	$08		;don't transmit (XOFF received)
-SCI_FLG_RX_ESC		EQU	$04		;character is to be escaped
-SCI_FLG_TX_ESC		EQU	$02		;character is to be escaped
-	
-;#Timer setup for baud rate detection
-#ifdef	SCI_BD_TIM
-SCI_SET_TIOS		EQU	1
-SCI_BD_TIOS_VAL		EQU	(1<<SCI_BD_OC)
-SCI_SET_TCTL3		EQU	1
-SCI_BD_TCTL3_VAL	EQU 	(1<<(2*SCI_BD_ICPE))|(2<<(2*SCI_BD_ICNE))
-SCI_BD_TCS		EQU	(1<<SCI_BD_OC)|(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)
-#else
-#ifdef	SCI_BD_ECT
-SCI_SET_TIOS		EQU	1
-SCI_BD_TIOS_VAL		EQU	(1<<SCI_BD_OC)
-SCI_SET_TCTL3		EQU	1
-SCI_BD_TCTL3_VAL	EQU 	(3<<(2*SCI_BD_IC))
-SCI_SET_ICSYS		EQU	1
-SCI_BD_TCS		EQU	(1<<SCI_BD_OC)|(1<<SCI_BD_IC)
-#else
-SCI_BD_TIOS_VAL		EQU	0
-SCI_BD_TCS		EQU	0
-#endif	
-#endif
-
-;#Timer setup for the delay counter
-#ifdef	SCI_FC_XONXOFF
-SCI_DLY_EN		EQU	1		;enable delay counter for XON/XOFF reminders
-#endif
-#ifdef SCI_FC_RTSCTS
-SCI_DLY_EN		EQU	1		;enable delay counter for RTS polling
-#endif
-#ifdef	SCI_IRQ_WORKAROUND_ON
-SCI_DLY_EN		EQU	1		;enable delay counter for periodic ISR execution
-#endif
-#ifdef	SCI_DLY_EN
-SCI_SET_TIOS		EQU	1
-SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
-SCI_DLY_TCS		EQU	(1<<SCI_DLY_OC)
-#else
-SCI_DLY_TIOS_VAL	EQU	0
-SCI_DLY_TCS		EQU	0
-#endif
-	
-;#RX error detection
-#ifdef	SCI_FC_XONXOFF
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty XON/XOFF symbols 
-#endif
-#ifmac	SCI_BREAK_ACTION
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty BREAK symbols
-#endif
-#ifmac	SCI_SUSPEND_ACTION
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty SUSPEND symbols
-#endif
-#ifmac	SCI_ERRSIG_START
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to start error signaling
-#endif
-#ifmac	SCI_ERRSIG_STOP
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to stop error signaling
-#endif
-	
-;#Baud rate detection
-SCI_BD_LIST_INIT	EQU	$FF
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -1907,7 +1514,7 @@ SCI_ISR_RX_5		TFR	D, Y
 			LDD	SCI_RXBUF_IN				;in:out -> A:B
 			BRCLR	SCI_FLGS, #SCI_FLG_SWOR, SCI_ISR_RX_6   ;no SWOR occured
 			MOVW	#((SCI_FLG_SWOR<<8)|SCI_DLE), A,X 	;queue DLE with SWOR flag
-			JOB	<SCI_ISR_RX_7
+			JOB	SCI_ISR_RX_7
 SCI_ISR_RX_6		MOVW	#SCI_DLE, A,X 				;queue DLE without SWOR flag
 SCI_ISR_RX_7		BCLR	SCI_FLGS, #(SCI_FLG_SWOR|SCI_FLG_RX_ESC) ;clear SWOR and RX_ESC flags	
 			ADDA	#2
