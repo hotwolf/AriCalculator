@@ -220,13 +220,17 @@ VMON_ISR		EQU	*
 			;LV condition detected
 			BSET	ATDCMPHTL, #VMON_VUSB_CONVERSION   		;VUSB must be higher than threshold
 			MOVW	#VMON_VUSB_UPPER_THRESHOLD, VMON_VUSB_ATDDR	;set upper threshold value
+#ifmac	VMON_VUSB_LVACTION
 			VMON_VUSB_LVACTION
+#endif
 			JOB	VMON_ISR_2					;VUSB check done
 			;HV condition detected
 VMON_ISR_1		BCLR	ATDCMPHTL, #VMON_VUSB_CONVERSION   		;VUSB must be lower (or same) than threshold
 			MOVW	#VMON_VUSB_LOWER_THRESHOLD, VMON_VUSB_ATDDR	;set upper threshold value
+#ifmac	VMON_VUSB_HVACTION
 			VMON_VUSB_HVACTION
-			;VUSB check done
+#endif
+				;VUSB check done
 VMON_ISR_2		EQU	*
 			;Check VBAT
 			BRCLR	ATDCMPHTL,  #VMON_VBAT_CONVERSION, VMON_ISR_3 	;skip if state hasn't changed
@@ -234,12 +238,16 @@ VMON_ISR_2		EQU	*
 			;LV condition detected
 			BSET	ATDCMPHTL, #VMON_VBAT_CONVERSION   		;VBAT must be higher than threshold
 			MOVW	#VMON_VBAT_UPPER_THRESHOLD, VMON_VBAT_ATDDR	;set upper threshold value
+#ifmac	VMON_VBAT_LVACTION
 			VMON_VBAT_LVACTION
+#endif
 			JOB	VMON_ISR_4					;VBAT check done
 			;HV condition detected
 VMON_ISR_3		BCLR	ATDCMPHTL, #VMON_VBAT_CONVERSION   		;VBAT must be lower (or same) than threshold
 			MOVW	#VMON_VBAT_LOWER_THRESHOLD, VMON_VBAT_ATDDR	;set upper threshold value
+#ifmac	VMON_VBAT_LHACTION
 			VMON_VBAT_HVACTION
+#endif
 			;VBAT check done
 VMON_ISR_4		ISTACK_RTI
 

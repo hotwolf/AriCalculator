@@ -239,7 +239,7 @@ VECTAB_TABS_END_LIN	EQU	@
 ;# S12G Vector Table                                                           #
 ;###############################################################################
 #ifdef VECTAB_START_LIN
-			ORG 	VECTAB_START, RESET_START_LIN
+			ORG 	VECTAB_START, VECTAB_START_LIN
 #else
 			ORG 	VECTAB_START
 #endif	
@@ -306,5 +306,5 @@ VEC_SWI			DW	ISR_SWI			;vector base + $F6
 VEC_TRAP		DW	ISR_TRAP		;vector base + $F8
 VEC_RESET_COP		DW	RESET_COP_ENTRY		;vector base + $FA
 VEC_RESET_CM		DW	RESET_CM_ENTRY		;vector base + $FC
-VEC_RESET_EXT		DW	RESET_POR_ENTRY		;vector base + $FE
+VEC_RESET_EXT		DW	RESET_EXT_ENTRY		;vector base + $FE
 #endif

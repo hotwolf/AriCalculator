@@ -123,11 +123,11 @@ DEMO_VARS_END_LIN	EQU	@
 
 #macro	VMON_VUSB_LVACTION, 0
 			SCI_DISABLE
-			LED_ERROR_OFF
+			LED_COMERR_OFF
 #emac
 #macro	VMON_VUSB_HVACTION, 0
 			SCI_ENABLE
-			LED_ERROR_ON
+			LED_COMERR_ON
 #emac
 
 ;###############################################################################
@@ -141,11 +141,11 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;Application code
 START_OF_CODE		EQU	*		;Start of code
-
 			;Initialization
 			BASE_INIT
 
-DEMO_LOOP		;Wait for key stroke
+DEMO_KEY_STROKE_LOOP	EQU	*
+			;Wait for key stroke
 			KEYS_GET_BL 		;key code -> A
 			STAA	DEMO_KEY_CODE
 
@@ -160,78 +160,65 @@ DEMO_LOOP		;Wait for key stroke
 			NUM_CLEAN_REVERSE
 	
 			;Display keystroke
+			;Clear page 0
+			CLRB					;switch to page 0
+			DISP_SWITCH_PAGE_BL
+			DISP_CLEAR_COLUMNS_IMM_BL 128 		;clear entire page
+
 			;Initialize variables
-			MOVB	#$B0, DEMO_PAGE
+			CLR	DEMO_PAGE
 			CLR	DEMO_COL
 			CLR	DEMO_CUR_KEY
 
-;			;Draw empty line
-;			JOBSR	DEMO_NEW_PAGE
-;			JOBSR	DEMO_BLANK_PAGE
+			;Switch to next page 
+DEMO_PAGE_LOOP		LDAB	DEMO_PAGE 			;increment page count
+			CMPB	#7				;check is key search is complete
+			BHS	DEMO_KEY_STROKE_LOOP		;wait for next key stroke
+			INCB
+			STAB	DEMO_PAGE
+			DISP_CLEAR_COLUMNS_BL 			;transmit command sequence
 
-			;Draw next line
-DEMO_1			JOBSR	DEMO_MARGIN
-			JOBSR	DEMO_NEW_PAGE
-			CLR	DEMO_COL
-
-;			;Draw next box
-;DEMO_2 		LDAA	DEMO_CUR_KEY
-;			CMPA	DEMO_KEY_CODE
-;			BEQ	DEMO_3 			;draw black box
-;			JOBSR	DEMO_WHITE_BOX
-;			JOB	DEMO_4
-;DEMO_3 		JOBSR	DEMO_BLACK_BOX
-;
-;			;Switch to next key code
-;DEMO_4			INC	DEMO_CUR_KEY
-;			INC	DEMO_COL
-;			LDAA	#5
-;			CMPA	DEMO_COL	
-;			BNE	DEMO_2 			;draw next box
-;			
-;			;Switch to next page
-;			LDAA	#$B7
-;			CMPA	DEMO_PAGE
-;			BNE	DEMO_1 			;draw next line
-;			
-;			;Draw empty line
-;			JOBSR	DEMO_MARGIN
-;			JOBSR	DEMO_NEW_PAGE
-;			JOBSR	DEMO_BLANK_PAGE
-;			JOBSR	DEMO_MARGIN
-
-			JOB	DEMO_LOOP
-
-
-
-
-
-
+			;Right margin
+			DISP_CLEAR_COLUMNS_IMM_BL 36 		;draw right margin
 	
-;			;Start new page 
-;DEMO_NEW_PAGE		DISP_STREAM_FROM_TO_BL	DEMO_CMD_START, DEMO_CMD_END ;switch to command mode
-;			LDAB	DEMO_PAGE	
-;			DISP_TX_BL
-;			INCB
-;			STAB	DEMO_PAGE
-;			DISP_STREAM_FROM_TO_BL	DEMO_NEW_PAGE_START, DEMO_NEW_PAGE_END
-;			RTS
-;
-;			;Blank page
-;DEMO_BLANK_PAGE		DISP_STREAM_FROM_TO_BL	DEMO_BLANK_PAGE_START, DEMO_BLANK_PAGE_END
-;			RTS
-;
-;			;Margin
-;DEMO_MARGIN		DISP_STREAM_FROM_TO_BL	DEMO_MARGIN_START, DEMO_MARGIN_END
-;			RTS
-;
-;			;Draw a white box
-;DEMO_WHITE_BOX		DISP_STREAM_FROM_TO_BL	DEMO_WHITE_BOX_START, DEMO_WHITE_BOX_END
-;			RTS
-;
-;			;Draw a black box
-;DEMO_BLACK_BOX		DISP_STREAM_FROM_TO_BL	DEMO_BLACK_BOX_START, DEMO_BLACK_BOX_END
-;			RTS
+			;Draw next box
+DEMO_COL_LOOP		LDAA	DEMO_CUR_KEY
+			CMPA	DEMO_KEY_CODE
+			BEQ	DEMO_COL_LOOP_1 		;draw black box
+			JOBSR	DEMO_WHITE_BOX
+			JOB	DEMO_COL_LOOP_2
+DEMO_COL_LOOP_1 	JOBSR	DEMO_BLACK_BOX
+DEMO_COL_LOOP_2		INC	DEMO_COL
+			INC	DEMO_CUR_KEY
+
+			;Draw space
+			LDAA	#5
+			CMPA	DEMO_PAGE
+			BLS	DEMO_COL_LOOP_5			;rows E-G
+			;Rows A-D (5 in A)
+			CMPA	DEMO_COL
+			BLS	DEMO_COL_LOOP_3 		;col 5
+			;Rows A-D, cols 0-4
+			DISP_CLEAR_COLUMNS_IMM_BL 5 		;draw wide space
+			JOB	DEMO_COL_LOOP
+			;Rows A-D, col 5
+DEMO_COL_LOOP_3		INC	DEMO_CUR_KEY 			;skip key
+DEMO_COL_LOOP_4		DISP_CLEAR_COLUMNS_IMM_BL 36 		;draw left margin
+			JOB	DEMO_PAGE_LOOP
+			;Rows E-G (5 in A)
+DEMO_COL_LOOP_5		CMPA	DEMO_COL
+			BLO	DEMO_COL_LOOP_4 		;draw left margin			
+			;Rows E-G, cols 0-5
+			DISP_CLEAR_COLUMNS_IMM_BL 4 		;draw narrow space
+			JOB	DEMO_COL_LOOP
+
+			;Draw a white box
+DEMO_WHITE_BOX		DISP_STREAM_FROM_TO_BL	DEMO_WHITE_BOX_START, DEMO_WHITE_BOX_END
+			RTS
+
+			;Draw a black box
+DEMO_BLACK_BOX		DISP_STREAM_FROM_TO_BL	DEMO_BLACK_BOX_START, DEMO_BLACK_BOX_END
+			RTS
 	
 BASE_CODE_START		EQU	*
 BASE_CODE_START_LIN	EQU	@
@@ -249,24 +236,10 @@ DEMO_CODE_END_LIN	EQU	@
 			ORG 	DEMO_TABS_START
 #endif	
 
-DEMO_CMD_START		DB	DISP_ESC_START DISP_ESC_CMD
-DEMO_CMD_END		EQU	*
-
-DEMO_NEW_PAGE_START	DB	$10 $04
-			DB	DISP_ESC_START DISP_ESC_DATA
-			DB      DISP_ESC_START $10 $00
-DEMO_NEW_PAGE_END	EQU	*
-	
-DEMO_BLANK_PAGE_START	DB      DISP_ESC_START 40 $00
-DEMO_BLANK_PAGE_END	EQU	*
-	
-DEMO_MARGIN_START	DB      DISP_ESC_START $0C $00
-DEMO_MARGIN_END		EQU	*
-	
-DEMO_WHITE_BOX_START	DB	$00 $7E DISP_ESC_START $04 $42 $7E $00
+DEMO_WHITE_BOX_START	DB	$7E DISP_ESC_START $04 $42 $7E
 DEMO_WHITE_BOX_END	EQU	*
 
-DEMO_BLACK_BOX_START	DB	$00 DISP_ESC_START $06 $7E $00
+DEMO_BLACK_BOX_START	DB	DISP_ESC_START $06 $7E
 DEMO_BLACK_BOX_END	EQU	*
 	
 DEMO_PRINT_HEADER	STRING_NL_NONTERM

@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# AriCalculator - DISP - LCD Driver (ST7565R) (AriCalculator RevC)            #
 ;###############################################################################
-;#    Copyright 2010-2014x Dirk Heisswolf                                      #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -166,8 +166,8 @@ DISP_VARS_END_LIN	EQU	@
 			DISP_STREAM_BL
 #emac
 
-;# Functions
-;-----------
+;# Essential functions
+;---------------------
 ;#Determine how much space is left on the buffer
 ; args:   none
 ; result: B: Space left on the buffer in bytes
@@ -192,6 +192,16 @@ DISP_VARS_END_LIN	EQU	@
 ; SSTACK: 7 bytes
 ;         X, Y and D are preserved 
 #macro	DISP_TX_BL, 0
+			SSTACK_JOBSR	DISP_TX_BL, 7
+#emac
+
+;#Transmit immediate commands and data (blocking)
+; args:   1: buffer entry
+; result: B: buffer entry
+; SSTACK: 7 bytes
+;         X, Y and A are preserved 
+#macro	DISP_TX_IMM_BL, 1
+			LDAB	#\1
 			SSTACK_JOBSR	DISP_TX_BL, 7
 #emac
 
@@ -230,6 +240,54 @@ DISP_VARS_END_LIN	EQU	@
 			LDY	#(\2-\1)
 			DISP_STREAM_BL
 #emac
+
+;# Convenience functions
+;-----------------------
+;#Switch to command input (blocking)
+; args:   none
+; result: none
+; SSTACK: 10 bytes
+;         X, Y, and D are preserved 
+#macro	DISP_CMD_INPUT_BL, 0
+			SSTACK_JOBSR	DISP_CMD_INPUT_BL, 10
+#emac
+
+;#Switch to data input (blocking)
+; args:   none
+; result: none
+; SSTACK: 10 bytes
+;         X, Y, and D are preserved 
+#macro	DISP_DATA_INPUT_BL, 0
+			SSTACK_JOBSR	DISP_DATA_INPUT_BL, 10
+#emac
+
+;#Switch page (blocking)
+; args:   B: target page
+; result: none
+; SSTACK: 13 bytes
+;         X, Y, and D are preserved 
+#macro	DISP_SWITCH_PAGE_BL, 0
+			SSTACK_JOBSR	DISP_SWITCH_PAGE_BL, 13
+#emac
+
+;#Clear columns (blocking)
+; args:   B: number of columns (data input active)
+; result: none (data input active)
+; SSTACK: 9 bytes
+;         X, Y, and D are preserved 
+#macro	DISP_CLEAR_COLUMNS_BL, 0
+			SSTACK_JOBSR	DISP_CLEAR_COLUMNS_BL, 9
+#emac
+	
+;#Clear immediate number of columns (blocking)
+; args:   B: number of columns (data input active)
+; result: none (data input active)
+; SSTACK: 9 bytes
+;         X, Y, and D are preserved 
+#macro	DISP_CLEAR_COLUMNS_IMM_BL, 1
+			LDAB	#\1
+			SSTACK_JOBSR	DISP_CLEAR_COLUMNS_BL, 9
+#emac
 	
 ;# Macros for internal use
 ;-------------------------
@@ -251,6 +309,8 @@ DISP_VARS_END_LIN	EQU	@
 			ORG 	DISP_CODE_START
 #endif
 	
+;# Essential functions
+;---------------------
 ;#Determine how much space is left on the buffer
 ; args:   none
 ; result: A: Space left on the buffer in bytes
@@ -349,8 +409,81 @@ DISP_STREAM_NB_3	LEAX	-1,X 						;restore pointer
 ;         D is preserved 
 DISP_STREAM_BL		EQU	*
 			DISP_MAKE_BL	DISP_STREAM_NB, 8	
+
+;# Convenience functions
+;-----------------------
+;#Switch to command input (blocking)
+; args:   none
+; result: none (command input active)
+; SSTACK: 10 bytes
+;         X, Y, and D are preserved 
+DISP_CMD_INPUT_BL	EQU	*
+			;Save registers
+			PSHB							;push accu B onto the SSTACK
+			;Transmit sequence
+			DISP_TX_IMM_BL	DISP_ESC_START
+			DISP_TX_IMM_BL	DISP_ESC_CMD			
+			;Restore registers
+			SSTACK_PREPULL	3
+			PULB							;pull accu B from the SSTACK
+			;Done
+			RTS
+
+;#Switch to data input (blocking)
+; args:   none
+; result: none (data input active)
+; SSTACK: 10 bytes
+;         X, Y, and D are preserved 
+DISP_DATA_INPUT_BL	EQU	*
+			;Save registers
+			PSHB							;push accu B onto the SSTACK
+			;Transmit sequence
+			DISP_TX_IMM_BL	DISP_ESC_START 				;(SSTACK: 7 bytes)
+			DISP_TX_IMM_BL	DISP_ESC_CMD	 			;(SSTACK: 7 bytes)		
+			;Restore registers
+			SSTACK_PREPULL	3
+			PULB							;pull accu B from the SSTACK
+			;Done
+			RTS
+
+;#Switch page (blocking)
+; args:   B: target page
+; result: none (data input active)
+; SSTACK: 13 bytes
+;         X, Y, and D are preserved 
+DISP_SWITCH_PAGE_BL	EQU	*
+			;Save registers
+			PSHB							;push accu B onto the SSTACK			
+			;Switch to command input
+			DISP_CMD_INPUT_BL					;(SSTACK: 10 bytes)
+			;Set page address
+			ORAB	#$B0
+			DISP_TX_BL	 					;(SSTACK: 7 bytes)
+			;Switch to first column
+			DISP_TX_IMM_BL	$10 					;(SSTACK: 7 bytes)
+			DISP_TX_IMM_BL	$04	 				;(SSTACK: 7 bytes)		
+			;Restore registers
+			SSTACK_PREPULL	3
+			PULB							;pull accu B from the SSTACK
+			;Done
+			RTS
+
+;#Clear columns (blocking)
+; args:   B: number of columns (data input active)
+; result: none (data input active)
+; SSTACK: 9 bytes
+;         X, Y, and D are preserved 
+DISP_CLEAR_COLUMNS_BL	EQU	*
+			;Transmit sequence 
+			DISP_TX_IMM_BL	DISP_ESC_START 				;(SSTACK: 7 bytes)
+			DISP_TX_BL	 					;(SSTACK: 7 bytes)
+			DISP_TX_IMM_BL	$00	 				;(SSTACK: 7 bytes)		
+			;Done
+			SSTACK_PREPULL	2
+			RTS
 	
 ;#SPI ISR for transmitting data to the ST7565R display controller
+;--------------------------
 DISP_ISR		EQU	*
 			;Check SPIF flag
 			LDAA	SPISR 						;read the status register
@@ -454,51 +587,42 @@ DISP_SEQ_INIT_START	DB	$40 				;start display at line 0
 			DB	$AC				;no static indicator
 			DB	$00
 			DB	$AF 				;enable display
-
-;#Splash screen
-#ifdef DISP_SPLASH
-DISP_SEQ_SPLASH_START	DISP_SPLASH_STREAM 			;display splash screen
-DISP_SEQ_SPLASH_END	EQU	*
 DISP_SEQ_INIT_END	EQU	*
-#endif
-
-;#Clear screen
-DISP_SEQ_CLEAR_START	DB  $B0 $10 $04                     	;set page 0
-			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-			DB  DISP_ESC_START $80 $00          	;repeat 128 times
-			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-			DB  $B1 $10 $04                     	;set page 1
-			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-			DB  DISP_ESC_START $80 $00          	;repeat 128 times
-			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-			DB  $B2 $10 $04                     	;set page 2
-			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-			DB  DISP_ESC_START $80 $00          	;repeat 128 times
-			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-			DB  $B3 $10 $04                     	;set page 3
-			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-			DB  DISP_ESC_START $80 $00          	;repeat 128 times
-			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-			DB  $B4 $10 $04                     	;set page 4
-			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-			DB  DISP_ESC_START $80 $00          	;repeat 128 times
-			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-			DB  $B5 $10 $04                     	;set page 5
-			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-			DB  DISP_ESC_START $80 $00          	;repeat 128 times
-			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-			DB  $B6 $10 $04                     	;set page 6
-			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-			DB  DISP_ESC_START $80 $00          	;repeat 128 times
-			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-			DB  $B7 $10 $04                     	;set page 7
-			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-			DB  DISP_ESC_START $80 $00          	;repeat 128 times
-			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-DISP_SEQ_CLEAR_END	EQU	*
-#ifndef DISP_SPLASH
-DISP_SEQ_INIT_END	EQU	*
-#endif
+	
+;;#Clear screen
+;DISP_SEQ_CLEAR_START	DB  $B0 $10 $04                     	;set page 0
+;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+;			DB  $B1 $10 $04                     	;set page 1
+;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+;			DB  $B2 $10 $04                     	;set page 2
+;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+;			DB  $B3 $10 $04                     	;set page 3
+;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+;			DB  $B4 $10 $04                     	;set page 4
+;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+;			DB  $B5 $10 $04                     	;set page 5
+;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+;			DB  $B6 $10 $04                     	;set page 6
+;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+;			DB  $B7 $10 $04                     	;set page 7
+;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
+;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
+;DISP_SEQ_CLEAR_END	EQU	*
 	
 DISP_TABS_END		EQU	*
 DISP_TABS_END_LIN	EQU	@

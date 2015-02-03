@@ -187,7 +187,7 @@ BASE_DISP_DONE		EQU	*
 			;Wait for PLL lock
             		CLOCK_WAIT_FOR_PLL
 			;Wait for voltage monitor
-			VMON_WAIT_FOR_1ST_RESUSCILTS
+			VMON_WAIT_FOR_1ST_RESULTS
 			;Send welcome/error message through 
 			SCI_BR_DISABLED	BASE_SCI_DONE
 			RESET_BR_ERR	BASE_SCI_ERROR 
@@ -440,7 +440,8 @@ BASE_TABS_END_LIN	EQU	@
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clock.s		;CRG setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/cop.s		;COP handler
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/tim.s		;TIM driver
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s		;SCI driver
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s		;SCI driver
+#include ../../../../S12CBase/Source/All/sci.s		;SCI driver
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/string.s	;String printing routines	
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/num.s	   	;Number printing routines
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/reset.s		;Reset driver
