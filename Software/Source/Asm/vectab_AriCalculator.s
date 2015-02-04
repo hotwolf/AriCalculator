@@ -52,7 +52,7 @@
 ;# Variables                                                                   #
 ;###############################################################################
 #ifdef VECTAB_VARS_START_LIN
-			ORG 	VECTAB_VARS_START, RESET_VARS_START_LIN
+			ORG 	VECTAB_VARS_START, VECTAB_VARS_START_LIN
 #else
 			ORG 	VECTAB_VARS_START
 VECTAB_VARS_START_LIN	EQU	@			
@@ -94,7 +94,7 @@ VECTAB_CODE_END_LIN	EQU	@
 ;# Tables                                                                      #
 ;###############################################################################
 #ifdef VECTAB_TABS_START_LIN
-			ORG 	VECTAB_TABS_START, RESET_TABS_START_LIN
+			ORG 	VECTAB_TABS_START, VECTAB_TABS_START_LIN
 #else
 			ORG 	VECTAB_TABS_START
 VECTAB_TABS_START_LIN	EQU	@			
