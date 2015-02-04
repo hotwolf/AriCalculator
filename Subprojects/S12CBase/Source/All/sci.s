@@ -1745,7 +1745,7 @@ SCI_CODE_END_LIN	EQU	@
 			ORG 	SCI_TABS_START
 #endif	
 
-			ALIGN	1
+			ALIGN	1, $FF
 
 			;List of prescaler values
 SCI_BTAB		EQU	*
