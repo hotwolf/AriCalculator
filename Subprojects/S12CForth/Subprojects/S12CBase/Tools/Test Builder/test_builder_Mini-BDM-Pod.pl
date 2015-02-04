@@ -2,7 +2,7 @@
 ###############################################################################
 # S12CBase - Test Builder (Mini-BDM-Pod)                                      #
 ###############################################################################
-#    Copyright 2012 Dirk Heisswolf                                            #
+#    Copyright 2012-2015 Dirk Heisswolf                                       #
 #    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 #    family.                                                                  #
 #                                                                             #
@@ -27,6 +27,8 @@
 # Version History:                                                            #
 #    31 July, 2012                                                            #
 #      - Initial release                                                      #
+#    4 February, 2015                                                         #
+#      - Showing memory allocation                                            #
 ###############################################################################
 
 #################
@@ -174,6 +176,12 @@ if (open (FILEHANDLE, sprintf("+>%s", $list_file_name))) {
 if ($code->{problems}) {
     printf STDERR "Problem summary: %s\r\n", $code->{problems};
 } else {
+    ###################################
+    # give memory allocation overview #
+    ###################################
+    $out_string = $code->print_mem_alloc();
+    print STDERR     "\n" . $out_string;
+
     #####################################
     # read symbol table and address map #
     #####################################
