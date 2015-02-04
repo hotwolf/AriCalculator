@@ -27,6 +27,8 @@
 # Version History:                                                            #
 #    31 July, 2012                                                            #
 #      - Initial release                                                      #
+#     4 February, 2015                                                        #
+#      - Displaying memory allocation                                         #
 ###############################################################################
 
 #################
@@ -174,7 +176,14 @@ if (open (FILEHANDLE, sprintf("+>%s", $list_file_name))) {
 if ($code->{problems}) {
     printf STDERR "Problem summary: %s\r\n", $code->{problems};
 } else {
+     ###################################
+    # give memory allocation overview #
+    ###################################
+    $out_string = $code->print_mem_alloc();
+    print STDERR     "\n" . $out_string;
+
     #####################################
+   #####################################
     # read symbol table and address map #
     #####################################
     $comp_symbols  = $code->{comp_symbols};
