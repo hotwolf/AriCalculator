@@ -67,19 +67,19 @@ VMON_VUSB_LOWER_THRESHOLD	EQU	 (20*$FFFF)/33 	;default 2.0V
 ;Basic settings
 ;--------------
 			;Common configuration 
-VMON_ATDCTL0_CONFIG	EQU      %00000111 ;only relevant when monitoring both voltages
-			;             ^  ^
+VMON_ATDCTL0_CONFIG	EQU      %00001001 ;-> wrap at AN9
+			;             ^  ^ ;(only relevant when monitoring both voltages)
 			;    WRAP-----+--+ 
 
-VMON_ATDCTL1_CONFIG	EQU	 %01000000
-			;         ^^^^^  ^
+VMON_ATDCTL1_CONFIG	EQU	 %00010000 ;-> 8-bit resolution
+			;         ^^^^^  ^ ;-> discharge sample cap before conversion
 			;ETRIGSEL-+||||  | 
 			;    SRES--++||  | 
 			; SMP_DIS----+|  | 
 			; ETRIGCH-----+--+ 
 
-VMON_ATDCTL2_CONFIG	EQU	 %01000001
-			;          ^^^^^^^
+VMON_ATDCTL2_CONFIG	EQU	 %01000001 ;-> fast flag clearing
+			;          ^^^^^^^ ;-> enable compare interrupt
 			;    AFFC--+|||||| 
 			; ICLKSTP---+||||| 
 			; ETRIGLE----+|||| 
@@ -88,30 +88,23 @@ VMON_ATDCTL2_CONFIG	EQU	 %01000001
 			;   ASCIE-------+| 
 			;  ACMPIE--------+ 
 
-VMON_ATDCTL3_CONFIG	EQU	 %00010010 ;only relevant when monitoring both voltages
-			;         ^^^^^^^^
-			;     DJM-+||||||| 
+VMON_ATDCTL3_CONFIG	EQU	 %00010010 ;-> 2 conversions per sequence
+			;         ^^^^^^^^ ;-> complete current conversion in BDM active mode
+			;     DJM-+||||||| ;(only relevant when monitoring both voltages)  
 			;     S8C--+|||||| 
-			;     S4C---+||||| 
+			;     S4C---+|||||
 			;     S2C----+|||| 
 			;     S1C-----+||| 
 			;    FIFO------+|| 
 			;     FRZ-------++ 
 
-VMON_ATDCTL4_CONFIG	EQU	 %11111111
+VMON_ATDCTL4_CONFIG	EQU	 %11111111 ;-> sample for 30.72us 
 			;         ^ ^^   ^
 			;     SMP-+-+|   | 
 			;     PRS----+---+ 
 
-;Configuration specific settings
-;-------------------------------
-			;Monitor VBAT and VUSB
-VMON_VBAT_CONVERSION	EQU	$02
-VMON_VUSB_CONVERSION	EQU	$01
-VMON_VBAT_ATDDR		EQU	ATDDR1
-VMON_VUSB_ATDDR		EQU	ATDDR0
-VMON_ATDCTL5_CONFIG	EQU	 %00110111
-			;          ^^^^^^^
+VMON_ATDCTL5_CONFIG	EQU	 %00111000 ;-> continuous conversion over multiple channels
+			;          ^^^^^^^ ;-> start conversion sequence with AN8 
 			;      SC--+|||||| 
 			;    SCAN---+||||| 
 			;    MULT----+|||| 
@@ -120,11 +113,16 @@ VMON_ATDCTL5_CONFIG	EQU	 %00110111
 			;      CB-------+| 
 			;      CA--------+
 
-;Monitor status
+VMON_VBAT_CONVERSION	EQU	$00
+VMON_VUSB_CONVERSION	EQU	$01
+VMON_VBAT_ATDDR		EQU	(ATDDR0+(2*VMON_VBAT_CONVERSION))
+VMON_VUSB_ATDDR		EQU	(ATDDR0+(2*VMON_VUSB_CONVERSION))
+
+				;Monitor status
 ;--------------
 VMON_STATUS		EQU	 ATDCMPHTL ;1=LV condition, 0=HV condition
-VMON_STATUS_VBAT	EQU	 VMON_VBAT_CONVERSION
-VMON_STATUS_VUSB	EQU	 VMON_VUSB_CONVERSION
+VMON_STATUS_VBAT	EQU	 (1<<VMON_VBAT_CONVERSION)
+VMON_STATUS_VUSB	EQU	 (1<<VMON_VUSB_CONVERSION)
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -146,13 +144,13 @@ VMON_VARS_END_LIN	EQU	@
 ;#--------------
 #macro	VMON_INIT, 0
 			;Monitor VBAT and VUSB
-			MOVW	#((VMON_ATDCTL0_CONFIG<<8)|VMON_ATDCTL1_CONFIG), ATDCTL1
+			MOVW	#((VMON_ATDCTL0_CONFIG<<8)|VMON_ATDCTL1_CONFIG), ATDCTL0
 			MOVW	#((VMON_ATDCTL2_CONFIG<<8)|VMON_ATDCTL3_CONFIG), ATDCTL2
 			MOVB	#VMON_ATDCTL4_CONFIG, ATDCTL4
-			MOVB	#(VMON_VBAT_CONVERSION|VMON_VUSB_CONVERSION), ATDCMPEL
-			MOVB	#(VMON_VBAT_CONVERSION|VMON_VUSB_CONVERSION), ATDCMPHTL
-			MOVW	#VMON_VUSB_UPPER_THRESHOLD, ATDDR0
-			MOVW	#VMON_VBAT_UPPER_THRESHOLD, ATDDR1
+			MOVB	#((1<<VMON_VBAT_CONVERSION)|(1<<VMON_VUSB_CONVERSION)), ATDCMPEL
+			MOVB	#((1<<VMON_VBAT_CONVERSION)|(1<<VMON_VUSB_CONVERSION)), ATDCMPHTL
+			MOVW	#VMON_VBAT_UPPER_THRESHOLD, VMON_VBAT_ATDDR
+			MOVW	#VMON_VUSB_UPPER_THRESHOLD, VMON_VUSB_ATDDR
 			;Start ATD conversions
 			MOVB	#VMON_ATDCTL5_CONFIG, ATDCTL5
 #emac
@@ -215,7 +213,7 @@ VMON_CODE_START_LIN	EQU	@
 ;#---------------
 VMON_ISR		EQU	*
 			;Check VUSB
-			BRCLR	ATDCMPHTL,  #VMON_VUSB_CONVERSION, VMON_ISR_2 	;skip if state hasn't changed
+			BRCLR	ATDSTAT2L,  #VMON_VUSB_CONVERSION, VMON_ISR_2 	;skip if state hasn't changed
 			BRSET	ATDCMPHTL, #VMON_VUSB_CONVERSION, VMON_ISR_1 	;HV condition detected
 			;LV condition detected
 			BSET	ATDCMPHTL, #VMON_VUSB_CONVERSION   		;VUSB must be higher than threshold
@@ -230,11 +228,9 @@ VMON_ISR_1		BCLR	ATDCMPHTL, #VMON_VUSB_CONVERSION   		;VUSB must be lower (or sa
 #ifmac	VMON_VUSB_HVACTION
 			VMON_VUSB_HVACTION
 #endif
-				;VUSB check done
-VMON_ISR_2		EQU	*
 			;Check VBAT
-			BRCLR	ATDCMPHTL,  #VMON_VBAT_CONVERSION, VMON_ISR_3 	;skip if state hasn't changed
-			BRSET	ATDCMPHTL, #VMON_VBAT_CONVERSION, VMON_ISR_4 	;HV condition detected
+VMON_ISR_2		BRCLR	ATDSTAT2L,  #VMON_VBAT_CONVERSION, VMON_ISR_4 	;skip if state hasn't changed
+			BRSET	ATDCMPHTL, #VMON_VBAT_CONVERSION, VMON_ISR_3 	;HV condition detected
 			;LV condition detected
 			BSET	ATDCMPHTL, #VMON_VBAT_CONVERSION   		;VBAT must be higher than threshold
 			MOVW	#VMON_VBAT_UPPER_THRESHOLD, VMON_VBAT_ATDDR	;set upper threshold value

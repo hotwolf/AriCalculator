@@ -437,12 +437,13 @@ BASE_TABS_END_LIN	EQU	@
 #include ./gpio_AriCalculator.s								;I/O setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sstack.s	;Subroutine stack
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/istack.s	;Interrupt stack
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clock.s		;CRG setup
+#include ../../../../S12CBase/Source/All/clock.s					;!!!!!!!!!!!!!!!latest CPMU setup
+#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clock.s		;CPMU setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/cop.s		;COP handler
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/tim.s		;TIM driver
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s		;SCI driver
-#include ../../../../S12CBase/Source/All/sci.s		;SCI driver
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/string.s	;String printing routines	
+#include ../../../../S12CBase/Source/All/sci.s						;!!!!!!!!!!!!!!!latest SCI setup
+#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s		;SCI driver
+#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/string.s	;String printing routines
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/num.s	   	;Number printing routines
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/reset.s		;Reset driver
 #include ./led_AriCalculator.s								;LED driver

@@ -49,8 +49,11 @@ MMAP_FLASH		EQU	1 		;use FLASH memory map
 #endif
 	
 ;# Vector table
-;VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
+VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 		
+;COP debug
+COP_DEBUG		EQU     1		;disable COP	
+
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
@@ -111,16 +114,25 @@ DEMO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;Break handler
-#macro	SCI_BREAK_ACTION, 0
-			LED_BUSY_ON 
-#emac
-	
-;Suspend handler
-#macro	SCI_SUSPEND_ACTION, 0
+;;Break handler
+;#macro	SCI_BREAK_ACTION, 0
+;			LED_BUSY_ON 
+;#emac
+;	
+;;Suspend handler
+;#macro	SCI_SUSPEND_ACTION, 0
+;			LED_BUSY_OFF
+;#emac
+
+;VBAT -> busy LED
+#macro	VMON_VBAT_LVACTION, 0
 			LED_BUSY_OFF
 #emac
+#macro	VMON_VBAT_HVACTION, 0
+			LED_BUSY_ON
+#emac
 
+;VUSB -> error LED
 #macro	VMON_VUSB_LVACTION, 0
 			SCI_DISABLE
 			LED_COMERR_OFF
