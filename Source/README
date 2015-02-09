@@ -7,6 +7,8 @@ Directories:
 ============
 |
 +-All				;shared source files for all ports
++-BEPM   			;BEPM engine controller	 
++-FreeEMS        		;FreeEMS hardware (experimental) 
 +-Mini-BDM-Pod        		;Mini-BDM-Pod and LFBDMPGMR	 
 +-OpenBDC			;original OpenBDC BDM pod	 
 +-S12DG256-Mini-EVB   		;MC9HCS12DP256 EVB

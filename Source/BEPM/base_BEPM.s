@@ -42,20 +42,20 @@ CLOCK_OSC_FREQ		EQU	16000000	;16 MHz
 CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
 #endif
 #ifndef CLOCK_REF_FREQ
-CLOCK_REF_FREQ		EQU	CLOCK_OSC_FREQ	;4,000 MHz
+CLOCK_REF_FREQ		EQU	2000000		;2,000 MHz
 #endif
 #ifndef CLOCK_VCOFRQ
 CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
 #endif
 #ifndef CLOCK_REFFRQ
-CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
+CLOCK_REFFRQ		EQU	0		;Ref=2Mhz
 #endif
 
 ;# SCI
-#ifndef	SCI_FC_RTS_CTS
-#ifndef	SCI_FC_XON_XOFF
+#ifndef	SCI_FC_RTSCTS
+#ifndef	SCI_FC_XONXOFF
 #ifndef SCI_FC_NONE	
-SCI_FC_XON_XOFF		EQU	1 		;XON/XOFF flow control
+SCI_FC_XONXOFF		EQU	1 		;XON/XOFF flow control
 #endif
 #endif
 #endif
@@ -63,6 +63,12 @@ SCI_FC_XON_XOFF		EQU	1 		;XON/XOFF flow control
 #ifndef	SCI_BD_ON
 #ifndef	SCI_BD_OFF
 SCI_BD_OFF		EQU	1 		;no baud rate detection
+#endif
+#endif
+
+#ifndef	SCI_BLOCKING_ON
+#ifndef	SCI_BLOCKING_OFF
+SCI_BLOCKING_ON		EQU	1 		;blocking functions enbled by default
 #endif
 #endif
 
