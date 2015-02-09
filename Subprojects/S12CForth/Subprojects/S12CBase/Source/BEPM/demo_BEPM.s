@@ -37,13 +37,20 @@
 ;###############################################################################
 ;# Memory map:
 MMAP_S12XEP100		EQU	1 		;S12XEP100
+#ifndef	MMAP_FLASH
 MMAP_RAM		EQU	1 		;use RAM memory map
+#endif
 
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 
+;# ISTACK
+ISTACK_DEBUG		EQU	1 		;don't call WAI
+
 ;# Vector table
+#ifndef	MMAP_FLASH
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
+#endif
 		
 ;# STRING
 STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
@@ -51,7 +58,8 @@ STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_START
+#ifdef	MMAP_RAM
+		ORG	MMAP_RAM_START	
 ;Code
 START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*
@@ -73,7 +81,37 @@ DEMO_TABS_START_LIN	EQU	BASE_VARS_END_LIN
 	
 BASE_TABS_START		EQU	DEMO_TABS_END
 BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
+#endif
+#ifdef	MMAP_FLASH
+			ORG	MMAP_RAM_START, MMAP_RAM_START_LIN	
+;Variables
+DEMO_VARS_START		EQU	*
+DEMO_VARS_START_LIN	EQU	@
+	
+BASE_VARS_START		EQU	DEMO_VARS_END
+BASE_VARS_START_LIN	EQU	DEMO_VARS_END_LIN
 
+			ORG	MMAP_FLASH_FD_START, MMAP_FLASH_FD_START_LIN
+;Code
+START_OF_CODE		EQU	*	
+DEMO_CODE_START		EQU	*
+DEMO_CODE_START_LIN	EQU	@
+
+BASE_CODE_START		EQU	DEMO_CODE_END
+BASE_CODE_START_LIN	EQU	DEMO_CODE_END_LIN
+
+;Tables
+DEMO_TABS_START		EQU	BASE_CODE_END
+DEMO_TABS_START_LIN	EQU	BASE_CODE_END_LIN
+	
+BASE_TABS_START		EQU	DEMO_TABS_END
+BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
+
+			;Complete last flash phrase
+			ORG	BASE_TABS_END, BASE_TABS_END_LIN 
+;DEMO_FILL		EQU	8-(*&7)
+			FILL	$FF, 8-(*&7)	
+#endif
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
@@ -84,8 +122,11 @@ BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
 ;###############################################################################
 			ORG 	DEMO_VARS_START, DEMO_VARS_START_LIN
 
+
+			;Line counter (count down) 
+DEMO_LINE_COUNT		DS	1
+
 DEMO_VARS_END		EQU	*
-	
 DEMO_VARS_END_LIN	EQU	@
 
 ;###############################################################################
@@ -119,14 +160,15 @@ DEMO_VARS_END_LIN	EQU	@
 			
 ;Application code
 			;Print header string
-			LDX	#DEMO_HEADER
+DEMO_OUTER_LOOP		LDX	#DEMO_HEADER
 			STRING_PRINT_BL
+			MOVB	#20, DEMO_LINE_COUNT
 
-			;Loop
-DEMO_LOOP		SCI_RX_BL
+			;Wait for input 
+DEMO_INNER_LOOP		SCI_RX_BL
 			;Ignore RX errors 
 			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
-			BNE	DEMO_LOOP
+			BNE	DEMO_INNER_LOOP
 			;TBNE	A, DEMO_LOOP
 
 			;Print ASCII character (char in B)
@@ -140,6 +182,9 @@ DEMO_LOOP		SCI_RX_BL
 			SCI_TX_BL
 
 			;Print hexadecimal value (char in X)
+			;CLRA
+			;LDAB	DEMO_LINE_COUNT
+			;TFR	D, X
 			LDY	#$0000
 			LDAB	#16
 			NUM_REVERSE
@@ -194,10 +239,15 @@ DEMO_LOOP		SCI_RX_BL
 			NUM_REVPRINT_BL
 			NUM_CLEAN_REVERSE
 	
+			;Decrement line count 
+			DEC	DEMO_LINE_COUNT 
+			BEQ	DEMO_OUTER_LOOP
+
 			;Print new line
 			LDX	#STRING_STR_NL
 			STRING_PRINT_BL
-			JOB	DEMO_LOOP
+
+			JOB	DEMO_INNER_LOOP
 	
 DEMO_CODE_END		EQU	*	
 DEMO_CODE_END_LIN	EQU	@	

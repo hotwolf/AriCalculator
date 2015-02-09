@@ -27,7 +27,7 @@
 ;#     FCORE  - Forth core words                                               #
 ;#     FRAM   - Forth memories                                                 #
 ;#     FEXCPT - Forth exceptions                                               #
-;#     FERROR - S12CBase ERROR wrapper                                         #
+;#     FERROR - S12CBase ERROR wrapper                                         #       
 ;#     FSCI   - S12CBase SCI wrapper                                           #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
@@ -38,6 +38,20 @@
 ;#      - Initial release                                                      #
 ;###############################################################################
 
+;###############################################################################
+;# Memory Layout                                                               #
+;###############################################################################
+;        
+;      	  UDICT_PS_START -> +--------------+--------------+	     
+;                           |       User Dictionary       |	     
+;                           |             PAD             |	     
+;                           |       Parameter stack       |		  
+;           UDICT_PS_END -> +--------------+--------------+        
+;           RS_TIB_START -> +--------------+--------------+        
+;                           |       Text Input Buffer     |
+;                           |        Return Stack         |
+;             RS_TIB_END -> +--------------+--------------+
+	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
