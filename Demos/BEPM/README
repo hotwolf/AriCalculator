@@ -1,4 +1,4 @@
-This directory contains demos and tests running on the Mini-BDM-Pod.
+This directory contains demos and tests running on the BEPM engine controller.
 
 Available demos and tests:
 +-demo_Mini-BDM-Pod.dbug12.txt   This is the BEPM port of the S12CBase demo.
