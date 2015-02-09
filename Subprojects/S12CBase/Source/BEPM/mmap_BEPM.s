@@ -49,10 +49,8 @@
 ;  	       | |   Tables    |
 ;  	       | +-------------+
 ;              | |/////////////|	     
-;  	       | +-------------+ $DF10
+;  	       | +-------------+ $FF10
 ;  	       | |   Vectors   |
-;  	       | +-------------+ $E000
-;  	       | | BootLoader  |
 ;  	       + +-------------+ 
 ; 
 ;  RAM Memory Map:
@@ -72,8 +70,6 @@
 ;  	       | |   Vectors   |
 ;  	       + +-------------+ $8000
 ;                |/////////////|	     
-;  		 +-------------+ $E000
-;  		 | BootLoader  |
 ;  		 +-------------+ 
 ; 
 	
@@ -97,11 +93,14 @@ MMAP_S12XEP100		EQU	1 		;default is S12XEP100
 ;###############################################################################
 ;# Security and Protection                                                     #
 ;###############################################################################
-			;Set within bootloader code 
-			;ORG	$FF0D	;unprotect
-			;DB	$FF
-			;ORG	$FF0F	;unsecure
-			;DB	$FE
+#ifdef	MMAP_FLASH
+			ORG	$FF08, $7FFF08	;unprotect		
+			FILL	$FF, 8		
+			ORG	$FF0D, $7FFF0D	;unprotect
+			DB	$FF
+			ORG	$FF0F, $7FFF0F	;unsecure
+			DB	$FE
+#endif
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -189,7 +188,11 @@ MMAP_D_URAM_BYTE5	EQU	                    ((MMAP_D_URAM_HIADDR>>03))&$FF
 
 MMAP_D_RAM_LOADDR	EQU	MMAP_RAM_GLOBAL_START	;RAM
 MMAP_D_RAM_HIADDR	EQU	MMAP_RAM_GLOBAL_END-1
+#ifdef MMAP_RAM
 MMAP_D_RAM_PROTECT	EQU	0 			;read, write, and execute
+#else
+MMAP_D_RAM_PROTECT	EQU	NEX 			;no execute
+#endif
 MMAP_D_RAM_BYTE0	EQU	        (MSTR0|MSTR1|(MMAP_D_RAM_LOADDR>>19))&$FF
 MMAP_D_RAM_BYTE1	EQU	                    ((MMAP_D_RAM_LOADDR>>11))&$FF
 MMAP_D_RAM_BYTE2	EQU	                    ((MMAP_D_RAM_LOADDR>>03))&$FF
@@ -208,7 +211,7 @@ MMAP_D_UEERAM_BYTE4	EQU	                    ((MMAP_D_UEERAM_HIADDR>>11))&$FF
 MMAP_D_UEERAM_BYTE5	EQU	                    ((MMAP_D_UEERAM_HIADDR>>03))&$FF
 
 MMAP_D_EERAM_LOADDR	EQU	MMAP_EERAM_GLOBAL_START	;EERAM
-MMAP_D_EERAM_HIADDR	EQU	MMAP_EERAM_END-1
+MMAP_D_EERAM_HIADDR	EQU	MMAP_EERAM_GLOBAL_END-1
 MMAP_D_EERAM_PROTECT	EQU	0 			;read, write and execute
 MMAP_D_EERAM_BYTE0	EQU	        (MSTR0|MSTR1|(MMAP_D_EERAM_LOADDR>>19))&$FF
 MMAP_D_EERAM_BYTE1	EQU	                    ((MMAP_D_EERAM_LOADDR>>11))&$FF
@@ -244,8 +247,8 @@ VECTAB_START		EQU	$7F10
 VECTAB_START_LIN	EQU	$0FFF10    
 #endif
 #ifdef	MMAP_FLASH
-VECTAB_START		EQU	$EF10    
-VECTAB_START_LIN	EQU	$7FEF10    
+VECTAB_START		EQU	$FF10    
+VECTAB_START_LIN	EQU	$7FFF10    
 #endif
 #endif
 	
