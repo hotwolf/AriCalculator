@@ -47,12 +47,17 @@ MMAP_RAM		EQU	1 		;use RAM memory map
 #else
 MMAP_FLASH		EQU	1 		;use FLASH memory map
 #endif
-	
+
 ;# Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 		
-;COP debug
+;# COP debug
 COP_DEBUG		EQU     1		;disable COP	
+
+; ISTACK debug
+#ifdef DEMO_LRE
+ISTACK_DEBUG		EQU     1		;don't execute WAI
+#endif
 
 ;###############################################################################
 ;# Resource mapping                                                            #
@@ -188,7 +193,7 @@ DEMO_PAGE_LOOP		LDAB	DEMO_PAGE 			;increment page count
 			BHS	DEMO_KEY_STROKE_LOOP		;wait for next key stroke
 			INCB
 			STAB	DEMO_PAGE
-			DISP_CLEAR_COLUMNS_BL 			;transmit command sequence
+			DISP_SWITCH_PAGE_BL 			;transmit command sequence
 
 			;Right margin
 			DISP_CLEAR_COLUMNS_IMM_BL 36 		;draw right margin

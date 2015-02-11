@@ -46,13 +46,13 @@
 ;#           0  1  2  3  4  5
 ;#               
 ;#           |  |  |  |  |  |
-;#  PAD6 ---28-27-26-25-24-23 |G
+;#  PAD6 ---29-28-27-26-25-24 |G
 ;#           |  |  |  |  |  | |
-;#  PAD5 ---22-21-20-1F-1E-1D |F
+;#  PAD5 ---23-22-21-20-1F-1E |F
 ;#           |  |  |  |  |  | |
-;#  PAD4 ---1C-1B-1A-19-18-17 |E
+;#  PAD4 ---1D-1C-1B-1A-19-18 |E
 ;#              |  |  |  |  | |
-;#  PAD3 ------15-14-13-13-12 |D
+;#  PAD3 ------16-15-14-13-12 |D
 ;#              |  |  |  |  | |
 ;#  PAD2 ------10--F--E--D--C |C
 ;#              |  |  |  |  | |
@@ -132,11 +132,8 @@ KEYS_BUF_MASK		EQU	KEYS_BUF_SIZE-1 ;index mask
 KEYS_COL_SIZE		EQU	1+KEYS_COL_MSB-KEYS_COL_LSB
 KEYS_ROW_SIZE		EQU	1+KEYS_ROW_MSB-KEYS_ROW_LSB
 
-;#Workaround for short at PAD2
-KEYS_COL_SHORT	EQU	$04
-	
 ;#Port masks
-KEYS_COL_MASK		EQU	($FF>>(7-KEYS_COL_MSB))&($FF<<KEYS_COL_LSB)&(~KEYS_COL_SHORT)
+KEYS_COL_MASK		EQU	($FF>>(7-KEYS_COL_MSB))&($FF<<KEYS_COL_LSB)
 KEYS_ROW_MASK		EQU	($FF>>(7-KEYS_ROW_MSB))&($FF<<KEYS_ROW_LSB)
 	
 ;###############################################################################
