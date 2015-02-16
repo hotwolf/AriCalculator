@@ -228,7 +228,8 @@ DISP_VARS_END_LIN	EQU	@
 			SSTACK_JOBSR	DISP_STREAM_NB, 11
 #emac
 
-
+;# Convenience macros
+;--------------------
 ;#Transmit a sequence of commands and data (non-blocking)
 ; args:   1: pointer to the start of the sequence
 ;         2: pointer past the end of the sequence
@@ -241,52 +242,22 @@ DISP_VARS_END_LIN	EQU	@
 			DISP_STREAM_BL
 #emac
 
-;# Convenience functions
-;-----------------------
 ;#Switch to command input (blocking)
 ; args:   none
 ; result: none
 ; SSTACK: 10 bytes
-;         X, Y, and D are preserved 
+;         D is preserved 
 #macro	DISP_CMD_INPUT_BL, 0
-			SSTACK_JOBSR	DISP_CMD_INPUT_BL, 10
+			DISP_STREAM_FROM_TO_BL	DISP_SEQ_CMD_START, DISP_SEQ_CMD_END
 #emac
 
 ;#Switch to data input (blocking)
 ; args:   none
 ; result: none
 ; SSTACK: 10 bytes
-;         X, Y, and D are preserved 
+;         D is preserved 
 #macro	DISP_DATA_INPUT_BL, 0
-			SSTACK_JOBSR	DISP_DATA_INPUT_BL, 10
-#emac
-
-;#Switch page (blocking)
-; args:   B: target page
-; result: none
-; SSTACK: 13 bytes
-;         X, Y, and D are preserved 
-#macro	DISP_SWITCH_PAGE_BL, 0
-			SSTACK_JOBSR	DISP_SWITCH_PAGE_BL, 13
-#emac
-
-;#Clear columns (blocking)
-; args:   B: number of columns (data input active)
-; result: none (data input active)
-; SSTACK: 9 bytes
-;         X, Y, and D are preserved 
-#macro	DISP_CLEAR_COLUMNS_BL, 0
-			SSTACK_JOBSR	DISP_CLEAR_COLUMNS_BL, 9
-#emac
-	
-;#Clear immediate number of columns (blocking)
-; args:   B: number of columns (data input active)
-; result: none (data input active)
-; SSTACK: 9 bytes
-;         X, Y, and D are preserved 
-#macro	DISP_CLEAR_COLUMNS_IMM_BL, 1
-			LDAB	#\1
-			SSTACK_JOBSR	DISP_CLEAR_COLUMNS_BL, 9
+			DISP_STREAM_FROM_TO_BL	DISP_SEQ_DATA_START, DISP_SEQ_DATA_END
 #emac
 	
 ;# Macros for internal use
@@ -409,78 +380,6 @@ DISP_STREAM_NB_3	LEAX	-1,X 						;restore pointer
 ;         D is preserved 
 DISP_STREAM_BL		EQU	*
 			DISP_MAKE_BL	DISP_STREAM_NB, 8	
-
-;# Convenience functions
-;-----------------------
-;#Switch to command input (blocking)
-; args:   none
-; result: none (command input active)
-; SSTACK: 10 bytes
-;         X, Y, and D are preserved 
-DISP_CMD_INPUT_BL	EQU	*
-			;Save registers
-			PSHB							;push accu B onto the SSTACK
-			;Transmit sequence
-			DISP_TX_IMM_BL	DISP_ESC_START
-			DISP_TX_IMM_BL	DISP_ESC_CMD			
-			;Restore registers
-			SSTACK_PREPULL	3
-			PULB							;pull accu B from the SSTACK
-			;Done
-			RTS
-
-;#Switch to data input (blocking)
-; args:   none
-; result: none (data input active)
-; SSTACK: 10 bytes
-;         X, Y, and D are preserved 
-DISP_DATA_INPUT_BL	EQU	*
-			;Save registers
-			PSHB							;push accu B onto the SSTACK
-			;Transmit sequence
-			DISP_TX_IMM_BL	DISP_ESC_START 				;(SSTACK: 7 bytes)
-			DISP_TX_IMM_BL	DISP_ESC_CMD	 			;(SSTACK: 7 bytes)		
-			;Restore registers
-			SSTACK_PREPULL	3
-			PULB							;pull accu B from the SSTACK
-			;Done
-			RTS
-
-;#Switch page (blocking)
-; args:   B: target page
-; result: none (data input active)
-; SSTACK: 13 bytes
-;         X, Y, and D are preserved 
-DISP_SWITCH_PAGE_BL	EQU	*
-			;Save registers
-			PSHB							;push accu B onto the SSTACK			
-			;Switch to command input
-			DISP_CMD_INPUT_BL					;(SSTACK: 10 bytes)
-			;Set page address
-			ORAB	#$B0
-			DISP_TX_BL	 					;(SSTACK: 7 bytes)
-			;Switch to first column
-			DISP_TX_IMM_BL	$10 					;(SSTACK: 7 bytes)
-			DISP_TX_IMM_BL	$04	 				;(SSTACK: 7 bytes)		
-			;Restore registers
-			SSTACK_PREPULL	3
-			PULB							;pull accu B from the SSTACK
-			;Done
-			RTS
-
-;#Clear columns (blocking)
-; args:   B: number of columns (data input active)
-; result: none (data input active)
-; SSTACK: 9 bytes
-;         X, Y, and D are preserved 
-DISP_CLEAR_COLUMNS_BL	EQU	*
-			;Transmit sequence 
-			DISP_TX_IMM_BL	DISP_ESC_START 				;(SSTACK: 7 bytes)
-			DISP_TX_BL	 					;(SSTACK: 7 bytes)
-			DISP_TX_IMM_BL	$00	 				;(SSTACK: 7 bytes)		
-			;Done
-			SSTACK_PREPULL	2
-			RTS
 	
 ;#SPI ISR for transmitting data to the ST7565R display controller
 ;--------------------------
@@ -588,7 +487,17 @@ DISP_SEQ_INIT_START	DB	$40 				;start display at line 0
 			DB	$00
 			DB	$AF 				;enable display
 DISP_SEQ_INIT_END	EQU	*
+
+;#Switch to command input
+DISP_SEQ_CMD_START	DB	DISP_ESC_START
+			DB	DISP_ESC_CMD
+DISP_SEQ_CMD_END	EQU	*
 	
+;#Switch to data input
+DISP_SEQ_DATA_START	DB	DISP_ESC_START
+			DB	DISP_ESC_DATA
+DISP_SEQ_DATA_END	EQU	*
+
 ;;#Clear screen
 ;DISP_SEQ_CLEAR_START	DB  $B0 $10 $04                     	;set page 0
 ;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input

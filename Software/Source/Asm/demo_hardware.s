@@ -179,12 +179,11 @@ DEMO_KEY_STROKE_LOOP	EQU	*
 			;Display keystroke
 			;Clear page 0
 			CLRB					;switch to page 0
-			DISP_SWITCH_PAGE_BL
-			DISP_CLEAR_COLUMNS_IMM_BL 128 		;clear entire page
+			DEMO_SWITCH_PAGE_BL
+			DEMO_CLEAR_COLUMNS_IMM_BL 128 		;clear entire page
 
 			;Initialize variables
 			CLR	DEMO_PAGE
-			CLR	DEMO_COL
 			CLR	DEMO_CUR_KEY
 
 			;Switch to next page 
@@ -193,10 +192,11 @@ DEMO_PAGE_LOOP		LDAB	DEMO_PAGE 			;increment page count
 			BHS	DEMO_KEY_STROKE_LOOP		;wait for next key stroke
 			INCB
 			STAB	DEMO_PAGE
-			DISP_SWITCH_PAGE_BL 			;transmit command sequence
+			DEMO_SWITCH_PAGE_BL 			;transmit command sequence
+			CLR	DEMO_COL			;clear column counter
 
 			;Right margin
-			DISP_CLEAR_COLUMNS_IMM_BL 36 		;draw right margin
+			DEMO_CLEAR_COLUMNS_IMM_BL 31 		;draw right margin
 	
 			;Draw next box
 DEMO_COL_LOOP		LDAA	DEMO_CUR_KEY
@@ -216,24 +216,84 @@ DEMO_COL_LOOP_2		INC	DEMO_COL
 			CMPA	DEMO_COL
 			BLS	DEMO_COL_LOOP_3 		;col 5
 			;Rows A-D, cols 0-4
-			DISP_CLEAR_COLUMNS_IMM_BL 5 		;draw wide space
+			DEMO_CLEAR_COLUMNS_IMM_BL 9 		;draw wide space
 			JOB	DEMO_COL_LOOP
 			;Rows A-D, col 5
 DEMO_COL_LOOP_3		INC	DEMO_CUR_KEY 			;skip key
-DEMO_COL_LOOP_4		DISP_CLEAR_COLUMNS_IMM_BL 36 		;draw left margin
+DEMO_COL_LOOP_4		DEMO_CLEAR_COLUMNS_IMM_BL 31 		;draw left margin
 			JOB	DEMO_PAGE_LOOP
 			;Rows E-G (5 in A)
 DEMO_COL_LOOP_5		CMPA	DEMO_COL
 			BLO	DEMO_COL_LOOP_4 		;draw left margin			
 			;Rows E-G, cols 0-5
-			DISP_CLEAR_COLUMNS_IMM_BL 4 		;draw narrow space
+			DEMO_CLEAR_COLUMNS_IMM_BL 6 		;draw narrow space
 			JOB	DEMO_COL_LOOP
 
-			;Draw a white box
+;#Switch page (blocking)
+; args:   B: target page
+; result: none (data input active)
+; SSTACK: 13 bytes
+;         D is preserved 
+DEMO_SWITCH_PAGE_BL	EQU	*
+			;Save registers
+			PSHB							;push accu B onto the SSTACK			
+			;Switch to command input
+			DISP_CMD_INPUT_BL					;(SSTACK: 10 bytes)
+			;Set page address
+			ORAB	#$B0
+			DISP_TX_BL	 					;(SSTACK: 7 bytes)
+			;Switch to first column
+			DISP_TX_IMM_BL	$10 					;(SSTACK: 7 bytes)
+			DISP_TX_IMM_BL	$04	 				;(SSTACK: 7 bytes)		
+			;Switch to data input
+			DISP_DATA_INPUT_BL					;(SSTACK: 10 bytes)
+			;Restore registers
+			SSTACK_PREPULL	3
+			PULB							;pull accu B from the SSTACK
+			;Done
+			RTS
+;Switch page macro
+#macro	DEMO_SWITCH_PAGE_BL, 0
+			SSTACK_JOBSR	DEMO_SWITCH_PAGE_BL, 13
+#emac
+
+;#Clear columns (blocking)
+; args:   A: number of columns (data input active)
+; result: none (data input active)
+; SSTACK: 9 bytes
+;         X, Y, and D are preserved 
+DEMO_CLEAR_COLUMNS_BL	EQU	*
+			;Transmit sequence 
+			DISP_TX_IMM_BL	DISP_ESC_START 				;(SSTACK: 7 bytes)
+			TAB
+			DISP_TX_BL	 					;(SSTACK: 7 bytes)
+			DISP_TX_IMM_BL	$00	 				;(SSTACK: 7 bytes)		
+			;Done
+			SSTACK_PREPULL	2
+			RTS
+
+;Clear columns macros
+#macro	DEMO_CLEAR_COLUMNS_BL, 0
+			SSTACK_JOBSR	DEMO_CLEAR_COLUMNS_BL, 9
+#emac
+#macro	DEMO_CLEAR_COLUMNS_IMM_BL, 1
+			LDAA	#\1
+			SSTACK_JOBSR	DEMO_CLEAR_COLUMNS_BL, 9
+#emac
+
+;#Draw a white box
+; args:   none
+; result: none
+; SSTACK: 10 bytes
+;         D is preserved 
 DEMO_WHITE_BOX		DISP_STREAM_FROM_TO_BL	DEMO_WHITE_BOX_START, DEMO_WHITE_BOX_END
 			RTS
 
-			;Draw a black box
+;#Draw a black box
+; args:   none
+; result: none
+; SSTACK: 10 bytes
+;         D is preserved 
 DEMO_BLACK_BOX		DISP_STREAM_FROM_TO_BL	DEMO_BLACK_BOX_START, DEMO_BLACK_BOX_END
 			RTS
 	

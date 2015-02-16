@@ -2,14 +2,20 @@ Aricalculator - Binaries
 ========================
 These are the RAM and flash images to be executed on the AriCalculator.
 
-Hardware demo:
---------------
-demo_AriCalculator_lre.txt  - LRE (load RAM and execute) version of the demo
-                              This file is to be execuded by an D-Bug12(XE) pod.
+RevC hardware demo:
+-------------------
+demo_hardware.lre.txt        - LRE (load RAM and execute) version of the
+                               hardware demo. This file is to be execuded by an
+			       D-Bug12(XE) pod.
+demo_hardware.lre.lst        - Assembler listing of the LRE version. 
+demo_hardware.flash.s28      - Flash version (S28 format, global address space) 
+                               of the hardware demo.
+demo_hardware.flash.lst      - Assembler listing of the flash version.
 
-demo_AriCalculator.s28      - S-Record (S28 fromat, global address space) to 
-                              execute the demo from flash.
-
-demo_AriCalculator_sym.s    - Symbols and macro definitions of the flash based
-                              executable. Makes it possible to use the flash
-                              content in LRE programs.
+RevA hardware demo:
+-------------------
+demo_RevA.lre.txt           - LRE (load RAM and execute) version of the RevA
+                              hardware demo. This file is to be execuded by an
+			      D-Bug12(XE) pod.
+demo_RevA.flash.s28         - Flash versiom (S28 format, global address space)
+                              of the RevA hardware demo.
