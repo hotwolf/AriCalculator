@@ -129,17 +129,17 @@ if ($#lib_files < 0) {
 $prog_name   = basename($src_files[0], ".s");
 $output_path = dirname($src_files[0], ".s");
 
-###################
-# add default lib #
-###################
-#printf "libraries:    %s (%s)\n",join("\", \"", @lib_files), $#lib_files;
-#printf "source files: %s (%s)\n",join("\", \"", @src_files), $#src_files;
-if ($#lib_files < 0) {
-  foreach $src_file (@src_files) {
-    #printf "add library:%s/\n", dirname($src_file);
-    push @lib_files, sprintf("%s/", dirname($src_file));
-  }
-}
+####################
+## add default lib #
+####################
+##printf "libraries:    %s (%s)\n",join("\", \"", @lib_files), $#lib_files;
+##printf "source files: %s (%s)\n",join("\", \"", @src_files), $#src_files;
+#if ($#lib_files < 0) {
+#  foreach $src_file (@src_files) {
+#    #printf "add library:%s/\n", dirname($src_file);
+#    push @lib_files, sprintf("%s/", dirname($src_file));
+#  }
+#}
 
 ####################
 # load symbol file #

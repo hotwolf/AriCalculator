@@ -1,8 +1,8 @@
 #!/usr/bin/env perl
 ###############################################################################
-# S12CForth - Dictionary Tree Generator                                       #
+# S12CForth - Forth to ASM Compiler                                           #
 ###############################################################################
-#    Copyright 2013 Dirk Heisswolf                                            #
+#    Copyright 2015 Dirk Heisswolf                                            #
 #    This file is part of the S12CForth framework for Freescale's S12C MCU    #
 #    family.                                                                  #
 #                                                                             #
@@ -24,10 +24,8 @@
 #    parser) for the S12CForth CORE NFAs.                                     #
 ###############################################################################
 # Version History:                                                            #
-#    8 January, 2013                                                          #
+#   19 Februuary, 2015                                                        #
 #      - Initial release                                                      #
-#    8 October, 2013                                                          #
-#      - Fixed output format                                                  #
 ###############################################################################
 
 #################
@@ -45,12 +43,15 @@ require hsw12_asm;
 ###############
 # global vars #
 ###############
-@src_files         = ();
+@asm_files         = ();
 @lib_files         = ();
 %defines           = ();
-$output_path       = ();
-$prog_name         = "";
-$arg_type          = "src";
+@forth_files       = ();
+$asm_output_path   = ();
+$asm_prog_name     = "";
+$forth_output_path = ();
+$forth_prog_name   = "";
+$arg_type          = "none;
 $srec_format       = $hsw12_asm::srec_def_format;
 $srec_data_length  = $hsw12_asm::srec_def_data_length;
 $srec_add_s5       = $hsw12_asm::srec_def_add_s5;
@@ -81,16 +82,22 @@ foreach $arg (@ARGV) {
 	$arg_type = "lib";
     } elsif ($arg =~ /^\s*\-D\s*$/i) {
 	$arg_type = "def";
+    } elsif ($arg =~ /^\s*\-A\s*$/i) {
+	$arg_type = "asm";
+    } elsif ($arg =~ /^\s*\-F\s*$/i) {
+	$arg_type = "forth";
     } elsif ($arg =~ /^\s*\-/) {
 	#ignore
-    } elsif ($arg_type eq "src") {
-	#sourcs file
-	push @src_files, $arg;
+    } elsif ($arg_type eq "asm") {
+	#ASM file
+	push @asm_files, $arg;
+    } elsif ($arg_type eq "forth") {
+	#Forth file
+	push @forth_files, $arg;
     } elsif ($arg_type eq "lib") {
 	#library path
 	if ($arg !~ /\/$/) {$arg = sprintf("%s/", $arg);}
 	unshift @lib_files, $arg;
-        $arg_type          = "src";
     } elsif ($arg_type eq "def") {
 	#precompiler define
 	if ($arg =~ /^\s*(\w+)=(\w+)\s*$/) {
@@ -98,15 +105,14 @@ foreach $arg (@ARGV) {
 	} elsif ($arg =~ /^\s*(\w+)\s*$/) {
 	    $defines{uc($1)} = "";
 	}
-        $arg_type          = "src";
     }
 }
 
 ###################
 # print help text #
 ###################
-if ($#src_files < 0) {
-    printf "usage: %s [-L <library path>] [-D <define: name=value or name>] <src files> \r\n", $0;
+if ($#asm_files < 0) {
+    printf "usage: %s [-L <library path>] [-D <define: name=value or name>] -A <ASM files> -F <Forth files> \r\n", $0;
     print  "\r\n";
     exit;
 }
@@ -114,37 +120,32 @@ if ($#src_files < 0) {
 ###################
 # add default lib #
 ###################
-#printf "libraries:    %s (%s)\r\n",join("\", \"", @lib_files), $#lib_files;
-#printf "source files: %s (%s)\r\n",join("\", \"", @src_files), $#src_files;
+#printf "libraries:   %s (%s)\r\n",join("\", \"", @lib_files), $#lib_files;
+#printf "asm files:   %s (%s)\r\n",join("\", \"", @asm_files), $#asm_files;
+#printf "forth files: %s (%s)\r\n",join("\", \"", @forth_files), $#forth_files;
 if ($#lib_files < 0) {
-  foreach $src_file (@src_files) {
-    #printf "add library:%s/\r\n", dirname($src_file);
-    push @lib_files, sprintf("%s/", dirname($src_file));
+  foreach my $asm_file (@asm_files) {
+    #printf "add library:%s/\r\n", dirname($asm_file);
+    push @lib_files, sprintf("%s/", dirname($asm_file));
+  }
+  foreach my $forth_file (@forth_files) {
+    #printf "add library:%s/\r\n", dirname($forth_file);
+    push @lib_files, sprintf("%s/", dirname($forth_file));
   }
 }
 
 #######################################
 # determine program name and location #
 #######################################
-$prog_name   = basename($src_files[0], ".s");
-$output_path = dirname($src_files[0], ".s");
-
-###################
-# add default lib #
-###################
-#printf "libraries:    %s (%s)\n",join("\", \"", @lib_files), $#lib_files;
-#printf "source files: %s (%s)\n",join("\", \"", @src_files), $#src_files;
-if ($#lib_files < 0) {
-  foreach $src_file (@src_files) {
-    #printf "add library:%s/\n", dirname($src_file);
-    push @lib_files, sprintf("%s/", dirname($src_file));
-  }
-}
+$asm_prog_name     = basename($asm_files[0], ".s");
+$asm_output_path   = dirname($asm_files[0],  ".s");
+$forth_prog_name   = basename($asm_files[0], ".4th");
+$forth_output_path = dirname($asm_files[0],  ".4th");
 
 ####################
 # load symbol file #
 ####################
-$symbol_file_name = sprintf("%s/%s.sym", $output_path, $prog_name);
+$symbol_file_name = sprintf("%s/%s.sym", $asm_output_path, $asm_prog_name);
 printf STDERR "Loading: %s\n",  $symbol_file_name;
 if (open (FILEHANDLE, sprintf("<%s", $symbol_file_name))) {
     $data = join "", <FILEHANDLE>;
@@ -158,15 +159,15 @@ if (open (FILEHANDLE, sprintf("<%s", $symbol_file_name))) {
 #######################
 # compile source code #
 #######################
-#printf STDERR "src files: \"%s\"\r\n", join("\", \"", @src_files);  
+#printf STDERR "asm files: \"%s\"\r\n", join("\", \"", @asm_files);  
 #printf STDERR "lib files: \"%s\"\r\n", join("\", \"", @lib_files);  
 #printf STDERR "defines:   \"%s\"\r\n", join("\", \"", @defines);  
-$code = hsw12_asm->new(\@src_files, \@lib_files, \%defines, "S12", 1, $symbols);
+$code = hsw12_asm->new(\@asm_files, \@lib_files, \%defines, "S12", 1, $symbols);
 
 ###################
 # write list file #
 ###################
-$list_file_name = sprintf("%s/%s.lst", $output_path, $prog_name);
+$list_file_name = sprintf("%s/%s.lst", $asm_output_path, $asm_prog_name);
 if (open (FILEHANDLE, sprintf("+>%s", $list_file_name))) {
     $out_string = $code->print_listing();
     print FILEHANDLE $out_string;
@@ -193,7 +194,7 @@ if ($code->{problems}) {
     #####################
     # write symbol file #
     #####################
-    #$symbol_file_name = sprintf("%s/%s.sym", $output_path, $prog_name);
+    #$symbol_file_name = sprintf("%s/%s.sym", $asm_output_path, $asm_prog_name);
     if (open (FILEHANDLE, sprintf("+>%s", $symbol_file_name))) {
 	$dump = Data::Dumper->new([$code->{comp_symbols}], ['symbols']);
 	$dump->Indent(2);
@@ -203,6 +204,9 @@ if ($code->{problems}) {
 	printf STDERR "Can't open symbol file \"%s\"\n", $symbol_file_name;
 	exit;
     }
+
+
+#<-----------------hier weiter
 
     #printf STDERR "Loaded...(%s)\n", $#{$code->{code}};
     #######################

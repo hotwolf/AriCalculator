@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - NUM - Number printing routines                                   #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010- Dirk Heisswolf                                           #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -333,7 +333,7 @@ NUM_REVERSE_4		SSTACK_PREPULL	18
 ;         C-flag: set if successful
 ; SSTACK: 8 bytes
 ;         X, Y and D are preserved 
-NUM_REVPRINT_NB	EQU	*
+NUM_REVPRINT_NB		EQU	*
 	
 ;Stack layout:
 NUM_REVPRINT_NB_COUNT	EQU	$00 ;SP+ 0: A
