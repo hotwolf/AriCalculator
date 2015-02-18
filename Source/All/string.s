@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - STRING - String Printing routines                                #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -65,39 +65,21 @@
 ;#        STRING_FILL_NB, STRING_SKIP_WS, and STRING_LOWER                     #
 ;#    March 3, 2014                                                            #
 ;#      - Added macro STRING_IS_PRINTABLE                                      #
+;#    February 18, 2015                                                        #
+;#      - Changed configuration options                                        #
 ;###############################################################################
 	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Blocking subroutines
-;-------------------- 
-;Enable blocking subroutines
-#ifndef	STRING_BLOCKING_ON
-#ifndef	STRING_BLOCKING_OFF
-STRING_BLOCKING_ON	EQU	1 	;blocking functions enabled by default
-#endif
-#endif
-
-;Enable rarely used subroutines
-;STRING_FILL_BL and STRING_FILL_NB 
-#ifndef	STRING_FILL_ON
-#ifndef	STRING_FILL_OFF
-STRING_FILL_OFF		EQU	1 	;STRING_FILL_BL/STRING_FILL_NB disabled by default
-#endif
-#endif
-;STRING_SKIP_WS 
-#ifndef	STRING_SKIP_WS_ON
-#ifndef	STRING_SKIP_WS_OFF
-STRING_SKIP_WS_OFF	EQU	1 	;STRING_SKIP_WS disabled by default
-#endif
-#endif
-;STRING_LOWER 
-#ifndef	STRING_LOWER_ON
-#ifndef	STRING_LOWER_OFF
-STRING_LOWER_OFF	EQU	1 	;STRING_LOWER disabled by default
-#endif
-#endif
+;Enable Subroutines
+;------------------ 
+;STRING_ENABLE_FILL_NB		EQU	1	;enable STRING_FILL_NB 
+;STRING_ENABLE_FILL_BL		EQU	1	;enable STRING_FILL_BL 
+;STRING_ENABLE_UPPER		EQU	1	;enable STRING_UPPER 
+;STRING_ENABLE_LOWER		EQU	1	;enable STRING_LOWER 
+;STRING_ENABLE_PRINTABLE	EQU	1	;enable STRING_PRINTABLE
+;STRING_ENABLE_SKIP_WS		EQU	1	;enable STRING_SKIP_WS
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -150,16 +132,11 @@ STRING_VARS_END_LIN	EQU	@
 ; result: X;      points to the byte after the string
 ; SSTACK: 10 bytes
 ;         Y and D are preserved
-#ifdef	STRING_BLOCKING_ON
 #macro	STRING_PRINT_BL, 0
 			SSTACK_JOBSR	STRING_PRINT_BL, 10
 #emac	
-#else
-#macro	STRING_PRINT_BL, 0
-			STRING_CALL_BL	STRING_PRINT_NB, 8
-#emac	
-#endif
 	
+#ifdef STRING_ENABLE_FILL_NB	
 ;#Print a number of filler characters - non-blocking
 ; args:   A: number of characters to be printed
 ;         B: filler character
@@ -168,30 +145,26 @@ STRING_VARS_END_LIN	EQU	@
 ; result: none
 ; SSTACK: 7 bytes
 ;         X, Y and B are preserved
-#ifdef STRING_FILL_ON	
 #macro	STRING_FILL_NB, 0
 			SSTACK_JOBSR	STRING_FILL_NB, 7
 #emac	
 #endif
 	
+#ifdef STRING_ENABLE_FILL_NB	
+#ifdef STRING_ENABLE_FILL_BL	
 ;#Print a number of filler characters - blocking (uncomment if needed)
 ; args:   A: number of characters to be printed
 ;         B: filler character
 ; result: A: $00
 ; SSTACK: 9 bytes
 ;         X, Y and B are preserved
-#ifdef	STRING_FILL_ON
-#ifdef	STRING_BLOCKING_ON
 #macro	STRING_FILL_BL, 0
 			SSTACK_JOBSR	STRING_FILL_BL, 9
-#emac	
-#else
-#macro	STRING_FILL_BL, 0
-			STRING_CALL_BL	STRING_FILL_NB, 7
 #emac	
 #endif
 #endif
 	
+#ifdef STRING_ENABLE_UPPER	
 ;#Convert a lower case character to upper case
 ; args:   B: ASCII character (w/ or w/out termination)
 ; result: B: lower case ASCII character 
@@ -200,13 +173,14 @@ STRING_VARS_END_LIN	EQU	@
 #macro	STRING_UPPER, 0
 			SSTACK_JOBSR	STRING_UPPER, 2
 #emac
+#endif
 
+#ifdef STRING_ENABLE_LOWER	
 ;#Convert an upper case character to lower case (uncomment if needed)
 ; args:   B: ASCII character (w/ or w/out termination)
 ; result: B: upper case ASCII character
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
-#ifdef STRING_LOWER_ON
 #macro	STRING_LOWER, 0
 			SSTACK_JOBSR	STRING_LOWER, 2
 #emac
@@ -225,6 +199,7 @@ STRING_VARS_END_LIN	EQU	@
 			BHI	\1
 #emac
 
+#ifdef STRING_ENABLE_PRINTABLE	
 ;#Make ASCII character printable
 ; args:   B: ASCII character (w/out termination)
 ; result: B: printable ASCII character or "."
@@ -233,13 +208,14 @@ STRING_VARS_END_LIN	EQU	@
 #macro	STRING_PRINTABLE, 0	
 			SSTACK_JOBSR	STRING_PRINTABLE, 2
 #emac
+#endif
 
+#ifdef STRING_ENABLE_SKIP_WS	
 ;#Skip whitespace (uncomment if needed)
 ; args:   X:      start of the string
 ; result: X;      trimmed string
 ; SSTACK: 3 bytes
 ;         Y and D are preserved 
-#ifdef STRING_SKIP_WS_ON
 #macro	STRING_SKIP_WS, 0	
 			SSTACK_JOBSR	STRING_SKIP_WS, 3	
 #emac
@@ -275,23 +251,9 @@ LOOP			ADDD	#1
 ; SSTACK: stack usage of non-blocking function + 2
 ;         rgister output of the non-blocking function is preserved 
 #macro	STRING_MAKE_BL, 2
-			;Call non-blocking subroutine as if it was blocking
-			STRING_CALL_BL	\1, \2
-			;Done
-			SSTACK_PREPULL	2
-			RTS
+			SCI_MAKE_BL \1, \2
 #emac
 
-;#Run a non-blocking subroutine as if it was blocking	
-; args:   1: non-blocking function
-;         2: subroutine stack usage of non-blocking function (min. 4)
-; SSTACK: stack usage of non-blocking function + 2
-;         register output of the non-blocking function is preserved 
-#macro	STRING_CALL_BL, 2
-LOOP			;Call non-blocking function
-			SSTACK_JOBSR	\1, \2
-			BCC	LOOP 		;function unsuccessful
-#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -342,11 +304,10 @@ STRING_PRINT_NB_3	ANDB	#$7F 			;remove termination bit
 ; result: X;      points to the byte after the string
 ; SSTACK: 10 bytes
 ;         Y and D are preserved
-#ifdef	STRING_BLOCKING_ON
 STRING_PRINT_BL		EQU	*
 			SCI_MAKE_BL	STRING_PRINT_NB, 10
-#endif
-	
+
+#ifdef	STRING_ENABLE_FILL_NB	
 ;#Print a number of filler characters - non-blocking (uncomment if needed)
 ; args:   A: number of characters to be printed
 ;         B: filler character
@@ -355,7 +316,6 @@ STRING_PRINT_BL		EQU	*
 ; result: none
 ; SSTACK: 7 bytes
 ;         X, Y and B are preserved
-#ifdef STRING_FILL_ON
 STRING_FILL_NB		EQU	*
 			;Print characters (requested spaces in A)
 			TBEQ	A, STRING_FILL_NB_2	;nothing to do
@@ -376,19 +336,20 @@ STRING_FILL_NB_3	SSTACK_PREPULL	2
 			RTS
 #endif
 	
+#ifdef	STRING_ENABLE_FILL_NB
+#ifdef	STRING_ENABLE_FILL_BL
 ;#Print a number of filler characters - blocking (uncomment if needed)
 ; args:   A: number of characters to be printed
 ;         B: filler character
 ; result: A: $00
 ; SSTACK: 9 bytes
 ;         X, Y and B are preserved
-#ifdef	STRING_FILL_ON
-#ifdef	STRING_BLOCKING_ON
 STRING_FILL_BL		EQU	*
 			SCI_MAKE_BL	STRING_FILL_NB, 7	
 #endif
 #endif
 
+#ifdef	STRING_ENABLE_UPPER
 ;#Convert a lower case character to upper case
 ; args:   B: ASCII character (w/ or w/out termination)
 ; result: B: lower case ASCII character 
@@ -407,13 +368,14 @@ STRING_UPPER_1		SUBB	#$20		;"a"-"A"
 			;Done
 			SSTACK_PREPULL	2
 STRING_UPPER_2		RTS
+#endif
 
+#ifdef STRING_ENABLE_LOWER
 ;#Convert an upper case character to lower case (uncomment if needed)
 ; args:   B: ASCII character (w/ or w/out termination)
 ; result: B: upper case ASCII character
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
-#ifdef STRING_LOWER_ON
 STRING_LOWER		EQU	*
 			CMPB	#$41		;"A"
 			BLO	STRING_LOWER_2
@@ -427,7 +389,8 @@ STRING_LOWER_1		ADDB	#$20		;"a"-"A"
 			;Done
 STRING_LOWER_2		RTS
 #endif 
-	
+
+#ifdef STRING_ENABLE_PRINTABLE	
 ;#Make ASCII character printable
 ; args:   B: ASCII character (w/out termination)
 ; result: B: printable ASCII character or "."
@@ -442,13 +405,14 @@ STRING_PRINTABLE_1	LDAB	#$2E		;"."
 			;Done
 			SSTACK_PREPULL	2
 STRING_PRINTABLE_2	RTS
+#endif 
 	
+#ifdef STRING_ENABLE_SKIP_WS
 ;#Skip whitespace (uncomment if needed)
 ; args:   X: start of the string
 ; result: X: trimmed string
 ; SSTACK: 3 bytes
 ;         Y and D are preserved 
-#ifdef STRING_SKIP_WS_ON
 STRING_SKIP_WS		EQU	*	
 			;Save registers (string pointer in X)
 			PSHB				;save B	
@@ -478,7 +442,7 @@ STRING_CODE_END_LIN	EQU	@
 #endif	
 
 ;Common strings 
-STRING_STR_EXCLAM_NL	DB	"!" 	;exclamation mark + new line
+;STRING_STR_EXCLAM_NL	DB	"!" 	;exclamation mark + new line
 STRING_STR_NL		STRING_NL_TERM	;new line
 
 STRING_TABS_END		EQU	*
