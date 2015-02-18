@@ -137,6 +137,18 @@ FORTH_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Break handler
+#ifnmac	SCI_BREAK_ACTION	
+#macro	SCI_BREAK_ACTION, 0
+#emac
+#endif	
+	
+;#Suspend handler
+#ifnmac	SCI_SUSPEND_ACTION
+#macro	SCI_SUSPEND_ACTION, 0
+#emac
+#endif	
+
 ;#Initialization
 #macro	FORTH_INIT, 0
 	FRS_INIT
@@ -292,6 +304,12 @@ FORTH_CODE_END_LIN	EQU	@
 #else
 			ORG 	FORTH_TABS_START
 #endif	
+
+;#Welcome message
+#ifndef	WELCOME_MESSAGE
+WELCOME_MESSAGE		FCC	"Hello, this is S12CForth!"
+			STRING_NL_TERM
+#endif
 
 FRS_TABS_START		EQU	*
 FRS_TABS_START_LIN	EQU	@

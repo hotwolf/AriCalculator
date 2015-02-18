@@ -1,7 +1,9 @@
+#ifndef FOUTER
+#define FOUTER
 ;###############################################################################
 ;# S12CForth - FOUTER - Forth outer interpreter                                #
 ;###############################################################################
-;#    Copyright 2011-2014 Dirk Heisswolf                                       #
+;#    Copyright 2011-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -37,7 +39,7 @@
 ;#    BASE - S12CBase framework                                                #
 ;#    FPS    - Forth parameter stack                                           #
 ;#    FRS    - Forth return stack                                              #
-;#    FCOM   - Forth communication interface                                   #
+;#    FIO   - Forth communication interface                                   #
 ;#    FINNER - Forth inner interpreter                                         #
 ;#    FEXCPT - Forth Exception Handler                                         #
 ;#                                                                             #
@@ -63,10 +65,10 @@
 ;           RS_TIB_END
 ;
 ;Shell state transitions:
-; INTERACTIVE: STATE=0, IP_SUSP=0, IP=0
-; COMPILE:     STATE>0, IP_SUSP=0, IP=0
-; SUSPEND:              IP_SUSP>0, IP=0
-; EXECUTE:                         IP>0
+; INTERACTIVE: STATE=0, IP=0
+; COMPILE:     STATE>0, IP=0
+; SUSPEND:              IP>0
+; EXECUTE:              IP>0
 ;
 	
 ;###############################################################################
@@ -99,9 +101,9 @@ FOUTER_VARS_START_LIN	EQU	@
 BASE			DS	2 		;number conversion radix
 
 STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
-NUMBER_TIB  		DS	2		;number of chars in the TIB
-TO_IN  			DS	2		;in pointer of the TIB (TIB_START+TO_IN point to the next empty byte)
 TIB_OFFSET  		DS	2		;TIB buffer offset (for nested shells) 
+NUMBER_TIB  		DS	2		;number of chars in the TIB
+TO_IN  			DS	2		;in pointer of the TIB (TIB_OFFSET+TO_IN point to the next empty byte)
 
 FOUTER_VARS_END		EQU	*
 FOUTER_VARS_END_LIN	EQU	@
@@ -112,12 +114,12 @@ FOUTER_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	FOUTER_INIT, 0
 			LED_BUSY_ON
-			MOVW	#STATE_INTERPRET, STATE
 			MOVW	#$0010, BASE
-			MOVW	#$0000, NUMBER_TIB 
-			MOVW	#$0000, TO_IN
-			MOVW	#$0000, TIB_OFFSET
-			MOVW	#$0000, SUSPENDED_IP
+			CLRA
+			CLRB
+			STD 	TIB_OFFSET
+			STD 	NUMBER_TIB 
+			STD 	TO_IN
 #emac
 
 ;#Abort action (to be executed in addition of quit and suspend action)
@@ -132,24 +134,19 @@ FOUTER_VARS_END_LIN	EQU	@
 	
 ;#Suspend action
 #macro	FOUTER_SUSPEND, 0
-			;MOVW	IP, SUSPENDED_IP 	;save IP
 			MOVW	NUMBER_TIB, TIB_OFFSET	;save TIB offset	
 #emac
 	
-;Break/suspend handling:
-;=======================
-;#Break: Set break indicator and perform a systewm reset
-#macro	SCI_BREAK_ACTION, 0
-			RESET_RESTART_NO_MSG	
+;ABORT/SUSPEND invocation:
+;=========================
+;#ABORT at next word boundary (may cancel pending SUSPEND)
+#macro	FOUTER_INVOKE_ABORT, 0
+			MOVW	#NEXT_ABORT, NEXT_PTR	;ABORT at word boundary
 #emac
 
-;#Suspend: Set suspend flag
-#macro	SCI_SUSPEND_ACTION, 0
-			LDX	NEXT_PTR 		;avoid nested SUSPEND requests
-			CPX	#NEXT_SUSPEND_MODE
-			BEQ	DONE
-			MOVW	#NEXT_SUSPEND_ENTRY, NEXT_PTR
-DONE			EQU	*	
+;#Suspend at next word boundary (may cancel pending ABORT)
+#macro	FOUTER_INVOKE_SUSPEND, 0
+			MOVW	#NEXT_SUSPEND, NEXT_PTR	;SUSPEND at word boundary
 #emac
 
 ;Functions:
@@ -363,7 +360,7 @@ DONE			EQU	*
 ;			+--------+--------+
 ;			| Rem Char Count  | SP+2
 ;			+--------+--------+
-;			|  Rem Char Ptr   | SP+4
+ ;			|  Rem Char Ptr   | SP+4
 ;			+--------+--------+
 ;			|   Number MSW    | SP+6
 ;			+--------+--------+
@@ -1108,7 +1105,7 @@ CF_QUIT_RT		EQU	*
 			;Initialize QUIT
 			FORTH_QUIT
 			;Suspend
-			;JOB	CF_SUSPEND_RT
+			JOB	CF_SUSPEND_RT_1
 	
 ;SUSPEND run-time ( -- )
 ;Execute a temporary debug shell.
@@ -1121,8 +1118,10 @@ CF_QUIT_RT		EQU	*
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
 CF_SUSPEND_RT		EQU	*
+			;Save TIB context
+			RS_PUSH3 TIB_OFFSET, NUMBER_TIB, TO_IN
 			;Initialize SUSPEND
-               		FORTH_SUSPEND
+CF_SUSPEND_RT_1         FORTH_SUSPEND
 			;Suspend
 			;JOB	CF_SHELL	
 
@@ -1137,9 +1136,16 @@ CF_SUSPEND_RT		EQU	*
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
 CF_SHELL		EQU	*
-			;Print state dependant prompt
+			;New line
 			EXEC_CF	CF_CR 			;print line break
-			;Check for SUSPEND mode
+			;Check for SUSPEND mode (IP>0)
+			LDD	IP
+			BEQ	CF_SHELL_ 		;skip SUSPEND information
+			; 
+
+
+	
+	
 			LDX	FOUTER_SUSPEND_PROMPT
 			LDD	NEXT_PTR
 			CPD	#NEXT_SUSPEND_MODE
@@ -1722,3 +1728,4 @@ CFA_TWO_LITERAL_RT	DW	CF_TWO_LITERAL_RT
 
 FOUTER_WORDS_END	EQU	*
 FOUTER_WORDS_END_LIN	EQU	@
+#endif

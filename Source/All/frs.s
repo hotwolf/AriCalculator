@@ -204,12 +204,46 @@ FRS_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ; throws: FEXCPT_EC_RSUF
 ;        Y and D are preserved 
-#macro	RS_PULL, 1
+#macro	RS_PULL, 1	;1:variable
 			RS_CHECK_UF	1		;check for underflow	=> 8 cycles
-			MOVW		2,X+, \1	;RS -> X		=> 3 cycles 
+			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
 			STX		RSP		;			=> 3 cycles
 							;                         ---------
-							;                         14 cycles
+							;                         16 cycles
+#emac	
+	
+;RS_PULL2: pull two entries from the return stack  (RSP -> X)
+; args:   1: address of first variable to pull data into (TOS)
+;         2: address of second variable to pull data into
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSUF
+;        Y and D are preserved 
+#macro	RS_PULL2, 2	;1:variable 2:variable
+			RS_CHECK_UF	2		;check for underflow	=> 8 cycles
+			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \2	;RS -> X		=> 5 cycles 
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         21 cycles
+#emac	
+	
+;RS_PULL3: pull three entries from the return stack  (RSP -> X)
+; args:   1: address of first variable to pull data into (TOS)
+;         2: address of second variable to pull data into
+;         3: address of third variable to pull data into
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSUF
+;        Y and D are preserved 
+#macro	RS_PULL2, 2	;1:variable 2:variable 3:variable
+			RS_CHECK_UF	3		;check for underflow	=> 8 cycles
+			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \2	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \3	;RS -> X		=> 5 cycles 
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         26 cycles
 #emac	
 	
 ;RS_PULL_Y: pull one entry from the return stack into index Y
@@ -256,7 +290,43 @@ FRS_VARS_END_LIN	EQU	@
 							;                         22 cycles
 #emac	
 
-;RS_PUSH: push a variable onto the return stack and don't touch index X
+;RS_PUSH2: push two variables onto the return stack (RSP -> X)
+; args:   1: address of first variable to push data from
+;         2: address of second variable to push data from (TOS)
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSOF
+;        Y and D are preserved
+#macro	RS_PUSH2, 2	;1:variable 2:variable
+			RS_CHECK_OF	2		;check for overflow	=>11 cycles
+			LDX		RSP		;var -> RS		=> 3 cycles
+			MOVW		\1, 2,-X	;			=> 5 cycles
+			MOVW		\2, 2,-X	;			=> 5 cycles
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         27 cycles
+#emac	
+
+;RS_PUSH3: push two variables onto the return stack (RSP -> X)
+; args:   1: address of first variable to push data from
+;         2: address of second variable to push data from
+;         3: address of third variable to push data from (TOS)
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSOF
+;        Y and D are preserved
+#macro	RS_PUSH3, 3	;1:variable 2:variable 3:variable
+			RS_CHECK_OF	2		;check for overflow	=>11 cycles
+			LDX		RSP		;var -> RS		=> 3 cycles
+			MOVW		\1, 2,-X	;			=> 5 cycles
+			MOVW		\2, 2,-X	;			=> 5 cycles
+			MOVW		\3, 2,-X	;			=> 5 cycles
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         32 cycles
+#emac	
+
+;RS_PUSH_KEEP_X: push a variable onto the return stack and don't touch index X
 ; args:   1: variable
 ; result: Y: RSP
 ; SSTACK: none

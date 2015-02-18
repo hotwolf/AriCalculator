@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CForth - Demo (Mini-BDM-Pod)                                             #
 ;###############################################################################
-;#    Copyright 2010-2013 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -34,27 +34,17 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;# Memory map:
+MMAP_S12XEP100		EQU	1 		;S12XEP100
 MMAP_RAM		EQU	1 		;use RAM memory map
-
-;# Interrupt stack
-ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
-ISTACK_NO_CHECK		EQU	1 		;disable range checks
-ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-ISTACK_NO_WAI		EQU	1	 	;keep WAIs out
-
-;# Subroutine stack
-SSTACK_NO_CHECK		EQU	1 		;disable range checks
-SSTACK_DEBUG		EQU	1 		;debug behavior
 
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 
-;# RESET
-RESET_CODERUN_OFF	EQU	1 		;don't report code runaways
-RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
-	
 ;# Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
+
+;# STRING
+;STRING_FILL_ON		EQU	1 		;enable STRING_FILL_BL/STRING_FILL_NB
 	
 ;###############################################################################
 ;# Resource mapping                                                            #
@@ -67,6 +57,10 @@ DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
 			ORG	DEMO_CODE_END, DEMO_CODE_END_LIN
 	
+BASE_CODE_START		EQU	*
+BASE_CODE_START_LIN	EQU	@
+			ORG	BASE_CODE_END, BASE_CODE_END_LIN
+
 FORTH_CODE_START	EQU	*
 FORTH_CODE_START_LIN	EQU	@
 			ORG	FORTH_CODE_END, FORTH_CODE_END_LIN
@@ -76,6 +70,10 @@ DEMO_TABS_START		EQU	*
 DEMO_TABS_START_LIN	EQU	@
 			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
 	
+BASE_TABS_START		EQU	*
+BASE_TABS_START_LIN	EQU	@
+			ORG	BASE_TABS_END, BASE_TABS_END_LIN
+
 FORTH_TABS_START	EQU	*
 FORTH_TABS_START_LIN	EQU	@
 			ORG	FORTH_TABS_END, FORTH_TABS_END_LIN
@@ -85,6 +83,10 @@ DEMO_VARS_START		EQU	*
 DEMO_VARS_START_LIN	EQU	@
 			ORG	DEMO_VARS_END, DEMO_VARS_END_LIN
 	
+BASE_VARS_START		EQU	*
+BASE_VARS_START_LIN	EQU	@
+			ORG	BASE_VARS_END, BASE_VARS_END_LIN
+
 FORTH_VARS_START	EQU	*
 FORTH_VARS_START_LIN	EQU	@
 			ORG	FORTH_VARS_END, FORTH_VARS_END_LIN
@@ -98,16 +100,15 @@ DEMO_WORDS_START_LIN	EQU	@
 FORTH_WORDS_START	EQU	*
 FORTH_WORDS_START_LIN	EQU	@
 			ORG	FORTH_WORDS_END, FORTH_WORDS_END_LIN
+
+;Dictionary, PAD, and parameter stack 
+UDICT_PS_START		EQU	*			;start of shared DICT/PAD/PS space
+UDICT_PS_END		EQU	((MMAP_RAM_END-*)*2)/3	;end of shared DICT/PAD/PS space
 	
 ;TIB and return stack
-RS_TIB_START		EQU	*			;start of shared TIB/RS space
-RS_TIB_SIZE		EQU	(MMAP_RAM_END-*)/2
-RS_TIB_END		EQU	*+RS_TIB_SIZE		;end of shared TIB/RS space
+RS_TIB_START		EQU	UDICT_PS_END		;start of shared TIB/RS space
+RS_TIB_END		EQU	MMAP_RAM_END		;end of shared TIB/RS space
 				
-;Dictionary, PAD, and parameter stack 
-UDICT_PS_START		EQU	RS_TIB_END		;start of shared DICT/PAD/PS space
-UDICT_PS_END		EQU	MMAP_RAM_END		;end of shared DICT/PAD/PS space
-
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -210,5 +211,6 @@ DEMO_WORDS_END_LIN	EQU	@
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./forth_Mini-BDM-Pod.s		;S12CForth bundle
+#include ../All/forth.s								;S12CForth bundle
+#include ../../Subprojects/S12CBase/Source/Mini-BDM-Pod/base_Mini-BDM-Pod.s	;Base bundle
 	
