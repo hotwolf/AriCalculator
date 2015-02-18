@@ -41,12 +41,14 @@ MMAP_RAM		EQU	1 		;use RAM memory map
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 	
-;# STRING
-STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
-	
 ;# VECTAB
 VECTAB_DEBUG		EQU	1 		;break on false interrupt
 	
+;# STRING
+STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
+STRING_ENABLE_FILL_BL	EQU	1 		;enable STRING_FILL_BL
+STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
+
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################

@@ -44,7 +44,9 @@ COP_DEBUG		EQU	1 		;disable COP
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 
 ;# STRING
-STRING_FILL_ON		EQU	1 		;enable STRING_FILL_BL/STRING_FILL_NB
+STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
+STRING_ENABLE_FILL_BL	EQU	1 		;enable STRING_FILL_BL
+STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 
 ;###############################################################################
 ;# Resource mapping                                                            #
