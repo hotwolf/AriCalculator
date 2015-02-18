@@ -42,6 +42,7 @@
 ;#    BASE   - S12CBase framework                                              #
 ;#    FRS    - Forth return stack                                              #
 ;#    FIRQ   - Forth interrupt request handler                                 #
+;#    FDBG   - Forth debugger                                                  #
 ;#                                                                             #
 ;###############################################################################
 
@@ -68,27 +69,30 @@
 ;# NEXT implementations                                                        #
 ;###############################################################################
 ; 
-;    +-----------------+
-;    | NEXT_CHECK_IRQS |
-;    +-----------------+
-;            ^ |        
-;        IRQ | | no IRQ 
-;   received | | pending
-;            | v        
-;    +-----------------+
-;    |      NEXT       |
-;    +-----------------+
+;      +-----------------+
+;      |    NEXT_WATCH   |
+;      +-----------------+
+;              ^ |        
+;          IRQ | | no IRQ 
+;     received | | pending
+;          or  | |  and 
+;  breakpoints | | breakpoints 
+;      enabled | | disabled
+;              | v        
+;      +-----------------+
+;      |      NEXT       |
+;      +-----------------+
 ;       
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
 ;Busy/idle signaling
 ;------------------- 
-;Signal activity -> define macros FINNER_SIGNAL_BUSY and FINNER_SIGNAL_IDLE
-;#mac FINNER_SIGNAL_BUSY, 0
+;Signal activity -> define macros FORTH_SIGNAL_BUSY and FORTH_SIGNAL_IDLE
+;#mac FORTH_SIGNAL_BUSY, 0
 ;	...code to signal activity (inside CF)
 ;#emac
-;#mac FINNER_SIGNAL_IDLE, 0			;X, Y, and D are preserved 
+;#mac FORTH_SIGNAL_IDLE, 0			;X, Y, and D are preserved 
 ;	...code to signal inactivity (inside CF)
 ;#emac
 	
@@ -98,7 +102,19 @@
 ;Common aliases 
 TRUE			EQU	$FFFF
 FALSE			EQU	$0000	
-						    
+
+;NEXT_WATCH usage
+#ifmac	FIRQ_BR_NO_IRQS
+#ifmac	FIRQ_CALL_NEXT_ISR
+FINNER_USE_NEXT_WATCH	EQU	1
+#endif
+#endif
+#ifmac	FDBG_BR_NO_BKPS
+#ifmac	FDBG_CHECK_BKP
+FINNER_USE_NEXT_WATCH	EQU	1
+#endif
+#endif
+	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -120,8 +136,8 @@ FINNER_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FINNER_INIT, 0
-#ifmac FINNER_SIGNAL_BUSY
-			FINNER_SIGNAL_BUSY		;signal activity
+#ifmac FORTH_SIGNAL_BUSY
+			FORTH_SIGNAL_BUSY		;signal activity
 #endif
 			MOVW	#$0000, IP
 			MOVW	#NEXT,  NEXT_PTR
@@ -141,24 +157,23 @@ FINNER_VARS_END_LIN	EQU	@
 #macro	FINNER_SUSPEND, 0
 #emac
 
-#ifmac	FIRQ_BR_NO_IRQS
-#ifmac	FIRQ_CALL_NEXT_ISR
+#ifdef	FINNER_USE_NEXT_WATCH
 ;Interrupt handling:
 ;==================
-;#Request inner interpreter to check for pending interrupts (after executing the current word)
+;#Request inner interpreter to check for pending interrupts and breakpoints
+; (after executing the current word) 
 ; args:	  none
 ; result: none
 ; SSTACK: none
 ;         No registers are preserved
-#macro	FINNER_CHECK_IRQS, 0
-			SEI		 			;make atomic
-			LDX	NEXT_PTR			;check for default next
+#macro	FINNER_WATCH, 0
+			SEI		 		;make atomic
+			LDX	NEXT_PTR		;check for default next
 			CPX	#NEXT
-			BNE	DONE 				;IRQs are already taken care of
-			MOVW	#NEXT_CHECK_IRQS, NEXT_PTR	;check IRQs at word boundary
-DONE			CLI					;allow interrupts
+			BNE	DONE 			;IRQs are already taken care of
+			MOVW	#NEXT_WATCH, NEXT_PTR	;check IRQs at word boundary
+DONE			CLI				;allow interrupts
 #emac
-#endif
 #endif
 
 ;Inner interpreter:
@@ -325,7 +340,7 @@ JUMP_NEXT		EQU	*
 
 ;NEXT implementations:
 ;=====================
-;#NEXT_CHECK_IRQS: jump to the next available ISR
+;#NEXT_WATCH: jump to the next available ISR
 ; args:	  IP:   pointer to next instruction
 ; result: IP:   pointer to subsequent instruction
 ;         W/X:  new CFA
@@ -333,19 +348,28 @@ JUMP_NEXT		EQU	*
 ; PS:     none
 ; RS:     1+ISR usage
 ; throws: none
-NEXT_CHECK_IRQS		EQU	*
+NEXT_WATCH		EQU	*
+#ifdef	FINNER_USE_NEXT_WATCH
+			;Restore NEXT
+			MOVW	#NEXT, NEXT_PTR		;set default NEXT pointer
+#ifmac	FDBG_BR_NO_BKPS
+#ifmac	FDBG_CHECK_BKP
+			;Check for breakpointss 
+			FDBG_BR_NO_BKPS	 NEXT_WATCH_2	;no breakpoints to check
+			FDBG_CHECK_BKP			;suspend on breakpoint
+#endif
+#endif
 #ifmac	FIRQ_BR_NO_IRQS
 #ifmac	FIRQ_CALL_NEXT_ISR
-			;Restore NEXT
-			MOVW	#NEXT, NEXT_PTR			;set default NEXT pointer
 			;Check for pending IRQs 
-NEXT_CHECK_IRQS_1	FIRQ_BR_NO_IRQS	 NEXT_CHECK_IRQS_2	;no IRQ
+NEXT_WATCH_1		FIRQ_BR_NO_IRQS	 NEXT_WATCH_2	;no IRQ
 			FIRQ_CALL_NEXT_ISR
-			JOB	NEXT_CHECK_IRQS_1
-			;No pending IRQs
-NEXT_CHECK_IRQS_2	NEXT
+			JOB	NEXT_WATCH_1
 #endif
-#endif	
+#endif
+			;No pending IRQs
+NEXT_WATCH_2		NEXT
+#endif
 	
 ;#NEXT: jump to the next instruction
 ; args:	  IP:   pointer to next instruction
@@ -400,12 +424,12 @@ CF_NOP			EQU		CF_EOW_1
 ; result: none
 			;Wait for any internal system event
 CF_WAIT_1		EQU	*
-#ifmac FINNER_SIGNAL_IDLE
-			FINNER_SIGNAL_IDLE		;signal inactivity
+#ifmac FORTH_SIGNAL_IDLE
+			FORTH_SIGNAL_IDLE		;signal inactivity
 #endif
 			ISTACK_WAIT			;wait for next interrupt
-#ifmac FINNER_SIGNAL_BUSY
-			FINNER_SIGNAL_BUSY		;signal activity
+#ifmac FORTH_SIGNAL_BUSY
+			FORTH_SIGNAL_BUSY		;signal activity
 #endif
 CF_WAIT			EQU	*
 			;Check for change of NEXT_PTR 

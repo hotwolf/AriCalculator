@@ -44,6 +44,15 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;Busy/idle signaling
+;------------------- 
+;Signal activity -> define macros FORTH_SIGNAL_BUSY and FORTH_SIGNAL_IDLE
+;#mac FORTH_SIGNAL_BUSY, 0
+;	...code to signal activity (inside CF)
+;#emac
+;#mac FORTH_SIGNAL_IDLE, 0			;X, Y, and D are preserved 
+;	...code to signal inactivity (inside CF)
+;#emac
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -186,9 +195,14 @@ CF_EKEY_2		LDX	NEXT_PTR		;check for default NEXT pointer
 			EXEC_CF	CF_NOP
 			JOB	CF_EKEY_1
 			;Wait for any internal system event
-CF_EKEY_3		LED_BUSY_OFF 			;signal inactivity
+CF_EKEY_3		EQU	*
+#ifmac FORTH_SIGNAL_IDLE
+			FORTH_SIGNAL_IDLE		;signal inactivity
+#endif
 			ISTACK_WAIT			;wait for next interrupt
-			LED_BUSY_ON 			;signal activity
+#ifmac FORTH_SIGNAL_BUSY
+			FORTH_SIGNAL_BUSY		;signal activity
+#endif
 			JOB	CF_EKEY_1		;check NEXT_PTR again
 			;RX error
 CF_EKEY_4		THROW	FEXCPT_EC_COMERR
@@ -252,9 +266,14 @@ CF_EMIT_3		LDX	NEXT_PTR		;check for default NEXT pointer
 			EXEC_CF	CF_NOP
 			JOB    	CF_EMIT_1
 			;Wait for any internal system event (data in D, I-bit set)
-CF_EMIT_4		;LED_BUSY_OFF 			;signal inactivity
+CF_EMIT_4		EQU	*
+#ifmac FORTH_SIGNAL_IDLE
+			FORTH_SIGNAL_IDLE		;signal inactivity
+#endif
 			ISTACK_WAIT			;wait for next interrupt
-			;LED_BUSY_ON 			;signal activity
+#ifmac FORTH_SIGNAL_BUSY
+			FORTH_SIGNAL_BUSY		;signal activity
+#endif
 			JOB	CF_EMIT_2		;check NEXT_PTR again
 			;JOB	CF_EMIT_1		;maybe more robust?
 
@@ -456,9 +475,14 @@ CF_D_DOT_R_9		LDX	NEXT_PTR		;check for default NEXT pointer
 CF_D_DOT_R_10		FOUTER_FIX_BASE 		;base -> D	
 			JOB	CF_D_DOT_R_8		;try to print more digits
 			;Wait for any internal system event (base in B, I-bit set)
-CF_D_DOT_R_11		;LED_BUSY_OFF 			;signal inactivity
+CF_D_DOT_R_11		EQU	*
+#ifmac FORTH_SIGNAL_IDLE
+			FORTH_SIGNAL_IDLE		;signal inactivity
+#endif
 			ISTACK_WAIT			;wait for next interrupt
-			;LED_BUSY_ON 			;signal activity
+#ifmac FORTH_SIGNAL_BUSY
+			FORTH_SIGNAL_BUSY		;signal activity
+#endif
 			JOB	CF_D_DOT_R_10		;try to print more digits
 
 ;U. ( u -- ) Print unsigned number
@@ -526,9 +550,14 @@ CF_HEX_DOT_2		LDX	NEXT_PTR		;check for default NEXT pointer
 			PS_CHECK_UF	2 		;PSP -> Y
 			JOB    	CF_HEX_DOT_1
 			;Wait for any internal system event
-CF_HEX_DOT_3		;LED_BUSY_OFF 			;signal inactivity
+CF_HEX_DOT_3		EQU	*
+#ifmac FORTH_SIGNAL_IDLE
+			FORTH_SIGNAL_IDLE		;signal inactivity
+#endif
 			ISTACK_WAIT			;wait for next interrupt
-			;LED_BUSY_ON 			;signal activity
+#ifmac FORTH_SIGNAL_BUSY
+			FORTH_SIGNAL_BUSY		;signal activity
+#endif
 			JOB	CF_HEX_DOT_1		;check NEXT_PTR again
 	
 ;SPACES ( n -- ) Transmit n space characters
@@ -565,9 +594,14 @@ CF_SPACES_4		STX	0,Y
 			EXEC_CF	CF_NOP
 			JOB    	CF_SPACES_1
 			;Wait for any internal system event (char count in X, space char in B, I-bit set)
-CF_SPACES_5		;LED_BUSY_OFF 			;signal inactivity
+CF_SPACES_5		EQU	*
+#ifmac FORTH_SIGNAL_IDLE
+			FORTH_SIGNAL_IDLE		;signal inactivity
+#endif
 			ISTACK_WAIT			;wait for next interrupt
-			;LED_BUSY_ON 			;signal activity
+#ifmac FORTH_SIGNAL_BUSY
+			FORTH_SIGNAL_BUSY		;signal activity
+#endif
 			JOB	CF_SPACES_1		;check NEXT_PTR again
 
 ;Word: CR ( -- )
@@ -614,9 +648,14 @@ CF_STRING_DOT_3		STX	0,Y
 			EXEC_CF	CF_NOP
 			JOB    	CF_STRING_DOT_1
 			;Wait for any internal system event (string in X)
-CF_STRING_DOT_4		;LED_BUSY_OFF 			;signal inactivity
+CF_STRING_DOT_4		EQU	*
+#ifmac FORTH_SIGNAL_IDLE
+			FORTH_SIGNAL_IDLE		;signal inactivity
+#endif
 			ISTACK_WAIT			;wait for next interrupt
-			;LED_BUSY_ON 			;signal activity
+#ifmac FORTH_SIGNAL_BUSY
+			FORTH_SIGNAL_BUSY		;signal activity
+#endif
 			JOB	CF_STRING_DOT_1		;check NEXT_PTR again
 	
 FIO_CODE_END		EQU	*

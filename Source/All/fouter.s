@@ -28,7 +28,7 @@
 ;#           BASE = Number conversion radix                                    #
 ;#     NUMBER_TIB = Number of chars in the TIB                                 #
 ;#          TO_IN = In-pointer of the TIB (>IN)	       			       #
-;#       	    (TIB_START+TO_IN) points to the next character	       #
+;#       	    (TIB_OFFSET+TO_IN) points to the next character	       #
 ;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -39,7 +39,7 @@
 ;#    BASE - S12CBase framework                                                #
 ;#    FPS    - Forth parameter stack                                           #
 ;#    FRS    - Forth return stack                                              #
-;#    FIO   - Forth communication interface                                   #
+;#    FIO   - Forth communication interface                                    #
 ;#    FINNER - Forth inner interpreter                                         #
 ;#    FEXCPT - Forth Exception Handler                                         #
 ;#                                                                             #
@@ -48,12 +48,14 @@
 ;###############################################################################
 ;        
 ;                         +--------------+--------------+        
-;        RS_TIB_START, -> |              |              | |          
-;           TIB_START     |       Text Input Buffer     | | [NUMBER_TIB]
+;        RS_TIB_START, -> |              |              |
+;           TIB_START     |              |              | <- [TIB_OFFSET]          
+;                         |              |              | |          
+;                         |       Text Input Buffer     | | [NUMBER_TIB]
 ;                         |              |              | |	       
-;                         |              v              | <	       
-;                     -+- | --- --- --- --- --- --- --- | 	       
-;          TIB_PADDING |  .                             . <- [TIB_START+NUMBER_TIB] 
+;                         |              v              | |	       
+;                     -+- | --- --- --- --- --- --- --- | v	       
+;          TIB_PADDING |  .                             . <- [TIB_OFFSET+NUMBER_TIB] 
 ;                     -+- .                             .            
 ;                         | --- --- --- --- --- --- --- |            
 ;                         |              ^              | <- [RSP]
@@ -1140,31 +1142,39 @@ CF_SHELL		EQU	*
 			EXEC_CF	CF_CR 			;print line break
 			;Check for SUSPEND mode (IP>0)
 			LDD	IP
-			BEQ	CF_SHELL_ 		;skip SUSPEND information
-			; 
-
-
-	
-	
-			LDX	FOUTER_SUSPEND_PROMPT
-			LDD	NEXT_PTR
-			CPD	#NEXT_SUSPEND_MODE
-			BEQ	CF_SHELL_1	 	;print prompt
+			BEQ	CF_SHELL_ 		;skip SUSPEND prompt
+			;Print SUSPEND information 
+			PS_PUSH	FOUTER_SUSPEND_INFO_1	;"Suspended at IP="
+			EXEC_CF	CF_STRING_DOT
+			PS_PUSH	IP 			;print IP
+			EXEC_CF	CF_HEX_DOT
+			PS_PUSH	FOUTER_SUSPEND_INFO_2	;" -> "
+			EXEC_CF	CF_STRING_DOT
+			LDD	[IP] 			;print CFA
+			PS_PUSH_D
+			EXEC_CF	CF_HEX_DOT
+			PS_PUSH	FOUTER_SUSPEND_INFO_3	;"<CR>!"
+			EXEC_CF	CF_STRING_DOT
 			;Check for INTERACTIVE mode
-			LDX	FOUTER_INTERACT_PROMPT
+CF_SHELL_1		LDX	FOUTER_INTERACT_PROMPT
 			LDD	STATE
-			TBEQ	D, CF_SHELL_1 		;print prompt
-			;Check for NV COMPILE mode
+			TBEQ	D, CF_SHELL_2 		;print prompt
 #ifdef NVC	
-			LDX	FOUTER_NVCOMPILE_PROMPT
+			;Check for NV COMPILE mode
 			LDD	NVC
-			TBNE	D, CF_SHELL_1 		;print prompt
+			TBNE	D, CF_SHELL_D 		;print prompt
 #endif
-			;Assume NV COMPILE mode  
-			LDX	FOUTER_NVCOMPILE_PROMPT
+			;Assume RAM COMPILE mode  
+			LDX	FOUTER_COMPILE_PROMPT
 			;Print prompt string
-CF_SHELL_1		PS_PUSH_X				
+CF_SHELL_2		PS_PUSH_X				
 			EXEC_CF	CF_DOT_STRING
+			;Query command line
+			EXEC_CF	CF_QUERY
+
+
+
+
 			;Query command line
 			EXEC_CF	CF_QUERY_APPEND
 			;Parse command line
@@ -1571,13 +1581,20 @@ FOUTER_TABS_START_LIN	EQU	@
 FOUTER_SYMTAB		EQU	NUM_SYMTAB
 	
 ;System prompts
-FOUTER_SUSPEND_PROMPT	FCC	"S"
+FOUTER_SUSPEND_PROMPT	EQU	"!"
 FOUTER_INTERACT_PROMPT	FCS	"> "
-FOUTER_NVCOMPILE_PROMPT	FCC	"NV"
+FOUTER_NVCOMPILE_PROMPT	FCS	"@ "
 FOUTER_COMPILE_PROMPT	FCS	"+ "
 
 FOUTER_SYSTEM_ACK	FCS	" ok"
 
+;SUSPEND information
+FOUTER_SUSPEND_INFO_1	FCS	"Suspended at IP="
+FOUTER_SUSPEND_INFO_2	FCS	" -> "
+FOUTER_SUSPEND_INFO_3	STRING_NL_TERM
+			DB	FOUTER_SUSPEND_PROMPT
+
+	
 FOUTER_TREE_EOB		EQU	$00 	;end of branch
 FOUTER_TREE_BI		EQU	$00 	;branch indicator
 FOUTER_TREE_ES		EQU	$00 	;empty string
