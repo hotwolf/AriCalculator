@@ -170,10 +170,10 @@ FOUTER_VARS_END_LIN	EQU	@
 ; result: X:    string pointer
 ;	  D:    character count
 ;         >IN:  new TIB index
-; SSTACK: 5 bytes
+; SSTACK: 6 bytes
 ;         Y is preserved
 #macro	FOUTER_PARSE, 0
-			SSTACK_JOBSR	FOUTER_PARSE, 5
+			SSTACK_JOBSR	FOUTER_PARSE, 6
 #emac
 
 ;#Find the next string (delimited by whitespace) on the TIB and terminate it. 
@@ -182,10 +182,10 @@ FOUTER_VARS_END_LIN	EQU	@
 ; result: X:    string pointer
 ;	  D:    character count
 ;         >IN:  new TIB index
-; SSTACK: 5 bytes
+; SSTACK: 6 bytes
 ;         Y is preserved
 #macro	FOUTER_PARSE_WS, 0
-			LDAA	" "
+			CLRA
 			FOUTER_PARSE
 #emac
 
@@ -419,63 +419,67 @@ FOUTER_FIX_BASE_3	SSTACK_PREPULL	2
 			RTS
 
 ;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
-; args:   A:    delimiter
+; args:   A:    delimiter (0=any whitespace)
 ;         #TIB: char count in TIB
 ;         >IN:  TIB index
 ; result: X:    string pointer
 ;	  D:    character count	
 ;         >IN:  new TIB index
-; SSTACK: 4 bytes
+; SSTACK: 6 bytes
 ;         Y is preserved
 FOUTER_PARSE		EQU	*	
 			;Save registers
 			PSHY
-			;Check for empty string (delimiter in A)
-			LDY	TO_IN			;current >IN -> Y
-FOUTER_PARSE_1		CPY	NUMBER_TIB		;check for the end of the input buffer
-			BHS	FOUTER_PARSE_7		;return empty string
-			BCLR	TIB_START,Y, #$80	;remove termination
-			CMPA	TIB_START,Y		
-			BEQ	FOUTER_PARSE_2		;skip delimeter
-			CMPA	#" "			;check is delimiter is space char
-			BNE	FOUTER_PARSE_3		;parse remaining caracters
-			CMPA	TIB_START,Y		
-			BLS	FOUTER_PARSE_3		;parse remaining caracters
-FOUTER_PARSE_2		LEAY	1,Y			;skip delimeter (increment >IN)
-			JOB	FOUTER_PARSE_1
-			;Parse remaining characters (>IN in Y, delimiter in A)
-FOUTER_PARSE_3		LEAX	TIB_START,Y 		;string pointer -> X
-FOUTER_PARSE_4		LEAY	1,Y			;increment >IN		
-			CPY	NUMBER_TIB		;check for the end of the input buffer
-			BHS	FOUTER_PARSE_5		;return parsed string
-			BCLR	TIB_START,Y, #$80	;remove termination
-			CMPA	TIB_START,Y		
-			BEQ	FOUTER_PARSE_5		;delimeter found
-			CMPA	#" "			;check is delimiter is space char
-			BNE	FOUTER_PARSE_4		;parse remaining caracters
-			CMPA	TIB_START,Y		
-			BLS	FOUTER_PARSE_4		;parse remaining caracters
-			;Delimeter found (>IN in Y, string pointer in X)
-FOUTER_PARSE_5		STY	TO_IN 			;update >IN
-			LEAY	TIB_START,Y		;end delimiter position -> Y
-			BSET	-1,Y, #$80 		;terminate previous character
-			TFR	X, D			;calculate character count
-			COMA
-			COMB
-			ADDD	#1
+			;Store TIB end address (delimiter in A)
+			TFR	A, X			;delimeter -> XL
+			LDD	TIB_OFFSET		;TIB_OFFSET -> D
+			LDY	NUMBER_TIB 		;TIB end address -> 0,SP
 			LEAY	D,Y
+			STY	2,-SP
+			LDY	TO_IN 			;parse address -> Y
+			LEAY	D,Y
+			TFR	X, A 			;delimiter -> A
+			;Skip delimeter (parse pointer in Y, delimiter in A)
+FOUTER_PARSE_1		CPY	0,SP 			;check for empty string
+			BHS	FOUTER_PARSE_9		;empty string found
+			BCLR	0,Y, #$80		;remove termination		
+			LDAB	1,Y+ 			;char -> B
+			TBNE	A, FOUTER_PARSE_2 	;custom delimeter			
+			CMPB	STRING_SYM_SPACE	;" "
+			BEQ	FOUTER_PARSE_1		;skip char
+			CMPB	STRING_SYM_TAB		;tab
+			BEQ	FOUTER_PARSE_1		;skip char
+			JOB	FOUTER_PARSE_3		;start of word found
+FOUTER_PARSE_2		CBA				;custom delimiter
+			BEQ	FOUTER_PARSE_1		;skip char
+			;Start of word found (parse pointer in Y, char in B, delimiter in A) 
+FOUTER_PARSE_3		LEAX	-1,Y 			;start of word -> X
+FOUTER_PARSE_4		CPY	0,SP 			;check for end of buffer
+			BHS	FOUTER_PARSE_7		;end of buffer
+			BCLR	0,Y, #$80		;remove termination		
+			LDAB	1,Y+ 			;char -> B
+			TBNE	A, FOUTER_PARSE_5 	;custom delimeter			
+			CMPB	STRING_SYM_SPACE	;" "
+			BEQ	FOUTER_PARSE_6		;end of word
+			CMPB	STRING_SYM_TAB		;tab
+			BNE	FOUTER_PARSE_6		;end of word
+			JOB	FOUTER_PARSE_4		;skip char
+FOUTER_PARSE_5		CBA				;custom delimiter
+			BNE	FOUTER_PARSE_5		;skip char
+			;End of word found (parse pointer in Y, char in B, delimiter in A)
+FOUTER_PARSE_6		LEAY	-1,Y	   		;go back to delimeter
+FOUTER_PARSE_7		BSET	-1,Y, #$80 		;terminate last char
+			STY	0,SP			;determine char count
 			TFR	Y, D
-			;Restore registers (string pointer in X, char count in D)
-FOUTER_PARSE_6		SSTACK_PREPULL	4
+FOUTER_PARSE_8		SSTACK_PREPULL	6 		;check stack
+			SUBD	2,SP+			;determine char count
+			;Restore registers 
 			PULY
-			;Done (string pointer in X, char count in D)
 			RTS
-			;Return enpty string
-FOUTER_PARSE_7		MOVW	NUMBER_TIB, TO_IN 	;mark parse area emptu
-			CLRA				;clear char count
-			CLRB
-			TFR	D, X 			;clear string pointer
-			JOB	FOUTER_PARSE_6		;done
+			;Empty string found
+FOUTER_PARSE_9		MOVW	TO_IN, NUMBER_TIB
+			STD	0,SP
+			JOB	FOUTER_PARSE_8	
 
 ;#Convert a string into an unsugned number
 ; args:   Stack:        +--------+--------+
@@ -1106,8 +1110,8 @@ CF_ABORT_RT		EQU	*
 CF_QUIT_RT		EQU	*
 			;Initialize QUIT
 			FORTH_QUIT
-			;Suspend
-			JOB	CF_SUSPEND_RT_1
+			;Start shell
+			JOB	CF_SHELL
 	
 ;SUSPEND run-time ( -- )
 ;Execute a temporary debug shell.
@@ -1121,7 +1125,11 @@ CF_QUIT_RT		EQU	*
 ;         FEXCPT_EC_COMERR
 CF_SUSPEND_RT		EQU	*
 			;Save TIB context
+#ifdef HANDLER
+			RS_PUSH4 TIB_OFFSET, NUMBER_TIB, TO_IN, HANDLER
+#else
 			RS_PUSH3 TIB_OFFSET, NUMBER_TIB, TO_IN
+#endif
 			;Initialize SUSPEND
 CF_SUSPEND_RT_1         FORTH_SUSPEND
 			;Suspend
@@ -1142,13 +1150,14 @@ CF_SHELL		EQU	*
 			EXEC_CF	CF_CR 			;print line break
 			;Check for SUSPEND mode (IP>0)
 			LDD	IP
-			BEQ	CF_SHELL_ 		;skip SUSPEND prompt
+			BEQ	CF_SHELL_1 		;skip SUSPEND prompt
 			;Print SUSPEND information 
 			PS_PUSH	FOUTER_SUSPEND_INFO_1	;"Suspended at IP="
 			EXEC_CF	CF_STRING_DOT
 			PS_PUSH	IP 			;print IP
 			EXEC_CF	CF_HEX_DOT
-			PS_PUSH	FOUTER_SUSPEND_INFO_2	;" -> "
+			PS_PUSH	FOUTER_SUSPEND_INFO_2	;" -> "			RS_PUSH3 TIB_OFFSET, NUMBER_TIB, TO_IN
+
 			EXEC_CF	CF_STRING_DOT
 			LDD	[IP] 			;print CFA
 			PS_PUSH_D
@@ -1171,16 +1180,19 @@ CF_SHELL_2		PS_PUSH_X
 			EXEC_CF	CF_DOT_STRING
 			;Query command line
 			EXEC_CF	CF_QUERY
+			
 
 
 
+	
 
-			;Query command line
-			EXEC_CF	CF_QUERY_APPEND
+
 			;Parse command line
 CF_SHELL_2              LDAA	#" " 			;use whitespace as delimiter
 			FOUTER_PARSE
 			TBNE	D, CF_SHELL_3      	;search dictionaries
+
+
 			;Parsing complete
 			MOVW	TIB_OFFSET, NUMBER_TIB 	;clear local TIB segment
 			;Print acknowledge
@@ -1316,88 +1328,71 @@ CF_COMMAND_2		STY	PSP 			;reserve space on PS
 ;         FEXCPT_EC_COMERR
 CF_QUERY		EQU	*
 			;Reset input buffer
-			MOVW	#0000, NUMBER_TIB
-			;JOB	CF_QUERY_APPEND
-
-;QUERY-APPEND ( -- ) Query command line input
-;Set >IN to #TIB. Make the user input device the input source. Receive input into
-;the terminal input buffer, appending previous contents. Make the result, whose
-;address is returned by TIB+>IN, the input buffer.
-; args:   #TIB: char count in TIB
-; result: #TIB: new  char count in TIB
-;         >IN:  index of the first new input char
-; SSTACK: 8 bytes
-; PS:     1 cell
-; RS:     2 cells
-; throws: FEXCPT_EC_PSOF
-;         FEXCPT_EC_RSOF
-;         FEXCPT_EC_COMERR
-CF_QUERY_APPEND		EQU	*
-			;Print prompt
-			;EXEC_CF	CF_DOT_IPROMPT
-			;Setup input buffer
-			MOVW	NUMBER_TIB, TO_IN
+			MOVW	#0000, NUMBER_TIB 	;zero chars in TIB
+			MOVW	#0000, TO_IN		;parse area to start of TIB
 			;Receive input
-CF_QUERY_APPEND_1	EXEC_CF	CF_EKEY				;input car -> [PS+0]
+CF_QUERY_1		EXEC_CF	CF_EKEY			;input char -> [PS+0]
 			;Check input (input car in [PS+0])
-			LDD	[PSP] 				;input char -> B
+			LDD	[PSP] 			;input char -> B
 			;Ignore LF (input car in B)
 			CMPB	#STRING_SYM_LF
-			BEQ	CF_QUERY_APPEND_4		;ignore
+			BEQ	CF_QUERY_4		;ignore
 			;Check for ENTER (CR) (input car in B and in [PS+0])
 			CMPB	#STRING_SYM_CR	
-			BEQ	CF_QUERY_APPEND_8		;input complete		
+			BEQ	CF_QUERY_8		;input complete		
 			;Check for BACKSPACE (input char in B and in [PS+0])
 			CMPB	#STRING_SYM_BACKSPACE	
-			BEQ	CF_QUERY_APPEND_7	 	;check for underflow
+			BEQ	CF_QUERY_7	 	;check for underflow
 			CMPB	#STRING_SYM_DEL	
-			BEQ	CF_QUERY_APPEND_7	 	;check for underflow
+			BEQ	CF_QUERY_7	 	;check for underflow
 			;Check for valid special characters (input char in B and in [PS+0])
 			CMPB	#STRING_SYM_TAB	
-			BEQ	CF_QUERY_APPEND_2	 	;echo and append to buffer
+			BEQ	CF_QUERY_2	 	;echo and append to buffer
 			;Check for invalid characters (input char in B and in [PS+0])
-			CMPB	#" " 				;first legal character in ASCII table
-			BLO	CF_QUERY_APPEND_5		;beep
-			CMPB	#"~"				;last legal character in ASCII table
-			BHI	CF_QUERY_APPEND_5 		;beep			
+			CMPB	#" " 			;first legal character in ASCII table
+			BLO	CF_QUERY_5		;beep
+			CMPB	#"~"			;last legal character in ASCII table
+			BHI	CF_QUERY_5 		;beep			
 			;Check for buffer overflow (input char in B and in [PS+0])
-			LDY	NUMBER_TIB
-			LEAY	(TIB_PADDING+TIB_START),Y
-			CPY	RSP
-			BHS	CF_QUERY_APPEND_5 		;beep
-			;Append char to input line (input char in B and in [PS+0])
-CF_QUERY_APPEND_2	LDY	NUMBER_TIB
-			STAB	TIB_START,Y			;store character
-			LEAY	1,Y				;increment char count
-			STY	NUMBER_TIB
+CF_QUERY_2		LDX	TIB_OFFSET 		;TIB_OFFSET -> X
+			LEAX	TIB_PADDING, X		;TIB_OFFSET+TIB_PADDING -> X
+			EXG	D, X
+			ADDD	NUMBER_TIB
+			EXG	D, X
+			CPD	RSP
+			BHS	CF_QUERY_5 		;beep
+			;Append char to input line (input char in B and in [PS+0], TIB pointer+padding in X)
+			STAB	-TIB_PADDING, X 	;append char
+			LDX	NUMBER_TIB		;increment NUMBER_TIB
+			LEAX	1,X
+			STX	NUMBER_TIB			
 			;Echo input char (input char in [PS+0])
-CF_QUERY_APPEND_3	EXEC_CF	CF_EMIT				;print character
-			JOB	CF_QUERY_APPEND_1
+CF_QUERY_3		EXEC_CF	CF_EMIT			;print character
+			JOB	CF_QUERY_1
 			;Ignore input char
-CF_QUERY_APPEND_4	LDY	PSP 				;drop char from PS
+CF_QUERY_4		LDY	PSP 			;drop char from PS
 			LEAY	2,Y
 			STY	PSP
-			JOB	CF_QUERY_APPEND_1
+			JOB	CF_QUERY_1
 			;BEEP			
-CF_QUERY_APPEND_5	LDD	#STRING_SYM_BEEP		;replace received char by a beep
-CF_QUERY_APPEND_6	STD	[PSP]
-			JOB	CF_QUERY_APPEND_3 		;transmit beep
+CF_QUERY_5		LDD	#STRING_SYM_BEEP	;replace received char by a beep
+CF_QUERY_6		STD	[PSP]
+			JOB	CF_QUERY_3 		;transmit beep
 			;Check for buffer underflow (input char in [PS+0])
-CF_QUERY_APPEND_7	LDY	NUMBER_TIB 			;compare char count
-			CPY	TO_IN
-			BLS	CF_QUERY_APPEND_4		;underflow -> beep
-			LEAY	-1,Y
-			STY	NUMBER_TIB
-			LDD	#STRING_SYM_BACKSPACE		;replace received char by a backspace
-			JOB	CF_QUERY_APPEND_6
+CF_QUERY_7		LDY	NUMBER_TIB 		;compare char count
+			BEQ	CF_QUERY_5		;beep
+			LDD	#STRING_SYM_BACKSPACE	;replace received char by a backspace
+			JOB	CF_QUERY_6
 			;Input complete
-CF_QUERY_APPEND_8	LDY	PSP 				;drop char from PS
+CF_QUERY_8		LDY	PSP 			;drop char from PS
 			LEAY	2,Y
 			STY	PSP
-			LDY	NUMBER_TIB 			;check char count
-			BEQ	CF_QUERY_APPEND_9 		;command line is empty
-			BSET	(TIB_START-1),Y, #$80		;terminate last character
-CF_QUERY_APPEND_9	NEXT
+			LDY	NUMBER_TIB 		;check char count
+			BEQ	CF_QUERY_9 		;command line is empty
+			LEAY	-1,Y			;terminate last character
+			LDD	TIB_OFFSET
+			BSET	D,Y, #$80
+CF_QUERY_9		NEXT
 
 ;PARSE ( char "ccc<char>" -- c-addr u ) Parse the TIB
 ;Parse ccc delimited by the delimiter char. c-addr is the address (within the
@@ -1589,7 +1584,7 @@ FOUTER_COMPILE_PROMPT	FCS	"+ "
 FOUTER_SYSTEM_ACK	FCS	" ok"
 
 ;SUSPEND information
-FOUTER_SUSPEND_INFO_1	FCS	"Suspended at IP="
+FOUTER_SUSPEND_INFO_1	FCS	"Suspended! IP:"
 FOUTER_SUSPEND_INFO_2	FCS	" -> "
 FOUTER_SUSPEND_INFO_3	STRING_NL_TERM
 			DB	FOUTER_SUSPEND_PROMPT

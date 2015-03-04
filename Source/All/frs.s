@@ -107,11 +107,11 @@ FRS_VARS_END_LIN	EQU	@
 			MOVW	#RS_EMPTY,	RSP		
 #emac
 
-;#Abort action (to be executed in addition of quit and suspend action)
+;#Abort action (to be executed in addition of quit action)
 #macro	FRS_ABORT, 0
 #emac
 	
-;#Quit action (to be executed in addition of suspend action)
+;#Quit action
 #macro	FRS_QUIT, 0
 			;Reset return stack
 			MOVW	#RS_EMPTY,	RSP		
@@ -236,7 +236,7 @@ FRS_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ; throws: FEXCPT_EC_RSUF
 ;        Y and D are preserved 
-#macro	RS_PULL2, 2	;1:variable 2:variable 3:variable
+#macro	RS_PULL3, 3	;1:variable 2:variable 3:variable
 			RS_CHECK_UF	3		;check for underflow	=> 8 cycles
 			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
 			MOVW		2,X+, \2	;RS -> X		=> 5 cycles 
@@ -244,6 +244,26 @@ FRS_VARS_END_LIN	EQU	@
 			STX		RSP		;			=> 3 cycles
 							;                         ---------
 							;                         26 cycles
+#emac	
+	
+;RS_PULL4: pull three entries from the return stack  (RSP -> X)
+; args:   1: address of first variable to pull data into (TOS)
+;         2: address of second variable to pull data into
+;         3: address of third variable to pull data into
+;         4: address of fourth variable to pull data into
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSUF
+;        Y and D are preserved 
+#macro	RS_PULL4, 4	;1:variable 2:variable 3:variable
+			RS_CHECK_UF	3		;check for underflow	=> 8 cycles
+			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \2	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \3	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \4	;RS -> X		=> 5 cycles 
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         31 cycles
 #emac	
 	
 ;RS_PULL_Y: pull one entry from the return stack into index Y
@@ -324,6 +344,27 @@ FRS_VARS_END_LIN	EQU	@
 			STX		RSP		;			=> 3 cycles
 							;                         ---------
 							;                         32 cycles
+#emac	
+
+;RS_PUSH4: push two variables onto the return stack (RSP -> X)
+; args:   1: address of first variable to push data from
+;         2: address of second variable to push data from
+;         3: address of third variable to push data from
+;         4: address of fourth variable to push data from (TOS)
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSOF
+;        Y and D are preserved
+#macro	RS_PUSH4, 4	;1:variable 2:variable 3:variable
+			RS_CHECK_OF	2		;check for overflow	=>11 cycles
+			LDX		RSP		;var -> RS		=> 3 cycles
+			MOVW		\1, 2,-X	;			=> 5 cycles
+			MOVW		\2, 2,-X	;			=> 5 cycles
+			MOVW		\3, 2,-X	;			=> 5 cycles
+			MOVW		\4, 2,-X	;			=> 5 cycles
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         37 cycles
 #emac	
 
 ;RS_PUSH_KEEP_X: push a variable onto the return stack and don't touch index X

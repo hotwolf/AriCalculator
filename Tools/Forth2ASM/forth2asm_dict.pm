@@ -1,8 +1,8 @@
 #!/usr/bin/env perl
 ###############################################################################
-# S12CForth - Dictionary Tree Generator                                       #
+# S12CForth - Forth to ASM Compiler                                           #
 ###############################################################################
-#    Copyright 2013 Dirk Heisswolf                                            #
+#    Copyright 2015 Dirk Heisswolf                                            #
 #    This file is part of the S12CForth framework for Freescale's S12C MCU    #
 #    family.                                                                  #
 #                                                                             #
@@ -24,11 +24,195 @@
 #    parser) for the S12CForth CORE NFAs.                                     #
 ###############################################################################
 # Version History:                                                            #
-#    8 January, 2013                                                          #
+#   19 Februuary, 2015                                                        #
 #      - Initial release                                                      #
-#    8 October, 2013                                                          #
-#      - Fixed output format                                                  #
 ###############################################################################
+
+#################
+# Perl settings #
+#################
+#use warnings;
+#use strict;
+use 5.005;
+use FindBin qw($RealBin);
+use lib $RealBin;
+use lib "$RealBin/../HSW12/Perl";
+
+####################
+# create namespace #
+####################
+package forth2asm_dict;
+
+###########
+# modules #
+###########
+#use IO::File;
+#use Fcntl;
+#use Text::Tabs;
+#use File::Basename;
+
+#############
+# constants #
+#############
+###################
+# word properties #
+###################
+*word_prop_none      = \0;
+*word_prop_immediate = \1;
+*word_prop_hidden    = \2;
+*word_prop_redefined = \4;
+
+###############
+# constructor #
+###############
+sub new {
+    my $proto            = shift @_;
+    my $class            = ref($proto) || $proto;   
+    my $asm_code         = shift @_;
+    my $self             = {};
+
+    #initalize global variables
+    $self->{asm_code}    = $asm_code;
+
+    #reset remaining global variables
+    $self->{asm_words}   = {};
+    $self->{forth_words} = {};
+    $self->{last_word}   = "";
+    
+    #instantiate object
+    bless $self, $class;
+  
+    #parse ASM code
+    $self->parse_asm()
+    
+    return $self;
+}
+
+##############
+# destructor #
+##############
+sub DESTROY {
+    my $self = shift @_;
+
+}
+
+##################
+# parse ASM code #
+##################
+sub parse_asm{
+    my $self = shift @_;
+
+    ###########################
+    # parse ASM code for CFAs #
+    ###########################
+    foreach my $code_entry (@{$self->{asm_code}->{code}}) {	
+	#my $code_line     = $code_entry->[0];
+	#my $code_file     = $code_entry->[1];
+	my $code_comments = $code_entry->[2];
+	my $code_label    = $code_entry->[3];
+	#my $code_opcode   = $code_entry->[4];
+	#my $code_args     = $code_entry->[5];
+	#my $code_pc_lin   = $code_entry->[6];
+	#my $code_pc_pag   = $code_entry->[7];
+	#my $code_hex      = $code_entry->[8];
+	#my $code_byte_cnt = $code_entry->[9];
+	#my $code_macros   = $code_entry->[11];
+	#my $code_sym_tabs = $code_entry->[12];
+
+	#printf STDERR "Label: \"%s\"\n", $code_label;
+	#Word must begin with "CFA_" label
+	if ($code_label =~ /^CFA_/) {		
+	    #printf STDERR "CFA found: \"%s\"\n", $code_label;
+
+	    #Word must contain the comment line: ;Word: <name> ... HIDDEN ... IMMEDIATE"
+	    my $name_string  = "";
+	    my $properties   = 0;
+	    foreach my $code_comment (@{$code_comments}) {
+		#printf STDERR "Comment: \"%s\"\n", $code_comment;
+		if ($code_comment =~ /^;Word:\s+(\S+)/) {
+		    $name_found   = 1;
+		    $name_string  =  uc($1);
+		    #$name_string =  $1;     //case sensitive naming
+		    if ($code_comment =~ /^;Word:\s+\S+\s+.*IMMEDIATE\s*$/) {
+			$properties |= $word_prop_immediate;
+		    }
+		    if ($code_comment =~ /^;Word:\s+\S+\s+.*HIDDEN\s*$/) {
+			$properties |= $word_prop_hidden;
+		    }
+		    #save word
+		    $self->{asm_words}->{$name_string) = [$code_label, $properties];
+		    last;
+		}
+	    }	    
+	}
+    }
+}
+
+###############################
+# turn name into an ASM label #
+###############################
+sub name_to_label {
+    my $self = shift @_;
+    my $name = shift @_;
+
+    ################
+    # convert name #
+    ################
+    my $label = uc($name);       #make uppercase
+    $label =~ /^\./DOT_/;        #leading dot
+    $label =~ /\.$/_DOT/;        #trailing dot
+    $label =~ /^\?/QUESTION_/;   #leading question mark
+    $label =~ /\?$/_QUESTION/;   #trailing question mark
+    $label =~ /\?$/_QUESTION/;   #trailing question mark
+
+    return $label;
+}
+
+##########################
+# add word to dictionary #
+##########################
+sub add_word {
+    my $self       = shift @_;
+    my $name       = shift @_;
+    my $properties = shift @_;
+    my $label      = shift @_;
+    my $ok         = 1;
+    
+    #make case insensitive
+    $name  = uc($name);
+    $label = uc($label);
+
+    #set last word
+    $self->{last_word} = $name;
+    
+    #check if word already exists
+    if ((exists $self->{asm_words}->{$name}) ||
+	(exists $self->{forth_words}->{$name})) {
+	$properties |= $word_prop_redefined;
+	$ok          = 0;
+    }
+
+    #add word
+    $self->{forth_words}->{$name) = [$label, $properties];
+        
+    return $ok;
+}
+
+############################
+# make last word immediate #
+############################
+sub last_word_immediate {
+    my $self       = shift @_;
+
+    if (exists $self->{forth_words}->{$self->{last_word}}) {
+	$self->{forth_words}->{$self->{last_word}}->[1] |= $word_prop_redefined;
+    }
+}
+
+
+
+
+
 
 #################
 # Perl settings #
@@ -45,12 +229,15 @@ require hsw12_asm;
 ###############
 # global vars #
 ###############
-@src_files         = ();
+@asm_files         = ();
 @lib_files         = ();
 %defines           = ();
-$output_path       = ();
-$prog_name         = "";
-$arg_type          = "src";
+@forth_files       = ();
+$asm_output_path   = ();
+$asm_prog_name     = "";
+$forth_output_path = ();
+$forth_prog_name   = "";
+$arg_type          = "none;
 $srec_format       = $hsw12_asm::srec_def_format;
 $srec_data_length  = $hsw12_asm::srec_def_data_length;
 $srec_add_s5       = $hsw12_asm::srec_def_add_s5;
@@ -61,10 +248,8 @@ $code              = {};
 $comp_symbols      = {};
 $pag_addrspace     = {};
 
-%dict_tree         = ();
-$max_name_length   = 0;
-$tree_layout_width = 0;
-@zero_terms        = ();
+%compile_words     = ();
+%immediate_words   = ();
 
 ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
 $year += 1900;
@@ -81,16 +266,22 @@ foreach $arg (@ARGV) {
 	$arg_type = "lib";
     } elsif ($arg =~ /^\s*\-D\s*$/i) {
 	$arg_type = "def";
+    } elsif ($arg =~ /^\s*\-A\s*$/i) {
+	$arg_type = "asm";
+    } elsif ($arg =~ /^\s*\-F\s*$/i) {
+	$arg_type = "forth";
     } elsif ($arg =~ /^\s*\-/) {
 	#ignore
-    } elsif ($arg_type eq "src") {
-	#sourcs file
-	push @src_files, $arg;
+    } elsif ($arg_type eq "asm") {
+	#ASM file
+	push @asm_files, $arg;
+    } elsif ($arg_type eq "forth") {
+	#Forth file
+	push @forth_files, $arg;
     } elsif ($arg_type eq "lib") {
 	#library path
 	if ($arg !~ /\/$/) {$arg = sprintf("%s/", $arg);}
 	unshift @lib_files, $arg;
-        $arg_type          = "src";
     } elsif ($arg_type eq "def") {
 	#precompiler define
 	if ($arg =~ /^\s*(\w+)=(\w+)\s*$/) {
@@ -98,15 +289,14 @@ foreach $arg (@ARGV) {
 	} elsif ($arg =~ /^\s*(\w+)\s*$/) {
 	    $defines{uc($1)} = "";
 	}
-        $arg_type          = "src";
     }
 }
 
 ###################
 # print help text #
 ###################
-if ($#src_files < 0) {
-    printf "usage: %s [-L <library path>] [-D <define: name=value or name>] <src files> \r\n", $0;
+if ($#asm_files < 0) {
+    printf "usage: %s [-L <library path>] [-D <define: name=value or name>] -A <ASM files> -F <Forth files> \r\n", $0;
     print  "\r\n";
     exit;
 }
@@ -114,37 +304,32 @@ if ($#src_files < 0) {
 ###################
 # add default lib #
 ###################
-#printf "libraries:    %s (%s)\r\n",join("\", \"", @lib_files), $#lib_files;
-#printf "source files: %s (%s)\r\n",join("\", \"", @src_files), $#src_files;
+#printf "libraries:   %s (%s)\r\n",join("\", \"", @lib_files), $#lib_files;
+#printf "asm files:   %s (%s)\r\n",join("\", \"", @asm_files), $#asm_files;
+#printf "forth files: %s (%s)\r\n",join("\", \"", @forth_files), $#forth_files;
 if ($#lib_files < 0) {
-  foreach $src_file (@src_files) {
-    #printf "add library:%s/\r\n", dirname($src_file);
-    push @lib_files, sprintf("%s/", dirname($src_file));
+  foreach my $asm_file (@asm_files) {
+    #printf "add library:%s/\r\n", dirname($asm_file);
+    push @lib_files, sprintf("%s/", dirname($asm_file));
+  }
+  foreach my $forth_file (@forth_files) {
+    #printf "add library:%s/\r\n", dirname($forth_file);
+    push @lib_files, sprintf("%s/", dirname($forth_file));
   }
 }
 
 #######################################
 # determine program name and location #
 #######################################
-$prog_name   = basename($src_files[0], ".s");
-$output_path = dirname($src_files[0], ".s");
-
-####################
-## add default lib #
-####################
-##printf "libraries:    %s (%s)\n",join("\", \"", @lib_files), $#lib_files;
-##printf "source files: %s (%s)\n",join("\", \"", @src_files), $#src_files;
-#if ($#lib_files < 0) {
-#  foreach $src_file (@src_files) {
-#    #printf "add library:%s/\n", dirname($src_file);
-#    push @lib_files, sprintf("%s/", dirname($src_file));
-#  }
-#}
+$asm_prog_name     = basename($asm_files[0], ".s");
+$asm_output_path   = dirname($asm_files[0],  ".s");
+$forth_prog_name   = basename($asm_files[0], ".4th");
+$forth_output_path = dirname($asm_files[0],  ".4th");
 
 ####################
 # load symbol file #
 ####################
-$symbol_file_name = sprintf("%s/%s.sym", $output_path, $prog_name);
+$symbol_file_name = sprintf("%s/%s.sym", $asm_output_path, $asm_prog_name);
 printf STDERR "Loading: %s\n",  $symbol_file_name;
 if (open (FILEHANDLE, sprintf("<%s", $symbol_file_name))) {
     $data = join "", <FILEHANDLE>;
@@ -158,15 +343,15 @@ if (open (FILEHANDLE, sprintf("<%s", $symbol_file_name))) {
 #######################
 # compile source code #
 #######################
-#printf STDERR "src files: \"%s\"\r\n", join("\", \"", @src_files);  
+#printf STDERR "asm files: \"%s\"\r\n", join("\", \"", @asm_files);  
 #printf STDERR "lib files: \"%s\"\r\n", join("\", \"", @lib_files);  
 #printf STDERR "defines:   \"%s\"\r\n", join("\", \"", @defines);  
-$code = hsw12_asm->new(\@src_files, \@lib_files, \%defines, "S12", 1, $symbols);
+$code = hsw12_asm->new(\@asm_files, \@lib_files, \%defines, "S12", 1, $symbols);
 
 ###################
 # write list file #
 ###################
-$list_file_name = sprintf("%s/%s.lst", $output_path, $prog_name);
+$list_file_name = sprintf("%s/%s.lst", $asm_output_path, $asm_prog_name);
 if (open (FILEHANDLE, sprintf("+>%s", $list_file_name))) {
     $out_string = $code->print_listing();
     print FILEHANDLE $out_string;
@@ -193,7 +378,7 @@ if ($code->{problems}) {
     #####################
     # write symbol file #
     #####################
-    #$symbol_file_name = sprintf("%s/%s.sym", $output_path, $prog_name);
+    #$symbol_file_name = sprintf("%s/%s.sym", $asm_output_path, $asm_prog_name);
     if (open (FILEHANDLE, sprintf("+>%s", $symbol_file_name))) {
 	$dump = Data::Dumper->new([$code->{comp_symbols}], ['symbols']);
 	$dump->Indent(2);
@@ -225,11 +410,10 @@ if ($code->{problems}) {
 	if ($code_label =~ /^CFA_/) {		
 	    #printf STDERR "CFA found: \"%s\"\n", $code_label;
 	    
-	    #Word must contain the comment line: ;Word: <name> ... HIDDEN ... IMMEDIATE"
+	    #Word must contain the comment line: ;Word: <name> ... IMMEDIATE"
 	    my $name_string  = "";
 	    my $name_found   = 0;
 	    my $is_immediate = 0;
-	    my $is_hidden    = 0;
 	    foreach my $code_comment (@{$code_comments}) {
 		#printf STDERR "Comment: \"%s\"\n", $code_comment;
 		if ($code_comment =~ /^;Word:\s+(\S+)/) {
@@ -241,37 +425,82 @@ if ($code->{problems}) {
 		    } else {
 			$is_immediate = 0;
 		    }
-		    if ($code_comment =~ /^;Word:\s+\S+\s+.*HIDDEN\s*$/) {
-			$is_hidden = 1;
-		    } else {
-			$is_hidden = 0;
-		    }
 		    last;
 		}
 	    }	    
 	    if ($name_found) {
-		#printf STDERR "      \"%s\"%s%s\n", $name_string,
-		#                                    $is_hidden    ? " HIDDEN" : "",
-		#                                    $is_immediate ? " IMMEDIATE" : "";
-		 if (! $is_hidden) {
-		     #Find longest name
-		     if (length($name_string) > $max_name_length) {
-			 $max_name_length = length($name_string);
-		     }
-		     
-		     #Split name into letters
-		     @name_array = split("", $name_string);
-		     
-		     #Add word to dictionary tree
-		     add_to_tree(\%dict_tree, \@name_array, $code_label, $is_immediate);
-		 }
+		#printf STDERR "      \"%s\" %s\n", $name_string, $is_immediate ? "-> IMMEDIATE" : "";;
+		
+		if ($is_immediate) {
+		    $immediate_words{$name_string} = $code_label;
+		} else {
+		    $compile_words{$name_string) = $code_label;
+		}
 	    }
 	}
     }
 
-    ###################################
-    # condense tree (find substrings) #
-    ###################################
+    #####################
+    # parse forth files #
+    #####################
+    foreach my $forth_file (@forth_files) {
+	my $file_name;
+        ############################
+        # determine full file name #
+        ############################
+        #printf "forth_file: %s\n", $forth_file;
+        if ($forth_file =~ /$path_absolute/) {
+           #asolute path
+	   #printf STDERR "absolute path: %s\n", $file_name;
+            $file_name = $forth_file;
+	} else {
+	    #relative path
+	    foreach my $library_path (@$library_list) {
+		$file_name = sprintf("%s%s", $library_path, $forth_file);
+		#printf STDERR "relative path: %s\n", $file_name;
+		if (-e $file_name) {
+		    last;
+		} else {
+		    $file_name = $forth_file;
+		}
+	    }	    
+	    #printf STDERR "relative path: %s\n", $file_name;
+	}
+
+        ###################
+        # open forth file #
+        ###################
+	if (-e $file_name) {
+	    if (-r $file_name) {
+		if (open (FILEHANDLE, sprintf("<%s", $file_name))) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     condense_tree(\%dict_tree);
 
     ##########################################
@@ -360,331 +589,21 @@ if ($code->{problems}) {
     }
 }
 
-####################
-# Add_word to tree #
-####################
-sub add_to_tree {
-    my $tree           = shift @_;
-    my $name_array     = shift @_;
-    my $cfa_name       = shift @_;
-    my $is_immediate   = shift @_;
-
-    my @tmp_array      = (@$name_array);
-    my $tmp_char       = shift @tmp_array;
-    #printf STDERR "Add to tree: \"%s\"->\"%s\" \"%s\" %d\n", $tmp_char, join("", @tmp_array), $cfa_name, $#tmp_array;
-
-    #Consider termination
-    if ($#tmp_array >= 0) {
-	if (! exists $tree->{$tmp_char}) {
-	    $tree->{$tmp_char} = {};
-	}
-	add_to_tree($tree->{$tmp_char}, \@tmp_array, $cfa_name, $is_immediate);
-    } else {
-	$tree->{$tmp_char}->{"\n"}->{cfa_name}     = $cfa_name;
-	$tree->{$tmp_char}->{"\n"}->{is_immediate} = $is_immediate;
-    }
-    1;
-}
-
-#################
-# Condense tree #
-#################
-sub condense_tree {
-    my $tree           = shift @_;    
-    my @strings = sort keys %$tree;
-
-    while (my $string = shift @strings) {
-	if ($string ne "\n") {
-	    #No end of string
-	    my $child_tree    = $tree->{$string};
-	    my @child_strings = sort keys %$child_tree;
-	    #Check if child and grandchild can be combined 
-	    if ($#child_strings  == 0) {
-		my $child_string    = $child_strings[0];
-		my $combined_string = $string . $child_string;
-		$tree->{$combined_string} = $child_tree->{$child_string};
-		delete $tree->{$string};
-		unshift @strings, $combined_string;
-	    } else {
-		condense_tree($child_tree);
-	    }
-	}
-    }
-    1;
-}		    
-       
-##########################################
-# Find zero-length terminated substrings #
-##########################################
-sub find_zero_term {
-    my $tree           = shift @_;    
-    my @strings = sort keys %$tree;
-
-    while (my $string = shift @strings) {
-	if ($string eq "\n") {
-	    push @zero_terms, $tree->{$string};
-	} else {
-	    find_zero_term($tree->{$string});
-	}
-    }
-    1;
-}
-
-###############################
-# Determine depth of the tree #
-###############################
-sub get_tree_depth{
-    my $tree       = shift @_; 
-    my $depth      = 0;
-
-    foreach my $string (keys %$tree) {
-	if (($string ne "is_immediate") &&
-	    ($string ne "cfa_name")) {
-	    my $subtree_depth = get_tree_depth($tree->{$string});
-	    #printf STDERR "string: \"%s\" %d %d\n", $string, $subtree_depth, $depth;
-	    if ($depth < ($subtree_depth+1)) {
-		$depth = ($subtree_depth+1);
-	    }
-	}	
-    }
-    return $depth;
-}
-
-##################################
-# Determine witdh of tree layout #
-##################################
-sub get_tree_layout_width {
-    my $tree       = shift @_;    
-
-    my @strings = sort keys %$tree;
-    my $max_string_width = 4;
-    my $max_child_width  = 0;
-    while (my $string = shift @strings) {
-	chomp($string);
-	if ((length($string)+4) > $max_string_width) {
-	    $max_string_width = (length($string)+4);
-	}
-	my $child_tree  = $tree->{$string};
-	my $child_width = get_tree_layout_width($tree->{$string});
-	if ($child_width > $max_child_width) {
-	    $max_child_width = $child_width;
-	}
-    }
-    return ($max_string_width + $max_child_width);
-}
-
-#####################
-# Print tree layout #
-#####################
-sub print_tree_layout {
-    my $tree           = shift @_;
-    my $pre_string     = shift @_;
-    
-    #Extract strings
-    my @strings = sort(keys %$tree);
- 
-    #Find longest string
-    my $max_string_length = 4;
-    foreach my $string (@strings) {
-	my $nt_string = $string;
-	chomp($nt_string);
-	if ((length($nt_string)+4) > $max_string_length) {
-	    $max_string_length = (length($nt_string)+4);
-	}
-    }
-  
-    #Print strings
-    my $new_pre_string;
-    my $is_first_line = 1;
-    while (my $string = shift @strings) {
-	#Update pre-string
-	if ($#strings >= 0) {
-	    $new_pre_string  = $pre_string . sprintf(sprintf("%%-%ds", $max_string_length), "|");
-	} else {
-	    $new_pre_string  = $pre_string . sprintf(sprintf("%%-%ds", $max_string_length), " ");
-	}
-
-	#Print pre-string
-	if ($is_first_line) {
-	    $is_first_line = 0;
-	    #printf FILEHANDLE "@";
-	} else {
-	    printf FILEHANDLE $pre_string;
-	}
-	
-	#Print string
-	if ($string eq "\n") {
-	    #End of string
-	    printf FILEHANDLE "+";
-	    my $arrow_length = $tree_layout_width;
-	    $arrow_length -= length($pre_string);
-	    foreach my $i (0..$arrow_length) {
-		printf FILEHANDLE "-";
-	    }
-	    printf FILEHANDLE "> %s %s\n", $tree->{$string}->{cfa_name}, $tree->{$string}->{is_immediate} ? "(immediate)" : "" ;
-	} else {
-	    #check if string is terminated
-	    my $nt_string = $string;
-	    chomp($nt_string);
-	    if ($nt_string ne $string) {
-		#$tring is terminated
-		printf FILEHANDLE "%s ", $nt_string;
-		my $arrow_length = $tree_layout_width;
-		$arrow_length -= length($pre_string);
-		$arrow_length -= length($nt_string);
-		foreach my $i (0..$arrow_length) {
-		    printf FILEHANDLE "-";
-		}
-		printf FILEHANDLE "> %s %s\n", $tree->{$string}->{cfa_name}, $tree->{$string}->{is_immediate} ? "(immediate)" : "" ;
-	    } else {
-		#string is not terminated
-		#printf FILEHANDLE sprintf("%%-%ds", ($max_string_length+1)), $nt_string;
-		printf FILEHANDLE $nt_string;
-		my $arrow_length = $max_string_length-length($nt_string);
-		if ($arrow_length < 3) {
-		    printf FILEHANDLE sprintf("%%-%ds",  $arrow_length), " ";
-		} elsif ($arrow_length == 3) {
-		    printf FILEHANDLE " > ";
-		} else {
-		    printf FILEHANDLE " ";
-		    foreach my $i (0..($arrow_length-4)) {
-			printf FILEHANDLE "-";
-		    }
-		    printf FILEHANDLE "> ";
-		}
-
-		#printf FILEHANDLE sprintf(" >%d<", $max_string_length);
-
-		print_tree_layout($tree->{$string}, $new_pre_string);
-		if ($#strings >= 0) {
-		    printf FILEHANDLE "%s\n", $new_pre_string;
-		}
-	    }
-	}
-    }
-    1;
-}
-
-##############
-# Print tree #
-##############
-sub print_tree {
-    my $tree              = shift @_;    
-    my $substring         = shift @_;    
-    my $position          = shift @_;    
-    my @strings           = sort keys %$tree;
-    my @subtree_order     = ();
-    my $subtree_reordered = 0;
-    my $label_format      = "FCDICT_TREE_%s";
-    my $instr_form_nc     = "%-23s %-7s %s\n";
-    my $instr_form        = "%-23s %-7s %-31s ;%s\n";
-
-    #Print subtree comment
-    my $comment_line   = "";
-    if ($#{$position} >= 0) {
-	$comment_line .= sprintf("Subtree %s => \"%s\"", join("->", @$position), $substring);
-    } else  {
-	$comment_line .= "Root";
-    }
-    printf FILEHANDLE ";%s\n", $comment_line;
-    #printf FILEHANDLE ";";
-    #foreach my $i (1..length($comment_line)) {
-    #	printf FILEHANDLE "-";
-    #}
-    #printf FILEHANDLE "\n";
-
-    my $is_first_line = 1;
-    foreach my $string_index (0..($#strings)) {
-	my $string    = $strings[$string_index];
-	my $nt_string = $string;
-	chomp($nt_string);
-	my $combo_string = $substring . $nt_string;
 
 
-	#Determine left column
-	my $left_col = "";
-	if ($is_first_line) {
-	    if ($#{$position} < 0) {
-		$left_col = sprintf($label_format, "TOP");
-	    } else {
-		$left_col = sprintf($label_format, join("_", @$position));
-	    }
-	    $is_first_line = 0;
-	}
 
-	#Print substring entry
-	if ($nt_string eq $string) {
-	    #String is not terminated
-	    if ($nt_string !~ /\"/) {
-		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
-	    } else {
-		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
-	    }
-	    printf FILEHANDLE $instr_form_nc, "", "DB", "BRANCH";
-	    printf FILEHANDLE $instr_form, "", "DW", sprintf($label_format, join("_", @$position, $string_index)), sprintf("%s...", $combo_string);
-	    
-	    #Optimize subtree order
-	    if ($subtree_reordered) {
-		#Already reordered
-		push @subtree_order, $string_index;
-	    } else {
-		#Check if reordering is possible
-		if (exists $tree->{$string}->{"\n"}) {
-		    unshift @subtree_order, $string_index;
-		    $subtree_reordered = 1;
-		} else {
-		    push @subtree_order, $string_index;
-		}
-	    }
 
-	} else {
-	    #String is not terminated
-	    my $cfa_entry;
-	    my $cfa_entry = sprintf("%s>>1", );
-	    my $cfa_entry = sprintf("%s>>1", );
-	    if ($tree->{$string}->{is_immediate}) {
-		#Immediate
-		$cfa_entry = sprintf("(%s>>1)|IMMEDIATE", $tree->{$string}->{cfa_name});
-	    } else {	
-		#Not immediate
-		$cfa_entry = sprintf("(%s>>1)", $tree->{$string}->{cfa_name});
-	    }       	    
-	    if (length($nt_string) > 0) {
-		#Non-zero length
-		if ($nt_string !~ /\"/) {
-		    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
-		} else {
-		    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
-		}
-		#printf FILEHANDLE $instr_form_nc, "", "DB", "STRING_TERMINATION";
-	    } else {
-		printf FILEHANDLE $instr_form_nc, $left_col, "DB", "EMPTY_STRING";
-	    }
-	    printf FILEHANDLE $instr_form, "", "DW", $cfa_entry, sprintf("-> %s", $combo_string); 
-	}
-	$left_col = "";
-    }
 
-    #Print substree termination
-    if ($subtree_reordered) {
-  	#printf FILEHANDLE $instr_form, "", ";DB", "END_OF_BRANCH", "merged";
- 	printf FILEHANDLE $instr_form_nc, "", ";DB", "END_OF_BRANCH";
-    } else {
-	printf FILEHANDLE $instr_form_nc, "", "DB", "END_OF_BRANCH";
-    }
-  	
-    #Print next level of subtrees
-    foreach my $string_index (@subtree_order) {
-	my $string       = $strings[$string_index];
-	my $combo_string = $substring . $string;
-	chomp($combo_string);
-	#printf FILEHANDLE "String:   %s\n", "$string";
-	#printf FILEHANDLE "Position: %s\n", join(",", @{$position}, $string_index);
 
-	#Print subtree
-	print_tree($tree->{$string}, $combo_string, [@{$position}, $string_index]);
-    }
-    1;
-}
+
+
+
+
+
+
+
+
+
+		
 
 1;

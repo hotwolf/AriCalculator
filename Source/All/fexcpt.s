@@ -135,6 +135,10 @@ FEXCPT_EC_MAX			EQU	FEXCPT_EC_LITOR
 
 ;Character limit fopr error messages
 FEXCPT_MSG_LIMIT		EQU	64 	;Valid error messages must be shorter than 65 chars
+
+;Default exception handlers  
+FEXCPT_DEFAULT_HANDLER		EQU	$0000 	;initial default handler
+FEXCPT_SUSPEND_HANDLER		EQU	$0001	;temporary default handler for SUSPEND shell
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -159,16 +163,20 @@ FEXCPT_VARS_END_LIN	EQU	@
 			MOVW	#$0000, HANDLER ;reset exception handler
 #emac
 
-;#Abort action (to be executed in addition of quit and suspend action)
+;#Abort action (to be executed in addition of quit action)
 #macro	FEXCPT_ABORT, 0
 #emac
 	
-;#Quit action (to be executed in addition of suspend action)
+;#Quit action
 #macro	FEXCPT_QUIT, 0
+			;Set default handler
+			MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER			
 #emac
 	
 ;#Suspend action
 #macro	FEXCPT_SUSPEND, 0
+			;Set SUSPEND handler
+			MOVW	#FEXCPT_SUSPEND_HANDLER, HANDLER
 #emac
 
 ;Functions:
