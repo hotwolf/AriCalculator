@@ -266,6 +266,28 @@ FRS_VARS_END_LIN	EQU	@
 							;                         31 cycles
 #emac	
 	
+;RS_PULL5: pull three entries from the return stack  (RSP -> X)
+; args:   1: address of first variable to pull data into (TOS)
+;         2: address of second variable to pull data into
+;         3: address of third variable to pull data into
+;         4: address of fourth variable to pull data into
+;         5: address of fifth variable to pull data into
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSUF
+;        Y and D are preserved 
+#macro	RS_PULL5, 5	;1:variable 2:variable 3:variable
+			RS_CHECK_UF	3		;check for underflow	=> 8 cycles
+			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \2	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \3	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \4	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \5	;RS -> X		=> 5 cycles 
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         36 cycles
+#emac	
+	
 ;RS_PULL_Y: pull one entry from the return stack into index Y
 ; args:   none
 ; result: Y: pulled PS content

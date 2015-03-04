@@ -143,11 +143,11 @@ FINNER_VARS_END_LIN	EQU	@
 			MOVW	#NEXT,  NEXT_PTR
 #emac
 
-;#Abort action (to be executed in addition of quit and suspend action)
+;#Abort action (to be executed in addition of quit action)
 #macro	FINNER_ABORT, 0
 #emac
 	
-;#Quit action (to be executed in addition of suspend action)
+;#Quit action
 #macro	FINNER_QUIT, 0
 			MOVW	#$0000, IP
 			MOVW	#NEXT, NEXT_PTR
@@ -354,7 +354,7 @@ NEXT_WATCH		EQU	*
 			MOVW	#NEXT, NEXT_PTR		;set default NEXT pointer
 #ifmac	FDBG_BR_NO_BKPS
 #ifmac	FDBG_CHECK_BKP
-			;Check for breakpointss 
+			;Check for breakpoints 
 			FDBG_BR_NO_BKPS	 NEXT_WATCH_2	;no breakpoints to check
 			FDBG_CHECK_BKP			;suspend on breakpoint
 #endif

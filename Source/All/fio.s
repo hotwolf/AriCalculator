@@ -80,11 +80,11 @@ FIO_VARS_END_LIN	EQU	@
 #macro	FIO_INIT, 0
 #emac
 
-;#Abort action (to be executed in addition of quit and suspend action)
+;#Abort action (to be executed in addition of quit action)
 #macro	FIO_ABORT, 0
 #emac
 	
-;#Quit action (to be executed in addition of suspend action)
+;#Quit action
 #macro	FIO_QUIT, 0
 #emac
 	

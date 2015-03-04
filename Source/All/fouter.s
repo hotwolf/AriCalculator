@@ -1060,20 +1060,35 @@ FOUTER_TREE_SEARCH_7	SSTACK_PREPULL	8 				;check stack
 ;NEXT implementations:
 ;===================== 	
 ;Invoke the suspend shell
-NEXT_SUSPEND_ENTRY	EQU	*
+NEXT_SUSPEND		EQU	*
 			;Push the execution context onto the RS 
-			RS_CHECK_OF	4 				;check for RS overflow
-			LDX	RSP
-			MOVW	NEXT_PTR, 2,-X 				;save NEXT_PTR
-			MOVW	IP,	  2,-X				;save IP
-			MOVW	PSP,	  2,-X				;save PSP
-			MOVW	HANDLER,  2,-X				;save HANDLER
-			STX	RSP 					;update RSP
-			MOVW	#$0000, HANDLER 			;set defaukt handler
-			JOB	CF_SUSPEND_RT				;start SUSPEND shell
+			RS_PUSH	IP
+			;JOB	CF_SUSPEND_RT				;start SUSPEND shell
 
 ;Code fields:
 ;============
+;SUSPEND ( -- )
+;Execute a temporary debug shell.
+; args:   none
+; result: none
+; SSTACK: 8 bytes
+; PS:     1 cell
+; RS:     2 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+CF_SUSPEND		EQU	*
+			;Save TIB context
+#ifdef HANDLER
+			RS_PUSH4 TIB_OFFSET, NUMBER_TIB, TO_IN, HANDLER
+#else
+			RS_PUSH3 TIB_OFFSET, NUMBER_TIB, TO_IN
+#endif
+			;Initialize SUSPEND
+        		FORTH_SUSPEND
+			;Suspend
+			JOB	CF_SHELL	
+
 ;ABORT run-time ( i*x -- ) ( R: j*x -- ) 
 ;Empty the data stack and perform the function of QUIT, which includes emptying
 ;the return stack, without displaying a message. 
@@ -1111,30 +1126,8 @@ CF_QUIT_RT		EQU	*
 			;Initialize QUIT
 			FORTH_QUIT
 			;Start shell
-			JOB	CF_SHELL
+			;JOB	CF_SHELL
 	
-;SUSPEND run-time ( -- )
-;Execute a temporary debug shell.
-; args:   none
-; result: none
-; SSTACK: 8 bytes
-; PS:     1 cell
-; RS:     2 cells
-; throws: FEXCPT_EC_PSOF
-;         FEXCPT_EC_RSOF
-;         FEXCPT_EC_COMERR
-CF_SUSPEND_RT		EQU	*
-			;Save TIB context
-#ifdef HANDLER
-			RS_PUSH4 TIB_OFFSET, NUMBER_TIB, TO_IN, HANDLER
-#else
-			RS_PUSH3 TIB_OFFSET, NUMBER_TIB, TO_IN
-#endif
-			;Initialize SUSPEND
-CF_SUSPEND_RT_1         FORTH_SUSPEND
-			;Suspend
-			;JOB	CF_SHELL	
-
 ;SHELL ( -- ) Generic interactive shell
 ;Common S12CForth shell. 
 ; args:   none
@@ -1147,17 +1140,16 @@ CF_SUSPEND_RT_1         FORTH_SUSPEND
 ;         FEXCPT_EC_COMERR
 CF_SHELL		EQU	*
 			;New line
-			EXEC_CF	CF_CR 			;print line break
+CF_SHELL_1		EXEC_CF	CF_CR 			;print line break
 			;Check for SUSPEND mode (IP>0)
 			LDD	IP
-			BEQ	CF_SHELL_1 		;skip SUSPEND prompt
+			BEQ	CF_SHELL_2 		;skip SUSPEND prompt
 			;Print SUSPEND information 
 			PS_PUSH	FOUTER_SUSPEND_INFO_1	;"Suspended at IP="
 			EXEC_CF	CF_STRING_DOT
 			PS_PUSH	IP 			;print IP
 			EXEC_CF	CF_HEX_DOT
 			PS_PUSH	FOUTER_SUSPEND_INFO_2	;" -> "			RS_PUSH3 TIB_OFFSET, NUMBER_TIB, TO_IN
-
 			EXEC_CF	CF_STRING_DOT
 			LDD	[IP] 			;print CFA
 			PS_PUSH_D
@@ -1165,9 +1157,9 @@ CF_SHELL		EQU	*
 			PS_PUSH	FOUTER_SUSPEND_INFO_3	;"<CR>!"
 			EXEC_CF	CF_STRING_DOT
 			;Check for INTERACTIVE mode
-CF_SHELL_1		LDX	FOUTER_INTERACT_PROMPT
+CF_SHELL_2		LDX	FOUTER_INTERACT_PROMPT
 			LDD	STATE
-			TBEQ	D, CF_SHELL_2 		;print prompt
+			TBEQ	D, CF_SHELL_3 		;print prompt
 #ifdef NVC	
 			;Check for NV COMPILE mode
 			LDD	NVC
@@ -1176,142 +1168,86 @@ CF_SHELL_1		LDX	FOUTER_INTERACT_PROMPT
 			;Assume RAM COMPILE mode  
 			LDX	FOUTER_COMPILE_PROMPT
 			;Print prompt string
-CF_SHELL_2		PS_PUSH_X				
+CF_SHELL_3		PS_PUSH_X				
 			EXEC_CF	CF_DOT_STRING
 			;Query command line
 			EXEC_CF	CF_QUERY
-			
-
-
-
-	
-
-
 			;Parse command line
-CF_SHELL_2              LDAA	#" " 			;use whitespace as delimiter
-			FOUTER_PARSE
-			TBNE	D, CF_SHELL_3      	;search dictionaries
-
-
-			;Parsing complete
-			MOVW	TIB_OFFSET, NUMBER_TIB 	;clear local TIB segment
-			;Print acknowledge
-			PS_PUSH	#FOUTER_SYSTEM_ACK
-			EXEC_CF	CF_STRING_DOT
-			JOB	CF_SHELL
-			;Search UDICT (string pointer in X, char count in D)
-CF_SHELL_3		EQU	*
-#ifdef	NVC
+CF_SHELL_4        	FOUTER_PARSE_WS
+			TBEQ	D, CF_SHELL_1      	;parse next line
+#ifmac	FUDICT_SEARCH
+ifdef	NVC
+			;Check if NV compilation is enabled (string pointer in X, char count in D)
 			LDY	NVC
-			BNE	CF_SHELL_4 		;skip UDICT search
+			BNE	CF_SHELL_5 		;skip UDICT search
 #endif
-			;FUDICT_SEARCH
-			BCS	CF_SHELL_5		;process word	
-#ifdef	NVC
+			;Search UDICT (string pointer in X, char count in D)
+			FUDICT_SEARCH
+			BCS	CF_SHELL_6		;process word	
+CF_SHELL_5		EQU	*
+#endif
+#ifmac			
 			;Search NVDICT (string pointer in X, char count in D)
-CF_SHELL_4		FNVDICT_ISEARCH
-			BCS	CF_SHELL_5		;process word	
+			FNVDICT_SEARCH
+			BCS	CF_SHELL_6		;process word	
 #endif
 			;Search CDICT (string pointer in X, char count in D)
 			FCDICT_SEARCH
-			BCC	CF_SHELL_8		;evaluate string as integer	
+			BCC	CF_SHELL_9		;evaluate string as integer	
 			;Process word ({IMMEDIATE, CFA>>1} in D)
-CF_SHELL_5		LSLD				;extract CFA
-			BCS	CF_SHELL_6		;execute immediate word
-			LDY	NEXT_PTR		;check for SUSPEND mode
-			CPY	#NEXT_SUSPEND_MODE
-			BEQ	CF_SHELL_6		;execute word
+CF_SHELL_6		LSLD				;extract CFA
+			BCS	CF_SHELL_7		;execute immediate word
 			LDY	STATE			;check STATE
-			BNE	CF_SHELL_7		;compile word
+			BNE	CF_SHELL_8		;compile word	
 			;Execute word (CFA in D)
-CF_SHELL_6 		TFR	D, X
+CF_SHELL_7 		TFR	D, X
 			EXEC_CFA_X
-			JOB	CF_SHELL_2		;parse next word
+			JOB	CF_SHELL_4		;parse next word
 			;Compile word (CFA in D)
-CF_SHELL_7		UDICT_CHECK_OF	1 		;new CP -> X
+CF_SHELL_8		UDICT_CHECK_OF	1 		;new CP -> X
 			STX	CP			;update compile pointer
 			STD	-2,X			;add word to compilation
-			JOB	CF_SHELL_2		;parse next word
+			JOB	CF_SHELL_4		;parse next word
 			;Evaluate string as integer (string pointer in X, char count in D) 
-CF_SHELL_8		FOUTER_INTEGER	     		;(SSTACK: 22 bytes)
-			DBNE	D, CF_SHELL_11 		;check for double number
-			;Process single number (number in X)
-			LDD	NEXT_PTR		;check for SUSPEND mode
-			CPD	#NEXT_SUSPEND_MODE
-			BEQ	CF_SHELL_9		;push number onto PS
+CF_SHELL_9		FOUTER_INTEGER	     		;(SSTACK: 22 bytes)
+			DBNE	D, CF_SHELL_11 		;double cell integer
+			;Process single cell integer (number in X)
 			LDD	STATE			;check STATE
 			BNE	CF_SHELL_10		;compile number as literal
-			;Push number onto PS (number in X)
-CF_SHELL_9		PS_CHECK_OF	1 		;new PSP -> Y
+			;Push single cell integer onto PS (number in X)
+			PS_CHECK_OF	1 		;new PSP -> Y
 			STY	PSP			;update PSP
 			STX	0,Y	   		;push number onto PS
-			JOB	CF_SHELL_2		;parse next word
-			;Compile double number as literal (number in X)
+			JOB	CF_SHELL_4		;parse next word
+			;Compile single cell integern integer as literal (number in X)
 CF_SHELL_10		TFR	X, Y
 			UDICT_CHECK_OF	2 		;new CP -> X
 			STX	CP			;update compile pointer
 			MOVW	#CFA_LITERAL_RT, -4,X	;compile LITERAL xt
 			STY	-2,X			;compile number
-			JOB	CF_SHELL_2		;parse next word
-			;Check for double number (cell count-1 in D,  number in Y:X)
-CF_SHELL_11		DBNE	D, CF_SHELL_14 		;invalid number
+			JOB	CF_SHELL_4		;parse next word
+			;Check for valid double cell integer (cell count-1 in D,  number in Y:X)
+CF_SHELL_11		DBNE	D, CF_SHELL_13 		;invalid number
 			;Process double number (number in Y:X)
-			LDD	NEXT_PTR		;check for SUSPEND mode
-			CPD	#NEXT_SUSPEND_MODE
-			BEQ	CF_SHELL_12		;push number onto PS
 			LDD	STATE			;check STATE
-			BNE	CF_SHELL_13		;compile number as literal
+			BNE	CF_SHELL_12		;compile number as literal
 			;Push double number onto PS (number in Y:X)
-CF_SHELL_12		TFR	Y, D
+			TFR	Y, D
 			PS_CHECK_OF	2 		;new PSP -> Y
 			STY	PSP			;update PSP
 			STD	0,Y			;push double number onto PS
 			STX	2,Y
-			JOB	CF_SHELL_2		;parse next word
+			JOB	CF_SHELL_4		;parse next word
 			;Compile double number as literal (number in Y:X)
-CF_SHELL_13		TFR	X, D
+CF_SHELL_12		TFR	X, D
 			UDICT_CHECK_OF	3 		;new CP -> X
 			STX	CP			;update compile pointer
 			MOVW	#CFA_2LITERAL_RT, -6,X	;compile 2LITERAL xt
 			STY	-4,X			;compile double value
 			STD	-2,X
-			JOB	CF_SHELL_2		;parse next word
-			; 
+			JOB	CF_SHELL_4		;parse next word
 			;Unknown word (or number out of range)
-CF_SHELL_14		THROW	 FEXCPT_EC_UDEFWORD
-	
-;COMMAND ( -- c-addr u)
-;Retrive a string from the command line input. c-addr and u are the location and
-;the length of the resulting string.
-; args:   PROMPT:     pointer to the prompt string
-;         NUMBER_TIB: TIB index   
-;         TIB_OFFSET: TIB offset for subshells   
-; result: c-addr:     pointer to the command string
-;         u:          length of the command string
-; SSTACK: 5 bytes
-; PS:     2 cells
-; RS:     2 cells
-; throws: nothing
-CF_COMMAND		EQU	*
-			;Check PS availability 
-CF_COMMAND_1		PS_CHECK_OF	2 		;new PSP -> Y
-			;Parse command line (new PSP in Y)
-			LDAA	#" " 			;use whitespace as delimiter
-			FOUTER_PARSE
-			TBNE	D, CF_COMMAND_2		;parsing was successful
-			;Parsing was unsuccessful
-			MOVW	TIB_OFFSET, NUMBER_TIB 	;clear local TIB segment
-			;Print command line prompt 
-			EXEC_CF	CF_DOT_PROMPT
-			;Query command line
-			EXEC_CF	CF_QUERY_APPEND
-			JOB	CF_COMMAND_1			
-			;Parsing was unsuccessful (new PSP in Y, string pointer in X, char count in D))
-CF_COMMAND_2		STY	PSP 			;reserve space on PS
-			STX	2,Y			;return c-addr
-			STD	0,Y			;return u
-			;Done
-			NEXT
+CF_SHELL_13		THROW	 FEXCPT_EC_UDEFWORD
 	
 ;QUERY ( -- ) Query command line input
 ;Make the user input device the input source. Receive input into the terminal
@@ -1521,13 +1457,16 @@ CF_INTEGER_4		LDY	PSP
 ;Throws:
 ;"Return stack underflow"
 CF_RESUME		EQU	*
-			RS_CHECK_UF	3		;RSP -> X 
-			MOVW	2,X+, NEXT_PTR		;restore NEXT_PTR
-			MOVW	2,X+, HANDLER		;restore HANDLER
-			MOVW	2,X+, IP		;restore IP
-			STX	RSP
-			NEXT
+#ifdef HANDLER
+			RS_PULL_5	HANDLER, TO_IN, NUMBER_TIB, TIB_OFFSET, IP
+#else
+			RS_PULL_4	TO_IN, NUMBER_TIB, TIB_OFFSET, IP
+#endif
 
+			LDX	NEXT_WATCH 
+			STX	NEXT_PTR
+			JMP	0,X 			;jump to next watch
+	
 ;LITERAL run-time semantics
 ;Run-time: ( -- x )
 ;Place x on the stack.
@@ -1536,9 +1475,9 @@ CF_RESUME		EQU	*
 ;Throws:
 ;"Parameter stack overflow"
 CF_LITERAL_RT		EQU	*
-			PS_CHECK_OF	1		 	;check for PS overflow (PSP-new cells -> Y)
-			LDX	IP				;push the value at IP onto the PS
-			MOVW	2,X+ 0,Y			; and increment the IP
+			PS_CHECK_OF	1		;check for PS overflow (PSP-new cells -> Y)
+			LDX	IP			;push the value at IP onto the PS
+			MOVW	2,X+ 0,Y		; and increment the IP
 			STX	IP
 			STY	PSP
 			NEXT
@@ -1551,10 +1490,10 @@ CF_LITERAL_RT		EQU	*
 ;Throws:
 ;"Parameter stack overflow"
 CF_TWO_LITERAL_RT	EQU	*
-			PS_CHECK_OF	2		 	;check for PS overflow (PSP-new cells -> Y)
-			LDX	IP				;push the value at IP onto the PS
-			MOVW	2,X+, 0,Y			; and increment the IP
-			MOVW	2,X+, 2,Y			; and increment the IP
+			PS_CHECK_OF	2		 ;check for PS overflow (PSP-new cells -> Y)
+			LDX	IP			 ;push the value at IP onto the PS
+			MOVW	2,X+, 0,Y		 ; and increment the IP
+			MOVW	2,X+, 2,Y		 ; and increment the IP
 			STX	IP
 			STY	PSP
 			NEXT
@@ -1683,17 +1622,6 @@ CFA_WORDS		DW	CF_INNER
 
 ;S12CForth Words:
 ;================
-;Word: QUERY-APPEND ( -- )
-;Set >IN to #TIB. Make the user input device the input source. Receive input into
-;the terminal input buffer, appending previous contents. Make the result, whose
-;address is returned by TIB+>IN, the input buffer.
-;
-;Throws:
-;"Parameter stack overflow"
-;"Return stack overflow"
-;"Invalid RX data"
-CFA_QUERY_APPEND	DW	CF_QUERY_APPEND
-	
 ;Word: INTEGER ( c-addr u -- d s | n 1 | 0)
 ;Interpret string as integer value and return a single or double cell number
 ;along with the cell count. If the interpretation was unsuccessful, return a
@@ -1703,6 +1631,15 @@ CFA_QUERY_APPEND	DW	CF_QUERY_APPEND
 ;"Parameter stack underflow"
 ;"Parameter stack overflow"
 CFA_INTEGER		DW	CF_INTEGER
+
+;Word: SUSPEND ( -- )
+;Execute a temporary debug shell.
+;
+;Throws:
+;"Parameter stack overflow"
+;"Return stack overflow"
+;"Communication error"
+CFA_SUSPEND		DW	CF_SUSPEND
 
 ;Word: RESUME ( -- ) IMMEDIATE
 ;Exit suspend mode 
