@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CForth - FEXCPT - Forth Exception Words                                  #
 ;###############################################################################
-;#    Copyright 2010-2013 Dirk Heisswolf                                       #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -150,8 +150,9 @@ FEXCPT_SUSPEND_HANDLER		EQU	$0001	;temporary default handler for SUSPEND shell
 FEXCPT_VARS_START_LIN	EQU	@
 #endif	
 
-HANDLER			DS	2 	;pointer tho the most recent exception
-					;handler 
+HANDLER			DS	2 	;pointer tho the most recent exception handler 
+ABORTQ_MSG		DS	2 	;storage for the ABORT" message pointer
+				
 FEXCPT_VARS_END		EQU	*
 FEXCPT_VARS_END_LIN	EQU	@
 
@@ -181,13 +182,13 @@ FEXCPT_VARS_END_LIN	EQU	@
 
 ;Functions:
 ;==========
-;#Print error message
-; args:   D: error code
-; result: none
-; SSTACK: 26 bytes
+;#Check error message
+; args:   X: message pointer
+; result: C-flag: set if message is valid
+; SSTACK: 6 bytes
 ;         X, Y and D are preserved
-#macro	FEXCPT_PRINT_MSG, 0
-			SSTACK_JOBSR	FEXCPT_PRINT_MSG, 26
+#macro	FEXCPT_CHECK_MSG, 0
+			SSTACK_JOBSR	FEXCPT_CHECK_MSG, 6
 #emac
 
 ;CATCH and THROW from assembly code:
@@ -236,22 +237,57 @@ FEXCPT_VARS_END_LIN	EQU	@
 FEXCPT_CODE_START_LIN	EQU	@
 #endif
 
+;#Check error message
+; args:   X: message pointer
+; result: C-flag: set if message is valid
+; SSTACK: 6 bytes
+;         X, Y and D are preserved
+FEXCPT_CHECK_MSG	EQU	*
+			;Save registers (string pointer in X)
+			PSHX							;save X	
+			PSHD							;save D	
+			;Validate non-standard error message (error code in D)			
+			LDAA	#FEXCPT_MSG_LIMIT 				;max. message length 
+FEXCPT_CHECK_MSG_1	LDAB	1,X+		  				;get char
+			BMI	FEXCPT_CHECK_MSG_4 				;termination found
+			STRING_IS_PRINTABLE	FEXCPT_CHECK_MSG_2 		;check if char is printable
+			DBNE	A, FEXCPT_PRINT_MSG_1				;check next char
+			;Invalid error message found
+FEXCPT_CHECK_MSG_2	SSTACK_PREPULL	6 					;check subroutine stack
+			CLC							;signal failure
+			;Done
+FEXCPT_CHECK_MSG_3	PULD							;restore D	
+			PULX							;restore X	
+			RTS
+			;termination found (char in B)
+FEXCPT_CHECK_MSG_4	ANDB	#$7F 						;remove termination
+			STRING_IS_PRINTABLE	FEXCPT_CHECK_MSG_2 		;check if char is printable
+			SSTACK_PREPULL	6 					;check subroutine stack
+			SEC							;signal success
+			JOB	FEXCPT_CHECK_MSG_3
+
 ;#Print error message
 ; args:   D: error code
 ; result: none
 ; SSTACK: 26 bytes
 ;         X, Y and D are preserved
 FEXCPT_PRINT_MSG	EQU	*
-			;Check if a message is to be printed (error code in D)			
-			TBEQ	D, FEXCPT_PRINT_MSG_6				;no error message (error code =  0)
-			CPD	#FEXCPT_EC_ABORTQ 				;check for ABORT code (-1 or -2)
-			BHS	FEXCPT_PRINT_MSG_6				;no error message (error code = -1 or -2)
+			;Check if no message is to be printed (error code in D)			
 			CPD	#FEXCPT_EC_QUIT					;check for QUIT code (-56)
-			BEQ	FEXCPT_PRINT_MSG_6				;no error message (error code = -56)
+			BEQ	FEXCPT_PRINT_MSG_				;no error message (error code = -56)
+			CPD	#FEXCPT_EC_ABORT				;check for QUIT code (-1)
+			BEQ	FEXCPT_PRINT_MSG_				;no error message (error code = -1)
+			TBEQ	D, FEXCPT_PRINT_MSG_				;no error message (error code =  0)
 			;Save registers (error code in D)
-			PSHX
-			PSHY		
-			PSHD
+			PSHX							;save X	
+			PSHY							;save Y	
+			PSHD							;save D	
+			;Save registers (error code in D)
+
+
+
+
+
 			;Print message header (error code in D)			
 			LDX	#FEXCPT_MSG_HEAD 				;messeage head
 			FCOM_PRINT_BL						;(SSTACK: 10 bytes)
@@ -321,6 +357,10 @@ FEXCPT_PRINT_MSG_10	CMPB	#$A0		;" "
 			BHI	FEXCPT_PRINT_MSG_9 				;invalid char found
 			JOB	FEXCPT_PRINT_MSG_7				;print error message
 	
+
+
+
+	
 ;#Throw an exception
 ; args:   D: error code
 ; result: none
@@ -329,6 +369,45 @@ FEXCPT_PRINT_MSG_10	CMPB	#$A0		;" "
 FEXCPT_THROW		EQU	*
 			;Check if the excption is cought (error code in D)
 			LDX	HANDLER						;check if an exception handler exists
+			DBEQ	X, FEXCPT_THROW_ 				;uncaught exception in SUSPEND shell
+			IBEQ	X, FEXCPT_THROW_ 				;uncaught exception in QUIT shell
+			;Cought exception, verify error frame location (HANDLER in X, error code in D)
+			CPX	RSP 						;check that HANDLER is on the RS
+			BLO	FEXCPT_THROW_   				;error frame is located above the stack
+			CPX	#(RS_EMPTY-6)					;check for 3 cell exception frame
+			BHI	FEXCPT_THROW_  					;error frame is located above the stack					
+			;Restore stacks (HANDLER in X, error code in D)
+			MOVW	2,X+, HANDLER					;pull previous HANDLER (RSP -> X)
+			LDY	2,X+						;pull previous PSP (RSP -> X)		
+			MOVW	2,X+, IP					;pull next IP (RSP -> X)		
+			STX	RSP
+			;Check if PSP is valid (new PSP in Y, error code in D)
+			CPY	#PS_EMPTY 					;check for PS underflow
+			BHI	FEXCPT_THROW_  					;invalid exception handler
+			LDX	PAD
+			LEAX	2,X	     					;make sure there is room for the return value
+			BLO	FEXCPT_THROW_  					;invalid exception handler
+			;Push error code onto PS (new in Y, error code in D)
+			STD	2,-Y						;push error code onto PS
+			STY	PSP						;set PSP
+			NEXT
+			;Uncaught exception in QUIT shell (error code in D)
+			
+
+
+
+
+	
+
+			;Uncaught exception in SUSPEND shell (error code in D)
+			
+
+
+
+
+
+	
+
 			BNE	FEXCPT_THROW_2					;check exception handler
 			;Default exception handler (error code in D)
 FEXCPT_THROW_1		CPD	#FEXCPT_EC_ABORTQ 				;check for ABORT code (-1 or -2)
@@ -364,6 +443,9 @@ FEXCPT_THROW_2		CPX	RSP 						;check that HANDLER is on the RS
 ;#Code Fields:
 ;=============
 
+
+
+	
 ;CATCH ( i*x xt -- j*x 0 | i*x n )
 ;Push an exception frame on the exception stack and then execute the execution
 ;token xt (as with EXECUTE) in such a way that control can be transferred to a

@@ -39,7 +39,7 @@
 ;#    BASE - S12CBase framework                                                #
 ;#    FPS    - Forth parameter stack                                           #
 ;#    FRS    - Forth return stack                                              #
-;#    FIO   - Forth communication interface                                    #
+;#    FIO    - Forth communication interface                                   #
 ;#    FINNER - Forth inner interpreter                                         #
 ;#    FEXCPT - Forth Exception Handler                                         #
 ;#                                                                             #
