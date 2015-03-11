@@ -160,7 +160,7 @@ FCDICT_TREE_TOP         FCS     "#TIB"
 FCDICT_TREE_2           DB      EMPTY_STRING
                         DW      (CFA_DOT>>1)                    ;-> .
                         FCS     "PROMPT"
-                        DW      (CFA_DOT_PROMPT>>1)             ;-> .PROMPT
+                        ;DW      (CFA_DOT_PROMPT>>1)             ;-> .PROMPT
                         FCS     "R"
                         DW      (CFA_DOT_R>>1)                  ;-> .R
                         DB      END_OF_BRANCH
@@ -225,17 +225,17 @@ FCDICT_TREE_8_0         DB      EMPTY_STRING
 FCDICT_TREE_13          FCS     "ARSE"
                         DW      (CFA_PARSE>>1)                  ;-> PARSE
                         FCS     "RIO"
-                        DW      (CFA_PRIO>>1)                   ;-> PRIO
+                        ;DW      (CFA_PRIO>>1)                   ;-> PRIO
                         DB      END_OF_BRANCH
 ;Subtree 14 => "QUERY"
 FCDICT_TREE_14          DB      EMPTY_STRING
                         DW      (CFA_QUERY>>1)                  ;-> QUERY
                         FCS     "-APPEND"
-                        DW      (CFA_QUERY_APPEND>>1)           ;-> QUERY-APPEND
+                        ;DW      (CFA_QUERY_APPEND>>1)           ;-> QUERY-APPEND
                         DB      END_OF_BRANCH
 ;Subtree 16 => "S"
 FCDICT_TREE_16          FCS     "EARCH-CDICT"
-                        DW      (CFA_SEARCH_CDICT>>1)           ;-> SEARCH-CDICT
+                        ;DW      (CFA_SEARCH_CDICT>>1)           ;-> SEARCH-CDICT
                         FCS     "PACES"
                         DW      (CFA_SPACES>>1)                 ;-> SPACES
                         FCS     "TATE"
@@ -245,7 +245,7 @@ FCDICT_TREE_16          FCS     "EARCH-CDICT"
                         DB      END_OF_BRANCH
 ;Subtree 17 => "T"
 FCDICT_TREE_17          FCS     "DICT"
-                        DW      (CFA_TDICT>>1)                  ;-> TDICT
+                        ;DW      (CFA_TDICT>>1)                  ;-> TDICT
                         FCS     "HROW"
                         DW      (CFA_THROW>>1)                  ;-> THROW
                         FCS     "IB-OFFSET"
@@ -253,7 +253,7 @@ FCDICT_TREE_17          FCS     "DICT"
                         DB      END_OF_BRANCH
 ;Subtree 19 => "W"
 FCDICT_TREE_19          FCS     "AIT"
-                        DW      (CFA_WAIT>>1)                   ;-> WAIT
+                        ;DW      (CFA_WAIT>>1)                   ;-> WAIT
                         FCS     "ORDS"
                         DB      BRANCH
                         DW      FCDICT_TREE_19_1                ;WORDS...

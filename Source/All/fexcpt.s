@@ -1,3 +1,5 @@
+#ifndef FEXCPT
+#define FEXCPT
 ;###############################################################################
 ;# S12CForth - FEXCPT - Forth Exception Words                                  #
 ;###############################################################################
@@ -369,9 +371,9 @@ FEXCPT_THROW		EQU	*
 			IBEQ	X, FEXCPT_THROW_1 				;uncaught exception in QUIT shell
 			;Cought exception, verify error frame location (HANDLER in X, error code in D)
 			CPX	RSP 						;check that HANDLER is on the RS
-			BLO	FEXCPT_THROW_   				;error frame is located above the stack
+			BLO	FEXCPT_THROW_1   				;error frame is located above the stack
 			CPX	#(RS_EMPTY-6)					;check for 3 cell exception frame
-			BHI	FEXCPT_THROW_  					;error frame is located above the stack					
+			BHI	FEXCPT_THROW_1  				;no error frame is located on the stack					
 			;Restore stacks (HANDLER in X, error code in D)
 			MOVW	2,X+, HANDLER					;pull previous HANDLER (RSP -> X)
 			LDY	2,X+						;pull previous PSP (RSP -> X)		
@@ -379,15 +381,15 @@ FEXCPT_THROW		EQU	*
 			STX	RSP
 			;Check if PSP is valid (new PSP in Y, error code in D)
 			CPY	#PS_EMPTY 					;check for PS underflow
-			BHI	FEXCPT_THROW_  					;invalid exception handler
+			BHI	FEXCPT_THROW_1  					;invalid exception handler
 			LDX	PAD
 			LEAX	2,X	     					;make sure there is room for the return value
-			BLO	FEXCPT_THROW_  					;invalid exception handler
+			BLO	FEXCPT_THROW_1  				;invalid exception handler
 			;Push error code onto PS (new in Y, error code in D)
 			STD	2,-Y						;push error code onto PS
 			STY	PSP						;set PSP
 			NEXT
-			;Uncaught exception in QUIT shell (error code in D)
+			;Uncaught exception in QUIT shell or invalid exception frame (error code in D)
 FEXCPT_THROW_1		FEXCPT_PRINT_MSG 					;print error message
 			CPD	#FEXCPT_EC_ABORTQ 				;check for abort
 			BHS	CF_ABORT_RT 					;ABORT
@@ -396,6 +398,7 @@ FEXCPT_THROW_1		FEXCPT_PRINT_MSG 					;print error message
 FEXCPT_THROW_2		FEXCPT_PRINT_MSG 					;print error message
 			JOB	CF_SUSPEND 					;suspend
 
+	
 ;#Code Fields:
 ;=============	
 ;CATCH ( i*x xt -- j*x 0 | i*x n )
@@ -521,8 +524,8 @@ FEXCPT_MSGTAB		EQU	*
 			;FEXCPT_MSG	FEXCPT_EC_INVALNAME,	"Invalid name argument"
 			FEXCPT_MSG	FEXCPT_EC_INVALBASE,	"Invalid BASE"
 			;FEXCPT_MSG	FEXCPT_EC_CESF,		"Corrupt exception stack frame"
-			FEXCPT_MSG	FEXCPT_EC_NOMSG,	"Empty message string"
-			FEXCPT_MSG	FEXCPT_EC_DICTPROT,	"Destruction of dictionary structure"
+			;FEXCPT_MSG	FEXCPT_EC_NOMSG,	"Empty message string"
+			;FEXCPT_MSG	FEXCPT_EC_DICTPROT,	"Destruction of dictionary structure"
 			FEXCPT_MSG	FEXCPT_EC_COMERR,	"Corrupted RX data"
 			DB		0
 
@@ -585,11 +588,15 @@ CFA_THROW		DW	CF_THROW
 ;Display the implementation-defined system prompt if in interpretation state,
 ;all processing has been completed, and no ambiguous condition exists.
 CFA_QUIT		DW	CF_INNER
-			DW	CFA_LITERAL
-			DW
+			DW	CFA_LITERAL_RT
+			DW	FEXCPT_EC_QUIT
+			DW	CFA_THROW
 
 ;S12CForth Words:
 ;================
 	
 FEXCPT_WORDS_END		EQU	*
 FEXCPT_WORDS_END_LIN		EQU	@
+#endif
+	
+	

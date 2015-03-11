@@ -1,3 +1,5 @@
+#ifndef FRS_COMPILED
+#define FRS_COMPILED
 ;###############################################################################
 ;# S12CForth- FRS - Return Stack for the Forth VM                              #
 ;###############################################################################
@@ -255,7 +257,7 @@ FRS_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ; throws: FEXCPT_EC_RSUF
 ;        Y and D are preserved 
-#macro	RS_PULL4, 4	;1:variable 2:variable 3:variable
+#macro	RS_PULL4, 4	;1:variable 2:variable 3:variable 4:variable
 			RS_CHECK_UF	3		;check for underflow	=> 8 cycles
 			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
 			MOVW		2,X+, \2	;RS -> X		=> 5 cycles 
@@ -276,7 +278,7 @@ FRS_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ; throws: FEXCPT_EC_RSUF
 ;        Y and D are preserved 
-#macro	RS_PULL5, 5	;1:variable 2:variable 3:variable
+#macro	RS_PULL5, 5	;1:variable 2:variable 3:variable 4:variable 5:variable
 			RS_CHECK_UF	3		;check for underflow	=> 8 cycles
 			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
 			MOVW		2,X+, \2	;RS -> X		=> 5 cycles 
@@ -426,11 +428,11 @@ FRS_CODE_START_LIN	EQU	@
 ;Standard exceptions
 #ifndef FRS_NO_CHECK
 #ifdef FRS_DEBUG
-FRS_THROW_PSOF		BGND				;return stack overflow
-FRS_THROW_PSUF		BGND				;return stack underflow
+FRS_THROW_RSOF		BGND				;return stack overflow
+FRS_THROW_RSUF		BGND				;return stack underflow
 #else
-FRS_THROW_PSOF		THROW	FEXCPT_EC_RSOF		;return stack overflow
-FRS_THROW_PSUF		THROW	FEXCPT_EC_RSUF		;return stack underflow
+FRS_THROW_RSOF		THROW	FEXCPT_EC_RSOF		;return stack overflow
+FRS_THROW_RSUF		THROW	FEXCPT_EC_RSUF		;return stack underflow
 #endif
 #endif
 	
@@ -462,4 +464,5 @@ FRS_WORDS_START_LIN	EQU	@
 
 FRS_WORDS_END		EQU	*
 FRS_WORDS_END_LIN	EQU	@
+#endif
 

@@ -1,5 +1,5 @@
-#ifndef FOUTER
-#define FOUTER
+#ifndef FOUTER_COMPILED
+#define FOUTER_COMPILED
 ;###############################################################################
 ;# S12CForth - FOUTER - Forth outer interpreter                                #
 ;###############################################################################
@@ -84,6 +84,10 @@ TIB_PADDING		EQU	4 		;default is 4 bytes
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;STATE variable 
+STATE_INTERPRET		EQU	FALSE
+STATE_COMPILE		EQU	TRUE
+
 ;Text input buffer 
 TIB_START		EQU	RS_TIB_START
 
@@ -115,7 +119,9 @@ FOUTER_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FOUTER_INIT, 0
-			LED_BUSY_ON
+#ifmac FORTH_SIGNAL_BUSY
+			FORTH_SIGNAL_BUSY		;signal activity
+#endif
 			MOVW	#$0010, BASE
 			CLRA
 			CLRB
@@ -344,7 +350,7 @@ FOUTER_VARS_END_LIN	EQU	@
 			JOBSR	FOUTER_TO_CBASE
 #emac
 
-#Check if the string starts with a valid digit
+;#Check if the string starts with a valid digit
 ; args:   Stack:        +--------+--------+
 ;			|    Sign/Base    | SP+0
 ;			+--------+--------+
@@ -1169,14 +1175,18 @@ CF_SHELL_2		LDX	FOUTER_INTERACT_PROMPT
 			LDX	FOUTER_COMPILE_PROMPT
 			;Print prompt string
 CF_SHELL_3		PS_PUSH_X				
-			EXEC_CF	CF_DOT_STRING
+			EXEC_CF	CF_STRING_DOT
 			;Query command line
 			EXEC_CF	CF_QUERY
 			;Parse command line
 CF_SHELL_4        	FOUTER_PARSE_WS
-			TBEQ	D, CF_SHELL_1      	;parse next line
+			;TBEQ	D, CF_SHELL_1      	;parse next line
+			TBNE	D, CF_SHELL_4a      	;parse next line
+			JOB	CF_SHELL_1
+CF_SHELL_4a		EQU	*	
+
 #ifmac	FUDICT_SEARCH
-ifdef	NVC
+#ifdef	NVC
 			;Check if NV compilation is enabled (string pointer in X, char count in D)
 			LDY	NVC
 			BNE	CF_SHELL_5 		;skip UDICT search
@@ -1242,7 +1252,7 @@ CF_SHELL_11		DBNE	D, CF_SHELL_13 		;invalid number
 CF_SHELL_12		TFR	X, D
 			UDICT_CHECK_OF	3 		;new CP -> X
 			STX	CP			;update compile pointer
-			MOVW	#CFA_2LITERAL_RT, -6,X	;compile 2LITERAL xt
+			MOVW	#CFA_TWO_LITERAL_RT, -6,X;compile 2LITERAL xt
 			STY	-4,X			;compile double value
 			STD	-2,X
 			JOB	CF_SHELL_4		;parse next word
@@ -1291,14 +1301,14 @@ CF_QUERY_1		EXEC_CF	CF_EKEY			;input char -> [PS+0]
 			BHI	CF_QUERY_5 		;beep			
 			;Check for buffer overflow (input char in B and in [PS+0])
 CF_QUERY_2		LDX	TIB_OFFSET 		;TIB_OFFSET -> X
-			LEAX	TIB_PADDING, X		;TIB_OFFSET+TIB_PADDING -> X
+			LEAX	TIB_PADDING,X		;TIB_OFFSET+TIB_PADDING -> X
 			EXG	D, X
 			ADDD	NUMBER_TIB
 			EXG	D, X
 			CPD	RSP
 			BHS	CF_QUERY_5 		;beep
 			;Append char to input line (input char in B and in [PS+0], TIB pointer+padding in X)
-			STAB	-TIB_PADDING, X 	;append char
+			STAB	-TIB_PADDING,X 		;append char
 			LDX	NUMBER_TIB		;increment NUMBER_TIB
 			LEAX	1,X
 			STX	NUMBER_TIB			
@@ -1458,9 +1468,9 @@ CF_INTEGER_4		LDY	PSP
 ;"Return stack underflow"
 CF_RESUME		EQU	*
 #ifdef HANDLER
-			RS_PULL_5	HANDLER, TO_IN, NUMBER_TIB, TIB_OFFSET, IP
+			RS_PULL5	HANDLER, TO_IN, NUMBER_TIB, TIB_OFFSET, IP
 #else
-			RS_PULL_4	TO_IN, NUMBER_TIB, TIB_OFFSET, IP
+			RS_PULL4	TO_IN, NUMBER_TIB, TIB_OFFSET, IP
 #endif
 
 			LDX	NEXT_WATCH 
@@ -1593,6 +1603,19 @@ CFA_TO_NUMBER		DW	CF_TO_NUMBER
 CFA_BASE		DW	CF_CONSTANT_RT
 			DW	BASE
 
+;Word: STATE ( -- a-addr ) 
+;a-addr is the address of a cell containing the compilation-state flag. STATE is
+;true when in compilation state, false otherwise. The true value in STATE is
+;non-zero. Only the following standard words alter the value in STATE:
+; : (colon), ; (semicolon), ABORT, QUIT, :NONAME, [ (left-bracket), and
+; ] (right-bracket). 
+;  Note:  A program shall not directly alter the contents of STATE. 
+;
+;Throws:
+;"Parameter stack overflow"
+CFA_STATE		DW	CF_CONSTANT_RT
+			DW	STATE
+	
 ;Word: >IN ( -- a-addr )
 ;a-addr is the address of a cell containing the offset in characters from the
 ;start of the input buffer to the start of the parse area.  
@@ -1620,8 +1643,8 @@ CFA_WORDS		DW	CF_INNER
 			DW	CFA_WORDS_CDICT
 			DW	CFA_EOW
 
-;S12CForth Words:
-;================
+;#S12CForth Words:
+;=================
 ;Word: INTEGER ( c-addr u -- d s | n 1 | 0)
 ;Interpret string as integer value and return a single or double cell number
 ;along with the cell count. If the interpretation was unsuccessful, return a

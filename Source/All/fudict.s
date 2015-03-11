@@ -1,7 +1,9 @@
+#ifndef FUDICT_COMPILED
+#define FUDICT_COMPILED
 ;###############################################################################
 ;# S12CForth- FUDUCT - User Ductionary and User Variables                      #
 ;###############################################################################
-;#    Copyright 2010 - 2013 Dirk Heisswolf                                     #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -80,7 +82,7 @@
 ;    	                    |              |              |		  
 ;                           +--------------+--------------+        
 ;              PS_EMPTY, ->   
-;          UDUCT_PS_END
+;          UDICT_PS_END
 ;	
 ;                           Word format:
 ;                           +-----------------------------+
@@ -106,6 +108,12 @@
 ;UDICT_PS_START		EQU	0
 ;UDICT_PS_END		EQU	0
 
+;Debug option for dictionary overflows
+;FUDICT_DEBUG		EQU	1 
+	
+;Disable dictionary range checks
+;FUDICT_NO_CHECK	EQU	1 
+
 ;Safety distance between the user dictionary and the PAD
 #ifndef UDICT_PADDING
 UDICT_PADDING		EQU	4 	;default is 4 bytes
@@ -127,18 +135,10 @@ PS_PADDING		EQU	16 	;default is 16 bytes
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;STATE variable 
-STATE_INTERPRET		EQU	FALSE
-STATE_COMPILE		EQU	TRUE
-
 ;NVC variable 
 NVC_VOLATILE		EQU	FALSE
 NVC_NON_VOLATILE	EQU	TRUE
 	
-;Prompt characters	 
-FUDICT_PRCHAR_NVC	EQU	FOUTER_PRCHAR_NVC
-FUDICT_PRCHAR_SUSPEND	EQU	FOUTER_PRCHAR_SUSPEND
-
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -151,6 +151,7 @@ FUDICT_VARS_START_LIN	EQU	@
 
 			ALIGN	1	
 CP			DS	2 	;compile pointer (next free space in the dictionary space) 
+CP_SAVED		DS	2 	;saved compile pointer
 HLD			DS	2	;pointer for pictured numeric output
 PAD                     DS	2	;end of the PAD buffer
 UDICT_LAST_NFA		DS	2 	;pointer to the most recent NFA of the UDICT
@@ -169,7 +170,7 @@ FUDICT_VARS_END_LIN	EQU	@
 	
 	
 			MOVW	#0000, UDICT_LAST_NFA
-			LDD	#UDICT_START
+			LDD	#UDICT_PS_START
 			STD	CP
 			STD	CP_SAVED
 	
@@ -179,11 +180,11 @@ FUDICT_VARS_END_LIN	EQU	@
 
 #emac
 
-;#Abort action (to be executed in addition of quit and suspend action)
+;#Abort action (to be executed in addition of quit action)
 #macro	FUDICT_ABORT, 0
 #emac
 	
-;#Quit action (to be executed in addition of suspend action)
+;#Quit action
 #macro	FUDICT_QUIT, 0
 #emac
 	
@@ -203,7 +204,7 @@ FUDICT_VARS_END_LIN	EQU	@
 			LDX	CP 			;=> 3 cycles
 			LEAX	\1,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
-			BHI	FUDICT_DICTOF_HANDLER	;=> 3 cycles/ 4 cycles
+			BHI	FUDICT_THROW_DICTOF	;=> 3 cycles/ 4 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
 							;  -------------------
@@ -220,7 +221,7 @@ FUDICT_VARS_END_LIN	EQU	@
 			LDX	CP 			;=> 3 cycles
 			LEAX	A,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
-			BHI	FUDICT_DICTOF_HANDLER	;=> 3 cycles/ 4 cycles
+			BHI	FUDICT_THROW_DICTOF	;=> 3 cycles/ 4 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
 							;  --------------------
@@ -237,7 +238,7 @@ FUDICT_VARS_END_LIN	EQU	@
 			LDX	CP 			;=> 3 cycles
 			LEAX	D,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
-			BHI	FUDICT_DICTOF_HANDLER	;=> 3 cycles/ 4 cycles
+			BHI	FUDICT_THROW_DICTOF	;=> 3 cycles/ 4 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
 							;  --------------------
@@ -255,7 +256,7 @@ FUDICT_VARS_END_LIN	EQU	@
 #macro	PAD_CHECK_OF, 0
 			LDX	HLD 			;=> 3 cycles
 			CPX	CP			;=> 3 cycles
-			BLS	FUDICT_PADOF_HANDLER	;=> 3 cycles/ 4 cycles
+			BLS	FUDICT_THROW_PADOF	;=> 3 cycles/ 4 cycles
 							;  -------------------
 							;   9 cycles/10 cycles
 #emac			
@@ -268,7 +269,7 @@ FUDICT_VARS_END_LIN	EQU	@
 ;        X and Y are preserved 
 #macro	PAD_ALLOC, 0 
 			SSTACK_JOBSR	FUDICT_PAD_ALLOC, 2
-			TBEQ	D, FUDICT_PADOF_HANDLER 	;no space available at all
+			TBEQ	D, FUDICT_THROW_PADOF 	;no space available at all
 #emac			
 
 ;PAD_DEALLOC: deallocate the PAD buffer  (PAD -> D)
@@ -281,64 +282,6 @@ FUDICT_VARS_END_LIN	EQU	@
 			STD	PAD
 			STD	HLD
 #emac			
-
-
-
-;Shell components:
-;=================
-;#SHELL_COMP_WORD: Compile CFA (append to current word definition)
-; args:   D: CFA>>1
-; result: none
-; SSTACK: none
-; PS:     none
-; RS:     none
-; throws: none
-;         No registers are preserved
-#macro	SHELL_COMP_WORD, 0
-			;Compile CFA (CFA>>1 in D)
-			LSLD
-			LDY	CP
-			STD	2,Y+
-			STY	CP
-#emac
-
-;#SHELL_COMP_LITERAL: Compile literal (append to current word definition)
-; args:  X: string pointer (of integer representation)
-;        D: char count     (of integer representation)
-; result: none
-; SSTACK: 22 bytes
-; PS:     2 cells
-; RS:     none
-; throws: FEXCPT_EC_UDEFWORD
-;         FEXCPT_EC_LITOR
-;         No registers are preserved
-#macro	SHELL_COMP_LITERAL, 0
-			;Evaluate integer representation (string pointer in X, char count in D) 
-			FOUTER_INTEGER			;(SSTACK: 22 bytes)
-			;Check syntax error (cell count/error indicator in D, integer value in Y:X) 
-			TBNE	D, SHELL_COMP_LITERAL_1		
-			THROW	FEXCPT_EC_UDEFWORD
-			;Check for single cell integer (cell count/error indicator in D, integer value in Y:X) 
-SHELL_COMP_LITERAL_1	DBNE	D, SHELL_COMP_LITERAL_2
-			LDY	CP
-			MOVW	#CFA_LITERAL_RT, 2,Y+
-			STX	2,Y+
-			STY	CP
-			JOB	SHELL_COMP_LITERAL_4 	;done	
-			;Check for double cell integer (cell count/error indicator in D, integer value in Y:X) 
-SHELL_COMP_LITERAL_2	DBNE	D, SHELL_COMP_LITERAL_3
-			EXG	Y, D
-			LDY	CP
-			MOVW	#CFA_TWO_LITERAL_RT, 2,Y+
-			STD	2,Y+
-			STX	2,Y+
-			STY	CP
-			JOB	SHELL_COMP_LITERAL_4 	;done	
-			;Integer overflow 
-SHELL_COMP_LITERAL_3	THROW	FEXCPT_EC_LITOR		
-			;Done
-SHELL_COMP_LITERAL_4	EQU	*
-#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -361,12 +304,7 @@ FUDICT_CODE_START_LIN	EQU	@
 FUDICT_SEARCH		EQU	*
 
 
-
-
-
-
-
-
+	;;TBD 
 
 
 	
@@ -396,14 +334,26 @@ FUDICT_PAD_ALLOC_3	CPD	#(PAD_MINSIZE+PS_PADDING)
 			BLO	FUDICT_PAD_ALLOC_4		;not enough space available
 			LDD	PSP
 			SUBD	#PS_PADDING
-			JOB	FUDICT_PAD_ALLOC_1 	;allocate PAD
+			JOB	FUDICT_PAD_ALLOC_1 		;allocate PAD
 			;Not enough space available
-FUDICT_PAD_ALLOC_4	LDD 	$0000 			;signal failure
-			JOB	FUDICT_PAD_ALLOC_2	;done
-
+FUDICT_PAD_ALLOC_4	LDD 	$0000 				;signal failure
+			JOB	FUDICT_PAD_ALLOC_2		;done
 
 ;Code fields:
 ;============
+
+;Exceptions:
+;===========
+;Standard exceptions
+#ifndef FUDICT_NO_CHECK
+#ifdef FUDICT_DEBUG
+FIDICT_THROW_DICTOF	BGND					;parameter stack overflow
+FIDICT_THROW_PADOF	BGND					;PAD overflow
+#else
+FUDICT_THROW_DICTOF	THROW	FEXCPT_EC_DICTOF		;parameter stack overflow
+FUDICT_THROW_PADOF	THROW	FEXCPT_EC_PADOF			;PAD overflow
+#endif
+#endif
 
 FUDICT_CODE_END		EQU	*
 FUDICT_CODE_END_LIN	EQU	@
@@ -417,10 +367,6 @@ FUDICT_CODE_END_LIN	EQU	@
 			ORG 	FUDICT_TABS_START
 FUDICT_TABS_START_LIN	EQU	@
 #endif	
-
-;System prompts
-FUDICT_COMPILE_PROMPT	STRING_NL_NONTERM
-			FCS	"> "
 
 FUDICT_TABS_END		EQU	*
 FUDICT_TABS_END_LIN	EQU	@
@@ -437,37 +383,10 @@ FUDICT_WORDS_START_LIN	EQU	@
 
 ;#ANSForth Words:
 ;================
-;Word: STATE ( -- a-addr ) 
-;a-addr is the address of a cell containing the compilation-state flag. STATE is
-;true when in compilation state, false otherwise. The true value in STATE is
-;non-zero. Only the following standard words alter the value in STATE:
-; : (colon), ; (semicolon), ABORT, QUIT, :NONAME, [ (left-bracket), and
-; ] (right-bracket). 
-;  Note:  A program shall not directly alter the contents of STATE. 
-;
-;Throws:
-;"Parameter stack overflow"
-CFA_STATE		DW	CF_CONSTANT_RT
-			DW	STATE
 
-;LITERAL ( -- x ) run-time semantics of a single cell literal
-;Place x on the stack.
-;
-;Throws:
-;"Parameter stack overflow"
-; SSTACK: none
-CFA_LITERAL_RT		DW	CFA_LITERAL_RT	
-
-;2LITERAL ( -- d ) run-time semantics of a double cell literal
-;Place x on the stack.
-;
-;Throws:
-;"Parameter stack overflow"
-CF_TWO_LITERAL_RT	DW	CFA_TWO_LITERAL_RT
+;#S12CForth Words:
+;=================
 	
-;S12CForth Words:
-;================
-;	
 FUDICT_WORDS_END	EQU	*
 FUDICT_WORDS_END_LIN	EQU	@
-
+#endif

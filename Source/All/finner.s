@@ -22,7 +22,7 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#    This module implements the inner interpreter of the S12CForth virtual    #
-;#    machine.                                                                 #
+;#    machine.                                                                 #x
 ;#                                                                             #
 ;#    The inner interpreter uses these registers:                              #
 ;#         W = Working register. 					       #

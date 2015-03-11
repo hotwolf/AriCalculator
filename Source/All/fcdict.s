@@ -1,3 +1,5 @@
+#ifndef FCDICT
+#define FCDICT
 ;###############################################################################
 ;# S12CForth- FCDICT - Core Dictionary of the S12CForth Framework              #
 ;###############################################################################
@@ -555,8 +557,8 @@ FCDICT_WORDS_START_LIN	EQU	@
 
 ;Word: WORDS-CDICT ( -- )
 ;List the definition names in the core dictionary in alphabetical order.
-;CFA_WORDS_CDICT	DW	CF_WORDS_CDICT
+CFA_WORDS_CDICT	DW	CF_WORDS_CDICT
 	
 FCDICT_WORDS_END	EQU	*
 FCDICT_WORDS_END_LIN	EQU	@
-
+#endif

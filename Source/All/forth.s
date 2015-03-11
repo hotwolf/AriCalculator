@@ -1,3 +1,5 @@
+#ifndef FORTH_COMPILED
+#define	FORTH_COMPILED
 ;###############################################################################
 ;# S12CForth - S12CForth Framework Bundle                                      #
 ;###############################################################################
@@ -57,11 +59,19 @@
 ;###############################################################################
 
 ;# FRS
-FRS_NO_CHECK		EQU	1 		;disable range checks
+;FRS_NO_CHECK		EQU	1 		;disable range checks
 	
 ;# FPS
-FPS_NO_CHECK		EQU	1 		;disable range checks
+;FPS_NO_CHECK		EQU	1 		;disable range checks
 	
+;###############################################################################
+;# Constants                                                                   #
+;###############################################################################
+;#S12CBASE STRING requirements
+STRING_ENABLE_FILL_NB	EQU	1	;enable STRING_FILL_NB 
+STRING_ENABLE_FILL_BL	EQU	1	;enable STRING_FILL_BL 
+STRING_ENABLE_UPPER	EQU	1	;enable STRING_UPPER 
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -87,9 +97,9 @@ FPS_VARS_START		EQU	*
 FPS_VARS_START_LIN	EQU	@
 			ORG	FPS_VARS_END, FPS_VARS_END_LIN
 
-FCOM_VARS_START		EQU	*
-FCOM_VARS_START_LIN	EQU	@
-			ORG	FCOM_VARS_END, FCOM_VARS_END_LIN
+FIO_VARS_START		EQU	*
+FIO_VARS_START_LIN	EQU	@
+			ORG	FIO_VARS_END, FIO_VARS_END_LIN
 
 FOUTER_VARS_START	EQU	*
 FOUTER_VARS_START_LIN	EQU	@
@@ -131,6 +141,7 @@ FEXCPT_VARS_START_LIN	EQU	@
 ;FSCI_VARS_START_LIN	EQU	@
 ;			ORG	FSCI_VARS_END, FSCI_VARS_END_LIN
 
+	
 FORTH_VARS_END		EQU	*	
 FORTH_VARS_END_LIN	EQU	@
 
@@ -167,13 +178,13 @@ FORTH_VARS_END_LIN	EQU	@
 	;FSCI_INIT
 #emac
 
-;#Abort action (to be executed in addition of quit and suspend action)
+;#Abort action (to be executed in addition of quit action)
 #macro	FORTH_ABORT, 0
 	FRS_ABORT
 	FINNER_ABORT
 	FIRQ_ABORT
 	FPS_ABORT
-	FCOM_ABORT
+	FIO_ABORT
 	FOUTER_ABORT
 	FCDICT_ABORT
 	FUDICT_ABORT
@@ -186,13 +197,13 @@ FORTH_VARS_END_LIN	EQU	@
 	;FSCI_ABORT
 #emac
 	
-;#Quit action (to be executed in addition of suspend action)
+;#Quit action
 #macro	FORTH_QUIT, 0
 	FRS_QUIT
 	FINNER_QUIT
 	FIRQ_QUIT
 	FPS_QUIT
-	FCOM_QUIT
+	FIO_QUIT
 	FOUTER_QUIT
 	FCDICT_QUIT
 	FUDICT_QUIT
@@ -211,7 +222,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FINNER_SUSPEND
 	FIRQ_SUSPEND
 	FPS_SUSPEND
-	FCOM_SUSPEND
+	FIO_SUSPEND
 	FOUTER_SUSPEND
 	FCDICT_SUSPEND
 	FUDICT_SUSPEND
@@ -249,9 +260,9 @@ FPS_CODE_START		EQU	*
 FPS_CODE_START_LIN	EQU	@
 			ORG	FPS_CODE_END, FPS_CODE_END_LIN
 
-FCOM_CODE_START		EQU	*
-FCOM_CODE_START_LIN	EQU	@
-			ORG	FCOM_CODE_END, FCOM_CODE_END_LIN
+FIO_CODE_START		EQU	*
+FIO_CODE_START_LIN	EQU	@
+			ORG	FIO_CODE_END, FIO_CODE_END_LIN
 
 FOUTER_CODE_START	EQU	*
 FOUTER_CODE_START_LIN	EQU	@
@@ -327,9 +338,9 @@ FPS_TABS_START		EQU	*
 FPS_TABS_START_LIN	EQU	@
 			ORG	FPS_TABS_END, FPS_TABS_END_LIN
 
-FCOM_TABS_START		EQU	*
-FCOM_TABS_START_LIN	EQU	@
-			ORG	FCOM_TABS_END, FCOM_TABS_END_LIN
+FIO_TABS_START		EQU	*
+FIO_TABS_START_LIN	EQU	@
+			ORG	FIO_TABS_END, FIO_TABS_END_LIN
 
 FOUTER_TABS_START	EQU	*
 FOUTER_TABS_START_LIN	EQU	@
@@ -399,9 +410,9 @@ FPS_WORDS_START		EQU	*
 FPS_WORDS_START_LIN	EQU	@
 			ORG	FPS_WORDS_END, FPS_WORDS_END_LIN
 
-FCOM_WORDS_START		EQU	*
-FCOM_WORDS_START_LIN	EQU	@
-			ORG	FCOM_WORDS_END, FCOM_WORDS_END_LIN
+FIO_WORDS_START		EQU	*
+FIO_WORDS_START_LIN	EQU	@
+			ORG	FIO_WORDS_END, FIO_WORDS_END_LIN
 
 FOUTER_WORDS_START	EQU	*
 FOUTER_WORDS_START_LIN	EQU	@
@@ -450,18 +461,20 @@ FORTH_WORDS_END_LIN	EQU	@
 ;# Includes                                                                    #
 ;###############################################################################
 #include ../All/frs.s						;return stack
-#include ../All/finner.s					;inner interpreter
-#include ../All/firq.s						;interrupt requests
 #include ../All/fps.s						;parameter stack 
-#include ../All/fcom.s						;communication interface 
+#include ../All/fio.s						;communication interface 
+#include ../All/fexcpt.s					;exceptions
+#include ../All/finner.s					;inner interpreter
 #include ../All/fouter.s					;outer interpreter
+#include ../All/firq.s						;interrupt requests
 #include ../All/fcdict.s					;core dictionary
 #include ../All/fcdict_tree.s					;core dictionary search tree
 #include ../All/fudict.s					;user dictionary
-#include ../All/fexcpt.s					;exceptions
 ;#include ../All/fcore.s					;core words
 ;#include ../All/fdouble.s					;double-number words
 ;#include ../All/ffloat.s					;floating point words
 ;#include ../All/ftools.s					;programming tools words
 ;#include ../All/ffacil.s					;facility words
 ;#include ../All/fsci.s						;S12CBase SCI wrapper
+#endif
+	
