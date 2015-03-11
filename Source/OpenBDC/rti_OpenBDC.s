@@ -1,5 +1,5 @@
-#ifndef	RTI
-#define	RTI	
+#ifndef	RTI_COMPILED
+#define	RTI_COMPILED	
 ;###############################################################################
 ;# S12CBase - RTI - Real-Time Interrupt Handler (OpenBDC)                      #
 ;###############################################################################

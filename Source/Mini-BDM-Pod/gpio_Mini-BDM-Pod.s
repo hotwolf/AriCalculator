@@ -1,5 +1,5 @@
-#ifndef	GPIO
-#define GPIO
+#ifndef	GPIO_COMPILED
+#define GPIO_COMPILED
 ;###############################################################################
 ;# S12CBase - GPIO - GPIO Handler (Mini-BDM-Pod)                               #
 ;###############################################################################

@@ -1,5 +1,5 @@
-#ifndef STRING
-#define STRING
+#ifndef STRING_COMPILED
+#define STRING_COMPILED
 ;###############################################################################
 ;# S12CBase - STRING - String Printing routines                                #
 ;###############################################################################

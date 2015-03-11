@@ -1,5 +1,5 @@
-#ifndef RESET
-#define	RESET
+#ifndef RESET_COMPILED
+#define	RESET_COMPILED
 ;###############################################################################
 ;# S12CBase - RESET - Reset Handler                                            #
 ;###############################################################################
