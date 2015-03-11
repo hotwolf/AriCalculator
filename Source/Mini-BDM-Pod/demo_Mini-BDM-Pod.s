@@ -212,5 +212,4 @@ DEMO_WORDS_END_LIN	EQU	@
 ;# Includes                                                                    #
 ;###############################################################################
 #include ../All/forth.s								;S12CForth bundle
-;#include ../../Subprojects/S12CBase/Source/Mini-BDM-Pod/base_Mini-BDM-Pod.s	;Base bundle
-#include ../../../S12CBase/Source/Mini-BDM-Pod/base_Mini-BDM-Pod.s		;Base bundle
+#include ../../Subprojects/S12CBase/Source/Mini-BDM-Pod/base_Mini-BDM-Pod.s	;Base bundle

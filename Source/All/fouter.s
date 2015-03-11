@@ -1180,67 +1180,67 @@ CF_SHELL_3		PS_PUSH_X
 			EXEC_CF	CF_QUERY
 			;Parse command line
 CF_SHELL_4        	FOUTER_PARSE_WS
-			;TBEQ	D, CF_SHELL_1      	;parse next line
-			TBNE	D, CF_SHELL_4a      	;parse next line
+			;TBEQ	D, CF_SHELL_1      	;parse next line (out of reach)
+			TBNE	D, CF_SHELL_5      	;parse next line
 			JOB	CF_SHELL_1
-CF_SHELL_4a		EQU	*	
+CF_SHELL_5		EQU	*	
 
 #ifmac	FUDICT_SEARCH
 #ifdef	NVC
 			;Check if NV compilation is enabled (string pointer in X, char count in D)
 			LDY	NVC
-			BNE	CF_SHELL_5 		;skip UDICT search
+			BNE	CF_SHELL_6 		;skip UDICT search
 #endif
 			;Search UDICT (string pointer in X, char count in D)
 			FUDICT_SEARCH
-			BCS	CF_SHELL_6		;process word	
-CF_SHELL_5		EQU	*
+			BCS	CF_SHELL_7		;process word	
+CF_SHELL_6		EQU	*
 #endif
 #ifmac			
 			;Search NVDICT (string pointer in X, char count in D)
 			FNVDICT_SEARCH
-			BCS	CF_SHELL_6		;process word	
+			BCS	CF_SHELL_7		;process word	
 #endif
 			;Search CDICT (string pointer in X, char count in D)
 			FCDICT_SEARCH
-			BCC	CF_SHELL_9		;evaluate string as integer	
+			BCC	CF_SHELL_10		;evaluate string as integer	
 			;Process word ({IMMEDIATE, CFA>>1} in D)
-CF_SHELL_6		LSLD				;extract CFA
-			BCS	CF_SHELL_7		;execute immediate word
+CF_SHELL_7		LSLD				;extract CFA
+			BCS	CF_SHELL_8		;execute immediate word
 			LDY	STATE			;check STATE
-			BNE	CF_SHELL_8		;compile word	
+			BNE	CF_SHELL_9		;compile word	
 			;Execute word (CFA in D)
-CF_SHELL_7 		TFR	D, X
+CF_SHELL_8 		TFR	D, X
 			EXEC_CFA_X
 			JOB	CF_SHELL_4		;parse next word
 			;Compile word (CFA in D)
-CF_SHELL_8		UDICT_CHECK_OF	1 		;new CP -> X
+CF_SHELL_9		UDICT_CHECK_OF	1 		;new CP -> X
 			STX	CP			;update compile pointer
 			STD	-2,X			;add word to compilation
 			JOB	CF_SHELL_4		;parse next word
 			;Evaluate string as integer (string pointer in X, char count in D) 
-CF_SHELL_9		FOUTER_INTEGER	     		;(SSTACK: 22 bytes)
-			DBNE	D, CF_SHELL_11 		;double cell integer
+CF_SHELL_10		FOUTER_INTEGER	     		;(SSTACK: 22 bytes)
+			DBNE	D, CF_SHELL_12 		;double cell integer
 			;Process single cell integer (number in X)
 			LDD	STATE			;check STATE
-			BNE	CF_SHELL_10		;compile number as literal
+			BNE	CF_SHELL_11		;compile number as literal
 			;Push single cell integer onto PS (number in X)
 			PS_CHECK_OF	1 		;new PSP -> Y
 			STY	PSP			;update PSP
 			STX	0,Y	   		;push number onto PS
 			JOB	CF_SHELL_4		;parse next word
 			;Compile single cell integern integer as literal (number in X)
-CF_SHELL_10		TFR	X, Y
+CF_SHELL_11		TFR	X, Y
 			UDICT_CHECK_OF	2 		;new CP -> X
 			STX	CP			;update compile pointer
 			MOVW	#CFA_LITERAL_RT, -4,X	;compile LITERAL xt
 			STY	-2,X			;compile number
 			JOB	CF_SHELL_4		;parse next word
 			;Check for valid double cell integer (cell count-1 in D,  number in Y:X)
-CF_SHELL_11		DBNE	D, CF_SHELL_13 		;invalid number
+CF_SHELL_12		DBNE	D, CF_SHELL_14 		;invalid number
 			;Process double number (number in Y:X)
 			LDD	STATE			;check STATE
-			BNE	CF_SHELL_12		;compile number as literal
+			BNE	CF_SHELL_13		;compile number as literal
 			;Push double number onto PS (number in Y:X)
 			TFR	Y, D
 			PS_CHECK_OF	2 		;new PSP -> Y
@@ -1249,7 +1249,7 @@ CF_SHELL_11		DBNE	D, CF_SHELL_13 		;invalid number
 			STX	2,Y
 			JOB	CF_SHELL_4		;parse next word
 			;Compile double number as literal (number in Y:X)
-CF_SHELL_12		TFR	X, D
+CF_SHELL_13		TFR	X, D
 			UDICT_CHECK_OF	3 		;new CP -> X
 			STX	CP			;update compile pointer
 			MOVW	#CFA_TWO_LITERAL_RT, -6,X;compile 2LITERAL xt
@@ -1257,7 +1257,7 @@ CF_SHELL_12		TFR	X, D
 			STD	-2,X
 			JOB	CF_SHELL_4		;parse next word
 			;Unknown word (or number out of range)
-CF_SHELL_13		THROW	 FEXCPT_EC_UDEFWORD
+CF_SHELL_14		THROW	 FEXCPT_EC_UDEFWORD
 	
 ;QUERY ( -- ) Query command line input
 ;Make the user input device the input source. Receive input into the terminal
