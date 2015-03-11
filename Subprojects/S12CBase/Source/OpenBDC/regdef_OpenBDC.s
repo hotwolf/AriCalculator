@@ -1,5 +1,5 @@
-#ifndef	REDDEF
-#define REGDEF
+#ifndef	REDDEF_COMPILED
+#define REGDEF_COMPILED
 ;###############################################################################
 ;# S12CBase - REGDEF - Register Definitions (OpenBDC)                          #
 ;###############################################################################

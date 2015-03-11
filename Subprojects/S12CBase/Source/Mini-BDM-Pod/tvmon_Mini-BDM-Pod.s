@@ -1,5 +1,5 @@
-#ifndef	TVMON
-#define	TVMON
+#ifndef	TVMON_COMPILED
+#define	TVMON_COMPILED
 ;###############################################################################
 ;# S12CBase - TVMON - Target Vdd Monitor (Mini-BDM-Pod)                        #
 ;###############################################################################

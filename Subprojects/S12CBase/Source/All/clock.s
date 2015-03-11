@@ -1,5 +1,5 @@
-#ifndef	CLOCK
-#define	CLOCK
+#ifndef	CLOCK_COMPILED
+#define	CLOCK_COMPILED
 ;###############################################################################
 ;# S12CBase - CLOCK - Clock Driver                                             #
 ;###############################################################################

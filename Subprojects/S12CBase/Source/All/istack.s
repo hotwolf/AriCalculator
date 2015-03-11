@@ -1,5 +1,5 @@
-#ifndef ISTACK
-#define ISTACK
+#ifndef ISTACK_COMPILED
+#define ISTACK_COMPILED
 ;###############################################################################
 ;# S12CBase - ISTACK - Interrupt Stack Handler                                 #
 ;###############################################################################

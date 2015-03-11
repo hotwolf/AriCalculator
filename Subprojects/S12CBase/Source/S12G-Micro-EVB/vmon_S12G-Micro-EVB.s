@@ -1,5 +1,5 @@
-#ifndef	VMON
-#define	VMON
+#ifndef	VMON_COMPILED
+#define	VMON_COMPILED
 ;###############################################################################
 ;# S12CBase - VMON - Voltage Monitor (S12G-Micro-EVB)                          #
 ;###############################################################################

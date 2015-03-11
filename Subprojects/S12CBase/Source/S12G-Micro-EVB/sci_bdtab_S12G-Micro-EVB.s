@@ -1,5 +1,5 @@
-#ifndef	SCI_BD
-#define SCI_BD
+#ifndef	SCI_BD_COMPILED
+#define SCI_BD_COMPILED
 ;###############################################################################
 ;# S12CBase - SCI Baud Detection Search Trees                                  #
 ;###############################################################################
