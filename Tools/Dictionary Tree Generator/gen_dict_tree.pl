@@ -288,10 +288,12 @@ if ($code->{problems}) {
 
 	#Print header
 	#------------ 
+        printf FILEHANDLE ";#ifndef FCDICT_TREE_COMPILED\n"; 
+        printf FILEHANDLE ";#define FCDICT_TREE_COMPILED\n"; 
         printf FILEHANDLE ";###############################################################################\n"; 
         printf FILEHANDLE ";# S12CForth - Search Tree for the Core Dictionary                             #\n";
         printf FILEHANDLE ";###############################################################################\n";
-        printf FILEHANDLE ";#    Copyright 2009-2013 Dirk Heisswolf                                       #\n";
+        printf FILEHANDLE ";#    Copyright 2009-2015 Dirk Heisswolf                                       #\n";
         printf FILEHANDLE ";#    This file is part of the S12CForth framework for Freescale's S12(X) MCU  #\n";
         printf FILEHANDLE ";#    families.                                                                #\n";
         printf FILEHANDLE ";#                                                                             #\n";
@@ -351,6 +353,7 @@ if ($code->{problems}) {
         #printf FILEHANDLE "\n";
 	print_tree(\%dict_tree, "", []);
         printf FILEHANDLE "#emac\n";
+        printf FILEHANDLE "#endif\n";
         printf FILEHANDLE "#endif\n";
  
 	close FILEHANDLE;
@@ -515,8 +518,8 @@ sub print_tree_layout {
 	#Print string
 	if ($string eq "\n") {
 	    #End of string
-	    printf FILEHANDLE "+";
-	    my $arrow_length = $tree_layout_width;
+	    #printf FILEHANDLE "+";
+	    my $arrow_length = $tree_layout_width+1;
 	    $arrow_length -= length($pre_string);
 	    foreach my $i (0..$arrow_length) {
 		printf FILEHANDLE "-";

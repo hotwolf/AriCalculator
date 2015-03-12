@@ -1065,7 +1065,10 @@ FOUTER_TREE_SEARCH_7	SSTACK_PREPULL	8 				;check stack
 	
 ;NEXT implementations:
 ;===================== 	
-;Invoke the suspend shell
+;Invoke the ABORT shell
+NEXT_ABORT		EQU	CF_ABORT_RT
+
+;Invoke the SUSPEND shell
 NEXT_SUSPEND		EQU	*
 			;Push the execution context onto the RS 
 			RS_PUSH	IP

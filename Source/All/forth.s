@@ -151,12 +151,14 @@ FORTH_VARS_END_LIN	EQU	@
 ;#Break handler
 #ifnmac	SCI_BREAK_ACTION	
 #macro	SCI_BREAK_ACTION, 0
+	FOUTER_INVOKE_ABORT
 #emac
 #endif	
 	
 ;#Suspend handler
 #ifnmac	SCI_SUSPEND_ACTION
 #macro	SCI_SUSPEND_ACTION, 0
+	FOUTER_INVOKE_SUSPEND
 #emac
 #endif	
 

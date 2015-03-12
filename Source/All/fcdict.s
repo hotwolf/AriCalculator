@@ -54,7 +54,7 @@ FCDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
 ;# Variables                                                                   #
 ;###############################################################################
 #ifdef FCDICT_VARS_START_LIN
-			ORG 	FCDICT_VARS_START, FRS_VARS_START_LIN
+			ORG 	FCDICT_VARS_START, FCDICT_VARS_START_LIN
 #else
 			ORG 	FCDICT_VARS_START
 FCDICT_VARS_START_LIN	EQU	@

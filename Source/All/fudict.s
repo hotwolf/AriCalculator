@@ -1,7 +1,7 @@
 #ifndef FUDICT_COMPILED
 #define FUDICT_COMPILED
 ;###############################################################################
-;# S12CForth- FUDUCT - User Ductionary and User Variables                      #
+;# S12CForth- FUDICT - User Ductionary and User Variables                      #
 ;###############################################################################
 ;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
@@ -143,7 +143,7 @@ NVC_NON_VOLATILE	EQU	TRUE
 ;# Variables                                                                   #
 ;###############################################################################
 #ifdef FUDICT_VARS_START_LIN
-			ORG 	FUDICT_VARS_START, FRS_VARS_START_LIN
+	ORG 	FUDICT_VARS_START, FUDICT_VARS_START_LIN
 #else
 			ORG 	FUDICT_VARS_START
 FUDICT_VARS_START_LIN	EQU	@
