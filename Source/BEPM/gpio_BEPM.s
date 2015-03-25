@@ -243,7 +243,7 @@ GPIO_VARS_END_LIN	EQU	@
 		;MOVW	#$0000, DDRC
 		;#Port E
 		;MOVB	#$00, PORTE
-		;CLR	IRQCR		;disable IRQ
+		CLR	IRQCR		;disable IRQ
 		;#Port F
 		;CLR	DDRF
 		;MOVB	#$FF, PERF
