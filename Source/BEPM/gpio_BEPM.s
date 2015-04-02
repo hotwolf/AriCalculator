@@ -255,7 +255,7 @@ GPIO_VARS_END_LIN	EQU	@
 		MOVB	#$02, DDRJ
 		;MOVB	#$FD, PERJ
 		;#Port K
-		MOVB	#$FD, DDRK
+		MOVB	#$BF, DDRK
 		;#Port M
 		MOVB	#$8A, PTM
 		MOVB	#$8A, DDRM
