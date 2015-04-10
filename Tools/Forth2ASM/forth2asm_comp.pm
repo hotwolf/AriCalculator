@@ -68,6 +68,11 @@ package forth2asm_comp;
 *forth_header_line          = \qr/^\\\s(.*)\s*$/;                          #$1:comment
 *forth_comment_line         = \qr/^\s*\\\s(.*)\s*$/;                       #$1:comment
 *forth_commented_code       = \qr/^\s*([^\\]*)\s+\\\s(.*)\s*$/;            #$1:code $2:comment
+*forth_io_spec              = \qr/^\s*(.*)\s+(\(.*--.*\))\s+(.*)$/;        #$1:code $2:io spec $3:code
+
+
+
+
 *forth_inline_comment_start = \qr/^\s*\(\s*$/;
 *forth_inline_comment_end   = \qr/^\s*\)\s*$/;
 *forth_dict_attr_first      = \qr/ASM:\s+(.+)/i;
@@ -85,16 +90,17 @@ package forth2asm_comp;
 *asm_line          = \"%-20s DW %-20s;%-20s %s\n";#"                 #1:label 2:code 3:word 4:comment
 
 #################
-# parser states #
+# compile states #
 #################
-*parse_header            = \0;
-*parse_interpret         = \1;
-*parse_get_constant_name = \2;
+*state_interpret    = \0;
+*state_compile      = \1;
 
-##############
-# forth word #
-##############
-#interpretation
+###############
+# forth words #
+###############
+
+
+
 *word_decimal      = \qr/^\s*decimal\s*$/i;
 *word_hex          = \qr/^\s*hex\s*$/i;
 *word_constant     = \qr/^\s*constant\s*$/i;
@@ -128,9 +134,7 @@ package forth2asm_comp;
 ###############
 *cf_constant       = \"CF_CONSTANT_RT";#"
 
-
-
-
+    
 ###############
 # constructor #
 ###############
@@ -169,30 +173,28 @@ sub DESTROY {
 ##################
 # parse ASM code #
 ##################
-sub parse_forth {
+sub compile_forth {
     my $self = shift @_;
-    #compiler variables
-    my $current_word  = "";
-    my $current_label = "";
     #file I/O
     my $file_handle;
-	
+
+    ####################
+    # check forth file #
+    ####################
     if (-e $self->{forth_file}) {
 	if (-r $self->{forth_file}) {
 	    if ($file_handle = IO::File->new($file, O_RDONLY)) {
-		#########
-		# parse #
-		#########
-		my $parse_state    = $parse_header;
-		my $line_count     = 0;
-		my @header         = ();
-		my @comments       = ();
-		my $inline_comment = 0;
-		my $base           = 16;
-		my @compilations   = ();
-		
+		####################
+		# parse forth file #
+		####################
+		$self->{file_header) = [];
+		my $parsed_code      = ();
+		my $is_header        = 1;
+		my $line_count       = 0;
+		my @comment_lines    = ();
+			
 		$Text::Tabs::tabstop = 8;              #tab length
-		while ($line = <$file_handle>) {
+		while (my $line = <$file_handle>) {
 		    #condition line
 		    chomp $line;                       #trim line
 		    $line =~ s/\s*$//;                 #remove white space
@@ -205,29 +207,113 @@ sub parse_forth {
 		    ##################
 		    # capture header #
 		    ##################
-		    if ($parse_state == $parse_header_line) {
+		    if ($is_header) {
 			if ($line =~ $forth_header) {
-			    push @header, $line;
+			    push @{$self->{file_header)}, $line;
 			    next;
 			} else {
-			    $parse_state = $parse_interpret;
+			    $is_header = 0;
+			}
+		    } else {
+			#########################
+			# capture comment lines #
+			#########################
+			if ($line =~ $forth_comment_line) {
+			    push @comment_lines, $line;
+			} else {			
+			    ########################
+			    # extract code comment #
+			    ########################
+			    my $code_comment = "";
+			    if ($line =~ $forth_commented_code) {
+				$line = $1;
+				$code_comment
+			    }
+		    
+			    ###################
+			    # extract IO spec #
+			    ###################
+			    my $io_spec = "";
+			    if ($line =~ $forth_io_spec) {
+				$line    = sprintf("%s %s", $1, $3);
+				$io_spec = $2;
+			    }
+			    
+			    #################
+			    # extract words #
+			    #################			    
+			    foreach my $word split(/\s+/, $line) {
+				my $code_entry = {word       => $word,
+						  line_count => $line_count}; 
+				if ($#comment_lines >= 0) {
+				    $code_entry->{comment_lines} = [@comment_lines];
+				    @comment_lines               = ();
+				}
+				if ($code_comment !~ /\s*/) {
+				    $code_entry->{code_comment} = $code_comment;
+				    $code_comment               = "";
+				}
+				if ($io_spec !~ /\s*/) {
+				    $code_entry->{io_spec} = $io_spec;
+				    $io_spec               = "";
+				}
+				push @parsed_code, $code_entry;
+			    }
 			}
 		    }
+		}
+		$file_handle->close();
 
-		    ####################
-		    # capture comments #
-		    ####################
-		    if ($line =~ $forth_comment_line) {
-			if (! $inline_comment) {
-			    push @header, $line;
-			}
-			next;
-		    }
+		#######################
+		# compile parsed code #
+		#######################
+		my $base          = 10;
+		my $state         = $state_interpret
+		my @stack         = ();
+		my $current_word  = "";
+		my $current_label = "";
+	
+		my $i  = 0;
+		while ($i <= $#parsed_code) {
+		    $word = $parsed_code[$i]->{word};
+		    #####################
+		    # interpreted words #
+		    #####################
+		    if ($state == $state interpret) {
+			for ($word) {
+			    /$word_decimal/ && do {
+				#DECIMAL
+				$base = 10;
+				last;};
+			    /$word_hex/ && do {
+				#HEX
+				$base = 16;
+				last;};
+			    /$word_constant/ && do {
+				#CONSTANT
+				if ($#stack >= 0) {
+				    
 
-		    ##############################
-		    # extract comments from code #
-		    ##############################
-		    my $code_string    = "";
+
+		    
+
+		};
+
+    #compiler variables
+    my $current_word  = "";
+    my $current_label = "";
+
+
+
+
+
+
+
+
+
+
+
+	    my $code_string    = "";
 		    my $comment_string = "";
 		    if ($line =~ $forth_commented_code) {
 			$code_string    = $1;
