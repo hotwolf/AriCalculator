@@ -5,7 +5,7 @@
 \ #    This file is part of the AriCalculator's operating system.               #
 \ #                                                                             #
 \ #    The AriCalculator's operating system is free software: you can           #
-\ #    redistribute it and/or modify it under the terms of the GNU General      #
+\ #    redistribute it and/or modify it under the tems of the GNU General      #
 \ #    Public License as published bythe Free Software Foundation, either       #
 \ #    version 3 of the License, or (at your option) any later version.         #
 \ #                                                                             #
@@ -319,9 +319,6 @@ THEN ;                                     \ done
 
 \ # Logic Operations ############################################################
 
-\ NCAND NCOR NCXOR NINVERT 
-
-
 \ NCAND
 \ # Bitwise AND of two multi-cell data structures
 \ # args:   size:   size of each struc (in cells)
@@ -330,10 +327,49 @@ THEN ;                                     \ done
 \ # result: struc3: resulting data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-\ : NCAND ( struc1 struc2 size -- struc3 ) \ PUBLIC
-\ DUP DO	  	 	     	       \ iterate over structure size
-
-
-
+: NCAND ( struc1 struc2 size -- struc3 ) \ PUBLIC
+DUP 0 DO	  	               \ iterate over structure size
+    DUP 1+ ROLL ROT                    \ pick cell from struc1
+    AND                                \ AND operation
+    OVER UNROLL                        \ rotate result away
+LOOP                                   \ next iteration
+DROP ;                                 \ drop structure size
+    
+\ NCOR
+\ # Bitwise OR of two multi-cell data structures
+\ # args:   size:   size of each struc (in cells)
+\ #         struc2: data structure
+\ #         struc1: data structure
+\ # result: struc3: resulting data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NCOR ( struc1 struc2 size -- struc3 ) \ PUBLIC
+DUP 0 DO	  	               \ iterate over structure size
+    DUP 1+ ROLL ROT                    \ pick cell from struc1
+    OR                                 \ OR operation
+    OVER UNROLL                        \ rotate result away
+LOOP                                   \ next iteration
+DROP ;                                 \ drop structure size
+    
+\ NCXOR
+\ # Bitwise XOR of two multi-cell data structures
+\ # args:   size:   size of each struc (in cells)
+\ #         struc2: data structure
+\ #         struc1: data structure
+\ # result: struc3: resulting data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NCXOR ( struc1 struc2 size -- struc3 ) \ PUBLIC
+DUP 0 DO	  	               \ iterate over structure size
+    DUP 1+ ROLL ROT                    \ pick cell from struc1
+    OR                                 \ OR operation
+    OVER UNROLL                        \ rotate result away
+LOOP                                   \ next iteration
+DROP ;                                 \ drop structure size
+    
 \ # Arithmetic Operations #######################################################
+
+
+
+
 
