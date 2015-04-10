@@ -362,7 +362,7 @@ DROP ;                                 \ drop structure size
 : NCXOR ( struc1 struc2 size -- struc3 ) \ PUBLIC
 DUP 0 DO	  	               \ iterate over structure size
     DUP 1+ ROLL ROT                    \ pick cell from struc1
-    OR                                 \ OR operation
+    XOR                                \ OR operation
     OVER UNROLL                        \ rotate result away
 LOOP                                   \ next iteration
 DROP ;                                 \ drop structure size
