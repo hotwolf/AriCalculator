@@ -53,8 +53,12 @@ DECIMAL
 \ ###############################################################################
 \ # Code                                                                        #
 \ ###############################################################################
-MARKER ACREMOVE			/ remove AC code from dictionary
+MARKER ACREMOVE                 \ remove AC code from dictionary
 
-INCLUDE ./Stack.4th		/ compile supplemental stack words
-INCLUDE ./NCell.4th		/ compile multi-cell words
-/ INCLUDE ./FracFloat.4th	/ compile fractional floating point number words
+INCLUDE Stack.4th               \ compile supplemental stack words
+INCLUDE NCell.4th               \ compile multi-cell words
+\ INCLUDE FracFloat.4th         \ compile fractional floating point number words
+
+
+: DEMO
+8 7 6 5 4 3 2 1 0 ;

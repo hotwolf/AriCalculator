@@ -1,5 +1,5 @@
 \ ###############################################################################
-\ # AriCalculator - Stack Operations for Multi-Cell Data Structures             #
+\ # AriCalculator - Supplemental Stack Operations                               #
 \ ###############################################################################
 \ #    Copyright 2015 Dirk Heisswolf                                            #
 \ #    This file is part of the AriCalculator's operating system.               #
@@ -19,19 +19,16 @@
 \ #    <http://www.gnu.org/licenses/>.                                          #
 \ ###############################################################################
 \ # Description:                                                                #
-\ #   This module implements stacking operations for multi-cell data            #
-\ #   structures.                                                               #
-\ #                                                                             #
-\ # Data types:                                                                 #
-\ #   size       - unsigned single-cell integer                                 #
-\ #   struc      - any multi-cell data structure                                #
+\ #   This module implements general purpose stack operations which are not     #
+\ #   part of the ANSForh standard.                                             #
 \ ###############################################################################
 \ # Version History:                                                            #
-\ #    April 8, 2015                                                            #
+\ #    April 10, 2015                                                           #
 \ #      - Initial release                                                      #
 \ ###############################################################################
 \ # Required Word Sets:                                                         #
-\ #    ANSForth - CORE word set                                                 #
+\ #    ANSForth                    - CORE word set                              #
+\ #    S12CForth/GForth/SwiftForth - SP@ word                                   #
 \ ###############################################################################
 
 \ ###############################################################################
@@ -49,94 +46,66 @@
 \ ###############################################################################
 \ # Code                                                                        #
 \ ###############################################################################
-\ Drop a multi-cell data structure
-\ # args:   size:  size of struc (in cells)
-\ #         struc: data structure
-\ # result: --
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NDROP ( size struc -- )               \ PUBLIC
-1+ CELLS SP@ + SP! ;
 
-\ Duplicate a multi-cell data structure from within the parameter stack
-\ # args:   size1:  size of struc1 (in cells)
-\ #         size2:  size of struc2 (in cells)
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # result: struc1: duplicate data structure
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NPICK ( struc1 struc2 size2 size1 -- struc1 struc2 struc1 ) \ PUBLIC
-DUP ROT +                             \ calculate PICK offset
-SWAP 0 DO                             \ repeat size1 times
-     DUP PICK SWAP                    \ pick one cell
-LOOP                                  \ loop
-DROP ;                                \ drop PICK offset
-
-\ Rotate over multiple multi-cell data structures
-\ # args:   size:     size of each struc (in cells)
-\ #         u:        number of structs to rotate
-\ #         struc0:   data structure
+\ PLACE
+\ # Opposite of PICK. Replace a cell anywhere on the parameter stack.
+\ # args:   u:    position of the cell to be replaced
+\ #         xu':  cell to replace xu  
+\ #         x0:   untouched cell
+\ #         x1:   untouched cell
 \ #         ...
-\ #         strucu:   data structure
-\ # result: strucu:   data structure
-\ #         struc0:   data structure
+\ #         xu-1: untouched cell
+\ #         xu:   cell to be replaced
+\ # result: x0:   untouched cell
+\ #         x1:   untouched cell
 \ #         ...
-\ #         strucu-1: data structure
+\ #         xu-1: untouched cell
+\ #         xu':  cell which replaced xu  
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-\ #         result out of range (-11)
-: NROLL ( strucu ... struc0 u size -- strucu-1 ...  struc0 strucu ) \ PUBLIC
-DUP ROT *                             \ calculate ROLL offset
-SWAP 0 DO                             \ repeat size times
-    DUP ROLL SWAP                     \ rotate one cell
-LOOP
-DROP ;                                \ drop ROLL offset
+: PLACE ( xu xu-1 ... x1 x0 xu' u -- xu' xu-1 ... x1 x0 ) \ PUBLIC
+2 + CELLS                                     \ add offset to u
+SP@ +                                         \ determine target address
+! ;                                           \ replace xu
 
-\ Duplicate last multi-cell data structure
-\ # args:   size:  size of struc (in cells)
-\ #         struc: data structure
-\ # result: struc: duplicate data structure
-\ #         struc: data structure
+\ UNROLL
+\ # Opposite of ROLL. Insert a cell anywhere into the parameter stack.
+\ # args:   u:    position of the insertion
+\ #         xu:   cell to be inserted
+\ #         x0:   untouched cell
+\ #         x1:   untouched cell
+\ #         ...
+\ #         xu-1: untouched cell
+\ # result: x0:   untouched cell
+\ #         x1:   untouched cell
+\ #         ...
+\ #         xu-1: untouched cell
+\ #         xu:   inserted cell
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NDUP ( struc size -- struc struc)  \ PUBLIC
-0 SWAP NPICK ;
+: UNROLL ( xu-1 ... x1 x0 xu u -- xu xu-1 ... x1 x0 ) \ PUBLIC
+DUP	   	       	       	     	      \ allocate temporal stack space
+DUP					      \ save u
+2 + CELLS                                     \ calculate upper boundary of I
+[ 1 CELLS ] LITERAL	 		      \ calculate lower boundary of I
+DO  	    				      \ iterate u times
+    SP@ I + DUP [ 1 CELLS ] LITERAL +         \ calculate move source and target
+    @ SWAP !                                  \ copy cell at I+1 to I
+[ 1 CELLS ] LITERAL +LOOP                     \ iterate with step size of 1 cell
+PLACE ;                                       \ move xu to position u
 
-\ Duplicate previous multi-cell data structure
-\ # args:   size:   size of struc1 and struc2 (in cells)
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # result: struc1: duplicate data structure
-\ #         struc2: data structure
-\ #         struc1: data structure
+\ REMOVE
+\ # Remove a cell anywhere from the parameter stack.
+\ # args:   u:    position of cell to be removed
+\ #         x0:   untouched cell
+\ #         x1:   untouched cell
+\ #         ...
+\ #         xu:   cell to be removed
+\ # result: x0:   untouched cell
+\ #         x1:   untouched cell
+\ #         ...
+\ #         xu-1: untouched cell
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NOVER ( struc1 struc2 size -- struc1 struc2 struc1 )  \ PUBLIC
-DUP NPICK ;
-
-\ Swap two multi-cell data structure
-\ # args:   size:   size of struc1 and struc2 (in cells)
-\ #         struc1: data structure
-\ #         struc2: data structure
-\ # result: struc2: data structure
-\ #         struc1: data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NSWAP ( struc2 struc1 size -- struc1 struc2 )  \ PUBLIC
-1 SWAP NROLL ;
-
-\ ROTATE over three multi-cell data structures
-\ # args:   size:   size of struc1, struc2, and struc3 (in cells)
-\ #         struc3: data structure
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # result: struc1: data structure
-\ #         struc3: data structure
-\ #         struc2: data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NROT ( struc1 struc2 struc3 size -- struc2 struc3 struc1 )   \ PUBLIC
-2 SWAP NROLL ;
+: REMOVE ( xu ... x1 x0 u -- xu-1 ... x1 x0 ) \ PUBLIC
+ROLL DROP ;                                   \ remove cell 
