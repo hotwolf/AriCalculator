@@ -1,5 +1,5 @@
-#ifndef	LED
-#define	LED
+#ifndef	LED_COMPILED
+#define	LED_COMPILED
 ;###############################################################################
 ;# S12CBase - LED - LED Driver (Mini-BDM-Port)                                 #
 ;###############################################################################
@@ -103,7 +103,6 @@ LED_VARS_END_LIN	EQU	@
 			BSET	LED_PORT, #(LED_ALL)
 #emac
 
-	
 ;#Turn green bi-color LED on
 #macro	LED_BICOLOR_GREEN, 0
 			BSET	LED_PORT, #LED_BICOLOR_RED

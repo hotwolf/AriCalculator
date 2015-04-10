@@ -1,5 +1,5 @@
-#ifndef RESET
-#define	RESET
+#ifndef RESET_COMPILED
+#define	RESET_COMPILED
 ;###############################################################################
 ;# S12CBase - RESET - Reset Handler                                            #
 ;###############################################################################
@@ -270,11 +270,11 @@ RESET_EXT_ENTRY		EQU	*
 			JOB	START_OF_CODE
 ;#Clock monitor reset
 RESET_CM_ENTRY		MOVW	#RESET_MSG_COP, RESET_MSG_REQ 		;set default request (COP)
-			MOVB	#RESET_MSG_CLKFAIL, RESET_MSG_PTR 	;set clock failure message
+			MOVW	#RESET_MSG_CLKFAIL, RESET_MSG_PTR 	;set clock failure message
 			JOB	START_OF_CODE
 ;COP and user reset
 RESET_COP_ENTRY		EQU	START_OF_CODE
-			MOVB	#RESET_MSG_REQ, RESET_MSG_PTR 		;preserve error message
+			MOVW	RESET_MSG_REQ, RESET_MSG_PTR 		;preserve error message
 			MOVW	#RESET_MSG_COP, RESET_MSG_REQ 		;set default request (COP)
 			JOB	START_OF_CODE
 				

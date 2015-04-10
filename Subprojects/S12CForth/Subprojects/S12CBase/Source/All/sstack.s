@@ -1,5 +1,5 @@
-#ifndef SSTACK
-#define SSTACK
+#ifndef SSTACK_COMPILED
+#define SSTACK_COMPILED
 ;###############################################################################
 ;# S12CBase - SSTACK - Subroutine Stack Handler                                #
 ;###############################################################################

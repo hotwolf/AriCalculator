@@ -1,9 +1,9 @@
-#ifndef	NUM
-#define	NUM
+#ifndef	NUM_COMPILED
+#define	NUM_COMPILED
 ;###############################################################################
 ;# S12CBase - NUM - Number printing routines                                   #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
+;#    Copyright 2010- Dirk Heisswolf                                           #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -106,7 +106,7 @@ NUM_VARS_END_LIN	EQU	@
 ;         SP+4:  |    
 ;         SP+5: LSB   
 ; result: none
-; SSTACK: 18 bytes
+; SSTACK: 0 bytes  (+6 arg bytes)
 ;         X, Y and D are preserved
 #macro	NUM_CLEAN_REVERSE, 0
 			SSTACK_PREPULL	6
@@ -128,10 +128,10 @@ NUM_VARS_END_LIN	EQU	@
 ;         SP+4:  |number      
 ;         SP+5: LSB   
 ;         C-flag: set if successful
-; SSTACK: 8 bytes
+; SSTACK: 8 bytes (+6 arg bytes) 
 ;         X, Y and D are preserved 
 #macro	NUM_REVPRINT_NB, 0
-			SSTACK_JOBSR	NUM_REVPRINT_NB, 19
+			SSTACK_JOBSR	NUM_REVPRINT_NB, 8
 #emac
 	
 ;#Print a reserse number digit - blocking
@@ -331,9 +331,9 @@ NUM_REVERSE_4		SSTACK_PREPULL	18
 ;         SP+4:  |number      
 ;         SP+5: LSB   
 ;         C-flag: set if successful
-; SSTACK: 8 bytes
+; SSTACK: 8 bytes  (+6 arg bytes)
 ;         X, Y and D are preserved 
-NUM_REVPRINT_NB	EQU	*
+NUM_REVPRINT_NB		EQU	*
 	
 ;Stack layout:
 NUM_REVPRINT_NB_COUNT	EQU	$00 ;SP+ 0: A

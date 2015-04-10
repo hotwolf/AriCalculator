@@ -1,5 +1,5 @@
-#ifndef	VECTAB
-#define	VECTAB
+#ifndef	VECTAB_COMPILED
+#define	VECTAB_COMPILED
 ;###############################################################################
 ;# S12CBase - VECTAB - Vector Table (SIMHC12)                                  #
 ;###############################################################################

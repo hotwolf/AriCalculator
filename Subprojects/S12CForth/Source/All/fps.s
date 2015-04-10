@@ -52,9 +52,9 @@
 ;                       -+- | --- --- --- --- --- --- --- |          
 ;                           |              ^              | <- [HLD]	     
 ;                           |             PAD             |	     
-;                       -+- | --- --- --- --- --- --- --- |          
-;             RS_PADDING |  |                             | <- [PAD]          
-;                       -+- .                             .          
+;                           | --- --- --- --- --- --- --- |          
+;                           |                             | <- [PAD]          
+;                           .                             .          
 ;                           .                             .          
 ;                           | --- --- --- --- --- --- --- |          
 ;                           |              ^              | <- [PSP]	  
@@ -114,13 +114,13 @@ FPS_VARS_END_LIN	EQU	@
 			MOVW	#PS_EMPTY,	PSP	
 #emac
 	
-;#Abort action (to be executed in addition of quit and suspend action)
+;#Abort action (to be executed in addition of quit action)
 #macro	FPS_ABORT, 0
 			;Reset parameter stack
 			MOVW	#PS_EMPTY,	PSP		
 #emac
 	
-;#Quit action (to be executed in addition of suspend action)
+;#Quit action
 #macro	FPS_QUIT, 0
 #emac
 	

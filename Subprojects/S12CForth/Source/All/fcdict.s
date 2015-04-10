@@ -1,7 +1,9 @@
+#ifndef FCDICT
+#define FCDICT
 ;###############################################################################
 ;# S12CForth- FCDICT - Core Dictionary of the S12CForth Framework              #
 ;###############################################################################
-;#    Copyright 2010 - 2013 Dirk Heisswolf                                     #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -30,7 +32,7 @@
 ;#    BASE - S12CBase framework                                                #
 ;#    FPS    - Forth parameter stack                                           #
 ;#    FRS    - Forth return stack                                              #
-;#    FCOM   - Forth communication interface                                   #
+;#    FIO    - Forth communication interface                                   #
 ;#    FINNER - Forth inner interpreter                                         #
 ;#    FEXCPT - Forth Exception Handler                                         #
 ;#                                                                             #
@@ -52,7 +54,7 @@ FCDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
 ;# Variables                                                                   #
 ;###############################################################################
 #ifdef FCDICT_VARS_START_LIN
-			ORG 	FCDICT_VARS_START, FRS_VARS_START_LIN
+			ORG 	FCDICT_VARS_START, FCDICT_VARS_START_LIN
 #else
 			ORG 	FCDICT_VARS_START
 FCDICT_VARS_START_LIN	EQU	@
@@ -68,11 +70,11 @@ FCDICT_VARS_END_LIN	EQU	@
 #macro	FCDICT_INIT, 0
 #emac
 
-;#Abort action (to be executed in addition of quit and suspend action)
+;#Abort action (to be executed in addition of quit action)
 #macro	FCDICT_ABORT, 0
 #emac
 	
-;#Quit action (to be executed in addition of suspend action)
+;#Quit action
 #macro	FCDICT_QUIT, 0
 #emac
 	
@@ -555,8 +557,8 @@ FCDICT_WORDS_START_LIN	EQU	@
 
 ;Word: WORDS-CDICT ( -- )
 ;List the definition names in the core dictionary in alphabetical order.
-;CFA_WORDS_CDICT	DW	CF_WORDS_CDICT
+CFA_WORDS_CDICT	DW	CF_WORDS_CDICT
 	
 FCDICT_WORDS_END	EQU	*
 FCDICT_WORDS_END_LIN	EQU	@
-
+#endif

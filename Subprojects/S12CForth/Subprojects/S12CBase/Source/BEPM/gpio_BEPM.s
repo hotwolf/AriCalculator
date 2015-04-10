@@ -1,5 +1,5 @@
-#ifndef	GPIO
-#define GPIO
+#ifndef	GPIO_COMPILED
+#define GPIO_COMPILED
 ;###############################################################################
 ;# S12CBase - GPIO - GPIO Handler (BEPM)                                       #
 ;###############################################################################
@@ -243,7 +243,7 @@ GPIO_VARS_END_LIN	EQU	@
 		;MOVW	#$0000, DDRC
 		;#Port E
 		;MOVB	#$00, PORTE
-		;CLR	IRQCR		;disable IRQ
+		CLR	IRQCR		;disable IRQ
 		;#Port F
 		;CLR	DDRF
 		;MOVB	#$FF, PERF
@@ -255,7 +255,7 @@ GPIO_VARS_END_LIN	EQU	@
 		MOVB	#$02, DDRJ
 		;MOVB	#$FD, PERJ
 		;#Port K
-		MOVB	#$FD, DDRK
+		MOVB	#$BF, DDRK
 		;#Port M
 		MOVB	#$8A, PTM
 		MOVB	#$8A, DDRM

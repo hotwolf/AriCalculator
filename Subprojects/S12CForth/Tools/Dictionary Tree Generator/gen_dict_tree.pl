@@ -129,17 +129,17 @@ if ($#lib_files < 0) {
 $prog_name   = basename($src_files[0], ".s");
 $output_path = dirname($src_files[0], ".s");
 
-###################
-# add default lib #
-###################
-#printf "libraries:    %s (%s)\n",join("\", \"", @lib_files), $#lib_files;
-#printf "source files: %s (%s)\n",join("\", \"", @src_files), $#src_files;
-if ($#lib_files < 0) {
-  foreach $src_file (@src_files) {
-    #printf "add library:%s/\n", dirname($src_file);
-    push @lib_files, sprintf("%s/", dirname($src_file));
-  }
-}
+####################
+## add default lib #
+####################
+##printf "libraries:    %s (%s)\n",join("\", \"", @lib_files), $#lib_files;
+##printf "source files: %s (%s)\n",join("\", \"", @src_files), $#src_files;
+#if ($#lib_files < 0) {
+#  foreach $src_file (@src_files) {
+#    #printf "add library:%s/\n", dirname($src_file);
+#    push @lib_files, sprintf("%s/", dirname($src_file));
+#  }
+#}
 
 ####################
 # load symbol file #
@@ -225,10 +225,11 @@ if ($code->{problems}) {
 	if ($code_label =~ /^CFA_/) {		
 	    #printf STDERR "CFA found: \"%s\"\n", $code_label;
 	    
-	    #Word must contain the comment line: ;Word: <name> ... IMMEDIATE"
-	    $name_string  = "";
-	    $name_found   = 0;
-	    $is_immediate = 0;
+	    #Word must contain the comment line: ;Word: <name> ... HIDDEN ... IMMEDIATE"
+	    my $name_string  = "";
+	    my $name_found   = 0;
+	    my $is_immediate = 0;
+	    my $is_hidden    = 0;
 	    foreach my $code_comment (@{$code_comments}) {
 		#printf STDERR "Comment: \"%s\"\n", $code_comment;
 		if ($code_comment =~ /^;Word:\s+(\S+)/) {
@@ -240,22 +241,30 @@ if ($code->{problems}) {
 		    } else {
 			$is_immediate = 0;
 		    }
+		    if ($code_comment =~ /^;Word:\s+\S+\s+.*HIDDEN\s*$/) {
+			$is_hidden = 1;
+		    } else {
+			$is_hidden = 0;
+		    }
 		    last;
 		}
 	    }	    
 	    if ($name_found) {
-		#printf STDERR "      \"%s\" %s\n", $name_string, $is_immediate ? "-> IMMEDIATE" : "";;
-		
-		#Find longest name
-		if (length($name_string) > $max_name_length) {
-		    $max_name_length = length($name_string);
-		}
-		
-		#Split name into letters
-		@name_array = split("", $name_string);
-	      	
-		#Add word to dictionary tree
-		add_to_tree(\%dict_tree, \@name_array, $code_label, $is_immediate);
+		#printf STDERR "      \"%s\"%s%s\n", $name_string,
+		#                                    $is_hidden    ? " HIDDEN" : "",
+		#                                    $is_immediate ? " IMMEDIATE" : "";
+		 if (! $is_hidden) {
+		     #Find longest name
+		     if (length($name_string) > $max_name_length) {
+			 $max_name_length = length($name_string);
+		     }
+		     
+		     #Split name into letters
+		     @name_array = split("", $name_string);
+		     
+		     #Add word to dictionary tree
+		     add_to_tree(\%dict_tree, \@name_array, $code_label, $is_immediate);
+		 }
 	    }
 	}
     }
@@ -279,10 +288,12 @@ if ($code->{problems}) {
 
 	#Print header
 	#------------ 
+        printf FILEHANDLE ";#ifndef FCDICT_TREE_COMPILED\n"; 
+        printf FILEHANDLE ";#define FCDICT_TREE_COMPILED\n"; 
         printf FILEHANDLE ";###############################################################################\n"; 
         printf FILEHANDLE ";# S12CForth - Search Tree for the Core Dictionary                             #\n";
         printf FILEHANDLE ";###############################################################################\n";
-        printf FILEHANDLE ";#    Copyright 2009-2013 Dirk Heisswolf                                       #\n";
+        printf FILEHANDLE ";#    Copyright 2009-2015 Dirk Heisswolf                                       #\n";
         printf FILEHANDLE ";#    This file is part of the S12CForth framework for Freescale's S12(X) MCU  #\n";
         printf FILEHANDLE ";#    families.                                                                #\n";
         printf FILEHANDLE ";#                                                                             #\n";
@@ -342,6 +353,7 @@ if ($code->{problems}) {
         #printf FILEHANDLE "\n";
 	print_tree(\%dict_tree, "", []);
         printf FILEHANDLE "#emac\n";
+        printf FILEHANDLE "#endif\n";
         printf FILEHANDLE "#endif\n";
  
 	close FILEHANDLE;
@@ -506,8 +518,8 @@ sub print_tree_layout {
 	#Print string
 	if ($string eq "\n") {
 	    #End of string
-	    printf FILEHANDLE "+";
-	    my $arrow_length = $tree_layout_width;
+	    #printf FILEHANDLE "+";
+	    my $arrow_length = $tree_layout_width+1;
 	    $arrow_length -= length($pre_string);
 	    foreach my $i (0..$arrow_length) {
 		printf FILEHANDLE "-";

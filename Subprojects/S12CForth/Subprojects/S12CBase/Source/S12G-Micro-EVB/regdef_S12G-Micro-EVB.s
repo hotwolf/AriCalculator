@@ -1,5 +1,5 @@
-#ifndef	REGDEF
-#define REGDEF
+#ifndef	REGDEF_COMPILED
+#define REGDEF_COMPILED
 ;###############################################################################
 ;# S12CBase - REGDEF - Register Definitions (S12G-Micro-EVB)                   #
 ;###############################################################################

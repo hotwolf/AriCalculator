@@ -1,5 +1,5 @@
-#ifndef SCI
-#define SCI
+#ifndef SCI_COMPILED
+#define SCI_COMPILED
 ;###############################################################################
 ;# S12CBase - SCI - Serial Communication Interface Driver                      #
 ;###############################################################################

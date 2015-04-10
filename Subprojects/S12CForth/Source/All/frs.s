@@ -1,3 +1,5 @@
+#ifndef FRS_COMPILED
+#define FRS_COMPILED
 ;###############################################################################
 ;# S12CForth- FRS - Return Stack for the Forth VM                              #
 ;###############################################################################
@@ -107,11 +109,11 @@ FRS_VARS_END_LIN	EQU	@
 			MOVW	#RS_EMPTY,	RSP		
 #emac
 
-;#Abort action (to be executed in addition of quit and suspend action)
+;#Abort action (to be executed in addition of quit action)
 #macro	FRS_ABORT, 0
 #emac
 	
-;#Quit action (to be executed in addition of suspend action)
+;#Quit action
 #macro	FRS_QUIT, 0
 			;Reset return stack
 			MOVW	#RS_EMPTY,	RSP		
@@ -204,12 +206,88 @@ FRS_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ; throws: FEXCPT_EC_RSUF
 ;        Y and D are preserved 
-#macro	RS_PULL, 1
+#macro	RS_PULL, 1	;1:variable
 			RS_CHECK_UF	1		;check for underflow	=> 8 cycles
-			MOVW		2,X+, \1	;RS -> X		=> 3 cycles 
+			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
 			STX		RSP		;			=> 3 cycles
 							;                         ---------
-							;                         14 cycles
+							;                         16 cycles
+#emac	
+	
+;RS_PULL2: pull two entries from the return stack  (RSP -> X)
+; args:   1: address of first variable to pull data into (TOS)
+;         2: address of second variable to pull data into
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSUF
+;        Y and D are preserved 
+#macro	RS_PULL2, 2	;1:variable 2:variable
+			RS_CHECK_UF	2		;check for underflow	=> 8 cycles
+			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \2	;RS -> X		=> 5 cycles 
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         21 cycles
+#emac	
+	
+;RS_PULL3: pull three entries from the return stack  (RSP -> X)
+; args:   1: address of first variable to pull data into (TOS)
+;         2: address of second variable to pull data into
+;         3: address of third variable to pull data into
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSUF
+;        Y and D are preserved 
+#macro	RS_PULL3, 3	;1:variable 2:variable 3:variable
+			RS_CHECK_UF	3		;check for underflow	=> 8 cycles
+			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \2	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \3	;RS -> X		=> 5 cycles 
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         26 cycles
+#emac	
+	
+;RS_PULL4: pull three entries from the return stack  (RSP -> X)
+; args:   1: address of first variable to pull data into (TOS)
+;         2: address of second variable to pull data into
+;         3: address of third variable to pull data into
+;         4: address of fourth variable to pull data into
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSUF
+;        Y and D are preserved 
+#macro	RS_PULL4, 4	;1:variable 2:variable 3:variable 4:variable
+			RS_CHECK_UF	3		;check for underflow	=> 8 cycles
+			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \2	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \3	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \4	;RS -> X		=> 5 cycles 
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         31 cycles
+#emac	
+	
+;RS_PULL5: pull three entries from the return stack  (RSP -> X)
+; args:   1: address of first variable to pull data into (TOS)
+;         2: address of second variable to pull data into
+;         3: address of third variable to pull data into
+;         4: address of fourth variable to pull data into
+;         5: address of fifth variable to pull data into
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSUF
+;        Y and D are preserved 
+#macro	RS_PULL5, 5	;1:variable 2:variable 3:variable 4:variable 5:variable
+			RS_CHECK_UF	3		;check for underflow	=> 8 cycles
+			MOVW		2,X+, \1	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \2	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \3	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \4	;RS -> X		=> 5 cycles 
+			MOVW		2,X+, \5	;RS -> X		=> 5 cycles 
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         36 cycles
 #emac	
 	
 ;RS_PULL_Y: pull one entry from the return stack into index Y
@@ -256,7 +334,64 @@ FRS_VARS_END_LIN	EQU	@
 							;                         22 cycles
 #emac	
 
-;RS_PUSH: push a variable onto the return stack and don't touch index X
+;RS_PUSH2: push two variables onto the return stack (RSP -> X)
+; args:   1: address of first variable to push data from
+;         2: address of second variable to push data from (TOS)
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSOF
+;        Y and D are preserved
+#macro	RS_PUSH2, 2	;1:variable 2:variable
+			RS_CHECK_OF	2		;check for overflow	=>11 cycles
+			LDX		RSP		;var -> RS		=> 3 cycles
+			MOVW		\1, 2,-X	;			=> 5 cycles
+			MOVW		\2, 2,-X	;			=> 5 cycles
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         27 cycles
+#emac	
+
+;RS_PUSH3: push two variables onto the return stack (RSP -> X)
+; args:   1: address of first variable to push data from
+;         2: address of second variable to push data from
+;         3: address of third variable to push data from (TOS)
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSOF
+;        Y and D are preserved
+#macro	RS_PUSH3, 3	;1:variable 2:variable 3:variable
+			RS_CHECK_OF	2		;check for overflow	=>11 cycles
+			LDX		RSP		;var -> RS		=> 3 cycles
+			MOVW		\1, 2,-X	;			=> 5 cycles
+			MOVW		\2, 2,-X	;			=> 5 cycles
+			MOVW		\3, 2,-X	;			=> 5 cycles
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         32 cycles
+#emac	
+
+;RS_PUSH4: push two variables onto the return stack (RSP -> X)
+; args:   1: address of first variable to push data from
+;         2: address of second variable to push data from
+;         3: address of third variable to push data from
+;         4: address of fourth variable to push data from (TOS)
+; result: X: RSP
+; SSTACK: none
+; throws: FEXCPT_EC_RSOF
+;        Y and D are preserved
+#macro	RS_PUSH4, 4	;1:variable 2:variable 3:variable
+			RS_CHECK_OF	2		;check for overflow	=>11 cycles
+			LDX		RSP		;var -> RS		=> 3 cycles
+			MOVW		\1, 2,-X	;			=> 5 cycles
+			MOVW		\2, 2,-X	;			=> 5 cycles
+			MOVW		\3, 2,-X	;			=> 5 cycles
+			MOVW		\4, 2,-X	;			=> 5 cycles
+			STX		RSP		;			=> 3 cycles
+							;                         ---------
+							;                         37 cycles
+#emac	
+
+;RS_PUSH_KEEP_X: push a variable onto the return stack and don't touch index X
 ; args:   1: variable
 ; result: Y: RSP
 ; SSTACK: none
@@ -293,11 +428,11 @@ FRS_CODE_START_LIN	EQU	@
 ;Standard exceptions
 #ifndef FRS_NO_CHECK
 #ifdef FRS_DEBUG
-FRS_THROW_PSOF		BGND				;return stack overflow
-FRS_THROW_PSUF		BGND				;return stack underflow
+FRS_THROW_RSOF		BGND				;return stack overflow
+FRS_THROW_RSUF		BGND				;return stack underflow
 #else
-FRS_THROW_PSOF		THROW	FEXCPT_EC_RSOF		;return stack overflow
-FRS_THROW_PSUF		THROW	FEXCPT_EC_RSUF		;return stack underflow
+FRS_THROW_RSOF		THROW	FEXCPT_EC_RSOF		;return stack overflow
+FRS_THROW_RSUF		THROW	FEXCPT_EC_RSUF		;return stack underflow
 #endif
 #endif
 	
@@ -329,4 +464,5 @@ FRS_WORDS_START_LIN	EQU	@
 
 FRS_WORDS_END		EQU	*
 FRS_WORDS_END_LIN	EQU	@
+#endif
 
