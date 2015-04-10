@@ -1,5 +1,5 @@
 \ ###############################################################################
-\ # AriCalculator - Stack Operations for Multi-Cell Data Structures             #
+\ # AriCalculator - Main source file                                            #
 \ ###############################################################################
 \ #    Copyright 2015 Dirk Heisswolf                                            #
 \ #    This file is part of the AriCalculator's operating system.               #
@@ -19,7 +19,8 @@
 \ #    <http://www.gnu.org/licenses/>.                                          #
 \ ###############################################################################
 \ # Description:                                                                #
-\ #   This module implements stacking operations for multi-cell data            #
+\ #   This main source file of the AriCalculatior OS.                           #
+\ #   It includes all further source files files module implements stacking operations for multi-cell data            #
 \ #   structures.                                                               #
 \ #                                                                             #
 \ # Data types:                                                                 #
