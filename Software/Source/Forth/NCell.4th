@@ -1,5 +1,5 @@
 \ ###############################################################################
-\ # AriCalculator - Quad-Cell Number Operations                                 #
+\ # AriCalculator - Stack Operations for Multi-Cell Data Structures             #
 \ ###############################################################################
 \ #    Copyright 2015 Dirk Heisswolf                                            #
 \ #    This file is part of the AriCalculator's operating system.               #
@@ -19,12 +19,12 @@
 \ #    <http://www.gnu.org/licenses/>.                                          #
 \ ###############################################################################
 \ # Description:                                                                #
-\ #   This module implements quad-cell number operations.                       #
+\ #   This module implements stacking operations for multi-cell data            #
+\ #   structures.                                                               #
 \ #                                                                             #
 \ # Data types:                                                                 #
-\ #   q          - quad-cell number                                             #
-\ #   uq         - unsigned quad-cell number                                    #
-\ #   dq         - double quad-cell number                                      #
+\ #   size       - unsigned single-cell integer                                 #
+\ #   struc      - any multi-cell data structure                                #
 \ ###############################################################################
 \ # Version History:                                                            #
 \ #    April 8, 2015                                                            #
@@ -32,14 +32,12 @@
 \ ###############################################################################
 \ # Required Word Sets:                                                         #
 \ #    ANSForth - CORE word set                                                 #
-\ #               DOUBLE word set                                               #
-\ #    NStack   - Stack Operations for Multi-Cell Data Structures               #
 \ ###############################################################################
 
 \ ###############################################################################
 \ # Configuration                                                               #
 \ ###############################################################################
-  	
+        
 \ ###############################################################################
 \ # Constants                                                                   #
 \ ###############################################################################
@@ -51,116 +49,94 @@
 \ ###############################################################################
 \ # Code                                                                        #
 \ ###############################################################################
-
-\ # Stacking Arithmetic #########################################################
-
-\ Drop last quad-cell number
-\ # args:   q: quad-cell number
+\ Drop a multi-cell data structure
+\ # args:   size:  size of struc (in cells)
+\ #         struc: data structure
 \ # result: --
 \ # throws: stack overflow (-3)
-\           stack underflow (-4)
-: QDROP ( q -- )			\ PUBLIC
-4 NDROP ;
+\ #         stack underflow (-4)
+: NDROP ( size struc -- )               \ PUBLIC
+1+ CELLS SP@ + SP! ;
 
-\ Duplicate last quad-cell number
-\ # args:   q: quad-cell number
-\ # result: q: duplicated quad-cell number
-\ #         q: quad-cell number
+\ Duplicate a multi-cell data structure from within the parameter stack
+\ # args:   size1:  size of struc1 (in cells)
+\ #         size2:  size of struc2 (in cells)
+\ #         struc2: data structure
+\ #         struc1: data structure
+\ # result: struc1: duplicate data structure
+\ #         struc2: data structure
+\ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: QDUP ( q -- q q)  \ PUBLIC
-4 NDUP ;
+: NPICK ( struc1 struc2 size2 size1 -- struc1 struc2 struc1 ) \ PUBLIC
+DUP ROT +                             \ calculate PICK offset
+SWAP 0 DO                             \ repeat size1 times
+     DUP PICK SWAP                    \ pick one cell
+LOOP                                  \ loop
+DROP ;                                \ drop PICK offset
 
-\ Duplicate previous quad-cell number
-\ # args:   q2: quad-cell number
-\ #         q1: quad-cell number
-\ # result: q1: duplicated quad-cell number 
-\ #         q2: quad-cell number
-\ #         q1: quad-cell number
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: QOVER ( q1 q2 -- q1 q2 q1 )  \ PUBLIC
-4 NOVER ;
-
-\ Swap two quad-cell numbers
-\ # args:   q1: quad-cell number
-\ #         q2: quad-cell number
-\ # result: q2: quad-cell number
-\ #         q1: quad-cell number
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: QSWAP ( q2 q1 -- q1 q2 )  \ PUBLIC
-4 NSWAP ;
-
-\ ROTATE over three quad-cell numbers
-\ # args:   q3: quad-cell number
-\ #         q2: quad-cell number
-\ #         q1: quad-cell number
-\ # result: q1: quad-cell number
-\ #         q3: quad-cell number
-\ #         q2: quad-cell number
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: QROT ( q1 q2 q3 -- q2 q3 q1 )   \ PUBLIC
-4 NROT ;
-
-\ Rotate over multiple quad-cell numbers
-\ # args:   u:    number of quad-cell numbers to rotate
-\ #         q0:   quad-cell number
+\ Rotate over multiple multi-cell data structures
+\ # args:   size:     size of each struc (in cells)
+\ #         u:        number of structs to rotate
+\ #         struc0:   data structure
 \ #         ...
-\ #         qu:   quad-cell number
-\ # result: qu:   quad-cell number
-\ #         q0:   quad-cell number
+\ #         strucu:   data structure
+\ # result: strucu:   data structure
+\ #         struc0:   data structure
 \ #         ...
-\ #         qu-1: quad-cell number
+\ #         strucu-1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: QROLL ( qu ... q0 u -- qu-1 ...  q0 qu ) \ PUBLIC
-4 NROLL ;
+: NROLL ( strucu ... struc0 u size -- strucu-1 ...  struc0 strucu ) \ PUBLIC
+DUP ROT *                             \ calculate ROLL offset
+SWAP 0 DO                             \ repeat size times
+    DUP ROLL SWAP                     \ rotate one cell
+LOOP
+DROP ;                                \ drop ROLL offset
 
-\ # Arithmetic Operations ########################################################
-
-\ Increment quad-cell number
-\ # args:   q1:  quad-cell number
-\ # result: q2:  incremented quad-cell number
+\ Duplicate last multi-cell data structure
+\ # args:   size:  size of struc (in cells)
+\ #         struc: data structure
+\ # result: struc: duplicate data structure
+\ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: Q1+ ( q1 -- q2 ) \ PUBLIC
-[ 0 1 ] 2LITERAL      \ constant one
-4 0 DO	      	      \ repeat four times
-  6 ROLL              \ get least significant cell
-  M+		      \ add constant one
-  
+: NDUP ( struc size -- struc struc)  \ PUBLIC
+0 SWAP NPICK ;
 
-4 ROLL INVERT	      \ rotate and invert
-
-
-
-
-
-4 0 DO	      	      \ repeat four times
-  4 ROLL INVERT	      \ rotate and invert
-LOOP ;
-
-
-\ Invert quad-cell number (1's complement)
-\ # args:   q1:  quad-cell number
-\ # result: q2:  inverted quad-cell number
+\ Duplicate previous multi-cell data structure
+\ # args:   size:   size of struc1 and struc2 (in cells)
+\ #         struc2: data structure
+\ #         struc1: data structure
+\ # result: struc1: duplicate data structure
+\ #         struc2: data structure
+\ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: QINVERT ( q1 -- q2 ) \ PUBLIC
-4 0 DO	      	      \ repeat four times
-  4 ROLL INVERT	      \ rotate and invert
-LOOP ;
+: NOVER ( struc1 struc2 size -- struc1 struc2 struc1 )  \ PUBLIC
+DUP NPICK ;
 
-\ Negate quad-cell number (2's complement)
-\ # args:   q1:  quad-cell number
-\ # result: q2:  negated quad-cell number
+\ Swap two multi-cell data structure
+\ # args:   size:   size of struc1 and struc2 (in cells)
+\ #         struc1: data structure
+\ #         struc2: data structure
+\ # result: struc2: data structure
+\ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: QNEGATE ( q1 -- q2 ) \ PUBLIC
-QINVERT Q1+ ;
+: NSWAP ( struc2 struc1 size -- struc1 struc2 )  \ PUBLIC
+1 SWAP NROLL ;
 
-
-
+\ ROTATE over three multi-cell data structures
+\ # args:   size:   size of struc1, struc2, and struc3 (in cells)
+\ #         struc3: data structure
+\ #         struc2: data structure
+\ #         struc1: data structure
+\ # result: struc1: data structure
+\ #         struc3: data structure
+\ #         struc2: data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NROT ( struc1 struc2 struc3 size -- struc2 struc3 struc1 )   \ PUBLIC
+2 SWAP NROLL ;

@@ -29,7 +29,7 @@
 \ #    April 1, 2015                                                            #
 \ #      - Initial release                                                      #
 \ ###############################################################################
-\ # Required Modules:                                                           #
+\ # Required Word Sets:                                                         #
 \ #    ANSForth - CORE words                                                    #
 \ #    NStack   - Stack Operations for Multi-Cell Data Structures               #
 \ #    Quad     - Quad cell number operations                                   #
@@ -69,7 +69,7 @@
 \ # Code                                                                        #
 \ ###############################################################################
 
-\ # Stacking ####################################################################
+\ # Stack Operations ############################################################
 
 \ Drop last fractional float number
 \ # args:   ff: fractional float number
@@ -123,13 +123,13 @@
 
 \ Rotate over multiple fractional float numbers
 \ # args:   u:     number of FF numbers to rotate
-\ #         ff0:   FF number
+\ #         ff0:   fractional float number
 \ #         ...
-\ #         ffu:   FF number
-\ # result: ffu:   FF number
-\ #         ff0:   FF number
+\ #         ffu:   fractional float number
+\ # result: ffu:   fractional float number
+\ #         ff0:   fractional float number
 \ #         ...
-\ #         ffu-1: FF number
+\ #         ffu-1: fractional float number
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
