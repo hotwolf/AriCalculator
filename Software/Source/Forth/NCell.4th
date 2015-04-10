@@ -204,8 +204,6 @@ DROP ;                                \ drop REMOVE offset
 : NOVER ( struc1 struc2 size -- struc1 struc2 struc1 )  \ PUBLIC
 1 SWAP NPICK ;
 
-\ UNTESTED:
-
 \ Swap two multi-cell data structure
 \ # args:   size:   size of each struc (in cells
 \ #         struc2: data structure
@@ -217,7 +215,7 @@ DROP ;                                \ drop REMOVE offset
 : NSWAP ( struc1 struc2 size -- struc2 struc1 )  \ PUBLIC
 1 SWAP NROLL ;
 
-\ NROLL
+\ NROT
 \ #ROTATE over three multi-cell data structures
 \ # args:   size:   size of each struc (in cells)
 \ #         struc3: data structure to
@@ -253,7 +251,7 @@ DROP ;                                \ drop REMOVE offset
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : NTUCK ( struc1 struc2 size -- struc2 ) \ PUBLIC
-1 SWAP NPLACE ;
+0 SWAP NPLACE ;
 
 
 \ # Compare Operations ############################################################
@@ -280,12 +278,12 @@ LOOP                         \ next iteration
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : N0< ( struc size -- flag )         \ PUBLIC
-OVER [ -1 2/ INVERT ] LITERAL AND 0= \ check if sign bit is set
-IF                                   \ negative value
-    NDROP FALSE                      \ remove structure and return false
-ELSE                                 \ positive value
-    N0= INVERT                       \ check if value is zero
-THEN ;                               \ done
+OVER [ -1 1 RSHIFT INVERT ] LITERAL AND 0= \ check if sign bit is set
+IF                                         \ positive value
+    N0= INVERT                             \ check if value is zero
+ELSE                                       \ negative value
+    NDROP FALSE                            \ remove structure and return false
+THEN ;                                     \ done
 
 \ N=
 \ # Check two multi-cell data structure are equal
