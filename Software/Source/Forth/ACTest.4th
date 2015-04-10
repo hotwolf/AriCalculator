@@ -1,5 +1,5 @@
 \ ###############################################################################
-\ # AriCalculator - Main source file                                            #
+\ # AriCalculator - Top Level Source File for Code Development                  #
 \ ###############################################################################
 \ #    Copyright 2015 Dirk Heisswolf                                            #
 \ #    This file is part of the AriCalculator's operating system.               #
@@ -20,25 +20,28 @@
 \ ###############################################################################
 \ # Description:                                                                #
 \ #   This main source file of the AriCalculatior OS.                           #
-\ #   It includes all further source files files module implements stacking operations for multi-cell data            #
-\ #   structures.                                                               #
-\ #                                                                             #
-\ # Data types:                                                                 #
-\ #   size       - unsigned single-cell integer                                 #
-\ #   struc      - any multi-cell data structure                                #
+\ #   It includes all further source files for compilation on PC based Forth    #
+\ #   systems like GForth or SwiftForth.                                        #
 \ ###############################################################################
 \ # Version History:                                                            #
-\ #    April 8, 2015                                                            #
+\ #    April 10, 2015                                                           #
 \ #      - Initial release                                                      #
 \ ###############################################################################
 \ # Required Word Sets:                                                         #
-\ #    ANSForth - CORE word set                                                 #
+\ #    Gforth/SwiftForth - INCLUDE word                                         #
+\ #    ANSForth          - CORE word set                                        #
+\ #                        CORE EXT word set                                    #
+\ #    Stack             - Supplemental stack operations                        #
+\ #    NCell             - Multi-cell operations                                #
+\ #    FracFloat         - Fractional floating point number support             #
+\ #                                                                             #
 \ ###############################################################################
 
 \ ###############################################################################
 \ # Configuration                                                               #
 \ ###############################################################################
-        
+DECIMAL
+
 \ ###############################################################################
 \ # Constants                                                                   #
 \ ###############################################################################
@@ -50,94 +53,8 @@
 \ ###############################################################################
 \ # Code                                                                        #
 \ ###############################################################################
-\ Drop a multi-cell data structure
-\ # args:   size:  size of struc (in cells)
-\ #         struc: data structure
-\ # result: --
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NDROP ( size struc -- )               \ PUBLIC
-1+ CELLS SP@ + SP! ;
+MARKER ACREMOVE			/ remove AC code from dictionary
 
-\ Duplicate a multi-cell data structure from within the parameter stack
-\ # args:   size1:  size of struc1 (in cells)
-\ #         size2:  size of struc2 (in cells)
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # result: struc1: duplicate data structure
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NPICK ( struc1 struc2 size2 size1 -- struc1 struc2 struc1 ) \ PUBLIC
-DUP ROT +                             \ calculate PICK offset
-SWAP 0 DO                             \ repeat size1 times
-     DUP PICK SWAP                    \ pick one cell
-LOOP                                  \ loop
-DROP ;                                \ drop PICK offset
-
-\ Rotate over multiple multi-cell data structures
-\ # args:   size:     size of each struc (in cells)
-\ #         u:        number of structs to rotate
-\ #         struc0:   data structure
-\ #         ...
-\ #         strucu:   data structure
-\ # result: strucu:   data structure
-\ #         struc0:   data structure
-\ #         ...
-\ #         strucu-1: data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-\ #         result out of range (-11)
-: NROLL ( strucu ... struc0 u size -- strucu-1 ...  struc0 strucu ) \ PUBLIC
-DUP ROT *                             \ calculate ROLL offset
-SWAP 0 DO                             \ repeat size times
-    DUP ROLL SWAP                     \ rotate one cell
-LOOP
-DROP ;                                \ drop ROLL offset
-
-\ Duplicate last multi-cell data structure
-\ # args:   size:  size of struc (in cells)
-\ #         struc: data structure
-\ # result: struc: duplicate data structure
-\ #         struc: data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NDUP ( struc size -- struc struc)  \ PUBLIC
-0 SWAP NPICK ;
-
-\ Duplicate previous multi-cell data structure
-\ # args:   size:   size of struc1 and struc2 (in cells)
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # result: struc1: duplicate data structure
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NOVER ( struc1 struc2 size -- struc1 struc2 struc1 )  \ PUBLIC
-DUP NPICK ;
-
-\ Swap two multi-cell data structure
-\ # args:   size:   size of struc1 and struc2 (in cells)
-\ #         struc1: data structure
-\ #         struc2: data structure
-\ # result: struc2: data structure
-\ #         struc1: data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NSWAP ( struc2 struc1 size -- struc1 struc2 )  \ PUBLIC
-1 SWAP NROLL ;
-
-\ ROTATE over three multi-cell data structures
-\ # args:   size:   size of struc1, struc2, and struc3 (in cells)
-\ #         struc3: data structure
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # result: struc1: data structure
-\ #         struc3: data structure
-\ #         struc2: data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NROT ( struc1 struc2 struc3 size -- struc2 struc3 struc1 )   \ PUBLIC
-2 SWAP NROLL ;
+INCLUDE ./Stack.4th		/ compile supplemental stack words
+INCLUDE ./NCell.4th		/ compile multi-cell words
+/ INCLUDE ./FracFloat.4th	/ compile fractional floating point number words
