@@ -57,88 +57,89 @@
 
 \ # Stack Operations ############################################################
 
-\ NDROP
+\ NCDROP
 \ # Remove a multi-cell data structure from TOS
 \ # args:   size:  size of struc (in cells)
 \ #         struc: data structure
-\ # result: --
+\ # result: size:  size of struc (in cells)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NDROP ( struc size -- )               \ PUBLIC
-1+ CELLS SP@ + SP! ; 			\ remove data structure from TOS
+: NCDROP ( struc size -- size )         \ PUBLIC
+DUP                                     \ duplicate size
+1+ CELLS SP@ +                          \ calculate new sack pointer
+TUCK !                                  \ save size    
+SP! ; 			                \ set new stack pointer
 
-\ NPICK
+\ NCPICK
 \ # Duplicate a multi-cell data structure from within the parameter stack
 \ # args:   size:   size of data structures (in cells)
 \ #         u:      position of data structure to be copied
 \ #         struc0: data structure
-\ #         struc1: data structure
 \ #         ...
 \ #         strucu: data structure to be duplicated
-\ # result: strucu: duplicated data structure
+\ # result: size:   size of data structures (in cells)
+\ #         strucu: duplicated data structure
 \ #         struc0: data structure
-\ #         struc1: data structure
 \ #         ...
 \ #         strucu: duplicated data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: NPICK ( strucu ... struc1 struc0 u size -- strucu ... struc1 struc0 strucu )  \ PUBLIC
-DUP ROT 1+ *                          \ calculate PICK offset
-SWAP 0 DO                             \ iterate size times
-    DUP PICK SWAP                     \ pick one cell
+: NCPICK ( strucu ... struc0 u size -- strucu ... struc0 strucu size ) \ PUBLIC
+DUP ROT 1+ * 1+                       \ calculate PICK offset
+OVER 0 DO                             \ iterate size times
+    DUP PICK ROT ROT                  \ pick one cell
 LOOP                                  \ next iteration
 DROP ;                                \ drop PICK offset
 
-\ NPLACE
-\ # Opposite of NPICK. Replace a multi-cell data structure anywhere on the
+\ NCPLACE
+\ # Opposite of NCPICK. Replace a multi-cell data structure anywhere on the
 \ # parameter stack.
 \ # args:   size:     size of data structures (in cells)
 \ #         u:        position of data structure to be replaced
 \ #         strucu':  data structure to replace strucu
 \ #         struc0:   data structure
-\ #         struc1:   data structure
 \ #         ...
-\ #         strucu-1: data structure
 \ #         strucu:   data structure to be replaced
-\ # result: struc0:   data structure
-\ #         struc1:   data structure
+\ # result: size:     size of data structures (in cells)
+\ #         struc0:   data structure
 \ #         ...
 \ #         strucu-1: data structure
 \ #         strucu':  data structure which replaced strucu
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: NPLACE ( strucu strucu-1 ... struc1 struc0 u size -- strucu' strucu-1... struc1 struc0 ) \ PUBLIC
-DUP ROT 1+ *                          \ calculate PLACE offset
-SWAP 0 DO                             \ iterate size times
-    DUP ROT SWAP PLACE                \ place one cell
+: NCPLACE ( strucu ... struc0 strucu' u size -- strucu' strucu-1... struc0 size ) \ PUBLIC
+DUP ROT 1+ * 1+                       \ calculate PLACE offset
+OVER 0 DO                             \ iterate size times
+    ROT OVER PLACE                    \ place one cell
 LOOP                                  \ next iteration
 DROP ;                                \ drop PLACE offset
 
-\ NROLL
+\ NCROLL
 \ #Rotate over multiple multi-cell data structures
 \ # args:   size:     size of each struc (in cells)
 \ #         u:        number of structs to rotate
 \ #         struc0:   data structure
 \ #         ...
 \ #         strucu:   data structure to be wrapped
-\ # result: strucu:   wrapped data structure
+\ # result: size:     size of each struc (in cells)
+\ #         strucu:   wrapped data structure
 \ #         struc0:   data structure
 \ #         ...
 \ #         strucu-1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: NROLL ( strucu ... struc0 u size -- strucu-1 ...  struc0 strucu ) \ PUBLIC
-DUP ROT 1+ *                          \ calculate ROLL offset
-SWAP 0 DO                             \ iterate size times
-    DUP ROLL SWAP                     \ rotate one cell
+: NCROLL ( strucu ... struc0 u size -- strucu-1 ... struc0 strucu size ) \ PUBLIC
+DUP ROT 1+ * 1+                       \ calculate ROLL offset
+OVER 0 DO                             \ iterate size times
+    DUP ROLL ROT ROT                  \ rotate one cell
 LOOP                                  \ next iteration
 DROP ;                                \ drop ROLL offset
 
 \ NUNROLL
-\ # Opposite of NROLL. Insert a multi-cell data structure anywhere into the
+\ # Opposite of NCROLL. Insert a multi-cell data structure anywhere into the
 \ # parameter stack.
 \ # args:   size:     size of each struc (in cells)
 \ #         u:        number of structs to rotate
@@ -146,159 +147,253 @@ DROP ;                                \ drop ROLL offset
 \ #         struc0:   data structure
 \ #         ...
 \ #         strucu-1: data structure
-\ # result: struc0:   data structure
+\ # result: size:     size of each struc (in cells)
+\ #         struc0:   data structure
 \ #         ...
-\ #         strucu-1: data structure
-\ #         strucu:   wrappeddata structure
+\ #         strucu:   wrapped data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: NUNROLL ( strucu-1 ... struc0  strucu u size -- strucu ...  struc0 ) \ PUBLIC
-DUP ROT 1+ *                          \ calculate UNROLL offset
-SWAP 0 DO                             \ iterate size times
-    TUCK UNROLL                       \ rotate one cell
+: NCUNROLL ( strucu-1 ... struc0  strucu u size -- strucu ...  struc0 size )     \ PUBLIC
+DUP ROT 1+ * 1+                       \ calculate UNROLL offset
+OVER 0 DO                             \ iterate size times
+    ROT OVER UNROLL                   \ rotate one cell
 LOOP                                  \ next iteration
 DROP ;                                \ drop UNROLL offset
 
-\ NREMOVE
+\ NCREMOVE
 \ # Remove a multi-cell data structure anywhere from the parameter stack.
 \ # args:   size:     size of each struc (in cells)
 \ #         u:        number of structs to rotate
 \ #         struc0:   data structure
 \ #         ...
 \ #         strucu:   data structure to be dropped
-\ # result: struc0:   data structure
+\ # result: size:     size of each struc (in cells)
+\ #         struc0:   data structure
 \ #         ...
 \ #         strucu-1: shifted data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: NREMOVE ( strucu ... struc0 u size -- strucu-1 ...  struc0 ) \ PUBLIC
-DUP ROT 1+ *                          \ calculate REMOVE offset
-SWAP 0 DO                             \ iterate size times
+: NCREMOVE ( strucu ... struc0 u size -- strucu-1 ...  struc0 size ) \ PUBLIC
+DUP ROT 1+ * 1+                       \ calculate REMOVE offset
+OVER 0 DO                             \ iterate size times
     DUP I - REMOVE                    \ rotate one cell
 LOOP                                  \ next iteration
 DROP ;                                \ drop REMOVE offset
 
-\ NDUP
+\ NCDUP
 \ #Duplicate last multi-cell data structure
 \ # args:   size:   size of each struc (in cells)
 \ #         struc: data structure
-\ # result: struc: duplicated data structure
+\ # result: size:   size of each struc (in cells)
+\ #         struc: duplicated data structure
 \ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NDUP ( struc size -- struc struc)  \ PUBLIC
-0 SWAP NPICK ;
+: NCDUP ( struc size -- struc struc size )  \ PUBLIC
+0 SWAP NCPICK ;
 
-\ NOVER
+\ NCOVER
 \ #Duplicate previous multi-cell data structure
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: data structure
 \ #         struc1: data structure
-\ # result: struc1: duplicated data structure
+\ # result: size:   size of each struc (in cells)
+\ #         struc1: duplicated data structure
 \ #         struc2: data structure
 \ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NOVER ( struc1 struc2 size -- struc1 struc2 struc1 )  \ PUBLIC
-1 SWAP NPICK ;
+: NCOVER ( struc1 struc2 size -- struc1 struc2 struc1 size ) \ PUBLIC
+1 SWAP NCPICK ;
 
 \ Swap two multi-cell data structure
 \ # args:   size:   size of each struc (in cells
 \ #         struc2: data structure
 \ #         struc1: data structure
-\ # result: struc1: swapped data structure
+\ # result: size:   size of each struc (in cells
+\ #         struc1: swapped data structure
 \ #         struc2: swapped data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NSWAP ( struc1 struc2 size -- struc2 struc1 )  \ PUBLIC
-1 SWAP NROLL ;
+: NCSWAP ( struc1 struc2 size -- struc2 struc1 size ) \ PUBLIC
+1 SWAP NCROLL ;
 
-\ NROT
+\ NCROT
 \ #ROTATE over three multi-cell data structures
 \ # args:   size:   size of each struc (in cells)
 \ #         struc3: data structure to
 \ #         struc2: data structure to
 \ #         struc1: data structure to be wrapped
-\ # result: struc1: data structure
+\ # result: size:   size of each struc (in cells)
+\ #         struc1: data structure
 \ #         struc3: data structure
 \ #         struc2: wrapped data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NROT ( struc1 struc2 struc3 size -- struc2 struc3 struc1 )   \ PUBLIC
-2 SWAP NROLL ;
+: NCROT ( struc1 struc2 struc3 size -- struc2 struc3 struc1 size ) \ PUBLIC
+2 SWAP NCROLL ;
 
-\ NNIP
+\ NCNIP
 \ # Remove the first multi-cell data structure below the TOS
 \ # args:   size:  size of each struc (in cells)
 \ #         struc2: data structure
 \ #         struc1: data structure to be removed
-\ # result: struc2: data structure
+\ # result: size:  size of each struc (in cells)
+\ #         struc2: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NNIP ( struc1 struc2 size -- struc2 ) \ PUBLIC
-1 SWAP NREMOVE ;
+: NCNIP ( struc1 struc2 size -- struc2 size ) \ PUBLIC
+1 SWAP NCREMOVE ;
 
-\ NTUCK
+\ NCTUCK
 \ # Copy the first multi-cell data structure below the second one
 \ # args:   size:  size of each struc (in cells)
 \ #         struc2: data structure
 \ #         struc1: data structure
-\ # result: struc2: data structure
+\ # result: size:  size of each struc (in cells)
+\ #         sstruc2: data structure
 \ #         struc1: data structure
 \ #         struc2: duplicated data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NTUCK ( struc1 struc2 size -- struc2 ) \ PUBLIC
-0 SWAP NPLACE ;
+: NCTUCK ( struc1 struc2 size -- struc2 size ) \ PUBLIC
+0 SWAP NCPLACE ;
+
+\ # Logic Operations ############################################################
+
+\ NCINVERT
+\ # 1's complement of a multi-cell data structure
+\ # args:   size:   size of each struc (in cells)
+\ #         struc1: data structure
+\ # result: struc2: resulting data structure
+\ # throws: size:   size of each struc (in cells)
+\ #         stack overflow (-3)
+\ #         stack underflow (-4)
+: NCINVERT ( struc1 size -- struc2 size ) \ PUBLIC
+DUP 0 DO	  	               \ iterate over structure size
+    DUP ROLL                           \ pick cell from struc
+    INVERT                             \ invert cell
+    SWAP                               \ swap result
+LOOP ;                                 \ next iteration
+
+\ NCLOGIC
+\ # Bitwise logic operation of two multi-cell data structures
+\ # args:   size:   size of each struc (in cells)
+\ #         xt:     bitwise logic operation ( x1 x2 -- x3 )
+\ #         struc1: data structure
+\ # result: struc2: resulting data structure
+\ # throws: size:   size of each struc (in cells)
+\ #         stack overflow (-3)
+\ #         stack underflow (-4)
+: NCLOGIC ( struc1 xt size -- struc2 size ) \ PUBLIC
+2 + DUP 2 DO	               \ iterate over structure size
+    DUP ROLL 2OVER                     \ place operator cells next to each other
+    EXECUTE                            \ execute logic operation
+    OVER UNROLL ROT DROP               \ rotate result away
+LOOP                                   \ next iteration
+NIP 2 - ;                              \ restore structure size
+    
+\ NCAND
+\ # Bitwise AND of two multi-cell data structures
+\ # args:   size:   size of each struc (in cells)
+\ #         struc1: data structure
+\ # result: struc2: resulting data structure
+\ # throws: size:   size of each struc (in cells)
+\ #         stack overflow (-3)
+\ #         stack underflow (-4)
+: NCAND ( struc1 size -- struc2 size ) \ PUBLIC
+['] AND SWAP NCLOGIC ;
+\ Alternative implementation:
+\ DUP 0 DO	  	               \ iterate over structure size
+\     DUP 1+ ROLL ROT                    \ pick cell from struc1
+\     AND                                \ AND operation
+\     OVER UNROLL                        \ rotate result away
+\ LOOP ;                                 \ next iteration
+
+\ NCOR
+\ # Bitwise OR of two multi-cell data structures
+\ # args:   size:   size of each struc (in cells)
+\ #         struc1: data structure
+\ # result: size:   size of each struc (in cells)
+\ #         struc2: resulting data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NCOR ( struc1 size -- struc2 size )  \ PUBLIC
+['] OR SWAP NCLOGIC ;
+\ Alternative implementation:
+\ DUP 0 DO	  	               \ iterate over structure size
+\     DUP 1+ ROLL ROT                    \ pick cell from struc1
+\     OR                                 \ OR operation
+\     OVER UNROLL                        \ rotate result away
+\ LOOP ;                                 \ next iteration
+    
+\ NCXOR
+\ # Bitwise XOR of two multi-cell data structures
+\ # args:   size:   size of each struc (in cells)
+\ #         struc1: data structure
+\ # result: size:   size of each struc (in cells)
+\ #         struc2: resulting data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NCXOR ( struc1 size -- struc2 size ) \ PUBLIC
+['] XOR SWAP NCLOGIC ;
+\ Alternative implementation:
+\ DUP 0 DO	  	               \ iterate over structure size
+\     DUP 1+ ROLL ROT                    \ pick cell from struc1
+\     XOR                                \ OR operation
+\     OVER UNROLL                        \ rotate result away
+\ LOOP ;                                 \ next iteration
+    
+\ # Arithmetic Operations #######################################################
+
 
 
 \ # Compare Operations ############################################################
 
-\ N0=
+\ NC0=
 \ # Check if all bits in multi-cell data structure are zero
 \ # args:   size:  size of each struc (in cells)
 \ #         struc: data structure
 \ # result: flag:  true if all bits in data structure are zero
+\ #         size:  size of each struc (in cells)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: N0= ( struc size -- flag ) \ PUBLIC
-1 DO  	      	      	     \ iterate size-1 times
-    OR                       \ combine two cells
+: NC0= ( struc size -- size flag ) \ PUBLIC
+SWAP OVER 1 DO  	     \ iterate size-1 times
+    ROT OR                   \ combine two cells
 LOOP                         \ next iteration
 0= ;                         \ check if combined cells are zero
 
-\ N0<
+\ NC0<
 \ # Interpret data multi-cell data structure as signed integer and check if it
 \ # is greater than zero
 \ # args:   size:  size of each struc (in cells)
 \ #         struc: data structure
 \ # result: flag:  true value is greater than zero
+\ #         size:  size of each struc (in cells)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: N0< ( struc size -- flag )         \ PUBLIC
+: NC0< ( struc size -- size flag ) \ PUBLIC
 OVER [ -1 1 RSHIFT INVERT ] LITERAL AND 0= \ check if sign bit is set
 IF                                         \ positive value
-    N0= INVERT                             \ check if value is zero
+    NC0= INVERT                             \ check if value is zero
 ELSE                                       \ negative value
-    NDROP FALSE                            \ remove structure and return false
+    NCDROP FALSE                            \ remove structure and return false
 THEN ;                                     \ done
 
-\ N=
+\ NC=
 \ # Check two multi-cell data structure are equal
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: data structure
 \ #         struc1: data structure
 \ # result: flag:  true equal
+\ #         size:  size of each struc (in cells)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-\ : N= ( struc1 struc2 size -- flag ) \ PUBLIC
-
-
-
-
-
+: NC= ( struc1 struc2 size -- size flag ) \ PUBLIC
+NCXOR NC0= ;
 
 \ N<
 \ # Check two multi-cell data structure are equal
@@ -314,60 +409,6 @@ THEN ;                                     \ done
 
 
 \ N< N> NU> NU<
-
-
-
-\ # Logic Operations ############################################################
-
-\ NCAND
-\ # Bitwise AND of two multi-cell data structures
-\ # args:   size:   size of each struc (in cells)
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # result: struc3: resulting data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCAND ( struc1 struc2 size -- struc3 ) \ PUBLIC
-DUP 0 DO	  	               \ iterate over structure size
-    DUP 1+ ROLL ROT                    \ pick cell from struc1
-    AND                                \ AND operation
-    OVER UNROLL                        \ rotate result away
-LOOP                                   \ next iteration
-DROP ;                                 \ drop structure size
-    
-\ NCOR
-\ # Bitwise OR of two multi-cell data structures
-\ # args:   size:   size of each struc (in cells)
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # result: struc3: resulting data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCOR ( struc1 struc2 size -- struc3 ) \ PUBLIC
-DUP 0 DO	  	               \ iterate over structure size
-    DUP 1+ ROLL ROT                    \ pick cell from struc1
-    OR                                 \ OR operation
-    OVER UNROLL                        \ rotate result away
-LOOP                                   \ next iteration
-DROP ;                                 \ drop structure size
-    
-\ NCXOR
-\ # Bitwise XOR of two multi-cell data structures
-\ # args:   size:   size of each struc (in cells)
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # result: struc3: resulting data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCXOR ( struc1 struc2 size -- struc3 ) \ PUBLIC
-DUP 0 DO	  	               \ iterate over structure size
-    DUP 1+ ROLL ROT                    \ pick cell from struc1
-    XOR                                \ OR operation
-    OVER UNROLL                        \ rotate result away
-LOOP                                   \ next iteration
-DROP ;                                 \ drop structure size
-    
-\ # Arithmetic Operations #######################################################
 
 
 

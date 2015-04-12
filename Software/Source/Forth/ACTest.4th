@@ -61,4 +61,4 @@ INCLUDE NCell.4th               \ compile multi-cell words
 
 
 : DEMO
-8 7 6 5 4 3 2 1 0 ;
+8 7 6 5 4 3 2 1 0 .s ;
