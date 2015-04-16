@@ -47,6 +47,8 @@
 \ # Code                                                                        #
 \ ###############################################################################
 
+\ # Single-Cell Operations ######################################################
+
 \ PLACE
 \ # Opposite of PICK. Replace a cell anywhere on the parameter stack.
 \ # args:   u:    position of the cell to be replaced
@@ -64,9 +66,9 @@
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : PLACE ( xu xu-1 ... x1 x0 xu' u -- xu' xu-1 ... x1 x0 ) \ PUBLIC
-2 + CELLS                                     \ add offset to u
-SP@ +                                         \ determine target address
-! ;                                           \ replace xu
+2 + CELLS                               \ add offset to u
+SP@ +                                   \ determine target address
+! ;                                     \ replace xu
 
 \ UNROLL
 \ # Opposite of ROLL. Insert a cell anywhere into the parameter stack.
@@ -84,15 +86,15 @@ SP@ +                                         \ determine target address
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : UNROLL ( xu-1 ... x1 x0 xu u -- xu xu-1 ... x1 x0 ) \ PUBLIC
-DUP	   	       	       	     	      \ allocate temporal stack space
-DUP					      \ save u
-2 + CELLS                                     \ calculate upper boundary of I
-[ 1 CELLS ] LITERAL	 		      \ calculate lower boundary of I
-DO  	    				      \ iterate u times
-    SP@ I + DUP [ 1 CELLS ] LITERAL +         \ calculate move source and target
-    @ SWAP !                                  \ copy cell at I+1 to I
-[ 1 CELLS ] LITERAL +LOOP                     \ iterate with step size of 1 cell
-PLACE ;                                       \ move xu to position u
+DUP	   	       	       	     	\ allocate temporal stack space
+DUP					\ save u
+2 + CELLS                               \ calculate upper boundary of I
+[ 1 CELLS ] LITERAL	 		\ calculate lower boundary of I
+DO  	    				\ iterate u times
+    SP@ I + DUP [ 1 CELLS ] LITERAL +   \ calculate move source and target
+    @ SWAP !                            \ copy cell at I+1 to I
+[ 1 CELLS ] LITERAL +LOOP               \ iterate with step size of 1 cell
+PLACE ;                                 \ move xu to position u
 
 \ REMOVE
 \ # Remove a cell anywhere from the parameter stack.
@@ -108,4 +110,79 @@ PLACE ;                                       \ move xu to position u
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : REMOVE ( xu ... x1 x0 u -- xu-1 ... x1 x0 ) \ PUBLIC
-ROLL DROP ;                                   \ remove cell 
+ROLL DROP ;                             \ remove cell 
+
+\ # Multi-Cell Operations #######################################################
+
+\ MPICK
+\ # Pick multiple cells fron anywhere on the stack
+\ # args:   u0:     number of cells to pick
+\ #         u1:     pick offset
+\ #         x0:     data
+\ #         ...
+\ #         xu1:    data
+\ #         ...
+\ #         xu1+u0: data
+\ # result: xu1:    duplicated data
+\ #         ...
+\ #         xu1+u0: duplicated data
+\ #         x0:     data
+\ #         ...
+\ #         xu1:    data
+\ #         ...
+\ #         xu1+u0: data
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         result out of range (-11)
+: MPICK ( xu1+u0 ... xu1 ... x0 u1 u0 -- xu1+u0 ... xu1 ... x0 xu1+u0 ... xu1 ) \ PUBLIC
+DUP ROT + 1+ SWAP                       \ adjust pick offset
+0 DO                                    \ iterate over u0
+   DUP PICK                             \ pick one cell
+LOOP                                    \ next iteration
+DROP ;                                  \ clean up
+
+\ MPLACE
+\ # Place multiple cells anywhere on the stack
+\ # args:   u0:    number of cells to place
+\ #         u1:    place offset
+\ #         x0:    data
+\ #         ...
+\ #         xu1-1: data
+\ # result: x0:    data
+\ #         ...
+\ #         xu1-1: data
+\ #         x0:    data
+\ #         ...
+\ #         xu0-1: data
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         result out of range (-11)
+: MPLACE ( xu1-1 ... x0 u1 u0 -- xu0-1 ... x0 xu1-1 ... x0 ) \ PUBLIC
+SWAP 1+ SWAP                            \ adjust place offset
+0 DO                                    \ iterate over u0
+  DUP ROT PLACE                         \ place one cell
+LOOP                                    \ next iteration
+DROP ;                                  \ clean up
+
+\ MPLACE0
+\ # Place multiple zeros anywhere on the stack
+\ # args:   u0:    number of cells to place
+\ #         u1:    place offset
+\ #         x0:    data
+\ #         ...
+\ #         xu1-1: data
+\ # result: x0:    data
+\ #         ...
+\ #         xu1-1: data
+\ #         0:     zero +
+\ #         ...         | u0 cells
+\ #         0:     zero +
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         result out of range (-11)
+: MPLACE0 ( xu1-1 ... x0 u1 u0 -- 0 ... 0 xu1-1 ... x0 ) \ PUBLIC
+SWAP 1+ SWAP                            \ adjust place offset
+0 DO                                    \ iterate over u0
+    0 OVER PLACE                        \ place one zero
+LOOP                                    \ next iteration
+DROP ;                                  \ clean up

@@ -24,6 +24,7 @@
 \ #                                                                             #
 \ # Data types:                                                                 #
 \ #   ff         - fractional floating point number                             #
+\ #   uq         - unsugned quad cell number number                             #
 \ ###############################################################################
 \ # Version History:                                                            #
 \ #    April 1, 2015                                                            #
@@ -71,14 +72,16 @@
 
 \ # Stack Operations ############################################################
 
-\ Drop last fractional float number
+\ FFDROP
+\ #Drop last fractional float number
 \ # args:   ff: fractional float number
 \ # result: --
 \ # throws: stack overflow (-3)
 \           stack underflow (-4)
 : FFDROP ( ff -- )			\ PUBLIC
-8 NDROP ;
+8 NCDROP DROP ;
 
+\ FFDUP
 \ Duplicate last fractional float number
 \ # args:   ff: fractional float number
 \ # result: ff: duplicated fractional float number
@@ -86,8 +89,9 @@
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : FFDUP ( ff -- ff ff)  \ PUBLIC
-8 NDUP ;
+8 NCDUP DROP ;
 
+\ NCOVER
 \ Duplicate previous fractional float number
 \ # args:   ff2: fractional float number
 \ #         ff1: fractional float number
@@ -97,8 +101,9 @@
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : FFOVER ( ff1 ff2 -- ff1 ff2 ff1 )  \ PUBLIC
-8 NOVER ;
+8 NCOVER DROP ;
 
+\ FFSWAP
 \ Swap two fractional float numbers
 \ # args:   ff1: fractional float number
 \ #         ff2: fractional float number
@@ -107,9 +112,10 @@
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : FFSWAP ( ff2 ff1 -- ff1 ff2 )  \ PUBLIC
-8 NSWAP ;
+8 NCSWAP DROP ;
 
-\ ROTATE over three fractional float numbers
+\ FFROT
+\ Rotate over three fractional float numbers
 \ # args:   ff3: fractional float number
 \ #         ff2: fractional float number
 \ #         ff1: fractional float number
@@ -119,8 +125,9 @@
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : FFROT ( ff1 ff2 ff3 -- ff2 ff3 ff1 )   \ PUBLIC
-8 NROT ;
+8 NCROT DROP ;
 
+\ FFROLL
 \ Rotate over multiple fractional float numbers
 \ # args:   u:     number of FF numbers to rotate
 \ #         ff0:   fractional float number
@@ -134,37 +141,39 @@
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
 : FFROLL ( ffu ... ff0 u -- ffu-1 ...  ff0 ffu ) \ PUBLIC
-8 NROLL ;
+8 NCROLL DROP ;
 
 \ # Quad-Cell Operations ########################################################
 
-\ Extract a quad-cell value from a fractional float number
-\ # args:   u:  cell offset (relative to ff)
+\ FFPICKQ
+\ Extract a quad-cell value from a nominator or denominator field
+\ # args:   u:  cell offset
+\ #         ...
 \ #         ff: number
-\ # result: qu: quad-cell value
+\ # result: q:  unsigned quad-cell value
+\ #         ...
 \ #         ff: number
 \ # throws: stack overflow (-3)
 \           stack underflow (-4)
-: FFEXTQ ( ff u -- ff qu )
-0 SWAP					\ push most significant cell (=0)
-1+ 3 NPICK				\ extract tripple-cell number from FF
-Q2*  					\ left shift quad number 
-Q1+ ;					\ set least significant bit
+: FFPICKQ ( ff ... u -- ff ... q )      \ public
+3 MPICK                                 \ pick nominator/denominator field
+0 4 NC2*1+ DROP ;                       \ shift value
 
+\ FFPLACEQ
 \ Insert a quad-cell value into a fractional float number
 \ # args:   u:  cell offset (relative to ff)
-\ #         qu: quad-cell value
-\ #         ff: number
-\ # result: ff: resulting numbernumber
+\ #         u:  quad-cell value
+\ #         ...
+\ #         ff1: number
+\ # result: ...
+\ #         ff2: resulting number
 \ # throws: stack overflow (-3)
 \           stack underflow (-4)
-: FFINSQ ( ff qu u -- ff )
+: FFPLACEQ ( ff1 ... q -- ff2 ... ) \ PUBLIC
+4 UNROLL                                \ move u out of the way
+4 NC2/ 2DROP                            \ shift value
+3 ROLL                                  \ retrieve u                               
+3 MPLACE ;                              \ place nominator/denominator field
 
-
-
-
-;
-
-
-
+\ # Arithetic Operations ########################################################
 

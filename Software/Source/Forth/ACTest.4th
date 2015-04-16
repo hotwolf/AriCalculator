@@ -57,7 +57,7 @@ MARKER ACREMOVE                 \ remove AC code from dictionary
 
 INCLUDE Stack.4th               \ compile supplemental stack words
 INCLUDE NCell.4th               \ compile multi-cell words
-\ INCLUDE FracFloat.4th         \ compile fractional floating point number words
+INCLUDE FracFloat.4th           \ compile fractional floating point number words
 
 
 : DEMO
