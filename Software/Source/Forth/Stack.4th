@@ -63,7 +63,6 @@
 \ #         ...
 \ #         xu-1: untouched cell
 \ #         xu':  cell which replaced xu  
-\ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : PLACE ( xu xu-1 ... x1 x0 xu' u -- xu' xu-1 ... x1 x0 ) \ PUBLIC
 2 + CELLS                               \ add offset to u
@@ -96,6 +95,23 @@ DO  	    				\ iterate u times
 [ 1 CELLS ] LITERAL +LOOP               \ iterate with step size of 1 cell
 PLACE ;                                 \ move xu to position u
 
+\ 0INS
+\ # Insert a zero anywhere into the parameter stack.
+\ # args:   u:    position of the insertion
+\ #         x0:   untouched cell
+\ #         x1:   untouched cell
+\ #         ...
+\ #         xu-1: untouched cell
+\ # result: x0:   untouched cell
+\ #         x1:   untouched cell
+\ #         ...
+\ #         xu-1: untouched cell
+\ #         0:    zero
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: 0INS ( xu-1 ... x1 x0 xu u -- 0 xu-1 ... x1 x0 ) \ PUBLIC
+0 SWAP 1+ UNROLL ;
+
 \ REMOVE
 \ # Remove a cell anywhere from the parameter stack.
 \ # args:   u:    position of cell to be removed
@@ -114,27 +130,36 @@ ROLL DROP ;                             \ remove cell
 
 \ # Multi-Cell Operations #######################################################
 
+\ MDROP
+\ # Drop multiple cells from the TOS.
+\ # args:   u:    number of cells to remove
+\ #         x0:   data
+\ #         ...
+\ #         xu-1: data
+\ # result: -
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: MDROP ( xu ... x0 u -- )              \ PUBLIC
+1+ CELLS SP@ +                          \ calculate new sack pointer
+SP! ; 			                \ set new stack pointer
+
 \ MPICK
 \ # Pick multiple cells fron anywhere on the stack
-\ # args:   u0:     number of cells to pick
-\ #         u1:     pick offset
-\ #         x0:     data
+\ # args:   u0:       number of cells to pick
+\ #         u1:       pick offset
+\ #         x0:       data
 \ #         ...
-\ #         xu1:    data
+\ #         xu1+u0-1: data
+\ # result: xu1:      duplicated data
 \ #         ...
-\ #         xu1+u0: data
-\ # result: xu1:    duplicated data
+\ #         xu1+u0-1: duplicated data
+\ #         x0:       data
 \ #         ...
-\ #         xu1+u0: duplicated data
-\ #         x0:     data
-\ #         ...
-\ #         xu1:    data
-\ #         ...
-\ #         xu1+u0: data
+\ #         xu1+u0-1: data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: MPICK ( xu1+u0 ... xu1 ... x0 u1 u0 -- xu1+u0 ... xu1 ... x0 xu1+u0 ... xu1 ) \ PUBLIC
+: MPICK ( xu1+u0-1 ... x0 u1 u0 -- xu1+u0-1 ... x0 xu1+u0-1 ... xu1 ) \ PUBLIC
 DUP ROT + 1+ SWAP                       \ adjust pick offset
 0 DO                                    \ iterate over u0
    DUP PICK                             \ pick one cell
@@ -142,47 +167,50 @@ LOOP                                    \ next iteration
 DROP ;                                  \ clean up
 
 \ MPLACE
-\ # Place multiple cells anywhere on the stack
-\ # args:   u0:    number of cells to place
-\ #         u1:    place offset
-\ #         x0:    data
+\ # Replace multiple cells anywhere on the stack
+\ # args:   u0:       number of cells to place
+\ #         u1:       place offset (u0<=u1)
+\ #         x0:       data
 \ #         ...
-\ #         xu1-1: data
-\ # result: x0:    data
+\ #         xu1+u0-1: data
+\ # result: xu0:      data
 \ #         ...
-\ #         xu1-1: data
-\ #         x0:    data
+\ #         xu1-1:    data
+\ #         x0:       data
 \ #         ...
-\ #         xu0-1: data
+\ #         xu0-1:    data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: MPLACE ( xu1-1 ... x0 u1 u0 -- xu0-1 ... x0 xu1-1 ... x0 ) \ PUBLIC
+: MPLACE ( xu1+u0-1 ... x0 u1 u0 -- xu0-1 ... x0 xu1-1 ... x0 ) \ PUBLIC
 SWAP 1+ SWAP                            \ adjust place offset
 0 DO                                    \ iterate over u0
   DUP ROT PLACE                         \ place one cell
 LOOP                                    \ next iteration
 DROP ;                                  \ clean up
 
-\ MPLACE0
-\ # Place multiple zeros anywhere on the stack
-\ # args:   u0:    number of cells to place
-\ #         u1:    place offset
-\ #         x0:    data
+\ M0INS
+\ # Insert a zero anywhere into the parameter stack.
+\ # args:   u0:   number of zeros to insert
+\ #         u1:   position of the insertion
+\ #         x0:   untouched cell
+\ #         x1:   untouched cell
 \ #         ...
-\ #         xu1-1: data
-\ # result: x0:    data
+\ #         xu-1: untouched cell
+\ # result: x0:   untouched cell
+\ #         x1:   untouched cell
 \ #         ...
-\ #         xu1-1: data
-\ #         0:     zero +
-\ #         ...         | u0 cells
-\ #         0:     zero +
+\ #         xu-1: untouched cell
+\ #         0:    zero
+\ #         ...
+\ #         0:    zero
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-\ #         result out of range (-11)
-: MPLACE0 ( xu1-1 ... x0 u1 u0 -- 0 ... 0 xu1-1 ... x0 ) \ PUBLIC
+: M0INS ( xu-1 ... x1 x0 xu u1 u0 -- 0 ... 0 xu-1 ... x1 x0 ) \ PUBLIC
 SWAP 1+ SWAP                            \ adjust place offset
 0 DO                                    \ iterate over u0
-    0 OVER PLACE                        \ place one zero
+  DUP 0INS                              \ place one zero
 LOOP                                    \ next iteration
 DROP ;                                  \ clean up
+
+

@@ -23,7 +23,7 @@
 \ #   structures.                                                               #
 \ #                                                                             #
 \ # Data types:                                                                 #
-\ #   size   - unsigned single-cell integer (size of struct in cells)           #
+\ #   size   - unsigned single-cell integer (size of struct in cells <2^15)     #
 \ #   esize  - unsigned single-cell integer (size of estruct in cells =size+1)  #
 \ #   dsize  - unsigned single-cell integer (size of dstruct in cells =2*size)  #
 \ #   struc  - multi-cell data structure of "size" cells                        #
@@ -450,28 +450,6 @@ NC2SE NC+ ;
 : NCSE- ( struc1 struc2 size -- estruc esize ) \ PUBLIC
 NC2SE NC- ;
 
-\ NCU*+
-\ # Perform unsigned multiplication and accumulate.
-\ # args:   size:    size of each factor (in cells)
-\ #         struc2:  factor
-\ #         struc1:  factor
-\ #         dstruc1: summand
-\ # result: dsize:   size of the result (=2*size)
-\ #         dstruc2: accumulated product
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCU*+ ( dstruc1 struc2 struc1 size -- dstruc2 ) \ PUBLIC
-\ DUP 0 DO                                \ iterate over struc1 (J)
-\ DUP 0 DO                                \ iterate over struc2 (I)
-\     DUP                                 \ duplicate size
-\     J 2 + PICK                          \ pick cell from struc1
-\     OVER I + 2 + PICK                   \ pick cell from struc2
-\     M*                                  \ multiply cells
-\     ROT 2* I + J + 2 + PICK M+          \ pick 
-
-;
-
-
 \ # Perform unsigned multiplicatation.
 \ # args:   size:    size of each factor (in cells)
 \ #         struc2:  factor
@@ -480,13 +458,16 @@ NC2SE NC- ;
 \ #         dstruc2: accumulated product
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCU* ( struc2 struc1 size -- dstruc2 ) \ PUBLIC
-DUP 2* DUP 2 +                          \ insert summand = 0
-SWAP 0 DO                               \ iterate over dsize
-    0 OVER UNROLL                       \ insert cell
-LOOP                                    \ iterate
-DROP NCU*+ ;                            \ multiply
+: NCU* ( struc2 struc1 size -- dstruc2 dsize ) \ PUBLIC
+DUP 2* DUP 1+ DUP ROT M0INS             \ insert result field = 0
+1 DO                                    \ iterate over result
+DUP I MIN
 
+	
+
+LOOP                                    \ next iteration
+
+    
 \ # Logic Operations ############################################################
 
 \ NCINVERT
