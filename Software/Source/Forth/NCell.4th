@@ -450,7 +450,8 @@ NC2SE NC+ ;
 : NCSE- ( struc1 struc2 size -- estruc esize ) \ PUBLIC
 NC2SE NC- ;
 
-\ # Perform unsigned multiplicatation.
+\ NCU*
+\ # Multiply two unsigned multi-cell numbers.
 \ # args:   size:    size of each factor (in cells)
 \ #         struc2:  factor
 \ #         struc1:  factor
@@ -459,15 +460,58 @@ NC2SE NC- ;
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : NCU* ( struc2 struc1 size -- dstruc2 dsize ) \ PUBLIC
-DUP 2* DUP 1+ DUP ROT M0INS             \ insert result field = 0
-1 DO                                    \ iterate over result
-DUP I MIN
+DUP 0 0                                 \ initialize intermediate result 
+ROT 2* 1- 0 DO                          \ iterate over cells of result
+    0                                   \ expand intermediate result
+    3 PICK DUP I 1+ MIN                 \ set upper boundary for inner loop
+    I 1- ROT - 0 MAX                    \ set lower boundary of inner loop
+    DO                                  \ loop over multiplications
+        3 PICK 4 + I + PICK             \ pick first operand   
+        J I - 5 + PICK                  \ pick second operand 
+	UM*                             \ multiply
+        SWAP 0 4 PICK M+ SWAP 4 PLACE   \ accumulate intermediate result (low) 
+        0 SWAP M+ D+                    \ accumulate intermediade result (high)
+    LOOP                                \ next iteration of the inner loop
+    ROT 3 PICK 2* 3+ UNROLL             \ store result 
+LOOP                                    \ next iteration of the outer loop
+SWAP 2* TUCK 1+ UNROLL                  \ store result
+NCDROP ;                                \ drop operands         
 
-	
-
+\ NC1U*
+\ # Multiply an unsigned multi-cell number with an unsigned single cell number.
+\ # args:   size:  size of a struc (in cells)
+\ #         u:     factor
+\ #         struc: factor
+\ # result: size:  size of the result (=size+1)
+\ #         struc: accumulated product
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NC1U* ( struc u size -- estruc esize ) \ PUBLIC
+1+                                      \ extend size
+SWAP OVER O                             \ initialize intermediate result
+SWAP 6 + 7 DO                           \ iterate ocer size
+    OVER I PICK M*                      \ multiply one cell
+    ROT M+                              \ accumulate intermediate result
+    SWAP 3 PICK 1 + PLACE               \ store result
 LOOP                                    \ next iteration
+3 PICK 2 + UNROLL                       \ store result
 
-    
+
+\ NCU/
+\ # Perform unsigned division.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc2: dinominator
+\ #         struc1: nominator
+\ # result: size:   size of each struc (in cells)
+\ #         struc4: remainder
+\ #         struc3: quotient
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NCU/ ( struc2 struc1 size -- struc3 struc4 size ) \ PUBLIC
+
+
+
+
 \ # Logic Operations ############################################################
 
 \ NCINVERT
