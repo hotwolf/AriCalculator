@@ -484,33 +484,51 @@ NCDROP ;                                \ drop operands
 \ #         struc: factor
 \ # result: size:  size of the result (=size+1)
 \ #         struc: accumulated product
-\ # throws: stack overflow (-3)
+\ # throws: stack overflow (-3)1+                                      \ extend size
+
 \ #         stack underflow (-4)
 : NC1U* ( struc u size -- estruc esize ) \ PUBLIC
-1+                                      \ extend size
 SWAP OVER O                             \ initialize intermediate result
-SWAP 6 + 7 DO                           \ iterate ocer size
+SWAP 1- 7 DO                            \ iterate over size
     OVER I PICK M*                      \ multiply one cell
     ROT M+                              \ accumulate intermediate result
-    SWAP 3 PICK 1 + PLACE               \ store result
-LOOP                                    \ next iteration
-3 PICK 2 + UNROLL                       \ store result
+    SWAP I 1- PLACE                     \ store result
+-1 +LOOP                                \ next iteration
+NIP SWAP                                \ store result
+1+ ;                                    \ extend size
 
-
-\ NCU/
+\ NCU/MOD
 \ # Perform unsigned division.
 \ # args:   size:   size of each struc (in cells)
-\ #         struc2: dinominator
+\ #         struc2: denominator
 \ #         struc1: nominator
 \ # result: size:   size of each struc (in cells)
 \ #         struc4: remainder
 \ #         struc3: quotient
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCU/ ( struc2 struc1 size -- struc3 struc4 size ) \ PUBLIC
+: NCU/MOD ( struc1 struc2 size -- struc3 struc4 size ) \ PUBLIC
 
 
 
+
+\ NC1U/MOD
+\ # Perform unsigned division.
+\ # args:   size:   size of each struc (in cells)
+\ #         u1:     denominator
+\ #         struc1: nominator
+\ # result: size:   size of each struc (in cells)
+\ #         u2:     remainder
+\ #         struc1: quotient
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NC1U/MOD ( struc1 u1 size -- struc2 u2 size ) \ PUBLIC
+SWAP OVER O                             \ initialize intermediate result
+SWAP 4 + 4 DO                           \ iterate over size
+    OVER SWAP I PICK SWAP UM/MOD        \ divide one cell
+    I 1+ PLACE                          \ store result
+LOOP                                    \ next iteration
+NIP SWAP ;                              \ clean up
 
 \ # Logic Operations ############################################################
 
@@ -746,13 +764,13 @@ DUP PICK 1 AND 0= ;
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : NCLSHIFT ( struc1 u size -- struc2 size ) \ PUBLIC
-SWAP 0 DO                              \ iterate over u
-    NC2*			       \ shift by one bit
-LOOP ;                                 \ next iteration
+\ SWAP 0 DO                             \ iterate over u
+\     NC2*			        \ shift by one bit
+\ LOOP ;                                \ next iteration
 
 \ NCRSHIFT
 \ # Perform a logical right shift of u bit-places on struc1, giving struc2.
-\ # Put zeroes into the least significant bits vacated by the shift.
+\ # Put zeroes into the most significant bits vacated by the shift.
 \ # args:   size:   size of each struc (in cells)
 \ #         u:      number of places to shift
 \ #         struc1: data structure
@@ -761,9 +779,10 @@ LOOP ;                                 \ next iteration
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : NCRSHIFT ( struc1 u size -- struc2 size ) \ PUBLIC
-SWAP 0 DO                               \ iterate over u
-    NCU2/			        \ shift by one bit
-LOOP ;                                  \ next iteration
+\ Alternaive implementation:
+\ SWAP 0 DO                                \ iterate over u
+\     NCU2/			        \ shift by one bit
+\ LOOP ;                                  \ next iteration
 
 \ NCLALIGN
 \ # Left shift a multi cell structure until until the MSB is set, unless all
