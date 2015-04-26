@@ -54,17 +54,15 @@
 \ # args:   u:    position of the cell to be replaced
 \ #         xu':  cell to replace xu  
 \ #         x0:   untouched cell
-\ #         x1:   untouched cell
 \ #         ...
 \ #         xu-1: untouched cell
 \ #         xu:   cell to be replaced
 \ # result: x0:   untouched cell
-\ #         x1:   untouched cell
 \ #         ...
 \ #         xu-1: untouched cell
 \ #         xu':  cell which replaced xu  
 \ #         stack underflow (-4)
-: PLACE ( xu xu-1 ... x1 x0 xu' u -- xu' xu-1 ... x1 x0 ) \ PUBLIC
+: PLACE ( xu xu-1 ... x0 xu' u -- xu' xu-1 ... x0 ) \ PUBLIC
 2 + CELLS                               \ add offset to u
 SP@ +                                   \ determine target address
 ! ;                                     \ replace xu
@@ -74,58 +72,50 @@ SP@ +                                   \ determine target address
 \ # args:   u:    position of the insertion
 \ #         xu:   cell to be inserted
 \ #         x0:   untouched cell
-\ #         x1:   untouched cell
 \ #         ...
 \ #         xu-1: untouched cell
 \ # result: x0:   untouched cell
-\ #         x1:   untouched cell
 \ #         ...
 \ #         xu-1: untouched cell
 \ #         xu:   inserted cell
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: UNROLL ( xu-1 ... x1 x0 xu u -- xu xu-1 ... x1 x0 ) \ PUBLIC
-DUP	   	       	       	     	\ allocate temporal stack space
-DUP					\ save u
-2 + CELLS                               \ calculate upper boundary of I
-[ 1 CELLS ] LITERAL	 		\ calculate lower boundary of I
-DO  	    				\ iterate u times
-    SP@ I + DUP [ 1 CELLS ] LITERAL +   \ calculate move source and target
-    @ SWAP !                            \ copy cell at I+1 to I
-[ 1 CELLS ] LITERAL +LOOP               \ iterate with step size of 1 cell
-PLACE ;                                 \ move xu to position u
+: UNROLL ( xu-1 ... x0 xu u -- xu xu-1 ... x0 ) \ PUBLIC
+OVER SWAP CELLS                         \ save args  
+[ 4 CELLS ] LITERAL SP@ +               \ calculate lower address
+SWAP OVER + DUP ROT                     \ calculate upper address
+DO                                      \ iterate over adress range
+    I @ I [ 1 CELLS ] LITERAL - !       \ shift cells
+[ 1 CELLS ] LITERAL +LOOP               \ next iteration
+! ;                                     \ insert xu
 
 \ 0INS
 \ # Insert a zero anywhere into the parameter stack.
 \ # args:   u:    position of the insertion
 \ #         x0:   untouched cell
-\ #         x1:   untouched cell
 \ #         ...
 \ #         xu-1: untouched cell
 \ # result: x0:   untouched cell
-\ #         x1:   untouched cell
 \ #         ...
 \ #         xu-1: untouched cell
 \ #         0:    zero
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: 0INS ( xu-1 ... x1 x0 xu u -- 0 xu-1 ... x1 x0 ) \ PUBLIC
+: 0INS ( xu-1 ... x0 u -- 0 xu-1 ... x1 ) \ PUBLIC
 0 SWAP 1+ UNROLL ;
 
 \ REMOVE
 \ # Remove a cell anywhere from the parameter stack.
 \ # args:   u:    position of cell to be removed
 \ #         x0:   untouched cell
-\ #         x1:   untouched cell
 \ #         ...
 \ #         xu:   cell to be removed
 \ # result: x0:   untouched cell
-\ #         x1:   untouched cell
 \ #         ...
 \ #         xu-1: untouched cell
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: REMOVE ( xu ... x1 x0 u -- xu-1 ... x1 x0 ) \ PUBLIC
+: REMOVE ( xu ... x0 u -- xu-1 ... x0 ) \ PUBLIC
 ROLL DROP ;                             \ remove cell 
 
 \ # Multi-Cell Operations #######################################################

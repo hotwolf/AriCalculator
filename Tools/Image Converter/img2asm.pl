@@ -139,8 +139,8 @@ $src_handle->close();                           #close file handle
 #split source buffer into gray shades
 @split_buffer = ();
 foreach $color (0..$color_depth-1) {
-    #foreach $pixel (@src_buffer) {       #not flipped
-    foreach $pixel (reverse(@src_buffer)) { #flipped
+    foreach $pixel (@src_buffer) {       #not flipped
+    #foreach $pixel (reverse(@src_buffer)) { #flipped
 	if ($pixel <= $color) {
 	    push @split_buffer, 0xFF;
 	} else {

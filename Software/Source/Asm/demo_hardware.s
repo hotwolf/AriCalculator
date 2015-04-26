@@ -177,26 +177,24 @@ DEMO_KEY_STROKE_LOOP	EQU	*
 			NUM_CLEAN_REVERSE
 	
 			;Display keystroke
-			;Clear page 0
-			CLRB					;switch to page 0
+			;Clear page 7
+			LDAB #7					;switch to page 1
 			DEMO_SWITCH_PAGE_BL
 			DEMO_CLEAR_COLUMNS_IMM_BL 128 		;clear entire page
 
 			;Initialize variables
 			CLR	DEMO_PAGE
-			CLR	DEMO_CUR_KEY
+			MOVB	#$29, DEMO_CUR_KEY
 
 			;Switch to next page 
 DEMO_PAGE_LOOP		LDAB	DEMO_PAGE 			;increment page count
-			CMPB	#7				;check is key search is complete
+    	                CMPB	#7				;check is key search is complete
 			BHS	DEMO_KEY_STROKE_LOOP		;wait for next key stroke
-			INCB
-			STAB	DEMO_PAGE
-			DEMO_SWITCH_PAGE_BL 			;transmit command sequence
+			;INCB
 			CLR	DEMO_COL			;clear column counter
 
-			;Right margin
-			DEMO_CLEAR_COLUMNS_IMM_BL 31 		;draw right margin
+			;Left margin
+			DEMO_CLEAR_COLUMNS_IMM_BL 31+4 		;draw left margin
 	
 			;Draw next box
 DEMO_COL_LOOP		LDAA	DEMO_CUR_KEY
@@ -206,20 +204,20 @@ DEMO_COL_LOOP		LDAA	DEMO_CUR_KEY
 			JOB	DEMO_COL_LOOP_2
 DEMO_COL_LOOP_1 	JOBSR	DEMO_BLACK_BOX
 DEMO_COL_LOOP_2		INC	DEMO_COL
-			INC	DEMO_CUR_KEY
+			DEC	DEMO_CUR_KEY
 
 			;Draw space
 			LDAA	#5
 			CMPA	DEMO_PAGE
-			BLS	DEMO_COL_LOOP_5			;rows E-G
+			BHS	DEMO_COL_LOOP_5			;rows E-G
 			;Rows A-D (5 in A)
 			CMPA	DEMO_COL
-			BLS	DEMO_COL_LOOP_3 		;col 5
+			BLO	DEMO_COL_LOOP_3 		;col 5
 			;Rows A-D, cols 0-4
 			DEMO_CLEAR_COLUMNS_IMM_BL 9 		;draw wide space
 			JOB	DEMO_COL_LOOP
 			;Rows A-D, col 5
-DEMO_COL_LOOP_3		INC	DEMO_CUR_KEY 			;skip key
+DEMO_COL_LOOP_3		DEC	DEMO_CUR_KEY 			;skip key
 DEMO_COL_LOOP_4		DEMO_CLEAR_COLUMNS_IMM_BL 31 		;draw left margin
 			JOB	DEMO_PAGE_LOOP
 			;Rows E-G (5 in A)

@@ -3,7 +3,7 @@
 \ ###############################################################################
 \ #    Copyright 2015 Dirk Heisswolf                                            #
 \ #    This file is part of the AriCalculator's operating system.               #
-\ #                                                                             #
+\ #                                                                             #1
 \ #    The AriCalculator's operating system is free software: you can           #
 \ #    redistribute it and/or modify it under the tems of the GNU General       #
 \ #    Public License as published bythe Free Software Foundation, either       #
@@ -186,15 +186,30 @@ DROP ;                                  \ drop REMOVE offset
 
 \ NCDUP
 \ # Duplicate last multi-cell data structure.
-\ # args:   size:   size of each struc (in cells)
+\ # args:   size:  size of each struc (in cells)
 \ #         struc: data structure
-\ # result: size:   size of each struc (in cells)
+\ # result: size:  size of each struc (in cells)
 \ #         struc: duplicated data structure
 \ #         struc: data structure
+\ # throws: stackn overflow (-3)
+\ #         stack  underflow (-4)
+: NCDUP ( struc size -- struc struc size ) \ PUBLIC
+0 SWAP NCPICK ;
+
+\ NC2DUP
+\ # Duplicate last multi-cell data structure.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc2: data structure
+\ #         struc1: data structure
+\ # result: size:   size of each struc (in cells)
+\ #         struc2: duplicated data structure
+\ #         struc1: uplicated data structure
+\ #         struc2: data structure
+\ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCDUP ( struc size -- struc struc size )  \ PUBLIC
-0 SWAP NCPICK ;
+: NC2DUP ( struc1 struc2 size -- struc1 struc2 struc1 struc2 size ) \ PUBLIC
+2* NCDUP 2; ;
 
 \ NCOVER
 \ # Duplicate previous multi-cell data structure.
@@ -488,7 +503,7 @@ NCDROP ;                                \ drop operands
 
 \ #         stack underflow (-4)
 : NC1U* ( struc u size -- estruc esize ) \ PUBLIC
-SWAP OVER O                             \ initialize intermediate result
+SWAP OVER 0                             \ initialize intermediate result
 SWAP 1- 7 DO                            \ iterate over size
     OVER I PICK M*                      \ multiply one cell
     ROT M+                              \ accumulate intermediate result
@@ -507,9 +522,42 @@ NIP SWAP                                \ store result
 \ #         struc3: quotient
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         division by zero (-10)
 : NCU/MOD ( struc1 struc2 size -- struc3 struc4 size ) \ PUBLIC
+DUP 2* 1+ OVER M0INS                    \ allocate space for quotient
+DUP 1 DO                                \ iterate over denominator width
+    I PICK IF                           \ find highest denominator cell  
+        I 1+ 1 DO                       \ iterate over nominator
+            NCDUP                       \ DUP denominator
+            DUP 2* I + PICK             \ pick nominator cell
+            I 1- IF                     \ check for previous nominator cell 
+                OVER I + PICK           \ pick previous nominator cell
+            ELSE                        \ no previous nominator cell available
+                0                       \ use dummy value
+            THEN                        \ nominator cell picked
+            I 2 + PICK                  \ pick denominator cell
+            UM/MOD NIP                  \ divide cells to estimate digit
+            2DUP SWAP 3 * I + 1+ PLACE \ store digit
+            SWAP NC1U*                  \ multiply denominator by digit
+            TRUE OVER 1+ 1 DO           \ check if a correction is required
+                I PICK                  \ pick cell from intermediate result
+                OVER 2* I + 1+ PICK     \ pick cell from nominator
+		U< IF                   \ make sure that nominator is larger
+                    DROP FALSE LEAVE    \ nominator is larger
+                THEN                    \
+            LOOP                        \ keep checking
+	    IF                          \ correction required
+            2DUP SWAP 3 * I + 1+ PLACE \ store digit
+            
 
 
+        LEAVE                           \ done
+    ELSE                                \ denominator cell is zero  
+`       DUP 1- I = IF                   \ check if denominator is zero  
+            -10 THROW                   \ throw "division by zero" error
+        THEN                            \ end of zero check
+    THEN                                \ check if denominator cell check
+LOOP ;	                                \ next iteration
 
 
 \ NC1U/MOD
@@ -522,8 +570,9 @@ NIP SWAP                                \ store result
 \ #         struc1: quotient
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         division by zero (-10)
 : NC1U/MOD ( struc1 u1 size -- struc2 u2 size ) \ PUBLIC
-SWAP OVER O                             \ initialize intermediate result
+SWAP OVER 0                             \ initialize intermediate result
 SWAP 4 + 4 DO                           \ iterate over size
     OVER SWAP I PICK SWAP UM/MOD        \ divide one cell
     I 1+ PLACE                          \ store result
@@ -764,9 +813,9 @@ DUP PICK 1 AND 0= ;
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : NCLSHIFT ( struc1 u size -- struc2 size ) \ PUBLIC
-\ SWAP 0 DO                             \ iterate over u
-\     NC2*			        \ shift by one bit
-\ LOOP ;                                \ next iteration
+SWAP 0 DO                             \ iterate over u
+    NC2*			        \ shift by one bit
+LOOP ;                                \ next iteration
 
 \ NCRSHIFT
 \ # Perform a logical right shift of u bit-places on struc1, giving struc2.
@@ -779,10 +828,9 @@ DUP PICK 1 AND 0= ;
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : NCRSHIFT ( struc1 u size -- struc2 size ) \ PUBLIC
-\ Alternaive implementation:
-\ SWAP 0 DO                                \ iterate over u
-\     NCU2/			        \ shift by one bit
-\ LOOP ;                                  \ next iteration
+SWAP 0 DO                               \ iterate over u
+    NCU2/			        \ shift by one bit
+LOOP ;                                  \ next iteration
 
 \ NCLALIGN
 \ # Left shift a multi cell structure until until the MSB is set, unless all

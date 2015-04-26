@@ -1,5 +1,5 @@
 \ ###############################################################################
-\ # AriCalculator - Top Level Source File for Code Development                  #
+\ # AriCalculator - Direct Stack Access Operations                              #
 \ ###############################################################################
 \ #    Copyright 2015 Dirk Heisswolf                                            #
 \ #    This file is part of the AriCalculator's operating system.               #
@@ -19,30 +19,23 @@
 \ #    <http://www.gnu.org/licenses/>.                                          #
 \ ###############################################################################
 \ # Description:                                                                #
-\ #   This main source file of the AriCalculatior OS.                           #
-\ #   It includes all further source files for compilation on PC based Forth    #
-\ #   systems like GForth or SwiftForth.                                        #
+\ #   This module implements operations to diectly manipulate cells anywhere on #
+\ #   the stack.                                                                #
 \ ###############################################################################
 \ # Version History:                                                            #
 \ #    April 10, 2015                                                           #
 \ #      - Initial release                                                      #
 \ ###############################################################################
 \ # Required Word Sets:                                                         #
-\ #    Gforth/SwiftForth - INCLUDE word                                         #
-\ #    ANSForth          - CORE word set                                        #
-\ #                        CORE EXT word set                                    #
-\ #    Stack             - Supplemental stack operations                        #
-\ #    DirectStack       - Direct stack access operations                       #
-\ #    NCell             - Multi-cell operations                                #
-\ #    FracFloat         - Fractional floating point number support             #
-\ #                                                                             #
+\ #    ANSForth                    - CORE word set                              #
+\ #    S12CForth/GForth/SwiftForth - SP@ word                                   #
+\ #    Stack                       - Supplemental stack operations              #
 \ ###############################################################################
 
 \ ###############################################################################
 \ # Configuration                                                               #
 \ ###############################################################################
-DECIMAL
-
+        
 \ ###############################################################################
 \ # Constants                                                                   #
 \ ###############################################################################
@@ -54,13 +47,8 @@ DECIMAL
 \ ###############################################################################
 \ # Code                                                                        #
 \ ###############################################################################
-MARKER ACREMOVE                 \ remove AC code from dictionary
 
-INCLUDE Stack.4th               \ compile supplemental stack words
-INCLUDE DirectStack.4th         \ compile direct stack access words
-\ INCLUDE NCell.4th               \ compile multi-cell words
-\ INCLUDE FracFloat.4th           \ compile fractional floating point number words
+\ # Single-Cell Operations ######################################################
 
+\ # Multi-Cell Operations #######################################################
 
-: DEMO
-8 7 6 5 4 3 2 1 0 .s ;

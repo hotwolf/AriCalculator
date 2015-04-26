@@ -472,10 +472,10 @@ DISP_CODE_END_LIN	EQU	@
 
 ;#Setup stream
 DISP_SEQ_INIT_START	DB	$40 				;start display at line 0
-			DB	$A0				;flip display
-			DB	$C8				;COM0 -> 
-			;DB	$A1				;flip display
-			;DB	$C0				;COM0 -> 
+			;DB	$A0				;flip display
+			;DB	$C8				;Normal COM0~COM63
+			DB	$A1				;flip display
+			DB	$C0				;Reverse COM63~COM0
 			DB	$A2				;set bias 1/9 (Duty 1/65) ;
 			DB	$2F 				;enabable booster, regulator and follower
 			DB	$F8				;set booster to 4x
