@@ -28,7 +28,7 @@
 \ ###############################################################################
 \ # Required Word Sets:                                                         #
 \ #    ANSForth                    - CORE word set                              #
-\ #    S12CForth/GForth/SwiftForth - SP@ word                                   #
+\ #    S12CForth/GForth/SwiftForth - SP@ SP! >R >R 2>R 2R>                      #
 \ ###############################################################################
 
 \ ###############################################################################
@@ -46,6 +46,86 @@
 \ ###############################################################################
 \ # Code                                                                        #
 \ ###############################################################################
+
+\ # Elementary Operations #######################################################
+
+\ SALLOC
+\ # Allocate multiple cells at the top of the stack.
+\ # args:   u:    number of cells to allocate
+\ # result: x0:   random data
+\ #         ...
+\ #         xu-1: rondom data
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: SALLOC ( u -- xu-1 ... x0 ) \ PUBLIC
+1- CELLS SP@ SWAP -                     \ calculate new sack pointer
+SP! ; 			                \ set new stack pointer
+
+\ SDEALLOC
+\ # Deallocate multiple cells at the top of the stack.
+\ # args:   u:    number of cells to remove
+\ #         x0:   data
+\ #         ...
+\ #         xu-1: data
+\ # result: -
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: SDEALLOC ( xu ... x0 u -- ) \ PUBLIC
+1+ CELLS SP@ +                          \ calculate new sack pointer
+SP! ; 			                \ set new stack pointer
+
+\ SMOVE
+\ # Move data within the stack
+\ # args:   u3:  number of cells to move
+\ #         u2:  target location  
+\ #         u1:  source location
+\ #         x0:  data  
+\ #         ...
+\ # result: x0': altered data
+\ #         ...
+\ #         stack underflow (-4)
+: SMOVE ( ... x0 u1 u2 u3 u -- ... x0' ) \ PUBLIC
+CELLS ROT                               \ calculate byte count
+CELLS SP@ + [ 3 CELLS ] LITERAL + ROT   \ calculate target address
+CELLS SP@ + [ 3 CELLS ] LITERAL + ROT   \ calculate source address
+MOVE ;
+
+\ SINSERT
+\ # Allocate/duplicate multiple cells anywhere on the stack.
+\ # args:   u2:       number of cells to allocate
+\ #         u1:       location  
+\ #         ...
+\ #         xu1:      data
+\ #         ...
+\ #         xu1+u2-1: data
+\ # result: ..
+\ #         xu1:      duplicated data
+\ #         ...
+\ #         xu1+u2-1: duplicated data
+\ #         xu1:      data
+\ #         ...
+\ #         xu1+u2-1: data
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: SINSERT ( xu1+u2-1 ... xu1 ... u1 u2 -- xu1+u2-1 ... xu1 xu1+u2-1 ... xu1 ) \ PUBLIC
+TUCK 2>R SALLOC 2R>                     \ allocate new stack space
+TUCK + 0 SWAP SMOVE ;                   \ shift cells
+
+\ SREMOVE
+\ # Dellocate multiple cells anywhere on the stack.
+\ # args:   u2:       number of cells to deallocate
+\ #         u1:       location  
+\ #         ...
+\ #         xu1:      data
+\ #         ...
+\ #         xu1+u2-1: data
+\ # result: ...
+\ #         xu1-1:    data
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: SREMOVE ( xu1+u2-1 ... xu1 ... u1 u2 -- xu1+u2-1 ... xu1 xu1+u2-1 ... xu1 ) \ PUBLIC
+TUCK 0 SWAP ROT 1+ SMOVE                \ shift cells
+SDEALLOC ;                              \ free stack space
 
 \ # Single-Cell Operations ######################################################
 
@@ -81,15 +161,11 @@ SP@ +                                   \ determine target address
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : UNROLL ( xu-1 ... x0 xu u -- xu xu-1 ... x0 ) \ PUBLIC
-OVER SWAP CELLS                         \ save args  
-[ 4 CELLS ] LITERAL SP@ +               \ calculate lower address
-SWAP OVER + DUP ROT                     \ calculate upper address
-DO                                      \ iterate over adress range
-    I @ I [ 1 CELLS ] LITERAL - !       \ shift cells
-[ 1 CELLS ] LITERAL +LOOP               \ next iteration
-! ;                                     \ insert xu
+2DUP                                    \ make room for the shift                
+3 2 ROT SMOVE                           \ shift cells
+SWAP PLACE ;                            \ place xu
 
-\ 0INS
+\ 0INS 
 \ # Insert a zero anywhere into the parameter stack.
 \ # args:   u:    position of the insertion
 \ #         x0:   untouched cell
@@ -102,7 +178,8 @@ DO                                      \ iterate over adress range
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : 0INS ( xu-1 ... x0 u -- 0 xu-1 ... x1 ) \ PUBLIC
-0 SWAP 1+ UNROLL ;
+DUP 2 1 SMOVE                           \ shift cells
+0 SWAP PLACE ;                          \ place 0
 
 \ REMOVE
 \ # Remove a cell anywhere from the parameter stack.
@@ -120,87 +197,83 @@ ROLL DROP ;                             \ remove cell
 
 \ # Multi-Cell Operations #######################################################
 
-\ MDROP
-\ # Drop multiple cells from the TOS.
-\ # args:   u:    number of cells to remove
-\ #         x0:   data
-\ #         ...
-\ #         xu-1: data
-\ # result: -
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: MDROP ( xu ... x0 u -- )              \ PUBLIC
-1+ CELLS SP@ +                          \ calculate new sack pointer
-SP! ; 			                \ set new stack pointer
-
 \ MPICK
-\ # Pick multiple cells fron anywhere on the stack
-\ # args:   u0:       number of cells to pick
+\ # Pick multiple cells from anywhere on the stack
+\ # args:   u2:       number of cells to pick
 \ #         u1:       pick offset
 \ #         x0:       data
 \ #         ...
-\ #         xu1+u0-1: data
+\ #         xu1+u2-1: data
 \ # result: xu1:      duplicated data
 \ #         ...
-\ #         xu1+u0-1: duplicated data
+\ #         xu1+u2-1: duplicated data
 \ #         x0:       data
 \ #         ...
-\ #         xu1+u0-1: data
+\ #         xu1+u2-1: data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: MPICK ( xu1+u0-1 ... x0 u1 u0 -- xu1+u0-1 ... x0 xu1+u0-1 ... xu1 ) \ PUBLIC
-DUP ROT + 1+ SWAP                       \ adjust pick offset
-0 DO                                    \ iterate over u0
-   DUP PICK                             \ pick one cell
-LOOP                                    \ next iteration
-DROP ;                                  \ clean up
+: MPICK ( xu1+u2-1 ... x0 u1 u2 -- xu1+u2-1 ... x0 xu1+u2-1 ... xu1 ) \ PUBLIC
+TUCK 2>R SALLOC 2R>                       \ allocate new stack space
+TUCK + 0 ROT SMOVE ;                      \ move data
 
 \ MPLACE
 \ # Replace multiple cells anywhere on the stack
-\ # args:   u0:       number of cells to place
-\ #         u1:       place offset (u0<=u1)
+\ # args:   u2:       number of cells to place
+\ #         u1:       place offset (u2<=u1)
 \ #         x0:       data
 \ #         ...
-\ #         xu1+u0-1: data
-\ # result: xu0:      data
+\ #         xu1+u2-1: data
+\ # result: xu2:      data
 \ #         ...
 \ #         xu1-1:    data
 \ #         x0:       data
 \ #         ...
-\ #         xu0-1:    data
+\ #         xu2-1:    data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: MPLACE ( xu1+u0-1 ... x0 u1 u0 -- xu0-1 ... x0 xu1-1 ... x0 ) \ PUBLIC
-SWAP 1+ SWAP                            \ adjust place offset
-0 DO                                    \ iterate over u0
-  DUP ROT PLACE                         \ place one cell
-LOOP                                    \ next iteration
-DROP ;                                  \ clean up
+: MPLACE ( xu1+u2-1 ... x0 u1 u2 -- xu2-1 ... x0 xu1-1 ... x0 ) \ PUBLIC
+0 ROT ROT DUP >R SMOVE R>               \ move data
+SDEALLOC ;                              \ deallocate stack space
+
+\ MUNROLL
+\ # Insert multiple cells anywhere on the stack
+\ # args:   u2:       number of cells to rotate
+\ #         u1:       unroll offset
+\ #         xu1:      data
+\ #         ...
+\ #         xu1+u2-1: data
+\ #         x0:       data
+\ #         ...
+\ #         xu1-1:    data
+\ # result: x0:       rotated data
+\ #         ...
+\ #         xu1+u2-1: rotated data
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         result out of range (-11)
+: MUNROLL ( xu1-1 ... x0 xu1+u2-1 ... xu1 u1 u2 -- xu1+u2-1 ... x0 ) \ PUBLIC
+2DUP 2>R SINSERT 2R>                    \ allocate stack space
+MPLACE ;                                \ move data
 
 \ M0INS
 \ # Insert a zero anywhere into the parameter stack.
-\ # args:   u0:   number of zeros to insert
-\ #         u1:   position of the insertion
-\ #         x0:   untouched cell
-\ #         x1:   untouched cell
+\ # args:   u2:    number of zeros to insert
+\ #         u1:    position of the insertion
+\ #         x0:    untouched cell
 \ #         ...
-\ #         xu-1: untouched cell
-\ # result: x0:   untouched cell
-\ #         x1:   untouched cell
+\ #         xu1-1: untouched cell
+\ # result: x0:    untouched cell
 \ #         ...
-\ #         xu-1: untouched cell
-\ #         0:    zero
+\ #         xu1-1: untouched cell
+\ #         0:     zero
 \ #         ...
-\ #         0:    zero
+\ #         0:     zero
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: M0INS ( xu-1 ... x1 x0 xu u1 u0 -- 0 ... 0 xu-1 ... x1 x0 ) \ PUBLIC
-SWAP 1+ SWAP                            \ adjust place offset
-0 DO                                    \ iterate over u0
-  DUP 0INS                              \ place one zero
-LOOP                                    \ next iteration
-DROP ;                                  \ clean up
-
-
+: M0INS ( xu-1 ... x1 x0 xu u1 u2 -- 0 ... 0 xu-1 ... x1 x0 ) \ PUBLIC
+2DUP 2>R SINSERT 2R>                    \ allocate stack space
+OVER + SWAP DO                          \ iterate over u2
+    0 I PLACE                            \ place zero
+LOOP ;                                  \ next iteration
