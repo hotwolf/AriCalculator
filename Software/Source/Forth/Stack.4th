@@ -197,6 +197,25 @@ ROLL DROP ;                             \ remove cell
 
 \ # Multi-Cell Operations #######################################################
 
+\ MDUP
+\ # Duplicate multiple cells at the top of the stack
+\ # args:   u:  number of cells to 
+\ #         x0: data
+\ #         ...
+\ #         xu: data
+\ # result: x0: duplicated data
+\ #         ...
+\ #         xu: duplicated data
+\ #         x0: data
+\ #         ...
+\ #         xu: data
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         result out of range (-11)
+: MDUP ( xu ... x0 u -- xu ... x0 xu ... x0 ) \ PUBLIC
+DUP >R SALLOC R>                        \ allocate stack space
+0 OVER SMOVE ;                          \ duplicate cells
+
 \ MPICK
 \ # Pick multiple cells from anywhere on the stack
 \ # args:   u2:       number of cells to pick
@@ -236,6 +255,26 @@ TUCK + 0 ROT SMOVE ;                      \ move data
 : MPLACE ( xu1+u2-1 ... x0 u1 u2 -- xu2-1 ... x0 xu1-1 ... x0 ) \ PUBLIC
 0 ROT ROT DUP >R SMOVE R>               \ move data
 SDEALLOC ;                              \ deallocate stack space
+
+\ MROLL
+\ # Extract multiple cells anywhere on the stack
+\ # args:   u2:       number of cells to rotate
+\ #         u1:       unroll offset
+\ #         x0:       rotated data
+\ #         ...
+\ #         xu1+u2-1: rotated data
+\ # result: xu1:      data
+\ #         ...
+\ #         xu1+u2-1: data
+\ #         x0:       data
+\ #         ...
+\ #         xu1-1:    data
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         result out of range (-11)
+: MROLL ( xu1+u2-1 ... x0 u1 u2 -- xu1-1 ... x0 xu1+u2-1 ... xu1 ) \ PUBLIC
+2DUP 2>R MPICK 2R>                      \ move data  
+TUCK + SWAP SREMOVE ;                   \ deallocate stack space
 
 \ MUNROLL
 \ # Insert multiple cells anywhere on the stack

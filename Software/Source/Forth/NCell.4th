@@ -3,7 +3,7 @@
 \ ###############################################################################
 \ #    Copyright 2015 Dirk Heisswolf                                            #
 \ #    This file is part of the AriCalculator's operating system.               #
-\ #                                                                             #1
+\ #                                                                             #
 \ #    The AriCalculator's operating system is free software: you can           #
 \ #    redistribute it and/or modify it under the tems of the GNU General       #
 \ #    Public License as published bythe Free Software Foundation, either       #
@@ -57,20 +57,79 @@
 \ # Code                                                                        #
 \ ###############################################################################
 
-\ # Stack Operations ############################################################
+\ # Helper functions ############################################################
 
-\ NCDROP
-\ # Remove a multi-cell data structure from TOS.
-\ # args:   size:  size of struc (in cells)
-\ #         struc: data structure
-\ # result: size:  size of struc (in cells)
+\ TUCK*SWAP
+\ # Replace x1 by the product of x1 and x2.
+\ # args:   x2:  size of data structures (in cells)
+\ #         x1:  data structure
+\ # result: x2:  data structure
+\ #         x1': x1*x2
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCDROP ( struc size -- size )         \ PUBLIC
-DUP                                     \ duplicate size
-1+ CELLS SP@ +                          \ calculate new sack pointer
-TUCK !                                  \ save size    
-SP! ; 			                \ set new stack pointer
+: TUCK*SWAP ( x1 x2 -- x1' x2 )
+TUCK * SWAP ;
+
+\ SWAP1+OVER*SWAP
+\ # Replace x1 by the product of (1+x1) and x2.
+\ # args:   x2:  size of data structures (in cells)
+\ #         x1:  data structure
+\ # result: x2:  data structure
+\ #         x1': (1+x1)*x2
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: SWAP1+OVER*SWAP ( x1 x2 -- x1' x2 )
+SWAP 1+ OVER * SWAP ;
+
+\ # Stack Operations ############################################################
+
+\ NCDUP
+\ # Duplicate the multi-cell data structure at the top of the stack.
+\ # args:   size:  size of data structures (in cells)
+\ #         struc: data structure
+\ # result: struc: duplicated data structure
+\ #         struc: data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NCDUP ( struc size --  struc struc ) \ PUBLIC
+MDUP ;
+
+\ NC2DUP
+\ # Duplicate two  multi-cell data structure at the top of the stack.
+\ # args:   size:  size of data structures (in cells)
+\ #         struc0: data structure
+\ #         struc1: data structure
+\ # result: struc0: duplicated data structure
+\ #         struc1: duplicated data structure
+\ #         struc0: data structure
+\ #         struc1: data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NC2DUP ( struc1 struc0 size --  struc1 struc0 struc1 struc0 ) \ PUBLIC
+2* MDUP ;
+
+\ NCDROP
+\ # Remove two multi-cell data structure at the top of the stack.
+\ # args:   size:  size of data structures (in cells)
+\ #         struc: data structure
+\ # result: -
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         result out of range (-11)
+: NCDROP ( struc size --  ) \ PUBLIC
+SDEALLOC ;
+
+\ NC2DROP
+\ # Remove two multi-cell data structure at the top of the stack.
+\ # args:   size:   size of data structures (in cells)
+\ #         struc0: data structure
+\ #         struc1: data structure
+\ # result: -
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         result out of range (-11)
+: NC2DROP ( struc1 struc0 size --  ) \ PUBLIC
+2* NCDROP ;
 
 \ NCPICK
 \ # Duplicate a multi-cell data structure from within the parameter stack.
@@ -79,20 +138,15 @@ SP! ; 			                \ set new stack pointer
 \ #         struc0: data structure
 \ #         ...
 \ #         strucu: data structure to be duplicated
-\ # result: size:   size of data structures (in cells)
-\ #         strucu: duplicated data structure
+\ # result: strucu: duplicated data structure
 \ #         struc0: data structure
 \ #         ...
 \ #         strucu: duplicated data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: NCPICK ( strucu ... struc0 u size -- strucu ... struc0 strucu size ) \ PUBLIC
-DUP ROT 1+ * 1+                         \ calculate PICK offset
-OVER 0 DO                               \ iterate size times
-    DUP PICK ROT ROT                    \ pick one cell
-LOOP                                    \ next iteration
-DROP ;                                  \ drop PICK offset
+: NCPICK ( strucu ... struc0 u size -- strucu ... struc0 strucu ) \ PUBLIC
+TUCK*SWAP MPICK ;
 
 \ NCPLACE
 \ # Opposite of NCPICK. Replace a multi-cell data structure anywhere on the
@@ -103,20 +157,15 @@ DROP ;                                  \ drop PICK offset
 \ #         struc0:   data structure
 \ #         ...
 \ #         strucu:   data structure to be replaced
-\ # result: size:     size of data structures (in cells)
-\ #         struc0:   data structure
+\ # result: struc0:   data structure
 \ #         ...
 \ #         strucu-1: data structure
 \ #         strucu':  data structure which replaced strucu
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: NCPLACE ( strucu ... struc0 strucu' u size -- strucu' strucu-1... struc0 size ) \ PUBLIC
-DUP ROT 1+ * 1+                         \ calculate PLACE offset
-OVER 0 DO                               \ iterate size times
-    ROT OVER PLACE                      \ place one cell
-LOOP                                    \ next iteration
-DROP ;                                  \ drop PLACE offset
+: NCPLACE ( strucu ... struc0 strucu' u size -- strucu' strucu-1... struc0 ) \ PUBLIC
+SWAP1+OVER*SWAP MPLACE ;
 
 \ NCROLL
 \ # Rotate over multiple multi-cell data structures.
@@ -125,20 +174,15 @@ DROP ;                                  \ drop PLACE offset
 \ #         struc0:   data structure
 \ #         ...
 \ #         strucu:   data structure to be wrapped
-\ # result: size:     size of each struc (in cells)
-\ #         strucu:   wrapped data structure
+\ # result: strucu:   wrapped data structure
 \ #         struc0:   data structure
 \ #         ...
 \ #         strucu-1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: NCROLL ( strucu ... struc0 u size -- strucu-1 ... struc0 strucu size ) \ PUBLIC
-DUP ROT 1+ * 1+                         \ calculate ROLL offset
-OVER 0 DO                               \ iterate size times
-    DUP ROLL ROT ROT                    \ rotate one cell
-LOOP                                    \ next iteration
-DROP ;                                  \ drop ROLL offset
+: NCROLL ( strucu ... struc0 u size -- strucu-1 ... struc0 strucu ) \ PUBLIC
+TUCK*SWAP MROLL ;
 
 \ NCUNROLL
 \ # Opposite of NCROLL. Insert a multi-cell data structure anywhere into the
@@ -149,19 +193,14 @@ DROP ;                                  \ drop ROLL offset
 \ #         struc0:   data structure
 \ #         ...
 \ #         strucu-1: data structure
-\ # result: size:     size of each struc (in cells)
-\ #         struc0:   data structure
+\ # result: struc0:   data structure
 \ #         ...
 \ #         strucu:   wrapped data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: NCUNROLL ( strucu-1 ... struc0  strucu u size -- strucu ...  struc0 size )     \ PUBLIC
-DUP ROT 1+ * 1+                         \ calculate UNROLL offset
-OVER 0 DO                               \ iterate size times
-    ROT OVER UNROLL                     \ rotate one cell
-LOOP                                    \ next iteration
-DROP ;                                  \ drop UNROLL offset
+: NCUNROLL ( strucu-1 ... struc0  strucu u size -- strucu ...  struc0 )     \ PUBLIC
+SWAP1+OVER*SWAP MUNROLL ;
 
 \ NCREMOVE
 \ # Remove a multi-cell data structure anywhere from the parameter stack.
@@ -177,64 +216,31 @@ DROP ;                                  \ drop UNROLL offset
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: NCREMOVE ( strucu ... struc0 u size -- strucu-1 ...  struc0 size ) \ PUBLIC
-DUP ROT 1+ * 1+                         \ calculate REMOVE offset
-OVER 0 DO                               \ iterate size times
-    DUP I - REMOVE                      \ rotate one cell
-LOOP                                    \ next iteration
-DROP ;                                  \ drop REMOVE offset
-
-\ NCDUP
-\ # Duplicate last multi-cell data structure.
-\ # args:   size:  size of each struc (in cells)
-\ #         struc: data structure
-\ # result: size:  size of each struc (in cells)
-\ #         struc: duplicated data structure
-\ #         struc: data structure
-\ # throws: stackn overflow (-3)
-\ #         stack  underflow (-4)
-: NCDUP ( struc size -- struc struc size ) \ PUBLIC
-0 SWAP NCPICK ;
-
-\ NC2DUP
-\ # Duplicate last multi-cell data structure.
-\ # args:   size:   size of each struc (in cells)
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # result: size:   size of each struc (in cells)
-\ #         struc2: duplicated data structure
-\ #         struc1: uplicated data structure
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NC2DUP ( struc1 struc2 size -- struc1 struc2 struc1 struc2 size ) \ PUBLIC
-2* NCDUP 2; ;
+: NCREMOVE ( strucu ... struc0 u size -- strucu-1 ...  struc0 ) \ PUBLIC
+TUCK*SWAP SREMOVE ;
 
 \ NCOVER
 \ # Duplicate previous multi-cell data structure.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: data structure
 \ #         struc1: data structure
-\ # result: size:   size of each struc (in cells)
-\ #         struc1: duplicated data structure
+\ # result: struc1: duplicated data structure
 \ #         struc2: data structure
 \ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCOVER ( struc1 struc2 size -- struc1 struc2 struc1 size ) \ PUBLIC
+: NCOVER ( struc1 struc2 size -- struc1 struc2 struc1 ) \ PUBLIC
 1 SWAP NCPICK ;
 
 \ # Swap two multi-cell data structures.
 \ # args:   size:   size of each struc (in cells
 \ #         struc2: data structure
 \ #         struc1: data structure
-\ # result: size:   size of each struc (in cells
-\ #         struc1: swapped data structure
+\ # result: struc1: swapped data structure
 \ #         struc2: swapped data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCSWAP ( struc1 struc2 size -- struc2 struc1 size ) \ PUBLIC
+: NCSWAP ( struc1 struc2 size -- struc2 struc1 ) \ PUBLIC
 1 SWAP NCROLL ;
 
 \ NCROT
@@ -243,13 +249,12 @@ DROP ;                                  \ drop REMOVE offset
 \ #         struc3: data structure to
 \ #         struc2: data structure to
 \ #         struc1: data structure to be wrapped
-\ # result: size:   size of each struc (in cells)
-\ #         struc1: data structure
+\ # result: struc1: data structure
 \ #         struc3: data structure
 \ #         struc2: wrapped data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCROT ( struc1 struc2 struc3 size -- struc2 struc3 struc1 size ) \ PUBLIC
+: NCROT ( struc1 struc2 struc3 size -- struc2 struc3 struc1 ) \ PUBLIC
 2 SWAP NCROLL ;
 
 \ NCNIP
@@ -257,11 +262,10 @@ DROP ;                                  \ drop REMOVE offset
 \ # args:   size:  size of each struc (in cells)
 \ #         struc2: data structure
 \ #         struc1: data structure to be removed
-\ # result: size:  size of each struc (in cells)
-\ #         struc2: data structure
+\ # result: struc2: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCNIP ( struc1 struc2 size -- struc2 size ) \ PUBLIC
+: NCNIP ( struc1 struc2 size -- struc2 ) \ PUBLIC
 1 SWAP NCREMOVE ;
 
 \ NCTUCK
@@ -269,15 +273,13 @@ DROP ;                                  \ drop REMOVE offset
 \ # args:   size:  size of each struc (in cells)
 \ #         struc2: data structure
 \ #         struc1: data structure
-\ # result: size:  size of each struc (in cells)
-\ #         sstruc2: data structure
+\ # result: sstruc2: data structure
 \ #         struc1: data structure
 \ #         struc2: duplicated data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCTUCK ( struc1 struc2 size -- struc2 size ) \ PUBLIC
+: NCTUCK ( struc1 struc2 size -- struc2 struc1 struc2 ) \ PUBLIC
 0 SWAP NCPLACE ;
-
     
 \ # Arithmetic Operations #######################################################
 
@@ -285,60 +287,55 @@ DROP ;                                  \ drop REMOVE offset
 \ # Shift a multi-cell data number one bit towards the most significant bit.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc1: data structure
-\ # result: size:   size of each struc (in cells)
-\ #         struc2: shifted data structure
+\ # result: struc2: shifted data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NC2* ( struc1 size -- struc2 size ) \ PUBLIC
+: NC2* ( struc1 size -- struc2 ) \ PUBLIC
 OVER 2*                                 \ shift most significant cell
-OVER 1 DO                               \ iterate over structure size-1
-    I 2 + PICK 0 D2*                    \ shift cell
+OVER 1+ 2 DO                            \ iterate over structure size-1
+    I 1+ PICK 0 D2*                     \ shift cell
     ROT OR                              \ propagate overflow to previous cell
-    I 1+ PLACE                          \ update previous cell
+    I PLACE                             \ update previous cell
 LOOP                                    \ next iteration
-OVER PLACE ;                            \ update last cell
+SWAP 1- PLACE ;                         \ update last cell
 
 \ NC2*1+
 \ # Shift a multi-cell data number one bit towards the most significant bit and
 \ # set the most significant bit to one.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc1: data structure
-\ # result: size:   size of each struc (in cells)
-\ #         struc2: shifted data structure
+\ # result: struc2: shifted data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NC2*1+ ( struc1 size -- struc2 size ) \ PUBLIC
+: NC2*1+ ( struc1 size -- struc2 ) \ PUBLIC
 OVER 2*                                 \ shift most significant cell
-OVER 1 DO                               \ iterate over structure size-1
-    I 2 + PICK 0 D2*                    \ shift cell
+OVER 1+ 2 DO                            \ iterate over structure size-1
+    I 1+ PICK 0 D2*                     \ shift cell
     ROT OR                              \ propagate overflow to previous cell
-    I 1+ PLACE                          \ update previous cell
+    I PLACE                             \ update previous cell
 LOOP                                    \ next iteration
-1+                                      \ set LSB
-OVER PLACE ;                            \ update last cell
+1+ SWAP 1- PLACE ;                      \ update last cell
 
 \ NC2/
 \ # Shift a signed multi-cell number one bit towards the least significant bit.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc1: data structure
-\ # result: size:   size of each struc (in cells)
-\ #         struc2: shifted data structure
+\ # result: struc2: shifted data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NC2/ ( struc1 size -- struc2 size ) \ PUBLIC
+: NC2/ ( struc1 size -- struc2 ) \ PUBLIC
 DUP PICK 2/                             \ shift least significant cell
-OVER 1 SWAP DO               	        \ iterate backwards over size 
+1 ROT DO               	                \ iterate backwards over size 
     [ -1 1 RSHIFT ] LITERAL AND         \ clear MSB of previous cell
-    I PICK 0 SWAP D2/                   \ shift cell
-    ROT ROT OR SWAP                     \ propagate overflow to previous cell
-    I 1+ PLACE                          \ update previous cell
+    0 I PICK D2/                        \ shift cell
+    ROT ROT OR                          \ propagate overflow to previous cell
+    I PLACE                             \ update previous cell
 -1 +LOOP                                \ next iteration
-1 PLACE ;                               \ update last cell
+NIP ;                                   \ update last cell
 
 \ NCU2/
 \ # Shift a unsigned multi-cell number one bit towards the least significant
 \ # bit.
-\ # significant bit.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc1: data structure
 \ # result: size:   size of each struc (in cells)
@@ -349,24 +346,38 @@ OVER 1 SWAP DO               	        \ iterate backwards over size
 NC2/                                    \ signed shift
 SWAP [ -1 1 RSHIFT ] LITERAL AND SWAP ; \ clear most significant bit
 
+\ <=======Progress
+
 \ NC+
 \ # Add two unsigned multi-cell numbers.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: operand
 \ #         struc1: operand
-\ # result: size:   size of each struc (in cells)
-\ #         struc3: result
+\ # result: struc3: result
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NC+ ( struc1 struc2 size -- struc3 size ) \ PUBLIC
+: NC+ ( struc1 struc2 size -- struc3 ) \ PUBLIC
+DUP 1+ SWAP DO                          \ store size in loop counter
+0                                       \ push initial carry
+0 I DO                                  \ iterate over size
+    I J + PICK
+
+
+
+
 DUP 0                                   \ push initial carry
-0 ROT DO                                \ iterate over size
-    OVER SWAP                           \ duplicate size
-    OVER I + 2 + PICK 0 SWAP M+         \ add struc2 operand to carry
-    I 3 + PICK M+                       \ add struc1
-    SWAP ROT I + 1+ PLACE               \ replace struc2
+1 ROT 1+ DO                             \ iterate over size
+    OVER I + PICK 0 SWAP M+             \ add struc2 operand to carry
+    I 1+ PICK M+                        \ add struc1
+
+
+
+OVER SWAP                           \ duplicate size
+    OVER I + 1+ PICK 0 SWAP M+          
+    I 2 + PICK M+                       \ add struc1
+    SWAP ROT I + PLACE                  \ replace struc2
  -1 +LOOP                               \ next iteration
-DROP NCDROP ;                           \ drop struc1                 
+DROP SDEALLOC ;                         \ drop struc1                 
 
 \ NC-
 \ # Subtract struc2 from struc1.
@@ -385,7 +396,7 @@ DUP 1                                   \ push initial carry
     I 3 + PICK INVERT M+                \ subtract struc1
     SWAP ROT I + 1+ PLACE               \ replace struc2
  -1 +LOOP                               \ next iteration
-DROP NCDROP ;                           \ drop struc1                 
+DROP SDEALLOC ;                           \ drop struc1                 
 
 \ NC2UE
 \ # Extend two multi-cell numbers by one cell.
@@ -523,41 +534,41 @@ NIP SWAP                                \ store result
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         division by zero (-10)
-: NCU/MOD ( struc1 struc2 size -- struc3 struc4 size ) \ PUBLIC
-DUP 2* 1+ OVER M0INS                    \ allocate space for quotient
-DUP 1 DO                                \ iterate over denominator width
-    I PICK IF                           \ find highest denominator cell  
-        I 1+ 1 DO                       \ iterate over nominator
-            NCDUP                       \ DUP denominator
-            DUP 2* I + PICK             \ pick nominator cell
-            I 1- IF                     \ check for previous nominator cell 
-                OVER I + PICK           \ pick previous nominator cell
-            ELSE                        \ no previous nominator cell available
-                0                       \ use dummy value
-            THEN                        \ nominator cell picked
-            I 2 + PICK                  \ pick denominator cell
-            UM/MOD NIP                  \ divide cells to estimate digit
-            2DUP SWAP 3 * I + 1+ PLACE \ store digit
-            SWAP NC1U*                  \ multiply denominator by digit
-            TRUE OVER 1+ 1 DO           \ check if a correction is required
-                I PICK                  \ pick cell from intermediate result
-                OVER 2* I + 1+ PICK     \ pick cell from nominator
-		U< IF                   \ make sure that nominator is larger
-                    DROP FALSE LEAVE    \ nominator is larger
-                THEN                    \
-            LOOP                        \ keep checking
-	    IF                          \ correction required
-            2DUP SWAP 3 * I + 1+ PLACE \ store digit
-            
-
-
-        LEAVE                           \ done
-    ELSE                                \ denominator cell is zero  
-`       DUP 1- I = IF                   \ check if denominator is zero  
-            -10 THROW                   \ throw "division by zero" error
-        THEN                            \ end of zero check
-    THEN                                \ check if denominator cell check
-LOOP ;	                                \ next iteration
+\ : NCU/MOD ( struc1 struc2 size -- struc3 struc4 size ) \ PUBLIC
+\ DUP 2* 1+ OVER M0INS                    \ allocate space for quotient
+\ DUP 1 DO                                \ iterate over denominator width
+\     I PICK IF                           \ find highest denominator cell  
+\         I 1+ 1 DO                       \ iterate over nominator
+\             NCDUP                       \ DUP denominator
+\             DUP 2* I + PICK             \ pick nominator cell
+\             I 1- IF                     \ check for previous nominator cell 
+\                 OVER I + PICK           \ pick previous nominator cell
+\             ELSE                        \ no previous nominator cell available
+\                 0                       \ use dummy value
+\             THEN                        \ nominator cell picked
+\             I 2 + PICK                  \ pick denominator cell
+\             UM/MOD NIP                  \ divide cells to estimate digit
+\             2DUP SWAP 3 * I + 1+ PLACE \ store digit
+\             SWAP NC1U*                  \ multiply denominator by digit
+\             TRUE OVER 1+ 1 DO           \ check if a correction is required
+\                 I PICK                  \ pick cell from intermediate result
+\                 OVER 2* I + 1+ PICK     \ pick cell from nominator
+\ 		U< IF                   \ make sure that nominator is larger
+\                     DROP FALSE LEAVE    \ nominator is larger
+\                 THEN                    \
+\             LOOP                        \ keep checking
+\ 	    IF                          \ correction required
+\             2DUP SWAP 3 * I + 1+ PLACE \ store digit
+\             
+\ 
+\ 
+\         LEAVE                           \ done
+\     ELSE                                \ denominator cell is zero  
+\         DUP 1- I = IF                   \ check if denominator is zero  
+\             -10 THROW                   \ throw "division by zero" error
+\         THEN                            \ end of zero check
+\     THEN                                \ check if denominator cell check
+\ LOOP ;	                                \ next iteration
 
 
 \ NC1U/MOD
