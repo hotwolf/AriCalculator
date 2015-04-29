@@ -81,6 +81,37 @@ TUCK * SWAP ;
 : SWAP1+OVER*SWAP ( x1 x2 -- x1' x2 )
 SWAP 1+ OVER * SWAP ;
 
+\ NC2SE
+\ # Sign extend two multi-cell numbers.
+\ # args:   size:    size of each struc (in cells)
+\ #         struc2:  signed number
+\ #         struc1:  signed number
+\ # result: esize:   extended size
+\ #         estruc2: sign extensed number
+\ #         estruc1: sign extensed number
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NC2SE ( struc1 struc2 size -- estruc1 estruc2 esize )
+DUP 1+ PICK 0< OVER 1+ UNROLL          \ sign extend struc2
+OVER 0< SWAP                           \ sign extend struc1
+1+ ;                                   \ increment size
+
+\ BITS/CELL
+\ # Determine the cell size in bits
+\ # args:   -
+\ # result: u:  bits per cell
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: BITS/CELL ( -- u )
+0 1                                     \ test cell and bit count
+BEGIN                                   \ iterate over bits
+    DUP                                 \ check test cell
+WHILE                                   \ iterate until all bits are cleared
+    2* SWAP                             \ shift test cell
+    1+ SWAP                             \ increment bit count
+REPEAT                                  \ next iteration
+DROP ;                                  \ clean up
+
 \ # Stack Operations ############################################################
 
 \ NCDUP
@@ -91,8 +122,8 @@ SWAP 1+ OVER * SWAP ;
 \ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCDUP ( struc size --  struc struc ) \ PUBLIC
-MDUP ;
+\ : NCDUP ( struc size --  struc struc ) \ PUBLIC
+\ MDUP ;
 
 \ NC2DUP
 \ # Duplicate two  multi-cell data structure at the top of the stack.
@@ -105,8 +136,8 @@ MDUP ;
 \ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NC2DUP ( struc1 struc0 size --  struc1 struc0 struc1 struc0 ) \ PUBLIC
-2* MDUP ;
+\ : NC2DUP ( struc1 struc0 size --  struc1 struc0 struc1 struc0 ) \ PUBLIC
+\ 2* MDUP ;
 
 \ NCDROP
 \ # Remove two multi-cell data structure at the top of the stack.
@@ -116,8 +147,8 @@ MDUP ;
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: NCDROP ( struc size --  ) \ PUBLIC
-SDEALLOC ;
+\ : NCDROP ( struc size --  ) \ PUBLIC
+\ SDEALLOC ;
 
 \ NC2DROP
 \ # Remove two multi-cell data structure at the top of the stack.
@@ -128,8 +159,8 @@ SDEALLOC ;
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-: NC2DROP ( struc1 struc0 size --  ) \ PUBLIC
-2* NCDROP ;
+\ : NC2DROP ( struc1 struc0 size --  ) \ PUBLIC
+\ 2* NCDROP ;
 
 \ NCPICK
 \ # Duplicate a multi-cell data structure from within the parameter stack.
@@ -346,10 +377,28 @@ NIP ;                                   \ update last cell
 NC2/                                    \ signed shift
 SWAP [ -1 1 RSHIFT ] LITERAL AND SWAP ; \ clear most significant bit
 
-\ <=======Progress
+\ NCUE+
+\ # Add two unsigned multi-cell numbers with extended result.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc2: operand
+\ #         struc1: operand
+\ # result: estruc: result
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NCUE+ ( struc1 struc2 size -- estruc ) \ PUBLIC
+DUP 1- DO                               \ store size-1 in loop counter
+    0                                   \ push initial carry
+    1 I 2 + DO                          \ iterate over size
+        0 I PICK 0 D+                   \ add cell from struc2 to carry
+	I J + 1+ PICK 0 D+              \ add cell from struc1
+        SWAP I J + PLACE                \ place result 
+    -1 +LOOP                            \ next iteration
+    I PLACE                             \ place carry
+    I SDEALLOC                          \ free stack space
+LOOP ;                                  \ clean up outer loop
 
 \ NC+
-\ # Add two unsigned multi-cell numbers.
+\ # Add two multi-cell numbers.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: operand
 \ #         struc1: operand
@@ -357,135 +406,101 @@ SWAP [ -1 1 RSHIFT ] LITERAL AND SWAP ; \ clear most significant bit
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : NC+ ( struc1 struc2 size -- struc3 ) \ PUBLIC
-DUP 1+ SWAP DO                          \ store size in loop counter
-0                                       \ push initial carry
-0 I DO                                  \ iterate over size
-    I J + PICK
+NCUE+ DROP ;
 
+\ NCSE+
+\ # Add two signed multi-cell numbers with extended result.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc2: operand
+\ #         struc1: operand
+\ # result: estruc: result
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NCSE+ ( struc1 struc2 size -- estruc ) \ PUBLIC
+NC2SE NC+ ;
 
-
-
-DUP 0                                   \ push initial carry
-1 ROT 1+ DO                             \ iterate over size
-    OVER I + PICK 0 SWAP M+             \ add struc2 operand to carry
-    I 1+ PICK M+                        \ add struc1
-
-
-
-OVER SWAP                           \ duplicate size
-    OVER I + 1+ PICK 0 SWAP M+          
-    I 2 + PICK M+                       \ add struc1
-    SWAP ROT I + PLACE                  \ replace struc2
- -1 +LOOP                               \ next iteration
-DROP SDEALLOC ;                         \ drop struc1                 
+\ NCUE-
+\ # Zero extend both unsigned multi-cell numbers ans subtract struc2 from struc1.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc2: operand
+\ #         struc1: operand
+\ # result: estruc: result
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NCUE- ( struc1 struc2 size -- estruc ) \ PUBLIC
+DUP 1- DO                               \ store size-1 in loop counter
+    0                                   \ push initial carry
+    1 I 2 + DO                          \ iterate over size
+        S>D I PICK 0 D-                   \ add cell from struc2 to carry
+	I J + 1+ PICK 0 D+              \ add cell from struc1
+        SWAP I J + PLACE                \ place result 
+    -1 +LOOP                            \ next iteration
+    I PLACE                             \ place carry
+    I SDEALLOC                          \ free stack space
+LOOP ;                                  \ clean up outer loop
 
 \ NC-
 \ # Subtract struc2 from struc1.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: operand
 \ #         struc1: operand
-\ # result: size:   size of each struc (in cells)
-\ #         struc3: result
+\ # result: struc3: result
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NC- ( struc1 struc2 size -- struc3 size ) \ PUBLIC
-DUP 1                                   \ push initial carry
-0 ROT DO                                \ iterate over size
-    OVER SWAP                           \ duplicate size
-    OVER I + 2 + PICK 0 SWAP M+         \ add struc2 operand to carry
-    I 3 + PICK INVERT M+                \ subtract struc1
-    SWAP ROT I + 1+ PLACE               \ replace struc2
- -1 +LOOP                               \ next iteration
-DROP SDEALLOC ;                           \ drop struc1                 
+: NC- ( struc1 struc2 size -- struc3 ) \ PUBLIC
+NCUE- DROP ;
 
-\ NC2UE
-\ # Extend two multi-cell numbers by one cell.
-\ # args:   size:    size of original multi-cell numbers (in cells)
-\ #         struc2:  multi-cell number
-\ #         struc1:  multi-cell number
-\ # result: esize:   size of extended numbers (=size1+1)
-\ #         estruc2: extended number, equal to struc1
-\ #         estruc1: extended number, equal to struc2
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NC2UE ( struc1 struc2 size -- estruc1 estruc2 esize ) \ PUBLIC
-0 OVER 1+ UNROLL                       \ extend struc2
-0 SWAP                                 \ extend struc1
-1+ ;                                   \ increment size
-
-\ NCUE+
-\ # Extend and add two unsigned multi-cell numbers.
-\ # args:   size:   size of each operand (in cells)
+\ NCSE-
+\ # Sign extend both unsigned multi-cell numbers ans subtract struc2 from struc1.
+\ # args:   size:   size of each struc (in cells)
 \ #         struc2: operand
 \ #         struc1: operand
-\ # result: esize:  size of the result (=sitruc1+1)
-\ #         estruc: result
+\ # result: estruc: result
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCUE+ ( struc1 struc2 size -- estruc esize ) \ PUBLIC
-NC2UE NC+ ;
-
-\ NCUE-
-\ # Extend and subtract struc1 from struc2.
-\ # args:   size:   size of each operand (in cells)
-\ #         struc2: operand
-\ #         struc1: operand
-\ # result: esize:  size of the result (=sitruc1+1)
-\ #         estruc: result
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCUE- ( struc1 struc2 size -- estruc esize ) \ PUBLIC
-NC2UE NC- ;
-
-\ NC2SE
-\ # Sign extend two multi-cell numbers by one cell.
-\ # args:   size:    size of original multi-cell numbers (in cells)
-\ #         struc2:  multi-cell number
-\ #         struc1:  multi-cell number
-\ # result: esize:   size of sign extended numbers (=size1+1)
-\ #         estruc2: sign extended number, equal to struc1
-\ #         estruc1: sign extended number, equal to struc2
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NC2SE ( struc1 struc2 size -- estruc1 struc4 esize ) \ PUBLIC
-DUP 1+  PICK 0< OVER 1+ UNROLL         \ sign extend struc2
-OVER 0< SWAP                           \ sign extend struc1
-1+ ;                                   \ increment size
-
-\ NCSE+
-\ # Sign extend and add two unsigned multi-cell numbers.
-\ # args:   size:   size of each operand (in cells)
-\ #         struc2: operand
-\ #         struc1: operand
-\ # result: esize:  size of the result (=sitruc1+1)
-\ #         estruc: result
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCSE+ ( struc1 struc2 size -- estruc esize ) \ PUBLIC
-NC2SE NC+ ;
-
-\ NCUE-
-\ # Sign extend and subtract struc2 from struc1.
-\ # args:   size:   size of each operand (in cells)
-\ #         struc2: operand
-\ #         struc1: operand
-\ # result: esize:  size of the result (=sitruc1+1)
-\ #         estruc: result
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCSE- ( struc1 struc2 size -- estruc esize ) \ PUBLIC
+: NCSE- ( struc1 struc2 size -- estruc ) \ PUBLIC
 NC2SE NC- ;
+
+\ <=======Progress
+
+\ NC1U*
+\ # Multiply an unsigned multi-cell number with an unsigned single cell number.
+\ # args:   size:   size of a struc (in cells)
+\ #         u:      factor
+\ #         struc:  factor
+\ # result: estruc: product
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ : NC1U* ( struc u size -- estruc ) \ PUBLIC
+\ 0                                       \ initiate carry
+\ 0 ROT DO                                \ iterate over size
+\     OVER I UM*                          \ multiply one cell
+\     
+\ 
+\ 
+\ SWAP OVER 0                             \ initialize intermediate result
+\ SWAP 1- 7 DO                            \ iterate over size
+\     OVER I PICK M*                      \ multiply one cell
+\     ROT M+                              \ accumulate intermediate result
+\     SWAP I 1- PLACE                     \ store result
+\ -1 +LOOP                                \ next iteration
+\ NIP SWAP                                \ store result
+\ 1+ ;                                    \ extend size
+
+
 
 \ NCU*
 \ # Multiply two unsigned multi-cell numbers.
-\ # args:   size:    size of each factor (in cells)
-\ #         struc2:  factor
-\ #         struc1:  factor
-\ # result: dsize:   size of the result (=2*size)
-\ #         dstruc2: accumulated product
+\ # args:   size:   size of each factor (in cells)
+\ #         struc2: factor
+\ #         struc1: factor
+\ # result: dstruc: accumulated product
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCU* ( struc2 struc1 size -- dstruc2 dsize ) \ PUBLIC
+: NCU* ( struc2 struc1 size -- dstruc ) \ PUBLIC
+DUP >R                                  \ save size
+
+
 DUP 0 0                                 \ initialize intermediate result 
 ROT 2* 1- 0 DO                          \ iterate over cells of result
     0                                   \ expand intermediate result
@@ -501,27 +516,7 @@ ROT 2* 1- 0 DO                          \ iterate over cells of result
     ROT 3 PICK 2* 3+ UNROLL             \ store result 
 LOOP                                    \ next iteration of the outer loop
 SWAP 2* TUCK 1+ UNROLL                  \ store result
-NCDROP ;                                \ drop operands         
-
-\ NC1U*
-\ # Multiply an unsigned multi-cell number with an unsigned single cell number.
-\ # args:   size:  size of a struc (in cells)
-\ #         u:     factor
-\ #         struc: factor
-\ # result: size:  size of the result (=size+1)
-\ #         struc: accumulated product
-\ # throws: stack overflow (-3)1+                                      \ extend size
-
-\ #         stack underflow (-4)
-: NC1U* ( struc u size -- estruc esize ) \ PUBLIC
-SWAP OVER 0                             \ initialize intermediate result
-SWAP 1- 7 DO                            \ iterate over size
-    OVER I PICK M*                      \ multiply one cell
-    ROT M+                              \ accumulate intermediate result
-    SWAP I 1- PLACE                     \ store result
--1 +LOOP                                \ next iteration
-NIP SWAP                                \ store result
-1+ ;                                    \ extend size
+SDEALLOC ;                              \ drop operands         
 
 \ NCU/MOD
 \ # Perform unsigned division.
@@ -703,9 +698,9 @@ LOOP                                    \ next iteration
 : NC0< ( struc size -- size flag ) \ PUBLIC
 OVER 0<                                 \ check most significant cell
 IF                                      \ negative value
-    NCDROP TRUE                         \ return TRUE					
+    SDEALLOC TRUE                         \ return TRUE					
 ELSE                                    \ positive or zero value
-    NCDROP FALSE 	                \ return FALSE
+    SDEALLOC FALSE 	                \ return FALSE
 THEN ;                                  \ done
 
 \ NC=

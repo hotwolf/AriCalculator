@@ -314,5 +314,5 @@ MPLACE ;                                \ move data
 : M0INS ( xu-1 ... x1 x0 xu u1 u2 -- 0 ... 0 xu-1 ... x1 x0 ) \ PUBLIC
 2DUP 2>R SINSERT 2R>                    \ allocate stack space
 OVER + SWAP DO                          \ iterate over u2
-    0 I PLACE                            \ place zero
+    0 I PLACE                           \ place zero
 LOOP ;                                  \ next iteration
