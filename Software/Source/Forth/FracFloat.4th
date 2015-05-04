@@ -24,7 +24,8 @@
 \ #                                                                             #
 \ # Data types:                                                                 #
 \ #   ff         - fractional floating point number                             #
-\ #   uq         - unsugned quad cell number number                             #
+\ #   uq         - unsigned quad cell number number                             #
+\ #   info       - info field of a fractional floating point number             #
 \ ###############################################################################
 \ # Version History:                                                            #
 \ #    April 1, 2015                                                            #
@@ -61,7 +62,56 @@
 \ ###############################################################################
 \ # Constants                                                                   #
 \ ###############################################################################
-    
+
+\ FFINFO-POSITIVE
+\ # Positive sign field.
+\ # args:   --
+\ # result: info: positive info field
+\ # throws: stack overflow (-3)
+$0001 CONSTANT FFINFO-POSITIVE
+
+\ FFINFO-NEGATIVE
+\ # Negative sign field.
+\ # args:   --
+\ # result: info: negative info field
+\ # throws: stack overflow (-3)
+$0003 CONSTANT FFINFO-NEGATIVE
+
+\ FFINFO-PI
+\ # Number is multiple of Pi.
+\ # args:   --
+\ # result: info: pi info field
+\ # throws: stack overflow (-3)
+$0004 CONSTANT FFINFO-PI
+
+\ FFINFO-APPROX
+\ # Number is an approximation.
+\ # args:   --
+\ # result: info: approximation info field
+\ # throws: stack overflow (-3)
+$0008 CONSTANT FFINFO-APPROX
+
+\ FFPI
+\ # Push an approximation of pi onto the stack.
+\ # 428224593349304/136308121570117 = 3.14159265358979323846264338327569743446
+\ # Error: 0.00000000000000000000000000000380544973 (exact by 29 decimal digits)
+\ # Nominator (hex):   18577CEC54AB *16+1
+\ # Denominator (hex): 3DFC5A9545A2 *2+1
+\ # args:   --
+\ # result: ff: approximation of pi
+\ # throws: stack overflow (-3)
+: FFPI ( -- ff ) \ PUBLIC
+$45A2                                   \ denominator (least significant cell) 
+$5A95                                   \ denominator 
+$3DFC                                   \ denominator (most significant cell) 
+$54AB                                   \ nominator (least significant cell) 
+$7CEC                                   \ nominator
+$1857                                   \ nominator (most significant cell) 
+3                                       \ exponent (2^3)
+[ FFINFO-POSITIVE                       \ positive number 
+  FFINFO-APPROX   OR]                   \ approximation
+LITERAL ;
+
 \ ###############################################################################
 \ # Variables                                                                   #
 \ ###############################################################################
@@ -73,26 +123,47 @@
 \ # Stack Operations ############################################################
 
 \ FFDROP
-\ #Drop last fractional float number
+\ # Drop last fractional float number.
 \ # args:   ff: fractional float number
 \ # result: --
-\ # throws: stack overflow (-3)
-\           stack underflow (-4)
-: FFDROP ( ff -- )			\ PUBLIC
-8 NCDROP DROP ;
+\ # throws: stack underflow (-4)
+: FFDROP ( ff -- ) \ PUBLIC
+8 SDEALLOC ;
+
+\ FF2DROP
+\ # Drop last two fractional float numbers.
+\ # args:   ff2: fractional float number
+\ #         ff1: fractional float number
+\ # result: --
+\ # throws: stack underflow (-4)
+: FF2DROP ( ff1 ff2 -- ) \ PUBLIC
+$10 SDEALLOC ;
 
 \ FFDUP
-\ Duplicate last fractional float number
+\ # Duplicate last fractional float number.
 \ # args:   ff: fractional float number
 \ # result: ff: duplicated fractional float number
 \ #         ff: fractional float number
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: FFDUP ( ff -- ff ff)  \ PUBLIC
-8 NCDUP DROP ;
+: FFDUP ( ff -- ff ff) \ PUBLIC
+8 NCDUP ;
+
+\ FF2DUP
+\ # Duplicate last two fractional float numbers.
+\ # args:   ff2: fractional float number
+\ #         ff1: fractional float number
+\ # result: ff2: duplicated fractional float number
+\ #         ff1: duplicated fractional float number
+\ #         ff2: fractional float number
+\ #         ff1: fractional float number
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: FF2DUP ( ff1 ff2 -- ff1 ff2 ff1 ff2 ) \ PUBLIC
+$10 NCDUP ;
 
 \ NCOVER
-\ Duplicate previous fractional float number
+\ # Duplicate previous fractional float number.
 \ # args:   ff2: fractional float number
 \ #         ff1: fractional float number
 \ # result: ff1: duplicated fractional float number 
@@ -100,22 +171,54 @@
 \ #         ff1: fractional float number
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: FFOVER ( ff1 ff2 -- ff1 ff2 ff1 )  \ PUBLIC
-8 NCOVER DROP ;
+: FFOVER ( ff1 ff2 -- ff1 ff2 ff1 ) \ PUBLIC
+8 NCOVER ;
 
-\ FFSWAP
-\ Swap two fractional float numbers
-\ # args:   ff1: fractional float number
+\ NC2OVER
+\ # Duplicate previous fractional float numper pair.
+\ # args:   ff4: fractional float number
+\ #         ff3: fractional float number
 \ #         ff2: fractional float number
-\ # result: ff2: fractional float number
+\ #         ff1: fractional float number
+\ # result: ff1: duplicated fractional float number 
+\ #         ff2: duplicated fractional float number
+\ #         ff4: fractional float number
+\ #         ff3: fractional float number
+\ #         ff2: fractional float number
 \ #         ff1: fractional float number
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: FFSWAP ( ff2 ff1 -- ff1 ff2 )  \ PUBLIC
-8 NCSWAP DROP ;
+: FF2OVER ( ff1 ff2 ff3 ff4 -- ff1 ff2 ff3 ff4 ff1 ff2 ) \ PUBLIC
+$10 NCOVER ;
+
+\ FFSWAP
+\ # Swap two fractional float numbers.
+\ # args:   ff2: fractional float number
+\ #         ff1: fractional float number
+\ # result: ff1: fractional float number
+\ #         ff2: fractional float number
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: FFSWAP ( ff1 ff2 -- ff1 ff1 ) \ PUBLIC
+8 NCSWAP ;
+
+\ FF2SWAP
+\ # Swap two fractional float number pairs.
+\ # args:   ff4: fractional float number
+\ #         ff3: fractional float number
+\ #         ff2: fractional float number
+\ #         ff1: fractional float number
+\ # result: ff2: fractional float number
+\ #         ff1: fractional float number
+\ #         ff4: fractional float number
+\ #         ff3: fractional float number
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: FF2SWAP ( ff1 ff2 ff3 ff4 -- ff3 ff4 ff1 ff2 ) \ PUBLIC
+$10 NCSWAP ;
 
 \ FFROT
-\ Rotate over three fractional float numbers
+\ # Rotate over three fractional float numbers.
 \ # args:   ff3: fractional float number
 \ #         ff2: fractional float number
 \ #         ff1: fractional float number
@@ -124,11 +227,63 @@
 \ #         ff2: fractional float number
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: FFROT ( ff1 ff2 ff3 -- ff2 ff3 ff1 )   \ PUBLIC
-8 NCROT DROP ;
+: FFROT ( ff1 ff2 ff3 -- ff2 ff3 ff1 ) \ PUBLIC
+8 NCROT ;
+
+\ FF2ROT
+\ # Rotate over three fractional float number pairs.
+\ # args:   ff6: fractional float number
+\ #         ff5: fractional float number
+\ #         ff4: fractional float number
+\ #         ff3: fractional float number
+\ #         ff2: fractional float number
+\ #         ff1: fractional float number
+\ # result: ff2: fractional float number
+\ #         ff1: fractional float number
+\ #         ff6: fractional float number
+\ #         ff5: fractional float number
+\ #         ff4: fractional float number
+\ #         ff3: fractional float number
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: FF2ROT ( ff1 ff2 ff3 ff4 ff5 ff6-- ff3 ff4 ff5 ff6 ff1 ff2 ) \ PUBLIC
+$10 NCROT ;
+
+\ FFPICK
+\ # Duplicate a fractional float number from within the parameter stack.
+\ # args:   size: size of data structures (in cells)
+\ #         u:    position of data structure to be copied
+\ #         ff0:  data structure
+\ #         ...
+\ #         ffu:  data structure to be duplicated
+\ # result: ffu:  duplicated data structure
+\ #         ff0:  data structure
+\ #         ...
+\ #         ffu:  duplicated data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         result out of range (-11)
+: FFPICK ( ffu ... ff0 u size -- ffu ... ff0 ffu ) \ PUBLIC
+8 NCPICK ;
+
+\ FFPLACE
+\ # Replace a fractional float number anywhere on the parameter stack.
+\ # args:   u:     position of the cell to be replaced
+\ #         ffu':  cell to replace xu  
+\ #         ff0:   untouched cell
+\ #         ...
+\ #         ffu-1: untouched cell
+\ #         ffu:   cell to be replaced
+\ # result: ff0:   untouched cell
+\ #         ...
+\ #         ffu-1: untouched cell
+\ #         ffu':  cell which replaced xu  
+\ #         stack underflow (-4)
+: FFPLACE ( ffu ffu-1 ... ff0 ffu' u -- ffu' ffu-1 ... ff0 ) \ PUBLIC
+8 NCPLACE ;
 
 \ FFROLL
-\ Rotate over multiple fractional float numbers
+\ # Rotate over multiple fractional float numbers.
 \ # args:   u:     number of FF numbers to rotate
 \ #         ff0:   fractional float number
 \ #         ...
@@ -141,7 +296,24 @@
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
 : FFROLL ( ffu ... ff0 u -- ffu-1 ...  ff0 ffu ) \ PUBLIC
-8 NCROLL DROP ;
+8 NCROLL ;
+
+\ FFUNROLL
+\ # Opposite of FFROLL. Insert a fractional float number anywhere into the
+\ # parameter stack.
+\ # args:   u:     position of the insertion
+\ #         ffu:   cell to be inserted
+\ #         ff0:   untouched cell
+\ #         ...
+\ #         ffu-1: untouched cell
+\ # result: ff0:   untouched cell
+\ #         ...
+\ #         ffu-1: untouched cell
+\ #         ffu:   inserted cell
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: FFUNROLL ( ffu-1 ... ff0 ffu u -- ffu ffu-1 ... ff0 ) \ PUBLIC
+8 NCUNROLL ;
 
 \ # Quad-Cell Operations ########################################################
 

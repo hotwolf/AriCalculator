@@ -68,8 +68,7 @@ SP! ; 			                \ set new stack pointer
 \ #         ...
 \ #         xu-1: data
 \ # result: -
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
+\ # throws: stack underflow (-4)
 : SDEALLOC ( xu ... x0 u -- ) \ PUBLIC
 1+ CELLS SP@ +                          \ calculate new sack pointer
 SP! ; 			                \ set new stack pointer
