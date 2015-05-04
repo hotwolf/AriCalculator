@@ -109,7 +109,7 @@ $7CEC                                   \ nominator
 $1857                                   \ nominator (most significant cell) 
 3                                       \ exponent (2^3)
 [ FFINFO-POSITIVE                       \ positive number 
-  FFINFO-APPROX   OR]                   \ approximation
+  FFINFO-APPROX   OR ]                  \ approximation
 LITERAL ;
 
 \ ###############################################################################
@@ -147,7 +147,7 @@ $10 SDEALLOC ;
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : FFDUP ( ff -- ff ff) \ PUBLIC
-8 NCDUP ;
+8 MDUP ;
 
 \ FF2DUP
 \ # Duplicate last two fractional float numbers.
@@ -160,7 +160,7 @@ $10 SDEALLOC ;
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 : FF2DUP ( ff1 ff2 -- ff1 ff2 ff1 ff2 ) \ PUBLIC
-$10 NCDUP ;
+$10 MDUP ;
 
 \ NCOVER
 \ # Duplicate previous fractional float number.
