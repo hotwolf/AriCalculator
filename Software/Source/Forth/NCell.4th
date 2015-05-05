@@ -347,7 +347,7 @@ OVER 1+ 2 DO                            \ iterate over structure size-1
 LOOP                                    \ next iteration
 1+ SWAP 1- PLACE ;                      \ update last cell
 
-\ NC2/ -wrong
+\ NC2/
 \ # Shift a signed multi-cell number one bit towards the least significant bit.
 \ # args:   size:   size of each struc (in cells, >1)
 \ #         struc1: data structure
@@ -489,13 +489,6 @@ NCUE- DROP ;
 : NCSE- ( struc1 struc2 size -- estruc ) \ PUBLIC
 NC2SE NC- ;
 
-\ <=======Progress
-
-
-
-
-
-
 \ NC1U*
 \ # Multiply an unsigned multi-cell number with an unsigned single cell number.
 \ # args:   size:   size of a struc (in cells)
@@ -504,23 +497,34 @@ NC2SE NC- ;
 \ # result: estruc: product
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-\ : NC1U* ( struc u size -- estruc ) \ PUBLIC
-\ 0                                       \ initiate carry
-\ 0 ROT DO                                \ iterate over size
-\     OVER I UM*                          \ multiply one cell
-\     
-\ 
-\ 
-\ SWAP OVER 0                             \ initialize intermediate result
-\ SWAP 1- 7 DO                            \ iterate over size
-\     OVER I PICK M*                      \ multiply one cell
-\     ROT M+                              \ accumulate intermediate result
-\     SWAP I 1- PLACE                     \ store result
-\ -1 +LOOP                                \ next iteration
-\ NIP SWAP                                \ store result
-\ 1+ ;                                    \ extend size
+: NC1U* ( struc u size -- estruc ) \ PUBLIC
+0                                       \ initialize intermediate result
+2 ROT 1+ DO                             \ iterate over size
+    OVER I 1+ PICK UM*                  \ multiply cells
+    ROT 0 D+                            \ add to intermediate result
+    SWAP I PLACE                        \ store result
+ -1 +LOOP                               \ next iteration
+NIP ;                                   \ clean up
 
+\ NC1U/MOD
+\ # Perform unsigned division.
+\ # args:   size:   size of each struc (in cells)
+\ #         u1:     denominator
+\ #         struc1: nominator
+\ # result: u2:     remainder
+\ #         struc1: quotient
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         division by zero (-10)
+: NC1U/MOD ( struc1 u1 size -- struc2 u2 ) \ PUBLIC
+0 	     	       	       	      	\ initialize intermediate result
+SWAP 2 + 2  DO                          \ iterate over size
+    OVER I 1+ PICK ROT ROT UM/MOD       \ divide one cell
+    I PLACE                             \ store result
+LOOP                                    \ next iteration
+NIP ;                                   \ clean up
 
+\ <=======Progress
 
 \ NCU*
 \ # Multiply two unsigned multi-cell numbers.
@@ -532,8 +536,6 @@ NC2SE NC- ;
 \ #         stack underflow (-4)
 : NCU* ( struc2 struc1 size -- dstruc ) \ PUBLIC
 DUP >R                                  \ save size
-
-
 DUP 0 0                                 \ initialize intermediate result 
 ROT 2* 1- 0 DO                          \ iterate over cells of result
     0                                   \ expand intermediate result
@@ -551,18 +553,25 @@ LOOP                                    \ next iteration of the outer loop
 SWAP 2* TUCK 1+ UNROLL                  \ store result
 SDEALLOC ;                              \ drop operands         
 
+
+\ SWAP OVER 0                             \ initialize intermediate result
+\ SWAP 4 + 4 DO                           \ iterate over size
+\     OVER SWAP I PICK SWAP UM/MOD        \ divide one cell
+\     I 1+ PLACE                          \ store result
+\ LOOP                                    \ next iteration
+\ NIP SWAP ;                              \ clean up
+
 \ NCU/MOD
 \ # Perform unsigned division.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: denominator
 \ #         struc1: nominator
-\ # result: size:   size of each struc (in cells)
-\ #         struc4: remainder
+\ # result: struc4: remainder
 \ #         struc3: quotient
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         division by zero (-10)
-\ : NCU/MOD ( struc1 struc2 size -- struc3 struc4 size ) \ PUBLIC
+\ : NCU/MOD ( struc1 struc2 size -- struc3 struc4 ) \ PUBLIC
 \ DUP 2* 1+ OVER M0INS                    \ allocate space for quotient
 \ DUP 1 DO                                \ iterate over denominator width
 \     I PICK IF                           \ find highest denominator cell  
@@ -598,25 +607,6 @@ SDEALLOC ;                              \ drop operands
 \     THEN                                \ check if denominator cell check
 \ LOOP ;	                                \ next iteration
 
-
-\ NC1U/MOD
-\ # Perform unsigned division.
-\ # args:   size:   size of each struc (in cells)
-\ #         u1:     denominator
-\ #         struc1: nominator
-\ # result: size:   size of each struc (in cells)
-\ #         u2:     remainder
-\ #         struc1: quotient
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-\ #         division by zero (-10)
-: NC1U/MOD ( struc1 u1 size -- struc2 u2 size ) \ PUBLIC
-SWAP OVER 0                             \ initialize intermediate result
-SWAP 4 + 4 DO                           \ iterate over size
-    OVER SWAP I PICK SWAP UM/MOD        \ divide one cell
-    I 1+ PLACE                          \ store result
-LOOP                                    \ next iteration
-NIP SWAP ;                              \ clean up
 
 \ # Logic Operations ############################################################
 
@@ -687,6 +677,21 @@ LOOP     \                              \ next iteration
 
 \ # Compare Operations ############################################################
 
+\ NCDUP0=
+\ # Check if all bits in multi-cell data structure are zero.
+\ # args:   size:  size of each struc (in cells)
+\ #         struc: data structure
+\ # result: flag:  true if all bits in data structure are zero
+\ #         struc: data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NCDUP0= ( struc size -- struc flag ) \ PUBLIC
+TRUE                                    \ true by default
+SWAP 0 DO                               \ iterate over size
+    I PICK OR                           \ accumulate data
+LOOP                                    \ next iteration
+0= ;                                    \ check if combined cells are zero
+
 \ NC0=
 \ # Check if all bits in multi-cell data structure are zero.
 \ # args:   size:  size of each struc (in cells)
@@ -695,11 +700,13 @@ LOOP     \                              \ next iteration
 \ #         size:  size of each struc (in cells)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NC0= ( struc size -- size flag ) \ PUBLIC
-SWAP OVER 1 DO  	                \ iterate size-1 times
-    ROT OR                              \ combine two cells
+: NC0= ( struc size -- flag ) \ PUBLIC
+TRUE                                    \ true by default
+SWAP 0 DO                               \ iterate over size
+    I ROLL OR                           \ accumulate data
 LOOP                                    \ next iteration
 0= ;                                    \ check if combined cells are zero
+
 
 \ NC0<
 \ # Interpret data multi-cell data structure as signed integer and check if it
