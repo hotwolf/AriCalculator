@@ -534,24 +534,56 @@ NIP ;                                   \ clean up
 \ # result: dstruc: accumulated product
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ # 
+\ # +--------+ -  Example: size=5				       
+\ # |  size  | |  outer      inner           cell of                              
+\ # +--------+ |  loop (J):  loop (I):       result:  	 
+\ # | interm.| |        13    2+2*size-> 12   8, 9	       
+\ # | result | |        12            12 11   7		       
+\ # | 3 cells| |        11         12 11 10   6		       
+\ # +--------+ |        10      12 11 10  9   5		       
+\ # | result | |I        9   12 11 10  9  8   4		       
+\ # | 1 cell | |         8   11 10  9  8      3		       
+\ # | per    | |         7   10  9  8         2		       
+\ # | inner  | |         6    9  8            1		       
+\ # | iterat.| |         5    8 <-3+size      0                
+\ # +--------+ |  
+\ # |        | |  Example: size=4				       
+\ # |        | V  outer      inner        cell of                            
+\ # | struc2 |	  loop (J):  loop (I):    result:  	  
+\ # |        |	        11 2+2*size-> 10   6, 7	       
+\ # |        |	        10         10  9   5	            
+\ # +--------+	         9      10  9  8   4	       	       
+\ # |        |	         8   10  9  8  7   3	       	       
+\ # |        |	         7    9  8  7      2	       	       
+\ # | struc1 |	         6    8  7         1	       	       
+\ # |        |	         5    7 <-3+size   0        	       
+\ # |        |	  	       
+\ # +--------+	     
+\ # 
 : NCU* ( struc2 struc1 size -- dstruc ) \ PUBLIC
-DUP >R                                  \ save size
-DUP 0 0                                 \ initialize intermediate result 
-ROT 2* 1- 0 DO                          \ iterate over cells of result
-    0                                   \ expand intermediate result
-    3 PICK DUP I 1+ MIN                 \ set upper boundary for inner loop
-    I 1- ROT - 0 MAX                    \ set lower boundary of inner loop
-    DO                                  \ loop over multiplications
-        3 PICK 4 + I + PICK             \ pick first operand   
-        J I - 5 + PICK                  \ pick second operand 
-	UM*                             \ multiply
-        SWAP 0 4 PICK M+ SWAP 4 PLACE   \ accumulate intermediate result (low) 
-        0 SWAP M+ D+                    \ accumulate intermediade result (high)
+0 0 ROT                                 \ initialize intermediate result
+DUP 2* 4 +                              \ set upper boundary for outer loop
+5                                       \ set lower boundary for outer loop
+DO                                      \ outer loop
+
+    CR ." outer loop: " I .
+
+    0 SWAP                              \ expand intermediate result
+    DUP 2* 3 + OVER I + 1- MIN          \ set upper boundary for inner loop
+    OVER 3 + I MAX                      \ set lower boundary of inner loop
+    DO                                  \ inner loop
+
+        CR ." inner loop: " I .
+
+        I PICK                          \ pick cell from struc2
+        OVER 2* J + 5 + I - PICK        \ pick cell from struc1
+        UM*                             \ multiply cells
+        SWAP 0 6 PICK 0 D+ SWAP 5 PLACE \ add product to intermediate result  
+        ROT >R D+ R>                    \
     LOOP                                \ next iteration of the inner loop
-    ROT 3 PICK 2* 3+ UNROLL             \ store result 
 LOOP                                    \ next iteration of the outer loop
-SWAP 2* TUCK 1+ UNROLL                  \ store result
-SDEALLOC ;                              \ drop operands         
+NIP 2* DUP SREMOVE ;                    \ clean up  
 
 
 \ SWAP OVER 0                             \ initialize intermediate result
