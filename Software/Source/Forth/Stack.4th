@@ -164,6 +164,19 @@ SP@ +                                   \ determine target address
 3 2 ROT SMOVE                           \ shift cells
 SWAP PLACE ;                            \ place xu
 
+\ UNROT
+\ # Opposite of ROT. Equivalent to " ROT ROT" or "2 UNROLL".
+\ # args:   x3: data
+\ #         x2: data
+\ #         x1: data
+\ # result: x2: data
+\ #         x1: data
+\ #         x3: data
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: UNROT ( x1 x2 x3 -- x3 x1 x2 ) \ PUBLIC
+ROT ROT ;
+
 \ 0INS 
 \ # Insert a zero anywhere into the parameter stack.
 \ # args:   u:    position of the insertion

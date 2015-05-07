@@ -122,8 +122,8 @@ DROP ;                                  \ clean up
 \ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-\ : NCDUP ( struc size --  struc struc ) \ PUBLIC
-\ MDUP ;
+: NCDUP ( struc size --  struc struc ) \ PUBLIC
+MDUP ;
 
 \ NC2DUP
 \ # Duplicate two  multi-cell data structure at the top of the stack.
@@ -136,8 +136,8 @@ DROP ;                                  \ clean up
 \ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-\ : NC2DUP ( struc1 struc0 size --  struc1 struc0 struc1 struc0 ) \ PUBLIC
-\ 2* MDUP ;
+: NC2DUP ( struc1 struc0 size --  struc1 struc0 struc1 struc0 ) \ PUBLIC
+2* MDUP ;
 
 \ NCDROP
 \ # Remove two multi-cell data structure at the top of the stack.
@@ -147,8 +147,8 @@ DROP ;                                  \ clean up
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-\ : NCDROP ( struc size --  ) \ PUBLIC
-\ SDEALLOC ;
+: NCDROP ( struc size --  ) \ PUBLIC
+SDEALLOC ;
 
 \ NC2DROP
 \ # Remove two multi-cell data structure at the top of the stack.
@@ -159,8 +159,8 @@ DROP ;                                  \ clean up
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         result out of range (-11)
-\ : NC2DROP ( struc1 struc0 size --  ) \ PUBLIC
-\ 2* NCDROP ;
+: NC2DROP ( struc1 struc0 size --  ) \ PUBLIC
+2* SDEALLOC ;
 
 \ NCPICK
 \ # Duplicate a multi-cell data structure from within the parameter stack.
@@ -359,7 +359,7 @@ DUP PICK 2/                             \ shift least significant cell
 2 ROT DO               	                \ iterate backwards over size 
     [ -1 1 RSHIFT ] LITERAL AND         \ clear MSB of previous cell
     0 I PICK D2/                        \ shift cell
-    ROT ROT OR                          \ propagate overflow to previous cell
+    UNROT OR                            \ propagate overflow to previous cell
     I PLACE                             \ update previous cell
 -1 +LOOP                                \ next iteration
 NIP ;                                   \ update last cell
@@ -506,26 +506,6 @@ NC2SE NC- ;
  -1 +LOOP                               \ next iteration
 NIP ;                                   \ clean up
 
-\ NC1U/MOD
-\ # Perform unsigned division.
-\ # args:   size:   size of each struc (in cells)
-\ #         u1:     denominator
-\ #         struc1: nominator
-\ # result: u2:     remainder
-\ #         struc1: quotient
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-\ #         division by zero (-10)
-: NC1U/MOD ( struc1 u1 size -- struc2 u2 ) \ PUBLIC
-0 	     	       	       	      	\ initialize intermediate result
-SWAP 2 + 2  DO                          \ iterate over size
-    OVER I 1+ PICK ROT ROT UM/MOD       \ divide one cell
-    I PLACE                             \ store result
-LOOP                                    \ next iteration
-NIP ;                                   \ clean up
-
-\ <=======Progress
-
 \ NCU*
 \ # Multiply two unsigned multi-cell numbers.
 \ # args:   size:   size of each factor (in cells)
@@ -538,60 +518,69 @@ NIP ;                                   \ clean up
 \ # +--------+ -  Example: size=5				       
 \ # |  size  | |  outer      inner           cell of                              
 \ # +--------+ |  loop (J):  loop (I):       result:  	 
-\ # | interm.| |        13    2+2*size-> 12   8, 9	       
-\ # | result | |        12            12 11   7		       
-\ # | 3 cells| |        11         12 11 10   6		       
-\ # +--------+ |        10      12 11 10  9   5		       
-\ # | result | |I        9   12 11 10  9  8   4		       
-\ # | 1 cell | |         8   11 10  9  8      3		       
-\ # | per    | |         7   10  9  8         2		       
-\ # | inner  | |         6    9  8            1		       
-\ # | iterat.| |         5    8 <-3+size      0                
+\ # | interm.| |        12    2+2*size-> 12   8, 9	       
+\ # | result | |        11            12 11   7		       
+\ # | 3 cells| |        10         12 11 10   6		       
+\ # +--------+ |         9      12 11 10  9   5		       
+\ # | result | |I        8   12 11 10  9  8   4		       
+\ # | 1 cell | |         7   11 10  9  8      3		       
+\ # | per    | |         6   10  9  8         2		       
+\ # | inner  | |         5    9  8            1		       
+\ # | iterat.| |         4    8 <-3+size      0                
 \ # +--------+ |  
 \ # |        | |  Example: size=4				       
 \ # |        | V  outer      inner        cell of                            
 \ # | struc2 |	  loop (J):  loop (I):    result:  	  
-\ # |        |	        11 2+2*size-> 10   6, 7	       
-\ # |        |	        10         10  9   5	            
-\ # +--------+	         9      10  9  8   4	       	       
-\ # |        |	         8   10  9  8  7   3	       	       
-\ # |        |	         7    9  8  7      2	       	       
-\ # | struc1 |	         6    8  7         1	       	       
-\ # |        |	         5    7 <-3+size   0        	       
+\ # |        |	        10 2+2*size-> 10   6, 7	       
+\ # |        |	         9         10  9   5	            
+\ # +--------+	         8      10  9  8   4	       	       
+\ # |        |	         7   10  9  8  7   3	       	       
+\ # |        |	         6    9  8  7      2	       	       
+\ # | struc1 |	         5    8  7         1	       	       
+\ # |        |	         4    7 <-3+size   0        	       
 \ # |        |	  	       
 \ # +--------+	     
 \ # 
 : NCU* ( struc2 struc1 size -- dstruc ) \ PUBLIC
 0 0 ROT                                 \ initialize intermediate result
-DUP 2* 4 +                              \ set upper boundary for outer loop
-5                                       \ set lower boundary for outer loop
+DUP 2* 3 +                              \ set upper boundary for outer loop
+4                                       \ set lower boundary for outer loop
 DO                                      \ outer loop
-
-    CR ." outer loop: " I .
-
     0 SWAP                              \ expand intermediate result
-    DUP 2* 3 + OVER I + 1- MIN          \ set upper boundary for inner loop
+    DUP 2* 3 + OVER I + MIN             \ set upper boundary for inner loop
     OVER 3 + I MAX                      \ set lower boundary of inner loop
+    \ CR ." outer loop: " I . ." --> inner loop: " 2DUP . .
     DO                                  \ inner loop
-
-        CR ." inner loop: " I .
-
         I PICK                          \ pick cell from struc2
-        OVER 2* J + 5 + I - PICK        \ pick cell from struc1
+        OVER 2* J + 7 + I - PICK        \ pick cell from struc1
+        \ CR ."    inner loop: " I . ." ---> " 2DUP U. ." * " U. ." = " 
         UM*                             \ multiply cells
+        \ 2DUP D.
         SWAP 0 6 PICK 0 D+ SWAP 5 PLACE \ add product to intermediate result  
         ROT >R D+ R>                    \
     LOOP                                \ next iteration of the inner loop
 LOOP                                    \ next iteration of the outer loop
 NIP 2* DUP SREMOVE ;                    \ clean up  
 
+\ NC1U/MOD
+\ # Perform unsigned division.
+\ # args:   size:   size of each struc (in cells)
+\ #         u1:     denominator
+\ #         struc1: nominator
+\ # result: u2:     remainder
+\ #         struc2: quotient
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         division by zero (-10)
+: NC1U/MOD ( struc1 u1 size -- struc2 u2 ) \ PUBLIC
+0 	     	       	       	      	\ initialize intermediate result
+SWAP 2 + 2  DO                          \ iterate over size
+    OVER I 1+ PICK UNROT UM/MOD         \ divide one cell
+    I PLACE                             \ store result
+LOOP                                    \ next iteration
+NIP ;                                   \ clean up
 
-\ SWAP OVER 0                             \ initialize intermediate result
-\ SWAP 4 + 4 DO                           \ iterate over size
-\     OVER SWAP I PICK SWAP UM/MOD        \ divide one cell
-\     I 1+ PLACE                          \ store result
-\ LOOP                                    \ next iteration
-\ NIP SWAP ;                              \ clean up
+\ <=======Progress
 
 \ NCU/MOD
 \ # Perform unsigned division.
@@ -709,65 +698,71 @@ LOOP     \                              \ next iteration
 
 \ # Compare Operations ############################################################
 
-\ NCDUP0=
-\ # Check if all bits in multi-cell data structure are zero.
-\ # args:   size:  size of each struc (in cells)
-\ #         struc: data structure
-\ # result: flag:  true if all bits in data structure are zero
-\ #         struc: data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCDUP0= ( struc size -- struc flag ) \ PUBLIC
-TRUE                                    \ true by default
-SWAP 0 DO                               \ iterate over size
-    I PICK OR                           \ accumulate data
-LOOP                                    \ next iteration
-0= ;                                    \ check if combined cells are zero
-
 \ NC0=
 \ # Check if all bits in multi-cell data structure are zero.
 \ # args:   size:  size of each struc (in cells)
 \ #         struc: data structure
 \ # result: flag:  true if all bits in data structure are zero
-\ #         size:  size of each struc (in cells)
+\ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NC0= ( struc size -- flag ) \ PUBLIC
-TRUE                                    \ true by default
-SWAP 0 DO                               \ iterate over size
-    I ROLL OR                           \ accumulate data
-LOOP                                    \ next iteration
-0= ;                                    \ check if combined cells are zero
-
+: NC0= ( struc size -- struc flag ) \ PUBLIC
+TRUE 1 ROT DO				\ iterate over size
+    I PICK IF                           \ check if cell !=0
+        INVERT LEAVE                    \ terminate loop
+    THEN                                \ check done
+-1 +LOOP ;				\ next iteration
+\ Alternative implementation:
+\ 0 DO                                  \ iterate over size
+\     I PICK ?DUP IF                    \ check if cell !=0
+\         LEAVE                         \ terminate loop
+\     THEN                              \ check done
+\ LOOP                                  \ next iteration
+\ DUP 0= ?DUP NIP ;                     \ prepare result
 
 \ NC0<
 \ # Interpret data multi-cell data structure as signed integer and check if it
 \ # is less than zero.
-\ # args:   size:  size of each struc (in cells)
+\ # args:   struc: data structure
+\ # result: flag:  true if <0
 \ #         struc: data structure
-\ # result: flag:  true value is greater than zero
-\ #         size:  size of each struc (in cells)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NC0< ( struc size -- size flag ) \ PUBLIC
-OVER 0<                                 \ check most significant cell
-IF                                      \ negative value
-    SDEALLOC TRUE                         \ return TRUE					
-ELSE                                    \ positive or zero value
-    SDEALLOC FALSE 	                \ return FALSE
-THEN ;                                  \ done
+: NC0< ( struc -- struc flag ) \ PUBLIC
+DUP 0< ;                                \ check most significant cell
+
+\ NC<>
+\ # Check if two multi-cell data structure are equal.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc2: data structure
+\ #         struc1: data structure
+\ # result: flag:  true if !=0
+\ #         struc2: data structure
+\ #         struc1: data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: NC<> ( struc1 struc2 size -- struc1 struc2 flag ) \ PUBLIC
+1 OVER DO				\ iterate over size
+    DUP I + PICK                        \ pick cell from stric1
+    I 1+ PICK                           \ pick cell from struc2
+    XOR IF                              \ check if cells are unequal
+        0= LEAVE                        \ terminate loop
+    THEN                                \ check done
+-1 +LOOP				\ next iteration
+0= ;                                   \ prepare result
 
 \ NC=
 \ # Check if two multi-cell data structure are equal.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: data structure
 \ #         struc1: data structure
-\ # result: flag:  true equal
-\ #         size:  size of each struc (in cells)
+\ # result: flag:  true ==0
+\ #         struc2: data structure
+\ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NC= ( struc1 struc2 size -- size flag ) \ PUBLIC
-NCXOR NC0= ;
+: NC= ( struc1 struc2 size -- struc1 struc2 flag ) \ PUBLIC
+NC<> INVERT ;
 
 \ NC<
 \ # Interpret data multi-cell data structure as signed integer and check if
@@ -776,23 +771,31 @@ NCXOR NC0= ;
 \ #         struc2: data structure
 \ #         struc1: data structure
 \ # result: flag:  true if struc1 < struc2
+\ #         struc2: data structure
+\ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NC< ( struc1 struc2 size -- flag ) \ PUBLIC
-NC- NC0< ;
+: NC< ( struc1 struc2 size -- struc1 struc2 flag ) \ PUBLIC
+DUP >R NC2DUP                           \ duplicate data
+R@ NC- NC0<                             \ struc1 - struc2
+R> SWAP >R NC2DROP R> ;                 \ clean up
 
 \ NC>
 \ # Interpret data multi-cell data structure as signed integer and check if
-\ # struc1 is less than struc2.
+\ # struc2 is less than struc1.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: data structure
 \ #         struc1: data structure
 \ # result: flag:  true if struc1 > struc2
-\ #         size:  size of each struc (in cells)
+\ #         struc2: data structure
+\ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NC> ( struc1 struc2 size -- flag ) \ PUBLIC
-NCSWAP  NC< ;
+: NC> ( struc1 struc2 size -- struc1 struc2 flag ) \ PUBLIC
+DUP >R NC2DUP                           \ duplicate data
+R@ NCSWAP                               \ swap data
+R@ NC- NC0<                             \ struc1 - struc2
+R> SWAP >R NC2DROP R> ;                 \ clean up
 
 \ NCU<
 \ # Interpret data multi-cell data structure as unsigned integer and check if
@@ -935,3 +938,23 @@ LOOP ;                                  \ next iteration
         -1                              \ push zero result
     THEN                                \ MSB check done
 LOOP ;                                  \ next iteration
+
+\ # Output ######################################################################
+
+\ NCU.
+\ # Print multi cell structure as unsugned number.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc1: data structure
+\ # result: -
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         pictured numeric output string overflow (-17)
+: NCU. ( struc size -- ) \ PUBLIC
+>R                                      \ store size in loop counter
+<#                                      \ initiate pictured numeric output
+BEGIN                                   \ iterate over digits
+    BASE @ R@ NC1U/MOD 0 # 2DROP        \ calculate least significant digit
+    R@ NC0=                             \ check if non-zero digits are left
+UNTIL                                   \ next iteration
+R> SDEALLOC                             \ clean up stack
+[ 0 0 ] 2LITERAL #> TYPE ;              \ display pictured numeric output
