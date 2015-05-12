@@ -36,9 +36,11 @@
 \ ###############################################################################
 \ # Required Word Sets:                                                         #
 \ #    ANSForth                    - CORE word set                              #
-\ #                                  DOUBLE word set                            #
+\ #                                - CORE EXT word set                          #
+\ #                                - DOUBLE word set                            #
 \ #    S12CForth/GForth/SwiftForth - SP@ and SP! word                           #
 \ #    Stack                       - Supplemental stack operations              #
+\ #    Shift                       - Supplemental shift operations              #
 \ ###############################################################################
 
 \ ###############################################################################
@@ -67,6 +69,7 @@
 \ #         x1': x1*x2
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : TUCK*SWAP ( x1 x2 -- x1' x2 )
 TUCK * SWAP ;
 
@@ -78,6 +81,7 @@ TUCK * SWAP ;
 \ #         x1': (1+x1)*x2
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : SWAP1+OVER*SWAP ( x1 x2 -- x1' x2 )
 SWAP 1+ OVER * SWAP ;
 
@@ -91,26 +95,11 @@ SWAP 1+ OVER * SWAP ;
 \ #         estruc1: sign extensed number
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC2SE ( struc1 struc2 size -- estruc1 estruc2 esize )
 DUP 1+ PICK 0< OVER 1+ UNROLL          \ sign extend struc2
 OVER 0< SWAP                           \ sign extend struc1
 1+ ;                                   \ increment size
-
-\ BITS/CELL
-\ # Determine the cell size in bits
-\ # args:   -
-\ # result: u:  bits per cell
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: BITS/CELL ( -- u )
-0 1                                     \ test cell and bit count
-BEGIN                                   \ iterate over bits
-    DUP                                 \ check test cell
-WHILE                                   \ iterate until all bits are cleared
-    2* SWAP                             \ shift test cell
-    1+ SWAP                             \ increment bit count
-REPEAT                                  \ next iteration
-DROP ;                                  \ clean up
 
 \ # Stack Operations ############################################################
 
@@ -122,6 +111,7 @@ DROP ;                                  \ clean up
 \ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCDUP ( struc size --  struc struc ) \ PUBLIC
 MDUP ;
 
@@ -136,6 +126,7 @@ MDUP ;
 \ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC2DUP ( struc1 struc0 size --  struc1 struc0 struc1 struc0 ) \ PUBLIC
 2* MDUP ;
 
@@ -146,6 +137,7 @@ MDUP ;
 \ # result: -
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : NCDROP ( struc size --  ) \ PUBLIC
 SDEALLOC ;
@@ -158,6 +150,7 @@ SDEALLOC ;
 \ # result: -
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : NC2DROP ( struc1 struc0 size --  ) \ PUBLIC
 2* SDEALLOC ;
@@ -175,6 +168,7 @@ SDEALLOC ;
 \ #         strucu: duplicated data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : NCPICK ( strucu ... struc0 u size -- strucu ... struc0 strucu ) \ PUBLIC
 TUCK*SWAP MPICK ;
@@ -194,6 +188,7 @@ TUCK*SWAP MPICK ;
 \ #         strucu':  data structure which replaced strucu
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : NCPLACE ( strucu ... struc0 strucu' u size -- strucu' strucu-1... struc0 ) \ PUBLIC
 SWAP1+OVER*SWAP MPLACE ;
@@ -211,6 +206,7 @@ SWAP1+OVER*SWAP MPLACE ;
 \ #         strucu-1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : NCROLL ( strucu ... struc0 u size -- strucu-1 ... struc0 strucu ) \ PUBLIC
 TUCK*SWAP MROLL ;
@@ -229,6 +225,7 @@ TUCK*SWAP MROLL ;
 \ #         strucu:   wrapped data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : NCUNROLL ( strucu-1 ... struc0  strucu u size -- strucu ...  struc0 )     \ PUBLIC
 SWAP1+OVER*SWAP MUNROLL ;
@@ -246,6 +243,7 @@ SWAP1+OVER*SWAP MUNROLL ;
 \ #         strucu-1: shifted data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : NCREMOVE ( strucu ... struc0 u size -- strucu-1 ...  struc0 ) \ PUBLIC
 TUCK*SWAP SREMOVE ;
@@ -260,6 +258,7 @@ TUCK*SWAP SREMOVE ;
 \ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCOVER ( struc1 struc2 size -- struc1 struc2 struc1 ) \ PUBLIC
 1 SWAP NCPICK ;
 
@@ -271,6 +270,7 @@ TUCK*SWAP SREMOVE ;
 \ #         struc2: swapped data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCSWAP ( struc1 struc2 size -- struc2 struc1 ) \ PUBLIC
 1 SWAP NCROLL ;
 
@@ -285,6 +285,7 @@ TUCK*SWAP SREMOVE ;
 \ #         struc2: wrapped data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCROT ( struc1 struc2 struc3 size -- struc2 struc3 struc1 ) \ PUBLIC
 2 SWAP NCROLL ;
 
@@ -296,6 +297,7 @@ TUCK*SWAP SREMOVE ;
 \ # result: struc2: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCNIP ( struc1 struc2 size -- struc2 ) \ PUBLIC
 1 SWAP NCREMOVE ;
 
@@ -309,9 +311,82 @@ TUCK*SWAP SREMOVE ;
 \ #         struc2: duplicated data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCTUCK ( struc1 struc2 size -- struc2 struc1 struc2 ) \ PUBLIC
 0 SWAP NCPLACE ;
+
+\ # Logic Operations ############################################################
+
+\ NCINVERT
+\ # Calculate 1's complement of a multi-cell data structure.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc1: data structure
+\ # result: struc2: resulting data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCINVERT ( struc1 size -- struc2 ) \ PUBLIC
+0 DO	  	                        \ iterate over structure size
+    I PICK                              \ pick cell from struc
+    INVERT                              \ invert cell
+    I PLACE                             \ place result
+LOOP ;                                  \ next iteration
+
+\ NCLOGIC
+\ # Perform any bitwise logic operation of two multi-cell data structures.
+\ # args:   xt:     bitwise logic operation ( x1 x2 -- x3 )
+\ #         size:   size of each struc (in cells)
+\ #         struc1: data structure
+\ #         struc2: data structure
+\ # result: struc3: resulting data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCLOGIC ( struc1 struc2 size xt -- struc3 )  \ PUBLIC
+SWAP DUP 4 + 4 DO                       \ iterate over structure size
+    2DUP I + 1- PICK                    \ pick cell from struc2
+    I PICK                              \ pick cell from struc1
+    ROT EXECUTE                         \ execute logic operation
+    OVER I + PLACE                      \ place result
+LOOP     \                              \ next iteration
+1+ SDEALLOC ;                           \ free stack space
     
+\ NCAND
+\ # Perform a bitwise AND of two multi-cell data structures.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc1: data structure
+\ #         struc2: data structure
+\ # result: struc3: resulting data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCAND ( struc1 struc2 size -- struc3 ) \ PUBLIC
+['] AND NCLOGIC ;
+
+\ NCOR
+\ # Perform a bitwise OR of two multi-cell data structures.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc1: data structure
+\ #         struc2: data structure
+\ # result: struc3: resulting data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCOR ( struc1 struc2 size -- struc2 )  \ PUBLIC
+['] OR NCLOGIC ;
+    
+\ NCXOR
+\ # Perform a bitwise XOR of two multi-cell data structures.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc1: data structure
+\ #         struc2: data structure
+\ # result: struc3: resulting data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCXOR ( struc1 struc2 size -- struc3 ) \ PUBLIC
+['] XOR NCLOGIC ;
+
 \ # Arithmetic Operations #######################################################
 
 \ NC2*
@@ -321,6 +396,7 @@ TUCK*SWAP SREMOVE ;
 \ # result: struc2: shifted data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC2* ( struc1 size -- struc2 ) \ PUBLIC
 OVER 2*                                 \ shift most significant cell
 OVER 1+ 2 DO                            \ iterate over structure size-1
@@ -338,6 +414,7 @@ SWAP 1- PLACE ;                         \ update last cell
 \ # result: struc2: shifted data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC2*1+ ( struc1 size -- struc2 ) \ PUBLIC
 OVER 2*                                 \ shift most significant cell
 OVER 1+ 2 DO                            \ iterate over structure size-1
@@ -354,6 +431,7 @@ LOOP                                    \ next iteration
 \ # result: struc2: shifted data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC2/ ( struc1 size -- struc2 ) \ PUBLIC
 DUP PICK 2/                             \ shift least significant cell
 2 ROT DO               	                \ iterate backwards over size 
@@ -372,6 +450,7 @@ NIP ;                                   \ update last cell
 \ # result: struc2: shifted data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCU2/ ( struc1 size -- struc2 size ) \ PUBLIC
 NC2/                                    \ signed shift
 [ -1 1 RSHIFT ] LITERAL AND ;           \ clear most significant bit
@@ -384,6 +463,7 @@ NC2/                                    \ signed shift
 \ # result: estruc: result
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC1UE+ ( struc u size -- estruc ) \ PUBLIC
 1 SWAP DO                               \ iterate over size
     0 I 1+ PICK 0 D+                    \ add carry to cell of struc
@@ -398,6 +478,7 @@ NC2/                                    \ signed shift
 \ # result: estruc: result
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCUE+ ( struc1 struc2 size -- estruc ) \ PUBLIC
 DUP 1- DO                               \ store size-1 in loop counter
     0                                   \ push initial carry
@@ -418,6 +499,7 @@ LOOP ;                                  \ clean up outer loop
 \ # result: struc3: result
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC+ ( struc1 struc2 size -- struc3 ) \ PUBLIC
 NCUE+ DROP ;
 
@@ -429,6 +511,7 @@ NCUE+ DROP ;
 \ # result: estruc: result
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCSE+ ( struc1 struc2 size -- estruc ) \ PUBLIC
 NC2SE NC+ ;
 
@@ -440,6 +523,7 @@ NC2SE NC+ ;
 \ # result: estruc: result
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC1UE- ( struc u size -- estruc ) \ PUBLIC
 1 SWAP DO                               \ iterate over size
      I PICK 0 ROT 0 D- 1 AND            \ subtract carry from cell of struc
@@ -455,6 +539,7 @@ NEGATE ;
 \ # result: estruc: result
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCUE- ( struc1 struc2 size -- estruc ) \ PUBLIC
 DUP 1- DO                               \ store size-1 in loop counter
     0                                   \ push initial carry
@@ -475,6 +560,7 @@ LOOP ;                                  \ clean up outer loop
 \ # result: struc3: result
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC- ( struc1 struc2 size -- struc3 ) \ PUBLIC
 NCUE- DROP ;
 
@@ -486,6 +572,7 @@ NCUE- DROP ;
 \ # result: estruc: result
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCSE- ( struc1 struc2 size -- estruc ) \ PUBLIC
 NC2SE NC- ;
 
@@ -497,6 +584,7 @@ NC2SE NC- ;
 \ # result: estruc: product
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC1U* ( struc u size -- estruc ) \ PUBLIC
 0                                       \ initialize intermediate result
 2 ROT 1+ DO                             \ iterate over size
@@ -514,6 +602,7 @@ NIP ;                                   \ clean up
 \ # result: dstruc: accumulated product
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ # 
 \ # +--------+ -  Example: size=5				       
 \ # |  size  | |  outer      inner           cell of                              
@@ -571,6 +660,7 @@ NIP 2* DUP SREMOVE ;                    \ clean up
 \ #         struc2: quotient
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         division by zero (-10)
 : NC1U/MOD ( struc1 u1 size -- struc2 u2 ) \ PUBLIC
 0 	     	       	       	      	\ initialize intermediate result
@@ -591,110 +681,72 @@ NIP ;                                   \ clean up
 \ #         struc3: quotient
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         division by zero (-10)
 \ : NCU/MOD ( struc1 struc2 size -- struc3 struc4 ) \ PUBLIC
 \ DUP 2* 1+ OVER M0INS                    \ allocate space for quotient
-\ DUP 1 DO                                \ iterate over denominator width
+\ DUP 1+ 1 DO                             \ iterate over denominator width
 \     I PICK IF                           \ find highest denominator cell  
 \         I 1+ 1 DO                       \ iterate over nominator
-\             NCDUP                       \ DUP denominator
+\ \ #         Stack layout:
+\ \ #         +--------+	         	       	       
+\ \ #         |  size  |	         	       	       
+\ \ #         +--------+	         	       	       
+\ \ #         | struc2 | 1    +   points to the most	         	       	       
+\ \ #         | denom. | ..   |J  signinicant cell of            	       
+\ \ #         |        | size +	the denominator                 	       
+\ \ #         +--------+	         	       	       
+\ \ #         | struc1 | 1    +I	points to the current          	       	       
+\ \ #         |  nom.  | J    + 	digit of the nominator  	       
+\ \ #         |        | 	                 	       
+\ \ #         +--------+	     
+\ \ #         | struc4 |	         	       	       
+\ \ #         |  rem.  |	  	       
+\ \ #         |   =0   | 	                 	       
+\ \ #         +--------+	     
+\ \ #         | struc3 |	         	       	       
+\ \ #         |  nom.  |	  	       
+\ \ #         |   =0   | 	                 	       
+\ \ #         +--------+	     
+\ 
+\ 
+\             DUP >R NCDUP R>             \ DUP denominator
 \             DUP 2* I + PICK             \ pick nominator cell
 \             I 1- IF                     \ check for previous nominator cell 
 \                 OVER I + PICK           \ pick previous nominator cell
 \             ELSE                        \ no previous nominator cell available
 \                 0                       \ use dummy value
-\             THEN                        \ nominator cell picked
+\             THEN                        \ previous nominator cell picked
 \             I 2 + PICK                  \ pick denominator cell
 \             UM/MOD NIP                  \ divide cells to estimate digit
-\             2DUP SWAP 3 * I + 1+ PLACE \ store digit
-\             SWAP NC1U*                  \ multiply denominator by digit
-\             TRUE OVER 1+ 1 DO           \ check if a correction is required
-\                 I PICK                  \ pick cell from intermediate result
+\             SWAP 2DUP 3 * I + 1+ PLACE  \ store digit
+\             >R NC1U* DROP R>            \ multiply denominator by digit
+\             DUP 1+ 1 DO                 \ check if product < nominator
+\                 I PICK                  \ pick cell from product
 \                 OVER 2* I + 1+ PICK     \ pick cell from nominator
-\ 		U< IF                   \ make sure that nominator is larger
-\                     DROP FALSE LEAVE    \ nominator is larger
-\                 THEN                    \
-\             LOOP                        \ keep checking
-\ 	    IF                          \ correction required
-\             2DUP SWAP 3 * I + 1+ PLACE \ store digit
-\             
 \ 
 \ 
-\         LEAVE                           \ done
+\ 
+\ \             TRUE OVER 1+ 1 DO           \ check if a correction is required
+\ \                 I PICK                  \ pick cell from intermediate result
+\ \                 OVER 2* I + 1+ PICK     \ pick cell from nominator
+\ \ 		U< IF                   \ make sure that nominator is larger
+\ \                     DROP FALSE LEAVE    \ nominator is larger
+\ \                 THEN                    \
+\ \             LOOP                        \ keep checking
+\ \ 	    IF                          \ correction required
+\ \             2DUP SWAP 3 * I + 1+ PLACE \ store digit
+\ \             
+\ 
+\         LOOP                            \ next iteration (nominator loop)
+\         LEAVE                           \ done (denominator loop)
 \     ELSE                                \ denominator cell is zero  
-\         DUP 1- I = IF                   \ check if denominator is zero  
+\         DUP I = IF                      \ check if denominator is zero  
 \             -10 THROW                   \ throw "division by zero" error
 \         THEN                            \ end of zero check
 \     THEN                                \ check if denominator cell check
-\ LOOP ;	                                \ next iteration
+\ LOOP ;	                                \ next iteration (denominator loop)
 
-
-\ # Logic Operations ############################################################
-
-\ NCINVERT
-\ # Calculate 1's complement of a multi-cell data structure.
-\ # args:   size:   size of each struc (in cells)
-\ #         struc1: data structure
-\ # result: struc2: resulting data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCINVERT ( struc1 size -- struc2 ) \ PUBLIC
-0 DO	  	                        \ iterate over structure size
-    I PICK                              \ pick cell from struc
-    INVERT                              \ invert cell
-    I PLACE                             \ place result
-LOOP ;                                  \ next iteration
-
-\ NCLOGIC
-\ # Perform any bitwise logic operation of two multi-cell data structures.
-\ # args:   xt:     bitwise logic operation ( x1 x2 -- x3 )
-\ #         size:   size of each struc (in cells)
-\ #         struc1: data structure
-\ #         struc2: data structure
-\ # result: struc3: resulting data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCLOGIC ( struc1 struc2 size xt -- struc3 )  \ PUBLIC
-SWAP DUP 4 + 4 DO                       \ iterate over structure size
-    2DUP I + 1- PICK                    \ pick cell from struc2
-    I PICK                              \ pick cell from struc1
-    ROT EXECUTE                         \ execute logic operation
-    OVER I + PLACE                      \ place result
-LOOP     \                              \ next iteration
-1+ SDEALLOC ;                           \ free stack space
-    
-\ NCAND
-\ # Perform a bitwise AND of two multi-cell data structures.
-\ # args:   size:   size of each struc (in cells)
-\ #         struc1: data structure
-\ #         struc2: data structure
-\ # result: struc3: resulting data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCAND ( struc1 struc2 size -- struc3 ) \ PUBLIC
-['] AND NCLOGIC ;
-
-\ NCOR
-\ # Perform a bitwise OR of two multi-cell data structures.
-\ # args:   size:   size of each struc (in cells)
-\ #         struc1: data structure
-\ #         struc2: data structure
-\ # result: struc3: resulting data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCOR ( struc1 struc2 size -- struc2 )  \ PUBLIC
-['] OR NCLOGIC ;
-    
-\ NCXOR
-\ # Perform a bitwise XOR of two multi-cell data structures.
-\ # args:   size:   size of each struc (in cells)
-\ #         struc1: data structure
-\ #         struc2: data structure
-\ # result: struc3: resulting data structure
-\ # throws: stack overflow (-3)
-\ #         stack underflow (-4)
-: NCXOR ( struc1 struc2 size -- struc3 ) \ PUBLIC
-['] XOR NCLOGIC ;
 
 \ # Compare Operations ############################################################
 
@@ -706,6 +758,7 @@ LOOP     \                              \ next iteration
 \ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC0= ( struc size -- struc flag ) \ PUBLIC
 TRUE 1 ROT DO				\ iterate over size
     I PICK IF                           \ check if cell !=0
@@ -728,6 +781,7 @@ TRUE 1 ROT DO				\ iterate over size
 \ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC0< ( struc -- struc flag ) \ PUBLIC
 DUP 0< ;                                \ check most significant cell
 
@@ -741,6 +795,7 @@ DUP 0< ;                                \ check most significant cell
 \ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC<> ( struc1 struc2 size -- struc1 struc2 flag ) \ PUBLIC
 1 OVER DO				\ iterate over size
     DUP I + PICK                        \ pick cell from stric1
@@ -761,6 +816,7 @@ DUP 0< ;                                \ check most significant cell
 \ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC= ( struc1 struc2 size -- struc1 struc2 flag ) \ PUBLIC
 NC<> INVERT ;
 
@@ -775,6 +831,7 @@ NC<> INVERT ;
 \ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC< ( struc1 struc2 size -- struc1 struc2 flag ) \ PUBLIC
 DUP >R NC2DUP                           \ duplicate data
 R@ NC- NC0<                             \ struc1 - struc2
@@ -791,6 +848,7 @@ R> SWAP >R NC2DROP R> ;                 \ clean up
 \ #         struc1: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NC> ( struc1 struc2 size -- struc1 struc2 flag ) \ PUBLIC
 DUP >R NC2DUP                           \ duplicate data
 R@ NCSWAP                               \ swap data
@@ -807,6 +865,7 @@ R> SWAP >R NC2DROP R> ;                 \ clean up
 \ #         size:  size of each struc (in cells)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCU< ( struc1 struc2 size -- flag ) \ PUBLIC
 FALSE TUCK                              \ result undecided (and false)
 OVER 3 + 3 SWAP DO                      \ iterate over size
@@ -836,6 +895,7 @@ DROP SWAP ;                             \ clean up
 \ #         size:  size of each struc (in cells)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCU> ( struc1 struc2 size -- flag ) \ PUBLIC
 NCSWAP NCU< ;
 
@@ -848,10 +908,11 @@ NCSWAP NCU< ;
 \ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCMSB0= ( struc size -- struc size flag ) \ PUBLIC 
 OVER 0< INVERT ;
 
-\ NCLSB0=
+\ NCLS=
 \ # Check if the LSB of a multi-cell data structure is cleared.
 \ # args:   size:  size of each struc (in cells)
 \ #         struc: data structure
@@ -860,40 +921,93 @@ OVER 0< INVERT ;
 \ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCLSB0= ( struc size -- struc size flag ) \ PUBLIC 
 DUP PICK 1 AND 0= ;
 
 \ # Shift Operations ############################################################
 
-\ NCLSHIFT
-\ # Perform a logical left shift of u bit-places on struc1, giving struc2
+\ NCLCSHIFT
+\ # Perform a logical left shift of u cells on struc1, giving struc2
+\ # Put zeroes into the least significant cells vacated by the shift.
+\ # args:   size:   size of each struc (in cells).
+\ #         u:      number of cells to shift
+\ #         struc1: data structure
+\ # result: struc2: shifted data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCLCSHIFT ( struc1 u size -- struc2 ) \ PUBLIC
+2DUP 2>R                                \ save u and size
+OVER - 0 SWAP SMOVE                     \ move cells
+2R> OVER - SWAP M0PLACE ;               \ insert zeros
+
+\ NCLBSHIFT
+\ # Perform a logical left shift of u bits on struc1, giving struc2
 \ # Put zeroes into the least significant bits vacated by the shift.
 \ # args:   size:   size of each struc (in cells).
-\ #         u:      number of places to shift
+\ #         u:      number of bits to shift (< bits/cell)
 \ #         struc1: data structure
-\ # result: size:   size of each struc (in cells)
-\ #         struc2: shifted data structure
+\ # result: struc2: shifted data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCLSHIFT ( struc1 u size -- struc2 size ) \ PUBLIC
-SWAP 0 DO                             \ iterate over u
-    NC2*			        \ shift by one bit
-LOOP ;                                \ next iteration
+\ #         return stack overflow (-5)
+: NCLBSHIFT ( struc1 u size -- struc2 ) \ PUBLIC
+0                                       \ initialize carry
+2 ROT 1+ DO                             \ iterate over size
+    I PICK 2 PICK MLSHIFT UNROT OR      \ rotate cell 
+    I PLACE                             \ store result
+-1 +LOOP                                \ next iteration
+2DROP ;                                 \ clean up
+
+\ NCRCSHIFT
+\ # Perform a logical rightt shift of u cells on struc1, giving struc2
+\ # Put zeroes into the most significant cells vacated by the shift.
+\ # args:   size:   size of each struc (in cells).
+\ #         u:      number of cells to shift
+\ #         struc1: data structure
+\ # result: struc2: shifted data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCRCSHIFT ( struc1 u size -- struc2 ) \ PUBLIC
+OVER >R                                 \ save u and size
+OVER - 0 UNROT  SMOVE                   \ move cells
+0 R>  M0PLACE ;                         \ insert zeros
+
+\ NCRBSHIFT
+\ # Perform a logical right shift of u bits on struc1, giving struc2
+\ # Put zeroes into the most significant bits vacated by the shift.
+\ # args:   size:   size of each struc (in cells).
+\ #         u:      number of bits to shift (< bits/cell)
+\ #         struc1: data structure
+\ # result: struc2: shifted data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCRBSHIFT ( struc1 u size -- struc2 ) \ PUBLIC
+0                                       \ initialize carry
+SWAP 2 + 2 DO                           \ iterate over size
+    I PICK 2 PICK MRSHIFT ROT OR          \ rotate cell 
+    I PLACE                             \ store result
+    LOOP                                \ next iteration
+2DROP ;                                 \ clean up
 
 \ NCRSHIFT
-\ # Perform a logical right shift of u bit-places on struc1, giving struc2.
+\ # Perform a logical right shift of u bits on struc1, giving struc2
 \ # Put zeroes into the most significant bits vacated by the shift.
-\ # args:   size:   size of each struc (in cells)
-\ #         u:      number of places to shift
+\ # args:   size:   size of each struc (in cells).
+\ #         u:      number of bits to shift
 \ #         struc1: data structure
-\ # result: size:   size of each struc (in cells)
-\ #         struc2: shifted data structure
+\ # result: struc2: shifted data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: NCRSHIFT ( struc1 u size -- struc2 size ) \ PUBLIC
-SWAP 0 DO                               \ iterate over u
-    NCU2/			        \ shift by one bit
-LOOP ;                                  \ next iteration
+\ #         return stack overflow (-5)
+: NCRSHIFT ( struc1 u size -- struc2 ) \ PUBLIC
+SWAP [ BITS/CELL ] LITERAL /MOD         \ determine cell and bit shift distances
+TUCK 2OVER - NIP 2SWAP 2>R              \ save cell shift parameters
+NCRBSHIFT                               \ bit shift
+R> R> NCRCSHIFT ;                       \ cell shift    
 
 \ NCLALIGN
 \ # Left shift a multi cell structure until until the MSB is set, unless all
@@ -905,6 +1019,7 @@ LOOP ;                                  \ next iteration
 \ #         struc2: shifted data structure (0 if struc1=0)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : NCLALIGN ( struc1 size -- struc2 u size ) \ PUBLIC
 0 2DUP DO                               \ iterate over size
     DROP                                \ drop intermediate count results
@@ -927,6 +1042,7 @@ LOOP ;                                  \ next iteration
 \ #         struc2: shifted data structure (0 if struc1=0)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : RCLALIGN ( struc1 size -- struc2 u size ) \ PUBLIC
 0 2DUP DO                               \ iterate over size
     DROP                                \ drop intermediate count results
@@ -948,6 +1064,7 @@ LOOP ;                                  \ next iteration
 \ # result: -
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         pictured numeric output string overflow (-17)
 : NCU. ( struc size -- ) \ PUBLIC
 >R                                      \ store size in loop counter

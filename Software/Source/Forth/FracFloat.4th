@@ -162,7 +162,7 @@ $10 SDEALLOC ;
 : FF2DUP ( ff1 ff2 -- ff1 ff2 ff1 ff2 ) \ PUBLIC
 $10 MDUP ;
 
-\ NCOVER
+\ FFOVER
 \ # Duplicate previous fractional float number.
 \ # args:   ff2: fractional float number
 \ #         ff1: fractional float number
@@ -174,7 +174,7 @@ $10 MDUP ;
 : FFOVER ( ff1 ff2 -- ff1 ff2 ff1 ) \ PUBLIC
 8 NCOVER ;
 
-\ NC2OVER
+\ FF2OVER
 \ # Duplicate previous fractional float numper pair.
 \ # args:   ff4: fractional float number
 \ #         ff3: fractional float number

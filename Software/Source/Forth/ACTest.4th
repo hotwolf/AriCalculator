@@ -32,6 +32,7 @@
 \ #    ANSForth          - CORE word set                                        #
 \ #                        CORE EXT word set                                    #
 \ #    Stack             - Supplemental stack operations                        #
+\ #    Shift             - Supplemental shift operations                        #
 \ #    DirectStack       - Direct stack access operations                       #
 \ #    NCell             - Multi-cell operations                                #
 \ #    FracFloat         - Fractional floating point number support             #
@@ -57,6 +58,7 @@ DECIMAL
 MARKER ACREMOVE                 \ remove AC code from dictionary
 
 INCLUDE Stack.4th               \ compile supplemental stack words
+INCLUDE Shift.4th               \ compile supplemental shift words
 INCLUDE DirectStack.4th         \ compile direct stack access words
 INCLUDE NCell.4th               \ compile multi-cell words
 INCLUDE FracFloat.4th           \ compile fractional floating point number words

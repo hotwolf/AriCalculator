@@ -57,6 +57,7 @@
 \ #         xu-1: rondom data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : SALLOC ( u -- xu-1 ... x0 ) \ PUBLIC
 1- CELLS SP@ SWAP -                     \ calculate new sack pointer
 SP! ; 			                \ set new stack pointer
@@ -83,6 +84,7 @@ SP! ; 			                \ set new stack pointer
 \ # result: x0': altered data
 \ #         ...
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : SMOVE ( ... x0 u1 u2 u3 u -- ... x0' ) \ PUBLIC
 CELLS ROT                               \ calculate byte count
 CELLS SP@ + [ 3 CELLS ] LITERAL + ROT   \ calculate target address
@@ -106,6 +108,7 @@ MOVE ;
 \ #         xu1+u2-1: data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : SINSERT ( xu1+u2-1 ... xu1 ... u1 u2 -- xu1+u2-1 ... xu1 xu1+u2-1 ... xu1 ) \ PUBLIC
 TUCK 2>R SALLOC 2R>                     \ allocate new stack space
 TUCK + 0 SWAP SMOVE ;                   \ shift cells
@@ -122,6 +125,7 @@ TUCK + 0 SWAP SMOVE ;                   \ shift cells
 \ #         xu1-1:    data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : SREMOVE ( xu1+u2-1 ... xu1 ... u1 u2 -- xu1+u2-1 ... xu1 xu1+u2-1 ... xu1 ) \ PUBLIC
 TUCK 0 SWAP ROT 1+ SMOVE                \ shift cells
 SDEALLOC ;                              \ free stack space
@@ -134,17 +138,32 @@ SDEALLOC ;                              \ free stack space
 \ #         xu':  cell to replace xu  
 \ #         x0:   untouched cell
 \ #         ...
-\ #         xu-1: untouched cell
 \ #         xu:   cell to be replaced
 \ # result: x0:   untouched cell
 \ #         ...
 \ #         xu-1: untouched cell
 \ #         xu':  cell which replaced xu  
 \ #         stack underflow (-4)
-: PLACE ( xu xu-1 ... x0 xu' u -- xu' xu-1 ... x0 ) \ PUBLIC
+\ #         return stack overflow (-5)
+: PLACE ( xu ... x0 xu' u -- xu' xu-1 ... x0 ) \ PUBLIC
 2 + CELLS                               \ add offset to u
 SP@ +                                   \ determine target address
 ! ;                                     \ replace xu
+
+\ 0PLACE
+\ # Set any cell on the parameter stack to zero.
+\ # args:   u:    position of the cell to be replaced
+\ #         x0:   untouched cell
+\ #         ...
+\ #         xu:   cell to be replaced
+\ # result: x0:   untouched cell
+\ #         ...
+\ #         xu-1: untouched cell
+\ #         xu':  cell which replaced xu  
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: 0PLACE ( xu ... x0 u -- 0 xu-1 ... x0 ) \ PUBLIC
+0 SWAP PLACE ;
 
 \ UNROLL
 \ # Opposite of ROLL. Insert a cell anywhere into the parameter stack.
@@ -159,6 +178,7 @@ SP@ +                                   \ determine target address
 \ #         xu:   inserted cell
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : UNROLL ( xu-1 ... x0 xu u -- xu xu-1 ... x0 ) \ PUBLIC
 2DUP                                    \ make room for the shift                
 3 2 ROT SMOVE                           \ shift cells
@@ -174,6 +194,7 @@ SWAP PLACE ;                            \ place xu
 \ #         x3: data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : UNROT ( x1 x2 x3 -- x3 x1 x2 ) \ PUBLIC
 ROT ROT ;
 
@@ -189,6 +210,7 @@ ROT ROT ;
 \ #         0:    zero
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : 0INS ( xu-1 ... x0 u -- 0 xu-1 ... x1 ) \ PUBLIC
 DUP 2 1 SMOVE                           \ shift cells
 0 SWAP PLACE ;                          \ place 0
@@ -204,13 +226,14 @@ DUP 2 1 SMOVE                           \ shift cells
 \ #         xu-1: untouched cell
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 : REMOVE ( xu ... x0 u -- xu-1 ... x0 ) \ PUBLIC
 ROLL DROP ;                             \ remove cell 
 
 \ # Multi-Cell Operations #######################################################
 
 \ MDUP
-\ # Duplicate multiple cells at the top of the stack
+\ # Duplicate multiple cells at the top of the stack.
 \ # args:   u:  number of cells to 
 \ #         x0: data
 \ #         ...
@@ -223,13 +246,14 @@ ROLL DROP ;                             \ remove cell
 \ #         xu: data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : MDUP ( xu ... x0 u -- xu ... x0 xu ... x0 ) \ PUBLIC
 DUP >R SALLOC R>                        \ allocate stack space
 0 OVER SMOVE ;                          \ duplicate cells
 
 \ MPICK
-\ # Pick multiple cells from anywhere on the stack
+\ # Pick multiple cells from anywhere on the stack.
 \ # args:   u2:       number of cells to pick
 \ #         u1:       pick offset
 \ #         x0:       data
@@ -243,13 +267,14 @@ DUP >R SALLOC R>                        \ allocate stack space
 \ #         xu1+u2-1: data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : MPICK ( xu1+u2-1 ... x0 u1 u2 -- xu1+u2-1 ... x0 xu1+u2-1 ... xu1 ) \ PUBLIC
 TUCK 2>R SALLOC 2R>                       \ allocate new stack space
 TUCK + 0 ROT SMOVE ;                      \ move data
 
 \ MPLACE
-\ # Replace multiple cells anywhere on the stack
+\ # Replace multiple cells anywhere on the stack.
 \ # args:   u2:       number of cells to place
 \ #         u1:       place offset (u2<=u1)
 \ #         x0:       data
@@ -263,13 +288,36 @@ TUCK + 0 ROT SMOVE ;                      \ move data
 \ #         xu2-1:    data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : MPLACE ( xu1+u2-1 ... x0 u1 u2 -- xu2-1 ... x0 xu1-1 ... x0 ) \ PUBLIC
 0 ROT ROT DUP >R SMOVE R>               \ move data
 SDEALLOC ;                              \ deallocate stack space
 
+\ M0PLACE
+\ # Set multiple cells anywhere on the stack
+\ # args:   u2:       number of cells to place
+\ #         u1:       place offset (u2<=u1)
+\ #         x0:       data
+\ #         ...
+\ #         xu1+u2-1: data
+\ # result: x0:       data
+\ #         ...
+\ #         xu1-1:    data
+\ #         0    -+ 
+\ #         ...	  | u2 zeros
+\ #         0    -+     
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+\ #         result out of range (-11)
+: M0PLACE ( xu1+u2-1 ... x0 u1 u2 -- 0 ... 0 xu1-1 ... x0 ) \ PUBLIC
+OVER + SWAP DO                          \ iterate over size
+     I 0PLACE                           \ place one zero
+LOOP ;                                  \ next iteration
+
 \ MROLL
-\ # Extract multiple cells anywhere on the stack
+\ # Extract multiple cells anywhere on the stack.
 \ # args:   u2:       number of cells to rotate
 \ #         u1:       unroll offset
 \ #         x0:       rotated data
@@ -283,6 +331,7 @@ SDEALLOC ;                              \ deallocate stack space
 \ #         xu1-1:    data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : MROLL ( xu1+u2-1 ... x0 u1 u2 -- xu1-1 ... x0 xu1+u2-1 ... xu1 ) \ PUBLIC
 2DUP 2>R MPICK 2R>                      \ move data  
@@ -303,6 +352,7 @@ TUCK + SWAP SREMOVE ;                   \ deallocate stack space
 \ #         xu1+u2-1: rotated data
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
+\ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : MUNROLL ( xu1-1 ... x0 xu1+u2-1 ... xu1 u1 u2 -- xu1+u2-1 ... x0 ) \ PUBLIC
 2DUP 2>R SINSERT 2R>                    \ allocate stack space
@@ -323,7 +373,8 @@ MPLACE ;                                \ move data
 \ #         0:     zero
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: M0INS ( xu-1 ... x1 x0 xu u1 u2 -- 0 ... 0 xu-1 ... x1 x0 ) \ PUBLIC
+\ #         return stack overflow (-5)
+: M0INS ( xu1-1 ... x1 x0 xu u1 u2 -- 0 ... 0 xu1-1 ... x1 x0 ) \ PUBLIC
 2DUP 2>R SINSERT 2R>                    \ allocate stack space
 OVER + SWAP DO                          \ iterate over u2
     0 I PLACE                           \ place zero
