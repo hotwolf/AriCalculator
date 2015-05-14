@@ -65,6 +65,42 @@ WHILE                                   \ iterate until all bits are cleared
 REPEAT                                  \ next iteration
 DROP ;                                  \ clean up
 
+\ # Alignment Operations ########################################################
+
+\ CL0
+\ # Count leading zeros.
+\ # args:   x: data
+\ # result: u: number of leading zeros in x
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: CL0 ( x -- u ) \ PUBLIC
+[ BITS/CELL ] LITERAL                   \ default count
+TUCK 0 DO                               \ iterate over bits in cell
+    DUP 0< IF                           \ check if MSB is set
+        DROP I SWAP LEAVE               \ first one found
+    THEN                                \ MSB check complete
+    2*                                  \ shift cell towards MSB
+LOOP                                    \ next iteration
+DROP ;                                  \ clean up
+
+\ CT0
+\ # Count trailing zeros.
+\ # args:   x: data
+\ # result: u: number of trailing zeros in x
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: CT0 ( x -- u ) \ PUBLIC
+[ BITS/CELL ] LITERAL                   \ default count
+TUCK 0 DO                               \ iterate over bits in cell
+    DUP 1 AND IF                        \ check if MSB is set
+        DROP I SWAP LEAVE               \ first one found
+    THEN                                \ MSB check complete
+    1 RSHIFT                            \ shift cell towards LSB
+LOOP                                    \ next iteration
+DROP ;                                  \ clean up
+
 \ # Multi-Cell Operations #######################################################
 
 \ MLSHIFT

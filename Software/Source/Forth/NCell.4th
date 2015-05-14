@@ -960,6 +960,22 @@ OVER - 0 SWAP SMOVE                     \ move cells
 -1 +LOOP                                \ next iteration
 2DROP ;                                 \ clean up
 
+\ NCLSHIFT
+\ # Perform a logical left shift of u bits on struc1, giving struc2
+\ # Put zeroes into the least significant bits vacated by the shift.
+\ # args:   size:   size of each struc (in cells).
+\ #         u:      number of bits to shift
+\ #         struc1: data structure
+\ # result: struc2: shifted data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCLSHIFT ( struc1 u size -- struc2 ) \ PUBLIC
+SWAP [ BITS/CELL ] LITERAL /MOD         \ determine cell and bit shift distances
+TUCK 2OVER - NIP 2>R                    \ save cell shift parameters
+SWAP NCLCSHIFT                               \ cell shift
+2R> NCLBSHIFT ;                         \ bit shift
+
 \ NCRCSHIFT
 \ # Perform a logical rightt shift of u cells on struc1, giving struc2
 \ # Put zeroes into the most significant cells vacated by the shift.
@@ -1009,53 +1025,167 @@ TUCK 2OVER - NIP 2SWAP 2>R              \ save cell shift parameters
 NCRBSHIFT                               \ bit shift
 R> R> NCRCSHIFT ;                       \ cell shift    
 
+\ # Alignment Operations ########################################################
+
+\ NCCL0
+\ # Count leading zeros.
+\ # args:   size:  size of each struc (in cells).
+\ #         struc: data structure
+\ # result: u:     number of leading zeros in x
+\ #         struc: data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCCL0 ( struc size -- struc u ) \ PUBLIC
+DUP [ BITS/CELL ] LITERAL *             \ default result
+SWAP 1+ 1 DO                            \ iterate over size
+    I PICK ?DUP IF                      \ check if cell is zero
+        CL0                             \ count leading bits within cell
+	I 1- [ BITS/CELL ] LITERAL * +  \ add leading zero cells  
+        NIP LEAVE                       \ clean up
+    THEN                                \ cell check complete
+LOOP ;                                  \ next iteration
+
+\ NCCT0
+\ # Count trailing zeros.
+\ # args:   size:  size of each struc (in cells).
+\ #         struc: data structure
+\ # result: u:     number of leading zeros in x
+\ #         struc: data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCCT0 ( struc size -- struc u ) \ PUBLIC
+DUP [ BITS/CELL ] LITERAL * SWAP        \ default result
+1+ 2 OVER DO                            \ iterate over size
+    I PICK ?DUP IF                      \ check if cell is zero
+        CT0 SWAP                        \ count leading bits within cell
+	I - [ BITS/CELL ] LITERAL * +   \ add leading zero cells  
+        NIP LEAVE                       \ clean up
+    THEN                                \ cell check complete
+-1 +LOOP ;                              \ next iteration
+
 \ NCLALIGN
 \ # Left shift a multi cell structure until until the MSB is set, unless all
 \ # data are equal to zero.
 \ # args:   size:   size of each struc (in cells) 
 \ #         struc1: data structure
-\ # result: size:   size of each struc (in cells)
-\ #         u:      number of performed shifts (-1 if struc1=0)
+\ # result: u:      number of performed shifts (-1 if struc1=0)
 \ #         struc2: shifted data structure (0 if struc1=0)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
-: NCLALIGN ( struc1 size -- struc2 u size ) \ PUBLIC
-0 2DUP DO                               \ iterate over size
-    DROP                                \ drop intermediate count results
-    OVER 0<                             \ check if MSB is set
-    IF                                  \ MSB is set
-        I LEAVE                         \ return shift counter
-    ELSE                                \ MSB is not set
-	NC2*                            \ shift data
-        -1                              \ push zero result
-    THEN                                \ MSB check done
-LOOP ;                                  \ next iteration
+: NCLALIGN ( struc1 size -- struc2 u ) \ PUBLIC
+DUP >R NCCL0                            \ find leading zero
+R> OVER >R NCLSHIFT R> ;                \ shift bits
 
 \ NCRALIGN
 \ # Right shift a multi cell structure until until the MSB is set, unless all
 \ # data are equal to zero.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc1: data structure
-\ # result: size:   size of each struc (in cells)
-\ #         u:      number of performed shifts (-1 if struc1=0)
+\ # result: u:      number of performed shifts (-1 if struc1=0)
 \ #         struc2: shifted data structure (0 if struc1=0)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
-: RCLALIGN ( struc1 size -- struc2 u size ) \ PUBLIC
-0 2DUP DO                               \ iterate over size
-    DROP                                \ drop intermediate count results
-    DUP PICK 1 AND                      \ check if MSB is set
-    IF                                  \ MSB is set
-        I LEAVE                         \ return shift counter
-    ELSE                                \ MSB is not set
-	NCU2/                           \ shift data
-        -1                              \ push zero result
-    THEN                                \ MSB check done
-LOOP ;                                  \ next iteration
+: NCRALIGN ( struc1 size -- struc2 u ) \ PUBLIC
+DUP >R NCCT0                            \ find trailing zero
+R> OVER >R NCRSHIFT R> ;                \ shift bits
+
+\ # Common Calculations #########################################################
+
+\ NCGCD
+\ # Calculate the greatest common divisor of two multi cell structures.
+\ # data are equal to zero.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc2: data structure
+\ #         struc1: data structure
+\ # result: struc3: GCD
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCGCD ( struc1 struc2 size -- struc3 ) \ PUBLIC
+DUP >R                                  \ save size
+NCRALIGN R> SWAP 2>R                    \ right align struc2
+R@ NCSWAP R@ NCRALIGN                   \ right align struc1
+R> R> ROT MIN >R >R                     \ calculate the even factors of the GCD 
+\ ...TBD
+;
+
+\ NCCANCEL
+\ # Cancel the common factors of two multi cell structures.
+\ # data are equal to zero.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc2: data structure
+\ #         struc1: data structure
+\ # result: struc4: canceled struc2
+\ #         struc3: canceled struc1
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCCANCEL ( struc1 struc2 size -- struc3 struc4 ) \ PUBLIC
+\ ...TBD
+;
+
+\ NCAPPROX
+\ # Reduce the size and apprximate a multi cell structure.
+\ # data are equal to zero.
+\ # args:   size1:  size of struc1 (in cells)
+\ #         size2:  size of struc2 (in cells)
+\ #         struc1: data structure
+\ # result: struc2: approximated data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCAPPROX ( struc1 size1 size2 -- struc2 ) \ PUBLIC
+TUCK 2>R 
+
+
+\ ...TBD
+;
+
+
+
+
+
+
 
 \ # Output ######################################################################
+
+\ NC#
+\ # Divide struc1 by the number in BASE giving the quotient struc2 and the
+\ # remainder n.  (n is the least-significant digit of struc1.) Convert n to
+\ # external form and add the resulting character to the beginning of the
+\ # pictured numeric output string.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc1: data structure
+\ # result: struc2: data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+\ #         pictured numeric output string overflow (-17)
+: NC# ( struc1 size -- struc2 ) \ PUBLIC
+BASE @ SWAP NC1U/MOD 0 # 2DROP ;
+\ BASE @ SWAP NC1U/MOD . ;
+
+\ NC#S
+\ # Convert one digit of struc1 according to the rule for NC#. Continue
+\ # conversion until the quotient is zero.
+\ # args:   size:  size of each struc (in cells)
+\ #         struc: data structure
+\ # result: none
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+\ #         pictured numeric output string overflow (-17)
+: NC#S ( struc size -- ) \ PUBLIC
+>R                                      \ save size
+BEGIN                                   \ interate over all digits
+    R@ NC#                              \ extract one digit
+    R@ NC0=                             \ check if quotient is zero
+UNTIL                                   \ next iteration
+R> SDEALLOC ;                           \ clean up
 
 \ NCU.
 \ # Print multi cell structure as unsugned number.
@@ -1067,11 +1197,8 @@ LOOP ;                                  \ next iteration
 \ #         return stack overflow (-5)
 \ #         pictured numeric output string overflow (-17)
 : NCU. ( struc size -- ) \ PUBLIC
->R                                      \ store size in loop counter
-<#                                      \ initiate pictured numeric output
-BEGIN                                   \ iterate over digits
-    BASE @ R@ NC1U/MOD 0 # 2DROP        \ calculate least significant digit
-    R@ NC0=                             \ check if non-zero digits are left
-UNTIL                                   \ next iteration
-R> SDEALLOC                             \ clean up stack
-[ 0 0 ] 2LITERAL #> TYPE ;              \ display pictured numeric output
+<# NC#S [ 0 0 ] 2LITERAL #> TYPE ;
+
+
+
+
