@@ -493,17 +493,17 @@ R> R> NCRCSHIFT ;                       \ cell shift
 \ # Count leading zeros.
 \ # args:   size:  size of each struc (in cells).
 \ #         struc: data structure
-\ # result: u:     number of leading zeros in x
+\ # result: n:     number of leading zeros in x (-1 is struc=0)
 \ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
-: NCCL0 ( struc size -- struc u ) \ PUBLIC
-DUP [ BITS/CELL ] LITERAL *             \ default result
-SWAP 1+ 1 DO                            \ iterate over size
+: NCCL0 ( struc size -- struc n ) \ PUBLIC
+-1 SWAP                                 \ default result (-1)
+1+ 1 DO                                 \ iterate over size
     I PICK ?DUP IF                      \ check if cell is zero
         CL0                             \ count leading bits within cell
-	I 1- [ BITS/CELL ] LITERAL * +  \ add leading zero cells  
+	I 1- [ BITS/CELL ] LITERAL * +  \ determine leading zeros  
         NIP LEAVE                       \ clean up
     THEN                                \ cell check complete
 LOOP ;                                  \ next iteration
@@ -512,20 +512,22 @@ LOOP ;                                  \ next iteration
 \ # Count trailing zeros.
 \ # args:   size:  size of each struc (in cells).
 \ #         struc: data structure
-\ # result: u:     number of leading zeros in x
+\ # result: n:     number of leading zeros in x (-1 if struc=0)
 \ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
-: NCCT0 ( struc size -- struc u ) \ PUBLIC
-DUP [ BITS/CELL ] LITERAL * SWAP        \ default result
-1+ 2 OVER DO                            \ iterate over size
+: NCCT0 ( struc size -- struc n ) \ PUBLIC
+-1 SWAP                                 \ default result (-1)
+2 OVER 1+ DO                            \ iterate over size
     I PICK ?DUP IF                      \ check if cell is zero
-        CT0 SWAP                        \ count leading bits within cell
-	I - [ BITS/CELL ] LITERAL * +   \ add leading zero cells  
-        NIP LEAVE                       \ clean up
+        CT0                             \ count leading bits within cell
+	OVER 1+ I -                    \ determine trailing cells  
+	[ BITS/CELL ] LITERAL * +       \ determine trailing zeros  
+        NIP SWAP LEAVE                      \ clean up
     THEN                                \ cell check complete
--1 +LOOP ;                              \ next iteration
+-1 +LOOP                                \ next iteration
+DROP ;                                  \ clean up
 
 \ NCLALIGN
 \ # Left shift a multi cell structure until until the MSB is set, unless all
@@ -990,6 +992,36 @@ NIP ;                                   \ clean up
 \ #         return stack overflow (-5)
 \ #         division by zero (-10)
 \ : NCU/MOD ( struc1 struc2 size -- struc3 struc4 ) \ PUBLIC
+\ >R                                      \ save size
+\ R@ 2* R@ M0INS                          \ allocate space for the quotient
+\ @R NCSWAP @R NCCL0 R> 2>R               \ count leading zeros of the nominator
+\ @R NCSWAP R@ NCCL0                      \ count leading zeros of the denominator
+\ DUP 0< IF                               \ check for devision by zero
+\     -10 TROW                            \ trow exception
+\ THEN                                    \ denominator>0
+\ 
+\ 
+\ 
+\ 
+\ 
+\ 
+\ 
+\ 2R> R> - 0 MIN                          \ calculate alignment
+\ R> 2DUP 2>R NCLSHIFT                    \ align denominaror
+\ 2R> >R 1+ 0 DO                          \ iterate over denominator shifts
+\         
+\ 
+\ 
+\ 
+\ DUP >R                                  \ save size
+\ NCSWAP R@ NCCL0 R> 2>R R@ NCSWAP        \ count leading zeros of the nominator
+\ R@ NCCL0                                \ count leading zeros of the denominator
+\ 2R> >R -                                \ calculate the 
+\ 
+\ NCCL0                                   \ count leading zeros of the denominator
+\ R@ SWAP >R                              \ save denominator alignment
+\ NCSWAP 2R> DROP NCCL0  
+\ 
 \ DUP 2* 1+ OVER M0INS                    \ allocate space for quotient
 \ DUP 1+ 1 DO                             \ iterate over denominator width
 \     I PICK IF                           \ find highest denominator cell  

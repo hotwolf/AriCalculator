@@ -70,13 +70,13 @@ DROP ;                                  \ clean up
 \ CL0
 \ # Count leading zeros.
 \ # args:   x: data
-\ # result: u: number of leading zeros in x
+\ # result: n: number of leading zeros in x (-1 if x=0)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
-: CL0 ( x -- u ) \ PUBLIC
-[ BITS/CELL ] LITERAL                   \ default count
-TUCK 0 DO                               \ iterate over bits in cell
+: CL0 ( x -- n ) \ PUBLIC
+-1 SWAP                                 \ default count
+[ BITS/CELL ] LITERAL 0 DO              \ iterate over bits in cell
     DUP 0< IF                           \ check if MSB is set
         DROP I SWAP LEAVE               \ first one found
     THEN                                \ MSB check complete
@@ -87,13 +87,13 @@ DROP ;                                  \ clean up
 \ CT0
 \ # Count trailing zeros.
 \ # args:   x: data
-\ # result: u: number of trailing zeros in x
+\ # result: n: number of trailing zeros in x (-1 if x=0)
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
-: CT0 ( x -- u ) \ PUBLIC
-[ BITS/CELL ] LITERAL                   \ default count
-TUCK 0 DO                               \ iterate over bits in cell
+: CT0 ( x -- n ) \ PUBLIC
+-1 SWAP                                 \ default count
+[ BITS/CELL ] LITERAL 0 DO              \ iterate over bits in cell
     DUP 1 AND IF                        \ check if MSB is set
         DROP I SWAP LEAVE               \ first one found
     THEN                                \ MSB check complete
