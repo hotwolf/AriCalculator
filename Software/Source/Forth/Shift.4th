@@ -54,6 +54,11 @@ DROP ;                                  \ clean up
 EXECUTE FORGET-BITS/CELL-CALCULATION
 CONSTANT BITS/CELL
 
+\ CELLMSB
+\ # Most significant bit of cell.
+1 BITS/CELL 1- LSHIFT
+CONSTANT CELLMSB
+
 \ ###############################################################################
 \ # Variables                                                                   #
 \ ###############################################################################

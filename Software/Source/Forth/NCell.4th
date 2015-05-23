@@ -1164,43 +1164,33 @@ R@ NCTUCK R@ NCU/                       \ calculate new denominator
 R@ NCUNROT R@ NCU/                      \ calculate new nominator
 R> NCSWAP ;                             \ put result in order
 
-\ NCUAPPROX
-\ # Right align and approximate struc1 to size2.
+\ NCUROUND
+\ # Round and right align an unsigned multi cell data structure.
 \ # data are equal to zero.
 \ # args:   size2:  size of struc2 (in cells)
 \ #         size1:  size of struc1 (in cells) (size1>size2)
 \ #         struc1: data structure
-\ # result: u2:     number of removed digits (0=exact result)
-\ #         u1:     exponent
+\ # result: flag:   true if result has been rounded
+\ #         u:      exponent
 \ #         struc2: approximated data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
-: NCAPPROX ( struc1 size1 size2 -- struc2 u1 u2 ) \ PUBLIC
-OVER SWAP - DUP BITS/CELL*              \ calculate number of bits to be removed
-SWAP R> R> R>                           \ save intermediate results 
-R@ NCCL0                                \ count leading zeros
-R> R> ROT - 0 MAX TUCK >R >R            \ adjust number of bits to be removed
-IF                                      \ check if approximation may be needed
-    R@ NCCT0 DUP                        \ count trailing zeros
-    R> R> ROT - 0 MAX TUCK >R >R        \ adjust number of bits to be removed
-    DUP IF                              \ check if approximation is required
-        + DUP R> 2>R                    \ store exponent
-        1- R@ NCRSHIFT                  \ right shift data structure 
-        1 R@ NC1UE+                     \ add rounding offset
-        R> 1+ 2R> R> 1+ >R 2>R >R       \ adjust offsets for extended structure
-        R@ NCU2/                        \ right shift data structure
-    ELSE                                \ no apprximation required
-        R> 2>R                          \ leave default mantissa
-        DROP                            \ clean up
-    THEN                                \ check done
-ELSE                                    \ reduction covered by leading zeros
-    0 R> 2>R                            \ leave default mantissa
-THEN                                    \ check done
-R> NCRALIGN                             \ right align data structure 
-R> + 2R> ROT 2>R                        \ adjust exponent
-SDEALLOC                                \ shrink data structure
-R> R> ;                                 \ leave return value
+: NCROUND ( struc1 size1 size2 -- struc2 u1 u2 ) \ PUBLIC
+2DUP 2>R - NC0= IF                      \ check if rounding can be omitted 
+    2R@ - SDEALLOC                      \ drop leading cells    
+    R> NCRALIGN                         \ right align
+    FALSE                               \ return cleared approximation flag
+    R> DROP                             \ clean up
+ELSE                                    \ rounding is required    
+   2R@ DROP NCLALIGN 2R> ROT >R 2>R     \ left align 
+   CELLMSB R@ 1+ NC1UE+                 \ add rounding offset
+   R@ 1+ NCRALIGN 2R> ROT               \ right align
+   R> - BITS/CELL 2OVER - * + >R        \ calculate exponent
+   TUCK - SREMOVE                       \ drop trailing cells 
+    R>                                  \ return exponent
+    TRUE                                \ return set approximation flag
+THEN ;                                  \ done    
 
 \ # Output ######################################################################
 
