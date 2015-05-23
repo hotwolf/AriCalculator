@@ -262,6 +262,7 @@ TUCK*SWAP SREMOVE ;
 : NCOVER ( struc1 struc2 size -- struc1 struc2 struc1 ) \ PUBLIC
 1 SWAP NCPICK ;
 
+\ NCSWAP
 \ # Swap two multi-cell data structures.
 \ # args:   size:   size of each struc (in cells
 \ #         struc2: data structure
@@ -288,6 +289,21 @@ TUCK*SWAP SREMOVE ;
 \ #         return stack overflow (-5)
 : NCROT ( struc1 struc2 struc3 size -- struc2 struc3 struc1 ) \ PUBLIC
 2 SWAP NCROLL ;
+
+\ NCUNROT
+\ # Reverse rotate over three multi-cell data structures.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc3: data structure to
+\ #         struc2: data structure to
+\ #         struc1: data structure to be wrapped
+\ # result: struc2: data structure
+\ #         struc1: data structure
+\ #         struc3: wrapped data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NCUNROT ( struc1 struc2 struc3 size -- struc3 struc1 struc2 ) \ PUBLIC
+2 SWAP NCUNROLL ;
 
 \ NCNIP
 \ # Remove the first multi-cell data structure below the TOS.
@@ -433,9 +449,9 @@ OVER - 0 SWAP SMOVE                     \ move cells
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
 : NCLSHIFT ( struc1 u size -- struc2 ) \ PUBLIC
-SWAP [ BITS/CELL ] LITERAL /MOD         \ determine cell and bit shift distances
+SWAP BITS/CELL /MOD                     \ determine cell and bit shift distances
 TUCK 2OVER - NIP 2>R                    \ save cell shift parameters
-SWAP NCLCSHIFT                               \ cell shift
+SWAP NCLCSHIFT                          \ cell shift
 2R> NCLBSHIFT ;                         \ bit shift
 
 \ NCRCSHIFT
@@ -466,7 +482,7 @@ OVER - 0 UNROT  SMOVE                   \ move cells
 : NCRBSHIFT ( struc1 u size -- struc2 ) \ PUBLIC
 0                                       \ initialize carry
 SWAP 2 + 2 DO                           \ iterate over size
-    I PICK 2 PICK MRSHIFT ROT OR          \ rotate cell 
+    I PICK 2 PICK MRSHIFT ROT OR        \ rotate cell 
     I PLACE                             \ store result
     LOOP                                \ next iteration
 2DROP ;                                 \ clean up
@@ -482,7 +498,7 @@ SWAP 2 + 2 DO                           \ iterate over size
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
 : NCRSHIFT ( struc1 u size -- struc2 ) \ PUBLIC
-SWAP [ BITS/CELL ] LITERAL /MOD         \ determine cell and bit shift distances
+SWAP BITS/CELL /MOD                     \ determine cell and bit shift distances
 TUCK 2OVER - NIP 2SWAP 2>R              \ save cell shift parameters
 NCRBSHIFT                               \ bit shift
 R> R> NCRCSHIFT ;                       \ cell shift    
@@ -503,7 +519,7 @@ R> R> NCRCSHIFT ;                       \ cell shift
 1+ 1 DO                                 \ iterate over size
     I PICK ?DUP IF                      \ check if cell is zero
         CL0                             \ count leading bits within cell
-	I 1- [ BITS/CELL ] LITERAL * +  \ determine leading zeros  
+	I 1- BITS/CELL * +  \ determine leading zeros  
         NIP LEAVE                       \ clean up
     THEN                                \ cell check complete
 LOOP ;                                  \ next iteration
@@ -522,9 +538,9 @@ LOOP ;                                  \ next iteration
 2 OVER 1+ DO                            \ iterate over size
     I PICK ?DUP IF                      \ check if cell is zero
         CT0                             \ count leading bits within cell
-	OVER 1+ I -                    \ determine trailing cells  
-	[ BITS/CELL ] LITERAL * +       \ determine trailing zeros  
-        NIP SWAP LEAVE                      \ clean up
+	OVER 1+ I -                     \ determine trailing cells  
+	BITS/CELL * +                   \ determine trailing zeros  
+        NIP SWAP LEAVE                  \ clean up
     THEN                                \ cell check complete
 -1 +LOOP                                \ next iteration
 DROP ;                                  \ clean up
@@ -534,14 +550,18 @@ DROP ;                                  \ clean up
 \ # data are equal to zero.
 \ # args:   size:   size of each struc (in cells) 
 \ #         struc1: data structure
-\ # result: u:      number of performed shifts (-1 if struc1=0)
-\ #         struc2: shifted data structure (0 if struc1=0)
+\ # result: u:      number of performed shifts
+\ #         struc2: shifted data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
 : NCLALIGN ( struc1 size -- struc2 u ) \ PUBLIC
 DUP >R NCCL0                            \ find leading zero
-R> OVER >R NCLSHIFT R> ;                \ shift bits
+DUP 0> IF                               \ check shifting is required
+    R> OVER >R NCLSHIFT R>              \ shift bits
+ELSE                                    \ no shifting  required
+    R> DROP                             \ clean up
+THEN ;                                  \ done
 
 \ NCRALIGN
 \ # Right shift a multi cell structure until until the MSB is set, unless all
@@ -555,15 +575,19 @@ R> OVER >R NCLSHIFT R> ;                \ shift bits
 \ #         return stack overflow (-5)
 : NCRALIGN ( struc1 size -- struc2 u ) \ PUBLIC
 DUP >R NCCT0                            \ find trailing zero
-R> OVER >R NCRSHIFT R> ;                \ shift bits
+DUP 0> IF                               \ check shifting is required
+    R> OVER >R NCRSHIFT R>              \ shift bits
+ELSE                                    \ no shifting  required
+    R> DROP                             \ clean up
+THEN ;                                  \ done
 
 \ # Unsigned Compare Operations ################################################
 
 \ NC0=
-\ # Check if all bits in multi-cell data structure are zero.
+\ # Check if all bits in a multi-cell data structure are zero.
 \ # args:   size:  size of each struc (in cells)
 \ #         struc: data structure
-\ # result: flag:  true if all bits in data structure are zero
+\ # result: flag:  true if all bits in data struc are zero
 \ #         struc: data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
@@ -581,6 +605,18 @@ TRUE 1 ROT DO				\ iterate over size
 \     THEN                              \ check done
 \ LOOP                                  \ next iteration
 \ DUP 0= ?DUP NIP ;                     \ prepare result
+
+\ NC0=
+\ # Check if any bit in a multi-cell data structure is not zero.
+\ # args:   size:  size of each struc (in cells)
+\ #         struc: data structure
+\ # result: flag:  true if any bit in struc is not zero
+\ #         struc: data structure
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: NC0<> ( struc size -- struc flag ) \ PUBLIC
+NC0= 0= ;
 
 \ NC=
 \ # Check if two multi-cell data structure are equal.
@@ -623,29 +659,27 @@ NC= INVERT ;
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: data structure
 \ #         struc1: data structure
-\ # result: flag:  true if struc1 < struc2
-\ #         size:  size of each struc (in cells)
+\ # result: struc2: data structure
+\ #         struc1: data structure
+\ #         flag:  true if struc1 < struc2
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
-: NCU< ( struc1 struc2 size -- flag ) \ PUBLIC
-DUP 1+ 1 ROT DO				\ iterate over size
+: NCU< ( struc1 struc2 size -- struc1 struc2 flag ) \ PUBLIC
+1+ DUP 1 DO	                        \ iterate over size
     I PICK                              \ pick cell from struc2
-    DUP I + PICK                        \ pick cell from struc1
-    XOR IF                              \ check if cells are unequal
-        I PICK                          \ pick cell from struc2
-        DUP I + PICK                    \ pick cell from struc1
-        U> IF                           \ check if struc1 < struc2
-            0=                          \ leave inverted result
-        THEN                            \ check done
-        LEAVE                           \ terminate loop
+    OVER I + PICK                       \ pick cell from struc1
+    2DUP XOR IF                         \ check if cells are unequal
+        U< NIP LEAVE                    \ evaluate struc1>struc2
+    ELSE                                \ cells are equal
+        2DROP                           \ clean up
     THEN                                \ check done
--1 +LOOP				\ next iteration
-0<> ;                                   \ prepare result
+LOOP	  			        \ next iteration
+0= ;                                    \ invert result
 
 \ NCU>
 \ # Interpret data multi-cell data structure as signed integer and check if
-\ # struc1 is less than struc2.
+\ # struc1 is greater than struc2.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: data structure
 \ #         struc1: data structure
@@ -655,19 +689,16 @@ DUP 1+ 1 ROT DO				\ iterate over size
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
 : NCU> ( struc1 struc2 size -- flag ) \ PUBLIC
-DUP 1+ 1 ROT DO				\ iterate over size
+1+ DUP 1 DO	                        \ iterate over size
     I PICK                              \ pick cell from struc2
-    DUP I + PICK                        \ pick cell from struc1
-    XOR IF                              \ check if cells are unequal
-        I PICK                          \ pick cell from struc2
-        DUP I + PICK                    \ pick cell from struc1
-        U< IF                           \ check if struc1 > struc2
-            0=                          \ leave inverted result
-        THEN                            \ check done
-        LEAVE                           \ terminate loop
+    OVER I + PICK                       \ pick cell from struc1
+    2DUP XOR IF                         \ check if cells are unequal
+        U> NIP LEAVE                    \ evaluate struc1<struc2
+    ELSE                                \ cells are equal
+        2DROP                           \ clean up
     THEN                                \ check done
--1 +LOOP				\ next iteration
-0<> ;                                   \ prepare result
+LOOP	  			        \ next iteration
+0= ;                                    \ invert result
 
 \ NCMSB0=
 \ # Check if the MSB of a multi-cell data structure is cleared.
@@ -716,7 +747,7 @@ SWAP 1- PLACE ;                         \ update last cell
 
 \ NC2*1+
 \ # Shift a multi-cell data number one bit towards the most significant bit and
-\ # set the most significant bit to one.
+\ # set the least significant bit to one.
 \ # args:   size:   size of each struc (in cells, >1)
 \ #         struc1: data structure
 \ # result: struc2: shifted data structure
@@ -978,10 +1009,8 @@ SWAP 2 + 2  DO                          \ iterate over size
 LOOP                                    \ next iteration
 NIP ;                                   \ clean up
 
-\ <=======Progress
-
 \ NCU/MOD
-\ # Perform unsigned division.
+\ # Perform an unsigned division with remainder.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: denominator
 \ #         struc1: nominator
@@ -991,100 +1020,61 @@ NIP ;                                   \ clean up
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
 \ #         division by zero (-10)
-\ : NCU/MOD ( struc1 struc2 size -- struc3 struc4 ) \ PUBLIC
-\ >R                                      \ save size
-\ R@ 2* R@ M0INS                          \ allocate space for the quotient
-\ @R NCSWAP @R NCCL0 R> 2>R               \ count leading zeros of the nominator
-\ @R NCSWAP R@ NCCL0                      \ count leading zeros of the denominator
-\ DUP 0< IF                               \ check for devision by zero
-\     -10 TROW                            \ trow exception
-\ THEN                                    \ denominator>0
-\ 
-\ 
-\ 
-\ 
-\ 
-\ 
-\ 
-\ 2R> R> - 0 MIN                          \ calculate alignment
-\ R> 2DUP 2>R NCLSHIFT                    \ align denominaror
-\ 2R> >R 1+ 0 DO                          \ iterate over denominator shifts
-\         
-\ 
-\ 
-\ 
-\ DUP >R                                  \ save size
-\ NCSWAP R@ NCCL0 R> 2>R R@ NCSWAP        \ count leading zeros of the nominator
-\ R@ NCCL0                                \ count leading zeros of the denominator
-\ 2R> >R -                                \ calculate the 
-\ 
-\ NCCL0                                   \ count leading zeros of the denominator
-\ R@ SWAP >R                              \ save denominator alignment
-\ NCSWAP 2R> DROP NCCL0  
-\ 
-\ DUP 2* 1+ OVER M0INS                    \ allocate space for quotient
-\ DUP 1+ 1 DO                             \ iterate over denominator width
-\     I PICK IF                           \ find highest denominator cell  
-\         I 1+ 1 DO                       \ iterate over nominator
-\ \ #         Stack layout:
-\ \ #         +--------+	         	       	       
-\ \ #         |  size  |	         	       	       
-\ \ #         +--------+	         	       	       
-\ \ #         | struc2 | 1    +   points to the most	         	       	       
-\ \ #         | denom. | ..   |J  signinicant cell of            	       
-\ \ #         |        | size +	the denominator                 	       
-\ \ #         +--------+	         	       	       
-\ \ #         | struc1 | 1    +I	points to the current          	       	       
-\ \ #         |  nom.  | J    + 	digit of the nominator  	       
-\ \ #         |        | 	                 	       
-\ \ #         +--------+	     
-\ \ #         | struc4 |	         	       	       
-\ \ #         |  rem.  |	  	       
-\ \ #         |   =0   | 	                 	       
-\ \ #         +--------+	     
-\ \ #         | struc3 |	         	       	       
-\ \ #         |  nom.  |	  	       
-\ \ #         |   =0   | 	                 	       
-\ \ #         +--------+	     
-\ 
-\ 
-\             DUP >R NCDUP R>             \ DUP denominator
-\             DUP 2* I + PICK             \ pick nominator cell
-\             I 1- IF                     \ check for previous nominator cell 
-\                 OVER I + PICK           \ pick previous nominator cell
-\             ELSE                        \ no previous nominator cell available
-\                 0                       \ use dummy value
-\             THEN                        \ previous nominator cell picked
-\             I 2 + PICK                  \ pick denominator cell
-\             UM/MOD NIP                  \ divide cells to estimate digit
-\             SWAP 2DUP 3 * I + 1+ PLACE  \ store digit
-\             >R NC1U* DROP R>            \ multiply denominator by digit
-\             DUP 1+ 1 DO                 \ check if product < nominator
-\                 I PICK                  \ pick cell from product
-\                 OVER 2* I + 1+ PICK     \ pick cell from nominator
-\ 
-\ 
-\ 
-\ \             TRUE OVER 1+ 1 DO           \ check if a correction is required
-\ \                 I PICK                  \ pick cell from intermediate result
-\ \                 OVER 2* I + 1+ PICK     \ pick cell from nominator
-\ \ 		U< IF                   \ make sure that nominator is larger
-\ \                     DROP FALSE LEAVE    \ nominator is larger
-\ \                 THEN                    \
-\ \             LOOP                        \ keep checking
-\ \ 	    IF                          \ correction required
-\ \             2DUP SWAP 3 * I + 1+ PLACE \ store digit
-\ \             
-\ 
-\         LOOP                            \ next iteration (nominator loop)
-\         LEAVE                           \ done (denominator loop)
-\     ELSE                                \ denominator cell is zero  
-\         DUP I = IF                      \ check if denominator is zero  
-\             -10 THROW                   \ throw "division by zero" error
-\         THEN                            \ end of zero check
-\     THEN                                \ check if denominator cell check
-\ LOOP ;	                                \ next iteration (denominator loop)
+: NCU/MOD ( struc1 struc2 size -- struc3 struc4 ) \ PUBLIC
+>R                                      \ save size
+R@ 2* R@ M0INS                          \ allocate space for the quotient
+R@ NCSWAP R@ NCCL0 R> 2>R               \ count leading zeros of the nominator
+R@ NCSWAP R@ NCCL0                      \ count leading zeros of the denominator
+DUP 0< IF                               \ check for devision by zero
+    -10 THROW                           \ throw exception
+THEN                                    \ denominator>0
+2R> >R - 0 MAX                          \ calculate alignment
+R> 2DUP 2>R NCLSHIFT                    \ align denominator
+R@ NCU< 0= IF                           \ check if nominator>=aligned denom.
+    1 R@ 3 * 1- PLACE                   \ set result to 1     
+    R@ NC2DUP R@ NC-                    \ nominator-=aligned denominator 
+    1 R@ NCPLACE                        \ update nominator
+THEN                                    \ check done
+R> R> 0 ?DO                             \ iterate over shifts
+    DUP >R NCU2/                        \ shift denominator
+    R@ NCU< IF                          \ check if nominator<shifted denom.
+        2 R@ NCPICK R@ NC2*             \ pick and shift result
+        2 R@ NCPLACE                    \ update result
+    ELSE                                \ nominator>=shifted denom.
+        2 R@ NCPICK R@ NC2*1+           \ pick and shift and increment result
+        2 R@ NCPLACE                    \ update result
+        R@ NC2DUP R@ NC-                \ nominator-=shifted denominator 
+        1 R@ NCPLACE                    \ update nominator
+    THEN                                \ check done
+    R>                                  \ clean up return stack
+LOOP                                    \ next iteration
+NCDROP ;                                \ remove denominator
 
+\ NCU/
+\ # Perform an unsigned division.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc2: denominator
+\ #         struc1: nominator
+\ # result: struc3: quotient
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+\ #         division by zero (-10)
+: NCU/ ( struc1 struc2 size -- struc3 ) \ PUBLIC
+DUP >R NCU/MOD R> NCDROP ;
+
+\ NCUMOD
+\ # Perform an unsigned modulus calculation.
+\ # args:   size:   size of each struc (in cells)
+\ #         struc2: denominator
+\ #         struc1: nominator
+\ # result: struc3: remainder
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+\ #         division by zero (-10)
+: NCUMOD ( struc1 struc2 size -- struc3 ) \ PUBLIC
+DUP >R NCU/MOD R> NCNIP  ;
 
 \ # Signed Compare Operations ##################################################
 
@@ -1137,9 +1127,8 @@ R> SWAP >R NC2DROP R> ;                 \ clean up
 
 \ # Common Calculations #########################################################
 
-\ NCGCD
-\ # Calculate the greatest common divisor of two multi cell structures.
-\ # data are equal to zero.
+\ NCUGCD
+\ # Calculate the greatest common divisor of two unsigned multi cell structures.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: data structure
 \ #         struc1: data structure
@@ -1147,51 +1136,71 @@ R> SWAP >R NC2DROP R> ;                 \ clean up
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
-: NCGCD ( struc1 struc2 size -- struc3 ) \ PUBLIC
-DUP >R                                  \ save size
-NCRALIGN R> SWAP 2>R                    \ right align struc2
-R@ NCSWAP R@ NCRALIGN                   \ right align struc1
-R> R> ROT MIN >R >R                     \ calculate the even factors of the GCD 
-\ ...TBD
-;
+: NCUGCD ( struc1 struc2 size -- struc3 ) \ PUBLIC
+>R                                      \ save size
+BEGIN                                   \ check for terminating condition
+    R@ NC0<>                            \ check if struc2 is non-zero
+WHILE                                   \ iterate until struc2 is zero
+    R@ TUCK                             \ struc2 -> struc1
+    R@ NCUMOD                           \ struc1 mod struc2 -> struc2
+REPEAT                                  \ next iteration
+R> NCDROP ;                             \ clean up
 
-\ NCCANCEL
-\ # Cancel the common factors of two multi cell structures.
+\ NCUCANCEL
+\ # Cancel the common factors of two unsigned multi cell structures.
 \ # data are equal to zero.
 \ # args:   size:   size of each struc (in cells)
-\ #         struc2: data structure
-\ #         struc1: data structure
-\ # result: struc4: canceled struc2
-\ #         struc3: canceled struc1
+\ #         struc2: denominator
+\ #         struc1: nominator
+\ # result: struc4: new denominator
+\ #         struc3: new nominator
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
-: NCCANCEL ( struc1 struc2 size -- struc3 struc4 ) \ PUBLIC
-\ ...TBD
-;
+: NCUCANCEL ( struc1 struc2 size -- struc3 struc4 ) \ PUBLIC
+>R                                      \ save size
+R@ NC2DUP R@ NCUGCD                     \ calculate GCD 
+R@ NCTUCK R@ NCU/                       \ calculate new denominator
+R@ NCUNROT R@ NCU/                      \ calculate new nominator
+R> NCSWAP ;                             \ put result in order
 
-\ NCAPPROX
-\ # Reduce the size and apprximate a multi cell structure.
+\ NCUAPPROX
+\ # Right align and approximate struc1 to size2.
 \ # data are equal to zero.
-\ # args:   size1:  size of struc1 (in cells)
-\ #         size2:  size of struc2 (in cells)
+\ # args:   size2:  size of struc2 (in cells)
+\ #         size1:  size of struc1 (in cells) (size1>size2)
 \ #         struc1: data structure
-\ # result: struc2: approximated data structure
+\ # result: u2:     number of removed digits (0=exact result)
+\ #         u1:     exponent
+\ #         struc2: approximated data structure
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
-: NCAPPROX ( struc1 size1 size2 -- struc2 ) \ PUBLIC
-TUCK 2>R 
-
-
-\ ...TBD
-;
-
-
-
-
-
-
+: NCAPPROX ( struc1 size1 size2 -- struc2 u1 u2 ) \ PUBLIC
+OVER SWAP - DUP BITS/CELL*              \ calculate number of bits to be removed
+SWAP R> R> R>                           \ save intermediate results 
+R@ NCCL0                                \ count leading zeros
+R> R> ROT - 0 MAX TUCK >R >R            \ adjust number of bits to be removed
+IF                                      \ check if approximation may be needed
+    R@ NCCT0 DUP                        \ count trailing zeros
+    R> R> ROT - 0 MAX TUCK >R >R        \ adjust number of bits to be removed
+    DUP IF                              \ check if approximation is required
+        + DUP R> 2>R                    \ store exponent
+        1- R@ NCRSHIFT                  \ right shift data structure 
+        1 R@ NC1UE+                     \ add rounding offset
+        R> 1+ 2R> R> 1+ >R 2>R >R       \ adjust offsets for extended structure
+        R@ NCU2/                        \ right shift data structure
+    ELSE                                \ no apprximation required
+        R> 2>R                          \ leave default mantissa
+        DROP                            \ clean up
+    THEN                                \ check done
+ELSE                                    \ reduction covered by leading zeros
+    0 R> 2>R                            \ leave default mantissa
+THEN                                    \ check done
+R> NCRALIGN                             \ right align data structure 
+R> + 2R> ROT 2>R                        \ adjust exponent
+SDEALLOC                                \ shrink data structure
+R> R> ;                                 \ leave return value
 
 \ # Output ######################################################################
 

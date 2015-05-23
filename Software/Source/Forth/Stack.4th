@@ -312,7 +312,7 @@ SDEALLOC ;                              \ deallocate stack space
 \ #         return stack overflow (-5)
 \ #         result out of range (-11)
 : M0PLACE ( xu1+u2-1 ... x0 u1 u2 -- 0 ... 0 xu1-1 ... x0 ) \ PUBLIC
-OVER + SWAP DO                          \ iterate over size
+OVER + SWAP ?DO                         \ iterate over size
      I 0PLACE                           \ place one zero
 LOOP ;                                  \ next iteration
 
@@ -376,6 +376,6 @@ MPLACE ;                                \ move data
 \ #         return stack overflow (-5)
 : M0INS ( xu1-1 ... x1 x0 xu u1 u2 -- 0 ... 0 xu1-1 ... x1 x0 ) \ PUBLIC
 2DUP 2>R SINSERT 2R>                    \ allocate stack space
-OVER + SWAP DO                          \ iterate over u2
+OVER + SWAP ?DO                         \ iterate over u2
     0 I PLACE                           \ place zero
 LOOP ;                                  \ next iteration

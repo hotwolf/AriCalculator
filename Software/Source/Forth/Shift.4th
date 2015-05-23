@@ -39,7 +39,21 @@
 \ ###############################################################################
 \ # Constants                                                                   #
 \ ###############################################################################
-    
+\ BITS/CELL
+\ # Cell size in bits
+MARKER FORGET-BITS/CELL-CALCULATION
+:NONAME ( -- u )
+0 1                                     \ test cell and bit count
+BEGIN                                   \ iterate over bits
+    DUP                                 \ check test cell
+WHILE                                   \ iterate until all bits are cleared
+    2* SWAP                             \ shift test cell
+    1+ SWAP                             \ increment bit count
+REPEAT                                  \ next iteration
+DROP ;                                  \ clean up
+EXECUTE FORGET-BITS/CELL-CALCULATION
+CONSTANT BITS/CELL
+
 \ ###############################################################################
 \ # Variables                                                                   #
 \ ###############################################################################
@@ -49,21 +63,15 @@
 \ ###############################################################################
 
 \ # Helper functions ############################################################
-\ BITS/CELL
-\ # Determine the cell size in bits
-\ # args:   -
-\ # result: u:  bits per cell
+\ BITS/CELL*
+\ # Multiply by the number of bits per cell.
+\ # args:   u1: number
+\ # result: u2: u1 * BITS/CELL
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
-: BITS/CELL ( -- u )
-0 1                                     \ test cell and bit count
-BEGIN                                   \ iterate over bits
-    DUP                                 \ check test cell
-WHILE                                   \ iterate until all bits are cleared
-    2* SWAP                             \ shift test cell
-    1+ SWAP                             \ increment bit count
-REPEAT                                  \ next iteration
-DROP ;                                  \ clean up
+\ #         return stack overflow (-5)
+: BITS/CELL* ( u1 -- u2 ) \ PUBLIC
+BITS/CELL * ;
 
 \ # Alignment Operations ########################################################
 
@@ -76,7 +84,7 @@ DROP ;                                  \ clean up
 \ #         return stack overflow (-5)
 : CL0 ( x -- n ) \ PUBLIC
 -1 SWAP                                 \ default count
-[ BITS/CELL ] LITERAL 0 DO              \ iterate over bits in cell
+BITS/CELL 0 DO                          \ iterate over bits in cell
     DUP 0< IF                           \ check if MSB is set
         DROP I SWAP LEAVE               \ first one found
     THEN                                \ MSB check complete
@@ -93,7 +101,7 @@ DROP ;                                  \ clean up
 \ #         return stack overflow (-5)
 : CT0 ( x -- n ) \ PUBLIC
 -1 SWAP                                 \ default count
-[ BITS/CELL ] LITERAL 0 DO              \ iterate over bits in cell
+BITS/CELL 0 DO                          \ iterate over bits in cell
     DUP 1 AND IF                        \ check if MSB is set
         DROP I SWAP LEAVE               \ first one found
     THEN                                \ MSB check complete
@@ -115,7 +123,7 @@ DROP ;                                  \ clean up
 \ #         return stack overflow (-5)
 : MLSHIFT ( x1 u -- x2 x3 ) \ PUBLIC
 2DUP LSHIFT UNROT                       \ calculate x2 (result)
-[ BITS/CELL ] LITERAL SWAP - RSHIFT ;   \ calculate x3 (carry over)
+BITS/CELL SWAP - RSHIFT ;               \ calculate x3 (carry over)
 
 \ MRSHIFT
 \ # Perform a logical right shift of u bit-places on x1, giving x3 and carry over
@@ -128,5 +136,5 @@ DROP ;                                  \ clean up
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
 : MRSHIFT ( x1 u -- x2 x3 ) \ PUBLIC
-2DUP [ BITS/CELL ] LITERAL SWAP -       \ calculate x2 (carry over)
+2DUP BITS/CELL SWAP -                   \ calculate x2 (carry over)
 LSHIFT UNROT RSHIFT ;                   \ calculate x3 (result)
