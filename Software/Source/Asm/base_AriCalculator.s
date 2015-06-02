@@ -452,7 +452,7 @@ BASE_TABS_END_LIN	EQU	@
 #include ./gpio_AriCalculator.s								;I/O setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sstack.s	;Subroutine stack
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/istack.s	;Interrupt stack
-#include ../../../../S12CBase/Source/All/clock.s					;!!!!!!!!!!!!!!!latest CPMU setup
+;#include ../../../../S12CBase/Source/All/clock.s					;!!!!!!!!!!!!!!!latest CPMU setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clock.s		;CPMU setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/cop.s		;COP handler
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/tim.s		;TIM driver

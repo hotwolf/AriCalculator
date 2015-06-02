@@ -58,9 +58,9 @@ LED_STATE_ERRBEEP	EQU	$0002	 	;error beep
 LED_STATE_COMERR	EQU	$0001	 	;comunication error
 
 ;#Error signals
-LED_ERRBEEP_CNT		EQU	-762<<3		;error beep:    2 sec
-LED_COMERR_ON_CNT	EQU	-190<<3		;com error on:  0.5 sec
-LED_COMERR_OFF_CNT	EQU	-381<<3		;com error off: 1 sec
+LED_ERRBEEP_CNT		EQU	-190<<3		;error beep:    2 sec
+LED_COMERR_ON_CNT	EQU 	 -95<<3		;com error on:  0.5 sec
+LED_COMERR_OFF_CNT	EQU	-190<<3		;com error off: 1 sec
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -71,8 +71,9 @@ LED_COMERR_OFF_CNT	EQU	-381<<3		;com error off: 1 sec
 			ORG 	LED_VARS_START
 LED_VARS_START_LIN	EQU	@			
 #endif	
+			ALIGN	1
 
-;#Delay counter and flags
+			;#Delay counter and flags
 LED_STATE		DS	2		;value of the SCIBD register *LED_BMUL
 	
 LED_VARS_END		EQU	*
@@ -83,8 +84,14 @@ LED_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	LED_INIT, 0
+			;Initialize LEDs
 			;LED_OFF			;turn all LEDs off
-			CLR	LED_STATE
+			;Initialize timer
+			BSET	TIOS, #(1<<LED_OC)
+			;BCLR	TCTL2, #(3<<(2*(LED_OC-4)))
+			;BCLR	TIE, #(1<<LED_OC)
+			;Initialize variable
+			MOVW	#$0000,	LED_STATE
 #emac
 	
 ;# Busy Signal #################################################################
@@ -123,12 +130,12 @@ LED_VARS_END_LIN	EQU	@
 ;         2: macro to end atomic code
 ; result: none
 ; SSTACK: none
-;         X, Y, and D are preserved 
+;         X, Y, and A are preserved 
 #macro	LED_ERR_OFF, 2
 			\1		 				;start atomic code section
 			;Update status
 			LDAB	LED_STATE+1				;flags -> B
-			ANDB 	#~(LED_STATE_ERR| LED_STATE_ERRBEEP)	;clear untimed error and beep request
+			ANDB 	#(~(LED_STATE_ERR|LED_STATE_ERRBEEP))	;clear untimed error and beep request
 			;Check for communication error (flags in B)
 			BITB	#LED_STATE_COMERR			;check if untimed error or is active
 			BEQ	DONE					;untimed error is active
@@ -148,7 +155,7 @@ DONE			BSET	LED_PORT, #LED_ERR			;turn LED off
 ;         2: macro to end atomic code
 ; result: none
 ; SSTACK: none
-;         X, Y, and D are preserved 
+;         X and Y are preserved 
 #macro	LED_ERRBEEP, 2
 			\1		 				;start atomic code section
 			;Check for untimed error nested beep 
@@ -171,7 +178,7 @@ DONE			\2	 					;end atomic code section
 ;         2: macro to end atomic code
 ; result: none
 ; SSTACK: none
-;         X, Y, and D are preserved 
+;         X and Y are preserved 
 #macro	LED_COMERR_ON, 2
 			\1		 				;start atomic code section
 			;Check for running error signals 
@@ -218,9 +225,12 @@ LED_CODE_START_LIN	EQU	@
 
 ;#Timer triggered ISR
 LED_ISR			EQU	*
+			;Clear interrupt flag
+			TIM_CLRIF	LED_OC	
+			;Increment counter
 			LDD	LED_STATE 				;increment delay counter
 			ADDD	#$0008
-			BCC	LED_ISR_5 				;no overflow
+			BCC	LED_ISR_4 				;no overflow
 			;End of delay (state in D)
 			ANDB	#~LED_STATE_ERRBEEP 			;clear error beep flag
 			BITB	#LED_STATE_COMERR 			;check if com error is active
@@ -242,7 +252,7 @@ LED_ISR_2		TIM_DIS	LED_OC 					;disable timer
 LED_ISR_3		BSET	LED_PORT, #LED_ERR			;turn LED off
 LED_ISR_4		STD	LED_STATE				;update state
 			;Done
-LED_ISR_5		ISTACK_RTI
+			ISTACK_RTI
 	
 LED_CODE_END		EQU	*	
 LED_CODE_END_LIN	EQU	@	

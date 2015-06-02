@@ -437,7 +437,8 @@ DISP_ISR_8		INCB							;skip ESC character
 			IBEQ	A, DISP_ISR_11 					;$FE: switch to command mode
 			IBEQ	A, DISP_ISR_12					;$FD: switch to data mode
 			;Set TX counter (TX count+3 in A, new OUT in B)
-			SUBA	#4 						;adjust repeat count
+			;SUBA	#4 						;adjust repeat count
+			SUBA	#3 						;adjust repeat count
 			BRCLR	DISP_STAT, #DISP_STAT_BUSY, DISP_ISR_9		;transmission in progress
 			ORAA	#DISP_STAT_BUSY
 DISP_ISR_9		STAA	DISP_STAT 					;set TX count
@@ -499,37 +500,37 @@ DISP_SEQ_DATA_START	DB	DISP_ESC_START
 DISP_SEQ_DATA_END	EQU	*
 
 ;;#Clear screen
-;DISP_SEQ_CLEAR_START	DB  $B0 $10 $04                     	;set page 0
+;DISP_SEQ_CLEAR_START	DB  $B0 $10 $00                     	;set page 0
 ;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START $7F $00          	;repeat 128 times
 ;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-;			DB  $B1 $10 $04                     	;set page 1
+;			DB  $B1 $10 $00                     	;set page 1
 ;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START $7F $00          	;repeat 128 times
 ;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-;			DB  $B2 $10 $04                     	;set page 2
+;			DB  $B2 $10 $00                     	;set page 2
 ;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START $7F $00          	;repeat 128 times
 ;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-;			DB  $B3 $10 $04                     	;set page 3
+;			DB  $B3 $10 $00                     	;set page 3
 ;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START $7F $00          	;repeat 128 times
 ;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-;			DB  $B4 $10 $04                     	;set page 4
+;			DB  $B4 $10 $00                     	;set page 4
 ;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START $7F $00          	;repeat 128 times
 ;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-;			DB  $B5 $10 $04                     	;set page 5
+;			DB  $B5 $10 $00                     	;set page 5
 ;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START $7F $00          	;repeat 128 times
 ;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-;			DB  $B6 $10 $04                     	;set page 6
+;			DB  $B6 $10 $00                     	;set page 6
 ;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START $7F $00          	;repeat 128 times
 ;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
-;			DB  $B7 $10 $04                     	;set page 7
+;			DB  $B7 $10 $00                     	;set page 7
 ;			DB  DISP_ESC_START DISP_ESC_DATA    	;switch to data input
-;			DB  DISP_ESC_START $80 $00          	;repeat 128 times
+;			DB  DISP_ESC_START $7F $00          	;repeat 128 times
 ;			DB  DISP_ESC_START DISP_ESC_CMD    	;switch to command input
 ;DISP_SEQ_CLEAR_END	EQU	*
 	

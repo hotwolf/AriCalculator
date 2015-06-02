@@ -1,5 +1,5 @@
-#ifndef	DISP_ERROR
-#define	DISP_ERROR
+#ifndef	DISP_SPLASH
+#define	DISP_SPLASH
 ;###############################################################################
 ;# AriCalculator - Image: Error.data (single frame)                            #
 ;###############################################################################
@@ -22,10 +22,10 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#    This file contains the two macros:                                       #
-;#       DISP_ERROR_TAB:                                                       #
+;#       DISP_SPLASH_TAB:                                                      #
 ;#           This macro allocates a table of raw image data.                   #
 ;#                                                                             #
-;#       DISP_ERROR_STREAM:                                                    #
+;#       DISP_SPLASH_STREAM:                                                   #
 ;#           This macro allocates a compressed stream of image data and        #
 ;#           control commands, which can be directly driven to the display     #
 ;#           driver.                                                           #
@@ -33,7 +33,7 @@
 ;# Generated on Tue, Jun 02 2015                                               #
 ;###############################################################################
 
-#macro DISP_ERROR_TAB, 0
+#macro DISP_SPLASH_TAB, 0
 
 ;#Frame 0:
 ;#----------------------------------------------------------------------
@@ -177,12 +177,12 @@
 #emac
 ;Size = 1024 bytes
 
-#macro DISP_ERROR_STREAM, 0
+#macro DISP_SPLASH_STREAM, 0
 
 ;#Frame 0:
 ;#----------------------------------------------------------------------
 ;#Page 0:
-		DB  $B0 $10 $00                     ;set page and column address
+		DB  $B0 $10 $04                     ;set page and column address
 		DB  DISP_ESC_START DISP_ESC_DATA    ;switch to data input
 		DB  $00 $80 $C0 $C0 $E0 $E0 $F0 $F0
 		DB  $F8 $F8 $FC $FC $FC $F8
@@ -197,7 +197,7 @@
 		DB  DISP_ESC_START $2C $00          ;repeat 45 times
 		DB  DISP_ESC_START DISP_ESC_CMD     ;switch to command input
 ;#Page 1:
-		DB  $B1 $10 $00                     ;set page and column address
+		DB  $B1 $10 $04                     ;set page and column address
 		DB  DISP_ESC_START DISP_ESC_DATA    ;switch to data input
 		DB  $00 $00
 		DB  DISP_ESC_START $0A $FF          ;repeat 11 times
@@ -220,7 +220,7 @@
 		DB  DISP_ESC_START $0D $00          ;repeat 14 times
 		DB  DISP_ESC_START DISP_ESC_CMD     ;switch to command input
 ;#Page 2:
-		DB  $B2 $10 $00                     ;set page and column address
+		DB  $B2 $10 $04                     ;set page and column address
 		DB  DISP_ESC_START DISP_ESC_DATA    ;switch to data input
 		DB  $00 $00 $07
 		DB  DISP_ESC_START $08 $FF          ;repeat 9 times
@@ -248,7 +248,7 @@
 		DB  DISP_ESC_START $11 $00          ;repeat 18 times
 		DB  DISP_ESC_START DISP_ESC_CMD     ;switch to command input
 ;#Page 3:
-		DB  $B3 $10 $00                     ;set page and column address
+		DB  $B3 $10 $04                     ;set page and column address
 		DB  DISP_ESC_START DISP_ESC_DATA    ;switch to data input
 		DB  $00 $00 $00 $3F
 		DB  DISP_ESC_START $06 $FF          ;repeat 7 times
@@ -256,21 +256,21 @@
 		DB  DISP_ESC_START $73 $00          ;repeat 116 times
 		DB  DISP_ESC_START DISP_ESC_CMD     ;switch to command input
 ;#Page 4:
-		DB  $B4 $10 $00                     ;set page and column address
+		DB  $B4 $10 $04                     ;set page and column address
 		DB  DISP_ESC_START DISP_ESC_DATA    ;switch to data input
 		DB  DISP_ESC_START $03 $00          ;repeat 4 times
 		DB  DISP_ESC_START $06 $FF          ;repeat 7 times
 		DB  DISP_ESC_START $74 $00          ;repeat 117 times
 		DB  DISP_ESC_START DISP_ESC_CMD     ;switch to command input
 ;#Page 5:
-		DB  $B5 $10 $00                     ;set page and column address
+		DB  $B5 $10 $04                     ;set page and column address
 		DB  DISP_ESC_START DISP_ESC_DATA    ;switch to data input
 		DB  DISP_ESC_START $03 $00          ;repeat 4 times
 		DB  $01 $1F $1F $1F $0F $0F $03
 		DB  DISP_ESC_START $74 $00          ;repeat 117 times
 		DB  DISP_ESC_START DISP_ESC_CMD     ;switch to command input
 ;#Page 6:
-		DB  $B6 $10 $00                     ;set page and column address
+		DB  $B6 $10 $04                     ;set page and column address
 		DB  DISP_ESC_START DISP_ESC_DATA    ;switch to data input
 		DB  $00 $E0 $F0 $F8 $FC $FC
 		DB  DISP_ESC_START $04 $FE          ;repeat 5 times
@@ -278,7 +278,7 @@
 		DB  DISP_ESC_START $70 $00          ;repeat 113 times
 		DB  DISP_ESC_START DISP_ESC_CMD     ;switch to command input
 ;#Page 7:
-		DB  $B7 $10 $00                     ;set page and column address
+		DB  $B7 $10 $04                     ;set page and column address
 		DB  DISP_ESC_START DISP_ESC_DATA    ;switch to data input
 		DB  $00 $03 $07 $0F
 		DB  DISP_ESC_START $05 $1F          ;repeat 6 times

@@ -274,18 +274,25 @@ foreach $color (0..$color_depth-1) {
     printf $out_handle ";#----------------------------------------------------------------------\n";
 
     foreach $page (0..7) {
+	#printf STDERR ";#Page %d:\n", $page;
 	printf $out_handle ";#Page %d:\n", $page;
-	printf $out_handle "\t\tDB  \$B%.1X \$10 \$04                     ;set page and column address\n", ($page & 0xF);
+	printf $out_handle "\t\tDB  \$B%.1X \$10 \$00                     ;set page and column address\n", ($page & 0xF);
+	#printf $out_handle "\t\tDB  \$B%.1X \$10 \$04                    ;set page and column address\n", ($page & 0xF);
 	printf $out_handle "\t\tDB  DISP_ESC_START DISP_ESC_DATA    ;switch to data input";
 	$stream_count += 5;
 	$column_group = 8;
 	$repeat_count = 1;
 	$current_data = shift @out_buffer;	
-	foreach $column (0..126) {
-	    $next_data = shift @out_buffer;
-	    if ($current_data == $next_data) {
+	foreach $column (0..127) {
+	    if ($column       <  127) {
+		$next_data = shift @out_buffer; #don't fetch from next page
+	    }
+	    if (($column       <  127)      &&
+		($current_data == $next_data)) {
 		$repeat_count++;
+		#printf STDERR "## data: %X repeat%d \n", $current_data, $repeat_count; 
 	    } else {
+		#printf STDERR "### data: %X repeat%d \n", $current_data, $repeat_count; 
 		if ( ($repeat_count >  3) ||
                     (($repeat_count >= 2) && ($current_data == $escape_char))) {
 		    printf $out_handle "\n\t\tDB  DISP_ESC_START \$%.2X \$%.2X          ;repeat %d times", ($repeat_count-1), 
@@ -313,15 +320,6 @@ foreach $color (0..$color_depth-1) {
 		$current_data = $next_data;
 	    }
 	}	
-	foreach my $double_count (1..$repeat_count) {
-		if (++$column_group >= 8) {
-		    $column_group = 0;
-		    printf $out_handle "\n\t\tDB ";
-		}
-		printf $out_handle " \$%.2X", $current_data;
-		;$stream_count += 1;
-		;$repeat_count =  1;
-	}		
 	printf $out_handle "\n\t\tDB  DISP_ESC_START DISP_ESC_CMD     ;switch to command input\n";
 	$stream_count += 3;
     }

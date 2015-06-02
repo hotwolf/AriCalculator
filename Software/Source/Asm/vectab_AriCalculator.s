@@ -152,7 +152,7 @@ ISR_TIM_PAIE		BGND				;vector base + $DA
 ISR_TIM_PAOV		BGND				;vector base + $DC
 ISR_TIM_TOV		BGND				;vector base + $DE
 ISR_TIM_TC7		BGND				;vector base + $E0
-ISR_TIM_TC6		BGND				;vector base + $E2
+ISR_TIM_TC6		EQU	LED_ISR			;vector base + $E2
 ISR_TIM_TC5		BGND				;vector base + $E4
 ISR_TIM_TC4		EQU	KEYS_ISR_TIM		;vector base + $E6
 ISR_TIM_TC3		EQU	SCI_ISR_DELAY		;vector base + $E8
@@ -214,9 +214,9 @@ ISR_TIM_PAIE		EQU	VECTAB_ISR_ILLIRQ	;vector base + $DA
 ISR_TIM_PAOV		EQU	VECTAB_ISR_ILLIRQ	;vector base + $DC
 ISR_TIM_TOV		EQU	VECTAB_ISR_ILLIRQ	;vector base + $DE
 ISR_TIM_TC7		EQU	VECTAB_ISR_ILLIRQ	;vector base + $E0
-ISR_TIM_TC6		EQU	VECTAB_ISR_ILLIRQ	;vector base + $E2
-ISR_TIM_TC5		EQU	KEYS_ISR_TIM		;vector base + $E4
-ISR_TIM_TC4		EQU	VECTAB_ISR_ILLIRQ	;vector base + $E6
+ISR_TIM_TC6		EQU	LED_ISR			;vector base + $E2
+ISR_TIM_TC5		EQU	VECTAB_ISR_ILLIRQ	;vector base + $E4
+ISR_TIM_TC4		EQU	KEYS_ISR_TIM		;vector base + $E6
 ISR_TIM_TC3		EQU	SCI_ISR_DELAY		;vector base + $E8
 ISR_TIM_TC2		EQU	VECTAB_ISR_ILLIRQ	;vector base + $EA
 ISR_TIM_TC1		EQU	SCI_ISR_BD_NE		;vector base + $EC

@@ -131,17 +131,19 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;VBAT -> busy LED
 #macro	VMON_VBAT_LVACTION, 0
-			LED_BUSY_OFF
+			LED_ERR_ON
 #emac
 #macro	VMON_VBAT_HVACTION, 0
-			LED_BUSY_ON
+			LED_ERR_OFF LED_NOP, LED_NOP
 #emac
 
 ;VUSB -> error LED
 #macro	VMON_VUSB_LVACTION, 0
+			LED_BUSY_OFF
 			SCI_DISABLE
 #emac
 #macro	VMON_VUSB_HVACTION, 0
+			LED_BUSY_ON
 			SCI_ENABLE
 #emac
 
@@ -163,11 +165,18 @@ DEMO_KEY_STROKE_LOOP	EQU	*
 			;Wait for key stroke
 			KEYS_GET_BL 		;key code -> A
 			STAA	DEMO_KEY_CODE
+			
+			;Optical beep
+			LED_ERRBEEP	SEI, CLI 		;blink error LED once
 
-			;Print key code (key code in A)
+			JOB	DEMO_KEY_STROKE_LOOP				
+
+	
+			;Print key code
 			LDX	#DEMO_PRINT_HEADER 		;print header
 			STRING_PRINT_BL
 			LDY	#$0000 				;reverse digits
+			LDAA	DEMO_KEY_CODE
 			TFR	A, X
 			LDAB	#16 				;set base
 			NUM_REVERSE
@@ -176,7 +185,7 @@ DEMO_KEY_STROKE_LOOP	EQU	*
 	
 			;Display keystroke
 			;Clear page 7
-			LDAB #7					;switch to page 1
+			LDAB #7					;switch to page 7
 			DEMO_SWITCH_PAGE_BL
 			DEMO_CLEAR_COLUMNS_IMM_BL 128 		;clear entire page
 
