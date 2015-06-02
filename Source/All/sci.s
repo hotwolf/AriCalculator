@@ -630,6 +630,10 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 #endif	
 			;Stop timer channels
 			TIM_MULT_DIS	(SCI_BD_TCS|SCI_DLY_TCS)
+#ifmac	SCI_ERRSIG_STOP
+			;Stop error signaling
+			SCI_ERRSIG_STOP
+#endif	
 #emac
 
 ;#Check if disabled
