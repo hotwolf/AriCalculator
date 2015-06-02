@@ -469,7 +469,7 @@ PTK4            EQU     $10
 PTK3            EQU     $08
 PTK2            EQU     $04
 PTK1            EQU     $02
-PK0             EQU     $01
+PTK0            EQU     $01
 PK7             EQU     $80
 PK6             EQU     $40
 PK5             EQU     $20
