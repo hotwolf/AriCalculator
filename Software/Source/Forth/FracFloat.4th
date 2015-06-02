@@ -46,14 +46,13 @@
 \ #   8 |  |     exponent    | +1 CELLS   FF-EXP                                #
 \ #   W |  +-----------------+                                                  #
 \ #   O |  |                 | +2 CELLS   FF-NOM-H                              #
-\ #   R |  |    Nominator    | +3 CELLS   FF-NOM-M                              #
+\ #   R |  |    Numerator    | +3 CELLS   FF-NOM-M                              #
 \ #   D |  |                 | +4 CELLS   FF-NOM-L                              #
 \ #   S |  +-----------------+                                                  #
 \ #     |  |                 | +5 CELLS   FF-DNOM-H                             #
 \ #     |  |   Denominator   | +6 CELLS   FF-DNOM-M                             #
 \ #     |  |                 | +7 CELLS   FF-DNOM-L                             #
 \ #     v  +-----------------+                                                  #
-\ #                                                                             #
 \ #                                                                             #
 \ ###############################################################################
 \ # Configuration                                                               #
@@ -62,6 +61,13 @@
 \ ###############################################################################
 \ # Constants                                                                   #
 \ ###############################################################################
+
+\ FFINFO-SIGN
+\ # Sign field.
+\ # args:   --
+\ # result: info: negative info field
+\ # throws: stack overflow (-3)
+$0003 CONSTANT FFINFO-SIGN
 
 \ FFINFO-POSITIVE
 \ # Positive sign field.
@@ -77,7 +83,7 @@ $0001 CONSTANT FFINFO-POSITIVE
 \ # throws: stack overflow (-3)
 $0003 CONSTANT FFINFO-NEGATIVE
 
-\ FFINFO-PI
+\ FFINFO-TIMESPI
 \ # Number is multiple of Pi.
 \ # args:   --
 \ # result: info: pi info field
@@ -93,9 +99,9 @@ $0008 CONSTANT FFINFO-APPROX
 
 \ FFPI
 \ # Push an approximation of pi onto the stack.
-\ # 428224593349304/136308121570117 = 3.14159265358979323846264338327569743446
-\ # Error: 0.00000000000000000000000000000380544973 (exact by 29 decimal digits)
-\ # Nominator (hex):   18577CEC54AB *16+1
+\ # 428224593349304/136308121570117 = 3.141592653589793238462643383275697434469
+\ # Error: 0000000000000000000000000000038054497281693993751 (exact by 29 decimal digits)
+\ # Numerator (hex):   18577CEC54AB *16+1
 \ # Denominator (hex): 3DFC5A9545A2 *2+1
 \ # args:   --
 \ # result: ff: approximation of pi
@@ -104,13 +110,24 @@ $0008 CONSTANT FFINFO-APPROX
 $45A2                                   \ denominator (least significant cell) 
 $5A95                                   \ denominator 
 $3DFC                                   \ denominator (most significant cell) 
-$54AB                                   \ nominator (least significant cell) 
-$7CEC                                   \ nominator
-$1857                                   \ nominator (most significant cell) 
+$54AB                                   \ numerator (least significant cell) 
+$7CEC                                   \ numerator
+$1857                                   \ numerator (most significant cell) 
 3                                       \ exponent (2^3)
 [ FFINFO-POSITIVE                       \ positive number 
   FFINFO-APPROX   OR ]                  \ approximation
 LITERAL ;
+
+
+\ 2646693125139304345 =
+\ 10 0100 1011 1010 1111 0001 0101 1111 1110 0001 0110 0101 1000 1111 1001 1001
+\ 2  4    B    A    F    1    5    F    E    1    6    5    8    F    9    9
+\ 842468587426513207 =
+\    1011 1011 0001 0000 1100 1011 0111 0111 0111 1111 1011 1000 0001 0011 0111
+\    B    B    1    0    C    B    7    7    7    F    B    8    1    3    7
+\ = 3.14159265358979323846264338327950288418 ( 0.00000000000000000000000000000000000001) [37]
+
+
 
 \ ###############################################################################
 \ # Variables                                                                   #
@@ -318,7 +335,7 @@ $10 NCROT ;
 \ # Quad-Cell Operations ########################################################
 
 \ FFPICKQ
-\ Extract a quad-cell value from a nominator or denominator field
+\ Extract a quad-cell value from a numerator or denominator field
 \ # args:   u:  cell offset
 \ #         ...
 \ #         ff: number
@@ -327,8 +344,8 @@ $10 NCROT ;
 \ #         ff: number
 \ # throws: stack overflow (-3)
 \           stack underflow (-4)
-: FFPICKQ ( ff ... u -- ff ... q )      \ public
-3 MPICK                                 \ pick nominator/denominator field
+: FFPICKQ ( ff ... u -- ff ... q ) \ PUBLIC
+3 MPICK                                 \ pick numerator/denominator field
 0 4 NC2*1+ DROP ;                       \ shift value
 
 \ FFPLACEQ
@@ -345,7 +362,43 @@ $10 NCROT ;
 4 UNROLL                                \ move u out of the way
 4 NC2/ 2DROP                            \ shift value
 3 ROLL                                  \ retrieve u                               
-3 MPLACE ;                              \ place nominator/denominator field
+3 MPLACE ;                              \ place numerator/denominator field
 
 \ # Arithetic Operations ########################################################
+
+\ FFVAL*
+\ # Multiply two frac float values without considering the info field.
+\ # args:   ff2: factor
+\ #         ff1: factor
+\ # result: ff3: product
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: FFVAL* ( ff1 ff2 -- ff3 )
+
+
+
+
+\ FFNEGATE
+\ # Negate a frac float number.
+\ # args:   ff1: number
+\ # result: ff2: negated number
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+: FFNEGATE ( ff1 -- ff2 ) \ PUBLIC
+DUP NEGATE FFINFO-SIGN AND               \ calculate new sign bits
+SWAP FFINFO-SIGN INVERT AND OR ;         \ inser new sign bits     
+
+\ FF1/
+\ # Calculate an inverse frac float number.
+\ # args:   ff1: number
+\ # result: ff2: inverted number (ff2 = 1/ff1)
+\ # throws: stack overflow (-3)
+\ #         stack underflow (-4)
+\ #         return stack overflow (-5)
+: FF1/ ( ff1 -- ff2 ) \ PUBLIC
+>R >R                                    \ save expinent and info fields
+3 NCSWAP                                 \ swap numerator and denominator
+R> NEGATE                                \ negate exponent
+R> ;                                     \ restore info field
 

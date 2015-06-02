@@ -994,7 +994,7 @@ NIP 2* DUP SREMOVE ;                    \ clean up
 \ # Perform unsigned division.
 \ # args:   size:   size of each struc (in cells)
 \ #         u1:     denominator
-\ #         struc1: nominator
+\ #         struc1: numerator
 \ # result: u2:     remainder
 \ #         struc2: quotient
 \ # throws: stack overflow (-3)
@@ -1013,7 +1013,7 @@ NIP ;                                   \ clean up
 \ # Perform an unsigned division with remainder.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: denominator
-\ #         struc1: nominator
+\ #         struc1: numerator
 \ # result: struc4: remainder
 \ #         struc3: quotient
 \ # throws: stack overflow (-3)
@@ -1023,28 +1023,28 @@ NIP ;                                   \ clean up
 : NCU/MOD ( struc1 struc2 size -- struc3 struc4 ) \ PUBLIC
 >R                                      \ save size
 R@ 2* R@ M0INS                          \ allocate space for the quotient
-R@ NCSWAP R@ NCCL0 R> 2>R               \ count leading zeros of the nominator
+R@ NCSWAP R@ NCCL0 R> 2>R               \ count leading zeros of the numerator
 R@ NCSWAP R@ NCCL0                      \ count leading zeros of the denominator
 DUP 0< IF                               \ check for devision by zero
     -10 THROW                           \ throw exception
 THEN                                    \ denominator>0
 2R> >R - 0 MAX                          \ calculate alignment
 R> 2DUP 2>R NCLSHIFT                    \ align denominator
-R@ NCU< 0= IF                           \ check if nominator>=aligned denom.
+R@ NCU< 0= IF                           \ check if numerator>=aligned denom.
     1 R@ 3 * 1- PLACE                   \ set result to 1     
-    R@ NC2DUP R@ NC-                    \ nominator-=aligned denominator 
-    1 R@ NCPLACE                        \ update nominator
+    R@ NC2DUP R@ NC-                    \ numerator-=aligned denominator 
+    1 R@ NCPLACE                        \ update numerator
 THEN                                    \ check done
 R> R> 0 ?DO                             \ iterate over shifts
     DUP >R NCU2/                        \ shift denominator
-    R@ NCU< IF                          \ check if nominator<shifted denom.
+    R@ NCU< IF                          \ check if numerator<shifted denom.
         2 R@ NCPICK R@ NC2*             \ pick and shift result
         2 R@ NCPLACE                    \ update result
-    ELSE                                \ nominator>=shifted denom.
+    ELSE                                \ numerator>=shifted denom.
         2 R@ NCPICK R@ NC2*1+           \ pick and shift and increment result
         2 R@ NCPLACE                    \ update result
-        R@ NC2DUP R@ NC-                \ nominator-=shifted denominator 
-        1 R@ NCPLACE                    \ update nominator
+        R@ NC2DUP R@ NC-                \ numerator-=shifted denominator 
+        1 R@ NCPLACE                    \ update numerator
     THEN                                \ check done
     R>                                  \ clean up return stack
 LOOP                                    \ next iteration
@@ -1054,7 +1054,7 @@ NCDROP ;                                \ remove denominator
 \ # Perform an unsigned division.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: denominator
-\ #         struc1: nominator
+\ #         struc1: numerator
 \ # result: struc3: quotient
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
@@ -1067,7 +1067,7 @@ DUP >R NCU/MOD R> NCDROP ;
 \ # Perform an unsigned modulus calculation.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: denominator
-\ #         struc1: nominator
+\ #         struc1: numerator
 \ # result: struc3: remainder
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
@@ -1151,9 +1151,9 @@ R> NCDROP ;                             \ clean up
 \ # data are equal to zero.
 \ # args:   size:   size of each struc (in cells)
 \ #         struc2: denominator
-\ #         struc1: nominator
+\ #         struc1: numerator
 \ # result: struc4: new denominator
-\ #         struc3: new nominator
+\ #         struc3: new numerator
 \ # throws: stack overflow (-3)
 \ #         stack underflow (-4)
 \ #         return stack overflow (-5)
@@ -1161,7 +1161,7 @@ R> NCDROP ;                             \ clean up
 >R                                      \ save size
 R@ NC2DUP R@ NCUGCD                     \ calculate GCD 
 R@ NCTUCK R@ NCU/                       \ calculate new denominator
-R@ NCUNROT R@ NCU/                      \ calculate new nominator
+R@ NCUNROT R@ NCU/                      \ calculate new numerator
 R> NCSWAP ;                             \ put result in order
 
 \ NCUROUND

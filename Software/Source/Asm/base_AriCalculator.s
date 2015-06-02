@@ -34,7 +34,7 @@
 ;#      OC3:     SCI (timeout)                                                 #
 ;#      OC4:     KEYS (debounce delay)                                         #
 ;#      OC5:     LCD backlight PWM                                             #
-;#      OC6:     unasigned                                                     #
+;#      OC6:     LED (error signal)                                            #
 ;#      OC7:     unasigned                                                     #
 ;###############################################################################
 
@@ -197,6 +197,21 @@ BASE_SCI_ERROR		BASE_SCI_ERROR
 BASE_SCI_DONE		EQU	*
 #emac
 
+;#Enable SCI error signaling
+;--------------------------- 
+#ifnmac SCI_ERRSIG_START
+#macro	SCI_ERRSIG_START, 0
+	;Signal error over LED
+	LED_COMERR_ON	LED_NOP, LED_NOP
+#emac
+#endif	
+#ifnmac SCI_ERRSIG_END
+#macro	SCI_ERRSIG_END, 0
+	;Stop signaling over LED
+	LED_COMERR_OFF
+#emac
+#endif	
+	
 ;#Enable SCI whenever USB is connected, disable otherwise
 ;-------------------------------------------------------- 
 #ifnmac VMON_VUSB_LVACTION
@@ -441,7 +456,7 @@ BASE_TABS_END_LIN	EQU	@
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clock.s		;CPMU setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/cop.s		;COP handler
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/tim.s		;TIM driver
-#include ../../../../S12CBase/Source/All/sci.s						;!!!!!!!!!!!!!!!latest SCI setup
+;#include ../../../../S12CBase/Source/All/sci.s						;!!!!!!!!!!!!!!!latest SCI setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s		;SCI driver
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/string.s	;String printing routines
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/num.s	   	;Number printing routines

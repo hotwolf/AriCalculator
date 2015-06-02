@@ -140,11 +140,9 @@ DEMO_VARS_END_LIN	EQU	@
 ;VUSB -> error LED
 #macro	VMON_VUSB_LVACTION, 0
 			SCI_DISABLE
-			LED_COMERR_OFF
 #emac
 #macro	VMON_VUSB_HVACTION, 0
 			SCI_ENABLE
-			LED_COMERR_ON
 #emac
 
 ;###############################################################################
