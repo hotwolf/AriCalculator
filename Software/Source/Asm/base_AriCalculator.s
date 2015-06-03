@@ -52,6 +52,9 @@ CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
 
 ;# ISTACK
 ISTACK_LEVELS		EQU	4 		;max. interrupt nesting levels
+
+;# TIM
+TIM_OCPD_CHECK_ON	EQU	1 		;enable OCPD checks
 	
 ;# SCI
 SCI_RXTX_ACTHI		EQU	1 		;RXD/TXD are inverted (active high)
@@ -455,11 +458,13 @@ BASE_TABS_END_LIN	EQU	@
 ;#include ../../../../S12CBase/Source/All/clock.s					;!!!!!!!!!!!!!!!latest CPMU setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clock.s		;CPMU setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/cop.s		;COP handler
+#include ../../../../S12CBase/Source/All/tim.s						;!!!!!!!!!!!!!!!latest TIM setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/tim.s		;TIM driver
 ;#include ../../../../S12CBase/Source/All/sci.s						;!!!!!!!!!!!!!!!latest SCI setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s		;SCI driver
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/string.s	;String printing routines
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/num.s	   	;Number printing routines
+#include ../../../../S12CBase/Source/All/reset.s					;!!!!!!!!!!!!!!!latest RESET setup
 #include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/reset.s		;Reset driver
 #include ./led_AriCalculator.s								;LED driver
 #include ./vmon_AriCalculator.s								;Voltage monitor

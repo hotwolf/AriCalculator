@@ -54,11 +54,15 @@ VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 ;# COP debug
 COP_DEBUG		EQU     1		;disable COP	
 
-; ISTACK debug
+;# ISTACK debug
 #ifdef DEMO_LRE
 ISTACK_DEBUG		EQU     1		;don't execute WAI
 #endif
 
+;# String
+STRING_ENABLE_FILL_NB	EQU	1		;enable STRING_FILL_NB 
+STRING_ENABLE_FILL_BL	EQU	1		;enable STRING_FILL_BL 
+	
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
@@ -168,21 +172,47 @@ DEMO_KEY_STROKE_LOOP	EQU	*
 			
 			;Optical beep
 			LED_ERRBEEP	SEI, CLI 		;blink error LED once
-
-			JOB	DEMO_KEY_STROKE_LOOP				
-
 	
 			;Print key code
-			LDX	#DEMO_PRINT_HEADER 		;print header
+			LDX	#DEMO_KEY_HEADER 		;print header
 			STRING_PRINT_BL
 			LDY	#$0000 				;reverse digits
 			LDAA	DEMO_KEY_CODE
 			TFR	A, X
 			LDAB	#16 				;set base
 			NUM_REVERSE
-			NUM_REVPRINT_BL
+			TAB					;right align
+			LDAB	#1
+			SBA
+			LDAB	#" "
+			STRING_FILL_BL
+			LDAB	#16 				;set base	
+			NUM_REVPRINT_BL				;print value
 			NUM_CLEAN_REVERSE
-	
+
+			;Adjust backlight 
+			LDX	#DEMO_BACKLIGHT_HEADER 		;print header
+			STRING_PRINT_BL
+			CLRA					;calculate PWM value
+			LDAB	DEMO_KEY_CODE
+			LDY	#$63F
+			EMUL
+			TBEQ	Y, DEMO_KEY_STROKE_LOOP_1 
+			LDD	$FFFF 				;starurate at $FFFF
+DEMO_KEY_STROKE_LOOP_1	;BACKLIGHT_SET				;adust backlight
+			LDY	#$0000 				;print backlight value
+			TFR	D, X
+			LDAB	#16 				;set base
+			NUM_REVERSE
+			TAB					;right align
+			LDAB	#4
+			SBA
+			LDAB	#" "
+			STRING_FILL_BL
+			LDAB	#16 				;set base	
+			NUM_REVPRINT_BL				;print value
+			NUM_CLEAN_REVERSE
+				
 			;Display keystroke
 			;Clear page 7
 			LDAB #7					;switch to page 7
@@ -190,18 +220,20 @@ DEMO_KEY_STROKE_LOOP	EQU	*
 			DEMO_CLEAR_COLUMNS_IMM_BL 128 		;clear entire page
 
 			;Initialize variables
-			CLR	DEMO_PAGE
+			MOVB	#$FF, DEMO_PAGE
 			MOVB	#$29, DEMO_CUR_KEY
 
 			;Switch to next page 
 DEMO_PAGE_LOOP		LDAB	DEMO_PAGE 			;increment page count
-    	                CMPB	#7				;check is key search is complete
+			INCB
+			CMPB	#7				;check is key search is complete
 			BHS	DEMO_KEY_STROKE_LOOP		;wait for next key stroke
-			;INCB
+			STAB	DEMO_PAGE
+			DEMO_SWITCH_PAGE_BL
 			CLR	DEMO_COL			;clear column counter
 
 			;Left margin
-			DEMO_CLEAR_COLUMNS_IMM_BL 31+4 		;draw left margin
+			DEMO_CLEAR_COLUMNS_IMM_BL 31 		;draw left margin
 	
 			;Draw next box
 DEMO_COL_LOOP		LDAA	DEMO_CUR_KEY
@@ -214,25 +246,32 @@ DEMO_COL_LOOP_2		INC	DEMO_COL
 			DEC	DEMO_CUR_KEY
 
 			;Draw space
-			LDAA	#5
-			CMPA	DEMO_PAGE
-			BHS	DEMO_COL_LOOP_5			;rows E-G
-			;Rows A-D (5 in A)
-			CMPA	DEMO_COL
-			BLO	DEMO_COL_LOOP_3 		;col 5
-			;Rows A-D, cols 0-4
-			DEMO_CLEAR_COLUMNS_IMM_BL 9 		;draw wide space
+			LDAA	DEMO_PAGE
+			CMPA	#1
+			BLS	DEMO_COL_LOOP_7 			;rows F-G
+			CMPA	#2
+			BEQ	DEMO_COL_LOOP_5 		;row E
+			;Rows A-D
+			LDAA	DEMO_COL
+			CMPA	#5
+			BHS	DEMO_COL_LOOP_3 		;last column
+			DEMO_CLEAR_COLUMNS_IMM_BL 8 		;draw wide space
 			JOB	DEMO_COL_LOOP
-			;Rows A-D, col 5
+			;Last column
 DEMO_COL_LOOP_3		DEC	DEMO_CUR_KEY 			;skip key
 DEMO_COL_LOOP_4		DEMO_CLEAR_COLUMNS_IMM_BL 31 		;draw left margin
 			JOB	DEMO_PAGE_LOOP
-			;Rows E-G (5 in A)
-DEMO_COL_LOOP_5		CMPA	DEMO_COL
-			BLO	DEMO_COL_LOOP_4 		;draw left margin			
-			;Rows E-G, cols 0-5
-			DEMO_CLEAR_COLUMNS_IMM_BL 6 		;draw narrow space
+			;Row E
+DEMO_COL_LOOP_5		LDAA	DEMO_COL
+			CMPA	#6
+			BHS	DEMO_COL_LOOP_3 		;last column
+DEMO_COL_LOOP_6		DEMO_CLEAR_COLUMNS_IMM_BL 5 		;draw narrow space
 			JOB	DEMO_COL_LOOP
+			;Rows F-G
+DEMO_COL_LOOP_7		LDAA	DEMO_COL
+			CMPA	#6
+			BHS	DEMO_COL_LOOP_4 		;last column
+			JOB	DEMO_COL_LOOP_6
 
 ;#Switch page (blocking)
 ; args:   B: target page
@@ -249,7 +288,7 @@ DEMO_SWITCH_PAGE_BL	EQU	*
 			DISP_TX_BL	 					;(SSTACK: 7 bytes)
 			;Switch to first column
 			DISP_TX_IMM_BL	$10 					;(SSTACK: 7 bytes)
-			DISP_TX_IMM_BL	$04	 				;(SSTACK: 7 bytes)		
+			DISP_TX_IMM_BL	$00	 				;(SSTACK: 7 bytes)		
 			;Switch to data input
 			DISP_DATA_INPUT_BL					;(SSTACK: 10 bytes)
 			;Restore registers
@@ -266,11 +305,12 @@ DEMO_SWITCH_PAGE_BL	EQU	*
 ; args:   A: number of columns (data input active)
 ; result: none (data input active)
 ; SSTACK: 9 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and A are preserved 
 DEMO_CLEAR_COLUMNS_BL	EQU	*
 			;Transmit sequence 
 			DISP_TX_IMM_BL	DISP_ESC_START 				;(SSTACK: 7 bytes)
 			TAB
+			DECB
 			DISP_TX_BL	 					;(SSTACK: 7 bytes)
 			DISP_TX_IMM_BL	$00	 				;(SSTACK: 7 bytes)		
 			;Done
@@ -324,8 +364,10 @@ DEMO_WHITE_BOX_END	EQU	*
 DEMO_BLACK_BOX_START	DB	DISP_ESC_START $06 $7E
 DEMO_BLACK_BOX_END	EQU	*
 	
-DEMO_PRINT_HEADER	STRING_NL_NONTERM
+DEMO_KEY_HEADER		STRING_NL_NONTERM
 			FCS	"Key code: "
+	
+DEMO_BACKLIGHT_HEADER	FCS	" -> Backlight: "
 	
 BASE_TABS_START		EQU	*
 BASE_TABS_START_LIN	EQU	@
