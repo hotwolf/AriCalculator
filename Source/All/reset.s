@@ -161,7 +161,7 @@ RESET_VARS_END_LIN	EQU	@
 			;Check if error message is valid (string in Y)
 			CLRA	  			;initialize C0
 			LDX	#((RESET_MSG_LENGTH-1)<<8);initialize char limit and C1
-			;Validate next character (striing pointer in Y, char limit:C1 in X, C0 in A)
+			;Validate next character (string pointer in Y, char limit:C1 in X, C0 in A)
 			LDAB	1,Y+ 			;next char -> B
 			BMI	RESET_INIT_2		;string termination found
 			;Validate next character (string pointer in Y, char limit:C1 in X, C0:char in D)
@@ -171,7 +171,7 @@ RESET_INIT_1		CMPB	#$20		;" "	;check if character is printable
 			BHI	RESET_INIT_3		;invalid message
 			;Update Fletcher's checksum (string in pointer Y, char limit:C1 in X, C0:char in D)
 			ABA				;new C0 -> A
-			TBA				;new C0 -> B
+			TAB				;new C0 -> B
 			TFR	X, A			;old C1 -> A
 			ABA				;new C1 -> A
 			EXG	A, B			;C0:C1  -> D	
@@ -195,7 +195,7 @@ RESET_INIT_2		;ANDB	#$7F 			;ignore termination
 			BHI	RESET_INIT_3		;invalid message			
 			;Update Fletcher's checksum (string in pointer Y, char limit:C1 in X, C0:char in D)
 			ABA				;new C0 -> A
-			TBA				;new C0 -> B
+			TAB				;new C0 -> B
 			TFR	X, A			;old C1 -> A
 			ABA				;new C1 -> A
 			;Check Fletcher's checksum (string in pointer Y, C1 in A, C0 in B)

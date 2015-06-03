@@ -58,6 +58,14 @@ TIM_DIV2_OFF		EQU	1 	;default no clock divider
 #endif
 #endif
 
+; OCPD checks (only disable timer if all OCPD bits are set)
+;-------------
+#ifndef	TIM_OCPD_CHECK_ON
+#ifndef	TIM_OCPD_CHECK_OFF
+TIM_OCPD_CHECK_OFF	EQU	1 		;disable OCPD checks
+#endif
+#endif
+	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
@@ -152,6 +160,10 @@ TIM_VARS_END_LIN	EQU	@
 			;PACTL
 			;PAFLG
 			;PACN0 ... PACN3
+
+#ifdef	TIM_OCPD_CHECK_ON
+			MOVW	#$FF, OCPD 			;disconnect all IO
+#endif	
 #emac
 
 ;#Enable multiple timer channels
@@ -179,7 +191,10 @@ TIM_VARS_END_LIN	EQU	@
 #macro	TIM_MULT_DIS, 1
 			BCLR	TIE, #\1
 			BNE	DONE
-			CLR	TSCR1
+#ifdef	TIM_OCPD_CHECK_ON
+			BRSET	OCPD, #$FF, DISABLE
+#endif			JOB	DONE
+DISABLE			CLR	TSCR1
 DONE			EQU	*
 #emac
 
