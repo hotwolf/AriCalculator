@@ -75,6 +75,7 @@ BACKLIGHT_VARS_END_LIN	EQU	@
 			;BCLR	TCTL1, #(1<<(2*(BACKLIGHT_OC-4)))
 			BSET	TCTL1, #(1<<(2*(BACKLIGHT_OC-4))+1)
 			;BCLR	TIE,   #(1<<BACKLIGHT_OC) 	;disable interrupts
+			;MOVW	#$0000, (TC0+(2*BACKLIGHT_OC))	;set brightness
 			;BSET	OCPD,  #(1<<BACKLIGHT_OC) 	;disable port output
 #emac
 	
