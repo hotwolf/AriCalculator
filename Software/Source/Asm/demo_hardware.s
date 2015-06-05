@@ -1,5 +1,5 @@
 ;###############################################################################
-;# AriCalculator - Demo                                                        #
+;# AriCalculator - Demo - Hardware                                             #
 ;###############################################################################
 ;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
