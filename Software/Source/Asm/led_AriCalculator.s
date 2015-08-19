@@ -21,7 +21,7 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module controls the LED on the OpenBDM Pod.                         #
+;#    This module controls the LED on the AriCalculator.                       #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    January 7, 2015                                                          #

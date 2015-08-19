@@ -71,30 +71,60 @@ ISTACK_DEBUG		EQU     1		;don't execute WAI
 ;Code
 DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
-			ORG	DEMO_CODE_END, 	DEMO_CODE_END_LIN
+			ORG	DEMO_CODE_END, DEMO_CODE_END_LIN
 
 ;Tables
 DEMO_TABS_START		EQU	*
 DEMO_TABS_START_LIN	EQU	@
-			ORG	DEMO_TABS_END, 	DEMO_TABS_END_LIN
+			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
+;Words
+			ALIGN	1
+DEMO_WORDS_START	EQU	*
+DEMO_WORDS_START_LIN	EQU	@
+			ORG	DEMO_WORDS_END, DEMO_WORDS_END_LIN
 #endif
 	
 ;Variables
 DEMO_VARS_START		EQU	*
 DEMO_VARS_START_LIN	EQU	@
-			ORG	DEMO_VARS_END, 	DEMO_VARS_END_LIN
+			ORG	DEMO_VARS_END, DEMO_VARS_END_LIN
 
+;Forth stacks, buffers and dictionary 
+;      	  UDICT_PS_START -> +--------------+--------------+	     
+;                           |       User Dictionary       |	     
+;                           |             PAD             |	     
+;                           |       Parameter stack       |		  
+;           UDICT_PS_END -> +--------------+--------------+        
+;           RS_TIB_START -> +--------------+--------------+        
+;                           |       Text Input Buffer     |
+;                           |        Return Stack         |
+;             RS_TIB_END -> +--------------+--------------+
+
+;Dictionary, PAD, and parameter stack 
+UDICT_PS_START		EQU	*			;start of shared DICT/PAD/PS space
+UDICT_PS_END		EQU	((MMAP_RAM_END-*)*2)/3	;end of shared DICT/PAD/PS space
+	
+;TIB and return stack
+RS_TIB_START		EQU	UDICT_PS_END		;start of shared TIB/RS space
+RS_TIB_END		EQU	MMAP_RAM_END		;end of shared TIB/RS space
+	
 #ifndef DEMO_LRE
 			ORG	$E000, $3E000
 ;Code
 DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
-			ORG	DEMO_CODE_END, 	DEMO_CODE_END_LIN
+			ORG	DEMO_CODE_END, DEMO_CODE_END_LIN
 
 ;Tables
 DEMO_TABS_START		EQU	*
 DEMO_TABS_START_LIN	EQU	@
-			ORG	DEMO_TABS_END, 	DEMO_TABS_END_LIN
+			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
+
+;Words
+			ALIGN	1
+DEMO_WORDS_START	EQU	*
+DEMO_WORDS_START_LIN	EQU	@
+			ORG	DEMO_WORDS_END, DEMO_WORDS_END_LIN
 
 			ALIGN 	7, $FF ;align to D-Bug12XZ programming granularity
 #endif
@@ -108,14 +138,13 @@ DEMO_TABS_START_LIN	EQU	@
 			ORG 	DEMO_VARS_START
 #endif	
 
-DEMO_KEY_CODE		DS	1 	;pushed key stroke
-DEMO_PAGE   		DS	1	;current display page
-DEMO_COL    		DS	1	;current key pad ccolumn
-DEMO_CUR_KEY 		DS	1	;current key code
-	
 BASE_VARS_START		EQU	*
 BASE_VARS_START_LIN	EQU	@
-			ORG	BASE_VARS_END, 	BASE_VARS_END_LIN
+			ORG	BASE_VARS_END, BASE_VARS_END_LIN
+
+FORTH_VARS_START	EQU	*
+FORTH_VARS_START_LIN	EQU	@
+			ORG	FORTH_VARS_END, FORTH_VARS_END_LIN
 
 DEMO_VARS_END		EQU	*
 DEMO_VARS_END_LIN	EQU	@
@@ -123,15 +152,23 @@ DEMO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;;Break handler
-;#macro	SCI_BREAK_ACTION, 0
-;			LED_BUSY_ON 
-;#emac
-;	
-;;Suspend handler
-;#macro	SCI_SUSPEND_ACTION, 0
-;			LED_BUSY_OFF
-;#emac
+;#Busy signal 
+#macro FORTH_SIGNAL_BUSY, 0
+			LED_BUSY_ON 
+#emac
+#macro FORTH_SIGNAL_IDLE, 0
+			LED_BUSY_OFF 
+#emac
+
+;Break handler
+#macro	SCI_BREAK_ACTION, 0
+			FORCE_SRESET
+#emac
+	
+;Suspend handler
+#macro	SCI_SUSPEND_ACTION, 0
+			FORCE_SUSPEND
+#emac
 
 ;VBAT -> busy LED
 #macro	VMON_VBAT_LVACTION, 0
@@ -143,11 +180,9 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;VUSB -> error LED
 #macro	VMON_VUSB_LVACTION, 0
-			LED_BUSY_OFF
 			SCI_DISABLE
 #emac
 #macro	VMON_VUSB_HVACTION, 0
-			LED_BUSY_ON
 			SCI_ENABLE
 #emac
 
@@ -164,187 +199,18 @@ DEMO_VARS_END_LIN	EQU	@
 START_OF_CODE		EQU	*		;Start of code
 			;Initialization
 			BASE_INIT
+			FORTH_INIT
 
-DEMO_KEY_STROKE_LOOP	EQU	*
-			;Wait for key stroke
-			KEYS_GET_BL 		;key code -> A
-			STAA	DEMO_KEY_CODE
-			
-			;Optical beep
-			LED_ERRBEEP	SEI, CLI 		;blink error LED once
-	
-			;Print key code
-			LDX	#DEMO_KEY_HEADER 		;print header
-			STRING_PRINT_BL
-			LDY	#$0000 				;reverse digits
-			LDAA	DEMO_KEY_CODE
-			TFR	A, X
-			LDAB	#16 				;set base
-			NUM_REVERSE
-			TAB					;right align
-			LDAB	#1
-			SBA
-			LDAB	#" "
-			STRING_FILL_BL
-			LDAB	#16 				;set base	
-			NUM_REVPRINT_BL				;print value
-			NUM_CLEAN_REVERSE
-
-			;Adjust backlight 
-			LDX	#DEMO_BACKLIGHT_HEADER 		;print header
-			STRING_PRINT_BL
-			CLRA					;calculate PWM value
-			LDAB	DEMO_KEY_CODE
-			LDY	#$63F
-			EMUL
-			TBEQ	Y, DEMO_KEY_STROKE_LOOP_1 
-			LDD	$FFFF 				;starurate at $FFFF
-DEMO_KEY_STROKE_LOOP_1	;BACKLIGHT_SET				;adust backlight
-			LDY	#$0000 				;print backlight value
-			TFR	D, X
-			LDAB	#16 				;set base
-			NUM_REVERSE
-			TAB					;right align
-			LDAB	#4
-			SBA
-			LDAB	#" "
-			STRING_FILL_BL
-			LDAB	#16 				;set base	
-			NUM_REVPRINT_BL				;print value
-			NUM_CLEAN_REVERSE
-				
-			;Display keystroke
-			;Clear page 7
-			LDAB #7					;switch to page 7
-			DEMO_SWITCH_PAGE_BL
-			DEMO_CLEAR_COLUMNS_IMM_BL 128 		;clear entire page
-
-			;Initialize variables
-			MOVB	#$FF, DEMO_PAGE
-			MOVB	#$29, DEMO_CUR_KEY
-
-			;Switch to next page 
-DEMO_PAGE_LOOP		LDAB	DEMO_PAGE 			;increment page count
-			INCB
-			CMPB	#7				;check is key search is complete
-			BHS	DEMO_KEY_STROKE_LOOP		;wait for next key stroke
-			STAB	DEMO_PAGE
-			DEMO_SWITCH_PAGE_BL
-			CLR	DEMO_COL			;clear column counter
-
-			;Left margin
-			DEMO_CLEAR_COLUMNS_IMM_BL 31 		;draw left margin
-	
-			;Draw next box
-DEMO_COL_LOOP		LDAA	DEMO_CUR_KEY
-			CMPA	DEMO_KEY_CODE
-			BEQ	DEMO_COL_LOOP_1 		;draw black box
-			JOBSR	DEMO_WHITE_BOX
-			JOB	DEMO_COL_LOOP_2
-DEMO_COL_LOOP_1 	JOBSR	DEMO_BLACK_BOX
-DEMO_COL_LOOP_2		INC	DEMO_COL
-			DEC	DEMO_CUR_KEY
-
-			;Draw space
-			LDAA	DEMO_PAGE
-			CMPA	#1
-			BLS	DEMO_COL_LOOP_7 			;rows F-G
-			CMPA	#2
-			BEQ	DEMO_COL_LOOP_5 		;row E
-			;Rows A-D
-			LDAA	DEMO_COL
-			CMPA	#5
-			BHS	DEMO_COL_LOOP_3 		;last column
-			DEMO_CLEAR_COLUMNS_IMM_BL 8 		;draw wide space
-			JOB	DEMO_COL_LOOP
-			;Last column
-DEMO_COL_LOOP_3		DEC	DEMO_CUR_KEY 			;skip key
-DEMO_COL_LOOP_4		DEMO_CLEAR_COLUMNS_IMM_BL 31 		;draw left margin
-			JOB	DEMO_PAGE_LOOP
-			;Row E
-DEMO_COL_LOOP_5		LDAA	DEMO_COL
-			CMPA	#6
-			BHS	DEMO_COL_LOOP_3 		;last column
-DEMO_COL_LOOP_6		DEMO_CLEAR_COLUMNS_IMM_BL 5 		;draw narrow space
-			JOB	DEMO_COL_LOOP
-			;Rows F-G
-DEMO_COL_LOOP_7		LDAA	DEMO_COL
-			CMPA	#6
-			BHS	DEMO_COL_LOOP_4 		;last column
-			JOB	DEMO_COL_LOOP_6
-
-;#Switch page (blocking)
-; args:   B: target page
-; result: none (data input active)
-; SSTACK: 13 bytes
-;         D is preserved 
-DEMO_SWITCH_PAGE_BL	EQU	*
-			;Save registers
-			PSHB							;push accu B onto the SSTACK			
-			;Switch to command input
-			DISP_CMD_INPUT_BL					;(SSTACK: 10 bytes)
-			;Set page address
-			ORAB	#$B0
-			DISP_TX_BL	 					;(SSTACK: 7 bytes)
-			;Switch to first column
-			DISP_TX_IMM_BL	$10 					;(SSTACK: 7 bytes)
-			DISP_TX_IMM_BL	$00	 				;(SSTACK: 7 bytes)		
-			;Switch to data input
-			DISP_DATA_INPUT_BL					;(SSTACK: 10 bytes)
-			;Restore registers
-			SSTACK_PREPULL	3
-			PULB							;pull accu B from the SSTACK
-			;Done
-			RTS
-;Switch page macro
-#macro	DEMO_SWITCH_PAGE_BL, 0
-			SSTACK_JOBSR	DEMO_SWITCH_PAGE_BL, 13
-#emac
-
-;#Clear columns (blocking)
-; args:   A: number of columns (data input active)
-; result: none (data input active)
-; SSTACK: 9 bytes
-;         X, Y, and A are preserved 
-DEMO_CLEAR_COLUMNS_BL	EQU	*
-			;Transmit sequence 
-			DISP_TX_IMM_BL	DISP_ESC_START 				;(SSTACK: 7 bytes)
-			TAB
-			DECB
-			DISP_TX_BL	 					;(SSTACK: 7 bytes)
-			DISP_TX_IMM_BL	$00	 				;(SSTACK: 7 bytes)		
-			;Done
-			SSTACK_PREPULL	2
-			RTS
-
-;Clear columns macros
-#macro	DEMO_CLEAR_COLUMNS_BL, 0
-			SSTACK_JOBSR	DEMO_CLEAR_COLUMNS_BL, 9
-#emac
-#macro	DEMO_CLEAR_COLUMNS_IMM_BL, 1
-			LDAA	#\1
-			SSTACK_JOBSR	DEMO_CLEAR_COLUMNS_BL, 9
-#emac
-
-;#Draw a white box
-; args:   none
-; result: none
-; SSTACK: 10 bytes
-;         D is preserved 
-DEMO_WHITE_BOX		DISP_STREAM_FROM_TO_BL	DEMO_WHITE_BOX_START, DEMO_WHITE_BOX_END
-			RTS
-
-;#Draw a black box
-; args:   none
-; result: none
-; SSTACK: 10 bytes
-;         D is preserved 
-DEMO_BLACK_BOX		DISP_STREAM_FROM_TO_BL	DEMO_BLACK_BOX_START, DEMO_BLACK_BOX_END
-			RTS
+			;Enter QUIT shell
+			JOB	CF_QUIT_RT
 	
 BASE_CODE_START		EQU	*
 BASE_CODE_START_LIN	EQU	@
-			ORG	BASE_CODE_END, 	BASE_CODE_END_LIN
+			ORG	BASE_CODE_END, BASE_CODE_END_LIN
+
+FORTH_CODE_START		EQU	*
+FORTH_CODE_START_LIN	EQU	@
+			ORG	FORTH_CODE_END, FORTH_CODE_END_LIN
 
 DEMO_CODE_END		EQU	*
 DEMO_CODE_END_LIN	EQU	@
@@ -357,34 +223,39 @@ DEMO_CODE_END_LIN	EQU	@
 #else
 			ORG 	DEMO_TABS_START
 #endif	
-
-DEMO_WHITE_BOX_START	DB	$7E DISP_ESC_START $04 $42 $7E
-DEMO_WHITE_BOX_END	EQU	*
-
-DEMO_BLACK_BOX_START	DB	DISP_ESC_START $06 $7E
-DEMO_BLACK_BOX_END	EQU	*
-	
-DEMO_KEY_HEADER		STRING_NL_NONTERM
-			FCS	"Key code: "
-	
-DEMO_BACKLIGHT_HEADER	FCS	" -> Backlight: "
 	
 BASE_TABS_START		EQU	*
 BASE_TABS_START_LIN	EQU	@
-			ORG	BASE_TABS_END, 	BASE_TABS_END_LIN
+			ORG	BASE_TABS_END, BASE_TABS_END_LIN
+
+FORTH_TABS_START		EQU	*
+FORTH_TABS_START_LIN	EQU	@
+			ORG	FORTH_TABS_END, FORTH_TABS_END_LIN
 
 DEMO_TABS_END		EQU	*
 DEMO_TABS_END_LIN	EQU	@
 
+;###############################################################################
+;# Forth words                                                                 #
+;###############################################################################
+#ifdef DEMO_WORDS_START_LIN
+			ORG 	DEMO_WORDS_START, DEMO_WORDS_START_LIN
+#else
+			ORG 	DEMO_WORDS_START
+#endif	
 
+FORTH_WORDS_START	EQU	*
+FORTH_WORDS_START_LIN	EQU	@
+			ORG	FORTH_WORDS_END, FORTH_WORDS_END_LIN
 
-
-
-
+DEMO_WORDS_END		EQU	*
+DEMO_WORDS_END_LIN	EQU	@
 	
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
+;#include ./base_AriCalculator.s	   				;S12CBase
+#include ../../../../S12CForth/Source/All/forth.s	        ;.........latest S12CForth
+;#include ../../../Subprojects/S12CForth/Source/All/forth.s	;S12CForth
 #include ./base_AriCalculator.s	   				;S12CBase
-#include ../../../Subprojects/S12CForth/Source/All/forth.s	;S12CForth
 
