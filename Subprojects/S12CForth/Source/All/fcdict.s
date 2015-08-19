@@ -188,6 +188,86 @@ FCDICT_COMP_STRING_5	SSTACK_PREPULL	6 				;restore stack
 FCDICT_CODE_START_LIN	EQU	@
 #endif
 
+
+
+
+
+
+
+
+;Search word in dictionary tree
+; args:   Y: dictionary tree pointer
+;         X: string pointer
+;         D: char count 
+; result: C-flag: set if word is in the dictionary	
+;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
+; SSTACK: 16  bytes
+;         X and Y are preserved 
+FOUTER_TREE_SEARCH	EQU	*
+			;Save registers (tree pointer in Y, string pointer in X, char count in D)
+			PSHY						;save Y
+			PSHX						;save X
+			PSHD						;save D	
+			;Compare substring (tree pointer in Y, string pointer in X, char count in D)
+FOUTER_TREE_SEARCH_1	FCDICT_COMP_STRING	FOUTER_TREE_SEARCH_5    ;compare substring (SSTACK: 8 bytes)
+			;Substing matches (tree pointer in Y, string pointer in X, char count in D)
+			BRCLR	0,Y, #$FF, FOUTER_TREE_SEARCH_4 	;branch detected
+			TBNE	D, FOUTER_TREE_SEARCH_7 		;dictionary word too short -> unsuccessful
+			;Search successful (tree pointer in Y, string pointer in X, char count in D)
+FOUTER_TREE_SEARCH_2	SSTACK_PREPULL	8 				;check stack
+			LDD	0,Y 					;get CFA
+			SEC						;flag unsuccessful search
+			PULX						;remove stack entry				
+FOUTER_TREE_SEARCH_3	PULX						;restore X				
+			PULY						;restore Y				
+			;Done
+			RTS		
+			;Branch detected (tree pointer in Y, string pointer in X, char count in D) 
+FOUTER_TREE_SEARCH_4	LDY	1,Y 					;switch to subtree
+			TST	0,Y 					;check for STRING_TERMINATION
+			BNE	FOUTER_TREE_SEARCH_1			;no end of dictionary word reached 
+			LEAY	1,Y 					;skip zero string
+			;Empty substring (tree pointer in Y, string pointer in X, char count in D)
+			TBEQ	D, FOUTER_TREE_SEARCH_2 		;match
+			LEAY	2,Y 					;switch to next sibling
+			JOB	FOUTER_TREE_SEARCH_1			;Parse sibling
+			;Try next sibling (tree pointer in Y, string pointer in X, char count in D)
+FOUTER_TREE_SEARCH_5	BRCLR	1,Y+, #$FF, FOUTER_TREE_SEARCH_6	;check for BRANCH
+			LEAY	1,Y					;skip over CFA
+			JOB	FOUTER_TREE_SEARCH_1			;compare next sibling	
+FOUTER_TREE_SEARCH_6	BRCLR	2,+Y, #$FF, FOUTER_TREE_SEARCH_7 	;END_OF_BRANCH -> unsuccessful
+			JOB	FOUTER_TREE_SEARCH_1			;compare next sibling	
+			;Search unsuccessful (tree pointer in Y, string pointer in X, char count in D)
+FOUTER_TREE_SEARCH_7	SSTACK_PREPULL	8 				;check stack
+			CLC						;flag successful search
+			PULD						;restore D				
+			JOB	FOUTER_TREE_SEARCH_3
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
 ;Find next path (word) in dictionary
 ; args:   Y: start of path
 ;         X: end of path

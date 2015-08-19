@@ -22,9 +22,9 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#    This module implements the inner interpreter of the S12CForth virtual    #
-;#    machine.                                                                 #x
+;#    machine.                                                                 #
 ;#                                                                             #
-;#    The inner interpreter uses these registers:                              #
+;#    The inner interpreter implements these registers:                        #
 ;#         W = Working register. 					       #
 ;#             The W register points to the CFA of the current word, but it    #
 ;#             may be overwritten.	   			               #
@@ -32,7 +32,17 @@
 ;#	       Index Register X is used to implement W.                        #
 ;#        IP = Instruction pointer.					       #
 ;#             Points to the next execution token.			       #
+;#        NP = NEXT (instruction advancer) poiner			       #
 ;#  									       #
+;#    Program termination options:                                             #
+;#        ABORT:   Termination program in case of an error                     #
+;#  		   Reset of the system				               #
+;#        QUIT:    Regular termitation of a program                            #
+;#                 Clean up of the system, exept for the program's output      #
+;#        SUSPEND: Suspension of the program flow for debug purposes           #
+;#                 Preservation of the system's state, exept for the           #
+;#       	   interactive shell                                           #
+;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    January 25, 2013                                                         #
@@ -41,9 +51,6 @@
 ;# Required Modules:                                                           #
 ;#    BASE   - S12CBase framework                                              #
 ;#    FRS    - Forth return stack                                              #
-;#    FIRQ   - Forth interrupt request handler                                 #
-;#    FDBG   - Forth debugger                                                  #
-;#                                                                             #
 ;###############################################################################
 
 ;###############################################################################
@@ -66,24 +73,6 @@
 ;	
 
 ;###############################################################################
-;# NEXT implementations                                                        #
-;###############################################################################
-; 
-;      +-----------------+
-;      |    NEXT_WATCH   |
-;      +-----------------+
-;              ^ |        
-;          IRQ | | no IRQ 
-;     received | | pending
-;          or  | |  and 
-;  breakpoints | | breakpoints 
-;      enabled | | disabled
-;              | v        
-;      +-----------------+
-;      |      NEXT       |
-;      +-----------------+
-;       
-;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
 ;Busy/idle signaling
@@ -103,18 +92,7 @@
 TRUE			EQU	$FFFF
 FALSE			EQU	$0000	
 
-;NEXT_WATCH usage
-#ifmac	FIRQ_BR_NO_IRQS
-#ifmac	FIRQ_CALL_NEXT_ISR
-FINNER_USE_NEXT_WATCH	EQU	1
-#endif
-#endif
-#ifmac	FDBG_BR_NO_BKPS
-#ifmac	FDBG_CHECK_BKP
-FINNER_USE_NEXT_WATCH	EQU	1
-#endif
-#endif
-	
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -126,8 +104,8 @@ FINNER_VARS_START_LIN	EQU	@
 #endif	
 			ALIGN	1	
 IP			DS	2 		;instruction pointer
-NEXT_PTR		DS	2		;pointer to the NEXT code 
-
+NP			DS	2		;pointer to the NEXT code 
+	
 FINNER_VARS_END		EQU	*
 FINNER_VARS_END_LIN	EQU	@
 
@@ -135,50 +113,32 @@ FINNER_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
+;===============
 #macro	FINNER_INIT, 0
 #ifmac FORTH_SIGNAL_BUSY
 			FORTH_SIGNAL_BUSY		;signal activity
 #endif
 			MOVW	#$0000, IP
-			MOVW	#NEXT,  NEXT_PTR
+			MOVW	#NEXT,  NP
 #emac
 
-;#Abort action (to be executed in addition of quit action)
+;#Abort action (to be executed in addition of QUIT action)
 #macro	FINNER_ABORT, 0
+			MOVW	#NEXT,  NP
 #emac
 	
-;#Quit action
+;#Quit action (to be executed in addition of SUSPEND action)
 #macro	FINNER_QUIT, 0
 			MOVW	#$0000, IP
-			MOVW	#NEXT, NEXT_PTR
 #emac
 	
 ;#Suspend action
 #macro	FINNER_SUSPEND, 0
 #emac
-
-#ifdef	FINNER_USE_NEXT_WATCH
-;Interrupt handling:
-;==================
-;#Request inner interpreter to check for pending interrupts and breakpoints
-; (after executing the current word) 
-; args:	  none
-; result: none
-; SSTACK: none
-;         No registers are preserved
-#macro	FINNER_WATCH, 0
-			SEI		 		;make atomic
-			LDX	NEXT_PTR		;check for default next
-			CPX	#NEXT
-			BNE	DONE 			;IRQs are already taken care of
-			MOVW	#NEXT_WATCH, NEXT_PTR	;check IRQs at word boundary
-DONE			CLI				;allow interrupts
-#emac
-#endif
-
+	
 ;Inner interpreter:
 ;==================
-;#NEXT:	jump to the next instruction
+;#NEXT:	Jump to the next instruction
 ; args:	  IP:   pointer to next instruction
 ; result: IP:   pointer to subsequent instruction
 ;         W/X:  new CFA
@@ -186,10 +146,10 @@ DONE			CLI				;allow interrupts
 ; SSTACK: none
 ;         No registers are preserved
 #macro	NEXT, 0	
-			JMP	[NEXT_PTR]		;run next instruction	=> 6 cycles	 4 bytes
+			JMP	[NP]			;run next instruction	=> 6 cycles	 4 bytes
 #emac
 
-;#SKIP_NEXT: skip next instruction and jump to one after
+;#SKIP_NEXT: Skip next instruction and jump to one after
 ; args:	  IP:   pointer to next instruction
 ; result: IP:   pointer to subsequent instruction
 ;         W/X:  new CFA
@@ -337,41 +297,9 @@ JUMP_NEXT		EQU	*
 							;                   NEXT: 15 cycles
 							;                         ---------
 							;                         30 cycles
-
 ;NEXT implementations:
 ;=====================
-;#NEXT_WATCH: jump to the next available ISR
-; args:	  IP:   pointer to next instruction
-; result: IP:   pointer to subsequent instruction
-;         W/X:  new CFA
-;         Y:    IP (=pointer to subsequent instruction)
-; PS:     none
-; RS:     1+ISR usage
-; throws: none
-NEXT_WATCH		EQU	*
-#ifdef	FINNER_USE_NEXT_WATCH
-			;Restore NEXT
-			MOVW	#NEXT, NEXT_PTR		;set default NEXT pointer
-#ifmac	FDBG_BR_NO_BKPS
-#ifmac	FDBG_CHECK_BKP
-			;Check for breakpoints 
-			FDBG_BR_NO_BKPS	 NEXT_WATCH_2	;no breakpoints to check
-			FDBG_CHECK_BKP			;suspend on breakpoint
-#endif
-#endif
-#ifmac	FIRQ_BR_NO_IRQS
-#ifmac	FIRQ_CALL_NEXT_ISR
-			;Check for pending IRQs 
-NEXT_WATCH_1		FIRQ_BR_NO_IRQS	 NEXT_WATCH_2	;no IRQ
-			FIRQ_CALL_NEXT_ISR
-			JOB	NEXT_WATCH_1
-#endif
-#endif
-			;No pending IRQs
-NEXT_WATCH_2		NEXT
-#endif
-	
-;#NEXT: jump to the next instruction
+	;#NEXT: jump to the next instruction
 ; args:	  IP:   pointer to next instruction
 ; result: IP:   pointer to subsequent instruction
 ;         W/X:  new CFA
@@ -388,7 +316,6 @@ NEXT			EQU	*
 							;                         15 cycles
 ;Code fields:
 ;============ 	
-
 ;CF_INNER ( -- ) Execute the first execution token after the CFA (CFA in X)
 ; args:   IP:  next execution token	
 ;         W/X: current CFA
@@ -416,32 +343,6 @@ CF_EOW_1		NEXT
 ; args:   none	
 ; result: none
 CF_NOP			EQU		CF_EOW_1
-
-#ifmac	FIRQ_BR_NO_IRQS
-#ifmac	FIRQ_CALL_NEXT_ISR
-;CF_WAIT ( -- ) Wait until the NEXT_PTR is modified
-; args:   none	
-; result: none
-			;Wait for any internal system event
-CF_WAIT_1		EQU	*
-#ifmac FORTH_SIGNAL_IDLE
-			FORTH_SIGNAL_IDLE		;signal inactivity
-#endif
-			ISTACK_WAIT			;wait for next interrupt
-#ifmac FORTH_SIGNAL_BUSY
-			FORTH_SIGNAL_BUSY		;signal activity
-#endif
-CF_WAIT			EQU	*
-			;Check for change of NEXT_PTR 
-			SEI				;disable interrupts
-			LDX	NEXT_PTR		;check for default NEXT pointer
-			CPX	#NEXT
-			BEQ	CF_WAIT_1	 	;still default next pointer
-			CLI				;enable interrupts
-			;Execute non-default NEXT
-			NEXT
-#endif
-#endif
 	
 FINNER_CODE_END		EQU	*
 FINNER_CODE_END_LIN	EQU	@
@@ -482,14 +383,6 @@ CFA_EOW			DW	CF_EOW
 ;No operation
 CFA_NOP			DW	CF_NOP
 
-#ifmac	FIRQ_BR_NO_IRQS
-#ifmac	FIRQ_CALL_NEXT_ISR
-;Word: WAIT ( -- )
-;Wait for any interrupt event. (Wait until NEXT_PTR has been changed.)
-CFA_WAIT		DW	CF_WAIT
-#endif
-#endif
-	
 FINNER_WORDS_END	EQU	*
 FINNER_WORDS_END_LIN	EQU	@
 #endif

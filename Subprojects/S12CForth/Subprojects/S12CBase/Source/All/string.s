@@ -95,8 +95,19 @@ STRING_SYM_TILDE	EQU	$7E 	;"~" (last printable ASCII character)
 STRING_SYM_DEL		EQU	$7F 	;delete symbol
 
 ;#String ternination 
-STRING_STRING_TERM	EQU	$80 	;MSB for string termination
+STRING_TERM		EQU	$80 	;MSB for string termination
 
+;#Line break
+STRING_NL_1ST		EQU	STRING_SYM_CR
+STRING_NL_2ND		EQU	STRING_SYM_LF
+#ifndef	STRING_NL_2ND
+STRING_NL		EQU	STRING_NL_1ST
+STRING_NL_BYTE_COUNT	EQU	1
+#else
+STRING_NL		EQU	((STRING_NL_1ST<<8)|STRING_NL_2ND)
+STRING_NL_BYTE_COUNT	EQU	2
+#endif
+	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -230,19 +241,39 @@ STRING_VARS_END_LIN	EQU	@
 ;        Y is preserved 
 #macro	STRING_SKIP_AND_COUNT, 0
 LOOP			ADDD	#1
-			BRCLR	1,X+, #$80, LOOP
+			BRCLR	1,X+, #STRING_TERM, LOOP
 #emac
 			
 ;#Terminated line break
 #macro	STRING_NL_TERM, 0
-			DB	STRING_SYM_CR	
-			DB	(STRING_SYM_LF|$80)	
+			DB	STRING_NL_1ST	
+#ifdef	STRING_NL_2ND
+			DB	(STRING_NL_2ND|STRING_TERM)	
+#endif
 #emac
 
+#macro	STRING_MOVE_NL_TERM, 1
+#ifndef	STRING_NL_2ND
+			MOVB	#(STRING_NL|STRING_TERM), \1
+#else	
+			MOVW	#(STRING_NL|STRING_TERM), \1
+#endif
+#emac
+	
 ;#Non-terminated line break
 #macro	STRING_NL_NONTERM, 0
-			DB	STRING_SYM_CR	
-			DB	STRING_SYM_LF	
+			DB	STRING_NL_1ST	
+#ifdef	STRING_NL_2ND
+			DB	STRING_NL_2ND
+#endif
+#emac
+
+#macro	STRING_MOVE_NL_NONTERM, 1
+#ifndef	STRING_NL_2ND
+			MOVB	#STRING_NL, \1
+#else	
+			MOVW	#STRING_NL, \1
+#endif
 #emac
 
 ;#Turn a non-blocking subroutine into a blocking subroutine	
