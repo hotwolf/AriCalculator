@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CForth - S12CForth Framework Bundle                                      #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                     #
+;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -57,12 +57,14 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-
-;# FRS
+;#Stack protection
+;FRS
 ;FRS_NO_CHECK		EQU	1 		;disable range checks
 	
-;# FPS
+;FPS
 ;FPS_NO_CHECK		EQU	1 		;disable range checks
+
+;#Busy signal 
 	
 ;###############################################################################
 ;# Constants                                                                   #
@@ -163,7 +165,7 @@ FORTH_VARS_END_LIN	EQU	@
 #endif	
 
 ;#Initialization
-#macro	FORTH_INIT, 0
+#macro	FORTH_DEFAULT_INIT, 0
 	FRS_INIT
 	FINNER_INIT
 	FIRQ_INIT
@@ -179,9 +181,15 @@ FORTH_VARS_END_LIN	EQU	@
 	;FFACIL_INIT
 	;FSCI_INIT
 #emac
+	;Customization option
+#ifnmac	FORTH_INIT
+#macro	FORTH_INIT, 0
+	FORTH_DEFAULT_INIT
+#emac
+#endif	
 
 ;#Abort action (to be executed in addition of quit action)
-#macro	FORTH_ABORT, 0
+#macro	FORTH_DEFAULT_ABORT, 0
 	FRS_ABORT
 	FINNER_ABORT
 	FIRQ_ABORT
@@ -198,9 +206,15 @@ FORTH_VARS_END_LIN	EQU	@
 	;FFACIL_ABORT
 	;FSCI_ABORT
 #emac
+	;Customization option
+#ifnmac	FORTH_ABORT
+#macro	FORTH_ABORT, 0
+	FORTH_DEFAULT_ABORT
+#emac
+#endif	
 	
 ;#Quit action
-#macro	FORTH_QUIT, 0
+#macro	FORTH_DEFAULT_QUIT, 0
 	FRS_QUIT
 	FINNER_QUIT
 	FIRQ_QUIT
@@ -217,9 +231,15 @@ FORTH_VARS_END_LIN	EQU	@
 	;FFACIL_QUIT
 	;FSCI_QUIT
 #emac
+	;Customization option
+#ifnmac	FORTH_QUIT
+#macro	FORTH_QUIT, 0
+	FORTH_DEFAULT_QUIT
+#emac
+#endif	
 	
 ;#Suspend action
-#macro	FORTH_SUSPEND, 0
+#macro	FORTH_DEFAULT_SUSPEND, 0
 	FRS_SUSPEND
 	FINNER_SUSPEND
 	FIRQ_SUSPEND
@@ -236,6 +256,12 @@ FORTH_VARS_END_LIN	EQU	@
 	;FFACIL_SUSPEND
 	;FSCI_SUSPEND
 #emac
+	;Customization option
+#ifnmac	FORTH_SUSPEND
+#macro	FORTH_SUSPEND, 0
+	FORTH_DEFAULT_SUSPEND
+#emac
+#endif	
 	
 ;###############################################################################
 ;# Code                                                                        #

@@ -27,6 +27,11 @@
 ;#            RSP = Return stack pointer.				       #
 ;#	            Points to the top of the return stack.                     #
 ;#                                                                             #
+;#    Program termination options:                                             #
+;#        ABORT:   Return stack is cleared                                     #
+;#        QUIT:    Return stack is cleared                                     #
+;#        SUSPEND: Return stack is untouched                                   #
+;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 23, 2009                                                           #
@@ -106,24 +111,23 @@ FRS_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	FRS_INIT, 0
 			;Initialize return stack
-			MOVW	#RS_EMPTY,	RSP		
+			MOVW	#RS_EMPTY, RSP		
 #emac
 
-;#Abort action (to be executed in addition of quit action)
+;#Abort action (to be executed in addition of QUIT action)
 #macro	FRS_ABORT, 0
 #emac
 	
-;#Quit action
+;#Quit action (to be executed in addition of SUSPEND action)
 #macro	FRS_QUIT, 0
 			;Reset return stack
-			MOVW	#RS_EMPTY,	RSP		
+			MOVW	#RS_EMPTY, RSP		
 #emac
 	
 ;#Suspend action
 #macro	FRS_SUSPEND, 0
 #emac
-		
-	
+			
 ;#Return stack
 ;RS_RESET: reset the parameter stack
 ; args:   none
@@ -360,7 +364,7 @@ FRS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_RSOF
 ;        Y and D are preserved
 #macro	RS_PUSH3, 3	;1:variable 2:variable 3:variable
-			RS_CHECK_OF	2		;check for overflow	=>11 cycles
+			RS_CHECK_OF	3		;check for overflow	=>11 cycles
 			LDX		RSP		;var -> RS		=> 3 cycles
 			MOVW		\1, 2,-X	;			=> 5 cycles
 			MOVW		\2, 2,-X	;			=> 5 cycles
@@ -380,7 +384,7 @@ FRS_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_RSOF
 ;        Y and D are preserved
 #macro	RS_PUSH4, 4	;1:variable 2:variable 3:variable
-			RS_CHECK_OF	2		;check for overflow	=>11 cycles
+			RS_CHECK_OF	4		;check for overflow	=>11 cycles
 			LDX		RSP		;var -> RS		=> 3 cycles
 			MOVW		\1, 2,-X	;			=> 5 cycles
 			MOVW		\2, 2,-X	;			=> 5 cycles

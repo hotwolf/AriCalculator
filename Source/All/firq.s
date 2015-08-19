@@ -97,6 +97,30 @@ FIRQ_VARS_END_LIN	EQU	@
 			ORG 	FIRQ_CODE_START
 FIRQ_CODE_START_LIN	EQU	@
 #endif
+
+;Code fields:
+;============ 	
+;CF_WAIT ( -- ) Wait until NP is modified
+; args:   none	
+; result: none
+			;Wait for any internal system event
+CF_WAIT_1		EQU	*
+#ifmac FORTH_SIGNAL_IDLE
+			FORTH_SIGNAL_IDLE		;signal inactivity
+#endif
+			ISTACK_WAIT			;wait for next interrupt
+#ifmac FORTH_SIGNAL_BUSY
+			FORTH_SIGNAL_BUSY		;signal activity
+#endif
+CF_WAIT			EQU	*
+			;Check for change of NEXT_PTR 
+			SEI				;disable interrupts
+			LDX	NP			;check for default NEXT pointer
+			CPX	#NEXT
+			BEQ	CF_WAIT_1	 	;still default next pointer
+			CLI				;enable interrupts
+			;Execute non-default NEXT
+			NEXT
 	
 FIRQ_CODE_END		EQU	*
 FIRQ_CODE_END_LIN	EQU	@
@@ -129,6 +153,10 @@ FIRQ_WORDS_START_LIN	EQU	@
 	
 ;#S12CForth Words:
 ;================
+;Word: WAIT ( -- )
+;Wait for any interrupt event. (Wait until NEXT_PTR has been changed.)
+CFA_WAIT		DW	CF_WAIT
+	
 	
 FIRQ_WORDS_END		EQU	*
 FIRQ_WORDS_END_LIN	EQU	@

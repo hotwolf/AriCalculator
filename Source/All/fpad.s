@@ -1,7 +1,7 @@
-#ifndef FUDICT_COMPILED
-#define FUDICT_COMPILED
+#ifndef FPAD_COMPILED
+#define FPAD_COMPILED
 ;###############################################################################
-;# S12CForth- FUDICT - User Dictionary and User Variables                      #
+;# S12CForth- FPAD - Scratch pad                                               #
 ;###############################################################################
 ;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
@@ -25,9 +25,15 @@
 ;#    the PAD.                                                                 #
 ;#                                                                             #
 ;#    The following registers are implemented:                                 #
+;#          STATE = 0 -> Interpretation state    	       		       #
+;#                 -1 -> Compilation state (UDICT)    		       	       #
+;#                 -2 -> Compilation state (NVDICT)    		       	       #
 ;#             CP = Compile pointer                                            #
 ;#                  Points to the next free space after the dictionary         #
-;#      CP_PRELIM = Preliminary ompile pointer                                 #
+;#            PAD = Beginning of the PAD buffer 			       #
+;#                  Points to the next byte after the PAD		       #
+;#            HLD = Pointer for pictured numeric output			       #
+;#                  Points to the first character on the PAD                   #
 ;#                                                                             #
 ;#    Compile strategy:                                                        #
 ;#    The user dictionary is 16-bit aligned and is allocated below the NVDICT  #
@@ -103,10 +109,10 @@
 ;UDICT_PS_END		EQU	0
 
 ;Debug option for dictionary overflows
-;FUDICT_DEBUG		EQU	1 
+;FPAD_DEBUG		EQU	1 
 	
 ;Disable dictionary range checks
-;FUDICT_NO_CHECK	EQU	1 
+;FPAD_NO_CHECK	EQU	1 
 
 ;Safety distance between the user dictionary and the PAD
 #ifndef UDICT_PADDING
@@ -136,27 +142,28 @@ NVC_NON_VOLATILE	EQU	TRUE
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef FUDICT_VARS_START_LIN
-	ORG 	FUDICT_VARS_START, FUDICT_VARS_START_LIN
+#ifdef FPAD_VARS_START_LIN
+	ORG 	FPAD_VARS_START, FPAD_VARS_START_LIN
 #else
-			ORG 	FUDICT_VARS_START
-FUDICT_VARS_START_LIN	EQU	@
+			ORG 	FPAD_VARS_START
+FPAD_VARS_START_LIN	EQU	@
 #endif
 
 			ALIGN	1	
 CP			DS	2 	;compile pointer (next free space in the dictionary space) 
-CP_PRELIM		DS	2 	;preliminary compile pointer
-
+CP_SAVED		DS	2 	;saved compile pointer
+HLD			DS	2	;pointer for pictured numeric output
+PAD                     DS	2	;end of the PAD buffer
 UDICT_LAST_NFA		DS	2 	;pointer to the most recent NFA of the UDICT
 
-FUDICT_VARS_END		EQU	*
-FUDICT_VARS_END_LIN	EQU	@
+FPAD_VARS_END		EQU	*
+FPAD_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	FUDICT_INIT, 0
+#macro	FPAD_INIT, 0
 #ifndef FNVDICT_INFO
 			;Initialize the compile data pointer
 			MOVW	#UDICT_PS_START, CP
@@ -174,15 +181,15 @@ FUDICT_VARS_END_LIN	EQU	@
 #emac
 
 ;#Abort action (to be executed in addition of quit action)
-#macro	FUDICT_ABORT, 0
+#macro	FPAD_ABORT, 0
 #emac
 	
 ;#Quit action
-#macro	FUDICT_QUIT, 0
+#macro	FPAD_QUIT, 0
 #emac
 	
 ;#Suspend action
-#macro	FUDICT_SUSPEND, 0
+#macro	FPAD_SUSPEND, 0
 #emac
 
 ;#User dictionary (UDICT)
@@ -197,7 +204,7 @@ FUDICT_VARS_END_LIN	EQU	@
 			LDX	CP 			;=> 3 cycles
 			LEAX	\1,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
-			BHI	FUDICT_THROW_DICTOF	;=> 3 cycles/ 4 cycles
+			BHI	FPAD_THROW_DICTOF	;=> 3 cycles/ 4 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
 							;  -------------------
@@ -214,7 +221,7 @@ FUDICT_VARS_END_LIN	EQU	@
 			LDX	CP 			;=> 3 cycles
 			LEAX	A,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
-			BHI	FUDICT_THROW_DICTOF	;=> 3 cycles/ 4 cycles
+			BHI	FPAD_THROW_DICTOF	;=> 3 cycles/ 4 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
 							;  --------------------
@@ -231,7 +238,7 @@ FUDICT_VARS_END_LIN	EQU	@
 			LDX	CP 			;=> 3 cycles
 			LEAX	D,X			;=> 2 cycles
 			CPX	PSP			;=> 3 cycles
-			BHI	FUDICT_THROW_DICTOF	;=> 3 cycles/ 4 cycles
+			BHI	FPAD_THROW_DICTOF	;=> 3 cycles/ 4 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
 							;  --------------------
@@ -249,7 +256,7 @@ FUDICT_VARS_END_LIN	EQU	@
 #macro	PAD_CHECK_OF, 0
 			LDX	HLD 			;=> 3 cycles
 			CPX	CP			;=> 3 cycles
-			BLS	FUDICT_THROW_PADOF	;=> 3 cycles/ 4 cycles
+			BLS	FPAD_THROW_PADOF	;=> 3 cycles/ 4 cycles
 							;  -------------------
 							;   9 cycles/10 cycles
 #emac			
@@ -261,8 +268,8 @@ FUDICT_VARS_END_LIN	EQU	@
 ; throws: FEXCPT_EC_PADOF
 ;        X and Y are preserved 
 #macro	PAD_ALLOC, 0 
-			SSTACK_JOBSR	FUDICT_PAD_ALLOC, 2
-			TBEQ	D, FUDICT_THROW_PADOF 	;no space available at all
+			SSTACK_JOBSR	FPAD_PAD_ALLOC, 2
+			TBEQ	D, FPAD_THROW_PADOF 	;no space available at all
 #emac			
 
 ;PAD_DEALLOC: deallocate the PAD buffer  (PAD -> D)
@@ -279,11 +286,11 @@ FUDICT_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef FUDICT_CODE_START_LIN
-			ORG 	FUDICT_CODE_START, FUDICT_CODE_START_LIN
+#ifdef FPAD_CODE_START_LIN
+			ORG 	FPAD_CODE_START, FPAD_CODE_START_LIN
 #else
-			ORG 	FUDICT_CODE_START
-FUDICT_CODE_START_LIN	EQU	@
+			ORG 	FPAD_CODE_START
+FPAD_CODE_START_LIN	EQU	@
 #endif
 
 
@@ -294,7 +301,7 @@ FUDICT_CODE_START_LIN	EQU	@
 ;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
 ; SSTACK: 16  bytes
 ;         X and Y are preserved 
-FUDICT_SEARCH		EQU	*
+FPAD_SEARCH		EQU	*
 
 
 	;;TBD 
@@ -306,31 +313,31 @@ FUDICT_SEARCH		EQU	*
 ; result: D: PAD (= HLD), $0000 if no space is available
 ; SSTACK: 2
 ;        X and Y are preserved 
-FUDICT_PAD_ALLOC	EQU	*
+FPAD_PAD_ALLOC	EQU	*
 			;Calculate available space
 			LDD	PSP
 			SUBD	CP
-			;BLS	FUDICT_PAD_ALLOC_4 	;no space available at all
+			;BLS	FPAD_PAD_ALLOC_4 	;no space available at all
 			;Check if requested space is available
 			CPD	#(PAD_SIZE+PS_PADDING)
-			BLO	FUDICT_PAD_ALLOC_3	;reduce size
+			BLO	FPAD_PAD_ALLOC_3	;reduce size
 			LDD	CP
 			ADDD	#PAD_SIZE
 			;Allocate PAD
-FUDICT_PAD_ALLOC_1	STD	PAD
+FPAD_PAD_ALLOC_1	STD	PAD
 			STD	HLD
 			;Done 
-FUDICT_PAD_ALLOC_2	SSTACK_PREPULL	2
+FPAD_PAD_ALLOC_2	SSTACK_PREPULL	2
 			RTS
 			;Reduce PAD size 
-FUDICT_PAD_ALLOC_3	CPD	#(PAD_MINSIZE+PS_PADDING)
-			BLO	FUDICT_PAD_ALLOC_4		;not enough space available
+FPAD_PAD_ALLOC_3	CPD	#(PAD_MINSIZE+PS_PADDING)
+			BLO	FPAD_PAD_ALLOC_4		;not enough space available
 			LDD	PSP
 			SUBD	#PS_PADDING
-			JOB	FUDICT_PAD_ALLOC_1 		;allocate PAD
+			JOB	FPAD_PAD_ALLOC_1 		;allocate PAD
 			;Not enough space available
-FUDICT_PAD_ALLOC_4	LDD 	$0000 				;signal failure
-			JOB	FUDICT_PAD_ALLOC_2		;done
+FPAD_PAD_ALLOC_4	LDD 	$0000 				;signal failure
+			JOB	FPAD_PAD_ALLOC_2		;done
 
 ;Code fields:
 ;============
@@ -338,40 +345,40 @@ FUDICT_PAD_ALLOC_4	LDD 	$0000 				;signal failure
 ;Exceptions:
 ;===========
 ;Standard exceptions
-#ifndef FUDICT_NO_CHECK
-#ifdef FUDICT_DEBUG
+#ifndef FPAD_NO_CHECK
+#ifdef FPAD_DEBUG
 FIDICT_THROW_DICTOF	BGND					;parameter stack overflow
 FIDICT_THROW_PADOF	BGND					;PAD overflow
 #else
-FUDICT_THROW_DICTOF	THROW	FEXCPT_EC_DICTOF		;parameter stack overflow
-FUDICT_THROW_PADOF	THROW	FEXCPT_EC_PADOF			;PAD overflow
+FPAD_THROW_DICTOF	THROW	FEXCPT_EC_DICTOF		;parameter stack overflow
+FPAD_THROW_PADOF	THROW	FEXCPT_EC_PADOF			;PAD overflow
 #endif
 #endif
 
-FUDICT_CODE_END		EQU	*
-FUDICT_CODE_END_LIN	EQU	@
+FPAD_CODE_END		EQU	*
+FPAD_CODE_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef FUDICT_TABS_START_LIN
-			ORG 	FUDICT_TABS_START, FUDICT_TABS_START_LIN
+#ifdef FPAD_TABS_START_LIN
+			ORG 	FPAD_TABS_START, FPAD_TABS_START_LIN
 #else
-			ORG 	FUDICT_TABS_START
-FUDICT_TABS_START_LIN	EQU	@
+			ORG 	FPAD_TABS_START
+FPAD_TABS_START_LIN	EQU	@
 #endif	
 
-FUDICT_TABS_END		EQU	*
-FUDICT_TABS_END_LIN	EQU	@
+FPAD_TABS_END		EQU	*
+FPAD_TABS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Words                                                                       #
 ;###############################################################################
-#ifdef FUDICT_WORDS_START_LIN
-			ORG 	FUDICT_WORDS_START, FUDICT_WORDS_START_LIN
+#ifdef FPAD_WORDS_START_LIN
+			ORG 	FPAD_WORDS_START, FPAD_WORDS_START_LIN
 #else
-			ORG 	FUDICT_WORDS_START
-FUDICT_WORDS_START_LIN	EQU	@
+			ORG 	FPAD_WORDS_START
+FPAD_WORDS_START_LIN	EQU	@
 #endif	
 
 ;#ANSForth Words:
@@ -380,6 +387,6 @@ FUDICT_WORDS_START_LIN	EQU	@
 ;#S12CForth Words:
 ;=================
 	
-FUDICT_WORDS_END	EQU	*
-FUDICT_WORDS_END_LIN	EQU	@
+FPAD_WORDS_END	EQU	*
+FPAD_WORDS_END_LIN	EQU	@
 #endif

@@ -118,7 +118,7 @@ FEXCPT_EC_INVALBASE		EQU	-40	;invalid BASE for floating point conversion
 ;FEXCPT_EC_50			EQU	-50	;search-order underflow
 ;FEXCPT_EC_51			EQU	-51	;compilation word list changed
 ;FEXCPT_EC_52			EQU	-52	;control-flow stack overflow
-;FEXCPT_EC_53  			EQU	-53	;exception stack overflow
+FEXCPT_EC_EXCPTERR  		EQU	-53	;exception stack overflow
 ;FEXCPT_EC_54			EQU	-54	;floating-point underflow
 ;FEXCPT_EC_55			EQU	-55	;floating-point unidentified fault
 FEXCPT_EC_QUIT			EQU	-56	;QUIT
@@ -126,16 +126,17 @@ FEXCPT_EC_COMERR		EQU	-57	;exception in sending or receiving a character
 ;FEXCPT_EC_58			EQU	-58	;[IF], [ELSE], or [THEN] exception
 	
 ;S12CForth specific error codes 
-FEXCPT_EC_LITOR			EQU	-59	;literal out of range
+EXCPT_EC_LITOR			EQU	-59	;literal out of range
 
-;FEXCPT_EC_NOMSG			EQU	-59	;empty message string
-;FEXCPT_EC_DICTPROT		EQU	-60	;destruction of dictionary structure
-;FEXCPT_EC_RESUME		EQU	-61	;resume from suspend
+;FEXCPT_EC_DICTPROT		EQU	-61	;destruction of dictionary structure
+;FEXCPT_EC_NOMSG		EQU	-62	;empty message string
+;FEXCPT_EC_DICTPROT		EQU	-63	;destruction of dictionary structure
+;FEXCPT_EC_RESUME		EQU	-64	;resume from suspend
 
 ;Highest standard error code value
 FEXCPT_EC_MAX			EQU	FEXCPT_EC_LITOR
 
-;Character limit fopr error messages
+;Character limit for error messages
 FEXCPT_MSG_LIMIT		EQU	64 	;Valid error messages must be shorter than 65 chars
 
 ;Default exception handlers  
@@ -179,7 +180,7 @@ FEXCPT_VARS_END_LIN	EQU	@
 ;#Suspend action
 #macro	FEXCPT_SUSPEND, 0
 			;Set SUSPEND handler
-			MOVW	#FEXCPT_SUSPEND_HANDLER, HANDLER
+			MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER
 #emac
 
 ;Functions:
@@ -367,6 +368,12 @@ FEXCPT_PRINT_MSG_9	LDY	#FEXCPT_MSG_UNKNOWN_HEX 			;"Code: h"
 FEXCPT_THROW		EQU	*
 			;Check if the excption is cought (error code in D)
 			LDX	HANDLER						;check if an exception handler exists
+			BNE	FEXCPT_THROW_ 					;use exception handler
+			;Uncaught exception (error code in D)
+			
+
+
+
 			DBEQ	X, FEXCPT_THROW_2				;uncaught exception in SUSPEND shell
 			IBEQ	X, FEXCPT_THROW_1 				;uncaught exception in QUIT shell
 			;Cought exception, verify error frame location (HANDLER in X, error code in D)
@@ -523,7 +530,7 @@ FEXCPT_MSGTAB		EQU	*
 			FEXCPT_MSG	FEXCPT_EC_NONCREATE,	"Illegal operation on non-CREATEd definition"
 			;FEXCPT_MSG	FEXCPT_EC_INVALNAME,	"Invalid name argument"
 			FEXCPT_MSG	FEXCPT_EC_INVALBASE,	"Invalid BASE"
-			;FEXCPT_MSG	FEXCPT_EC_CESF,		"Corrupt exception stack frame"
+			FEXCPT_MSG	FEXCPT_EC_EXCPTERR,	"Corrupt exception stack frame"
 			;FEXCPT_MSG	FEXCPT_EC_NOMSG,	"Empty message string"
 			;FEXCPT_MSG	FEXCPT_EC_DICTPROT,	"Destruction of dictionary structure"
 			FEXCPT_MSG	FEXCPT_EC_COMERR,	"Corrupted RX data"

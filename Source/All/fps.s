@@ -25,6 +25,11 @@
 ;#            PSP = Parameter Stack Pointer.				       #
 ;#	            Points to the top of the parameter stack                   #
 ;#                                                                             #
+;#    Program termination options:                                             #
+;#        ABORT:   Parameter stack is cleared                                  #
+;#        QUIT:    Parameter stack is untouched                                #
+;#        SUSPEND: Parameter stack is untouched                                #
+;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 23, 2009                                                           #
