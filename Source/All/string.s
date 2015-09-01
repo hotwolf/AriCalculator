@@ -31,6 +31,7 @@
 ;#    STRING_PRINTABLE      - make character printable                         #
 ;#    STRING_SKIP_WS        - skip whitespace characters                       #
 ;#    STRING_SKIP_AND_COUNT - determine the length of a string                 #
+;#    STRING_RESIZE         - change the length of a string                    #
 ;#                                                                             #
 ;#    Each of these functions has a coresponding macro definition              #
 ;###############################################################################
@@ -107,6 +108,9 @@ STRING_NL_BYTE_COUNT	EQU	1
 STRING_NL		EQU	((STRING_NL_1ST<<8)|STRING_NL_2ND)
 STRING_NL_BYTE_COUNT	EQU	2
 #endif
+
+;#Empty string
+STRING_EMPTY		EQU	$0000
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -243,7 +247,25 @@ STRING_VARS_END_LIN	EQU	@
 LOOP			ADDD	#1
 			BRCLR	1,X+, #STRING_TERM, LOOP
 #emac
-			
+
+;#Change the length of a terminated string
+; args:   X: start of the string
+;         D: new character count
+; result: X: one char past the end of the string
+;         D: zero   
+; SSTACK: none
+;        X and Y are preserved 
+#macro	STRING_RESIZE, 0
+			;Set new termination (sting pointer in X, char count in D) 
+			LEAX	-1,X 			;adjust string pointer
+			BSET	D,X, #STRING_TERM	;terminate string
+			JOB	END_OF_LOOP		;next char
+			;Remove terminations within the string (sting pointer in X, string index in D)
+LOOP_START		BCLR	D,X, #STRING_TERM	;remove termination
+END_OF_LOOP		DBNE	D, LOOP_START		;next char
+			LEAX	1,X 			;adjust string pointer
+#emac
+	
 ;#Terminated line break
 #macro	STRING_NL_TERM, 0
 			DB	STRING_NL_1ST	
@@ -297,7 +319,7 @@ LOOP			ADDD	#1
 
 ;#Basic print function - non-blocking
 ; args:   X:      start of the string
-; result: X;      remaining string (points to the byte after the string, if successful)
+; result: X:      remaining string (points to the byte after the string, if successful)
 ;         C-flag: set if successful	
 ; SSTACK: 8 bytes
 ;         Y and D are preserved
@@ -310,7 +332,7 @@ STRING_PRINT_NB_1	LDAB	1,X+ 			;get next ASCII character
 			JOBSR	SCI_TX_NB		;print character non blocking (SSTACK: 5 bytes)
 			BCS	STRING_PRINT_NB_1
 			;Adjust string pointer (next string pointer in X)
-STRING_PRINT_NB_2	LEAX	-1,X
+STRING_PRINT_NB_2	DEX
 			;Restore registers (string pointer in X)
 			SSTACK_PREPULL	3
 			PULB
@@ -452,7 +474,7 @@ STRING_SKIP_WS_1	LDAB	1,X+ 			;check character
 			BMI	STRING_SKIP_WS_2	;adjust pointer
 			CMPB	#$20			;" "
 			BLS	STRING_SKIP_WS_1  	;check next character
-STRING_SKIP_WS_2	LEAX	-1,X	
+STRING_SKIP_WS_2	DEX	
 			;Restore registers (updated string pointer in X)
 			SSTACK_PREPULL	3
 			PULB
