@@ -133,6 +133,14 @@ FIO_VARS_END_LIN	EQU	@
 			SCI_TX_READY_NB
 #emac
 
+;#Transmit one byte - blocking
+; args:   B: data to be send
+; SSTACK: 7 bytes
+;         X, Y, and D are preserved 
+#macro	FIO_TX_BL, 0
+			SCI_TX_BL
+#emac
+
 ;#Print MSB terminated string - non-blocking
 ; args:   X:      start of the string
 ; result: X;      remaining string (points to the byte after the string, if successful)
@@ -141,6 +149,42 @@ FIO_VARS_END_LIN	EQU	@
 ;         Y and D are preserved
 #macro	FIO_PRINT_NB, 0
 			STRING_PRINT_NB
+#emac	
+
+;#Print MSB terminated string - blocking
+; args:   X:      start of the string
+; result: X;      points to the byte after the string
+; SSTACK: 10 bytes
+;         Y and D are preserved
+#macro	FIO_PRINT_BL, 0
+			STRING_PRINT_BL
+#emac	
+
+;#Print signed double integer
+; args:   Y:X: unsigned double value
+;         B: base
+; result: A: remaining max. string length
+; SSTACK: 18 bytes
+;         X, Y and B are preserved
+#macro	FIO_PRINT_SDOUBLE_BL, 0
+			;Check sign (number in Y:X, base in B)
+			CPY	#$0000 						;check if number is negative
+			BPL	FIO_PRINT_SDOUBLE_BL_1 				;number is positive
+			;Print sign (number in Y:X, base in B)
+			TBA
+			LDAB	#"-"
+			FIO_TX_BL
+			TAB
+			;Calculate negated reverse number (number in Y:X, base in B)
+			NUM_NEGATE 						;negate number in Y:X
+			NUM_REVERSE 						;(SSTACK: 18 bytes)
+			NUM_NEGATE 						;negate number in Y:X
+			JOB	FIO_PRINT_SDOUBLE_BL_ 				;
+			;Calculate plain reverse number (number in Y:X, base in B)
+FIO_PRINT_SDOUBLE_BL_1	NUM_REVERSE 						;(SSTACK: 18 bytes)
+			;Print reverse number (number in Y:X, base in B, char count in A)
+FIO_PRINT_SDOUBLE_BL_2	NUM_REVPRINT_BL						;(SSTACK: 8 bytes +6 arg bytes)
+			NUM_CLEAN_REVERSE
 #emac	
 
 ;###############################################################################
@@ -274,7 +318,7 @@ CF_EMIT_QUESTION	EQU	*
 			;Done
 			NEXT
 	
-;$. ( c-addr -- ) Print a MAB terminated string
+;$. ( c-addr -- ) Print a MSB terminated string
 ; args:   address of a terminated string
 ; result: none
 ; SSTACK: 8 bytes
@@ -329,6 +373,9 @@ FIO_TABS_START_LIN	EQU	@
 
 ;Symbol table
 FIO_SYMTAB		EQU	NUM_SYMTAB
+	
+;Line break
+FIO_STR_NL		EQU	STRING_STR_NL
 	
 FIO_TABS_END		EQU	*
 FIO_TABS_END_LIN	EQU	@

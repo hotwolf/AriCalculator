@@ -78,7 +78,6 @@ FEXCPT_EC_INVALADR		EQU	-9 	;invalid memory address
 FEXCPT_EC_0DIV			EQU	-10	;division by zero
 FEXCPT_EC_RESOR			EQU	-11	;result out of range
 ;FEXCPT_EC_12			EQU	-12	;argument type mismatch
-FEXCPT_EC_UDEFWORD		EQU	-13	;undefined word
 FEXCPT_EC_COMPONLY		EQU	-14	;interpreting a compile-only word
 ;FEXCPT_EC_15			EQU	-15	;invalid FORGET
 FEXCPT_EC_NONAME		EQU	-16	;attempt to use zero-length string as a name
@@ -139,9 +138,13 @@ FEXCPT_EC_MAX			EQU	FEXCPT_EC_LITOR
 ;Character limit for error messages
 FEXCPT_MSG_LIMIT		EQU	64 	;Valid error messages must be shorter than 65 chars
 
+;Special characters limit in error messages
+FEXCPT_MSG_EMBED_STRING		EQU	$01 	;embed string (string pointer in MSG_DATA) in message
+FEXCPT_MSG_EMBED_SINT		EQU	$02 	;embed signed decimal number(value in MSG_DATA) in message
+FEXCPT_MSG_EMBED_ADDR		EQU	$03 	;embed address (value in MSG_DATA) in message
+
 ;Default exception handlers  
 FEXCPT_DEFAULT_HANDLER		EQU	$0000 	;initial default handler
-FEXCPT_SUSPEND_HANDLER		EQU	$0001	;temporary default handler for SUSPEND shell
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -152,9 +155,9 @@ FEXCPT_SUSPEND_HANDLER		EQU	$0001	;temporary default handler for SUSPEND shell
 			ORG 	FEXCPT_VARS_START
 FEXCPT_VARS_START_LIN	EQU	@
 #endif	
-
-HANDLER			DS	2 	;pointer tho the most recent exception handler 
-ABORTQ_MSG_PTR		DS	2 	;storage for the ABORT" message pointer
+	
+HANDLER			DS	2 		;pointer tho the most recent exception handler 
+MSG_DATA		DS	2 		;storage for the ABORT" message pointer
 				
 FEXCPT_VARS_END		EQU	*
 FEXCPT_VARS_END_LIN	EQU	@
@@ -164,36 +167,48 @@ FEXCPT_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FEXCPT_INIT, 0
-			MOVW	#$0000, HANDLER ;reset exception handler
+			MOVW	#$0000, HANDLER	;reset exception handler
+			MOVW	#$0000, MSG_INFO;clear inner message
 #emac
 
 ;#Abort action (to be executed in addition of quit action)
 #macro	FEXCPT_ABORT, 0
 #emac
 	
-;#Quit action
+;#Quit action (to be executed in addition of SUSPEND action)
 #macro	FEXCPT_QUIT, 0
 			;Set default handler
-			MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER			
+			MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER
 #emac
 	
 ;#Suspend action
 #macro	FEXCPT_SUSPEND, 0
-			;Set SUSPEND handler
-			MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER
 #emac
 
 ;Functions:
 ;==========
-;#Check error message
-; args:   X: message pointer
-; result: C-flag: set if message is valid
-; SSTACK: 6 bytes
-;         X, Y and D are preserved
-#macro	FEXCPT_CHECK_MSG, 0
-			SSTACK_JOBSR	FEXCPT_CHECK_MSG, 6
-#emac
 
+;#Print string (w/ size limit)
+; args:   X: sting pointer
+;         A: max. string length
+; result: X: remaining string (points to the byte after the string)
+;         A: remaining max. string length
+;         B: last char (w/out termination)
+; SSTACK: 9 bytes
+;         Y is preserved
+#macro	FEXCPT_PRINT_STRING, 0
+			;Print char (string pointer in X, string limit in A)
+FEXCPT_PRINT_STRING_1	TBEQ	A, FEXCPT_PRINT_STRING_2			;end of string
+			LDAB	0,X 						;read char
+			ANDB	#~STRING_TERM 					;remove termination
+			STRING_IS_PRINTABLE FEXCPT_PRINT_STRING_2		;unprintable char
+			FIO_TX_BL 						;transmit char (SSTACK: 7 bytes)
+			DECA							;decrement string limit
+			BRCLR	1,X+,#STRING_TERM,FEXCPT_PRINT_STRING_1		;next char
+			;Done
+FEXCPT_PRINT_STRING_2	EQU	*
+#emac
+	
 ;#Print error message
 ; args:   D: error code
 ; result: none
@@ -248,36 +263,7 @@ FEXCPT_VARS_END_LIN	EQU	@
 			ORG 	FEXCPT_CODE_START
 FEXCPT_CODE_START_LIN	EQU	@
 #endif
-
-;#Check error message
-; args:   X: message pointer
-; result: C-flag: set if message is valid
-; SSTACK: 6 bytes
-;         X, Y and D are preserved
-FEXCPT_CHECK_MSG	EQU	*
-			;Save registers (string pointer in X)
-			PSHX							;save X	
-			PSHD							;save D	
-			;Validate non-standard error message (error code in D)			
-			LDAA	#FEXCPT_MSG_LIMIT 				;max. message length 
-FEXCPT_CHECK_MSG_1	LDAB	1,X+		  				;get char
-			BMI	FEXCPT_CHECK_MSG_4 				;termination found
-			STRING_IS_PRINTABLE	FEXCPT_CHECK_MSG_2 		;check if char is printable
-			DBNE	A, FEXCPT_PRINT_MSG_1				;check next char
-			;Invalid error message found
-FEXCPT_CHECK_MSG_2	SSTACK_PREPULL	6 					;check subroutine stack
-			CLC							;signal failure
-			;Done
-FEXCPT_CHECK_MSG_3	PULD							;restore D	
-			PULX							;restore X	
-			RTS
-			;termination found (char in B)
-FEXCPT_CHECK_MSG_4	ANDB	#$7F 						;remove termination
-			STRING_IS_PRINTABLE	FEXCPT_CHECK_MSG_2 		;check if char is printable
-			SSTACK_PREPULL	6 					;check subroutine stack
-			SEC							;signal success
-			JOB	FEXCPT_CHECK_MSG_3
-
+	
 ;#Print error message
 ; args:   D: error code
 ; result: none
@@ -287,79 +273,66 @@ FEXCPT_PRINT_MSG	EQU	*
 			;Save registers (error code in D)
 			PSHX							;save X	
 			PSHY							;save Y	
-			PSHD							;save D	
-			;Check if any message is to be printed (error code in D)			
-			CPD	#FEXCPT_EC_QUIT					;check for QUIT code (-56)
-			BEQ	FEXCPT_PRINT_MSG_5				;no error message (error code = -56)
-			CPD	#FEXCPT_EC_ABORT				;check for QUIT code (-1)
-			BEQ	FEXCPT_PRINT_MSG_5				;no error message (error code = -1)
-			TBEQ	D, FEXCPT_PRINT_MSG_5				;no error message (error code =  0)
-			;Check for ABORT" (error code in D)
-			CPD	#FEXCPT_EC_ABORTQ				;check for ABORT" (-2)
-			BEQ	FEXCPT_PRINT_MSG_6				;ABORT" (error code = -2)
-			;Print message header(error code in D)	 
-			LDX	#FEXCPT_MSG_HEAD 				;messeage head
-			STRING_PRINT_BL						;(SSTACK: 10 bytes)
-			;Check for standard error messages (error code in D)
-			CPD	#FEXCPT_EC_MAX 					;check for standard error message
-			BLO	FEXCPT_PRINT_MSG_3				;non-standard error message
-			;Determine standard error message (error code in D)			
-			LDX     #FEXCPT_MSGTAB					;start at the beginning of the lookup table
-FEXCPT_PRINT_MSG_1	LDAA	1,X+ 						;check the current error code
-			BEQ	FEXCPT_PRINT_MSG_7 				;unknown error				
-			CBA							;check error code
-			BEQ	FEXCPT_PRINT_MSG_4 				;error message found
-FEXCPT_PRINT_MSG_2	LDAA	1,X+ 						;skip over message string
-			BPL	FEXCPT_PRINT_MSG_2
-			JOB	FEXCPT_PRINT_MSG_1			
-			;Validate non-standard error message (error code in D)
-FEXCPT_PRINT_MSG_3	TFR	D, X 						;check error message
-			FEXCPT_CHECK_MSG					;(SSTACK: 6 bytes)
-			BCC	FEXCPT_PRINT_MSG_9 				;invalid error message
-			;Print error message (message pointer in X)
-FEXCPT_PRINT_MSG_4	STRING_PRINT_BL						;(SSTACK: 10 bytes)
+			PSHD							;save error code
+			;ABORT (error code in D)
+			CPD	#FEXCPT_EC_ABORT  				;check error code
+			BEQ	FEXCPT_PRINT_MSG_6 				;done
+			;QUIT (error code in D)
+			CPD	#FEXCPT_EC_QUIT 				;check error code
+			BEQ	FEXCPT_PRINT_MSG_6 				;done
+			;Line break (error code in D)
+			LDX	#FIO_STR_NL 					;print line break
+			FIO_PRINT_BL 						;(SSTACK: 10 bytes)
+			;ABORTQ (error code in D)
+			LDX	MSG_DATA 					;message pointer -> X
+			CPD	#FEXCPT_EC_ABORTQ  				;check error code
+			BEQ	FEXCPT_PRINT_MSG_5 				;print message
+			;Error header (error code in D)
+			LDX	#FEXCPT_MSG_HEAD_START 				;first part of header	
+			FIO_PRINT_BL 						;(SSTACK: 10 bytes)
+			CPD	#FEXCPT_EC_MAX 					;check error code range
+			BLO	FEXCPT_PRINT_MSG_3				;user defined error code	
+			;Standard error (error code in D)
+			LDY	#-1 						;D -> Y:X
+			TFR	D, X 						;
+			LDAB	#10 						;decimal format
+			FIO_PRINT_SDOUBLE_BL 					;print number (SSTACK: 18 bytes)
+			TFR 	X, D						;D -> X
+			;Find standard error message (error code in D)
+			LDX	#FEXCPT_MSGTAB 					;initiate table pointer
+FEXCPT_PRINT_MSG_1	LDAA	1,X+ 						;check table entry
+			BEQ	FEXCPT_PRINT_MSG_2 				;no standard message found
+			CBA			  				;check hor match
+			BEQ	FEXCPT_PRINT_MSG_4 				;standard message found			
+			BRCLR	1,X+,#STRING_TERM,*				;skip to next entry
+			JOB	FEXCPT_PRINT_MSG_1 				;check next entry
+;FEXCPT_PRINT_MSG_2	LDX	#$0000 						;empty message string
+;			JOB	FEXCPT_PRINT_MSG_4 				;finish header
+FEXCPT_PRINT_MSG_2	EQU	FEXCPT_PRINT_MSG_4 				;short cut
+			;User defined error (error code in D)
+FEXCPT_PRINT_MSG_3	LDX	#FEXCPT_MSG_HEX					;print hexadecimal indicator
+			FIO_PRINT_BL 						;(SSTACK: 10 bytes)
+			LDY	#0						;D -> Y:X
+			TFR	D, X 						;
+			LDAB	#16 						;hexadecimal format
+			FIO_PRINT_SDOUBLE_BL 					;print number (SSTACK: 18 bytes)
+			;Remaining error header (string pointer in X)
+FEXCPT_PRINT_MSG_4	TFR	X, Y 						;X -> Y
+			LDX	#FEXCPT_MSG_HEAD_END 				;first part of header	
+			FEXCPT_PRINT_STRING 					;(SSTACK: 9 bytes)
+			TBEQ	Y, FEXCPT_PRINT_MSG_6 				;done
+			TFR	Y, X 						;Y -> X 
+			;Print message (string pointer in X)
+FEXCPT_PRINT_MSG_5	LDAA	#FEXCPT_MSG_LIMIT 				;set size limit
+			FEXCPT_PRINT_STRING 					;print message (SSTACK: 9 bytes)
 			;Restore registers 
-FEXCPT_PRINT_MSG_5	SSTACK_PREPULL	8 					;check subroutine stack
+FEXCPT_PRINT_MSG_6	SSTACK_PREPULL	8 					;check subroutine stack
 			PULD							;restore D	
 			PULY							;restore Y	
 			PULX							;restore X	
 			;Done
 			RTS
-			;Check ABORT" message
-FEXCPT_PRINT_MSG_6	LDX	ABORTQ_MSG_PTR 					;check ABORT" message
-			FEXCPT_CHECK_MSG					;(SSTACK: 6 bytes)
-			BCC	FEXCPT_PRINT_MSG_5 				;invalid ABORT" message
-			;Print error message (message pointer in X)
-			LDY	#STRING_STR_NL 					;print line break
-			EXG	X, Y
-			JOB	FEXCPT_PRINT_MSG_4 				;print message
-			;Print unknown standard error (error code in B)
-FEXCPT_PRINT_MSG_7	LDX	#FEXCPT_MSG_UNKNOWN_NEG 			;"Code: -"
-			STRING_PRINT_BL						;(SSTACK: 10 bytes)
-			NEGB							;print error code as
-			SEX	B, X 						; signed decimal value
-			LDY	#$0000
-			LDAB	10
-			NUM_REVERSE 						;(SSTACK: 18 bytes)
-FEXCPT_PRINT_MSG_8	NUM_REVPRINT_BL 					;(SSTACK:  0 bytes)
-			NUM_CLEAN_REVERSE 					;(SSTACK: 14 bytes)
-			JOB	FEXCPT_PRINT_MSG_5 				;done
-			;Print unknown non-standard error message (error code in X)
-FEXCPT_PRINT_MSG_9	LDY	#FEXCPT_MSG_UNKNOWN_HEX 			;"Code: h"
-			EXG	X, Y
-			STRING_PRINT_BL						;(SSTACK: 10 bytes)
-			TFR	Y, X						;print error code as
-			LDY	#$0000						; unsigned hex value
-			LDAB	16
-			NUM_REVERSE 						;(SSTACK: 18 bytes)
-			TAB							;calculate number of leading zeros
-			LDAA	#4
-			SBA
-			LDAB	#"0" 						;print leading zeros
-			STRING_FILL_BL 						;(SSTACK: 9+6 bytes)
-			LDAB	16
-			JOB	FEXCPT_PRINT_MSG_8 				;print nimber
-	
+
 ;#Throw an exception
 ; args:   D: error code
 ; result: none
@@ -368,19 +341,19 @@ FEXCPT_PRINT_MSG_9	LDY	#FEXCPT_MSG_UNKNOWN_HEX 			;"Code: h"
 FEXCPT_THROW		EQU	*
 			;Check if the excption is cought (error code in D)
 			LDX	HANDLER						;check if an exception handler exists
-			BNE	FEXCPT_THROW_ 					;use exception handler
+			BNE	FEXCPT_THROW_2 					;use exception handler
 			;Uncaught exception (error code in D)
-			
-
-
-
-			DBEQ	X, FEXCPT_THROW_2				;uncaught exception in SUSPEND shell
-			IBEQ	X, FEXCPT_THROW_1 				;uncaught exception in QUIT shell
-			;Cought exception, verify error frame location (HANDLER in X, error code in D)
-			CPX	RSP 						;check that HANDLER is on the RS
+FEXCPT_THROW_1		FEXCPT_PRINT_MSG 					;Print error message
+			;QUIT (error code in D)
+			CPD	#FEXCPT_EC_QUIT  				;check error code
+			BEQ	CF_QUIT_RT 					;QUIT shell
+			;ABORT, ABORTQ and all other errors(error code in D)
+			JOB	CF_ABORT_RT 					;ABORT shell
+			;Caught exception (error code in D, HANDLER in X)
+FEXCPT_THROW_2		CPX	RSP 						;check that HANDLER is on the RS
 			BLO	FEXCPT_THROW_1   				;error frame is located above the stack
 			CPX	#(RS_EMPTY-6)					;check for 3 cell exception frame
-			BHI	FEXCPT_THROW_1  				;no error frame is located on the stack					
+			BHI	FEXCPT_THROW_  				;no error frame is located on the stack					
 			;Restore stacks (HANDLER in X, error code in D)
 			MOVW	2,X+, HANDLER					;pull previous HANDLER (RSP -> X)
 			LDY	2,X+						;pull previous PSP (RSP -> X)		
@@ -388,26 +361,18 @@ FEXCPT_THROW		EQU	*
 			STX	RSP
 			;Check if PSP is valid (new PSP in Y, error code in D)
 			CPY	#PS_EMPTY 					;check for PS underflow
-			BHI	FEXCPT_THROW_1  					;invalid exception handler
+			BHI	FEXCPT_THROW_1	  				;invalid exception handler
 			LDX	PAD
 			LEAX	2,X	     					;make sure there is room for the return value
-			BLO	FEXCPT_THROW_1  				;invalid exception handler
+			BLO	FEXCPT_THROW_1	  				;invalid exception handler
 			;Push error code onto PS (new in Y, error code in D)
 			STD	2,-Y						;push error code onto PS
 			STY	PSP						;set PSP
 			NEXT
-			;Uncaught exception in QUIT shell or invalid exception frame (error code in D)
-FEXCPT_THROW_1		FEXCPT_PRINT_MSG 					;print error message
-			CPD	#FEXCPT_EC_ABORTQ 				;check for abort
-			BHS	CF_ABORT_RT 					;ABORT
-			JOB	CF_QUIT_RT 					;QUIT or error
-			;Uncaught exception in SUSPEND shell (error code in D)
-FEXCPT_THROW_2		FEXCPT_PRINT_MSG 					;print error message
-			JOB	CF_SUSPEND 					;suspend
 
 	
 ;#Code Fields:
-;=============	
+;=============
 ;CATCH ( i*x xt -- j*x 0 | i*x n )
 ;Push an exception frame on the exception stack and then execute the execution
 ;token xt (as with EXECUTE) in such a way that control can be transferred to a
@@ -496,18 +461,18 @@ FEXCPT_CODE_END_LIN	EQU	@
 ;###############################################################################
 ;Tabes in unpaged address space
 ;------------------------------ 
-#ifdef FEXCPT_TABS_START_LIN
+#ifdef FEXCPT_TABS_START_LINx3
 			ORG 	FEXCPT_TABS_START, FEXCPT_TABS_START_LIN
 #else
 			ORG 	FEXCPT_TABS_START
 FEXCPT_TABS_START_LIN	EQU	@
 #endif	
 
-FEXCPT_MSG_HEAD		STRING_NL_NONTERM
-			FCS		"Error! "
+FEXCPT_MSG_HEAD_START	FCS		"Error "
 
-FEXCPT_MSG_UNKNOWN_NEG	FCS		"Code: -"
-FEXCPT_MSG_UNKNOWN_HEX	FCS		"Code: 0x"
+FEXCPT_MSG_HEAD_END	FCS		"! "
+	
+FEXCPT_MSG_HEX		FCS		"0x"
 	
 FEXCPT_MSGTAB		EQU	*
 			FEXCPT_MSG	FEXCPT_EC_PSOF,		"Parameter stack overflow"
@@ -516,7 +481,7 @@ FEXCPT_MSGTAB		EQU	*
 			FEXCPT_MSG	FEXCPT_EC_RSUF,		"Return stack underflow"
 			;FEXCPT_MSG	FEXCPT_EC_DOOF,		"DO-loop nested too deeply"	
 			FEXCPT_MSG	FEXCPT_EC_DICTOF,	"Dictionary overflow"
-			;FEXCPT_MSG	FEXCPT_EC_INVALAD,	"Invalid memory address"
+			;FEXCPT_MSG	FEXCPT_EC_INVALID,	"Invalid memory address"
 			FEXCPT_MSG	FEXCPT_EC_0DIV,		"Division by zero"
 			FEXCPT_MSG	FEXCPT_EC_RESOR,	"Result out of range"
 			FEXCPT_MSG	FEXCPT_EC_UDEFWORD,	"Undefined word"
@@ -534,8 +499,9 @@ FEXCPT_MSGTAB		EQU	*
 			;FEXCPT_MSG	FEXCPT_EC_NOMSG,	"Empty message string"
 			;FEXCPT_MSG	FEXCPT_EC_DICTPROT,	"Destruction of dictionary structure"
 			FEXCPT_MSG	FEXCPT_EC_COMERR,	"Corrupted RX data"
-			DB		0
-
+			DB		0 ;end of table
+			DB		0 ;invalid string (shortcut)
+			
 FEXCPT_MSGTAB_END	EQU	*
 
 FEXCPT_TABS_END		EQU	*
