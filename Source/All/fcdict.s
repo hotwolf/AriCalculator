@@ -84,63 +84,14 @@ FCDICT_VARS_END_LIN	EQU	@
 
 ;Functions:
 ;==========
-;Compare substring
-; args:   Y: dictionary pointer (points to substring)
-;         X: string pointer
-;         D: character count
-;	  1: branch address in case of a mismatch 
-; result: Y: points to the byte after the the dictionary substring
-;         X: points to the byte after the matched substring (unchanged on mismatch)
-;         D: remaining character count (unchanged on mismatch)
-; SSTACK: 6 bytes
-;         No registers are preserved 
-#macro	FCDICT_COMP_STRING, 1
-			;Save registers (dict ptr in Y, str ptr in X, char count in D)
-			SSTACK_PREPUSH	6
-			PSHX						;save X	
-			PSHD						;save D				
-			PSHD						;remainig char count			
-			;Check char count (dict ptr in Y, str ptr in X)
-FCDICT_COMP_STRING_1	LDD	0,SP			       		;D -> char count
-			BEQ	FCDICT_COMP_STRING_2 			;mismatch
-			SUBD	#1
-			STD	0,SP
-			;Read chars (dict ptr in Y, str ptr in X)
-			LDAB	1,X+ 					;str char -> B
-			ANDB	#$7F 					;remove termination
-			STRING_UPPER		     			;check case insensitive (SSTACK: 2 bytes)
-			LDAA	1,Y+ 					;ref char -> A
-			BMI	FCDICT_COMP_STRING_4			;termination reached
-			CBA
-			BEQ	FCDICT_COMP_STRING_1			;check next char			
-			;Mismatch (new dict ptr in Y)
-FCDICT_COMP_STRING_2	BRCLR	1,Y+, #$80, * 				;skip past the termination of the dictionary string 
-FCDICT_COMP_STRING_3	SSTACK_PREPULL	6 				;restore stack
-			PULD						;remove stack entry				
-			PULD						;restore D				
-			PULX						;restore X				
-			;Done
-			JOB	\1
-			;Reference string termination reached (ref ptr in Y, str ptr in X, char in B, ref char in A)
-FCDICT_COMP_STRING_4	ANDA	#$7F		    			;remove termination
-			CBA
-			BNE	FCDICT_COMP_STRING_3			;mismatch
-			;Match (ref ptr in Y, str ptr in X)
-FCDICT_COMP_STRING_5	SSTACK_PREPULL	6 				;restore stack
-			PULD						;pull remaining char count
-			LEAS	4,SP					;remove stack entries
-#emac
-
-;Search word in dictionary
-; args:   X: string pointer
-;         D: char count 
-; result: C-flag: set if word is in the dictionary	
-;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
-; SSTACK: 16 bytes
-;         X is are preserved 
-#macro	FCDICT_SEARCH, 0
-			LDY		#FCDICT_TREE
-			SSTACK_JOBSR	FOUTER_TREE_SEARCH, 16
+;#Look-up word in dictionaries 
+; args:   X: string pointer (terminated string)
+; result: X: execution token (unchanged if word not found)
+;	  D: 1=immediate, -1=non-immediate, 0=not found
+; SSTACK: 8 bytes
+;         Y is preserved
+#macro	FCDICT_FIND, 0
+			SSTACK_JOBSR	FCDICT_FIND, 8
 #emac
 
 ;Extract path (word) in dictionary
@@ -188,85 +139,59 @@ FCDICT_COMP_STRING_5	SSTACK_PREPULL	6 				;restore stack
 FCDICT_CODE_START_LIN	EQU	@
 #endif
 
-
-
-
-
-
-
-
-;Search word in dictionary tree
-; args:   Y: dictionary tree pointer
-;         X: string pointer
-;         D: char count 
-; result: C-flag: set if word is in the dictionary	
-;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
-; SSTACK: 16  bytes
-;         X and Y are preserved 
-FOUTER_TREE_SEARCH	EQU	*
-			;Save registers (tree pointer in Y, string pointer in X, char count in D)
+;#Look-up word in CORE dictionary 
+; args:   X: string pointer (terminated string)
+; result: X: execution token (unchanged if word not found)
+;	  D: 1=immediate, -1=non-immediate, 0=not found
+; SSTACK: 8 bytes
+;         Y is preserved
+FCDICT_FIND		EQU	*	
+			;Save registers (string pointer in X)
 			PSHY						;save Y
-			PSHX						;save X
-			PSHD						;save D	
-			;Compare substring (tree pointer in Y, string pointer in X, char count in D)
-FOUTER_TREE_SEARCH_1	FCDICT_COMP_STRING	FOUTER_TREE_SEARCH_5    ;compare substring (SSTACK: 8 bytes)
-			;Substing matches (tree pointer in Y, string pointer in X, char count in D)
-			BRCLR	0,Y, #$FF, FOUTER_TREE_SEARCH_4 	;branch detected
-			TBNE	D, FOUTER_TREE_SEARCH_7 		;dictionary word too short -> unsuccessful
-			;Search successful (tree pointer in Y, string pointer in X, char count in D)
-FOUTER_TREE_SEARCH_2	SSTACK_PREPULL	8 				;check stack
-			LDD	0,Y 					;get CFA
-			SEC						;flag unsuccessful search
-			PULX						;remove stack entry				
-FOUTER_TREE_SEARCH_3	PULX						;restore X				
-			PULY						;restore Y				
+			PSHX						;string pointer
+			PSHX						;substring pointer	
+			;Initialize tree pointer (string pointer in X)
+			LDY	#FCDICT_TREE_START			
+			;Compare char (string pointer in X, dictionary pointer in Y)
+FCDICT_FIND_1		LDAA	1,X+ 					;string char -> A
+			BMI	FCDICT_FIND_4				;last char in string
+			LDAB	1,Y+ 					;dict char -> B
+			BMI	FCDICT_FIND_3	 			;last char in substring
+			CBA						;compare chars
+			BEQ	FCDICT_FIND_1				;compare next char
+			;Mismatch (dictionary pointer in Y)
+FCDICT_FIND_2		BRCLR	1,Y+,#$80,* 				;skip to the end of the substring
+			BRCLR	2,+Y+#$FF,FCDICT_FIND_5 			;no more branches -> search unsuccessful
+			LDX	0,SP	    				;restore string pointer
+			JOB	FCDICT_FIND_1				;search next branch
+			;Last char in string (string char in A, dict char in B string pointer in X, dictionary pointer in Y)
+FCDICT_FIND_3		ANDB	#$7F					;remove termination
+			CBA						;compare chars
+			BNE	FCDICT_FIND_2 				;mismatch
+			LDY	0,Y 					;switch to branch
+			STX	0,X 					;update substring pointer
+			JOB	FCDICT_FIND_1				;search subbranch
+			;Last char in string (char in A, string pointer in X, dictionary pointer in Y)
+FCDICT_FIND_4		CMPA	1,Y+ 					;compare last char	
+			BEQ	FCDICT_FIND_6 				;search successful
+			;Search unsuccessful
+FCDICT_FIND_5		CLRA						;return result
+			CLRB						;not found
+			LDX	2,SP 					;restore string pointer
+			JOB	FCDICT_FIND_7 				;done
+			;Search successful (dictionary pointer in Y)
+FCDICT_FIND_6		LDX	#$0000 					;clear X
+			LDD	0,Y 					;shifted execution token -> D
+			LSLD						;unshift execution token, immediate flag -> C
+			EXG	D, X 					;execution token -> X
+			ROLB						;immediate flag -> D
+			LSLB						;D*2 -> D
+			SUBD	#$0001					;D-1 -> D
+			;Done (result in D, execution token/string pointer X)
+FCDICT_FIND_7		SSTACK_PREPULL	8 				;check stack
+			LDY	4,+SP					;restore Y	
 			;Done
-			RTS		
-			;Branch detected (tree pointer in Y, string pointer in X, char count in D) 
-FOUTER_TREE_SEARCH_4	LDY	1,Y 					;switch to subtree
-			TST	0,Y 					;check for STRING_TERMINATION
-			BNE	FOUTER_TREE_SEARCH_1			;no end of dictionary word reached 
-			LEAY	1,Y 					;skip zero string
-			;Empty substring (tree pointer in Y, string pointer in X, char count in D)
-			TBEQ	D, FOUTER_TREE_SEARCH_2 		;match
-			LEAY	2,Y 					;switch to next sibling
-			JOB	FOUTER_TREE_SEARCH_1			;Parse sibling
-			;Try next sibling (tree pointer in Y, string pointer in X, char count in D)
-FOUTER_TREE_SEARCH_5	BRCLR	1,Y+, #$FF, FOUTER_TREE_SEARCH_6	;check for BRANCH
-			LEAY	1,Y					;skip over CFA
-			JOB	FOUTER_TREE_SEARCH_1			;compare next sibling	
-FOUTER_TREE_SEARCH_6	BRCLR	2,+Y, #$FF, FOUTER_TREE_SEARCH_7 	;END_OF_BRANCH -> unsuccessful
-			JOB	FOUTER_TREE_SEARCH_1			;compare next sibling	
-			;Search unsuccessful (tree pointer in Y, string pointer in X, char count in D)
-FOUTER_TREE_SEARCH_7	SSTACK_PREPULL	8 				;check stack
-			CLC						;flag successful search
-			PULD						;restore D				
-			JOB	FOUTER_TREE_SEARCH_3
-	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+			RTS
 	
 ;Find next path (word) in dictionary
 ; args:   Y: start of path
@@ -374,44 +299,31 @@ FCDICT_WORD_LENGTH_2	CPY	0,SP 					;check path length
 	
 ;Code fields:
 ;============
-
-;SEARCH-CDICT ( c-addr u -- 0 | xt 1 | xt -1 ) 
-;Find the definition in the core dictionary identified by the string c-addr u in
-;the word list identified by wid. If the definition is not found, return zero.
-;If thedefinition is found, return its execution token xt and one (1) if the
-;definition is immediate, minus-one (-1) otherwise. 
-; args:   PSP+0: char count
-;         PSP+1: string pointer
-; result: PSP+0: CFA
-;         PSP+1: COMPILE (1) or IMMEDIATE (-1)
-; or
-;         PSP+0: false flag
-; SSTACK: 16 bytes
+;FIND-CDICT ( c-addr -- c-addr 0 |  xt 1 | xt -1 )  
+;Find the definition named in the terminated string at c-addr. If the definition is
+;not found, return c-addr and zero.  If the definition is found, return its
+;execution token xt.  If the definition is immediate, also return one (1),
+;otherwise also return minus-one (-1).  For a given string, the values returned
+;by FIND-CDICT while compiling may differ from those returned while not compiling. 
+; args:   PSP+0: terminated string to match dictionary entry
+; result: PSP+0: 1 if match is immediate, -1 if match is not immediate, 0 in
+;         	 case of a mismatch
+;  	  PSP+2: execution token on match, input string on mismatch
+; SSTACK: 8 bytes
 ; PS:     1 cell
-; RS:     none
-; throws: FEXCPT_EC_PSUF
-CF_SEARCH_CDICT		EQU	*
+; RS:     1 cell
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_PSUF
+CF_FIND_CDICT		EQU	*
 			;Check PS
-			PS_CHECK_UF	2 		;PSP -> Y
+			PS_CHECK_UFOF	1, 1 		;new PSP -> Y
 			;Search core directory (PSP in Y)
 			LDX	2,Y
-			LDD	0,Y
-			FCDICT_SEARCH 			;(SSTACK: 16 bytes)
-			BCC	CF_SEARCH_CDICT_2	;search unsuccessfull
-			;Search sucessfull (PSP in Y, IMMEDIATE/CFA in D)
-			LDX	#$0000
-			LSLD
-			EXG	D,X
-			SBCB	#$00
-			SBCA	#$00
+			FCDICT_FIND 			;(SSTACK: 8 bytes)
 			STD	0,Y
 			STX	2,Y
 			;Done
-CF_SEARCH_CDICT_1	NEXT
-			;Search sucessfull (PSP in Y)
-CF_SEARCH_CDICT_2	MOVW	#$0000, 2,+Y
-			STY	PSP
-			JOB	CF_SEARCH_CDICT_1 	;done
+			NEXT
 
 ;WORDS-CDICT ( -- )
 ;List the definition names in the core dictionary in alphabetical order.
@@ -604,8 +516,7 @@ FCDICT_STR_SEP_CNT	*-FCDICT_PRINT_SEP_WS
 
 ;#Header line for WORDS output 
 FCDICT_WORDS_HEADER	STRING_NL_NONTERM
-			FCC	"Core Dictionary:"
-			STRING_NL_TERM
+			FCS	"Core Dictionary:"
 
 ;#Dictionary tree
 FCDICT_TREE_START	EQU	*	
@@ -627,13 +538,13 @@ FCDICT_WORDS_START_LIN	EQU	@
 
 ;S12CForth Words:
 ;================
-
-;Word: SEARCH-CDICT ( c-addr u -- 0 | xt 1 | xt -1 ) 
-;Find the definition in the core dictionary identified by the string c-addr u in
-;the word list identified by wid. If the definition is not found, return zero.
-;If thedefinition is found, return its execution token xt and one (1) if the
-;definition is immediate, minus-one (-1) otherwise. 
-;CFA_SEARCH_CDICT	DW	CF_SEARCH_CDICT
+;Word: FIND-CDICT ( c-addr -- c-addr 0 |  xt 1 | xt -1 )  
+;Find the definition named in the terminated string at c-addr. If the definition is
+;not found, return c-addr and zero.  If the definition is found, return its
+;execution token xt.  If the definition is immediate, also return one (1),
+;otherwise also return minus-one (-1).  For a given string, the values returned
+;by FIND-CDICT while compiling may differ from those returned while not compiling. 
+CFA_FIND_CDICT		DW	CF_FIND_CDICT
 
 ;Word: WORDS-CDICT ( -- )
 ;List the definition names in the core dictionary in alphabetical order.

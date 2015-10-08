@@ -167,7 +167,7 @@ FOUTER_VARS_END_LIN	EQU	@
 			;Initialize TIB pointer
 			LDY	TIB_START
 			;Add line break (string pointer in Y)
-			STRING_MOVE_NL_NONTERM STRING_NL_BYTE_COUNT,Y+
+			STRING_MOVE_NL_NONTERM (STRING_NL_BYTE_COUNT,Y+)
 			;Check for unparsed command line (string pointer in Y)
 			CLRA				;ignore whitespace in TIB
 			FOUTER_SKIP_DELIMITER		;
@@ -462,7 +462,7 @@ FOUTER_CHAR_2_DIGIT_2	EQU	*
 ; result: C-flag : set on overflow	
 ; SSTACK: 0 bytes
 ;         X is preserved
-#macro	FOUTER_APPEND_DIGIT, 4	
+#macro	FOUTER_APPEND_DIGIT, 3	
 			;Multiply MSW by base 
 			LDY	[\1] 			;MSW -> Y
 			BEQ	 FOUTER_APPEND_DIGIT_2	;skip if MSW is zero
@@ -480,7 +480,7 @@ FOUTER_APPEND_DIGIT_2	LDY	\1   			;double cell address -> Y
 			LDAB	\3			;
 			EMUL				;Y*D -> Y:D
 			;Add digit (lower product in Y:D)
-			ADAB	\2 			;add digit
+			ADDB	\2 			;add digit
 			ADCA	#0			;add carry
 			EXG	Y, D			;Y <-> D
 			ADCB	#0			;add carry
@@ -585,7 +585,7 @@ FOUTER_PARSE_1		SSTACK_PREPULL	4		;check SSTACK
 ; args:   X: string pointer (terminated string)
 ; result: X: execution token (unchanged if word not found)
 ;	  D: 1=immediate, -1=non-immediate, 0=not found
-; SSTACK: 4 bytes
+; SSTACK: 4+? bytes
 ;         Y is preserved
 FOUTER_FIND		EQU	*	
 			;Save registers
@@ -601,7 +601,7 @@ FOUTER_FIND		EQU	*
 			TBNE	D, FOUTER_FIND_1	;search successful
 #endif
 			;Search core directory
-			FDICT_FIND 			;search CDICT
+			FCDICT_FIND 			;search CDICT
 			JOB	FOUTER_FIND_1		;done
 FOUTER_FIND_1		EQU	FOUTER_PARSE_1		;reuse parse exit
 	
@@ -846,7 +846,7 @@ CF_PARSE_1		STX	2,Y			;return string pointer
 ; result: PSP+0: 1 if match is immediate, -1 if match is not immediate, 0 in
 ;         	 case of a mismatch
 ;  	  PSP+2: execution token on match, input string on mismatch
-; SSTACK: 0 bytes
+; SSTACK: ? bytes
 ; PS:     1 cell
 ; RS:     1 cell
 ; throws: FEXCPT_EC_PSOF
@@ -932,8 +932,8 @@ CF_SUSPEND_SHELL		EQU	*
 CF_SHELL		EQU	*
 			;Print shell prompt
 CF_SHELL_1		FOUTER_PROMPT 				;assemble prompt in TIB
-			PS_PUSH	TIB_START			;print TIB
-			EXEC_CF	CF_DOT_STRING
+			PS_PUSH	TIB_START			;TIB pointer -> PS
+			EXEC_CF	CF_DOT_STRING			;print string
 			;Query command line
 			EXEC_CF	CF_QUERY 			;query command line
 			;Parse command line
@@ -941,9 +941,9 @@ CF_SHELL_2		CLRA					;set delimiter to any whitespace
 			FOUTER_PARSE				;parse next word
 			TBNE	D, CF_SHELL_2b			;word found
 			;Print acknowledge string 
-CF_SHELL_2a		PS_PUSH	
-
-
+CF_SHELL_2a		PS_PUSH	#FOUTER_SYSTEM_ACK 		;string pointer -> PS
+			EXEC_CF	CF_DOT_STRING			;print string
+			JOB	CF_SHELL_1			;new command line
 			;Lookup word in dictionaries word (string pointer in X)
 CF_SHELL_2b		FOUTER_FIND 				;search dictionaries
 			TBEQ	D, CF_SHELL_4			;word not in dictionaries
