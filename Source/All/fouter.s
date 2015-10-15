@@ -951,9 +951,7 @@ CF_SHELL_2b		FOUTER_FIND 				;search dictionaries
 			LDY	STATE 				;check compile state
 			BEQ	CF_SHELL_3			;interpret xt
 			DBEQ	D, CF_SHELL_3			;interpret immediate xt
-#ifmac FUDICT_COMPILE_CELL
 			FUDICT_COMPILE_CELL 			;compile xt
-#endif
 			JOB	CF_SHELL_2 			;parse next word
 			;Interpretation semantics (xt in X, meta info in D)
 CF_SHELL_3		EXEC_CFA_X 				;execute xt

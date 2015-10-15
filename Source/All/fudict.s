@@ -27,7 +27,7 @@
 ;#    The following registers are implemented:                                 #
 ;#             CP = Compile pointer                                            #
 ;#                  Points to the next free space after the dictionary         #
-;#      CP_PRELIM = Preliminary ompile pointer                                 #
+;#       CP_SAVED = Previous compile pointer                                   #
 ;#                                                                             #
 ;#    Compile strategy:                                                        #
 ;#    The user dictionary is 16-bit aligned and is allocated below the NVDICT  #
@@ -79,16 +79,16 @@
 ;          UDICT_PS_END
 ;	
 ;                           Word format:
-;                           +-----------------------------+
-;                     NFA-> |  IMMEDIATE / Previous NFA   |	
-;                           +--------------+--------------+
+;                           +---+-------------------------+
+;                     NFA-> |IMM|    Previous NFA >> 1    |	
+;                           +---+----------+--------------+
 ;                           |                             | 
 ;                           |            Name             | 
 ;                           |                             | 
 ;                           |              +--------------+ 
 ;                           |              |    Padding   | 
 ;                           +--------------+--------------+
-;                     CFA-> |       Code Field Address    |	
+;                     CFA-> |     Code Field Pointer      |	
 ;                           +--------------+--------------+
 ;                           |                             | 
 ;                           |            Data             | 
@@ -133,6 +133,9 @@ PS_PADDING		EQU	16 	;default is 16 bytes
 NVC_VOLATILE		EQU	FALSE
 NVC_NON_VOLATILE	EQU	TRUE
 	
+;Max. line length
+FUDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
+	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -145,7 +148,7 @@ FUDICT_VARS_START_LIN	EQU	@
 
 			ALIGN	1	
 CP			DS	2 	;compile pointer (next free space in the dictionary space) 
-CP_PRELIM		DS	2 	;preliminary compile pointer
+CP_SAVED		DS	2 	;previous compile pointer
 
 UDICT_LAST_NFA		DS	2 	;pointer to the most recent NFA of the UDICT
 
@@ -157,7 +160,7 @@ FUDICT_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FUDICT_INIT, 0
-#ifndef FNVDICT_INFO
+#ifnmac FNVDICT_INIT
 			;Initialize the compile data pointer
 			MOVW	#UDICT_PS_START, CP
 	
@@ -186,60 +189,61 @@ FUDICT_VARS_END_LIN	EQU	@
 #emac
 
 ;#User dictionary (UDICT)
-;----------------------- 
+;========================
+;Complile operations:
+;====================	
 ;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
-; args:   1: required space (bytes)
-; result: X: CP+new bytes
+; args:   1: required space in bytes (constant, A, B, or D are valid args)
+; result: X: CP_PRELIM+new bytes
 ; SSTACK: none
 ; throws: FEXCPT_EC_DICTOF
 ;        Y and D are preserved 
 #macro	UDICT_CHECK_OF, 1
-			LDX	CP 			;=> 3 cycles
+			LDX	CP	 		;=> 3 cycles
 			LEAX	\1,X			;=> 2 cycles
-			CPX	PSP			;=> 3 cycles
-			BHI	FUDICT_THROW_DICTOF	;=> 3 cycles/ 4 cycles
 			STX	PAD			;=> 3 cycles
 			STX	HLD			;=> 3 cycles
+#ifndef	FUDICT_NO_CHECK
+			CPX	PSP			;=> 3 cycles
+			BHI	FUDICT_THROW_DICTOF	;=> 3 cycles/ 4 cycles
+#endif
 							;  -------------------
 							;   17 cycles/12 cycles
 #emac			
 
-;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
-; args:   A: required space (bytes)
-; result: X: CP+new bytes
+;Compile cell into user dictionary
+; args:   X: cell value
+; result: X: CP_PRELIM+new bytes
 ; SSTACK: none
-; throws: FEXCPT_EC_DICTOF
-;        Y and D are preserved 
-#macro	UDICT_CHECK_OF_A, 0
-			LDX	CP 			;=> 3 cycles
-			LEAX	A,X			;=> 2 cycles
-			CPX	PSP			;=> 3 cycles
-			BHI	FUDICT_THROW_DICTOF	;=> 3 cycles/ 4 cycles
-			STX	PAD			;=> 3 cycles
-			STX	HLD			;=> 3 cycles
-							;  --------------------
-							;   17 cycles/12 cycles
+;         X and D are preserved 
+#macro	FUDICT_COMPILE_CELL, 0
+			STX	[CP] 			;store cell in next free space
+			UDICT_CHECK_OF 2		;allocate storage space
 #emac			
+
+;Dictionary operations:
+;======================	
+;#Look-up word in user dictionary 
+; args:   X: string pointer (terminated string)
+; result: X: execution token (unchanged if word not found)
+;	  D: 1=immediate, -1=non-immediate, 0=not found
+; SSTACK: 8 bytes
+;         Y is preserved
+#macro	FUDICT_FIND, 0
+			SSTACK_JOBSR	FUDICT_FIND, 8
+#emac
 	
-;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
-; args:   D: required space (bytes)
-; result: X: CP-new bytes
-; SSTACK: none
-; throws: FEXCPT_EC_DICTOF
-;        Y and D are preserved 
-#macro	DICT_CHECK_OF_D, 0
-			LDX	CP 			;=> 3 cycles
-			LEAX	D,X			;=> 2 cycles
-			CPX	PSP			;=> 3 cycles
-			BHI	FUDICT_THROW_DICTOF	;=> 3 cycles/ 4 cycles
-			STX	PAD			;=> 3 cycles
-			STX	HLD			;=> 3 cycles
-							;  --------------------
-							;   17 cycles/12 cycles
-#emac			
-	
+;#Reverse lookup a CFA and print the corresponding word
+; args:   D: CFA
+; result: C-flag: set if successful
+; SSTACK: 6 bytes
+;         All registers are preserved
+#macro	FUDICT_REVPRINT, 0
+			SSTACK_JOBSR	6
+#emac
+		
 ;#Pictured numeric output buffer (PAD)
-;-------------------------------------
+;=====================================
 ;PAD_CHECK_OF: check if there is room for one more character on the PAD (HLD -> X)
 ; args:   none
 ; result: X: HLD
@@ -275,7 +279,7 @@ FUDICT_VARS_END_LIN	EQU	@
 			STD	PAD
 			STD	HLD
 #emac			
-	
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -286,18 +290,70 @@ FUDICT_VARS_END_LIN	EQU	@
 FUDICT_CODE_START_LIN	EQU	@
 #endif
 
-
-;Search word in dictionary
-; args:   X: string pointer
-;         D: char count 
-; result: C-flag: set if word is in the dictionary	
-;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
-; SSTACK: 16  bytes
-;         X and Y are preserved 
-FUDICT_SEARCH		EQU	*
+;#User dictionary (UDICT)
+;========================
+;Complile operations:
+;====================	
 
 
-	;;TBD 
+
+;Dictionary operations:
+;======================	
+;#Look-up word in user dictionary 
+; args:   X: string pointer (terminated string)
+; result: X: execution token (unchanged if word not found)
+;	  D: 1=immediate, -1=non-immediate, 0=not found
+; SSTACK: 8 bytes
+;         Y is preserved
+FUDICT_FIND		EQU	*
+			;Save registers (string pointer in X)
+			PSHY						;save Y
+			PSHX						;string pointer
+			MOVW	UDICT_LAST_NFA, 2,-SP			;current NFA	
+			;Compare strings (string pointer in X)
+FUDICT_FIND_1		LDY	0,SP					;current NFA -> Y
+			LEAY	2,Y					;start of dict string -> Y
+FUDICT_FIND_2		LDAB	1,X+					;string char -> A
+			CMPB	1,Y+ 					;compare chars
+			BNE	FUDICT_FIND_ 				;mismatch
+			BRCLR	-1,X,#$7F,FUDICT_FIND_2 		;check next char
+			;Match (pointer to code field or padding in Y)
+			LEAY	1,Y 					;increment dict pointer
+			TFR	Y, D 					;dict pointer -> D
+			ANDB	#$FE 					;align dict pointer
+			TFR	D, X 					;execution  token -> X
+			LDAB	[0,SP] 					;immediate flag -> B
+			LSLB						;immediate flag -> C
+			ROLB						;immediate flag -> B
+			LSLB						;B*2 -> B
+			DECB						;B-1 -> B
+			SEX	B, D					;B -> D
+			;Done (result in D, execution token/string pointer X)
+FUDICT_FIND_3		SSTACK_PREPULL	8 				;check stack
+			LDY	4,+SP					;restore Y	
+			RTS
+			;Mismatch
+			STX	2,SP 					;string pointer -> X
+			LDD	[0,SP] 					;previous NFA  -> D
+			LSLD						;remove immediate flag
+			STD	0,SP 					;update current NFA
+			BNE	FUDICT_FIND_1 				;compare strings
+			;Search unsuccessful (string pointer in X)
+			CLRA						;set result
+			CLRB
+			JOB	FUDICT_FIND_3 				;done
+
+
+
+
+
+;#Pictured numeric output buffer (PAD)
+;=====================================
+
+
+
+
+
 
 
 	
@@ -334,7 +390,65 @@ FUDICT_PAD_ALLOC_4	LDD 	$0000 				;signal failure
 
 ;Code fields:
 ;============
+;FIND-UDICT ( c-addr -- c-addr 0 |  xt 1 | xt -1 )  
+;Find the definition named in the terminated string at c-addr. If the definition is
+;not found, return c-addr and zero.  If the definition is found, return its
+;execution token xt.  If the definition is immediate, also return one (1),
+;otherwise also return minus-one (-1).  For a given string, the values returned
+;by FIND-UDICT while compiling may differ from those returned while not compiling. 
+; args:   PSP+0: terminated string to match dictionary entry
+; result: PSP+0: 1 if match is immediate, -1 if match is not immediate, 0 in
+;         	 case of a mismatch
+;  	  PSP+2: execution token on match, input string on mismatch
+; SSTACK: 8 bytes
+; PS:     1 cell
+; RS:     1 cell
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_PSUF
+CF_FIND_UDICT		EQU	*
+			;Check PS
+			PS_CHECK_UFOF	1, 1 		;new PSP -> Y
+			;Search core directory (PSP in Y)
+			LDX	2,Y
+			FUDICT_FIND 			;(SSTACK: 8 bytes)
+			STD	0,Y
+			STX	2,Y
+			;Done
+			NEXT
 
+;WORDS-UDICT ( -- )
+;List the definition names in the core dictionary in alphabetical order.
+; args:   none
+; result: none
+; SSTACK: 8 bytes
+; PS:     ? cells
+; RS:     2 cells
+; throws:  FEXCPT_EC_PSOF
+CF_WORDS_UDICT		EQU	*
+			;PS layout:
+			; +--------+--------+
+			; |   Current NFA   | PSP+0
+			; +--------+--------+
+			; | Column counter  | PSP+2
+			; +--------+--------+
+			;Print header
+			PS_PUSH	#FUDICT_WORDS_HEADER
+			EXEC_CF	CF_STRING_DOT
+			;Initialize PS
+			PS_CHECK_OF	2		 	;new PSP -> Y
+			STY	PSP
+			MOVW	#$0000, 2,Y 			;initialize column counter
+			MOVW	UDICT_LAST_NFA, 2,Y 		;initialize current NFA
+	
+
+
+
+
+
+
+
+
+	
 ;Exceptions:
 ;===========
 ;Standard exceptions
@@ -361,6 +475,19 @@ FUDICT_CODE_END_LIN	EQU	@
 FUDICT_TABS_START_LIN	EQU	@
 #endif	
 
+;#New line string
+FUDICT_STR_NL		EQU	STRING_STR_NL
+
+;#Word separator string
+FUDICT_STR_SEP		FCS	" "
+FUDICT_STR_SEP_CNT	EQU	*-FUDICT_PRINT_SEP_WS
+
+;#Header line for WORDS output 
+FUDICT_WORDS_HEADER	STRING_NL_NONTERM
+			FCC	"User Dictionary:"
+			;FCC	"UDICT:"
+			STRING_NL_TERM
+
 FUDICT_TABS_END		EQU	*
 FUDICT_TABS_END_LIN	EQU	@
 
@@ -379,7 +506,18 @@ FUDICT_WORDS_START_LIN	EQU	@
 
 ;#S12CForth Words:
 ;=================
-	
+;Word: FIND-UDICT ( c-addr -- c-addr 0 |  xt 1 | xt -1 )  
+;Find the definition named in the terminated string at c-addr. If the definition is
+;not found, return c-addr and zero.  If the definition is found, return its
+;execution token xt.  If the definition is immediate, also return one (1),
+;otherwise also return minus-one (-1).  For a given string, the values returned
+;by FIND-UDICT while compiling may differ from those returned while not compiling. 
+CFA_FIND_UDICT		DW	CF_FIND_UDICT
+
+;Word: WORDS-UDICT ( -- )
+;List the definition names in the core dictionary in alphabetical order.
+CFA_WORDS_UDICT		DW	CF_WORDS_UDICT
+		
 FUDICT_WORDS_END	EQU	*
 FUDICT_WORDS_END_LIN	EQU	@
 #endif

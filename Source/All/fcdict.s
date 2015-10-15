@@ -39,7 +39,25 @@
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
 ;###############################################################################
-
+;
+; CDICT iterator structure:
+;
+;                           +--------+--------+     
+;                       +-> |   Node pointer  | <- start of path
+;                       |   +--------+--------+ 
+;                       |   |   Node pointer  |    
+;                       |   +--------+--------+ 
+;                       |   :                 : 
+;          1+           |   +--------+--------+ 
+; (2*FCDICT_TREE_DEPTH) |   |   Node pointer  | <- end of path
+;                       |   +--------+--------+ 
+;                       |   |      NULL       | 
+;                       |   +--------+--------+ 
+;                       |   :                 : 
+;                       |   +--------+--------+ 
+;                       +-> |      NULL       | <- always NULL
+;                           +--------+--------+     
+;
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
@@ -82,9 +100,9 @@ FCDICT_VARS_END_LIN	EQU	@
 #macro	FCDICT_SUSPEND, 0
 #emac
 
-;Functions:
-;==========
-;#Look-up word in dictionaries 
+;Dictionary operations:
+;======================	
+;#Look-up word in CORE dictionariy 
 ; args:   X: string pointer (terminated string)
 ; result: X: execution token (unchanged if word not found)
 ;	  D: 1=immediate, -1=non-immediate, 0=not found
@@ -94,39 +112,170 @@ FCDICT_VARS_END_LIN	EQU	@
 			SSTACK_JOBSR	FCDICT_FIND, 8
 #emac
 
-;Extract path (word) in dictionary
-; args:   X: end of incomplete path
-; result: X: end of complete path
-;         D: {IMMEDIATE, CFA>>1} of new word
-; SSTACK: 4 bytes
-;         Y is preserved 
-#macro	FCDICT_FIRST_PATH, 0
-			SSTACK_JOBSR	FCDICT_FIRST_PATH, 4
-#emac
-
-;Find next path (word) in dictionary
-; args:   Y: start of path
-;         X: end of path
-; result: Y: start of next path
-;         X: end of next path
-;         D: {IMMEDIATE, CFA>>1} of new word, zero if unsuccessful
-; SSTACK: 4 bytes
-;         Y is preserved 
-#macro	FCDICT_NEXT_PATH, 0
-			SSTACK_JOBSR	FCDICT_NEXT_PATH, 4
+;#Reverse lookup a CFA and print the corresponding word
+; args:   D: CFA
+; result: C-flag: set if successful
+; SSTACK: 2*FCDICT_TREE_DEPTH + 6 bytes
+;         All registers are preserved
+#macro	FCDICT_REVPRINT, 0
+			SSTACK_JOBSR	FCDICT_REVPRINT, (2*(FCDICT_TREE_DEPTH+3))
 #emac
 	
-;Find next path (word) in dictionary
-; args:   Y: start of path
-;         X: end of path
-;         D: initial char count
-; result: Y: start of path
-;         X: end of path
-;         D: incremented char count
+;Iterator operations:
+;======================
+;Set interator to first word in CDICT
+; args:   Y: start of iterator structure
+; result: none
+; SSTACK: none
+;         All registers are preserved
+#macro FCDICT_ITERATOR_FIRST, 0
+			FCDICT_ITERATOR_INIT FCDICT_TREE, Y, 0
+#emac
+
+;Reverse search CDICT for matching CFA
+; args:   Y: start of iterator structure
+;         D: CFA
+; result: none
+; SSTACK: 10 bytes
+;         All registers are preserved
+#macro FCDICT_ITERATOR_REV, 0
+ 			SSTACK_JOBSR	FCDICT_ITERATOR_REV, 10
+#emac
+	
+;Advance iterator
+; args:   Y: start of iterator structure
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero in case of empty iterator
 ; SSTACK: 6 bytes
-;         X and Y are preserved 
-#macro	FCDICT_WORD_LENGTH, 0
-			SSTACK_JOBSR	FCDICT_WORD_LENGTH, 6
+;         All registers are preserved
+#macro FCDICT_ITERATOR_NEXT, 0
+ 			SSTACK_JOBSR	FCDICT_ITERATOR_NEXT, 6
+#emac
+
+;Get length of word referenced by current iterator
+; args:   Y: start of iterator structure
+; result: D: char count 
+; SSTACK: 6 bytes
+;         X and Y are preserved
+#macro FCDICT_ITERATOR_WC, 0
+ 			SSTACK_JOBSR	FCDICT_ITERATOR_WC, 6
+#emac
+
+;Print word referenced by current iterator (BLOCKING)
+; args:   Y: start of iterator structure
+; result: none 
+; SSTACK: 16 bytes
+;         All registers are preserved
+#macro FCDICT_ITERATOR_PRINT, 0
+ 			SSTACK_JOBSR	FCDICT_ITERATOR_PRINT, 16
+#emac
+
+;Get CFA of word referenced by current iterator
+; args:   Y: start of iterator structure
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero ic case of empty iterator
+; SSTACK: 6 bytes
+;         All registers are preserved;
+#macro FCDICT_ITERATOR_CFA, 0
+ 			SSTACK_JOBSR	FCDICT_ITERATOR_CFA, 6
+#emac
+	
+;Basic tree navigation:
+;======================
+;Set dictionary pointers
+; args:   Y: start of iterator structure
+;         1: branch address if empty iterator
+; result: Y: iterator pointer
+;         X: node pointer
+; SSTACK: 0 bytes
+;         D is preserved
+#macro	FCDICT_SET_PTRS, 1
+			;Y: points to current entry in iterator structure 
+			;X: points to cutrrent byte in directory tree 
+			;Check for NULL pointer (iterator pointer in Y)
+			LDX	0,Y 					;check first substring
+			BEQ	\1 					;NULL pointer
+			;Skip to current leaf node (iterator pointer in Y)
+FCDICT_SET_PTRS_1	LDX	2,+Y 					;check next substring
+			BNE	FCDICT_SET_PTRS_1 			;try one more substring
+			LDX	2,-Y 					;check next substring
+#emac
+
+;Skip substring
+; args:   Y: struc pointer
+;         X: node pointer
+;         1: branch address if no sibling is found
+; result: Y: struc pointer (unchanged)
+;         X: tree pointer (points to first byte after the sub-string)
+; SSTACK: 0 bytes
+;         D is preserved
+#macro	FCDICT_SUBSTR, 0
+			;Y: points to current entry in CDICT pointer structure 
+			;X: points to cutrrent byte in directory tree 
+			;Check for empty string (iterator pointer in Y, node pointer in X)
+			BRCLR	1,X+, #$FF, FCDICT_SKIP_SUBSTR_DONE	;empty substring found (check for sibling)
+			;Skip over substring (iterator pointer in Y, string pointer in X)
+			LEAX	-1,X 					;adjust string pointer
+			BRCLR	1,X+,#STRING_TERM,* 			;skip past the end of the substring
+			;Done (iterator pointer in Y, tree pointer in X)
+FCDICT_SUBSTR_DONE	EQU	*
+#emmac
+	
+;Skip to next sibling
+; args:   Y: struc pointer
+;         X: leaf node pointer
+;         1: branch address if no sibling is found
+; result: Y: struc pointer (unchanged)
+;         X: new node pointer (invalid if no sibling is found)
+; SSTACK: 0 bytes
+;         D is preserved
+#macro	FCDICT_SIBLING, 1
+			;Y: points to current entry in CDICT pointer structure 
+			;X: points to cutrrent byte in directory tree 
+			;Skip sub-string (iterator pointer in Y, node pointer in X)
+			FCDICT_SUBSTR					
+			;Check for sibling (iterator pointer in Y, tree pointer in X)
+			BRCLR	1,X+, #$FF, 				;skip branch indicator
+			LEAX	-1,X 					;adjust tree pointer
+FCDICT_SIBLING_1	BRCLR	2,+X, #$FF, \1 				;no sibling found (check for uncle)		
+			;Skip to sibling (iterator pointer in Y, sibling node pointer in X)
+			STX	0,Y 					;update pointer structure
+#emac
+
+;Skip to first child
+; args:   Y: struc pointer
+;         X: node pointer
+;         1: branch address if no child is found
+; result: Y: new struc pointer (unchanged if no child is found)
+;         X: new node pointer (points low byte of current CFA if no child is found)
+; SSTACK: 0 bytes
+;         D is preserved
+#macro	FCDICT_1ST_CHILD, 1
+			;Y: points to current entry in CDICT pointer structure 
+			;X: points to cutrrent byte in directory tree 
+			;Skip sub-string (iterator pointer in Y, node pointer in X)
+			FCDICT_SUBSTR					
+			;Check for child (iterator pointer in Y, tree pointer in X)
+			BRCLR	1,X+, #$FF, \1 				;no sibling found (check for uncle)		
+			;Check for child (iterator pointer in Y, child node pointer in X)
+			STX	2,+Y 					;update pointer struct
+#emac
+	
+;Skip to parent
+; args:   Y: struc pointer
+;         X: node pointer
+;         1: branch address if no parent is found
+;         2: start of pointer structure
+; result: Y: new struc pointer (invalid if no parent is found)
+;         X: new node pointer
+; SSTACK: 0 bytes
+;         D is preserved
+#macro	FCDICT_PARENT, 2
+			;Y: points to current entry in CDICT pointer structure 
+			;X: points to cutrrent byte in directory tree 
+			;Update pointer (iterator pointer in Y)
+			MOVW	#NULL, 2,Y- 				;skip to parent node
+			CPY	\2					;check for parent
+			BLO	\1					;no parent found
+			LDX	0,Y 					;update tree pointer
 #emac
 	
 ;###############################################################################
@@ -139,6 +288,8 @@ FCDICT_VARS_END_LIN	EQU	@
 FCDICT_CODE_START_LIN	EQU	@
 #endif
 
+;Dictionary operations:
+;======================	
 ;#Look-up word in CORE dictionary 
 ; args:   X: string pointer (terminated string)
 ; result: X: execution token (unchanged if word not found)
@@ -161,7 +312,7 @@ FCDICT_FIND_1		LDAA	1,X+ 					;string char -> A
 			BEQ	FCDICT_FIND_1				;compare next char
 			;Mismatch (dictionary pointer in Y)
 FCDICT_FIND_2		BRCLR	1,Y+,#$80,* 				;skip to the end of the substring
-			BRCLR	2,+Y+#$FF,FCDICT_FIND_5 			;no more branches -> search unsuccessful
+			BRCLR	2,+Y+#$FF,FCDICT_FIND_5 		;no more branches -> search unsuccessful
 			LDX	0,SP	    				;restore string pointer
 			JOB	FCDICT_FIND_1				;search next branch
 			;Last char in string (string char in A, dict char in B string pointer in X, dictionary pointer in Y)
@@ -180,123 +331,171 @@ FCDICT_FIND_5		CLRA						;return result
 			LDX	2,SP 					;restore string pointer
 			JOB	FCDICT_FIND_7 				;done
 			;Search successful (dictionary pointer in Y)
-FCDICT_FIND_6		LDX	#$0000 					;clear X
-			LDD	0,Y 					;shifted execution token -> D
+FCDICT_FIND_6		LDD	0,Y 					;shifted execution token -> D
 			LSLD						;unshift execution token, immediate flag -> C
-			EXG	D, X 					;execution token -> X
-			ROLB						;immediate flag -> D
-			LSLB						;D*2 -> D
-			SUBD	#$0001					;D-1 -> D
+			TFR	D, X 					;execution token -> X
+			ROLB						;immediate flag -> B
+			LSLB						;B*2 -> B
+			DECB						;B-1 -> B
+			SEX	B, D					;B -> D
 			;Done (result in D, execution token/string pointer X)
 FCDICT_FIND_7		SSTACK_PREPULL	8 				;check stack
 			LDY	4,+SP					;restore Y	
+			RTS
+
+;#Reverse lookup a CFA and print the corresponding word
+; args:   D: CFA
+; result: C-flag: set if successful
+; SSTACK: 2*FCDICT_TREE_DEPTH + 6 bytes
+;         All registers are preserved
+FCDICT_REVPRINT		EQU	*
+			;Save registers (CFA in D)
+			PSHY						;save Y	
+			;Allocate iterator structure (CFA in D)
+			LEAS	(-2*(FCDICT_TREE_DEPTH+1)),SP 		;allocate space for iterator
+			TFR	SP, Y 					;start of iterator -> Y
+			;Reverse lookup (start of iterator in Y, CFA in D)
+			FCDICT_ITERATOR_REV				;reverse lookup
+			TST	0,Y 					;check for empty iterator
+			BEQ	FCDICT_REVPRINT_2 			;search unsucessful
+			;Print word (start of iterator in Y, CFA in D)
+			FCDICT_ITERATOR_PRINT 				;print word (SSTACK: 16 bytes)
+			;Report sucess (CFA in D)
+			SSTACK_PREPULL (2*(FCDICT_TREE_DEPTH+3)) 	;check stack
+			SEC				 		;report success
+			;Done (CFA in D)
+FCDICT_REVPRINT_1	LEAS	(2*(FCDICT_TREE_DEPTH+1)),SP 		;deallocate iterator space
+			PULY						;restore Y	
+			RTS
+			;Report failure (CFA in D)
+FCDICT_REVPRINT_2	SSTACK_PREPULL (2*(FCDICT_TREE_DEPTH+3)) 	;check stack
+			SEC				 		;report failure
+			JOB	FCDICT_REVPRINT_1 			;done
+	
+;Iterator operations:
+;====================
+;Reverse search CDICT for matching CFA
+; args:   Y: start of iterator structure
+;         D: CFA
+; result: none
+; SSTACK: 10 bytes
+;         All registers are preserved
+FCDICT_ITERATOR_REV	EQU	*
+			;Save registers (start of iterator in Y, CFA in D)
+			PSHD						;save D
+			;Get first CFA (start of iterator in Y)
+			FCDICT_ITERATOR_FIRST 				;set iterator
+			FCDICT_ITERATOR_CFA 				;get first CFA (SSTACK: 6 bytes)
+			;Check CFA (start of iterator in Y, {IMMEDIATE, CFA>>1} in D)		
+FCDICT_ITERATOR_REV_1	TBEQ	D, FCDICT_ITERATOR_REV_2		;search unsuccessful 	
+			LSLD						;remove Immediate flag
+			CPD	0,SP 					;Compare CFAs
+			BEQ	FCDICT_ITERATOR_REV_2 			;search successful
+			;Get next CFA (start of iterator in Y)
+			FCDICT_ITERATOR_NEXT 				;advance iterator (SSTACK: 6 bytes)
+			JOB	FCDICT_ITERATOR_REV_1
 			;Done
+FCDICT_ITERATOR_REV_2	SSTACK_PREPULL	2 				;restore stack
+			PULD						;restore D	
 			RTS
 	
-;Find next path (word) in dictionary
-; args:   Y: start of path
-;         X: end of path
-; result: Y: start of next path
-;         X: end of next path
-;         D: {IMMEDIATE, CFA>>1} of new word, zero if unsuccessful
-; SSTACK: 4 bytes
-;         Y is preserved 
-FCDICT_NEXT_PATH	EQU	*
-			;Path layout:
-			; +--------+--------+
-			; |   Node pointer  |<- end of path
-			; +--------+--------+
-			; :                 : 
-			; +--------+--------+
-			; |   Node pointer  |
-			; +--------+--------+
-			; |   Node pointer  |<- start of path
-			; +--------+--------+
-			;Save registers (start of path in Y, end of path in X)
+;Advance iterator
+; args:   Y: start of iterator structure
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero in case of empty iterator
+; SSTACK: 6 bytes
+;         All registers are preserved
+FCDICT_ITERATOR_NEXT	EQU	*
+			;Save registers (start of iterator in Y)
+			PSHX						;save X
 			PSHY						;save Y	
-			;Find sibling of node (end of path in X)
-			LDY	0,X 					;leaf node pointer -> Y 
-			BRCLR	0,Y, #$FF, FCDICT_NEXT_PATH_2 		;empty string found
-FCDICT_NEXT_PATH_1	BRCLR	1,Y+, #$80, * 				;skip past the end of the substring
-			BRCLR	0,Y, #$FF, FCDICT_NEXT_PATH_2 		;subtree pointer found
-			LEAY	-1,Y
-FCDICT_NEXT_PATH_2	BRCLR	3,+Y, #$FF, FCDICT_NEXT_PATH_4 		;no sibling found
-			;Sibling found (end of path in X, sibling in Y) 
-			STY	0,X 					;switch to sibling
-			JOB	FCDICT_NEXT_PATH_3 			;extract full path of sibling
-FCDICT_NEXT_PATH_3	EQU	FCDICT_FIRST_PATH_2	
-			;Find parent of leaf node (end of path in X)
-FCDICT_NEXT_PATH_4	LDY	2,+X 					;switch to parent
-			CPX	0,SP 					;check if parent exists
-			BLE	FCDICT_NEXT_PATH_1 			;parent
-			;Next path does not exist
+			;Set default result (start of iterator in Y)
 			CLRA
 			CLRB
-			JOB	FCDICT_NEXT_PATH_5
-FCDICT_NEXT_PATH_5	EQU	FCDICT_FIRST_PATH_4
-
-;Extract path (word) in dictionary
-; args:   X: end of incomplete path
-; result: X: end of complete path
-;         D: {IMMEDIATE, CFA>>1} of new word
-; SSTACK: 4 bytes
-;         Y is preserved 
-FCDICT_FIRST_PATH	EQU	*
-			;Path layout:
-			; +--------+--------+
-			; |   Node pointer  |<- end of path
-			; +--------+--------+
-			; :                 : 
-			; +--------+--------+
-			; |   Node pointer  |
-			; +--------+--------+
-			; |   Node pointer  |<- start of path
-			; +--------+--------+
-			;Save registers (end of path in X)
-			PSHY						;save Y	
-			;Skip over substring (end of path in X)
-			LDY	0,X 					;node pointer -> Y 
-FCDICT_FIRST_PATH_1	BRCLR	0,Y, #$FF, FCDICT_FIRST_PATH_3		;empty string found
-FCDICT_FIRST_PATH_2	BRCLR	1,Y+, #$80, * 				;skip past the end of the substring
-			BRCLR	1,Y-, #$FF, FCDICT_FIRST_PATH_5 	;subtree pointer found
-			;Get CFA (end of path in X, node pointer in Y)
-FCDICT_FIRST_PATH_3	LDD	1,Y
-FCDICT_FIRST_PATH_4	SSTACK_PREPULL	4 				;restore stack
-			PULY						;restore Y	
+			;Set tree and iterator pointers (start of iterator in Y)
+			FCDICT_SET_PTRS FCDICT_ITERATOR_NEXT_4 		;empty iterator found
+			;Check for sibling (iterator pointer in Y, node pointer in X) 
+FCDICT_ITERATOR_NEXT_1	FCDICT_SIBLING FCDICT_ITERATOR_NEXT_3 		;no sibling found
+			;Check for descendands (iterator pointer in Y, node pointer in X)
+FCDICT_ITERATOR_NEXT_2	FCDICT_1ST_CHILD FCDICT_ITERATOR_NEXT_4 	;leaf node found
+			JOB FCDICT_ITERATOR_NEXT_2 			;check for further child
+			;Check for uncle (iterator pointer in Y, node pointer in X)
+FCDICT_ITERATOR_NEXT_3	FCDICT_PARENT FCDICT_ITERATOR_NEXT_5, (0,SP)    ;empty iterator found
+			JOB FCDICT_ITERATOR_NEXT_2 			;check for descendands of uncle
+			;Next iterator found (iterator pointer in Y, node pointer in X)
+			LDD	-1,X 					;get CFA
 			;Done
-			RTS
-			;Subtree found (end of path in X, node pointer in Y)			
-FCDICT_FIRST_PATH_5	LDY	2,Y 					;switch tree node to subtree
-			STY	2,-X 					;append subtree to path
-			JOB	FCDICT_FIRST_PATH_1
-
-;Find next path (word) in dictionary
-; args:   Y: start of path
-;         X: end of path
-;         D: initial char count
-; result: Y: start of path
-;         X: end of path
-;         D: incremented char count
-; SSTACK: 6 bytes
-;         X and Y are preserved 
-FCDICT_WORD_LENGTH	EQU	*
-			;Save registers (start of path in Y, end of path in X, char count in D)
-			PSHY						;save Y				
-			PSHX						;save X
-			ADDD	#1 					;add length of the separator
-			;Count (path pointer in Y, char count in D)
-FCDICT_WORD_LENGTH_1	LDX	2,Y-					;string pointer -> X
-			BRCLR	0,X, #$FF, FCDICT_WORD_LENGTH_2 	;empty string found
-			STRING_SKIP_AND_COUNT 				;count chars of substring
-FCDICT_WORD_LENGTH_2	CPY	0,SP 					;check path length
-			BHS	FCDICT_WORD_LENGTH_1
-			;Restore registers (char count in D)
-			SSTACK_PREPULL	6
+FCDICT_ITERATOR_NEXT_5	SSTACK_PREPULL	6 				;restore stack
+			PULY						;restore Y	
 			PULX						;restore X	
-			PULY						;restore Y
-			;Done 
 			RTS
 	
+;Get length of word referenced by current iterator
+; args:   Y: start of iterator structure
+; result: D: char count 
+; SSTACK: 6 bytes
+;         X and Y are preserved
+FCDICT_ITERATOR_WC	EQU	*
+			;Save registers (start of iterator in Y)
+			PSHX						;save X
+			PSHY						;save Y	
+			;Reset char count (start of iterator in Y)
+			CLRA
+			CLRB
+			;Count loop (iterator pointer in Y, char count in D)
+FCDICT_ITERATOR_WC_1	LDX	2,Y+
+			BEQ	FCDICT_ITERATOR_WC_2 			;done
+			STRING_SKIP_AND_COUNT 				;count chars in substring
+			JOB	FCDICT_ITERATOR_WC_1 			;skip to next substring
+			;Done
+FCDICT_ITERATOR_WC_2	SSTACK_PREPULL	6 				;restore stack
+			PULY						;restore Y	
+			PULX						;restore X	
+			RTS
+
+;Print word referenced by current iterator (BLOCKING)
+; args:   Y: start of iterator structure
+; result: none
+; SSTACK: 16 bytes
+;         All registers are preserved
+FCDICT_ITERATOR_PRINT	EQU	*
+			;Save registers (start of iterator in Y)
+			PSHX						;save X
+			PSHY						;save Y	
+			;Count loop (iterator pointer in Y, char count in D)
+FCDICT_ITERATOR_PRINT_1	LDX	2,Y+
+			BEQ	FCDICT_ITERATOR_PRINT_2 		;done
+			STRING_PRINT_BL					;print substring (SSTACK: 10 bytes)
+			JOB	FCDICT_ITERATOR_PRINT_1 		;skip to next substring
+			;Done
+FCDICT_ITERATOR_PRINT_2	SSTACK_PREPULL	6 				;restore stack
+			PULY						;restore Y	
+			PULX						;restore X	
+			RTS
+	
+;Get CFA of word referenced by current iterator
+; args:   Y: start of iterator structure
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero ic case of empty iterator
+; SSTACK: 6 bytes
+;         All registers are preserved;
+FCDICT_ITERATOR_CFA	EQU	*
+			;Save registers (start of iterator in Y)
+			PSHX						;save X
+			PSHY						;save Y	
+			;Set default result (start of iterator in Y)
+			CLRA
+			CLRB
+			;Set tree and iterator pointers (start of iterator in Y, default result in D)
+			FCDICT_SET_PTRS FCDICT_ITERATOR_CFA_1 		;empty iterator found
+			;Skip over sub-string (string pointer in X, default result in D)
+			BRCLR	1,X+, #STRING_TERM, * 			;skip past string termination
+			LDAA	1,X+ 					;check for leaf node
+			BEQ	FCDICT_ITERATOR_CFA_1 			;not a leaf node (invalid iterator) 
+			LDAA	0,	 				;get complete result
+FCDICT_ITERATOR_CFA_1	SSTACK_PREPULL	6 				;restore stack
+			PULY						;restore Y	
+			PULX						;restore X	
+			RTS
+				
 ;Code fields:
 ;============
 ;FIND-CDICT ( c-addr -- c-addr 0 |  xt 1 | xt -1 )  
@@ -336,163 +535,59 @@ CF_FIND_CDICT		EQU	*
 CF_WORDS_CDICT		EQU	*
 			;PS layout:
 			; +--------+--------+
-			; |  Start of path  | PSP+0
+			; |                 | PSP+0
+			; +                 +
+			; :     Iterator    :
+			; +                 +
+			; |                 | PSP+(2*FCDICT_TREE_DEPTH)
 			; +--------+--------+
-			; |    End of path  | PSP+2
-			; +--------+--------+
-			; :                 : 
-			; +--------+--------+
-			; |   Node pointer  | PSP+(2*FCDICT_TREE_DEPTH)+0
-			; +--------+--------+
-			; |   Node pointer  | PSP+(2*FCDICT_TREE_DEPTH)+2
+			; |  Iterator ptr   | PSP+(2*FCDICT_TREE_DEPTH)+2
 			; +--------+--------+
 			; | Column counter  | PSP+(2*FCDICT_TREE_DEPTH)+4
 			; +--------+--------+
-CF_WORDS_CDICT_SOP	EQU	0
-CF_WORDS_CDICT_EOP	EQU	2
-CF_WORDS_CDICT_PATH	EQU	(2*FCDICT_TREE_DEPTH)+2
-CF_WORDS_CDICT_COLCNT	EQU	(2*FCDICT_TREE_DEPTH)+4
+CF_WORDS_CDICT_ITPTR	EQU	(2*(FCDICT_TREE_DEPTH+1) 	;iterator pointer offset
+CF_WORDS_CDICT_COLCNT	EQU	(2*(FCDICT_TREE_DEPTH+2) 	;column counter offset
 			;Print header
 			PS_PUSH	#FCDICT_WORDS_HEADER
 			EXEC_CF	CF_STRING_DOT
-			;Initialize PS
+			;Allocate stack space
 			PS_CHECK_OF	FCDICT_TREE_DEPTH+3 	;new PSP -> Y
 			STY	PSP
-			;Extract first word (PSP in Y)
-			LEAY	CF_WORDS_CDICT_PATH,Y 		;start of path -> Y
-			TFR	Y, X				;end of path -> X
-			MOVW	#FCDICT_TREE, 0,Y 		;start at root
-			FCDICT_FIRST_PATH 			;(SSTACK: 4 bytes)
-			CLRA
-			CLRB
-			FCDICT_WORD_LENGTH			;(SSTACK: 6 bytes)
-			STD	(CF_WORDS_CDICT_COLCNT-CF_WORDS_CDICT_PATH),Y
-			STX	(CF_WORDS_CDICT_EOP-CF_WORDS_CDICT_PATH),Y
-			STY	(CF_WORDS_CDICT_SOP-CF_WORDS_CDICT_PATH),Y
-			;Print word (start of path in Y, end of path in X)
-			STX	(CF_WORDS_CDICT_EOP-CF_WORDS_CDICT_PATH),Y
-			STY	(CF_WORDS_CDICT_SOP-CF_WORDS_CDICT_PATH),Y
-CF_WORDS_CDICT_1	EXEC_CF	CF_FCDICT_PRINT_WORD
+			;Initialize iterator and column counter (PSP in Y)
+			FCDICT_ITERATOR_FIRST 			;initialize iterator
+			MOVW #FCDICT_LINE_WIDTH, CF_WORDS_CDICT_COLCNT,Y;initialize column counter
+			;Check column width (PSP in Y)
+CF_WORDS_CDICT_1	FCDICT_ITERATOR_WC 			;word length -> D (SSTACK: 6 bytes)
+			ADDD	(2*(FCDICT_TREE_DEPTH+1)),Y	;add to line width
+			CPD	#(FCDICT_LINE_WIDTH+1)		;check line width
+			BLS	CF_WORDS_CDICT_2 		;insert white space
+			;Insert line break (PSP in Y)			
+			MOVW	#$0000, CF_WORDS_CDICT_COLCNT,Y	;reset column counter
+			EXEC_CF	CF_CR 				;print line break
+			JOB	CF_WORDS_CDICT_3			;print word
+			;Insert white space (PSP in Y, new column count in D)			
+CF_WORDS_CDICT_2	STD	CF_WORDS_CDICT_COLCNT,Y		;update column counter
+			EXEC_CF	CF_SPACE			;print whitespace
+			;Print word						
+CF_WORDS_CDICT_3	LDY	PSP				;PSP -> Y
+			LDX	0,Y
+CF_WORDS_CDICT_4	STY	CF_WORDS_CDICT_ITPTR,Y		;store itertator pointer
+			PS_PUSH_X				;print substring
+			EXEC_CF	CF_STRING_DOT			;
 			LDY	PSP				;PSP -> Y
-			LDX	CF_WORDS_CDICT_EOP,Y		;end of path -> X
-			LEAY	CF_WORDS_CDICT_PATH,Y 		;start of path -> Y
-			;Find next word (start of path in Y, end of path in X)
-			FCDICT_NEXT_PATH 			;(SSTACK: 4 bytes)
-			TBEQ	D, CF_WORDS_CDICT_3		;done
-			STX	(CF_WORDS_CDICT_EOP-CF_WORDS_CDICT_PATH),Y
-			STY	(CF_WORDS_CDICT_SOP-CF_WORDS_CDICT_PATH),Y
-			;Print separator (start of path in Y, end of path in X)
-			LDD	(CF_WORDS_CDICT_COLCNT-CF_WORDS_CDICT_PATH),Y
-			FCDICT_WORD_LENGTH			;(SSTACK: 6 bytes)
-			CPD	#(FCDICT_LINE_WIDTH+1)
-			BHI	CF_WORDS_CDICT_2 		;line break required
-			;Print space character (start of path in Y, end of path in X, char count in D)
-			STD	(CF_WORDS_CDICT_COLCNT-CF_WORDS_CDICT_PATH),Y
-			EXEC_CF	CF_SPACE
-			JOB	CF_WORDS_CDICT_1
-			;Print line break (start of path in Y, end of path in X, char count in D)
-CF_WORDS_CDICT_2	SUBD	(CF_WORDS_CDICT_COLCNT-CF_WORDS_CDICT_PATH),Y
-			STD	(CF_WORDS_CDICT_COLCNT-CF_WORDS_CDICT_PATH),Y
-			EXEC_CF	CF_CR
-			JOB	CF_WORDS_CDICT_1
-			;Done
-CF_WORDS_CDICT_3	PS_CHECK_UF	FCDICT_TREE_DEPTH+3 	;PSP -> Y
+			LDY	CF_WORDS_CDICT_ITPTR,Y		;get itertator pointer
+			LDX	2,+Y				;get substring pointer
+			BNE	CF_WORDS_CDICT_4		;substring exists
+			;Skip to next word						
+			LDY	PSP				;iterator pointer -> Y
+			FCDICT_ITERATOR_NEXT			;advance iterator (SSTACK: 6 bytes)
+			TST	0,Y				;check for empty iterator
+			BNE	CF_WORDS_CDICT_1		;print next word
+			;Clean up (PSP in Y)						
+CF_WORDS_CDICT_5	PS_CHECK_UF	FCDICT_TREE_DEPTH+3 	;PSP -> Y
 			LEAY	(2*(FCDICT_TREE_DEPTH+3)),Y
 			STY	PSP
 			NEXT
-
-;.WORD-CDICT ( xt --  xt u )
-;Reverse lookup an xt and print the associated word. Keep xt on the PS and
-;return the number of printed characters u. 
-; args:   none
-; result: none
-; SSTACK: 8 bytes
-; PS:     FCDICT_TREE_DEPTH+3 cells
-; RS:     2 cells
-; throws: FEXCPT_EC_PSUF
-;         FEXCPT_EC_PSOF
-CF_DOT_WORD_CDICT		EQU	*
-			;PS layout:
-			; +--------+--------+
-			; |  Start of path  | PSP+0
-			; +--------+--------+
-			; |    End of path  | PSP+2
-			; +--------+--------+
-			; :                 : 
-			; +--------+--------+
-			; |   Node pointer  | PSP+(2*FCDICT_TREE_DEPTH)+0
-			; +--------+--------+
-			; |   Node pointer  | PSP+(2*FCDICT_TREE_DEPTH)+2
-			; +--------+--------+
-			; |        u        | PSP+(2*FCDICT_TREE_DEPTH)+4
-			; +--------+--------+
-			; |        xt       | PSP+(2*FCDICT_TREE_DEPTH)+6
-			; +--------+--------+
-CF_DOT_WORD_CDICT_SOP	EQU	0
-CF_DOT_WORD_CDICT_EOP	EQU	2
-CF_DOT_WORD_CDICT_PATH	EQU	(2*FCDICT_TREE_DEPTH)+2
-CF_DOT_WORD_CDICT_CCNT  EQU	(2*FCDICT_TREE_DEPTH)+4
-CF_DOT_WORD_CDICT_XT    EQU	(2*FCDICT_TREE_DEPTH)+6
-			;Initialize PS
-			PS_CHECK_UFOF	1, (FCDICT_TREE_DEPTH+3);new PSP -> Y
-			STY	PSP
-			;Extract first word (PSP in Y)
-			LEAY	CF_DOT_WORD_CDICT_PATH,Y 	;start of path -> Y
-			TFR	Y, X				;end of path -> X
-			MOVW	#FCDICT_TREE, 0,Y 		;start at root
-			FCDICT_FIRST_PATH 			;(SSTACK: 4 bytes)
-			;Compare xts  (start of path in Y, end of path in X, xt in D)
-CF_DOT_WORD_CDICT_1	LSLD
-			CPD	(CF_DOT_WORD_CDICT_XT-CF_DOT_WORD_CDICT_PATH),Y
-			BEQ	CF_DOT_WORD_CDICT_2 		;xt found
-			;Check next word (start of path in Y, end of path in X)
-			FCDICT_NEXT_PATH 			;(SSTACK: 4 bytes)
-			TBNE	D, CF_DOT_WORD_CDICT_1		;compare xts
-			;xt not found
-			PS_CHECK_UF	FCDICT_TREE_DEPTH+4 	;PSP -> Y
-			LEAY	(2*(FCDICT_TREE_DEPTH+2)),Y
-			STY	PSP
-			MOVW	#$0000, 0,Y
-			NEXT
-			;xt found (start of path in Y, end of path in X)
-CF_DOT_WORD_CDICT_2	CLRA	
-			CLRB
-			FCDICT_WORD_LENGTH 			;determine word length
-			STD	(CF_DOT_WORD_CDICT_CCNT-CF_DOT_WORD_CDICT_PATH),Y
-			STX	(CF_DOT_WORD_CDICT_EOP-CF_DOT_WORD_CDICT_PATH),Y
-			STY	(CF_DOT_WORD_CDICT_SOP-CF_DOT_WORD_CDICT_PATH),Y
-			EXEC_CF	CF_FCDICT_PRINT_WORD
-			PS_CHECK_UF	FCDICT_TREE_DEPTH+4 	;PSP -> Y
-			LEAY	(2*(FCDICT_TREE_DEPTH+2)),Y
-			STY	PSP
-			MOVW	#TRUE, 0,Y
-			NEXT
-
-;FCDICT_PRINT_WORD ( addr0 addr1 --  addr0 addr0 )
-;print all terminated strings which are listed in the memory range from addr0 addr1
-; args:   none
-; result: none
-; SSTACK: 8 bytes
-; PS:     1 cell
-; RS:     1 cell
-; throws: FEXCPT_EC_PSUF
-;         FEXCPT_EC_PSOF
-CF_FCDICT_PRINT_WORD	EQU	*
-			;Check and update path pointers
-CF_FCDICT_PRINT_WORD_1	PS_CHECK_UF	2			;PSP -> Y
-			LDX	0,Y
-			CPX	2,Y
-			BLO	CF_FCDICT_PRINT_WORD_2 		;done
-			LDD	2,X-
-			STX	0,Y
-			;Print sybstring (string pointer in D)
-			TFR	D, Y
-			BRCLR	0,Y, #$FF, CF_FCDICT_PRINT_WORD_1;empty string found
-			PS_PUSH_D
-			EXEC_CF	CF_STRING_DOT
-			JOB	CF_FCDICT_PRINT_WORD_1
-			;Done
-CF_FCDICT_PRINT_WORD_2	NEXT
 
 FCDICT_CODE_END		EQU	*
 FCDICT_CODE_END_LIN	EQU	@
@@ -512,12 +607,13 @@ FCDICT_STR_NL		EQU	STRING_STR_NL
 
 ;#Word separator string
 FCDICT_STR_SEP		FCS	" "
-FCDICT_STR_SEP_CNT	*-FCDICT_PRINT_SEP_WS
+FCDICT_STR_SEP_CNT	EQU	*-FCDICT_PRINT_SEP_WS
 
 ;#Header line for WORDS output 
 FCDICT_WORDS_HEADER	STRING_NL_NONTERM
 			FCS	"Core Dictionary:"
-
+			;FCS	"CDICT:"
+			
 ;#Dictionary tree
 FCDICT_TREE_START	EQU	*	
 FCDICT_TREE		FCDICT_TREE
@@ -548,7 +644,7 @@ CFA_FIND_CDICT		DW	CF_FIND_CDICT
 
 ;Word: WORDS-CDICT ( -- )
 ;List the definition names in the core dictionary in alphabetical order.
-CFA_WORDS_CDICT	DW	CF_WORDS_CDICT
+CFA_WORDS_CDICT		DW	CF_WORDS_CDICT
 	
 FCDICT_WORDS_END	EQU	*
 FCDICT_WORDS_END_LIN	EQU	@

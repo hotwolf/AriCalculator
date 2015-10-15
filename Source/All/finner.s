@@ -47,6 +47,8 @@
 ;# Version History:                                                            #
 ;#    January 25, 2013                                                         #
 ;#      - Initial release                                                      #
+;#    October 15, 2015                                                         #
+;#      - IP now points to the current instruction instead of the next one     #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    BASE   - S12CBase framework                                              #
@@ -103,7 +105,7 @@ FALSE			EQU	$0000
 FINNER_VARS_START_LIN	EQU	@
 #endif	
 			ALIGN	1	
-IP			DS	2 		;instruction pointer
+IP			DS	2 		;current instruction pointer
 NP			DS	2		;pointer to the NEXT code 
 	
 FINNER_VARS_END		EQU	*
@@ -140,9 +142,9 @@ FINNER_VARS_END_LIN	EQU	@
 ;==================
 ;#NEXT:	Jump to the next instruction
 ; args:	  IP:   pointer to next instruction
-; result: IP:   pointer to subsequent instruction
+; result: IP:   pointer to current instruction
 ;         W/X:  new CFA
-;         Y:    IP (=pointer to subsequent instruction)
+;         Y:    IP (=pointer to current instruction)
 ; SSTACK: none
 ;         No registers are preserved
 #macro	NEXT, 0	
@@ -151,9 +153,9 @@ FINNER_VARS_END_LIN	EQU	@
 
 ;#SKIP_NEXT: Skip next instruction and jump to one after
 ; args:	  IP:   pointer to next instruction
-; result: IP:   pointer to subsequent instruction
+; result: IP:   pointer to current instruction
 ;         W/X:  new CFA
-;         Y:    IP (=pointer to subsequent instruction)
+;         Y:    IP (=pointer to current instruction)
 ; SSTACK: none
 ;         No registers are preserved
 #macro	SKIP_NEXT, 0	
@@ -162,9 +164,9 @@ FINNER_VARS_END_LIN	EQU	@
 
 ;#JUMP_NEXT: Read the next word entry and jump to that instruction 
 ; args:	  IP:   pointer to next instruction
-; result: IP:   pointer to subsequent instruction
+; result: IP:   pointer to current instruction
 ;         W/X:  new CFA
-;         Y:    IP (=pointer to subsequent instruction)
+;         Y:    IP (=pointer to current instruction)
 ; SSTACK: none
 ;         No registers are preserved
 #macro	JUMP_NEXT, 0	
@@ -183,7 +185,7 @@ FINNER_VARS_END_LIN	EQU	@
 ;         No registers are preserved
 #macro	EXEC_CF, 1
 			RS_PUSH IP			;IP -> RS
-			MOVW	#IP_RESUME, IP 		;set next IP
+			MOVW	#(IP_RESUME-2), IP 	;set next IP
 			JOB	\1			;execute CF
 IP_RESUME		DW	CFA_RESUME
 CFA_RESUME		DW	CF_RESUME
@@ -201,7 +203,7 @@ CF_RESUME		EQU	*
 ;         No registers are preserved
 #macro	EXEC_CF_X, 0
 			RS_PUSH_KEEP_X IP		;IP -> RS
-			MOVW	#IP_RESUME, IP 		;set next IP
+			MOVW	#(IP_RESUME-2), IP 	;set next IP
 			JMP	0,X 			;execute CF
 IP_RESUME		DW	CFA_RESUME
 CFA_RESUME		DW	CF_RESUME
@@ -219,7 +221,7 @@ CF_RESUME		EQU	*
 ;         No registers are preserved
 #macro	EXEC_CFA, 1
 			RS_PUSH IP			;IP -> RS
-			MOVW	#IP_RESUME, IP 		;set next IP
+			MOVW	#(IP_RESUME-2), IP 	;set next IP
 			LDX	#\1
 			JMP	[0,X]			;execute CF
 IP_RESUME		DW	CFA_RESUME
@@ -238,7 +240,7 @@ CF_RESUME		EQU	*
 ;         No registers are preserved
 #macro	EXEC_CFA_X, 0
 			RS_PUSH_KEEP_X IP		;IP -> RS
-			MOVW	#IP_RESUME, IP 		;set next IP
+			MOVW	#(IP_RESUME-2), IP 	;set next IP
 			JMP	[0,X]			;execute CF
 IP_RESUME		DW	CFA_RESUME
 CFA_RESUME		DW	CF_RESUME
@@ -262,9 +264,9 @@ FINNER_CODE_START_LIN	EQU	@
 ;#SKIP_NEXT: skip the next instruction and jump to the one after
 ; args:	  IP:  pointer to next instruction
 ;	  IRQ: pending interrupt requests
-; result: IP:  pointer to subsequent instruction
+; result: IP:  pointer to current instruction
 ;         W/X: new CFA
-;         Y:   IP (=pointer to subsequent instruction)
+;         Y:   IP (=pointer to current instruction)
 ; SSTACK: none
 ; PS:     none
 ; RS:     none
@@ -282,34 +284,36 @@ SKIP_NEXT		EQU	*
 ;#JUMP_NEXT: Read the next word entry and jump to that instruction 
 ; args:	  IP:  pointer to next instruction
 ;	  IRQ: pending interrupt requests
-; result: IP:  pointer to subsequent instruction
+; result: IP:  pointer to current instruction
 ;         W/X: new CFA
-;         Y:   IP (=pointer to subsequent instruction)
+;         Y:   IP (=pointer to current instruction)
 ; SSTACK: none
 ; PS:     none
 ; RS:     none
 ; throws: none
 ;         No registers are preserved
 JUMP_NEXT		EQU	*
-			LDY	[IP]			;[IP] -> Y	        => 6 cycles	 4 bytes
+			LDY	IP			;old IP     -> Y	=> 3 cycles	 3 bytes
+			LDY	2,Y			;new IP     -> Y	=> 3 cycles	 2 bytes
+			LEAY	-2,Y			;new IP - 2 -> Y	=> 1 cycle	 2 bytes
 			STY	IP			;			=> 3 cycles	 2 bytes
 			JMP	[NEXT_PTR]		;			=> 6 cycles	 4 bytes
 							;                   NEXT: 15 cycles
 							;                         ---------
-							;                         30 cycles
+							;                         31 cycles
 ;NEXT implementations:
 ;=====================
 	;#NEXT: jump to the next instruction
 ; args:	  IP:   pointer to next instruction
-; result: IP:   pointer to subsequent instruction
+; result: IP:   pointer to current instruction
 ;         W/X:  new CFA
-;         Y:    IP (=pointer to subsequent instruction)
+;         Y:    IP (=pointer to current instruction)
 ; PS:     none
 ; RS:     none
 ; throws: none
 NEXT			EQU	*
 			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
-			LDX	2,Y+			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
+			LDX	2,+Y			;IP += 2, CFA -> X	=> 3 cycles 	 2 bytes   
 			STY	IP			;	  	  	=> 3 cycles	 3 bytes 
 			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
 							;                         ---------
@@ -317,23 +321,32 @@ NEXT			EQU	*
 ;Code fields:
 ;============ 	
 ;CF_INNER ( -- ) Execute the first execution token after the CFA (CFA in X)
-; args:   IP:  next execution token	
-;         W/X: current CFA
-; result: IP:  subsequent execution token
-; 	  W/X: current CFA
-; 	  Y:   IP (= subsequent execution token)
+; args:   IP:  old execution token	
+;         W/X: old CFA
+; result: IP:  new execution token
+; 	  W/X: new CFA
+; 	  Y:   IP (= new execution token)
 CF_INNER		EQU		*
-			RS_PUSH_KEEP_X	IP		;IP -> RS		=>22 cycles
-			LEAY		4,X		;CFA+4 -> IP		=> 2 cycles
-			STY		IP		;			=> 3 cycles
-			LDX		2,X		;new CFA -> X		=> 3 cycles
+			TFR		X, Y		;old CFA+2 -> Y		=> 1 cycle	
+			RS_PUSH		IP		;old IP -> RS		=>22 cycles
+			LDX		2,+Y		;new CFA -> X		=> 3 cycles
+			STY		IP		;new IP  -> IP		=> 3 cycles
 			JMP		[0,X]		;JUMP [new CFA]         => 6 cycles
+							;                         ---------
+							;                         35 cycles
+			;Old implementation: 
+			;------------------- 
+			;RS_PUSH_KEEP_X	IP		;IP -> RS		=>22 cycles
+			;LEAY		2,X		;CFA+2 -> IP		=> 2 cycles
+			;STY		IP		;			=> 3 cycles
+			;LDX		2,X		;new CFA -> X		=> 3 cycles
+			;JMP		[0,X]		;JUMP [new CFA]         => 6 cycles
 							;                         ---------
 							;                         36 cycles
 
 ;CF_EOW ( -- ) End of  word
 ; args:   top of RS: next execution token	
-; result: IP:  subsequent execution token
+; result: IP:  current execution token
 CF_EOW			EQU	*
 			RS_PULL IP			;RS -> IP		=>14 cycles
 CF_EOW_1		NEXT
