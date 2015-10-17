@@ -125,7 +125,7 @@ FEXCPT_EC_COMERR		EQU	-57	;exception in sending or receiving a character
 ;FEXCPT_EC_58			EQU	-58	;[IF], [ELSE], or [THEN] exception
 	
 ;S12CForth specific error codes 
-EXCPT_EC_LITOR			EQU	-59	;literal out of range
+FEXCPT_EC_LITOR			EQU	-59	;literal out of range
 
 ;FEXCPT_EC_DICTPROT		EQU	-61	;destruction of dictionary structure
 ;FEXCPT_EC_NOMSG		EQU	-62	;empty message string
@@ -157,7 +157,7 @@ FEXCPT_VARS_START_LIN	EQU	@
 #endif	
 	
 HANDLER			DS	2 		;pointer tho the most recent exception handler 
-MSG_DATA		DS	2 		;storage for the ABORT" message pointer
+ABORT_MSG		DS	2 		;storage for the ABORT" message pointer
 				
 FEXCPT_VARS_END		EQU	*
 FEXCPT_VARS_END_LIN	EQU	@
@@ -167,8 +167,8 @@ FEXCPT_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FEXCPT_INIT, 0
-			MOVW	#$0000, HANDLER	;reset exception handler
-			MOVW	#$0000, MSG_INFO;clear inner message
+			MOVW	#$0000, HANDLER		;reset exception handler
+			MOVW	#$0000, ABORT_MSG	;clear inner message
 #emac
 
 ;#Abort action (to be executed in addition of quit action)
@@ -227,7 +227,7 @@ FEXCPT_PRINT_STRING_2	EQU	*
 ; PS:     none
 ; RS:     none
 ;         no registers are preserved 
-#macro	THROW_D, 0
+#macro	FEXCPT_THROW_D, 0
 			;BGND
 			JOB	FEXCPT_THROW	;throw exception
 #emac
@@ -239,9 +239,9 @@ FEXCPT_PRINT_STRING_2	EQU	*
 ; PS:     none
 ; RS:     none
 ;         no registers are preserved 
-#macro	THROW, 1
+#macro	FEXCPT_THROW, 1
 			LDD	#\1		;set error code
-			THROW_D
+			FEXCPT_THROW_D
 #emac
 
 ;Error message table:
@@ -284,7 +284,7 @@ FEXCPT_PRINT_MSG	EQU	*
 			LDX	#FIO_STR_NL 					;print line break
 			FIO_PRINT_BL 						;(SSTACK: 10 bytes)
 			;ABORTQ (error code in D)
-			LDX	MSG_DATA 					;message pointer -> X
+			LDX	ABORT_MSG 					;message pointer -> X
 			CPD	#FEXCPT_EC_ABORTQ  				;check error code
 			BEQ	FEXCPT_PRINT_MSG_5 				;print message
 			;Error header (error code in D)
@@ -353,7 +353,7 @@ FEXCPT_THROW_1		FEXCPT_PRINT_MSG 					;Print error message
 FEXCPT_THROW_2		CPX	RSP 						;check that HANDLER is on the RS
 			BLO	FEXCPT_THROW_1   				;error frame is located above the stack
 			CPX	#(RS_EMPTY-6)					;check for 3 cell exception frame
-			BHI	FEXCPT_THROW_  				;no error frame is located on the stack					
+			BHI	FEXCPT_THROW_1  					;no error frame is located on the stack					
 			;Restore stacks (HANDLER in X, error code in D)
 			MOVW	2,X+, HANDLER					;pull previous HANDLER (RSP -> X)
 			LDY	2,X+						;pull previous PSP (RSP -> X)		
@@ -461,7 +461,7 @@ FEXCPT_CODE_END_LIN	EQU	@
 ;###############################################################################
 ;Tabes in unpaged address space
 ;------------------------------ 
-#ifdef FEXCPT_TABS_START_LINx3
+#ifdef FEXCPT_TABS_START_LIN
 			ORG 	FEXCPT_TABS_START, FEXCPT_TABS_START_LIN
 #else
 			ORG 	FEXCPT_TABS_START
@@ -484,7 +484,7 @@ FEXCPT_MSGTAB		EQU	*
 			;FEXCPT_MSG	FEXCPT_EC_INVALID,	"Invalid memory address"
 			FEXCPT_MSG	FEXCPT_EC_0DIV,		"Division by zero"
 			FEXCPT_MSG	FEXCPT_EC_RESOR,	"Result out of range"
-			FEXCPT_MSG	FEXCPT_EC_UDEFWORD,	"Undefined word"
+			;FEXCPT_MSG	FEXCPT_EC_UDEFWORD,	"Undefined word"
 			FEXCPT_MSG	FEXCPT_EC_COMPONLY,	"Compile-only word"
 			FEXCPT_MSG	FEXCPT_EC_NONAME,	"Missing name argument"
 			FEXCPT_MSG	FEXCPT_EC_PADOF,	"PAD overflow"

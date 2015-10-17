@@ -106,15 +106,6 @@ TIB_START		EQU	RS_TIB_START
 ;Default line width 
 DEFAULT_LINE_WIDTH	EQU	80
 
-;ASCII C0 codes 
-FOUTER_SYM_LF  		EQU	STRING_SYM_LF
-FOUTER_SYM_CR  		EQU	STRING_SYM_CR
-FOUTER_SYM_BACKSPACE  	EQU	STRING_SYM_BACKSPACE
-FOUTER_SYM_DEL  	EQU	STRING_SYM_DEL
-FOUTER_SYM_TAB  	EQU	STRING_SYM_TAB
-FOUTER_SYM_BELL  	EQU	STRING_SYM_BELL
-FOUTER_SYM_SPACE  	EQU	STRING_SYM_SPACE
-	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -125,6 +116,7 @@ FOUTER_SYM_SPACE  	EQU	STRING_SYM_SPACE
 FOUTER_VARS_START_LIN	EQU	@
 #endif	
 			ALIGN	1	
+BASE			DS	2 		;default radix
 STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
 NUMBER_TIB  		DS	2		;number of chars in the TIB
 TO_IN  			DS	2		;parse index (TIB_START+TO_IN -> start of parse area)
@@ -205,9 +197,9 @@ FOUTER_PROMPT_5		MOVB	#(STRING_SYM_SPACE|STRING_TERM), 1,Y+;add NV compile promp
 ;         All registers preserved
 #macro	FOUTER_CHECK_DELIMITER, 0
 			TBNE	A, CUSTOM_DELIMITER  	;custom delimiter
-			CMPB	FOUTER_SYM_SPACE	;" "
+			CMPB	FIO_SYM_SPACE	;" "
 			BEQ	DONE
-			CMPB	FOUTER_SYM_TAB		;tab
+			CMPB	FIO_SYM_TAB		;tab
 			JOB	DONE
 CUSTOM_DELIMITER	CBA				;custom
 DONE			EQU	*
@@ -557,7 +549,7 @@ FOUTER_SKIP_DELIMITER_1	FOUTER_CHECK_OVERRUN		;check for parse overrun
 			SEC
 FOUTER_SKIP_DELIMITER_2	RTS
 		
-;#Find the next gword (delimited by a selectable character) on the TIB and terminate it. 
+;#Find the next word (delimited by a selectable character) on the TIB and terminate it. 
 ; args:   A:    delimiter (0=any whitespace)
 ;         #TIB: char count in TIB
 ;         >IN:  TIB parse index
@@ -572,7 +564,7 @@ FOUTER_PARSE		EQU	*
 			PSHY				;save Y
 			;Skip over delimiters (delimiter in A)
 			FOUTER_SKIP_DELIMITER  		;skip over delimiters
-			BCC	FOUTER_PARSE_2		;TIB is empty
+			BCC	FOUTER_PARSE_1		;TIB is empty
 			;Count chars and terminate word (delimiter in A, >IN in Y)
 			FOUTER_COUNT_AND_TERMINATE
 			;Retore registers 
@@ -684,7 +676,7 @@ FOUTER_INTEGER		EQU	*
 			FOUTER_TO_NUMBER		;convert string to number (SSTACK: 6 bytes)
 			BCS	FOUTER_INTEGER_4	;overflow
 			;Single cell integer
-			BRCLR	-1,X,#STRING_TERM,FOUTER_INTEGER_;check for double cell format
+			BRCLR	-1,X,#STRING_TERM,FOUTER_INTEGER_5;check for double cell format
 			LDY	2,SP			;MSW must be zero
 			BNE	FOUTER_INTEGER_4	;overflow			
 			LDD	4,SP			;load LSW
@@ -716,7 +708,7 @@ FOUTER_INTEGER_5	LDAB	0,X 			;check string for double cell format
 			LDY	4,SP			;load LSW
 			BRCLR	0,SP,#$FF,FOUTER_INTEGER_6;positive double cell number
 			TSTA				;MSW must be < 2^15
-			BMI	FOUTER_INTEGER_4		;overflow
+			BMI	FOUTER_INTEGER_4	;overflow
 			COMA				;invert MSW
 			COMB				;
 			LDY	4,SP			;load LSW
@@ -729,7 +721,7 @@ FOUTER_INTEGER_5	LDAB	0,X 			;check string for double cell format
 			ADCA	#0			;
 FOUTER_INTEGER_6	EXG	D, Y			;D <-> Y
 			LDX	#2			;cell count -> X
-			JOB	FOUTER_INTEGER_		;clean up stack
+			JOB	FOUTER_INTEGER_4	;clean up stack
 
 ;Code fields:
 ;============
@@ -756,18 +748,18 @@ CF_QUERY_1		EXEC_CF	CF_EKEY			;input char -> [PS+0]
 			;Get input (input char in [PS+0])
 			LDD	[PSP] 			;input char -> B
 			;Ignore LF (input char in B)
-			CMPB	#FOUTER_SYM_LF
+			CMPB	#FIO_SYM_LF
 			BEQ	CF_QUERY_4		;ignore
 			;Check for ENTER (CR) (input char in B and in [PS+0])
-			CMPB	#FOUTER_SYM_CR	
+			CMPB	#FIO_SYM_CR	
 			BEQ	CF_QUERY_8		;command line complete		
 			;Check for BACKSPACE (input char in B and in [PS+0])
-			CMPB	#FOUTER_SYM_BACKSPACE	
+			CMPB	#FIO_SYM_BACKSPACE	
 			BEQ	CF_QUERY_7	 	;backspace
-			CMPB	#FOUTER_SYM_DEL	
+			CMPB	#FIO_SYM_DEL	
 			BEQ	CF_QUERY_7	 	;backspace
 			;Check for valid special characters (input char in B and in [PS+0])
-			CMPB	#FOUTER_SYM_TAB	
+			CMPB	#FIO_SYM_TAB	
 			BEQ	CF_QUERY_2	 	;echo and append to buffer
 			;Check for invalid characters (input char in B and in [PS+0])
 			CMPB	#" " 			;first legal character in ASCII table
@@ -793,7 +785,7 @@ CF_QUERY_4		LDY	PSP 			;drop char from PS
 			STY	PSP
 			JOB	CF_QUERY_1
 			;BEEP			
-CF_QUERY_5		LDD	#FOUTER_SYM_BEEP	;replace received char by a beep
+CF_QUERY_5		LDD	#FIO_SYM_BEEP	;replace received char by a beep
 CF_QUERY_6		STD	[PSP]
 			JOB	CF_QUERY_3 		;transmit beep
 			;Check for buffer underflow (input char in [PS+0])
@@ -933,7 +925,7 @@ CF_SHELL		EQU	*
 			;Print shell prompt
 CF_SHELL_1		FOUTER_PROMPT 				;assemble prompt in TIB
 			PS_PUSH	TIB_START			;TIB pointer -> PS
-			EXEC_CF	CF_DOT_STRING			;print string
+			EXEC_CF	CF_STRING_DOT			;print string
 			;Query command line
 			EXEC_CF	CF_QUERY 			;query command line
 			;Parse command line
@@ -942,7 +934,7 @@ CF_SHELL_2		CLRA					;set delimiter to any whitespace
 			TBNE	D, CF_SHELL_2b			;word found
 			;Print acknowledge string 
 CF_SHELL_2a		PS_PUSH	#FOUTER_SYSTEM_ACK 		;string pointer -> PS
-			EXEC_CF	CF_DOT_STRING			;print string
+			EXEC_CF	CF_STRING_DOT			;print string
 			JOB	CF_SHELL_1			;new command line
 			;Lookup word in dictionaries word (string pointer in X)
 CF_SHELL_2b		FOUTER_FIND 				;search dictionaries
@@ -989,9 +981,10 @@ CF_SHELL_7		LDD	STATE 				;check compile state
 			FUDICT_COMPILE_CELL 			;
 			JOB	CF_SHELL_2			;parse next word
 			;Syntax error (string pointer in X)
-CF_SHELL_8		STX	MSG_INFO 			;include word in error message
-			FEXCPT_THROW	FEXCPT_EC_UDEFWORD	;throw exception
-
+CF_SHELL_8		STX	ABORT_MSG 			;include word in error message
+			;FEXCPT_THROW	FEXCPT_EC_UDEFWORD	;throw exception
+			BRA	*	;TBD!!!
+	
 ;SUSPEND handler (ERROR -- )
 ;Enter SUSPEND mode.
 ; args:   none
@@ -1277,8 +1270,8 @@ CFA_RESUME		DW	CF_RESUME
 ;
 ;Throws:
 ;"Parameter stack overflow"
-CFA_TIB_OFFSET		DW	CF_CONSTANT_RT
-			DW	TIB_OFFSET
+;CFA_TIB_OFFSET		DW	CF_CONSTANT_RT
+;			DW	TIB_OFFSET
 
 ;LITERAL run-time semantics
 ;Run-time: ( -- x )

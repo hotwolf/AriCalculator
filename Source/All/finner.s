@@ -173,8 +173,8 @@ FINNER_VARS_END_LIN	EQU	@
 			JOB	JUMP_NEXT		;run next instruction	=> 3 cycles	 3 bytes
 #emac
 	
-;CF/CFA/ISR execution from assembly code:
-;========================================
+;CF/CFA execution from assembly code:
+;====================================
 ;Execute a CF directly from assembler code
 ; args:   1: CF
 ; result: see CF
@@ -247,7 +247,31 @@ CFA_RESUME		DW	CF_RESUME
 CF_RESUME		EQU	*
 			RS_PULL IP 			;RS -> IP
 #emac
-	
+
+;Idle state:
+;===========
+;#Wait for a system event (I-flag must be est before execution)
+; args:	  none
+; result: none
+; SSTACK: none
+;         No registers are preserved
+#macro	FINNER_WAIT, 0
+			LDX	NP			;check for default NEXT pointer
+			CPX	#NEXT			;
+			BNE	FINNER_WAIT_1	 	;NEXT pointer has been substituted
+			;Wait for any  system event
+#ifmac FORTH_SIGNAL_IDLE
+			FORTH_SIGNAL_IDLE		;signal inactivity
+#endif
+			ISTACK_WAIT			;wait for next interrupt
+#ifmac FORTH_SIGNAL_BUSY
+			FORTH_SIGNAL_BUSY		;signal activity
+#endif
+			;Execute NEXT  
+FINNER_WAIT_1		CLI				;enable interrupts
+			EXEC_CF	CF_NOP			;execute substitute NEXT
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -276,7 +300,7 @@ SKIP_NEXT		EQU	*
 			LDY	IP			;IP -> Y	        => 3 cycles	 3 bytes
 			LEAY	2,Y			;IP += 2		=> 2 cycles	 2 bytes
 			STY	IP			;			=> 3 cycles	 2 bytes
-			JMP	[NEXT_PTR]		;			=> 6 cycles	 4 bytes
+			JMP	[NP]			;			=> 6 cycles	 4 bytes
 							;                   NEXT: 15 cycles
 							;                         ---------
 							;                         29 cycles
@@ -297,13 +321,12 @@ JUMP_NEXT		EQU	*
 			LDY	2,Y			;new IP     -> Y	=> 3 cycles	 2 bytes
 			LEAY	-2,Y			;new IP - 2 -> Y	=> 1 cycle	 2 bytes
 			STY	IP			;			=> 3 cycles	 2 bytes
-			JMP	[NEXT_PTR]		;			=> 6 cycles	 4 bytes
+			JMP	[NP]			;			=> 6 cycles	 4 bytes
 							;                   NEXT: 15 cycles
 							;                         ---------
 							;                         31 cycles
-;NEXT implementations:
-;=====================
-	;#NEXT: jump to the next instruction
+
+;#NEXT: jump to the next instruction
 ; args:	  IP:   pointer to next instruction
 ; result: IP:   pointer to current instruction
 ;         W/X:  new CFA
@@ -318,6 +341,7 @@ NEXT			EQU	*
 			JMP	[0,X]			;JUMP [CFA]             => 6 cycles	 4 bytes
 							;                         ---------
 							;                         15 cycles
+
 ;Code fields:
 ;============ 	
 ;CF_INNER ( -- ) Execute the first execution token after the CFA (CFA in X)

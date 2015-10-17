@@ -150,17 +150,33 @@ FORTH_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Busy/Idle signal 
+#ifnmac	FORTH_SIGNAL_BUSY
+#ifmac	LED_BUSY_ON
+#macro FORTH_SIGNAL_BUSY, 0
+			LED_BUSY_ON 
+#emac
+#endif	
+#endif	
+#ifnmac	FORTH_SIGNAL_IDLE
+#ifmac	LED_BUSY_OFF
+#macro FORTH_SIGNAL_IDLE, 0
+			LED_BUSY_OFF 
+#emac
+#endif	
+#endif	
+	
 ;#Break handler
 #ifnmac	SCI_BREAK_ACTION	
 #macro	SCI_BREAK_ACTION, 0
-	FOUTER_INVOKE_ABORT
+	;FOUTER_INVOKE_ABORT
 #emac
 #endif	
 	
 ;#Suspend handler
 #ifnmac	SCI_SUSPEND_ACTION
 #macro	SCI_SUSPEND_ACTION, 0
-	FOUTER_INVOKE_SUSPEND
+	;FOUTER_INVOKE_SUSPEND
 #emac
 #endif	
 

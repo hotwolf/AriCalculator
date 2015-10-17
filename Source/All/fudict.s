@@ -150,6 +150,9 @@ FUDICT_VARS_START_LIN	EQU	@
 CP			DS	2 	;compile pointer (next free space in the dictionary space) 
 CP_SAVED		DS	2 	;previous compile pointer
 
+HLD			DS	2 	;start of PAD space 
+PAD			DS	2 	;end of PAD space 
+	
 UDICT_LAST_NFA		DS	2 	;pointer to the most recent NFA of the UDICT
 
 FUDICT_VARS_END		EQU	*
@@ -227,21 +230,99 @@ FUDICT_VARS_END_LIN	EQU	@
 ; args:   X: string pointer (terminated string)
 ; result: X: execution token (unchanged if word not found)
 ;	  D: 1=immediate, -1=non-immediate, 0=not found
+;	  Y: start of dictionary (last NFA)
 ; SSTACK: 8 bytes
-;         Y is preserved
+;         No registers are preserved
 #macro	FUDICT_FIND, 0
+			LDY	UDICT_LAST_NFA	
 			SSTACK_JOBSR	FUDICT_FIND, 8
 #emac
 	
 ;#Reverse lookup a CFA and print the corresponding word
 ; args:   D: CFA
 ; result: C-flag: set if successful
-; SSTACK: 6 bytes
-;         All registers are preserved
+;	  Y: start of dictionary (last NFA)
+; SSTACK: 18 bytes
+;         X and D are preserved
 #macro	FUDICT_REVPRINT, 0
-			SSTACK_JOBSR	6
+			LDY	UDICT_LAST_NFA
+			SSTACK_JOBSR	FUDICT_REVPRINT,	18
 #emac
-		
+
+;Iterator operations:
+;====================
+;Set interator to first word in CDICT
+; args:   1: iterator (indexed address)
+; result: none
+; SSTACK: none
+;         All registers are preserved
+#macro FUDICT_ITERATOR_FIRST, 1
+			MOVW	UDICT_LAST_NFA, \1 	;last NFA -> ITERATOR
+#emac
+
+;Advance iterator
+; args:   1:      iterator (indexed address)
+; result: D:      previous NFA (NULL if no previous NFA exists)
+;         Z-flag: set if no previous NFA exists
+; SSTACK: none
+;         X and Y are preserved
+#macro FUDICT_ITERATOR_NEXT, 1
+ 			LDD	[\1] 			;(previous NFA>>1) -> D
+			LSLD 				; previous NFA -> D
+			STD	\1			; previous NFA -> ITERATOR
+#emac
+
+;Get length of word referenced by current iterator
+; args:   1: iterator (indexed address)
+;         D: old char count 
+; result: D: new char count
+;	  X: points to the byte after the string
+; SSTACK: none
+;         Y is preserved
+#macro FUDICT_ITERATOR_WC, 0
+			LDX	\1 			;current NFA -> X
+			LEAX	2,X			;start of string -> X
+			FIO_SKIP_AND_COUNT		;count chars
+#emac
+
+;Print word referenced by current iterator (BLOCKING)
+; args:   1: iterator (indexed address)
+; result: X: points to the byte after the string
+; SSTACK: 10 bytes
+;         Y and D are preserved
+#macro FUDICT_ITERATOR_PRINT, 1
+			LDX	\1 			;current NFA -> X
+			LEAX	2,X			;start of string -> X
+			FIO_PRINT_BL                 ;print string
+#emac
+
+;Get CFA of word referenced by current iterator
+; args:   1: iterator (indexed address)
+; result: D: {IMMEDIATE, CFA>>1}
+;         X: CFA pointer
+; SSTACK: none
+;         Y is preserved
+#macro FUDICT_ITERATOR_CFA, 1
+			LDX	\1 			;current NFA -> X
+			LEAX	2,X			;start of string -> X
+			BRCLR	1,X+, #FIO_TERM, *	;skip over string
+			FUDICT_WORD_ALIGN X 		;word align X
+			LDD	2,+X			;{IMMEDIATE, CFA>>1} -> D
+#emac
+
+;Pointer operations:
+;===================
+;Word align index register
+; args:   1:   index register
+; result: [1]: word aligned address
+; SSTACK: none
+;         All registers except for 1 are preserved
+#macro FUDICT_WORD_ALIGN, 1
+			EXG	D, \1 			; index <-> D
+			ANDB	#$FE			; word align D 
+			EXG	D, \1 			; index <-> D
+#emac
+	
 ;#Pictured numeric output buffer (PAD)
 ;=====================================
 ;PAD_CHECK_OF: check if there is room for one more character on the PAD (HLD -> X)
@@ -301,29 +382,32 @@ FUDICT_CODE_START_LIN	EQU	@
 ;======================	
 ;#Look-up word in user dictionary 
 ; args:   X: string pointer (terminated string)
+;	  Y: start of dictionary (last NFA)
 ; result: X: execution token (unchanged if word not found)
 ;	  D: 1=immediate, -1=non-immediate, 0=not found
 ; SSTACK: 8 bytes
 ;         Y is preserved
 FUDICT_FIND		EQU	*
-			;Save registers (string pointer in X)
-			PSHY						;save Y
+			;Save registers (string pointer in X, start of dictionary in Y)
+			PSHY						;start of dictionary
 			PSHX						;string pointer
-			MOVW	UDICT_LAST_NFA, 2,-SP			;current NFA	
+			;Allocate iterator (string pointer in X, start of dictionary in Y)
+			;FUDICT_ITERATOR_FIRST	(2,-SP)			;ITERATOR -> 0,SP
+			PSHY						;ITERATOR -> 0,SP
 			;Compare strings (string pointer in X)
-FUDICT_FIND_1		LDY	0,SP					;current NFA -> Y
-			LEAY	2,Y					;start of dict string -> Y
+			LDY	0,SP					;current NFA -> Y
+FUDICT_FIND_1		LEAY	2,Y					;start of dict string -> Y
 FUDICT_FIND_2		LDAB	1,X+					;string char -> A
 			CMPB	1,Y+ 					;compare chars
-			BNE	FUDICT_FIND_ 				;mismatch
-			BRCLR	-1,X,#$7F,FUDICT_FIND_2 		;check next char
+			BNE	FUDICT_FIND_4 				;mismatch
+			BRCLR	-1,X, #FIO_TERM, FUDICT_FIND_2 	;check next char
 			;Match (pointer to code field or padding in Y)
-			LEAY	1,Y 					;increment dict pointer
-			TFR	Y, D 					;dict pointer -> D
-			ANDB	#$FE 					;align dict pointer
-			TFR	D, X 					;execution  token -> X
-			LDAB	[0,SP] 					;immediate flag -> B
-			LSLB						;immediate flag -> C
+			FUDICT_WORD_ALIGN Y 				;word align Y
+			LDD	2,Y 					;{IMMEDIATE, CFA>>1} -> D
+			TFR	X, D					;{IMMEDIATE, CFA>>1} -> X
+			LEAX	D,X					;CFA -> X
+			CLRB
+			LSLA						;immediate flag -> C
 			ROLB						;immediate flag -> B
 			LSLB						;B*2 -> B
 			DECB						;B-1 -> B
@@ -333,19 +417,49 @@ FUDICT_FIND_3		SSTACK_PREPULL	8 				;check stack
 			LDY	4,+SP					;restore Y	
 			RTS
 			;Mismatch
-			STX	2,SP 					;string pointer -> X
-			LDD	[0,SP] 					;previous NFA  -> D
-			LSLD						;remove immediate flag
-			STD	0,SP 					;update current NFA
+FUDICT_FIND_4		FUDICT_ITERATOR_NEXT	(0,SP) 			;advance iterator
+			TFR	D, Y 					;new NFA -> Y
 			BNE	FUDICT_FIND_1 				;compare strings
 			;Search unsuccessful (string pointer in X)
 			CLRA						;set result
-			CLRB
+			CLRB						; -> not found
+			LDX	2,SP	      				;restore X
 			JOB	FUDICT_FIND_3 				;done
 
-
-
-
+;#Reverse lookup a CFA and print the corresponding word
+; args:   D: CFA
+;	  Y: start of dictionary (last NFA)
+; result: C-flag: set if successful
+; SSTACK: 18 bytes
+;         All registers are preserved
+FUDICT_REVPRINT		EQU	*
+			;Save registers (CFA in D, start of dictionary in X)
+			PSHX						;string pointer
+			PSHD						;CFA
+			;Allocate iterator (CFA in D, start of dictionary in X)
+			;FUDICT_ITERATOR_FIRST	(2,-SP)			;ITERATOR -> 0,SP
+			PSHY						;ITERATOR -> 0,SP
+			;Check CFA
+FUDICT_REVPRINT_1	FUDICT_ITERATOR_CFA	(0,SP)			;{IMMEDIATE, CFA>>1} -> D
+			LSLD						;remove IMMEDIATE flag
+			CPD	2,SP 					;compare CFAs
+			BEQ	FUDICT_REVPRINT_2 			;match
+			;Mismatch		
+			FUDICT_ITERATOR_NEXT 	(0,SP)			;advance iterator
+			BNE	FUDICT_REVPRINT_1 			;check next CFA
+			;Search unsucessful					
+			SSTACK_PREPULL	8 				;check stack
+			CLC						;flag failure
+			JOB	FUDICT_REVPRINT_3 			;done
+			;Search unsucessful		
+FUDICT_REVPRINT_2	FUDICT_ITERATOR_PRINT 	(0,SP)			;print word (SSTACK: 10 bytes)
+			SSTACK_PREPULL	8 				;check stack
+			SEC						;flag success
+			;Done		
+FUDICT_REVPRINT_3	LEAS	2,SP 					;remove iterator
+			PULD						;restore D
+			PULX						;restore X
+			RTS
 
 ;#Pictured numeric output buffer (PAD)
 ;=====================================
@@ -427,7 +541,7 @@ CF_FIND_UDICT		EQU	*
 CF_WORDS_UDICT		EQU	*
 			;PS layout:
 			; +--------+--------+
-			; |   Current NFA   | PSP+0
+			; |    Iterator     | PSP+0
 			; +--------+--------+
 			; | Column counter  | PSP+2
 			; +--------+--------+
@@ -457,8 +571,8 @@ CF_WORDS_UDICT		EQU	*
 FIDICT_THROW_DICTOF	BGND					;parameter stack overflow
 FIDICT_THROW_PADOF	BGND					;PAD overflow
 #else
-FUDICT_THROW_DICTOF	THROW	FEXCPT_EC_DICTOF		;parameter stack overflow
-FUDICT_THROW_PADOF	THROW	FEXCPT_EC_PADOF			;PAD overflow
+FUDICT_THROW_DICTOF	FEXCPT_THROW	FEXCPT_EC_DICTOF	;parameter stack overflow
+FUDICT_THROW_PADOF	FEXCPT_THROW	FEXCPT_EC_PADOF		;PAD overflow
 #endif
 #endif
 
@@ -476,17 +590,13 @@ FUDICT_TABS_START_LIN	EQU	@
 #endif	
 
 ;#New line string
-FUDICT_STR_NL		EQU	STRING_STR_NL
-
-;#Word separator string
-FUDICT_STR_SEP		FCS	" "
-FUDICT_STR_SEP_CNT	EQU	*-FUDICT_PRINT_SEP_WS
+FUDICT_STR_NL		EQU	FIO_STR_NL
 
 ;#Header line for WORDS output 
-FUDICT_WORDS_HEADER	STRING_NL_NONTERM
+FUDICT_WORDS_HEADER	FIO_NL_NONTERM
 			FCC	"User Dictionary:"
 			;FCC	"UDICT:"
-			STRING_NL_TERM
+			FIO_NL_TERM
 
 FUDICT_TABS_END		EQU	*
 FUDICT_TABS_END_LIN	EQU	@

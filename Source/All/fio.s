@@ -59,6 +59,18 @@
 ;#ASCII code 
 FIO_SYM_SPACE		EQU	STRING_SYM_SPACE
 FIO_STR_NL		EQU	STRING_STR_NL
+
+;#String termination 
+FIO_TERM		EQU	STRING_TERM
+	
+;ASCII C0 codes 
+FIO_SYM_LF  		EQU	STRING_SYM_LF
+FIO_SYM_CR  		EQU	STRING_SYM_CR
+FIO_SYM_BACKSPACE  	EQU	STRING_SYM_BACKSPACE
+FIO_SYM_DEL  		EQU	STRING_SYM_DEL
+FIO_SYM_TAB  		EQU	STRING_SYM_TAB
+FIO_SYM_BEEP  		EQU	STRING_SYM_BEEP
+FIO_SYM_SPACE  		EQU	STRING_SYM_SPACE
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -92,7 +104,7 @@ FIO_VARS_END_LIN	EQU	@
 ;#Suspend action
 #macro	FIO_SUSPEND, 0
 #emac
-
+	
 ;#Low level I/O functions	
 ;========================
 ;#Receive one byte - non-blocking
@@ -161,6 +173,13 @@ FIO_VARS_END_LIN	EQU	@
 			STRING_PRINT_BL
 #emac	
 
+
+
+
+
+
+
+	
 ;#Print signed double integer
 ; args:   Y:X: unsigned double value
 ;         B: base
@@ -180,7 +199,7 @@ FIO_VARS_END_LIN	EQU	@
 			NUM_NEGATE 						;negate number in Y:X
 			NUM_REVERSE 						;(SSTACK: 18 bytes)
 			NUM_NEGATE 						;negate number in Y:X
-			JOB	FIO_PRINT_SDOUBLE_BL_ 				;
+			JOB	FIO_PRINT_SDOUBLE_BL_2 				;
 			;Calculate plain reverse number (number in Y:X, base in B)
 FIO_PRINT_SDOUBLE_BL_1	NUM_REVERSE 						;(SSTACK: 18 bytes)
 			;Print reverse number (number in Y:X, base in B, char count in A)
@@ -188,6 +207,29 @@ FIO_PRINT_SDOUBLE_BL_2	NUM_REVPRINT_BL						;(SSTACK: 8 bytes +6 arg bytes)
 			NUM_CLEAN_REVERSE
 #emac	
 
+;#Basic string Macros	
+;====================
+;#Skip string and count characters
+; args:   X: start of the string
+;         D: initial character count
+; result: X: one char past the end of the string
+;         D: incremented count     
+; SSTACK: none
+;        Y is preserved 
+#macro	FIO_SKIP_AND_COUNT, 0
+			STRING_SKIP_AND_COUNT
+#emac
+
+;#Terminated line break
+#macro	FIO_NL_TERM, 0
+			STRING_NL_TERM
+#emac
+	
+;#Non-terminated line break
+#macro	FIO_NL_NONTERM, 0
+			STRING_NL_NONTERM
+#emac
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -223,26 +265,11 @@ CF_EKEY_1		SEI				;disable interrupts
 			PS_PUSH_D
 			;Done
 			NEXT
-			;Check for change of NP (I-bit set)
-CF_EKEY_2		LDX	NP			;check for default NEXT pointer
-			CPX	#NEXT
-			BEQ	CF_EKEY_3	 	;still default next pointer
-			CLI				;enable interrupts
-			;Execute NOP
-			EXEC_CF	CF_NOP
+			;Wait for any system event
+CF_EKEY_2		FINNER_WAIT			;idle	
 			JOB	CF_EKEY_1
-			;Wait for any internal system event
-CF_EKEY_3		EQU	*
-#ifmac FORTH_SIGNAL_IDLE
-			FORTH_SIGNAL_IDLE		;signal inactivity
-#endif
-			ISTACK_WAIT			;wait for next interrupt
-#ifmac FORTH_SIGNAL_BUSY
-			FORTH_SIGNAL_BUSY		;signal activity
-#endif
-			JOB	CF_EKEY_1		;check NEXT_PTR again
 			;RX error
-CF_EKEY_4		THROW	FEXCPT_EC_COMERR
+CF_EKEY_4		FEXCPT_THROW	FEXCPT_EC_COMERR
 
 ;EKEY? ( -- flag ) Check for data
 ; args:   none
@@ -281,25 +308,9 @@ CF_EMIT_2		SEI				;disable interrupts
 			PS_DROP, 1
 			;Done
 			NEXT
-			;Check for change of NEXT_PTR (data in D, I-bit set)
-CF_EMIT_3		LDX	NP			;check for default NEXT pointer
-			CPX	#NEXT
-			BEQ	CF_EMIT_4	 	;still default next pointer
-			CLI				;enable interrupts
-			;Execute NOP
-			EXEC_CF	CF_NOP
-			JOB    	CF_EMIT_1
-			;Wait for any internal system event (data in D, I-bit set)
-CF_EMIT_4		EQU	*
-#ifmac FORTH_SIGNAL_IDLE
-			FORTH_SIGNAL_IDLE		;signal inactivity
-#endif
-			ISTACK_WAIT			;wait for next interrupt
-#ifmac FORTH_SIGNAL_BUSY
-			FORTH_SIGNAL_BUSY		;signal activity
-#endif
-			JOB	CF_EMIT_2		;check NP again
-			;JOB	CF_EMIT_1		;maybe more robust?
+			;Wait for any system event
+CF_EMIT_3		FINNER_WAIT			;idle	
+			JOB	CF_EMIT_1
 
 ;EMIT? ( -- flag ) Check if data can be sent over the SCI
 ; args:   none
@@ -340,24 +351,9 @@ CF_STRING_DOT_2		SEI				;disable interrupts
 			NEXT
 			;Update string pointer (string in X, PSP in Y)
 CF_STRING_DOT_3		STX	0,Y
-			;Check for change of NEXT_PTR (I-bit set)
-			LDY	NEXT_PTR		;check for default NEXT pointer
-			CPY	#NEXT
-			BEQ	CF_STRING_DOT_4	 	;still default next pointer
-			CLI				;enable interrupts
-			;Execute NOP
-			EXEC_CF	CF_NOP
-			JOB    	CF_STRING_DOT_1
-			;Wait for any internal system event (string in X)
-CF_STRING_DOT_4		EQU	*
-#ifmac FORTH_SIGNAL_IDLE
-			FORTH_SIGNAL_IDLE		;signal inactivity
-#endif
-			ISTACK_WAIT			;wait for next interrupt
-#ifmac FORTH_SIGNAL_BUSY
-			FORTH_SIGNAL_BUSY		;signal activity
-#endif
-			JOB	CF_STRING_DOT_1		;check NEXT_PTR again
+			;Wait for any system event
+			FINNER_WAIT			;idle	
+			JOB	CF_STRING_DOT_1		;check NEXT pointer again
 	
 FIO_CODE_END		EQU	*
 FIO_CODE_END_LIN	EQU	@
@@ -459,24 +455,24 @@ FIO_WORDS_END_LIN	EQU	@
 
 ;;move to CORE
 ;	
-;;Code fields:
-;;============
-;
-;;SPACE ( -- ) Print a space character
-;; args:   none
-;; result: none
-;; SSTACK: 5 bytes
-;; PS:     1 cell
-;; RS:     1 cell
-;; throws: FEXCPT_EC_PSUF
-;CF_SPACE		EQU	*
-;			;Push space character onto PS 
-;			PS_PUSH	#FIO_SYM_SPACE
-;			;Print char 
-;			;JOB	CF_EMIt
-;
-;
-;	
+;Code fields:
+;============
+
+;SPACE ( -- ) Print a space character
+; args:   none
+; result: none
+; SSTACK: 5 bytes
+; PS:     1 cell
+; RS:     1 cell
+; throws: FEXCPT_EC_PSUF
+CF_SPACE		EQU	*
+			;Push space character onto PS 
+			PS_PUSH	#FIO_SYM_SPACE
+			;Print char 
+			JOB	CF_EMIT
+
+
+	
 ;;. ( n -- ) Print signed number
 ;; args:   PSP+0: reverse number structure
 ;; result: none
@@ -786,20 +782,20 @@ FIO_WORDS_END_LIN	EQU	@
 ;#endif
 ;			JOB	CF_SPACES_1		;check NEXT_PTR again
 ;
-;;Word: CR ( -- )
-;;Cause subsequent output to appear at the beginning of the next line.
-;; args:   address of a terminated string
-;; result: none
-;; SSTACK: 8 bytes
-;; PS:     1 cell
-;; RS:     1 cell
-;; throws: FEXCPT_EC_PSOF
-;CF_CR			EQU	*
-;			;Push string pointer onto PS
-;			PS_PUSH	#FIO_STR_NL
-;			;Print string 
-;			;JOB	CF_STRING_DOT
-;	
+;Word: CR ( -- )
+;Cause subsequent output to appear at the beginning of the next line.
+; args:   address of a terminated string
+; result: none
+; SSTACK: 8 bytes
+; PS:     1 cell
+; RS:     1 cell
+; throws: FEXCPT_EC_PSOF
+CF_CR			EQU	*
+			;Push string pointer onto PS
+			PS_PUSH	#FIO_STR_NL
+			;Print string 
+			JOB	CF_STRING_DOT
+	
 ;;Word: . ( n --  )
 ;;Display n in free field format.
 ;;
