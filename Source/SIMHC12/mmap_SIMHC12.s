@@ -47,7 +47,7 @@
 ;             A| |  Variables  |       
 ;             M+ +-------------+ $0C00      
 ;                |/////////////|       
-;              + +-------------+ $F000
+;              + +-------------+ $C000
 ;             E| |    Code     |       
 ;             E| +-------------+ 
 ;             P| |  Tables     |       
@@ -64,19 +64,34 @@
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;# Memory sizes
-MMAP_REG_SIZE		EQU	$0200
-MMAP_RAM_SIZE		EQU	$0400
-MMAP_EEPROM_SIZE	EQU	$1000
-	
 ;# Memory Locations
-MMAP_REG_START		EQU	$0000
-MMAP_RAM_START		EQU	$0800
-MMAP_EEPROM_START	EQU	$F000
-	
-;# Vector table
-VECTAB_START		EQU	$FF80    
-;VECTAB_START_LIN	EQU	$3FF80   
+;Register space
+MMAP_REG_START			EQU	$0000
+MMAP_REG_END			EQU	$0200
+MMAP_REG_GLOBAL_START		EQU	$00_0000
+MMAP_REG_GLOBAL_END		EQU	$00_0200
+MMAP_REG_START_LIN		EQU	MMAP_REG_GLOBAL_START
+MMAP_REG_END_LIN		EQU	MMAP_REG_GLOBAL_START
+				
+;RAM				
+MMAP_RAM_START			EQU	$0800
+MMAP_RAM_END			EQU	$0C00
+MMAP_RAM_GLOBAL_START		EQU	$00_0800
+MMAP_RAM_GLOBAL_END		EQU	$00_0C00
+MMAP_RAM_START_LIN		EQU	MMAP_RAM_GLOBAL_START
+MMAP_RAM_END_LIN		EQU	MMAP_RAM_GLOBAL_START
+				
+;EEPROM				
+MMAP_EEPROM_START		EQU	$C000
+MMAP_EEPROM_END			EQU	$10000
+MMAP_EEPROM_GLOBAL_START	EQU	$00_C000
+MMAP_EEPROM_GLOBAL_END		EQU	$01_0000
+MMAP_EEPROM_START_LIN		EQU	MMAP_RAM_GLOBAL_START
+MMAP_EEPROM_END_LIN		EQU	MMAP_RAM_GLOBAL_START
+				
+;# Vector table			
+VECTAB_START			EQU	$FF80    
+VECTAB_START_LIN		EQU	$00_FF80   
 
 ;###############################################################################
 ;# Security and Protection                                                     #
