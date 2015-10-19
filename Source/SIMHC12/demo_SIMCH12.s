@@ -43,45 +43,62 @@ COP_DEBUG		EQU	1 		;disable COP
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 
 ;# STRING
-;STRING_FILL_ON		EQU	1 		;enable STRING_FILL_BL/STRING_FILL_NB
+;STRING_ENABLE_FILL_NB	EQU	1		;enable STRING_FILL_NB 
+;STRING_ENABLE_FILL_BL	EQU	1		;enable STRING_FILL_BL 
 	
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
 			ORG	MMAP_RAM_START, MMAP_RAM_START_LIN
-;Code
-START_OF_CODE		EQU	*	
+;Variables
+DEMO_VARS_START		EQU	*
+DEMO_VARS_START_LIN	EQU	@
+			ORG	DEMO_VARS_END, DEMO_VARS_END_LIN
 
+;Forth stacks, buffers and dictionary 
+;      	  UDICT_PS_START -> +--------------+--------------+	     
+;                           |       User Dictionary       |	     
+;                           |             PAD             |	     
+;                           |       Parameter stack       |		  
+;           UDICT_PS_END -> +--------------+--------------+        
+;           RS_TIB_START -> +--------------+--------------+        
+;                           |       Text Input Buffer     |
+;                           |        Return Stack         |
+;             RS_TIB_END -> +--------------+--------------+
+;Dictionary, PAD, and parameter stack 
+UDICT_PS_START		EQU	*			;start of shared DICT/PAD/PS space
+UDICT_PS_END		EQU	((MMAP_RAM_END-*)*2)/3	;end of shared DICT/PAD/PS space
+
+;TIB and return stack
+RS_TIB_START		EQU	UDICT_PS_END		;start of shared TIB/RS space
+RS_TIB_END		EQU	MMAP_RAM_END		;end of shared TIB/RS space
+
+
+			ORG	MMAP_EEPROM_START, MMAP_EEPROM_START_LIN
+;Code
 DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
 			ORG	DEMO_CODE_END, DEMO_CODE_END_LIN
-	
-BASE_CODE_START		EQU	*
-BASE_CODE_START_LIN	EQU	@
-			ORG	BASE_CODE_END, BASE_CODE_END_LIN
-
-FORTH_CODE_START	EQU	*
-FORTH_CODE_START_LIN	EQU	@
-			ORG	FORTH_CODE_END, FORTH_CODE_END_LIN
 
 ;Tables
 DEMO_TABS_START		EQU	*
 DEMO_TABS_START_LIN	EQU	@
 			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
-	
-BASE_TABS_START		EQU	*
-BASE_TABS_START_LIN	EQU	@
-			ORG	BASE_TABS_END, BASE_TABS_END_LIN
+;Words
+			ALIGN	1
+DEMO_WORDS_START	EQU	*
+DEMO_WORDS_START_LIN	EQU	@
+			ORG	DEMO_WORDS_END, DEMO_WORDS_END_LIN
+				
+;###############################################################################
+;# Variables                                                                   #
+;###############################################################################
+#ifdef DEMO_VARS_START_LIN
+			ORG 	DEMO_VARS_START, DEMO_VARS_START_LIN
+#else
+			ORG 	DEMO_VARS_START
+#endif	
 
-FORTH_TABS_START	EQU	*
-FORTH_TABS_START_LIN	EQU	@
-			ORG	FORTH_TABS_END, FORTH_TABS_END_LIN
-	
-;Variables
-DEMO_VARS_START		EQU	*
-DEMO_VARS_START_LIN	EQU	@
-			ORG	DEMO_VARS_END, DEMO_VARS_END_LIN
-	
 BASE_VARS_START		EQU	*
 BASE_VARS_START_LIN	EQU	@
 			ORG	BASE_VARS_END, BASE_VARS_END_LIN
@@ -89,32 +106,6 @@ BASE_VARS_START_LIN	EQU	@
 FORTH_VARS_START	EQU	*
 FORTH_VARS_START_LIN	EQU	@
 			ORG	FORTH_VARS_END, FORTH_VARS_END_LIN
-
-;Words
-			ALIGN	1
-DEMO_WORDS_START	EQU	*
-DEMO_WORDS_START_LIN	EQU	@
-			ORG	DEMO_WORDS_END, DEMO_WORDS_END_LIN
-	
-FORTH_WORDS_START	EQU	*
-FORTH_WORDS_START_LIN	EQU	@
-			ORG	FORTH_WORDS_END, FORTH_WORDS_END_LIN
-
-;Dictionary, PAD, and parameter stack 
-UDICT_PS_START		EQU	*			;start of shared DICT/PAD/PS space
-UDICT_PS_END		EQU	((MMAP_RAM_END-*)*2)/3	;end of shared DICT/PAD/PS space
-	
-;TIB and return stack
-RS_TIB_START		EQU	UDICT_PS_END		;start of shared TIB/RS space
-RS_TIB_END		EQU	MMAP_RAM_END		;end of shared TIB/RS space
-				
-;###############################################################################
-;# Variables                                                                   #
-;###############################################################################
-			ORG 	DEMO_VARS_START, DEMO_VARS_START_LIN
-
-;			ALIGN	16
-;DEMO_TRACE		DS	8*64
 
 DEMO_VARS_END		EQU	*
 DEMO_VARS_END_LIN	EQU	@
@@ -126,45 +117,51 @@ DEMO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
+#ifdef DEMO_CODE_START_LIN
 			ORG 	DEMO_CODE_START, DEMO_CODE_START_LIN
-
-;Initialization
-			FORTH_INIT
+#else
+			ORG 	DEMO_CODE_START
+#endif	
 
 ;Application code
+START_OF_CODE		EQU	*		;Start of code
+			;Initialization
+			BASE_INIT
+			FORTH_INIT
 
-			EXEC_CF	CF_WORDS_CDICT
-			
-			JOB	CF_ABORT_RT
+			;Enter QUIT shell
+			JOB	CF_QUIT_RT
 	
-DEMO_CODE_END		EQU	*	
-DEMO_CODE_END_LIN	EQU	@	
+BASE_CODE_START		EQU	*
+BASE_CODE_START_LIN	EQU	@
+			ORG	BASE_CODE_END, BASE_CODE_END_LIN
 
-;			;Overwrite SWI interrupt vector
-;			ORG	VEC_SWI
-;			DW	DEMO_DUMP_TRACE
+FORTH_CODE_START		EQU	*
+FORTH_CODE_START_LIN	EQU	@
+			ORG	FORTH_CODE_END, FORTH_CODE_END_LIN
+
+DEMO_CODE_END		EQU	*
+DEMO_CODE_END_LIN	EQU	@
 	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
+#ifdef DEMO_TABS_START_LIN
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
+#else
+			ORG 	DEMO_TABS_START
+#endif	
+	
+BASE_TABS_START		EQU	*
+BASE_TABS_START_LIN	EQU	@
+			ORG	BASE_TABS_END, BASE_TABS_END_LIN
 
-;#Welcome string
-DEMO_WELCOME		FCS	"This is the S12CForth demo"
+FORTH_TABS_START		EQU	*
+FORTH_TABS_START_LIN	EQU	@
+			ORG	FORTH_TABS_END, FORTH_TABS_END_LIN
 
-;DEMO_STRING_PROMPT	FOUTER_PROMPT	"STRING:"
-;DEMO_SINGLE_PROMPT	FOUTER_PROMPT	"SINGLE:"
-;DEMO_DOUBLE_PROMPT	FOUTER_PROMPT	"DOUBLE:"
-;DEMO_COMPILE_PROMPT	FOUTER_PROMPT	"COMPILE WORD:"
-;DEMO_IMMEDIATE_PROMPT	FOUTER_PROMPT	"IMMEDIATE WORD:"
-;DEMO_RANGE_PROMPT	FOUTER_PROMPT	"Integer out of range!"
-;DEMO_FORMAT_PROMPT	FOUTER_PROMPT	"Syntax error!"
-;DEMO_WORD_START_STRING	FCS		"  ("
-;DEMO_NONAME_STRING	FCC		"NONAME"
-;DEMO_WORD_END_STRING	FCS		")"
-			
-DEMO_TABS_END		EQU	*	
-DEMO_TABS_END_LIN	EQU	@	
+DEMO_TABS_END		EQU	*
+DEMO_TABS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Demo words                                                                  #
@@ -175,7 +172,11 @@ DEMO_TABS_END_LIN	EQU	@
 			ORG 	DEMO_WORDS_START
 #endif	
 
-DEMO_WORDS_END		EQU	*	
+FORTH_WORDS_START	EQU	*
+FORTH_WORDS_START_LIN	EQU	@
+			ORG	FORTH_WORDS_END, FORTH_WORDS_END_LIN
+
+DEMO_WORDS_END		EQU	*
 DEMO_WORDS_END_LIN	EQU	@
 
 ;###############################################################################

@@ -289,8 +289,8 @@ if ($code->{problems}) {
 
 	#Print header
 	#------------ 
-        printf FILEHANDLE ";#ifndef FCDICT_TREE_COMPILED\n"; 
-        printf FILEHANDLE ";#define FCDICT_TREE_COMPILED\n"; 
+        printf FILEHANDLE "#ifndef FCDICT_TREE_COMPILED\n"; 
+        printf FILEHANDLE "#define FCDICT_TREE_COMPILED\n"; 
         printf FILEHANDLE ";###############################################################################\n"; 
         printf FILEHANDLE ";# S12CForth - Search Tree for the Core Dictionary                             #\n";
         printf FILEHANDLE ";###############################################################################\n";
@@ -370,12 +370,12 @@ if ($code->{problems}) {
 	#Initialize tree pointer structure
         printf FILEHANDLE ";#Set pointer structure to first CDICT entry\n";
         printf FILEHANDLE "; args:   1: address of CDICT root\n";
-        printf FILEHANDLE ";         3: index register to address tree entry structure\n";
+        printf FILEHANDLE ";         2: index register to address tree entry structure\n";
         printf FILEHANDLE ";         3: offset of tree entry structure\n";
         printf FILEHANDLE "; result: none\n";
         printf FILEHANDLE "; SSTACK: none\n";
         printf FILEHANDLE ";         All registers are preserved\n";
-        printf FILEHANDLE "#macro FCDICT_ITERATOR_INIT, 2\n";
+        printf FILEHANDLE "#macro FCDICT_ITERATOR_INIT, 3\n";
  	print_init_macro();
         printf FILEHANDLE "#emac\n";
 
@@ -612,7 +612,9 @@ sub print_tree {
     #Print subtree comment
     my $comment_line   = "";
     if ($#{$position} >= 0) {
-	$comment_line .= sprintf("Subtree %s => %30s  -> %s+%2X", join("->", @$position), sprintf("\"%s\"", $substring), $root_label, $$mem_offset_ref;
+	$comment_line .= sprintf("Subtree %-15s%-10s-> %s+%2X", join("->", @$position) . " =>", 
+                                                                sprintf("\"%s\"", $substring), 
+				                                $root_label, $$mem_offset_ref);
     } else  {
 	$comment_line .= "Root";
     }
@@ -624,19 +626,35 @@ sub print_tree {
     #printf FILEHANDLE "\n";
 
     #Update first entry
-    if {$#first_entry >0 9) {
-	push @first_entry, {offset    => $$mem_offset_ref,
-			    label     => $root_label,
-	                    substring => $trings[0]};
-    } else {
-	push @first_entry, {offset    => $$mem_offset_ref,
-			    label     => sprintf($label_format, join("_", @$position),
-	                    substring => $trings[0]};
+    my $is_fitst_entry = 1; 
+    foreach my $pos(@$position) {
+	if ($pos != 0) {
+	    $is_fitst_entry = 0;
+	    last;
+	}
     }
-	
-    push @first_entry, {offset => $$mem_offset_ref,
-                        label  => };
-	
+    if ($is_fitst_entry) {
+	my $substring =  $strings[0];
+	chomp($substring);
+	if ($#first_entry < 0) {
+	    #printf STDERR "first entry1: %d %d %s %s\n", $#first_entry,
+	    #                                             $$mem_offset_ref,
+	    #                                             $root_label,
+	    #                                             $substring;
+	    push @first_entry, {offset    => $$mem_offset_ref,
+				label     => $root_label,
+				substring => $substring};
+	} else {
+	    #printf STDERR "first entry2: %d %d %s %s\n", $#first_entry,
+	    #                                             $$mem_offset_ref,
+	    #                                             sprintf($label_format, join("_", @$position)),
+	    #                                             $substring;
+	    push @first_entry, {offset    => $$mem_offset_ref,
+				label     => sprintf($label_format, join("_", @$position)),
+				substring => $substring};
+	}
+    }
+
     my $is_first_line = 1;
     foreach my $string_index (0..($#strings)) {
 	my $string    = $strings[$string_index];
@@ -661,10 +679,10 @@ sub print_tree {
 	    #String is not terminated
 	    if ($nt_string !~ /\"/) {
 		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
-		$$mem_offset_ref += scalar(split("", $string);
+		$$mem_offset_ref += scalar(split("", $string));
 	    } else {
 		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
-		$$mem_offset_ref += scalar(split("", $string);
+		$$mem_offset_ref += scalar(split("", $string));
 	    }
 	    printf FILEHANDLE $instr_form_nc, "", "DB", "BRANCH";
 	    $$mem_offset_ref += 1;
@@ -701,10 +719,10 @@ sub print_tree {
 		#Non-zero length
 		if ($nt_string !~ /\"/) {
 		    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
-		    $$mem_offset_ref += scalar(split("", $string);
+		    $$mem_offset_ref += scalar(split("", $string));
 		} else {
 		    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
-		    $$mem_offset_ref += scalar(split("", $string);
+		    $$mem_offset_ref += scalar(split("", $string));
 		}
 		#printf FILEHANDLE $instr_form_nc, "", "DB", "STRING_TERMINATION";
 	    } else {
@@ -747,15 +765,15 @@ sub print_tree {
 ####################
 sub print_init_macro {
     my $tree_depth   = get_tree_depth(\%dict_tree);
-    my @init_offsets = @$first_entry;
-  
+    my @init_offsets = @first_entry;
+    
     foreach my $level (0...$tree_depth+1) {
 	if ($#init_offsets >= 0) {
 	    my $entry = shift @init_offsets;
-	    printf FILEHANDLE "                        %30s;%s\n", sprintf("MOVW #((\\1+\$%2X), \(\3+\$%2X),\\2", $entry->{offset}, (2*$level)),
-    	                                                           sprintf("%20s(\"%s\")", $entry->{label}, $entry->{substring});
+	    printf FILEHANDLE "                        %-30s;%s\n", sprintf("MOVW #(\\1+\$%.2X), \(\\3+\$%.2X),\\2", $entry->{offset}, (2*$level)),
+    	                                                            sprintf("%-20s(\"%s\")", $entry->{label}, $entry->{substring});
 	} else {
-	    printf FILEHANDLE "                        %30s;%s\n", sprintf("MOVW #(NULL, \(\3+\$%2X),\\2", (2*$level)),
+	    printf FILEHANDLE "                        %-30s;\n",   sprintf("MOVW #NULL,     \(\\3+\$%.2X),\\2", (2*$level)),
 	}
     }
 }

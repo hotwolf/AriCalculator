@@ -237,5 +237,6 @@ DEMO_WORDS_END_LIN	EQU	@
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
+#include ./fcdict_tree.s							;Core cictionary search tree
 #include ../All/forth.s								;S12CForth bundle
 #include ../../Subprojects/S12CBase/Source/Mini-BDM-Pod/base_Mini-BDM-Pod.s	;Base bundle

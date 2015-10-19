@@ -126,6 +126,14 @@ PAD_MINSIZE		EQU	4 	;default is 4 bytes
 PS_PADDING		EQU	16 	;default is 16 bytes
 #endif
 
+;Max. line length
+FUDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
+
+;NULL pointer
+#ifndef NULL
+NULL			EQU	$0000
+#endif
+
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
@@ -140,7 +148,7 @@ FUDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
 ;# Variables                                                                   #
 ;###############################################################################
 #ifdef FUDICT_VARS_START_LIN
-	ORG 	FUDICT_VARS_START, FUDICT_VARS_START_LIN
+			ORG 	FUDICT_VARS_START, FUDICT_VARS_START_LIN
 #else
 			ORG 	FUDICT_VARS_START
 FUDICT_VARS_START_LIN	EQU	@
@@ -279,7 +287,7 @@ FUDICT_VARS_END_LIN	EQU	@
 ;	  X: points to the byte after the string
 ; SSTACK: none
 ;         Y is preserved
-#macro FUDICT_ITERATOR_WC, 0
+#macro FUDICT_ITERATOR_WC, 1
 			LDX	\1 			;current NFA -> X
 			LEAX	2,X			;start of string -> X
 			FIO_SKIP_AND_COUNT		;count chars
@@ -463,13 +471,6 @@ FUDICT_REVPRINT_3	LEAS	2,SP 					;remove iterator
 
 ;#Pictured numeric output buffer (PAD)
 ;=====================================
-
-
-
-
-
-
-
 	
 ;PAD_ALLOC: allocate the PAD buffer (PAD_SIZE bytes if possible) (PAD -> D)
 ; args:   none
@@ -547,22 +548,41 @@ CF_WORDS_UDICT		EQU	*
 			; +--------+--------+
 			;Print header
 			PS_PUSH	#FUDICT_WORDS_HEADER
-			EXEC_CF	CF_STRING_DOT
-			;Initialize PS
-			PS_CHECK_OF	2		 	;new PSP -> Y
+			;Allocate stack space
+			PS_CHECK_OF	2			;new PSP -> Y
 			STY	PSP
-			MOVW	#$0000, 2,Y 			;initialize column counter
-			MOVW	UDICT_LAST_NFA, 2,Y 		;initialize current NFA
-	
+			;Initialize iterator and column counter (PSP in Y)
+			FUDICT_ITERATOR_FIRST	(0,Y)	;initialize iterator
+			MOVW #FCDICT_LINE_WIDTH, 2,Y	;initialize column count
+			;Check column width (PSP in Y)
+CF_WORDS_UDICT_1	LDD	2,Y 			;column clint -> D
+			FUDICT_ITERATOR_WC (0,Y)
+			CPD	#(FUDICT_LINE_WIDTH+1)	;check line width
+			BLS	CF_WORDS_UDICT_2 	;insert white space
+			;Insert line break (PSP in Y)			
+			MOVW	#$0000, 2,Y		;reset column counter
+			EXEC_CF	CF_CR 			;print line break
+			JOB	CF_WORDS_UDICT_3	;print word
+			;Insert white space (PSP in Y, new column count in D)
+CF_WORDS_UDICT_2	ADDD	#1			;count space char
+			STD	CF_WORDS_CDICT_COLCNT,Y	;update column counter
+			EXEC_CF	CF_SPACE		;print whitespace
+			;Print word						
+CF_WORDS_UDICT_3	LDY	PSP				;PSP -> Y
+			LDX	0,Y			;word entry -> X
+			LEAX	2,X			;start of string -> X
+			PS_PUSH_X			;print string
+			EXEC_CF	CF_STRING_DOT		;
+			;Skip to next word						
+			LDY	PSP			;PSP -> Y
+			FUDICT_ITERATOR_NEXT	(0,Y)	;advance iterator
+			BNE	CF_WORDS_UDICT_1	;print next word					
+			;Clean up (PSP in Y)						
+			PS_CHECK_UF	2 		;PSP -> Y
+			LEAY	2,Y
+			STY	PSP
+			NEXT
 
-
-
-
-
-
-
-
-	
 ;Exceptions:
 ;===========
 ;Standard exceptions

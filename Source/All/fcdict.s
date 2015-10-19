@@ -134,7 +134,7 @@ FCDICT_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         All registers are preserved
 #macro FCDICT_ITERATOR_FIRST, 0
-			;FCDICT_ITERATOR_INIT FCDICT_TREE, Y, 0
+			FCDICT_ITERATOR_INIT FCDICT_TREE, Y, 0
 #emac
 
 ;Reverse search CDICT for matching CFA
@@ -571,7 +571,8 @@ CF_WORDS_CDICT_1	FCDICT_ITERATOR_WC 			;word length -> D (SSTACK: 6 bytes)
 			EXEC_CF	CF_CR 				;print line break
 			JOB	CF_WORDS_CDICT_3			;print word
 			;Insert white space (PSP in Y, new column count in D)			
-CF_WORDS_CDICT_2	STD	CF_WORDS_CDICT_COLCNT,Y		;update column counter
+CF_WORDS_CDICT_2	ADDD	#1				;count space char
+			STD	CF_WORDS_CDICT_COLCNT,Y		;update column counter
 			EXEC_CF	CF_SPACE			;print whitespace
 			;Print word						
 CF_WORDS_CDICT_3	LDY	PSP				;PSP -> Y
@@ -617,7 +618,7 @@ FCDICT_WORDS_HEADER	FIO_NL_NONTERM
 			
 ;#Dictionary tree
 FCDICT_TREE_START	EQU	*	
-FCDICT_TREE		;FCDICT_TREE
+FCDICT_TREE		FCDICT_TREE
 FCDICT_TREE_END		EQU	*	
 
 FCDICT_TABS_END		EQU	*
