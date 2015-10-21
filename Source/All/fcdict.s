@@ -122,8 +122,8 @@ FCDICT_VARS_END_LIN	EQU	@
 ; result: C-flag: set if successful
 ; SSTACK: 2*FCDICT_TREE_DEPTH + 6 bytes
 ;         All registers are preserved
-#macro	FCDICT_REVPRINT, 0
-			SSTACK_JOBSR	FCDICT_REVPRINT, (2*(FCDICT_TREE_DEPTH+3))
+#macro	FCDICT_REVPRINT_BL, 0
+			SSTACK_JOBSR	FCDICT_REVPRINT_BL, (2*(FCDICT_TREE_DEPTH+3))
 #emac
 	
 ;Iterator operations:
@@ -353,7 +353,7 @@ FCDICT_FIND_7		SSTACK_PREPULL	8 				;check stack
 ; result: C-flag: set if successful
 ; SSTACK: 2*FCDICT_TREE_DEPTH + 6 bytes
 ;         All registers are preserved
-FCDICT_REVPRINT		EQU	*
+FCDICT_REVPRINT_BL	EQU	*
 			;Save registers (CFA in D)
 			PSHY						;save Y	
 			;Allocate iterator structure (CFA in D)
@@ -362,20 +362,20 @@ FCDICT_REVPRINT		EQU	*
 			;Reverse lookup (start of iterator in Y, CFA in D)
 			FCDICT_ITERATOR_REV				;reverse lookup
 			TST	0,Y 					;check for empty iterator
-			BEQ	FCDICT_REVPRINT_2 			;search unsucessful
+			BEQ	FCDICT_REVPRINT_BL_2 			;search unsucessful
 			;Print word (start of iterator in Y, CFA in D)
 			FCDICT_ITERATOR_PRINT 				;print word (SSTACK: 16 bytes)
 			;Report sucess (CFA in D)
 			SSTACK_PREPULL (2*(FCDICT_TREE_DEPTH+3)) 	;check stack
 			SEC				 		;flag success
 			;Done (CFA in D)
-FCDICT_REVPRINT_1	LEAS	(2*(FCDICT_TREE_DEPTH+1)),SP 		;deallocate iterator space
+FCDICT_REVPRINT_BL_1	LEAS	(2*(FCDICT_TREE_DEPTH+1)),SP 		;deallocate iterator space
 			PULY						;restore Y	
 			RTS
 			;Report failure (CFA in D)
-FCDICT_REVPRINT_2	SSTACK_PREPULL (2*(FCDICT_TREE_DEPTH+3)) 	;check stack
+FCDICT_REVPRINT_BL_2	SSTACK_PREPULL (2*(FCDICT_TREE_DEPTH+3)) 	;check stack
 			SEC				 		;flag failure
-			JOB	FCDICT_REVPRINT_1 			;done
+			JOB	FCDICT_REVPRINT_BL_1 			;done
 	
 ;Iterator operations:
 ;====================

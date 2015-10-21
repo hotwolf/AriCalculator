@@ -172,13 +172,6 @@ FIO_VARS_END_LIN	EQU	@
 #macro	FIO_PRINT_BL, 0
 			STRING_PRINT_BL
 #emac	
-
-
-
-
-
-
-
 	
 ;#Print signed double integer
 ; args:   Y:X: unsigned double value
@@ -207,6 +200,24 @@ FIO_PRINT_SDOUBLE_BL_2	NUM_REVPRINT_BL						;(SSTACK: 8 bytes +6 arg bytes)
 			NUM_CLEAN_REVERSE
 #emac	
 
+;#Print a word in hexadecimal format  - blocking
+; args:   D:   number
+; result: none	
+; SSTACK: 15 bytes
+;         All registers are preserved
+#macro	FIO_PRINT_HEX_WORD_BL, 0
+			SSTACK_JOBSR	FIO_PRINT_HEX_WORD_BL, 15
+#emac	
+	
+;#Print a byte in hexadecimal format  - blocking
+; args:   B:   number
+; result: none	
+; SSTACK: 13 bytes
+;         All registers are preserved
+#macro	FIO_PRINT_HEX_BYTE_BL, 0	
+			SSTACK_JOBSR	FIO_PRINT_HEX_BYTE_BL, 13
+#emac	
+	
 ;#Basic string Macros	
 ;====================
 ;#Skip string and count characters
@@ -239,8 +250,54 @@ FIO_PRINT_SDOUBLE_BL_2	NUM_REVPRINT_BL						;(SSTACK: 8 bytes +6 arg bytes)
 			ORG 	FIO_CODE_START
 FIO_CODE_START_LIN	EQU	@
 #endif
+
+;Basic IO fiuctions:
+;===================
+;#Print a word in hexadecimal format  - blocking
+; args:   D:   number
+; result: none	
+; SSTACK: 15 bytes
+;         All registers are preserved
+FIO_PRINT_HEX_WORD_BL	EQU	*	
+			;Print first byte (number in D)
+			EXG	A, B
+			JOBSR	FIO_PRINT_HEX_BYTE_BL
+			;Print second byte (swapped number in D)
+			EXG	A, B
+			JOBSR	FIO_PRINT_HEX_BYTE_BL
+			;Done
+			SSTACK_PREPULL	2 					;check subroutine stack
+			RTS
 	
-;Code fields:
+;#Print a byte in hexadecimal format  - blocking
+; args:   B:   number
+; result: none	
+; SSTACK: 13 bytes
+;         All registers are preserved
+FIO_PRINT_HEX_BYTE_BL	EQU	*	
+			;Save registers (number in B)
+			PSHX							;save X	
+			PSHD							;save error code
+			;Print first digit (number in B)
+			LDX	#FIO_SYMTAB 					;start of symbol table -> X
+			TBA							;save second digit in A
+			LSRB							;extract first digit
+			LSRB							;
+			LSRB 							;
+			LSRB	     						;
+			LDAB	B,X 						;look up symbol
+			SCI_TX_BL 						;print third digit (SSTACK: 7 bytes)		
+			;Print second digit (number in A, symbol table in X)
+			ANDA	#$0F 						;extract second digit
+			LDAB	A,X 						;look up symbol
+			SCI_TX_BL 						;print fourth digit (SSTACK: 7 bytes)
+			;Done
+			SSTACK_PREPULL	6 					;check subroutine stack
+			PULD							;restore D	
+			PULX							;restore X	
+			RTS
+	
+;Code fields:	
 ;============
 ;EKEY ( -- u )
 ; Receive one keyboard event u.  The encoding of keyboard events is implementation defined. 
@@ -289,6 +346,19 @@ CF_EKEY_QUESTION	EQU	*
 			;Done
 			NEXT
 	
+;SPACE ( -- ) Print a space character
+; args:   none
+; result: none
+; SSTACK: 5 bytes
+; PS:     1 cell
+; RS:     1 cell
+; throws: FEXCPT_EC_PSUF
+CF_SPACE		EQU	*
+			;Push space character onto PS 
+			PS_PUSH	#FIO_SYM_SPACE
+			;Print char 
+			;JOB	CF_EMIT
+
 ;EMIT ( x -- ) Transmit a byte character
 ; args:   PSP+0: RX data
 ; result: none
@@ -330,6 +400,19 @@ CF_EMIT_QUESTION	EQU	*
 			;Done
 			NEXT
 	
+;CR ( -- ) Cause subsequent output to appear at the beginning of the next line.
+; args:   address of a terminated string
+; result: none
+; SSTACK: 8 bytes
+; PS:     1 cell
+; RS:     1 cell
+; throws: FEXCPT_EC_PSOF
+CF_CR			EQU	*
+			;Push string pointer onto PS
+			PS_PUSH	#FIO_STR_NL
+			;Print string 
+			JOB	CF_STRING_DOT
+
 ;$. ( c-addr -- ) Print a MSB terminated string
 ; args:   address of a terminated string
 ; result: none
@@ -438,6 +521,21 @@ CFA_EMIT		DW	CF_EMIT
 ;"Return stack overflow"
 CFA_EMIT_QUESTION	DW	CF_EMIT_QUESTION
 
+;Word: SPACE ( -- )
+;Print a space character
+;
+;S12CForth implementation details:
+;Throws:
+;"Parameter stack underflow"
+CFA_SPACE		DW	CF_SPACE
+
+;Word: CR ( -- )
+;Cause subsequent output to appear at the beginning of the next line.
+;
+;Throws:
+;"Parameter stack overflow"
+CFA_CR			DW	CF_CR
+	
 ;S12CForth Words:
 ;================
 	
@@ -456,23 +554,8 @@ FIO_WORDS_END_LIN	EQU	@
 ;;move to CORE
 ;	
 ;Code fields:
-;============
+;============	
 
-;SPACE ( -- ) Print a space character
-; args:   none
-; result: none
-; SSTACK: 5 bytes
-; PS:     1 cell
-; RS:     1 cell
-; throws: FEXCPT_EC_PSUF
-CF_SPACE		EQU	*
-			;Push space character onto PS 
-			PS_PUSH	#FIO_SYM_SPACE
-			;Print char 
-			JOB	CF_EMIT
-
-
-	
 ;;. ( n -- ) Print signed number
 ;; args:   PSP+0: reverse number structure
 ;; result: none
@@ -790,11 +873,6 @@ CF_SPACE		EQU	*
 ; PS:     1 cell
 ; RS:     1 cell
 ; throws: FEXCPT_EC_PSOF
-CF_CR			EQU	*
-			;Push string pointer onto PS
-			PS_PUSH	#FIO_STR_NL
-			;Print string 
-			JOB	CF_STRING_DOT
 	
 ;;Word: . ( n --  )
 ;;Display n in free field format.
@@ -845,13 +923,6 @@ CF_CR			EQU	*
 ;;"Return stack overflow"
 ;CFA_U_DOT		DW	CF_U_DOT
 ;
-;;Word: CR ( -- )
-;;Cause subsequent output to appear at the beginning of the next line.
-;;
-;;Throws:
-;;"Parameter stack overflow"
-;CFA_CR			DW	CF_CR
-;	
 ;;Word: SPACES ( n -- )
 ;;If n is greater than zero, display n spaces.
 ;;
@@ -860,14 +931,6 @@ CF_CR			EQU	*
 ;;"Parameter stack underflow"
 ;;"Return stack overflow"
 ;CFA_SPACES		DW	CF_SPACES
-;	
-;;SPACE ( -- )
-;;Display one space.
-;;
-;;S12CForth implementation details:
-;;Throws:
-;;"Return stack overflow"
-;CFA_SPACE		DW	CF_SPACE
 ;
 ;
 ;;Word: HEX. ( u --  )

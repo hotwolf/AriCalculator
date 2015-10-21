@@ -188,6 +188,13 @@ FEXCPT_VARS_END_LIN	EQU	@
 ;Functions:
 ;==========
 
+
+
+
+
+
+
+	
 ;#Print string (w/ size limit)
 ; args:   X: sting pointer
 ;         A: max. string length
@@ -263,6 +270,60 @@ FEXCPT_PRINT_STRING_2	EQU	*
 			ORG 	FEXCPT_CODE_START
 FEXCPT_CODE_START_LIN	EQU	@
 #endif
+
+;Functions:
+;==========
+
+;#Print the mame of a word
+; args:   D: CFA
+; result: none
+; SSTACK: 2*FCDICT_TREE_DEPTH + 6 bytes or 18 bytes
+;         All registers are preserved
+FEXCPT_PRINT_NAME_BL	EQU	*
+			;Save registers (CFA in D)
+			PSHX							;save X	
+			PSHY							;save Y	
+			;Check UDICT (CFA in D)
+			FUDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 18 bytes)
+			BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
+			;Check NVDICT (CFA in D)
+			FNVDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 18 bytes)
+			BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
+#ifmac FNVDICT_REVPRINT_BL 
+			;Check NVDICT (CFA in D)
+			FNVDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 2*FCDICT_TREE_DEPTH + 6 bytes)
+			BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
+#endif
+			;Print anonymous name 
+			LDX	#FEXCPT_ANON_NAME 				;start of string -> X
+			FIO_PRINT_BL 						;prnt name (SSTACK: 10 bytes)
+			;Done 
+FEXCPT_PRINT_NAME_BL_1	SSTACK_PREPULL	6 					;check subroutine stack
+			PULY							;restore Y	
+			PULX							;restore X	
+			RTS
+			
+;#Print an error code
+; args:   D: error code
+; result: none
+; SSTACK: 2*FCDICT_TREE_DEPTH + 6 bytes or 18 bytes
+;         All registers are preserved
+FEXCPT_PRINT_EC_BL	EQU	*
+			;Save registers (error code in D)
+			PSHX							;save X	
+			PSHY							;save Y	
+			PSHD							;save error code
+
+
+
+
+
+
+
+
+<----------Hier weiter
+
+
 	
 ;#Print error message
 ; args:   D: error code
