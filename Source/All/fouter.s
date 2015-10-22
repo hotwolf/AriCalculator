@@ -1004,7 +1004,7 @@ CF_SUSPEND_HANDLER	EQU		*
 			CPD	#FEXCPT_EC_ABORTQ  		;check error code
 			BEQ	FEXCPT_THROW			;rethroe ABORTQ
 			;Print error message (error code in D)
-			FEXCPT_PRINT_MSG 			;Print error message (SSTACK: 26 bytes)
+			;FEXCPT_PRINT_MSG 			;Print error message (SSTACK: 26 bytes)
 			;Enter SUSPEND shell
 			;JOB	CF_SUSPEND
 	

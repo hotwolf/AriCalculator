@@ -172,43 +172,7 @@ FIO_VARS_END_LIN	EQU	@
 #macro	FIO_PRINT_BL, 0
 			STRING_PRINT_BL
 #emac	
-	
-;#Print signed double integer
-; args:   Y:X: unsigned double value
-;         B: base
-; result: A: remaining max. string length
-; SSTACK: 18 bytes
-;         X, Y and B are preserved
-#macro	FIO_PRINT_SDOUBLE_BL, 0
-			;Check sign (number in Y:X, base in B)
-			CPY	#$0000 						;check if number is negative
-			BPL	FIO_PRINT_SDOUBLE_BL_1 				;number is positive
-			;Print sign (number in Y:X, base in B)
-			TBA
-			LDAB	#"-"
-			FIO_TX_BL
-			TAB
-			;Calculate negated reverse number (number in Y:X, base in B)
-			NUM_NEGATE 						;negate number in Y:X
-			NUM_REVERSE 						;(SSTACK: 18 bytes)
-			NUM_NEGATE 						;negate number in Y:X
-			JOB	FIO_PRINT_SDOUBLE_BL_2 				;
-			;Calculate plain reverse number (number in Y:X, base in B)
-FIO_PRINT_SDOUBLE_BL_1	NUM_REVERSE 						;(SSTACK: 18 bytes)
-			;Print reverse number (number in Y:X, base in B, char count in A)
-FIO_PRINT_SDOUBLE_BL_2	NUM_REVPRINT_BL						;(SSTACK: 8 bytes +6 arg bytes)
-			NUM_CLEAN_REVERSE
-#emac	
 
-;#Print a word in hexadecimal format  - blocking
-; args:   D:   number
-; result: none	
-; SSTACK: 15 bytes
-;         All registers are preserved
-#macro	FIO_PRINT_HEX_WORD_BL, 0
-			SSTACK_JOBSR	FIO_PRINT_HEX_WORD_BL, 15
-#emac	
-	
 ;#Print a byte in hexadecimal format  - blocking
 ; args:   B:   number
 ; result: none	
@@ -218,6 +182,35 @@ FIO_PRINT_SDOUBLE_BL_2	NUM_REVPRINT_BL						;(SSTACK: 8 bytes +6 arg bytes)
 			SSTACK_JOBSR	FIO_PRINT_HEX_BYTE_BL, 13
 #emac	
 	
+;#Print a word in hexadecimal format  - blocking
+; args:   D:   number
+; result: none	
+; SSTACK: 15 bytes
+;         All registers are preserved
+#macro	FIO_PRINT_HEX_WORD_BL, 0
+			SSTACK_JOBSR	FIO_PRINT_HEX_WORD_BL, 15
+#emac	
+
+;#Print signed single cell integer
+; args:   D:    unsigned single value
+;         BASE: base
+; result: none
+; SSTACK: 26 bytes
+;         All registers are preserved
+#macro	FIO_PRINT_SSINGLE_BL, 0
+			SSTACK_JOBSR	FIO_PRINT_SSINGLE_BL, 26	
+#emac	
+
+;#Print signed double cell integer
+; args:   Y:X:  unsigned double value
+;         BASE: base
+; result: none
+; SSTACK: 26 bytes
+;         All registers are preserved
+#macro	FIO_PRINT_SDOUBLE_BL, 0
+			SSTACK_JOBSR	FIO_PRINT_SDOUBLE_BL, 26	
+#emac	
+
 ;#Basic string Macros	
 ;====================
 ;#Skip string and count characters
@@ -261,10 +254,10 @@ FIO_CODE_START_LIN	EQU	@
 FIO_PRINT_HEX_WORD_BL	EQU	*	
 			;Print first byte (number in D)
 			EXG	A, B
-			JOBSR	FIO_PRINT_HEX_BYTE_BL
+			FIO_PRINT_HEX_BYTE_BL
 			;Print second byte (swapped number in D)
 			EXG	A, B
-			JOBSR	FIO_PRINT_HEX_BYTE_BL
+			FIO_PRINT_HEX_BYTE_BL
 			;Done
 			SSTACK_PREPULL	2 					;check subroutine stack
 			RTS
@@ -294,6 +287,57 @@ FIO_PRINT_HEX_BYTE_BL	EQU	*
 			;Done
 			SSTACK_PREPULL	6 					;check subroutine stack
 			PULD							;restore D	
+			PULX							;restore X	
+			RTS
+
+;#Print signed single cell integer
+; args:   D:    unsigned single value
+;         BASE: base
+; result: none
+; SSTACK: 26 bytes
+;         All registers are preserved
+FIO_PRINT_SSINGLE_BL	EQU	*
+			;Save registers (integer in D)
+			PSHX							;save X	
+			PSHY							;save Y	
+			PSHD							;save D
+			;Sign extend integer (integer in D)
+			TFR	D, X 						;D -> X
+			SEX	A, D 						;A -> D
+			TFR	A, B 						;sign of D -> D
+			TFR	D, Y 						;D - Y>
+			;Sign extend integer (integer in Y:X)
+			JOB	FIO_PRINT_SDOUBLE_BL_1 				;print integer
+	
+;#Print signed double cell integer
+; args:   Y:X:  unsigned double value
+;         BASE: base
+; result: none
+; SSTACK: 26 bytes
+;         All registers are preserved
+FIO_PRINT_SDOUBLE_BL	EQU	*
+			;Save registers (integer in Y:X)
+			PSHX							;save X	
+			PSHY							;save Y	
+			PSHD							;save D
+			;Check sign (integer in Y:X)
+FIO_PRINT_SDOUBLE_BL_1	CPY	#$0000 						;check if number is negative
+			BPL	FIO_PRINT_SDOUBLE_BL_2 				;number is positive
+			;Print sign (integer in Y:X)
+			LDAB	#"-" 						;sign chharacter
+			FIO_TX_BL 						;print sign (SSTACK: 7 bytes)
+			;Negate integer (integer in Y:X)
+			NUM_NEGATE 						;-(Y:X) -> Y:X
+			;Get BASE (integer in Y:X)
+FIO_PRINT_SDOUBLE_BL_2	FOUTER_FIX_BASE						;BASE -> B
+			;Print integer (integer in Y:X, base in B)
+			NUM_REVERSE 						;calculate reverse number (SSTACK: 18 bytes)
+			NUM_REVPRINT_BL						;print reverse number (SSTACK: 8 bytes +6 arg bytes)
+			NUM_CLEAN_REVERSE					;clean-up reverse number
+			;Done 
+			SSTACK_PREPULL	8 					;check subroutine stack
+			PULD							;restore D	
+			PULY							;restore Y	
 			PULX							;restore X	
 			RTS
 	
@@ -456,6 +500,10 @@ FIO_SYMTAB		EQU	NUM_SYMTAB
 	
 ;Line break
 FIO_STR_NL		EQU	STRING_STR_NL
+	
+;Cell prefix
+;FIO_CELL_PREFIX		FCS	"$"
+FIO_CELL_PREFIX		FCS	"0x"
 	
 FIO_TABS_END		EQU	*
 FIO_TABS_END_LIN	EQU	@
