@@ -1,7 +1,7 @@
 #ifndef FUDICT_COMPILED
 #define FUDICT_COMPILED
 ;###############################################################################
-;# S12CForth- FUDICT - User Dictionary and User Variables                      #
+;# S12CForth - FUDICT - User Dictionary and User Variables                     #
 ;###############################################################################
 ;#    Copyright 2010-2015 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
@@ -171,7 +171,6 @@ FUDICT_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FUDICT_INIT, 0
-#ifnmac FNVDICT_INIT
 			;Initialize the compile data pointer
 			MOVW	#UDICT_PS_START, CP
 	
@@ -184,7 +183,6 @@ FUDICT_VARS_END_LIN	EQU	@
 			;Initialize PAD (DICT_START in D)
 			STD	PAD 		;Pad is allocated on demand
 			STD	HLD
-
 #emac
 
 ;#Abort action (to be executed in addition of quit action)

@@ -130,6 +130,8 @@ FOUTER_VARS_END_LIN	EQU	@
 ;#Initialization
 ;===============
 #macro	FOUTER_INIT, 0
+			MOVW	#10, BASE     		;decimal
+			MOVW	#$0000, STATE	   	;interpretation state
 			MOVW	#$0000, NUMBER_TIB	;empty TIB
 			MOVW	#$0000, TO_IN		;reset parser
 #emac
@@ -178,12 +180,10 @@ FOUTER_PROMPT_2		LDD	STATE 			;check STATE
 			JOB	FOUTER_PROMPT_5		;print whitespace
 			;Determine compile prompt (string pointer in Y)
 FOUTER_PROMPT_3		EQU	*			
-#ifdef	NVC
 			LDD	NVC 			;check check for NV compile
 			BEQ	FOUTER_PROMPT_4		;RAM compile
 			MOVB	#"@", 1,Y+		;add NV compile prompt
 			JOB	FOUTER_PROMPT_5		;print whitespace
-#endif
 FOUTER_PROMPT_4		MOVB	#"+", 1,Y+		;add NV compile prompt			
 			;Print whitespace (string pointer in Y)
 FOUTER_PROMPT_5		MOVB	#(STRING_SYM_SPACE|STRING_TERM), 1,Y+;add NV compile prompt

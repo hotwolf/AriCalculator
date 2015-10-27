@@ -42,7 +42,17 @@ COP_DEBUG		EQU	1 		;disable COP
 ;# Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 
-;# STRING
+;# SSTACK
+SSTACK_DEBUG		EQU	1 
+SSTACK_NO_CHECK		EQU	1 
+SSTACK_DEPTH		EQU	40
+
+;# ISTACK
+ISTACK_DEBUG		EQU	1 
+ISTACK_NO_WAI		EQU	1 
+ISTACK_NO_CHECK		EQU	1 
+	
+x;# STRING
 ;STRING_ENABLE_FILL_NB	EQU	1		;enable STRING_FILL_NB 
 ;STRING_ENABLE_FILL_BL	EQU	1		;enable STRING_FILL_BL 
 	
@@ -74,7 +84,7 @@ RS_TIB_START		EQU	UDICT_PS_END		;start of shared TIB/RS space
 RS_TIB_END		EQU	MMAP_RAM_END		;end of shared TIB/RS space
 
 
-			ORG	MMAP_EEPROM_START, MMAP_EEPROM_START_LIN
+			ORG	MMAP_FLASH_START, MMAP_FLASH_START_LIN
 ;Code
 DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
@@ -183,4 +193,5 @@ DEMO_WORDS_END_LIN	EQU	@
 ;# Includes                                                                    #
 ;###############################################################################
 #include ../All/forth.s							;S12CForth bundle
-#include ../../Subprojects/S12CBase/Source/SIMHC12/base_SIMHC12.s	;Base bundle
+;#include ../../Subprojects/S12CBase/Source/SIMHC12/base_SIMHC12.s	;Base bundle
+#include ../../../S12CBase/Source/SIMHC12/base_SIMHC12.s	        ;Base bundle
