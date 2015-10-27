@@ -36,26 +36,29 @@
 ;#    January 30, 2015                                                         #
 ;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
-;  Flash Memory Map:
-;  -----------------  
-;                     HC12A4           
-;                +-------------+ $0000       
-;                |  Registers  |       
-;                +-------------+ $0200      
-;                |/////////////|       
-;             R+ +-------------+ $0800      
-;             A| |  Variables  |       
-;             M+ +-------------+ $0C00      
-;                |/////////////|       
-;              + +-------------+ $C000
-;             E| |    Code     |       
-;             E| +-------------+ 
-;             P| |  Tables     |       
-;             R| +-------------+
-;             O| |/////////////|       
-;             M| +-------------+ $FFC0      
-;              | |  Vectors    |       
-;              + +-------------+         
+;
+;  Memory Map (64K RAM):
+;  ---------------------  
+;            +-------------+ $0000       
+;            |  Registers  |       
+;            +-------------+ $0200      
+;            |  Variables  |       
+;            +-------------+
+;            |/////////////|       
+;            +-------------+ $4000
+;            |/////////////|       
+;            +-------------+ $8000
+;            |  NVM Space  |       
+;            +-------------+ $C000
+;            |    Code     |       
+;            +-------------+ 
+;            |  Tables     |       
+;            +-------------+
+;            |/////////////|       
+;            +-------------+ $FFC0      
+;            |  Vectors    |       
+;            +-------------+         
+;
 
 ;###############################################################################
 ;# Configuration                                                               #
@@ -71,23 +74,23 @@ MMAP_REG_END			EQU	$0200
 MMAP_REG_GLOBAL_START		EQU	$00_0000
 MMAP_REG_GLOBAL_END		EQU	$00_0200
 MMAP_REG_START_LIN		EQU	MMAP_REG_GLOBAL_START
-MMAP_REG_END_LIN		EQU	MMAP_REG_GLOBAL_START
+MMAP_REG_END_LIN		EQU	MMAP_REG_GLOBAL_END
 				
 ;RAM				
-MMAP_RAM_START			EQU	$0800
-MMAP_RAM_END			EQU	$0C00
-MMAP_RAM_GLOBAL_START		EQU	$00_0800
-MMAP_RAM_GLOBAL_END		EQU	$00_0C00
+MMAP_RAM_START			EQU	$0200
+MMAP_RAM_END			EQU	$4000
+MMAP_RAM_GLOBAL_START		EQU	$00_0200
+MMAP_RAM_GLOBAL_END		EQU	$00_4000
 MMAP_RAM_START_LIN		EQU	MMAP_RAM_GLOBAL_START
-MMAP_RAM_END_LIN		EQU	MMAP_RAM_GLOBAL_START
+MMAP_RAM_END_LIN		EQU	MMAP_RAM_GLOBAL_END
 				
-;EEPROM				
-MMAP_EEPROM_START		EQU	$C000
-MMAP_EEPROM_END			EQU	$10000
-MMAP_EEPROM_GLOBAL_START	EQU	$00_C000
-MMAP_EEPROM_GLOBAL_END		EQU	$01_0000
-MMAP_EEPROM_START_LIN		EQU	MMAP_RAM_GLOBAL_START
-MMAP_EEPROM_END_LIN		EQU	MMAP_RAM_GLOBAL_START
+;FLASH				
+MMAP_FLASH_START		EQU	$C000
+MMAP_FLASH_END			EQU	$10000
+MMAP_FLASH_GLOBAL_START		EQU	$00_C000
+MMAP_FLASH_GLOBAL_END		EQU	$01_0000
+MMAP_FLASH_START_LIN		EQU	MMAP_FLASH_GLOBAL_START
+MMAP_FLASH_END_LIN		EQU	MMAP_FLASH_GLOBAL_END
 				
 ;# Vector table			
 VECTAB_START			EQU	$FF80    
@@ -120,7 +123,7 @@ MMAP_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	MMAP_INIT, 0
 			CLR	INITRG
-			MOVB	#((MMAP_RAM_START>>8)&$F8), INITRM	
+			;MOVB	#((MMAP_RAM_START>>8)&$F8), INITRM	
 			;MOVB	#(((MMAP_EEPROM_START>>8)&$F1)|$01), INITEE ;keep whatever reset value	
 #emac	
 
