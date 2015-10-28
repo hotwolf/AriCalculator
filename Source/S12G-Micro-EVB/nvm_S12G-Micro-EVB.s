@@ -32,24 +32,52 @@
 ;# Version History:                                                            #
 ;#    May 27, 2013                                                             #
 ;#      - Initial release                                                      #
+;#    October 27, 2015                                                         #
+;#      - New user interface                                                   #
 ;###############################################################################
 	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
 ;Prescaler value
+;--------------- 
 #ifndef NVM_FDIV_VAL
-NVM_FDIV_VAL		EQU	(CLOCK_BUS_FREQ/1000000)-1
+NVM_FDIV_VAL		EQU	(CLOCK_BUS_FREQ/1000000)-1 ;FTMRG clock divider
 #endif
 
-;Fixed page protection
-;--------------------- 
-#ifndef	NVM_FIXED_PAGE_PROT_ON
-#ifndef	NVM_FIXED_PAGE_PROT_OFF
-NVM_FIXED_PAGE_PROT_ON	EQU	1	;default is NVM_FIXED_PAGE_PROT_ON	
+;NVM pages
+;--------- 
+#ifndef NVM_FIRST_PAGE
+NVM_FIRST_PAGE		EQU	($10-(MMAP_FLASH_SIZE/$4000))	;first NVM page
+#endif
+#ifndef NVM_LAST_PAGE
+NVM_LAST_PAGE		EQU	$E				;last NVM page
+#endif
+#ifndef NVM_SKIP_D_ON
+#ifndef NVM_SKIP_D_OFF
+NVM_SKIP_D_ON		EQU	1 				;skip page $FD
 #endif
 #endif
 	
+;Validation byte (must be !=$FF on a valid page)
+;-----------------------------------------------
+#ifndef NVM_VAL_BYTE
+NVM_VAL_BYTE		EQU	$8000 		;addess of the validation byte
+#endif
+	
+;Halt external communication while NVM is not accesible
+;------------------------------------------------------
+#ifnmac NVM_HALT_COM
+#macro NVM_HALT_COM, 0
+			SCI_HALT_COM 		;halt SCI communication (SSTACK: 2 bytes)
+#emac
+#endif	
+#ifnmac NVM_RESUME_COM
+#macro NVM_RESUME_COM, 0
+			SCI_RESUME_COM 		;resume SCI communication (SSTACK: 4)
+#emac
+#endif	
+
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
@@ -75,10 +103,69 @@ NVM_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
+;---------------      
 #macro	NVM_INIT, 0
-			MOVB	#(FDIVLCK|NVM_FDIV_VAL), FCLKDIV
-			MOVB	#DFDIE,FERCNFG 
+			;Initialize NVM wrapper 
+			MOVB	#(FDIVLCK|NVM_FDIV_VAL), FCLKDIV;set clock divider
+			MOVB	#DFDIE,FERCNFG			;detect ECC double faults
+			;Select valid ppage 
+			NVM_NEXT_PPAGE 				;find last PPAGE
 #emac	
+
+;#User interface
+;---------------      
+;#Erase NVM data
+; args:   none
+; result: C-flag: set if successful
+; SSTACK: 6 bytes
+;         All registers are preserved
+#macro	NVM_ERASE, 0
+			SSTACK_JOBSR	NVM_ERASE, 6
+#emac	
+
+;#Copy data to NVM
+; args:   X: source address in RAM
+;	  Y: destination address 
+;	  D: number of bytes to copy
+; result: C-flag: set if successful
+; SSTACK: 8 bytes
+;         All registers are preserved
+#macro	 NVM_PROGRAM, 0
+			SSTACK_JOBSR	NVM_PROGRAM, 8
+#emac	
+
+;#Memory map operations
+;----------------------      
+;#Switch to next PPAGE
+; args:   1:     branch if no more pages are available
+;         PPAGE: current page
+; result: PPAGE: next page
+; SSTACK: none
+;         All registers are preserved
+#macro	 NVM_NEXT_PPAGE, 0
+			BRSET	PPAGE, $0E, \1 ;last PPAGE already reached
+INC_PPAGE		INC	PPAGE
+#ifdef NVM_SKIP_D_ON
+			BRSET	PPAGE, $0D, INC_PPAGE
+#emac
+	
+;#Set PPAGE to the most recent page
+; args:   none
+; result: PPAGE: most recent page
+; SSTACK: none
+;         All registers are preserved
+#macro	 NVM_SET_PPAGE, 0
+			MOVB	NVM_FIRST_PAGE, PPAGE 		;set first PPAGE
+CHECK_PAGE		BRSET	NVM_VAL_BYTE, #$FF, DONE	;done
+			NVM_NEXT_PPAGE	DONE			;switch to next page
+			JOB	CHECK_PAGE			;loop
+DONE			EQU	*
+#emac	
+
+;#NVM opperations
+;----------------      
+
+
 	
 ;#Program phrase
 ; args:   X:      target address within paging window
@@ -153,6 +240,14 @@ NVM_VARS_END_LIN	EQU	@
 NVM_CODE_START_LIN	EQU	@			
 #endif	
 	
+;#User interface
+;---------------      
+
+
+;#NVM opperations
+;----------------      
+
+
 ;#Program phrase
 ; args:   X:      target address within paging window
 ;	  PPAGE:  current page
@@ -241,7 +336,6 @@ NVM_ERASE_PAGE_2	SSTACK_PREPULL	4
 			;Done
 			CLC
 			RTS
-
 	
 ;#Set command and address 
 ; args:   X:      target address within paging window
