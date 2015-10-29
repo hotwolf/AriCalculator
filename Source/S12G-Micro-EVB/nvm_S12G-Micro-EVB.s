@@ -53,18 +53,12 @@ NVM_FIRST_PAGE		EQU	($10-(MMAP_FLASH_SIZE/$4000))	;first NVM page
 #ifndef NVM_LAST_PAGE
 NVM_LAST_PAGE		EQU	$E				;last NVM page
 #endif
-#ifndef NVM_SKIP_D_ON
-#ifndef NVM_SKIP_D_OFF
-NVM_SKIP_D_ON		EQU	1 				;skip page $FD
+#ifndef NVM_PROT_D_ON
+#ifndef NVM_PROT_D_OFF
+NVM_PROT_D_ON		EQU	1 				;protect page $F
 #endif
 #endif
-	
-;Validation byte (must be !=$FF on a valid page)
-;-----------------------------------------------
-#ifndef NVM_VAL_BYTE
-NVM_VAL_BYTE		EQU	$8000 		;addess of the validation byte
-#endif
-	
+		
 ;Halt external communication while NVM is not accesible
 ;------------------------------------------------------
 #ifnmac NVM_HALT_COM
@@ -83,8 +77,18 @@ NVM_VAL_BYTE		EQU	$8000 		;addess of the validation byte
 ;###############################################################################
 ;#Program/erase sizes
 ;-------------------- 
-NVM_PHRASE_SIZE		EQU	64
-NVM_SECTOR_SIZE		EQU	512
+NVM_PHRASE_SIZE		EQU	4 	;bytes
+NVM_SECTOR_SIZE		EQU	512	;bytes
+
+;Validation byte (must be !=$FF on a valid page)
+;-----------------------------------------------
+NVM_VAL_BYTE		EQU	$BFFF 		;address of the validation byte
+NVM_VAL_PHRASE		EQU	$BFFC		;phrase containing the validation byte
+
+;Valid page window
+;-----------------
+NVM_PAGE_WIN_START	EQU	$8000		;address of the validation byte
+NVM_PAGE_WIN_END	EQU	$BFFC		;phrase containing the validation byte
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -109,7 +113,7 @@ NVM_VARS_END_LIN	EQU	@
 			MOVB	#(FDIVLCK|NVM_FDIV_VAL), FCLKDIV;set clock divider
 			MOVB	#DFDIE,FERCNFG			;detect ECC double faults
 			;Select valid ppage 
-			NVM_NEXT_PPAGE 				;find last PPAGE
+			NVM_SET_PPAGE 				;find last PPAGE
 #emac	
 
 ;#User interface
@@ -125,7 +129,7 @@ NVM_VARS_END_LIN	EQU	@
 
 ;#Copy data to NVM
 ; args:   X: source address in RAM
-;	  Y: destination address 
+;	  Y: destination address in page window
 ;	  D: number of bytes to copy
 ; result: C-flag: set if successful
 ; SSTACK: 8 bytes
@@ -136,17 +140,26 @@ NVM_VARS_END_LIN	EQU	@
 
 ;#Memory map operations
 ;----------------------      
-;#Switch to next PPAGE
+;#Check if last PPAGE is selected
 ; args:   1:     branch if no more pages are available
 ;         PPAGE: current page
+; result: none
+; SSTACK: none
+;         All registers are preserved
+#macro	 NVM_CHECK_LAST_PPAGE, 1
+			BRSET	PPAGE, $0E, \1 ;last PPAGE already reached
+#emac
+	
+;#Switch to next PPAGE
+; args:   PPAGE: current page
 ; result: PPAGE: next page
 ; SSTACK: none
 ;         All registers are preserved
 #macro	 NVM_NEXT_PPAGE, 0
-			BRSET	PPAGE, $0E, \1 ;last PPAGE already reached
 INC_PPAGE		INC	PPAGE
-#ifdef NVM_SKIP_D_ON
+#ifdef NVM_PROT_D_ON
 			BRSET	PPAGE, $0D, INC_PPAGE
+#endif	
 #emac
 	
 ;#Set PPAGE to the most recent page
@@ -157,68 +170,78 @@ INC_PPAGE		INC	PPAGE
 #macro	 NVM_SET_PPAGE, 0
 			MOVB	NVM_FIRST_PAGE, PPAGE 		;set first PPAGE
 CHECK_PAGE		BRSET	NVM_VAL_BYTE, #$FF, DONE	;done
-			NVM_NEXT_PPAGE	DONE			;switch to next page
+			NVM_CHECK_LAST_PPAGE	DONE		;done
+			NVM_NEXT_PPAGE				;switch to next page
 			JOB	CHECK_PAGE			;loop
 DONE			EQU	*
 #emac	
 
 ;#NVM opperations
 ;----------------      
-
-
-	
-;#Program phrase
-; args:   X:      target address within paging window
-;	  PPAGE:  current page
-;	  Y:      data pointer 
-; result: C-flag: set if successful
-; SSTACK: 18 bytes
-;         X, Y, and D are preserved
-#macro	NVM_PROGRAM_PHRASE, 0
-			SSTACK_JOBSR	NVM_PROGRAM_PHRASE, 18
-#emac
-
-;#Erase sector
-; args:   X:      sector address
-;	  PPAGE:  current page
-; result: C-flag: set if successful
-; SSTACK: 18 bytes
-;         X, Y, and D are preserved
-#macro	NVM_ERASE_SECTOR, 0
-			SSTACK_JOBSR	NVM_ERASE_SECTOR, 18
-#emac
-
-;#Erase page
-; args:   PPAGE:  current page
-; result: C-flag: set if successful
-; SSTACK: 22 bytes
-;         X, Y, and D are preserved
-#macro	NVM_ERASE_PAGE, 0
-			SSTACK_JOBSR	NVM_ERASE_PAGE, 22
-#emac
-
-;#Check fixed page protection 
-; args:   1:      escape address (in case of violation)
+;#Check for page protection 
+; args:   1:      branch address if PPAGE is set to protected page
 ;	  PPAGE:  current page
 ; result: none
 ; SSTACK: none
-;         X, Y, and D are preserved
-#macro	NVM_CHECK_FIXED_PAGE_PROT, 1
-#ifndef	NVM_FIXED_PAGE_PROT_ON
-	BRSET	PPAGE, #$FD, \1
+;         All registers are preserved
+#macro	NVM_CHECK_PAGE_PROT, 1
+#ifdef	NVM_PROT_D_ON
+			BRSET	PPAGE, #$0D, \1			;page E or page F
+#else
+			BRSET	PPAGE, #$0F, \1			;page F
 #endif
 #emac
 
-;#Set command and address 
-; args:   X:      target address within paging window
-;	  PPAGE:  current page
-;	  A:      command 
-; result: CCOBIX: $01
-;         C-flag: set if successful
-; SSTACK: 4 bytes
-;         X, Y, and D are preserved
-#macro	NVM_SET_CMD, 0
-			SSTACK_JOBSR	NVM_SET_CMD, 4
+;#Check if a phrase is within the page window
+; args:   1:     X or Y (pointing to the beginning of the phrase)
+;	  2: 	 branch address if phrase is not erased
+; result: none
+; SSTACK: none
+;         X and Y registers are preserved
+#macro	NVM_CHECK_PHRASE_RANGE, 2
+			CP\1	#NVM_PAGE_WIN_START 		;check upper boundary
+			BLO	\2				;range exceeded
+			CP\1	#NVM_PAGE_WIN_END 		;check lower boundary
+			BHI	\2				;range exceeded
+#emac
+
+;#Check if a phrase is aligned
+; args:   1:     X or Y (pointing to the beginning of the phrase)
+;	  2: 	 branch address if phrase is not erased
+; result: none
+; SSTACK: none
+;         X and Y registers are preserved
+#macro	NVM_CHECK_PHRASE_ALIGNED, 2
+			TFR	\1, A
+			BITA	#((1<<NVM_PHRASE_SIZE)-1)
+			BNE	\2
+#emac
+
+;#Check if a phrase is erased
+; args:   1:     X or Y (pointing to the beginning of the phrase)
+;	  2: 	 branch address if phrase is not erased
+;	  PPAGE: current page
+; result: none
+; SSTACK: none
+;         X and Y registers are preserved
+#macro	NVM_CHECK_PHRASE_ERASED, 2
+			LDD #(NVM_PHRASE_SIZE|$FF00)	
+LOOP			ANDA	B,\1
+			DBEQ	B, LOOP
+			DBNE	B, \2
+#emac
+
+;#Program a 4-byte phrase
+; args:   X:     target pointer (phrase aligned)
+;	  Y:     source pointer 
+;	  PPAGE: current page
+; result: X:     target pointer incremented by 8
+;	  Y:     source pointer incremented by 8
+;	  C-flag: set if successful
+; SSTACK: 21 bytes
+;         D is preserved
+#macro	NVM_PROGRAM_PHRASE, 0
+			SSTACK_JOBSR	NVM_PROGRAM_PHRASE, 21
 #emac
 
 ;#Execute NVM command from RAM
@@ -228,6 +251,15 @@ DONE			EQU	*
 ;         X, Y, and D are preserved
 #macro	NVM_EXEC_CMD, 0
 			SSTACK_JOBSR	NVM_EXEC_CMD, 15
+#emac
+
+;#Erase page
+; args:   PPAGE:  current page
+; result: C-flag: set if successful
+; SSTACK: 19 bytes
+;         X, Y, and D are preserved
+#macro	NVM_ERASE_PAGE, 0
+			SSTACK_JOBSR	NVM_ERASE_PAGE, 19
 #emac
 	
 ;###############################################################################
@@ -242,137 +274,123 @@ NVM_CODE_START_LIN	EQU	@
 	
 ;#User interface
 ;---------------      
+;#Erase NVM data
+; args:   none
+; result: C-flag: set if successful
+; SSTACK: 6 bytes
+;         All registers are preserved
+NVM_ERASE		EQU	*
+			;Save registers
+			PSHX 					;save X
+			PSHY 					;save Y
+			;Halt any external communication
+			NVM_HALT_COM
+			;Check if any empty pages are left 
+			NVM_CHECK_LAST_PPAGE NVM_ERASE_4	;erase all pages
+			;Invalidate current page 
+			LDX	#NVM_VAL_PHRASE 		;target pointer
+			LDY	#NVM_VAL_PHRASE_PATTERN		;source pointer
+			NVM_PROGRAM_PHRASE 			;( SSTACK: 21 bytes)
+			BCC	NVM_ERASE_6			;failure	
+			NVM_NEXT_PPAGE				;select next PPAGE
+			;Success 
+NVM_ERASE_1		SSTACK_PREPULL	6 			;check stack
+			SEC					;flag success
+NVM_ERASE_2		PULY					;restore Y
+			PULX					;restore X
+			RTS
+			;Select 1st PPAGE 
+NVM_ERASE_3		MOVB	NVM_FIRST_PAGE, PPAGE 		;set first PPAGE
+			JOB	NVM_ERASE_1			;success	
+			;Erase all NVM pages 
+NVM_ERASE_4		MOVB	NVM_FIRST_PAGE, PPAGE 		;start with first PPAGE
+NVM_ERASE_5		NVM_ERASE_PAGE				;(SSTACK: 19 bytes)
+			BCC            NVM_ERASE_6		;failure
+			NVM_CHECK_LAST_PPAGE NVM_ERASE_3	;select 1st PPAGE
+			NVM_NEXT_PPAGE 				;select next PPAGE
+			JOB	NVM_ERASE_5			;erase next pages
+			;Failure 
+NVM_ERASE_6		SSTACK_PREPULL	6 			;check stack
+			CLC					;flag failure
+			JOB	NVM_ERASE_2			;done	
 
+;#Copy data to NVM
+; args:   X: source address in RAM
+;	  Y: destination address in page window
+;	  D: number of bytes to copy
+; result: C-flag: set if successful
+; SSTACK: 8 bytes
+;         All registers are preserved
+NVM_PROGRAM		EQU	*
+
+	
 
 ;#NVM opperations
 ;----------------      
-
-
-;#Program phrase
-; args:   X:      target address within paging window
-;	  PPAGE:  current page
-;	  Y:      data pointer 
-; result: C-flag: set if successful
-; SSTACK: 18 bytes
-;         X, Y, and D are preserved
+;#Program a 4-byte phrase
+; args:   X:     target pointer (phrase aligned)
+;	  Y:     source pointer 
+;	  PPAGE: current page
+; result: X:     target pointer incremented by 8
+;	  Y:     source pointer incremented by 8
+;	  C-flag: set if successful
+; SSTACK: 21 bytes
+;         D is preserved
 NVM_PROGRAM_PHRASE	EQU	*
-			;Protect fixed pages
-			NVM_CHECK_FIXED_PAGE_PROT  NVM_PROGRAM_PHRASE_1
-			;Save registers (paged address in X, data pointer in Y)
-			PSHA 					;push A onto the SSTACK
-			;Set CCOB  (paged address in X, data pointer in Y)
-			LDAA	#$06 				;program P-flash
-			NVM_SET_CMD
-			INC	FCCOBIX	    			;CCOBIX=$002
-			MOVW	0,Y, FCCOBHI
-			INC	FCCOBIX	    			;CCOBIX=$003
-			MOVW	2,Y, FCCOBHI
-			INC	FCCOBIX	    			;CCOBIX=$004
-			MOVW	4,Y, FCCOBHI
-			INC	FCCOBIX	    			;CCOBIX=$005
-			MOVW	6,Y, FCCOBHI
-			;Execute command 
-			NVM_EXEC_CMD
-			;Restore registers
-			SSTACK_PREPULL	3
-			PULA					;pull A from the SSTACK
-			;Check result
-			SEC
-			BRCLR	FSTAT, #(ACCERR|FPVIOL|MGSTAT1|MGSTAT0), NVM_PROGRAM_PHRASE_2
-NVM_PROGRAM_PHRASE_1	CLC
-			;Done
-NVM_PROGRAM_PHRASE_2	RTS
-						
-;#Erase sector
-; args:   X:      sector address
-;	  PPAGE:  current page
-; result: C-flag: set if successful
-; SSTACK: 18 bytes
-;         X, Y, and D are preserved
-NVM_ERASE_SECTOR	EQU	*
-			;Protect fixed pages
-			NVM_CHECK_FIXED_PAGE_PROT  NVM_ERASE_SECTOR_1
-			;Save registers (paged address in X)
-			PSHA 					;push A onto the SSTACK
-			;Set CCOB  (paged address in X)
-			LDAA	#$0A 				;erase P-flash sector
-			NVM_SET_CMD
-			;Execute command 
-			NVM_EXEC_CMD
-			;Restore registers
-			SSTACK_PREPULL	3
-			PULA					;pull A from the SSTACK
-			;Check result
-			SEC
-			BRCLR	FSTAT, #(ACCERR|FPVIOL|MGSTAT1|MGSTAT0), NVM_ERASE_SECTOR_2
-NVM_ERASE_SECTOR_1	CLC
-			;Done
-NVM_ERASE_SECTOR_2	RTS
-	
-;#Erase page
-; args:   PPAGE:  current page
-; result: C-flag: set if successful
-; SSTACK: 22 bytes
-;         X, Y, and D are preserved
-NVM_ERASE_PAGE		EQU	*
-			;Save registers (paged address in X, data pointer in Y)
-			PSHX 					;push X onto the SSTACK
-			;Erase all 16 sdectors sector 
-			LDX	#$8000		
-NVM_ERASE_PAGE_1	NVM_ERASE_SECTOR
-			BCC	NVM_ERASE_PAGE_2			;error occured
-			LEAX	NVM_SECTOR_SIZE,X
-			CPX	$C000
-			BLO	NVM_ERASE_PAGE_1
-			;Restore registers (page erased)
-			SSTACK_PREPULL	4
-			PULX					;pull X from the SSTACK
-			;Done
-			SEC
-			RTS
-			;Restore registers (error condition)
-NVM_ERASE_PAGE_2	SSTACK_PREPULL	4
-			PULX					;pull X from the SSTACK
-			;Done
-			CLC
-			RTS
-	
-;#Set command and address 
-; args:   X:      target address within paging window
-;	  PPAGE:  current page
-;	  A:      command 
-; result: CCOBIX: $01
-; SSTACK: 4 bytes
-;         X, Y, and D are preserved
-NVM_SET_CMD		EQU	*
-			;Save registers (paged address in X, data pointer in Y)
-			PSHD 					;push D onto the SSTACK
-			;Set command  (paged address in X, command in A)
+			;Save registers (target address in X, source address in Y)
+			PSHX 					;save X
+			PSHD 					;save D
+			;Perform safety checks (target address in X, source address in Y)
+			NVM_CHECK_PAGE_PROT	    NVM_PROGRAM_PHRASE_3
+			NVM_CHECK_PHRASE_RANGE   X, NVM_PROGRAM_PHRASE_3
+			NVM_CHECK_PHRASE_ALIGNED X, NVM_PROGRAM_PHRASE_3
+			NVM_CHECK_PHRASE_ERASED  X, NVM_PROGRAM_PHRASE_3
+			;Set CCOB  (target address in X, source address in Y)
+			;1st CCOB word 
 			CLR	FCCOBIX	    			;CCOBIX=$00	
-			STAA	FCCOBHI				;set command
-			;Set ADDR[23:16]  (paged address in X)
-			LDAA	PPAGE
-			CLRB
-			LSRA 					
-			LSRA 					
-			ORAA	#$40
-			STAA	FCCOBLO
-			;Set ADDR[15:0]  (paged address in X, ADDR[15:14] in B)
-			MOVB	#$01, FCCOBIX
-			STX	FCCOBHI				;set ADDR[13:0]
-			LDAA	FCCOBHI				;set ADDR[15:14]
-			ANDA	#$3F
-			ABA
-			STAA	FCCOBHI
-			;Done
-			SSTACK_PREPULL	4
+			MOVW	#$06, FCCOBHI 			;program P-flash
+			LDAA	PPAGE				;PPAGE    -> A
+			CLRB					;PPAGE:00 -> D
+			LSRD 					;align address
+			LSRD 					;align address
+			STAA	FCCOBLO				;store global address[17:16]
+			;2nd CCOB word 
+			INC	FCCOBIX	    			;CCOBIX=$001
+			TBA					;B -> A
+			CLRB					;store global address[15:16]
+			EXG	D, X				;target addr -> D
+			ANDA	#$3F				;clear bits 15 and 14
+			LEAX	D,X				;assemble global address
+			STX	FCCOBHI				;store global address[15:0]
+			;3rd to 6th CCOB word 
+			LDAA	#4				;copy 4 words
+			INC	FCCOBIX	    			;CCOBIX=$002
+NVM_PROGRAM_PHRASE_1	MOVW	2,Y+, FCCOBHI			;store data
+			DBNE	A, NVM_PROGRAM_PHRASE_1		;more data to store
+			;Execute command (incremented source address in Y)
+			NVM_EXEC_CMD 				;(SSTACK: 15 bytes)
+			;Check result (incremented source address in Y)
+			BRCLR	FSTAT, #(ACCERR|FPVIOL|MGSTAT1|MGSTAT0), NVM_PROGRAM_PHRASE_4
+			;Failure (incremented source address in Y)
+NVM_PROGRAM_PHRASE_2	SSTACK_PREPULL	6 			;check stack
+			CLC					;flag failure
+			JOB	NVM_PROGRAM_PHRASE_5		;restore registers
+			;Failure (source address in Y)
+NVM_PROGRAM_PHRASE_3	LEAY	NVM_PHRASE_SIZE,Y		;increment Y by phrase size
+			JOB	NVM_PROGRAM_PHRASE_2		;failure
+			;Success (incremented source address in Y)
+NVM_PROGRAM_PHRASE_4	SSTACK_PREPULL	6 			;check stack
+			SEC					;flag success
+NVM_PROGRAM_PHRASE_5	PULD					;restore D
+			PULX					;restore X
+			LEAX	NVM_PHRASE_SIZE,X		;increment X by phrase size
 			RTS
-
+	
 ;#Execute NVM command from RAM
 ; args:   none
 ; result: none
 ; SSTACK: 15 bytes
-;         X, Y, and D are preserved
+;         All registers are preserved
 NVM_EXEC_CMD		EQU	*
 			;Push RAM code onto the stack
 			;18 0B FF 01 07	  MOVB  #$FF, FSTAT     ;clear CCIF
@@ -393,6 +411,50 @@ NVM_EXEC_CMD_1		CLI
 			SSTACK_PREPULL	15
 			LEAS	-13,SP
 			RTS
+
+;#Erase page
+; args:   PPAGE:  current page
+; result: C-flag: set if successful
+; SSTACK: 19 bytes
+;         All registers are preserved
+NVM_ERASE_PAGE		EQU	*
+			;Save registers
+			PSHD 					;save D
+			;Perform safety checks
+			NVM_CHECK_PAGE_PROT	    NVM_ERASE_PAGE_3
+			;Set CCOB  (target address in X, source address in Y)
+			;1st CCOB word 
+			CLR	FCCOBIX	    			;CCOBIX=$00	
+			MOVW	#$0A, FCCOBHI 			;erase P-flash sector
+			LDAA	PPAGE				;PPAGE    -> A
+			CLRB					;PPAGE:00 -> D
+			LSRD 					;align address
+			LSRD 					;align address
+			STAA	FCCOBLO				;store global address[17:16]
+			;2nd CCOB word 
+			INC	FCCOBIX	    			;CCOBIX=$001
+			STAB	FCCOBHI 			;store global address[15:16]
+			CLR	FCCOBLO				;first sector
+			;Execute command
+NVM_ERASE_PAGE_2		NVM_EXEC_CMD 				;(SSTACK: 15 bytes)
+			;Check result (incremented source address in Y)
+			BRCLR	FSTAT, #(ACCERR|FPVIOL|MGSTAT1|MGSTAT0), NVM_ERASE_PAGE_5			
+			;Failure
+NVM_ERASE_PAGE_3	SSTACK_PREPULL	4 			;check stack
+			CLC					;flag failure
+NVM_ERASE_PAGE_4	PULD					;restore D
+			PULX					;restore X
+			RTS			
+			;Switch to next sector
+NVM_ERASE_PAGE_5	LDD	FCCOBHI
+			ADDD	#NVM_SECTOR_SIZE
+			STD	FCCOBHI
+			CPD	#$C000
+			BLO	NVM_ERASE_PAGE_2
+			;Success
+			SSTACK_PREPULL	4 			;check stack
+			SEC					;flag success
+			JOB	NVM_ERASE_PAGE_4
 	
 ;#ECC double fault
 NVM_ISR_ECCERR		EQU	*
@@ -413,6 +475,8 @@ NVM_TABS_START_LIN	EQU	@
 
 NVM_STR_ECCERR		FCS	"ECC error"
 
+NVM_VAL_PHRASE_PATTERN	DB	$FF, $FF, $FF, $00
+	
 NVM_TABS_END		EQU	*	
 NVM_TABS_END_LIN	EQU	@	
 #endif

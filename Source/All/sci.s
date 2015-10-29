@@ -150,6 +150,8 @@
 ;#    January 14, 2015                                                         #
 ;#      - Changed configuration options                                        #
 ;#      - Changed control character handling                                   #
+;#    October 28, 2015                                                         #
+;#      - Added feature to halt SCI communication                              #
 ;###############################################################################
 
 ;###############################################################################
