@@ -337,5 +337,5 @@ BASE_TABS_END_LIN	EQU	@
 #include ../All/string.s		;String printing routines
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
-#include ./nvm_S12DP256-Mini-EVB.s	;NVM driver
+#include ../OpenBDC/nvm_OpenBDC.s	;NVM driver
 #include ./vectab_S12DP256-Mini-EVB.s	;S12DP256 vector table

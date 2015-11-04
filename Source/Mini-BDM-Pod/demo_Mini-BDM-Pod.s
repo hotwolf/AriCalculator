@@ -51,7 +51,7 @@ STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_FA_START, MMAP_RAM_FA_START_LIN
+			ORG	MMAP_RAM_FC_START, MMAP_RAM_FC_START_LIN
 ;Code
 START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*

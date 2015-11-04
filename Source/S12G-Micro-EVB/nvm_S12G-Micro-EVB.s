@@ -77,18 +77,18 @@ NVM_PROT_D_ON		EQU	1 				;protect page $F
 ;###############################################################################
 ;#Program/erase sizes
 ;-------------------- 
-NVM_PHRASE_SIZE		EQU	4 	;bytes
+NVM_PHRASE_SIZE		EQU	8 	;bytes
 NVM_SECTOR_SIZE		EQU	512	;bytes
 
 ;Validation byte (must be !=$FF on a valid page)
 ;-----------------------------------------------
 NVM_VAL_BYTE		EQU	$BFFF 		;address of the validation byte
-NVM_VAL_PHRASE		EQU	$BFFC		;phrase containing the validation byte
+NVM_VAL_PHRASE		EQU	$BFF8		;phrase containing the validation byte
 
 ;Valid page window
 ;-----------------
 NVM_PAGE_WIN_START	EQU	$8000		;address of the validation byte
-NVM_PAGE_WIN_END	EQU	$BFFC		;phrase containing the validation byte
+NVM_PAGE_WIN_END	EQU	$BFF8		;phrase containing the validation byte
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -121,10 +121,10 @@ NVM_VARS_END_LIN	EQU	@
 ;#Erase NVM data
 ; args:   none
 ; result: C-flag: set if successful
-; SSTACK: 6 bytes
+; SSTACK: 27 bytes
 ;         All registers are preserved
 #macro	NVM_ERASE, 0
-			SSTACK_JOBSR	NVM_ERASE, 6
+			SSTACK_JOBSR	NVM_ERASE, 27
 #emac	
 
 ;#Copy data to NVM
@@ -132,10 +132,10 @@ NVM_VARS_END_LIN	EQU	@
 ;	  Y: destination address in page window
 ;	  D: number of bytes to copy
 ; result: C-flag: set if successful
-; SSTACK: 8 bytes
+; SSTACK: 29 bytes
 ;         All registers are preserved
 #macro	 NVM_PROGRAM, 0
-			SSTACK_JOBSR	NVM_PROGRAM, 8
+			SSTACK_JOBSR	NVM_PROGRAM, 29
 #emac	
 
 ;#Memory map operations
@@ -186,7 +186,7 @@ DONE			EQU	*
 ;         All registers are preserved
 #macro	NVM_CHECK_PAGE_PROT, 1
 #ifdef	NVM_PROT_D_ON
-			BRSET	PPAGE, #$0D, \1			;page E or page F
+			BRSET	PPAGE, #$0D, \1			;page D or page F
 #else
 			BRSET	PPAGE, #$0F, \1			;page F
 #endif
@@ -213,7 +213,7 @@ DONE			EQU	*
 ;         X and Y registers are preserved
 #macro	NVM_CHECK_PHRASE_ALIGNED, 2
 			TFR	\1, A
-			BITA	#((1<<NVM_PHRASE_SIZE)-1)
+			BITA	#(NVM_PHRASE_SIZE-1)
 			BNE	\2
 #emac
 
@@ -277,7 +277,7 @@ NVM_CODE_START_LIN	EQU	@
 ;#Erase NVM data
 ; args:   none
 ; result: C-flag: set if successful
-; SSTACK: 6 bytes
+; SSTACK: 27 bytes
 ;         All registers are preserved
 NVM_ERASE		EQU	*
 			;Save registers
@@ -294,7 +294,8 @@ NVM_ERASE		EQU	*
 			BCC	NVM_ERASE_6			;failure	
 			NVM_NEXT_PPAGE				;select next PPAGE
 			;Success 
-NVM_ERASE_1		SSTACK_PREPULL	6 			;check stack
+NVM_ERASE_1		NVM_RESUME_COM	  			;resume communication
+			SSTACK_PREPULL	6 			;check stack
 			SEC					;flag success
 NVM_ERASE_2		PULY					;restore Y
 			PULX					;restore X
@@ -310,21 +311,46 @@ NVM_ERASE_5		NVM_ERASE_PAGE				;(SSTACK: 19 bytes)
 			NVM_NEXT_PPAGE 				;select next PPAGE
 			JOB	NVM_ERASE_5			;erase next pages
 			;Failure 
-NVM_ERASE_6		SSTACK_PREPULL	6 			;check stack
+NVM_ERASE_6		NVM_RESUME_COM				;resume communication
+			SSTACK_PREPULL	6 			;check stack
 			CLC					;flag failure
 			JOB	NVM_ERASE_2			;done	
 
 ;#Copy data to NVM
-; args:   X: source address in RAM
-;	  Y: destination address in page window
-;	  D: number of bytes to copy
+; args:   X: destination address in page window (phrase aligned)
+;	  Y: source address in RAM
+;	  D: number of bytes to copy (multiple of phrase size)
 ; result: C-flag: set if successful
-; SSTACK: 8 bytes
+; SSTACK: 29 bytes
 ;         All registers are preserved
 NVM_PROGRAM		EQU	*
-
+			;Save registers (dst addr in X, src addr in Y, byte count in D)
+			PSHX 					;save X
+			PSHY 					;save Y
+			PSHD 					;save D
+			;Halt any external communication (dst addr in X, src addr in Y, byte count in D)
+			NVM_HALT_COM
+			;Program phrases (dst addr in X, src addr in Y, byte count in D)
+			LSRD					;byte count/8 -> phrase count 
+			LSRD					;
+			LSRD					;
+NVM_PROGRAM_1		NVM_PROGRAM_PHRASE			;program phrase  (SSTACK: 21 bytes)
+			BCC	NVM_PROGRAM_3			;failure
+			DBNE	D, NVM_PROGRAM_1		;program next phrase
+			;Success 
+			NVM_RESUME_COM	  			;resume communication
+			SSTACK_PREPULL	6 			;check stack
+			SEC					;flag success
+NVM_PROGRAM_2		PULD					;restore D
+			PULY					;restore Y
+			PULX					;restore X
+			RTS
+			;Failure 
+NVM_PROGRAM_3		NVM_RESUME_COM				;resume communication
+			SSTACK_PREPULL	8 			;check stack
+			CLC					;flag failure
+			JOB	NVM_PROGRAM_2			;done	
 	
-
 ;#NVM opperations
 ;----------------      
 ;#Program a 4-byte phrase
@@ -443,7 +469,6 @@ NVM_ERASE_PAGE_2		NVM_EXEC_CMD 				;(SSTACK: 15 bytes)
 NVM_ERASE_PAGE_3	SSTACK_PREPULL	4 			;check stack
 			CLC					;flag failure
 NVM_ERASE_PAGE_4	PULD					;restore D
-			PULX					;restore X
 			RTS			
 			;Switch to next sector
 NVM_ERASE_PAGE_5	LDD	FCCOBHI
@@ -475,7 +500,7 @@ NVM_TABS_START_LIN	EQU	@
 
 NVM_STR_ECCERR		FCS	"ECC error"
 
-NVM_VAL_PHRASE_PATTERN	DB	$FF, $FF, $FF, $00
+NVM_VAL_PHRASE_PATTERN	DB	$FF, $FF, $FF, $FF, $FF, $FF, $FF, $00
 	
 NVM_TABS_END		EQU	*	
 NVM_TABS_END_LIN	EQU	@	
