@@ -59,7 +59,7 @@ x;# STRING
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_START, MMAP_RAM_START_LIN
+			ORG	MMAP_RAM_START
 ;Variables
 DEMO_VARS_START		EQU	*
 DEMO_VARS_START_LIN	EQU	@
@@ -84,7 +84,7 @@ RS_TIB_START		EQU	UDICT_PS_END		;start of shared TIB/RS space
 RS_TIB_END		EQU	MMAP_RAM_END		;end of shared TIB/RS space
 
 
-			ORG	MMAP_FLASH_START, MMAP_FLASH_START_LIN
+			ORG	MMAP_FLASH3F_START, MMAP_FLASH3F_START_LIN
 ;Code
 DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@

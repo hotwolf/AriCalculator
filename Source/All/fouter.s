@@ -159,7 +159,7 @@ FOUTER_VARS_END_LIN	EQU	@
 ;         X is  preserved
 #macro FOUTER_PROMPT, 0
 			;Initialize TIB pointer
-			LDY	TIB_START
+			LDY	#TIB_START
 			;Add line break (string pointer in Y)
 			STRING_MOVE_NL_NONTERM (STRING_NL_BYTE_COUNT,Y+)
 			;Check for unparsed command line (string pointer in Y)
