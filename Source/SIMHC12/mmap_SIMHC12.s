@@ -44,7 +44,7 @@
 ;	     |	Registers  |
 ;	     +-------------+ $0200
 ; pretend    |/////////////|
-;     RAM->+ +-------------+ $1000
+;     RAM->+ +-------------+ $0800
 ;	   | |	Variables  |
 ;	   | +-------------+
 ;	   | |/////////////|
@@ -71,7 +71,7 @@
 ;###############################################################################
 ;# Memory sizes
 MMAP_REG_SIZE		EQU	$0200		;512B
-MMAP_RAM_SIZE		EQU	$4000		; 16K
+MMAP_RAM_SIZE		EQU	$0800		; 2K
 MMAP_FLASH_SIZE		EQU	$8000		; 32K
 
 ;# Memory Locations
@@ -81,7 +81,7 @@ MMAP_REG_END		EQU	MMAP_REG_START+MMAP_REG_SIZE
 MMAP_INITRG_VAL		EQU	MMAP_REG_START>>8
 
 ;RAM
-MMAP_RAM_START		EQU	$1000
+MMAP_RAM_START		EQU	$0800
 MMAP_RAM_END		EQU	MMAP_RAM_START+MMAP_RAM_SIZE
 MMAP_INITRM_VAL		EQU	(MMAP_RAM_START>>8)&$C0
 
