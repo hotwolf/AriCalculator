@@ -220,9 +220,9 @@ FEXCPT_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         D and Y are preserved
 #macro	FEXCPT_FIND_MSG, 0
-FEXCPT_FIND_MSG_LOOP	LDX	#FEXCPT_MSGTAB 			;initiate table pointer
-			BRCLR	1,X+, #$FF, FEXCPT_FIND_MSG_DONE;search unsuccessfull
-			CMPB	0,X 				;check table entry
+			LDX	#FEXCPT_MSGTAB 			;initiate table pointer
+FEXCPT_FIND_MSG_LOOP	BRCLR	1,X+, #$FF, FEXCPT_FIND_MSG_DONE;search unsuccessfull
+			CMPB	-1,X 				;check table entry
 			BEQ	FEXCPT_FIND_MSG_DONE 		;search successful
 			BRCLR	1,X+, #FIO_TERM, *		;skip over table entry entry
 			JOB	FEXCPT_FIND_MSG_LOOP
@@ -407,8 +407,8 @@ FEXCPT_PRINT_MSG_BL	EQU	*
 FEXCPT_PRINT_MSG_BL_1	FIO_PRINT_BL 						;print message (SSTACK: 10 bytes)
 			;Done
 			SSTACK_PREPULL	6 					;check subroutine stack
-			PULY							;restore Y	
 			PULD							;restore D	
+			PULX							;restore X	
 			RTS
 			;Check if custom message is valid (error code in D)
 FEXCPT_PRINT_MSG_BL_2	FEXCPT_CHECK_MSG FEXCPT_PRINT_MSG_BL_3 			;check message
@@ -639,7 +639,7 @@ FEXCPT_MSGTAB		EQU	*
 			;FEXCPT_MSG	FEXCPT_EC_DICTPROT,	"Destruction of dictionary structure"
 			FEXCPT_MSG	FEXCPT_EC_COMERR,	"Corrupted RX data"
 			DB		0 ;end of table
-FEXCPT_UNKNOWN_MSG	FCS		"Unknown cause"		;Default error message
+FEXCPT_UNKNOWN_MSG	FCS		"Unknown"		;Default error message
 
 FEXCPT_TABS_END		EQU	*
 FEXCPT_TABS_END_LIN	EQU	@

@@ -48,16 +48,7 @@
 ;#    FINNER - Forth inner interpreter                                         #
 ;#    FIO    - Forth communication interface                                   #
 ;#    FRS    - Forth return stack                                              #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
 ;#    FPS    - Forth parameter stack                                           #
-;#    FRS    - Forth return stack                                              #
-;#    FINNER - Forth inner interpreter                                         #
-;#    FIO    - Forth communication interface                                   #
 ;#    FEXCPT - Forth Exception Handler                                         #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
@@ -130,7 +121,7 @@ FOUTER_VARS_END_LIN	EQU	@
 ;#Initialization
 ;===============
 #macro	FOUTER_INIT, 0
-			MOVW	#10, BASE     		;decimal
+			MOVW	#10,    BASE     	;decimal
 			MOVW	#$0000, STATE	   	;interpretation state
 			MOVW	#$0000, NUMBER_TIB	;empty TIB
 			MOVW	#$0000, TO_IN		;reset parser
