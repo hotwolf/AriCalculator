@@ -286,7 +286,7 @@ FEXCPT_CHECK_MSG_EOM	CMPB	#$A0		;" "		;check for lower ASCII codes
 ; RS:     none
 ;         no registers are preserved 
 #macro	FEXCPT_THROW_D, 0
-			;BGND
+			BGND
 			JOB	FEXCPT_THROW	;throw exception
 #emac
 	
@@ -593,7 +593,7 @@ FEXCPT_TABS_START_LIN	EQU	@
 #endif
 
 ;Name representation for anonymous words 
-FEXCPT_ANON_NAME 	FCS		"noname"
+FEXCPT_ANON_NAME 	FCS		"NONAME"
 
 ;Error outtput
 FEXCPT_ERR_STRING	FIO_NL_NONTERM 				;1st substring

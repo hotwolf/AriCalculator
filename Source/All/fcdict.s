@@ -179,9 +179,9 @@ FCDICT_VARS_END_LIN	EQU	@
 ; result: D: {IMMEDIATE, CFA>>1} of new word, zero ic case of empty iterator
 ; SSTACK: 6 bytes
 ;         X and Y are preserved;
-#macro FCDICT_ITERATOR_CFA, 0
- 			SSTACK_JOBSR	FCDICT_ITERATOR_CFA, 6
-#emac
+;#macro FCDICT_ITERATOR_CFA, 0
+; 			SSTACK_JOBSR	FCDICT_ITERATOR_CFA, 6
+;#emac
 	
 ;Basic tree navigation:
 ;======================
@@ -372,7 +372,7 @@ FCDICT_REVPRINT_BL_1	LEAS	(2*(FCDICT_TREE_DEPTH+1)),SP 		;deallocate iterator sp
 			RTS
 			;Report failure (CFA in D)
 FCDICT_REVPRINT_BL_2	SSTACK_PREPULL (2*(FCDICT_TREE_DEPTH+3)) 	;check stack
-			SEC				 		;flag failure
+			CLC				 		;flag failure
 			JOB	FCDICT_REVPRINT_BL_1 			;done
 	
 ;Iterator operations:
@@ -388,7 +388,7 @@ FCDICT_ITERATOR_REV	EQU	*
 			PSHD						;save D
 			;Get first CFA (start of iterator in Y)
 			FCDICT_ITERATOR_FIRST 				;set iterator
-			FCDICT_ITERATOR_CFA 				;get first CFA (SSTACK: 6 bytes)
+			LDD	#(FCDICT_FIRST_CFA>>1) 			;1st CFA -> D
 			;Check CFA (start of iterator in Y, {IMMEDIATE, CFA>>1} in D)		
 FCDICT_ITERATOR_REV_1	TBEQ	D, FCDICT_ITERATOR_REV_2		;search unsuccessful 	
 			LSLD						;remove Immediate flag
@@ -425,7 +425,7 @@ FCDICT_ITERATOR_NEXT_2	FCDICT_1ST_CHILD FCDICT_ITERATOR_NEXT_4 	;leaf node found
 FCDICT_ITERATOR_NEXT_3	FCDICT_PARENT FCDICT_ITERATOR_NEXT_5, (0,SP)    ;empty iterator found
 			JOB FCDICT_ITERATOR_NEXT_1 			;check for descendands of uncle
 			;Next iterator found (iterator pointer in Y, node pointer in X)
-FCDICT_ITERATOR_NEXT_4	LDD	-1,X 					;get CFA
+FCDICT_ITERATOR_NEXT_4	LDD	0,X 					;get CFA
 			;Done
 FCDICT_ITERATOR_NEXT_5	SSTACK_PREPULL	6 				;restore stack
 			PULY						;restore Y	
@@ -480,24 +480,24 @@ FCDICT_ITERATOR_PRINT_2	SSTACK_PREPULL	6 				;restore stack
 ; result: D: {IMMEDIATE, CFA>>1} of new word, zero ic case of empty iterator
 ; SSTACK: 6 bytes
 ;         X and Y are preserved;
-FCDICT_ITERATOR_CFA	EQU	*
-			;Save registers (start of iterator in Y)
-			PSHX						;save X
-			PSHY						;save Y	
-			;Set default result (start of iterator in Y)
-			CLRA
-			CLRB
-			;Set tree and iterator pointers (start of iterator in Y, default result in D)
-			FCDICT_SET_PTRS FCDICT_ITERATOR_CFA_1 		;empty iterator found
-			;Skip over sub-string (string pointer in X, default result in D)
-			BRCLR	1,X+, #FIO_TERM, * 			;skip past string termination
-			LDAA	1,X+ 					;check for leaf node
-			BEQ	FCDICT_ITERATOR_CFA_1 			;not a leaf node (invalid iterator) 
-			LDAB	0,X	 				;get complete result
-FCDICT_ITERATOR_CFA_1	SSTACK_PREPULL	6 				;restore stack
-			PULY						;restore Y	
-			PULX						;restore X	
-			RTS
+;FCDICT_ITERATOR_CFA	EQU	*
+;			;Save registers (start of iterator in Y)
+;			PSHX						;save X
+;			PSHY						;save Y	
+;			;Set default result (start of iterator in Y)
+;			CLRA
+;			CLRB
+;			;Set tree and iterator pointers (start of iterator in Y, default result in D)
+;			FCDICT_SET_PTRS FCDICT_ITERATOR_CFA_1 		;empty iterator found
+;			;Skip over sub-string (string pointer in X, default result in D)
+;			BRCLR	1,X+, #FIO_TERM, * 			;skip past string termination
+;			LDAA	1,X+ 					;check for leaf node
+;			BEQ	FCDICT_ITERATOR_CFA_1 			;not a leaf node (invalid iterator) 
+;			LDAB	0,X	 				;get complete result
+;FCDICT_ITERATOR_CFA_1	SSTACK_PREPULL	6 				;restore stack
+;			PULY						;restore Y	
+;			PULX						;restore X	
+;			RTS
 				
 ;Code fields:
 ;============

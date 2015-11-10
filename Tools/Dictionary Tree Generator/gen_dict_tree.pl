@@ -66,6 +66,7 @@ $max_name_length   = 0;
 $tree_layout_width = 0;
 @zero_terms        = ();
 @first_entry       = ();
+$first_cfa         = undef;
 
 ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
 $year += 1900;
@@ -345,7 +346,9 @@ if ($code->{problems}) {
         printf FILEHANDLE ";Tree depth\n";
         printf FILEHANDLE "FCDICT_TREE_DEPTH       EQU     %d\n", get_tree_depth(\%dict_tree);
  	printf FILEHANDLE "\n";
-
+        printf FILEHANDLE ";First CFA\n";
+        printf FILEHANDLE "FCDICT_FIRST_CFA        EQU     %s\n", $first_cfa;
+ 
 	#Macro label
         printf FILEHANDLE "\n";
         printf FILEHANDLE ";###############################################################################\n";
@@ -550,6 +553,9 @@ sub print_tree_layout {
 		printf FILEHANDLE "-";
 	    }
 	    printf FILEHANDLE "> %s %s\n", $tree->{$string}->{cfa_name}, $tree->{$string}->{is_immediate} ? "(immediate)" : "" ;
+	    if (! defined $first_cfa) {
+		$first_cfa = $tree->{$string}->{cfa_name};
+	    }
 	} else {
 	    #check if string is terminated
 	    my $nt_string = $string;
@@ -564,6 +570,9 @@ sub print_tree_layout {
 		    printf FILEHANDLE "-";
 		}
 		printf FILEHANDLE "> %s %s\n", $tree->{$string}->{cfa_name}, $tree->{$string}->{is_immediate} ? "(immediate)" : "" ;
+		if (! defined $first_cfa) {
+		    $first_cfa = $tree->{$string}->{cfa_name};
+		}
 	    } else {
 		#string is not terminated
 		#printf FILEHANDLE sprintf("%%-%ds", ($max_string_length+1)), $nt_string;
