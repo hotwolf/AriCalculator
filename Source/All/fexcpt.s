@@ -354,11 +354,9 @@ FEXCPT_PRINT_NAME_BL	EQU	*
 			;Check UDICT (CFA in D)
 			FUDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 18 bytes)
 			BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
-#ifmac FNVDICT_REVPRINT_BL 
 			;Check NVDICT (CFA in D)
 			FNVDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 2*FCDICT_TREE_DEPTH + 6 bytes)
 			BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
-#endif
 			;Check CDICT (CFA in D)
 			FCDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 18 bytes)
 			BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed

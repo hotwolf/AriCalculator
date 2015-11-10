@@ -44,11 +44,11 @@
 ;
 ;                           +--------+--------+     
 ;                       +-> |   Node pointer  | <- start of path
-;                       |   +--------+--------+ 
-;                       |   |   Node pointer  |    
-;                       |   +--------+--------+ 
-;                       |   :                 : 
-;          1+           |   +--------+--------+ 
+;                       |   +--------+--------+   |p
+;                       |   |   Node pointer  |   |a   
+;                       |   +--------+--------+   |t 
+;                       |   :                 :   |h
+;          1+           |   +--------+--------+   V
 ; (2*FCDICT_TREE_DEPTH) |   |   Node pointer  | <- end of path
 ;                       |   +--------+--------+ 
 ;                       |   |      NULL       | 
@@ -186,15 +186,15 @@ FCDICT_VARS_END_LIN	EQU	@
 ;Basic tree navigation:
 ;======================
 ;Set dictionary pointers
-; args:   Y: start of iterator structure
+; args:   Y: start of path (iterator structure)
 ;         1: branch address if empty iterator
-; result: Y: iterator pointer
-;         X: node pointer
+; result: Y: end of path (iterator structure)
+;         X: leaf node (dictionary tree)
 ; SSTACK: 0 bytes
 ;         D is preserved
 #macro	FCDICT_SET_PTRS, 1
 			;Y: points to current entry in iterator structure 
-			;X: points to cutrrent byte in directory tree 
+			;X: points to current byte in directory tree 
 			;Check for NULL pointer (iterator pointer in Y)
 			LDX	0,Y 					;check first substring
 			BEQ	\1 					;NULL pointer
@@ -205,33 +205,29 @@ FCDICT_SET_PTRS_1	LDX	2,+Y 					;check next substring
 #emac
 
 ;Skip substring
-; args:   Y: struc pointer
-;         X: node pointer
-;         1: branch address if no sibling is found
-; result: Y: struc pointer (unchanged)
-;         X: tree pointer (points to first byte after the sub-string)
+; args:   X: node (dictionary tree)
+; result: X: points to first byte after node's sub-string (X+1 if empty string)
 ; SSTACK: 0 bytes
-;         D is preserved
+;         Y and D are preserved
 #macro	FCDICT_SUBSTR, 0
 			;Y: points to current entry in CDICT pointer structure 
 			;X: points to cutrrent byte in directory tree 
 			;Check for empty string (iterator pointer in Y, node pointer in X)
 			BRCLR	1,X+, #$FF, FCDICT_SUBSTR_DONE		;empty substring found (check for sibling)
 			;Skip over substring (iterator pointer in Y, string pointer in X)
-			LEAX	-1,X 					;adjust string pointer
+			LEAX	-1,X 					;go back to firsct char
 			BRCLR	1,X+, #FIO_TERM, * 			;skip past the end of the substring
 			;Done (iterator pointer in Y, tree pointer in X)
 FCDICT_SUBSTR_DONE	EQU	*
 #emac
 	
 ;Skip to next sibling
-; args:   Y: struc pointer
-;         X: leaf node pointer
+; args:   Y: path pointer (iterator structure)
+;         X: node (dictionary tree)
 ;         1: branch address if no sibling is found
-; result: Y: struc pointer (unchanged)
-;         X: new node pointer (invalid if no sibling is found)
+; result: X: sibling node (invalid if no sibling is found)
 ; SSTACK: 0 bytes
-;         D is preserved
+;         Y and D are preserved
 #macro	FCDICT_SIBLING, 1
 			;Y: points to current entry in CDICT pointer structure 
 			;X: points to cutrrent byte in directory tree 
@@ -246,11 +242,11 @@ FCDICT_SIBLING_1	BRCLR	2,+X, #$FF, \1 				;no sibling found (check for uncle)
 #emac
 
 ;Skip to first child
-; args:   Y: struc pointer
-;         X: node pointer
+; args:   Y: path pointer (iterator structure)
+;         X: node (dictionary tree)
 ;         1: branch address if no child is found
-; result: Y: new struc pointer (unchanged if no child is found)
-;         X: new node pointer (points low byte of current CFA if no child is found)
+; result: Y: new path pointer (unchanged if no child is found)
+;         X: new node (points low byte of current CFA if no child is found)
 ; SSTACK: 0 bytes
 ;         D is preserved
 #macro	FCDICT_1ST_CHILD, 1
@@ -259,18 +255,20 @@ FCDICT_SIBLING_1	BRCLR	2,+X, #$FF, \1 				;no sibling found (check for uncle)
 			;Skip sub-string (iterator pointer in Y, node pointer in X)
 			FCDICT_SUBSTR					
 			;Check for child (iterator pointer in Y, tree pointer in X)
-			BRCLR	1,X+, #$FF, \1 				;no sibling found (check for uncle)		
-			;Check for child (iterator pointer in Y, child node pointer in X)
-			STX	2,+Y 					;update pointer struct
+			TST	0,X 					;check for branch indicator
+			BNE	\1 					;no child found
+			;Skip to child (iterator pointer in Y, child node pointer in X)
+			LDX	1,X  					;skip to child
+			STX	2,+Y 					;update iterator struct
 #emac
 	
 ;Skip to parent
-; args:   Y: struc pointer
-;         X: node pointer
+; args:   Y: path pointer (iterator structure)
+;         X: node (dictionary tree)
 ;         1: branch address if no parent is found
-;         2: start of pointer structure
-; result: Y: new struc pointer (invalid if no parent is found)
-;         X: new node pointer
+;         2: start of path (iterator structure)
+; result: Y: new path pointer (invalid if no parent is found)
+;         X: new node
 ; SSTACK: 0 bytes
 ;         D is preserved
 #macro	FCDICT_PARENT, 2
@@ -417,7 +415,7 @@ FCDICT_ITERATOR_NEXT	EQU	*
 			CLRA
 			CLRB
 			;Set tree and iterator pointers (start of iterator in Y)
-			FCDICT_SET_PTRS FCDICT_ITERATOR_NEXT_4		 ;empty iterator found
+			FCDICT_SET_PTRS FCDICT_ITERATOR_NEXT_5		;empty iterator found
 			;Check for sibling (iterator pointer in Y, node pointer in X) 
 FCDICT_ITERATOR_NEXT_1	FCDICT_SIBLING FCDICT_ITERATOR_NEXT_3 		;no sibling found
 			;Check for descendands (iterator pointer in Y, node pointer in X)
@@ -425,7 +423,7 @@ FCDICT_ITERATOR_NEXT_2	FCDICT_1ST_CHILD FCDICT_ITERATOR_NEXT_4 	;leaf node found
 			JOB FCDICT_ITERATOR_NEXT_2 			;check for further child
 			;Check for uncle (iterator pointer in Y, node pointer in X)
 FCDICT_ITERATOR_NEXT_3	FCDICT_PARENT FCDICT_ITERATOR_NEXT_5, (0,SP)    ;empty iterator found
-			JOB FCDICT_ITERATOR_NEXT_2 			;check for descendands of uncle
+			JOB FCDICT_ITERATOR_NEXT_1 			;check for descendands of uncle
 			;Next iterator found (iterator pointer in Y, node pointer in X)
 FCDICT_ITERATOR_NEXT_4	LDD	-1,X 					;get CFA
 			;Done

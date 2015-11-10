@@ -767,7 +767,7 @@ sub print_init_macro {
     my $tree_depth   = get_tree_depth(\%dict_tree);
     my @init_offsets = @first_entry;
     
-    foreach my $level (0...$tree_depth+1) {
+    foreach my $level (0...$tree_depth) {
 	if ($#init_offsets >= 0) {
 	    my $entry = shift @init_offsets;
 	    printf FILEHANDLE "                        %-30s;%s\n", sprintf("MOVW #(\\1+\$%.2X), \(\\3+\$%.2X),\\2", $entry->{offset}, (2*$level)),
