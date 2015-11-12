@@ -52,9 +52,13 @@ ISTACK_DEBUG		EQU	1
 ISTACK_NO_WAI		EQU	1 
 ISTACK_NO_CHECK		EQU	1 
 	
-x;# STRING
+;# STRING
 ;STRING_ENABLE_FILL_NB	EQU	1		;enable STRING_FILL_NB 
-;STRING_ENABLE_FILL_BL	EQU	1		;enable STRING_FILL_BL 
+;STRING_ENABLE_FILL_BL	EQU	1		;enable STRING_FILL_BL
+
+;# FOUTER	
+FOUTER_NL_CR		EQU	1 		;interpret CR as line break,
+						;ignore LF
 	
 ;###############################################################################
 ;# Resource mapping                                                            #
@@ -77,12 +81,12 @@ DEMO_VARS_START_LIN	EQU	@
 ;             RS_TIB_END -> +--------------+--------------+
 ;Dictionary, PAD, and parameter stack 
 UDICT_PS_START		EQU	*			;start of shared DICT/PAD/PS space
-UDICT_PS_END		EQU	((MMAP_RAM_END-*)*2)/3	;end of shared DICT/PAD/PS space
+UDICT_PS_SIZE		EQU	((MMAP_RAM_END-*)*2)/3	;2/3 of available RAM space
+UDICT_PS_END		EQU	(*+UDICT_PS_SIZE)&$FFFE	;end of shared DICT/PAD/PS space
 
 ;TIB and return stack
 RS_TIB_START		EQU	UDICT_PS_END		;start of shared TIB/RS space
 RS_TIB_END		EQU	MMAP_RAM_END		;end of shared TIB/RS space
-
 
 			ORG	MMAP_FLASH3F_START, MMAP_FLASH3F_START_LIN
 ;Code

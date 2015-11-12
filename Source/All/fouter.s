@@ -81,7 +81,15 @@
 ;Safety distance to return stack
 ;------------------------------- 
 #ifndef TIB_PADDING
-TIB_PADDING		EQU	4 		;default is 4 bytes
+TIB_PADDING		EQU	4 	;default is 4 bytes
+#endif
+
+;Newline handling:
+;----------------- 
+#ifndef FOUTER_NL_LF
+#ifndef FOUTER_NL_CR
+FOUTER_NL_LF		EQU	1 	;interpret LF as line break, ignore CR
+#endif
 #endif
 	
 ;###############################################################################
@@ -149,18 +157,16 @@ FOUTER_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         X is  preserved
 #macro FOUTER_PROMPT, 0
-			;Initialize TIB pointer
-			LDY	#TIB_START
-			;Add line break (string pointer in Y)
-			STRING_MOVE_NL_NONTERM (STRING_NL_BYTE_COUNT,Y+)
 			;Check for unparsed command line (string pointer in Y)
 			CLRA				;ignore whitespace in TIB
-			FOUTER_SKIP_DELIMITER		;
+			FOUTER_SKIP_DELIMITER		;check for unparsed  content
+			;Add line break (string pointer in Y, C-flag set if unparsed content found)
+			LDY	#TIB_START 		;TIB_START -> Y
+			FIO_MOVE_NL_NONTERM (FIO_NL_BYTE_COUNT,Y+);add line break
+			;Warn prompt (string pointer in Y, C-flag set if unparsed content found)
 			BCC	FOUTER_PROMPT_1		;TIB was empty
 			MOVB	#"!", 1,Y+		;add warn prompt
-FOUTER_PROMPT_1		MOVW	#$0000, NUMBER_TIB	;empty TIB
-			MOVW	#$0000, TO_IN		;reset parser
-			;Check for SUSPEND mode(string pointer in Y)
+FOUTER_PROMPT_1		;Check for SUSPEND mode(string pointer in Y)
 			LDD	IP			;check IP
 			BEQ	FOUTER_PROMPT_2
 			MOVB	#"S", 1,Y+		;add SUSPEND prompt
@@ -738,12 +744,20 @@ CF_QUERY		EQU	*
 CF_QUERY_1		EXEC_CF	CF_EKEY			;input char -> [PS+0]
 			;Get input (input char in [PS+0])
 			LDD	[PSP] 			;input char -> B
-			;Ignore LF (input char in B)
-			CMPB	#FIO_SYM_LF
-			BEQ	CF_QUERY_4		;ignore
-			;Check for ENTER (CR) (input char in B and in [PS+0])
-			CMPB	#FIO_SYM_CR	
+			;Handle CR - ignore by default (input char in B)
+			CMPB	#FIO_SYM_CR
+#ifdef	FOUTER_NL_CR
 			BEQ	CF_QUERY_8		;command line complete		
+#else
+			BEQ	CF_QUERY_4		;ignore
+#endif
+			;Hanfle LF - newline by default (input char in B and in [PS+0])
+			CMPB	#FIO_SYM_LF	
+#ifdef	FOUTER_NL_LF
+			BEQ	CF_QUERY_8		;command line complete		
+#else
+			BEQ	CF_QUERY_4		;ignore
+#endif
 			;Check for BACKSPACE (input char in B and in [PS+0])
 			CMPB	#FIO_SYM_BACKSPACE	
 			BEQ	CF_QUERY_7	 	;backspace
@@ -776,12 +790,14 @@ CF_QUERY_4		LDY	PSP 			;drop char from PS
 			STY	PSP
 			JOB	CF_QUERY_1
 			;BEEP			
-CF_QUERY_5		LDD	#FIO_SYM_BEEP	;replace received char by a beep
+CF_QUERY_5		LDD	#FIO_SYM_BEEP		;replace received char by a beep
 CF_QUERY_6		STD	[PSP]
 			JOB	CF_QUERY_3 		;transmit beep
 			;Check for buffer underflow (input char in [PS+0])
 CF_QUERY_7		LDY	NUMBER_TIB 		;compare char count
 			BEQ	CF_QUERY_5		;beep
+			DEY				;decrement #TIB
+			STY	NUMBER_TIB		;
 			LDD	#STRING_SYM_BACKSPACE	;replace received char by a backspace
 			JOB	CF_QUERY_6
 			;Command line complete
@@ -915,7 +931,7 @@ CF_SUSPEND_SHELL		EQU	*
 CF_SHELL		EQU	*
 			;Print shell prompt
 CF_SHELL_1		FOUTER_PROMPT 				;assemble prompt in TIB
-			PS_PUSH	TIB_START			;TIB pointer -> PS
+			PS_PUSH	#TIB_START			;TIB pointer -> PS
 			EXEC_CF	CF_STRING_DOT			;print string
 			;Query command line
 			EXEC_CF	CF_QUERY 			;query command line

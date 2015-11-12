@@ -96,7 +96,8 @@ DEMO_VARS_START_LIN	EQU	@
 ;             RS_TIB_END -> +--------------+--------------+
 ;Dictionary, PAD, and parameter stack 
 UDICT_PS_START		EQU	*			;start of shared DICT/PAD/PS space
-UDICT_PS_END		EQU	((MMAP_RAM_END-*)*2)/3	;end of shared DICT/PAD/PS space
+UDICT_PS_SIZE		EQU	((MMAP_RAM_END-*)*2)/3	;2/3 of available RAM space
+UDICT_PS_END		EQU	(*+UDICT_PS_SIZE)&$FFFE	;end of shared DICT/PAD/PS space
 	
 ;TIB and return stack
 RS_TIB_START		EQU	UDICT_PS_END		;start of shared TIB/RS space
@@ -237,6 +238,5 @@ DEMO_WORDS_END_LIN	EQU	@
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./fcdict_tree.s							;Core cictionary search tree
 #include ../All/forth.s								;S12CForth bundle
 #include ../../Subprojects/S12CBase/Source/Mini-BDM-Pod/base_Mini-BDM-Pod.s	;Base bundle

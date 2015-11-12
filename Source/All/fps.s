@@ -80,8 +80,8 @@
 ;FPS_NO_CHECK	EQU	1 
 
 ;Boundaries
-;UDICT_RS_START		EQU	0
-;UDICT_RS_END		EQU	0
+;UDICT_PS_START		EQU	0
+;UDICT_PS_END		EQU	0
 
 ;###############################################################################
 ;# Constants                                                                   #

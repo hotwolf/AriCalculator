@@ -58,7 +58,10 @@
 ;###############################################################################
 ;#ASCII code 
 FIO_SYM_SPACE		EQU	STRING_SYM_SPACE
+
+;#Line break
 FIO_STR_NL		EQU	STRING_STR_NL
+FIO_NL_BYTE_COUNT	EQU	STRING_NL_BYTE_COUNT
 
 ;#String termination 
 FIO_TERM		EQU	STRING_TERM
@@ -228,12 +231,19 @@ FIO_VARS_END_LIN	EQU	@
 #macro	FIO_NL_TERM, 0
 			STRING_NL_TERM
 #emac
-	
+#macro	FIO_MOVE_NL_TERM, 1
+			STRING_MOVE_NL_TERM (\1)
+#emac
+
 ;#Non-terminated line break
 #macro	FIO_NL_NONTERM, 0
 			STRING_NL_NONTERM
 #emac
+#macro	FIO_MOVE_NL_NONTERM, 1
+			STRING_MOVE_NL_NONTERM (\1)
+#emac
 	
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
