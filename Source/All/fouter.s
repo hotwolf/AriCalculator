@@ -118,7 +118,7 @@ FOUTER_VARS_START_LIN	EQU	@
 BASE			DS	2 		;default radix
 STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
 NUMBER_TIB  		DS	2		;number of chars in the TIB
-TO_IN  			DS	2		;parse index (TIB_START+TO_IN -> start of parse area)
+TO_IN  			DS	2		;parse index (parse area empty if >IN = #TIB) 
 	
 FOUTER_VARS_END		EQU	*
 FOUTER_VARS_END_LIN	EQU	@
@@ -194,27 +194,11 @@ FOUTER_PROMPT_5		MOVB	#(STRING_SYM_SPACE|STRING_TERM), 1,Y+;add NV compile promp
 ;         All registers preserved
 #macro	FOUTER_CHECK_DELIMITER, 0
 			TBNE	A, CUSTOM_DELIMITER  	;custom delimiter
-			CMPB	FIO_SYM_SPACE	;" "
+			CMPB	#FIO_SYM_SPACE	;" "
 			BEQ	DONE
-			CMPB	FIO_SYM_TAB		;tab
+			CMPB	#FIO_SYM_TAB		;tab
 			JOB	DONE
 CUSTOM_DELIMITER	CBA				;custom
-DONE			EQU	*
-#emac
-
-;#Check if parse area is exceeded
-; args:   Y:      >IN	
-;         #TIB:   char count in TIB
-; result: C-flag: !=no overrun, 0=overrun
-;	  Y:      cleared on overrun, otherwise unchanged
-;         #TIB:   cleared on overrun, otherwise unchanged
-; SSTACK: 0 bytes
-;         D and X are preserved
-#macro	FOUTER_CHECK_OVERRUN, 0
-			CPY	NUMBER_TIB		;check for parse overrun
-			BLO	DONE			;parse overrun
-			LDY	#$0000
-			STY	NUMBER_TIB
 DONE			EQU	*
 #emac
 	
@@ -241,28 +225,27 @@ DONE			EQU	*
 ; result: D:      char count
 ;	  X:      string pointer
 ;	  Y:      new >IN 
-;         #TIB:   cleared on overrun, otherwise unchanged
-;         >IN:    cleared on overrun, otherwise new >IN
+;         #TIB:   unchanged
+;         >IN:    new >IN
 ; SSTACK: 0 bytes
-;         A and X are preserved
+;         No registers are preserved
 #macro	FOUTER_COUNT_AND_TERMINATE, 0
-			;Find end of word (delimiter in A, parse index in Y)
-LOOP			TFR	Y, X 			;save parse index
-			INX				;advance parse index
-			FOUTER_CHECK_OVERRUN 		;check for parse overrun
-			BCC	END_OF_WORD		;parse overrun
-			LDAB	TIB_START,Y		;get next char
+			;Find end of word (delimiter in A, >IN in Y)
+			LEAX	TIB_START,Y 			;strong pointer -> X
+			;Count loop (delimiter in A, start of string in X, new >IN in Y)
+LOOP			LDAB	TIB_START,Y		;get next char
 			ANDB	#~STRING_TERM		;remove termination
 			STAB	TIB_START,Y		;update char	
 			FOUTER_CHECK_DELIMITER		;check for whitespace
-			BNE	LOOP			;non-delimiter
-			;End of word found (index of last char in X, new parse index in Y) 
-END_OF_WORD		BSET	TIB_START,X,#STRING_TERM;terminate string
-			TFR	X, D			;calculate char count
-			SUBD	TO_IN			;char count -> D
-			LDX	TO_IN			;determine string pointer
-			LEAX	TIB_START,X		;string pointer -> X
-			STY	TO_IN			;update >IN
+			BEQ	END_OF_WORD		;end of word found
+			INY				
+			CPY	NUMBER_TIB		;check if TIB is parsed
+			BLO	LOOP			;more to parse
+			;End of word found (start of string in X, new >IN in Y)
+END_OF_WORD		BSET	(TIB_START-1),Y,#FIO_TERM;terminate string
+			TFR	Y, D			 ;new >IN -> D
+			SUBD	TO_IN			 ;(new >IN - ols >IN) -> D
+			STY	TO_IN			 ;update >IN
 #emac
 	
 ;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
@@ -533,18 +516,21 @@ FOUTER_CODE_START_LIN	EQU	@
 FOUTER_SKIP_DELIMITER	EQU	*
 			;Skip delimiter chars 
 			LDY	TO_IN 			;read parse pointer
-			SSTACK_PREPULL	2		;check SSTACK
-FOUTER_SKIP_DELIMITER_1	FOUTER_CHECK_OVERRUN		;check for parse overrun
-			STY	TO_IN			;update >IN
-			BCC	FOUTER_SKIP_DELIMITER_2	;parse overrun
+FOUTER_SKIP_DELIMITER_1 CPY	NUMBER_TIB		;check if TIB is parsed
+			BHS	FOUTER_SKIP_DELIMITER_2	;TIB is fully parsed
 			LDAB	TIB_START,Y		;check next char
-			ANDB	#~STRING_TERM		;remove termination
-			INY				;advance parse pointer
+			ANDB	#~FIO_TERM		;remove termination
 			FOUTER_CHECK_DELIMITER		;check for delimiter
-			BEQ	FOUTER_SKIP_DELIMITER_1	;delimiter found
-			;Flag parsable content and done 
-			SEC
-FOUTER_SKIP_DELIMITER_2	RTS
+			BNE	FOUTER_SKIP_DELIMITER_3	;non-delimeter char found
+			;Skip to next chasr (new TO_IN in Y)
+			IBNE	Y, FOUTER_SKIP_DELIMITER_1;increment and loop
+			;No parsable content found
+FOUTER_SKIP_DELIMITER_2	LDY	NUMBER_TIB 		;mark buffer as parsed (redundand)
+			;Parsable content found (new TO_IN in Y)
+FOUTER_SKIP_DELIMITER_3	STY	TO_IN			;update >IN
+			SSTACK_PREPULL	2		;check SSTACK
+			CPY	NUMBER_TIB		;set C if >IN < #TIB
+			RTS				;done
 		
 ;#Find the next word (delimited by a selectable character) on the TIB and terminate it. 
 ; args:   A:    delimiter (0=any whitespace)
@@ -553,15 +539,15 @@ FOUTER_SKIP_DELIMITER_2	RTS
 ; result: X:    string pointer
 ;	  D:    character count	
 ;         #TIB:   new char count in TIB
-;         >IN:  new TIB parseindex
+;         >IN:  new TIB parse index
 ; SSTACK: 6 bytes
 ;         Y is preserved
 FOUTER_PARSE		EQU	*	
 			;Save registers
 			PSHY				;save Y
 			;Skip over delimiters (delimiter in A)
-			FOUTER_SKIP_DELIMITER  		;skip over delimiters
-			BCC	FOUTER_PARSE_1		;TIB is empty
+			FOUTER_SKIP_DELIMITER  		;skip over delimiters	
+			BCC	FOUTER_PARSE_2		;TIB is fully parsed
 			;Count chars and terminate word (delimiter in A, >IN in Y)
 			FOUTER_COUNT_AND_TERMINATE
 			;Retore registers 
@@ -569,7 +555,12 @@ FOUTER_PARSE_1		SSTACK_PREPULL	4		;check SSTACK
 			PULY				;restore Y
 			;Done
 			RTS
-
+			;TIB is fully parsed
+FOUTER_PARSE_2		CLRA				;clear char count
+			CLRB				;
+			TFR	D, X			;empty string
+			JOB	FOUTER_PARSE_1
+	
 ;#Look-up word in dictionaries 
 ; args:   X: string pointer (terminated string)
 ; result: X: execution token (unchanged if word not found)
