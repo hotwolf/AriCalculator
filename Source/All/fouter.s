@@ -981,11 +981,16 @@ CF_SHELL_8		LDD	STATE 				;check compile state
 			;Syntax error (string pointer in X)
 CF_SHELL_9		LDD	#FEXCPT_EC_UDEFWORD 		;set error code
 			FEXCPT_PRINT_ERROR_BL			;print error message
+			;Check IP
+			LDX	IP 				;IP -> X
+			BEQ	CF_QUIT_SHELL 			;restart QUIT shell			
 			;Check HANDLER
 			LDX	HANDLER				;HANDLER -> X
 			;CPX	FEXCPT_DEFAULT_HANDLER		;=$0000
 			BEQ	CF_QUIT_SHELL 			;restart QUIT shell
 			;Restart suspend shell (HANDLER in X)
+			CPX	#(RS_EMPTY-8)			;check for 4 cell exception frame
+			BHI	CF_QUIT_SHELL 			;restart QUIT shell				
 			STX	RSP				;restore RSP
 			MOVW	2,X, PSP			;restore PSP
 			MOVW	6,X, IP				;resore IP
@@ -1026,7 +1031,7 @@ CF_SUSPEND_HANDLER	EQU		*
 ;         FEXCPT_EC_COMERR
 CF_SUSPEND		EQU		*
 			;Push return address and exception stack frame
-			RS_PUSH4 IP CF_SUSPEND_HANDLER PSP HANDLER
+			RS_PUSH4 IP CFA_SUSPEND_HANDLER PSP HANDLER
 			;Update handler
 			MOVW	RSP, HANDLER
 			;Switch to suspend shell
@@ -1297,6 +1302,10 @@ CFA_LITERAL_RT		DW	CF_LITERAL_RT
 ;"Parameter stack overflow"
 CFA_TWO_LITERAL_RT	DW	CF_TWO_LITERAL_RT
 
+;SUSPEND handler (ERROR -- )
+;Enter SUSPEND mode.
+CFA_SUSPEND_HANDLER	DW	CF_SUSPEND_HANDLER
+	
 FOUTER_WORDS_END	EQU	*
 FOUTER_WORDS_END_LIN	EQU	@
 #endif
