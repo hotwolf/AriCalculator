@@ -865,11 +865,11 @@ CF_FIND			EQU	*
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
-CF_ABORT_RT		EQU	*
+CF_ABORT_SHELL		EQU	*
 			;Execute ABORT actions
 			FORTH_ABORT
 			;Execute QUIT actions
-			;JOB	CF_QUIT_RT
+			;JOB	CF_QUIT_SHELL
 
 ;QUIT run-time ( -- ) ( R: j*x -- )
 ;Empty the return stack, store zero in SOURCE-ID if it is present, make the user
@@ -887,7 +887,7 @@ CF_ABORT_RT		EQU	*
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
-CF_QUIT_RT		EQU	*
+CF_QUIT_SHELL		EQU	*
 			;Execute QUIT actions
 			FORTH_QUIT
 			;Execute SUSPEND actions
@@ -903,7 +903,7 @@ CF_QUIT_RT		EQU	*
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
-CF_SUSPEND_SHELL		EQU	*
+CF_SUSPEND_SHELL	EQU	*
 			;Execute SUSPEND actions
 			FORTH_SUSPEND
 			;Start shell
@@ -914,7 +914,7 @@ CF_SUSPEND_SHELL		EQU	*
 ; args:   none
 ; result: none
 ; SSTACK: 22 bytes
-; PS:     1 cell
+6; PS:     1 cell
 ; RS:     2 cells
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_RSOF
@@ -929,31 +929,31 @@ CF_SHELL_1		FOUTER_PROMPT 				;assemble prompt in TIB
 			;Parse command line
 CF_SHELL_2		CLRA					;set delimiter to any whitespace
 			FOUTER_PARSE				;parse next word
-			TBNE	D, CF_SHELL_2b			;word found
+			TBNE	D, CF_SHELL_3			;word found
 			;Print acknowledge string 
-CF_SHELL_2a		PS_PUSH	#FOUTER_SYSTEM_ACK 		;string pointer -> PS
+			PS_PUSH	#FOUTER_SYSTEM_ACK 		;string pointer -> PS
 			EXEC_CF	CF_STRING_DOT			;print string
 			JOB	CF_SHELL_1			;new command line
 			;Lookup word in dictionaries word (string pointer in X)
-CF_SHELL_2b		FOUTER_FIND 				;search dictionaries
-			TBEQ	D, CF_SHELL_4			;word not in dictionaries
+CF_SHELL_3		FOUTER_FIND 				;search dictionaries
+			TBEQ	D, CF_SHELL_5			;word not in dictionaries
 			;Compile semantics (xt in X, meta info in D)
 			LDY	STATE 				;check compile state
-			BEQ	CF_SHELL_3			;interpret xt
-			DBEQ	D, CF_SHELL_3			;interpret immediate xt
+			BEQ	CF_SHELL_4			;interpret xt
+			DBEQ	D, CF_SHELL_4			;interpret immediate xt
 			FUDICT_COMPILE_CELL 			;compile xt
 			JOB	CF_SHELL_2 			;parse next word
 			;Interpretation semantics (xt in X, meta info in D)
-CF_SHELL_3		EXEC_CFA_X 				;execute xt
+CF_SHELL_4		EXEC_CFA_X 				;execute xt
 			JOB	CF_SHELL_2 			;parse next word
 			;Interpret word as number (string pointer in X)
-CF_SHELL_4		FOUTER_INTEGER 				;interpret as integer
-			TBEQ	D, CF_SHELL_8			;syntax error (not an integer)
-			DBEQ	D, CF_SHELL_7			;single cell
-			;DBNE	D, CF_SHELL_8			;syntax error
+CF_SHELL_5		FOUTER_INTEGER 				;interpret as integer
+			TBEQ	D, CF_SHELL_9			;syntax error (not an integer)
+			DBEQ	D, CF_SHELL_8			;single cell
+			;DBNE	D, CF_SHELL_9			;syntax error
 			;Double cell number (number in Y:X) 
 			LDD	STATE 				;check compile state
-			BEQ	CF_SHELL_5			;interpret
+			BEQ	CF_SHELL_6			;interpret
 			;Compile semantics (number in Y:X)
 			TFR	X, D		    		;save LSW
 			LDX	#CFA_TWO_LITERAL_RT 		;compile xt
@@ -964,13 +964,13 @@ CF_SHELL_4		FOUTER_INTEGER 				;interpret as integer
 			FUDICT_COMPILE_CELL 			;
 			JOB	CF_SHELL_2			;parse next wprd
 			;Interpretation semantics (number in Y:X)
-CF_SHELL_5		TFR	Y, D		    		;push MSW onto PS
+CF_SHELL_6		TFR	Y, D		    		;push MSW onto PS
 			PS_PUSH_D				;
-CF_SHELL_6		PS_PUSH_X				;push LSW onto PS
+CF_SHELL_7		PS_PUSH_X				;push LSW onto PS
 			JOB	CF_SHELL_2			;parse next wprd
 			;Single cell number (number in X) 
-CF_SHELL_7		LDD	STATE 				;check compile state
-			BEQ	CF_SHELL_6			;interpret
+CF_SHELL_8		LDD	STATE 				;check compile state
+			BEQ	CF_SHELL_7			;interpret
 			;Compile semantics (number in Y:X)
 			TFR	X, D		    		;save LSW
 			LDX	#CFA_TWO_LITERAL_RT 		;compile xt
@@ -979,9 +979,17 @@ CF_SHELL_7		LDD	STATE 				;check compile state
 			FUDICT_COMPILE_CELL 			;
 			JOB	CF_SHELL_2			;parse next word
 			;Syntax error (string pointer in X)
-CF_SHELL_8		STX	ABORT_MSG 			;include word in error message
-			;FEXCPT_THROW	FEXCPT_EC_UDEFWORD	;throw exception
-			BRA	*	;TBD!!!
+CF_SHELL_9		LDD	#FEXCPT_EC_UDEFWORD 		;set error code
+			FEXCPT_PRINT_ERROR_BL			;print error message
+			;Check HANDLER
+			LDX	HANDLER				;HANDLER -> X
+			;CPX	FEXCPT_DEFAULT_HANDLER		;=$0000
+			BEQ	CF_QUIT_SHELL 			;restart QUIT shell
+			;Restart suspend shell (HANDLER in X)
+			STX	RSP				;restore RSP
+			MOVW	2,X, PSP			;restore PSP
+			MOVW	6,X, IP				;resore IP
+			JOB	CF_SUSPEND_SHELL		;restart SUSPEND shell
 	
 ;SUSPEND handler (ERROR -- )
 ;Enter SUSPEND mode.

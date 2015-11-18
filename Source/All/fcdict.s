@@ -108,7 +108,7 @@ FCDICT_VARS_END_LIN	EQU	@
 ;Dictionary operations:
 ;======================	
 ;#Look-up word in CORE dictionariy 
-; args:   X: string pointer (terminated string)
+; args:   X: search string (terminated string)
 ; result: X: execution token (unchanged if word not found)
 ;	  D: 1=immediate, -1=non-immediate, 0=not found
 ; SSTACK: 8 bytes
@@ -294,57 +294,67 @@ FCDICT_CODE_START_LIN	EQU	@
 ;Dictionary operations:
 ;======================	
 ;#Look-up word in CORE dictionary 
-; args:   X: string pointer (terminated string)
+; args:   X: search string (terminated string)
 ; result: X: execution token (unchanged if word not found)
 ;	  D: 1=immediate, -1=non-immediate, 0=not found
 ; SSTACK: 8 bytes
 ;         Y is preserved
 FCDICT_FIND		EQU	*	
-			;Save registers (string pointer in X)
+			;Save registers (search string in X)
 			PSHY						;save Y
-			PSHX						;string pointer
-			PSHX						;substring pointer	
-			;Initialize tree pointer (string pointer in X)
-			LDY	#FCDICT_TREE_START			
-			;Compare char (string pointer in X, dictionary pointer in Y)
-FCDICT_FIND_1		LDAA	1,X+ 					;string char -> A
-			BMI	FCDICT_FIND_4				;last char in string
+			PSHX						;search string pointer
+			PSHX						;search substring pointer	
+			;Initialize tree pointer (search string in X)
+			LDY	#FCDICT_TREE_START 			;start of CDICT -> Y
+			;Compare char (search string in X, CDICT pointer in Y)
+FCDICT_FIND_1		LDAA	1,X+ 					;search char -> A
+			BMI	FCDICT_FIND_5				;end of search string
 			LDAB	1,Y+ 					;dict char -> B
-			BMI	FCDICT_FIND_3	 			;last char in substring
+			BEQ	FCDICT_find_2
+			BMI	FCDICT_FIND_8	 			;end of CDICT substring
 			CBA						;compare chars
 			BEQ	FCDICT_FIND_1				;compare next char
-			;Mismatch (dictionary pointer in Y)
-FCDICT_FIND_2		BRCLR	1,Y+, #$80, * 				;skip to the end of the substring
-			BRCLR	2,+Y, #$FF, FCDICT_FIND_5 		;no more branches -> search unsuccessful
-			LDX	0,SP	    				;restore string pointer
-			JOB	FCDICT_FIND_1				;search next branch
-			;Last char in string (string char in A, dict char in B string pointer in X, dictionary pointer in Y)
-FCDICT_FIND_3		ANDB	#$7F					;remove termination
-			CBA						;compare chars
-			BNE	FCDICT_FIND_2 				;mismatch
-			LDY	0,Y 					;switch to branch
-			STX	0,X 					;update substring pointer
-			JOB	FCDICT_FIND_1				;search subbranch
-			;Last char in string (char in A, string pointer in X, dictionary pointer in Y)
-FCDICT_FIND_4		CMPA	1,Y+ 					;compare last char	
-			BEQ	FCDICT_FIND_6 				;search successful
-			;Search unsuccessful
-FCDICT_FIND_5		CLRA						;return result
-			CLRB						;not found
-			LDX	2,SP 					;restore string pointer
-			JOB	FCDICT_FIND_7 				;done
-			;Search successful (dictionary pointer in Y)
-FCDICT_FIND_6		LDD	0,Y 					;shifted execution token -> D
-			LSLD						;unshift execution token, immediate flag -> C
-			TFR	D, X 					;execution token -> X
+			;Skip to next sibling (CDICT pointer in Y))
+			LDX	0,SP 					;reset search substring
+			BRCLR	1,Y+, #FIO_TERM, * 			;skip past the end of the CDICT substring
+FCDICT_find_2		TST	2,Y+ 					;check for children
+			BNE	FCDICT_FIND_3 				;no childeren found
+			LEAY	1,Y 					;adjust CDICT pointer
+FCDICT_FIND_3		TST	0,Y 					;check for end of branch
+			BNE	FCDICT_FIND_1 				;skip to nect char
+			;Search unsuccessful 
+FCDICT_FIND_4		SSTACK_PREPULL	8 				;check stack
+			LEAS	2,SP 					;clean up tmp vars
+			PULX						;restore X
+			PULY						;restore Y
+			RTS
+			;End of search string (CDICT pointer in Y, search char in A, CDICT char in B)
+FCDICT_FIND_5		CBA						;compare chars
+			BNE	FCDICT_FIND_4 				;search unsuccessful
+			BRCLR	0,Y, #$FF, FCDICT_FIND_7 		;check for blank children
+			LDD	0,Y
+			;Search successful ({IMMEDIATE, CFA>>1} in D)
+FCDICT_FIND_6		LSLD						;CFA -> D, IMMEDIATE -> C-flag
+			STD	2,SP 					;return CFA
+			LDAB	#$00 					;preserve C-flag
 			ROLB						;immediate flag -> B
 			LSLB						;B*2 -> B
 			DECB						;B-1 -> B
 			SEX	B, D					;B -> D
-			;Done (result in D, execution token/string pointer X)
-FCDICT_FIND_7		SSTACK_PREPULL	8 				;check stack
-			LDY	4,+SP					;restore Y	
-			RTS
+			JOB	FCDICT_FIND_4
+			;check for blank child (CDICT pointer in Y)
+FCDICT_FIND_7		LDY	1,Y 					;skip to subtree
+			BRCLR	0,Y, #$FF, FCDICT_FIND_6 		;search successful
+			JOB	FCDICT_FIND_4 				;search unsuccessful
+			;End of CDICT substring (CDICT pointer in Y, search char in A, CDICT char in B)
+FCDICT_FIND_8		ANDB	#(~FIO_TERM) 				;remove termination
+			CBA						;compare chars
+			BNE	FCDICT_FIND_4 				;search unsuccessful
+			TST	1,Y+ 					;check for subtree
+			BNE	FCDICT_FIND_4 				;search unsuccessful
+			STX	0,SP 					;set new search substring
+			LDY	0,Y 					;skip to subtree
+			JOB	FCDICT_FIND_1
 
 ;#Reverse lookup a CFA and print the corresponding word
 ; args:   D: CFA

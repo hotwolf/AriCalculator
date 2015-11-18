@@ -204,9 +204,9 @@ FNVDICT_VARS_END_LIN	EQU	@
 ;	  Y: start of dictionary (last NFA)
 ; SSTACK: 18 bytes
 ;         X and D are preserved
-#macro	FNVDICT_REVPRINT_BL, 0
-			CLC
-#emac
+;#macro	FNVDICT_REVPRINT_BL, 0
+;			CLC
+;#emac
 	
 ;###############################################################################
 ;# Code                                                                        #

@@ -250,10 +250,10 @@ FUDICT_VARS_END_LIN	EQU	@
 ;	  Y: start of dictionary (last NFA)
 ; SSTACK: 18 bytes
 ;         X and D are preserved
-#macro	FUDICT_REVPRINT_BL, 0
-			LDY	UDICT_LAST_NFA
-			SSTACK_JOBSR	FUDICT_REVPRINT_BL,	18
-#emac
+;#macro	FUDICT_REVPRINT_BL, 0
+;			LDY	UDICT_LAST_NFA
+;			SSTACK_JOBSR	FUDICT_REVPRINT_BL,	18
+;#emac
 
 ;Iterator operations:
 ;====================
@@ -438,34 +438,34 @@ FUDICT_FIND_4		FUDICT_ITERATOR_NEXT	(0,SP) 			;advance iterator
 ; result: C-flag: set if successful
 ; SSTACK: 18 bytes
 ;         All registers are preserved
-FUDICT_REVPRINT_BL	EQU	*
-			;Save registers (CFA in D, start of dictionary in X)
-			PSHX						;string pointer
-			PSHD						;CFA
-			;Allocate iterator (CFA in D, start of dictionary in X)
-			;FUDICT_ITERATOR_FIRST	(2,-SP)			;ITERATOR -> 0,SP
-			PSHY						;ITERATOR -> 0,SP
-			;Check CFA
-FUDICT_REVPRINT_BL_1	FUDICT_ITERATOR_CFA	(0,SP)			;{IMMEDIATE, CFA>>1} -> D
-			LSLD						;remove IMMEDIATE flag
-			CPD	2,SP 					;compare CFAs
-			BEQ	FUDICT_REVPRINT_BL_2 			;match
-			;Mismatch		
-			FUDICT_ITERATOR_NEXT 	(0,SP)			;advance iterator
-			BNE	FUDICT_REVPRINT_BL_1 			;check next CFA
-			;Search unsucessful					
-			SSTACK_PREPULL	8 				;check stack
-			CLC						;flag failure
-			JOB	FUDICT_REVPRINT_BL_3 			;done
-			;Search unsucessful		
-FUDICT_REVPRINT_BL_2	FUDICT_ITERATOR_PRINT 	(0,SP)			;print word (SSTACK: 10 bytes)
-			SSTACK_PREPULL	8 				;check stack
-			SEC						;flag success
-			;Done		
-FUDICT_REVPRINT_BL_3	LEAS	2,SP 					;remove iterator
-			PULD						;restore D
-			PULX						;restore X
-			RTS
+;FUDICT_REVPRINT_BL	EQU	*
+;			;Save registers (CFA in D, start of dictionary in X)
+;			PSHX						;string pointer
+;			PSHD						;CFA
+;			;Allocate iterator (CFA in D, start of dictionary in X)
+;			;FUDICT_ITERATOR_FIRST	(2,-SP)			;ITERATOR -> 0,SP
+;			PSHY						;ITERATOR -> 0,SP
+;			;Check CFA
+;FUDICT_REVPRINT_BL_1	FUDICT_ITERATOR_CFA	(0,SP)			;{IMMEDIATE, CFA>>1} -> D
+;			LSLD						;remove IMMEDIATE flag
+;			CPD	2,SP 					;compare CFAs
+;			BEQ	FUDICT_REVPRINT_BL_2 			;match
+;			;Mismatch		
+;			FUDICT_ITERATOR_NEXT 	(0,SP)			;advance iterator
+;			BNE	FUDICT_REVPRINT_BL_1 			;check next CFA
+;			;Search unsucessful					
+;			SSTACK_PREPULL	8 				;check stack
+;			CLC						;flag failure
+;			JOB	FUDICT_REVPRINT_BL_3 			;done
+;			;Search unsucessful		
+;FUDICT_REVPRINT_BL_2	FUDICT_ITERATOR_PRINT 	(0,SP)			;print word (SSTACK: 10 bytes)
+;			SSTACK_PREPULL	8 				;check stack
+;			SEC						;flag success
+;			;Done		
+;FUDICT_REVPRINT_BL_3	LEAS	2,SP 					;remove iterator
+;			PULD						;restore D
+;			PULX						;restore X
+;			RTS
 
 ;#Pictured numeric output buffer (PAD)
 ;=====================================

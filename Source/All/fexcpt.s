@@ -78,6 +78,7 @@ FEXCPT_EC_INVALADR		EQU	-9 	;invalid memory address
 FEXCPT_EC_0DIV			EQU	-10	;division by zero
 FEXCPT_EC_RESOR			EQU	-11	;result out of range
 ;FEXCPT_EC_12			EQU	-12	;argument type mismatch
+FEXCPT_EC_UDEFWORD		EQU	-13	;undefined word	
 FEXCPT_EC_COMPONLY		EQU	-14	;interpreting a compile-only word
 ;FEXCPT_EC_15			EQU	-15	;invalid FORGET
 FEXCPT_EC_NONAME		EQU	-16	;attempt to use zero-length string as a name
@@ -261,21 +262,25 @@ FEXCPT_CHECK_MSG_EOM	CMPB	#$A0		;" "		;check for lower ASCII codes
 			SSTACK_JOBSR	FEXCPT_PRINT_MSG_BL, 16
 #emac
 
-;#Print complete error output
+;#Print the 1st line of the error message
 ; args:   D: error code
 ; result: none
-; SSTACK: 30 bytes
+; SSTACK: 32 bytes
 ;         All registers are preserved
 			;Save registers (error code in D)
 #macro	FEXCPT_PRINT_ERROR_BL, 0
-			SSTACK_JOBSR	FEXCPT_PRINT_ERROR_BL, 30
+			SSTACK_JOBSR	FEXCPT_PRINT_ERROR_BL, 32
 #emac
 
+;#Print error information
+; args:   none
+; result: none
+; SSTACK: 25 bytes
+;         All registers are preserved
+#macro	FEXCPT_PRINT_INFO_BL, 0
+			SSTACK_JOBSR	FEXCPT_PRINT_INFO_BL, 25
+#emac
 
-
-
-
-	
 ;CATCH and THROW from assembly code:
 ;===================================
 ;#Throw an exception from within an assembler primitive (error code in D)
@@ -351,12 +356,12 @@ FEXCPT_PRINT_NAME_BL	EQU	*
 			;Save registers (CFA in D)
 			PSHX							;save X	
 			PSHY							;save Y	
-			;Check UDICT (CFA in D)
-			FUDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 18 bytes)
-			BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
-			;Check NVDICT (CFA in D)
-			FNVDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 2*FCDICT_TREE_DEPTH + 6 bytes)
-			BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
+			;Check UDICT (CFA in D) -> Skipped, because exception is always thrown by CDICT words
+			;FUDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 18 bytes)
+			;BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
+			;Check NVDICT (CFA in D) -> Skipped, because exception is always thrown by CDICT words
+			;FNVDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 2*FCDICT_TREE_DEPTH + 6 bytes)
+			;BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
 			;Check CDICT (CFA in D)
 			FCDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 18 bytes)
 			BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
@@ -415,55 +420,81 @@ FEXCPT_PRINT_MSG_BL_2	FEXCPT_CHECK_MSG FEXCPT_PRINT_MSG_BL_3 			;check message
 			;Search unsucessful
 FEXCPT_PRINT_MSG_BL_3	LDX	#FEXCPT_UNKNOWN_MSG 				;default message
 			JOB	FEXCPT_PRINT_MSG_BL_1 				;print message
-			
-;#Print complete error output
+	
+;#Print the 1st line of the error message
 ; args:   D: error code
+; 	  X: info string
 ; result: none
-; SSTACK: 30 bytes
+; SSTACK: 32 bytes
 ;         All registers are preserved
 FEXCPT_PRINT_ERROR_BL	EQU	*
 			;Save registers (error code in D)
-			PSHD							;save D	
-			;Print 1st substring (error code in D)
-			LDX	#FEXCPT_ERR_STRING 				;first substring -> X
+			PSHX							;save X	
+			;Print header "Error " (error code in D)
+			LDX	#FEXCPT_ERROR_STRING_1 				;1st substring -> X
 			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
-			;Print error code (error code in D, string pointer in X)
+			;Print error code (error code in D, error string pointer in X)
 			FEXCPT_PRINT_EC_BL 					;print error code (SSTACK: 28 bytes)
-			;Print 2nd substring (error code in D, string pointer in X)
+			;Print error message (error code in D, error string pointer in X)
 			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
-			;Print error message (error code in D, string pointer in X)
 			FEXCPT_PRINT_MSG_BL 					;print error message (SSTACK: 16 bytes)
-			;Print 3rd substring (string pointer in X)
+			;Print info string (string pointer in X)
+			LDX	0,SP 						;info string -> X
+			BEQ	FEXCPT_PRINT_ERROR_BL_1				;no info string
+			LDX	FEXCPT_ERROR_STRING_3 				;3rd substring -> X
+			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
+			LDX	0,SP 						;info string -> X
+			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
+			LDX	FEXCPT_ERROR_STRING_4 				;4th substring -> X
+			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
+FEXCPT_PRINT_ERROR_BL_1	LDX	FEXCPT_ERROR_STRING_5 				;5th substring -> X
+			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
+			;Done 
+			SSTACK_PREPULL	4 					;check subroutine stack
+			PULX							;restore X	
+			RTS
+
+;#Print error information
+; args:   none
+; result: none
+; SSTACK: 25 bytes
+;         All registers are preserved
+FEXCPT_PRINT_INFO_BL	EQU	*
+			;Save registers
+			PSHX							;save X	
+			PSHD							;save D	
+			;Print header "  IP:"
+			LDX	#FEXCPT_INFO_STRING_1 				;1st substring -> X
 			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
 			;Print IP (string pointer in X)
 			LDD	IP	     					;IP -> D
 			FEXCPT_PRINT_CELL_BL 					;print cell (SSTACK: 19 bytes)
-			;Print 4th substring (string pointer in X)
-			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
 			;Print xt (string pointer in X)
+			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
 			LDD	[IP] 						;current xt -> D
 			FEXCPT_PRINT_CELL_BL 					;print cell (SSTACK: 19 bytes)
-			;Print 5th substring (current xt in D, string pointer in X)
-			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
 			;Print word name (current xt in D, string pointer in X)
+			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
 			FEXCPT_PRINT_NAME_BL 					;print name (SSTACK: 18 bytes)
-			;Print 6th substring (error code in D)
 			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
 			;Done 
-			SSTACK_PREPULL	4 					;check subroutine stack
+			SSTACK_PREPULL	6 					;check subroutine stack
 			PULD							;restore D	
+			PULX							;restore X	
 			RTS
-	
+
 ;#Default exception handler
-; args:   S: error code
+; args:   D: error code
 ; result: none
 ; SSTACK: none
 ;         All registers are preserved
 FEXCPT_UNCOUGHT_HANDLER	EQU	*
-			;Print error output 
+			;Print error output
+			LDX	#$0000
 			FEXCPT_PRINT_ERROR_BL
+			FEXCPT_PRINT_INFO_BL
 			;Abort execution 
-			JOB	CF_ABORT_RT
+			JOB	CF_ABORT_SHELL
 	
 ;#Throw an exception
 ; args:   D: error code
@@ -595,16 +626,20 @@ FEXCPT_TABS_START_LIN	EQU	@
 ;Name representation for anonymous words 
 FEXCPT_ANON_NAME 	FCS		"NONAME"
 
-;Error outtput
-FEXCPT_ERR_STRING	FIO_NL_NONTERM 				;1st substring
+;Error output
+FEXCPT_ERROR_STRING_1	FIO_NL_NONTERM 				;1st substring
 			FCS		"Error "
-			FCS		"! "			;2nd substring
-			FCC		"!"			;3rd substring
-			FIO_NL_NONTERM
+FEXCPT_ERROR_STRING_2	FCS		"! "			;2nd substring
+FEXCPT_ERROR_STRING_3	FCS		" ("			;3rd substring
+FEXCPT_ERROR_STRING_4	FCS		")"			;4rd substring
+FEXCPT_ERROR_STRING_5	FCS		"!"			;5rd substring
+
+;Info output
+FEXCPT_INFO_STRING_1	FIO_NL_NONTERM				;1st substring
 			FCS		"  IP:"
-			FCS		" -> "			;4th substring
-			FCS		" ("			;5th substring
-			FCS		")"			;6th substring
+FEXCPT_INFO_STRING_5	FCS		" -> "			;2nd substring
+FEXCPT_INFO_STRING_6	FCS		" ("			;3rd substring
+FEXCPT_INFO_STRING_7	FCS		")"			;4th substring
 	
 ;Cell prefix
 FEXCPT_CELL_PREFIX	FCS	"$"
@@ -621,7 +656,7 @@ FEXCPT_MSGTAB		EQU	*
 			;FEXCPT_MSG	FEXCPT_EC_INVALID,	"Invalid memory address"
 			FEXCPT_MSG	FEXCPT_EC_0DIV,		"Division by zero"
 			FEXCPT_MSG	FEXCPT_EC_RESOR,	"Result out of range"
-			;FEXCPT_MSG	FEXCPT_EC_UDEFWORD,	"Undefined word"
+			FEXCPT_MSG	FEXCPT_EC_UDEFWORD,	"Undefined word"
 			FEXCPT_MSG	FEXCPT_EC_COMPONLY,	"Compile-only word"
 			FEXCPT_MSG	FEXCPT_EC_NONAME,	"Missing name argument"
 			FEXCPT_MSG	FEXCPT_EC_PADOF,	"PAD overflow"
