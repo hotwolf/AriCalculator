@@ -64,7 +64,10 @@
 ;FPS
 ;FPS_NO_CHECK		EQU	1 		;disable range checks
 
-;#Busy signal 
+;S12CBase subroutine stack size 
+#ifndef SSTACK_DEPTH
+SSTACK_DEPTH		EQU	32
+#endif
 	
 ;###############################################################################
 ;# Constants                                                                   #
