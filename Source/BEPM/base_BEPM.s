@@ -347,6 +347,6 @@ BASE_TABS_END_LIN	EQU	@
 #include ../All/string.s		;String printing routines
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
-#include .>/Mini-BDM-Pod/nvm_Mini-BDM-Pod.s;NVM driver
+#include ../Mini-BDM-Pod/nvm_Mini-BDM-Pod.s;NVM driver
 #include ./vectab_BEPM.s		;S12XEP100 vector table
 #endif
