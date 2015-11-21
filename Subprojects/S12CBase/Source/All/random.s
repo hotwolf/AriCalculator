@@ -75,36 +75,21 @@ RANDOM_VARS_END_LIN	EQU	@
 ;#Initialization (initialization done by ISTACK module)
 #macro	RANDOM_INIT, 0
 #emac
-			RANDOM_RSEED 			;set a random seed
+			RANDOM_SEED 			;set a random seed
 #emac
 	
-;#Set a user given seed for the LSFR the LSFR	
-; args:   1: seed (!=0)
-; result: none 
-; SSTACK: none
-;         X, Y,  and D  are preserved
-#macro	RANDOM_SEED, 1 //seed
-			MOVW	\1, RANDOM_LSFR		;set seed
-#emac
-
 ;#Set a random seed for the LSFR the LSFR	
 ; args:   none
 ; result: none 
 ; SSTACK: none
 ;         X, Y, and D are preserved 
-#macro	RANDOM_RSEED, 0
+#macro	RANDOM_SEED, 0
 			LDD	LSFR_SEED 		;start RAM content
-			TIM_CM			BCLR	TIE, #\1
-			BNE	DONE
-#ifdef	TIM_OCPD_CHECK_ON
-			BRSET	OCPD, #$FF, DISABLE
-#endif			JOB	DONE
-DISABLE			CLR	TSCR1
+			ADD	TCNT			;add TIM counter
+			EXG	A, B			;swap nibbles
+			BNE	DONE			;done
+			LDD	#$1234			;non-zero seed
 DONE			EQU	*
-			TIM_CNT_EN   			;make sure TIM is running
-LOOP			ADDD	TCNT			;add timer value
-			BEQ	LOOP			;make sure seed >0
-			TIM_CNT_DIS			;disable counter
 #emac
 
 ;#Generate next pseudo random value
@@ -132,7 +117,7 @@ LOOP			ADDD	TCNT			;add timer value
 ; SSTACK: 2 bytes
 ;         X and Y are preserved
 RANDOM_NEXT		EQU	*
-			;Get LSFR high byte
+			;Accumulate tabs in LSFR high byte
 			CLRA						;clear A
 			LDAB	RANDOM_LSFR 				;LSFR high byte -> B
 			;1st tab - bit 15 ($00 in A, LSFR high byte in B)
@@ -150,12 +135,12 @@ RANDOM_NEXT		EQU	*
 			LSLB						;shift high byte
 			LSLB						;shift high byte
 			ADCA	#0 					;accumulate tabs
-			;Calculate new LSFR value (XORed tabs in B
-			LDAB	RANDOM_LSFR+1 				;LSFR low byte -> A
+			;Calculate new LSFR value (XORed tabs in A)
 			LSRA						;XORed tabs -> C-flag
-			ROLB						;update low byte
-			STAB	RANDOM_LSFR+1 				;store new low byte
-			LDAA	RANDOM_LSFR 				;new LSFR high byte -> A
+			LDD	RANDOM_LSFR 				;LSFR -> D
+			ROLB						;shift LSFR
+			ROLA						; XORed tabs in LSB
+			STD	RANDOM_LSFR 				;update LSFR
 			;Done (new LSFR value in D)	
 			SSTACK_PREPULL	2 				;check stack
 			RTS
