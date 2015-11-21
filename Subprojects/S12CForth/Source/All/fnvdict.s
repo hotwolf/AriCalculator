@@ -1,5 +1,7 @@
+#ifndef FNVDICT_COMPILED
+#define FNVDICT_COMPILED
 ;###############################################################################
-;# S12CForth- FRAM - Stack and buffer management for the Forth VM              #
+;# S12CForth - FNVDICT - Non-Volatile Dictionary and User Variables            #
 ;###############################################################################
 ;#    Copyright 2010 - 2013 Dirk Heisswolf                                     #
 ;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
@@ -124,7 +126,7 @@
 NVDICT_FIRST_PAGE	EQU	$E0 		;default first page in 512k flash
 #endif	
 #ifdef	NVDICT_LAST_PAGE
-NVDICT_LAST_PAGE	EQU	$FE		;default page $FE
+FNVDICT_LAST_PAGE	EQU	$FE		;default page $FE
 #endif	
 #ifndef	NVDICT_SKIP_PAGE_FD
 #ifndef	NVDICT_USE_PAGE_FD
@@ -136,160 +138,110 @@ NVDICT_SKIP_PAGE_FD	EQU	1 		;default skip page $FD
 ;# Constants                                                                   #
 ;###############################################################################
 ;Memory boundaries
-NVDICT_START		EQU	$8000		;start of the dictionary
-NVDICT_END		EQU	$C000		;end of the dictionary
+FNVDICT_START		EQU	$8000		;start of the dictionary
+FNVDICT_END		EQU	$C000		;end of the dictionary
 
 ;NVM phrase size 
-#ifdef	NVM_PHRASE_SIZE
-NVDICT_PHRASE_SIZE	EQU	NVM_PHRASE_SIZE
+#ifdef	FNVM_PHRASE_SIZE
+FNVDICT_PHRASE_SIZE	EQU	NVM_PHRASE_SIZE
 #else
-NVDICT_PHRASE_SIZE	EQU	8	
+FNVDICT_PHRASE_SIZE	EQU	8	
 #endif	
 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef NVDICT_VARS_START_LIN
-			ORG 	NVDICT_VARS_START, FRS_VARS_START_LIN
+#ifdef FNVDICT_VARS_START_LIN
+			ORG 	FNVDICT_VARS_START, FNVDICT_VARS_START_LIN
 #else
-			ORG 	NVDICT_VARS_START
-NVDICT_VARS_START_LIN	EQU	@
+			ORG 	FNVDICT_VARS_START
+FNVDICT_VARS_START_LIN	EQU	@
+#endif	
 
-
-NVDICT_INFO		DS	2 		;pointer to the NVDICT info field
 DP			DS	2 		;data pointer (next free space in the data space) 
 NVC			DS	2 		;non-volatile compile flag 
 
-NVDICT_VARS_END		EQU	*
-NVDICT_VARS_END_LIN	EQU	@
+FNVDICT_VARS_END	EQU	*
+FNVDICT_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	NVDICT_INIT, 0
+#macro	FNVDICT_INIT, 0
+			MOVW	#$0000, DP
+			MOVW	#$0000, NVC
 #emac
 
+;#Abort action (to be executed in addition of quit action)
+#macro	FNVDICT_ABORT, 0
+#emac
+	
 ;#Quit action
-#macro	NVDICT_QUIT, 0
+#macro	FNVDICT_QUIT, 0
+#emac
+	
+;#Suspend action
+#macro	FNVDICT_SUSPEND, 0
 #emac
 
-;#Abort action (in case of break or error)
-#macro	NVDICT_ABORT, 0
+;Dictionary operations:
+;======================	
+;#Look-up word in user dictionary 
+; args:   X: string pointer (terminated string)
+; result: X: execution token (unchanged if word not found)
+;	  D: 1=immediate, -1=non-immediate, 0=not found
+;	  Y: start of dictionary (last NFA)
+; SSTACK: 8 bytes
+;         No registers are preserved
+#macro	FNVDICT_FIND, 0
+			LDD	#$0000
 #emac
 
-;#Functions
-;NVDICT_SCAN_PAGE: Scan the current PPAGE for a valid dictionary
-; args:   PPAGE: flash page to scan
-; result: Y:     ponter to last field in pointer field, 0 if page is empty
-;         X:     NVDICT root, 0 if page is invalid
-; SSTACK: 2 bytes
-;         D and PPAGE are preserved 
-#macro	NVDICT_SCAN_PAGE, 0
-			SSTACK_JOBSR	NVDICT_SCAN_PAGE, 2
-#emac
-
+;#Reverse lookup a CFA and print the corresponding word
+; args:   D: CFA
+; result: C-flag: set if successful
+;	  Y: start of dictionary (last NFA)
+; SSTACK: 18 bytes
+;         X and D are preserved
+;#macro	FNVDICT_REVPRINT_BL, 0
+;			CLC
+;#emac
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef NVDICT_CODE_START_LIN
-			ORG 	NVDICT_CODE_START, NVDICT_CODE_START_LIN
+#ifdef FNVDICT_CODE_START_LIN
+			ORG 	FNVDICT_CODE_START, FNVDICT_CODE_START_LIN
 #else
-			ORG 	NVDICT_CODE_START
-NVDICT_CODE_START_LIN	EQU	@
+			ORG 	FNVDICT_CODE_START
+FNVDICT_CODE_START_LIN	EQU	@
 #endif
-
-
-
-;Search word in dictionary (compile state)
-; args:   X: string pointer
-;         D: char count 
-; result: C-flag: set if word is in the dictionary	
-;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
-; SSTACK: 16  bytes
-;         X and Y are preserved 
-FNVDICT_BUFFER_SEARCH		EQU	*
-
-
-
 	
-;Search word in dictionary (interpretation state)
-; args:   X: string pointer
-;         D: char count 
-; result: C-flag: set if word is in the dictionary	
-;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
-; SSTACK: 16  bytes
-;         X and Y are preserved 
-FNVDICT_SEARCH		EQU	*
-
-
-
-
-
-
-
-
-
-
-
-	
-
-;NVDICT_SCAN_PAGE: Scan the current PPAGE for a valid dictionary
-; args:   PPAGE: flash page to scan
-; result: Y:     ponter to last field in pointer field, 0 if page is empty
-;         X:     NVDICT root, 0 if page is invalid
-; SSTACK: 2 bytes
-;         D and PPAGE are preserved 
-NVDICT_SCAN_PAGE	EQU	*
-			;Find pointer field
-			LDY	#(NVDICT_END+NVDICT_PHRASE_SIZE-2)	;initialize prase pointer
-NVDICT_SCAN_PAGE_1	LDX	NVDICT_PHRASE_SIZE, Y- 			;read last word of phrase
-			CPY	#NVDICT_START	   			;check range
-			BLS	NVDICT_SCAN_PAGE_3 			;page is empty
-			IBEQ	X, NVDICT_SCAN_PAGE_1 			;loop
-			;Check if page is invalid (phrase pointer in X, NVDICT_ROOT+1 in X)  
-			LEAX	-1,X
-			;Done  (phrase pointer in X, NVDICT_ROOT in X)
-NVDICT_SCAN_PAGE_2	SSTACK_PREPULL	2
-			RTS
-			;Page is empty 
-NVDICT_SCAN_PAGE_3	LDY	#$0000
-			LEAX	-1,Y
-			JOB	NVDICT_SCAN_PAGE_2
-
-
-
-
-
-
-
-
-
-	
-NVDICT_CODE_END		EQU	*
-NVDICT_CODE_END_LIN	EQU	@
+FNVDICT_CODE_END		EQU	*
+FNVDICT_CODE_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef NVDICT_TABS_START_LIN
-			ORG 	NVDICT_TABS_START, NVDICT_TABS_START_LIN
+#ifdef FNVDICT_TABS_START_LIN
+			ORG 	FNVDICT_TABS_START, FNVDICT_TABS_START_LIN
 #else
-			ORG 	NVDICT_TABS_START
-NVDICT_TABS_START_LIN	EQU	@
+			ORG 	FNVDICT_TABS_START
+FNVDICT_TABS_START_LIN	EQU	@
 #endif	
 
-NVDICT_TABS_END		EQU	*
-NVDICT_TABS_END_LIN	EQU	@
+FNVDICT_TABS_END		EQU	*
+FNVDICT_TABS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Words                                                                       #
 ;###############################################################################
-#ifdef NVDICT_WORDS_START_LIN
-			ORG 	NVDICT_WORDS_START, NVDICT_WORDS_START_LIN
+#ifdef FNVDICT_WORDS_START_LIN
+			ORG 	FNVDICT_WORDS_START, FNVDICT_WORDS_START_LIN
 #else
-			ORG 	NVDICT_WORDS_START
-NVDICT_WORDS_START_LIN	EQU	@
+			ORG 	FNVDICT_WORDS_START
+FNVDICT_WORDS_START_LIN	EQU	@
 #endif	
 
 ;#ANSForth Words:
@@ -311,6 +263,6 @@ CFA_NVC			DW	CF_CONSTANT_RT
 			DW	NVC
 
 
-NVDICT_WORDS_END	EQU	*
-NVDICT_WORDS_END_LIN	EQU	@
-
+FNVDICT_WORDS_END	EQU	*
+FNVDICT_WORDS_END_LIN	EQU	@
+#endif

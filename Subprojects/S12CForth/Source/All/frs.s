@@ -435,8 +435,8 @@ FRS_CODE_START_LIN	EQU	@
 FRS_THROW_RSOF		BGND				;return stack overflow
 FRS_THROW_RSUF		BGND				;return stack underflow
 #else
-FRS_THROW_RSOF		THROW	FEXCPT_EC_RSOF		;return stack overflow
-FRS_THROW_RSUF		THROW	FEXCPT_EC_RSUF		;return stack underflow
+FRS_THROW_RSOF		FEXCPT_THROW	FEXCPT_EC_RSOF	;return stack overflow
+FRS_THROW_RSUF		FEXCPT_THROW	FEXCPT_EC_RSUF	;return stack underflow
 #endif
 #endif
 	

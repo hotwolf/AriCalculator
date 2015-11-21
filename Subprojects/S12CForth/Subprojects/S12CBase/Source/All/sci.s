@@ -105,8 +105,8 @@
 ;#                                                                             #
 ;#    The SCI driver supports hardware flow control (RTS/CTS) to allow 8-bit   #
 ;#    data transmissions. The flow control signals are implemented to using    #
-;#    the following GPIO pins:  RTS input:  PM0                                #
-;#                              CTS output: PM1                                #
+;#    the following GPIO pins by default:  RTS input:  PM0                     #
+;#                                         CTS output: PM1                     #
 ;#    The remaining PM pins are unused.                                        #
 ;###############################################################################
 ;# Flow Control:                                                               #
@@ -150,6 +150,8 @@
 ;#    January 14, 2015                                                         #
 ;#      - Changed configuration options                                        #
 ;#      - Changed control character handling                                   #
+;#    October 28, 2015                                                         #
+;#      - Added feature to halt SCI communication                              #
 ;###############################################################################
 
 ;###############################################################################
@@ -386,10 +388,12 @@ SCI_RX_EMPTY_LEVEL	EQU	 2*2		;RX buffer threshold to unblock transmissions
 ;#Flag definitions
 SCI_FLG_SEND_XONXOFF	EQU	$80		;send XON/XOFF symbol asap
 SCI_FLG_POLL_RTS	EQU	$40		;poll RTS input
+SCI_FLG_DELAY_PENDING	EQU	$20		;bit to detect the execution of the delay ISR
 SCI_FLG_SWOR		EQU	$10		;software buffer overrun (RX buffer)
-SCI_FLG_TX_BLOCKED	EQU	$08		;don't transmit (XOFF received)
-SCI_FLG_RX_ESC		EQU	$04		;character is to be escaped
-SCI_FLG_TX_ESC		EQU	$02		;character is to be escaped
+SCI_FLG_RX_BLOCKED	EQU	$08		;don't allow incommint traffic (send XOFF, clear CTS) 
+SCI_FLG_TX_BLOCKED	EQU	$04		;don't transmit (XOFF received)
+SCI_FLG_RX_ESC		EQU	$02		;character is to be escaped
+SCI_FLG_TX_ESC		EQU	$01		;character is to be escaped
 
 ;#Flow control
 #ifdef	SCI_FC_RTSCTS
@@ -765,6 +769,31 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 			SCI_CALL_BL 	SCI_RX_READY_NB, 4
 #emac
 #endif
+
+;#Halt SCI communication (blocking)
+; args:   none
+; result: none
+; SSTACK: 2 bytes
+;         X, Y, and D are preserved 
+#macro	SCI_HALT_COM, 0
+#ifndef	SCI_FC_NONE
+			SSTACK_JOBSR	SCI_HALT_COM, 3
+#endif
+#emac
+
+;#Resume SCI communication 
+; args:   none
+; result: none
+; SSTACK: 2 or 4 bytes
+;         X, Y, and D are preserved 
+#macro	SCI_RESUME_COM, 0
+#ifdef	SCI_FC_RTSCTS
+			SSTACK_JOBSR	SCI_RESUME_COM, 4
+#endif
+#ifdef SCI_FC_XONXOFF
+			SSTACK_JOBSR	SCI_RESUME_COM, 2
+#endif
+#emac
 	
 ;#Set baud rate
 ; args:   D: new SCIBD value
@@ -912,6 +941,20 @@ DONE			EQU	*
 #macro	SCI_STOP_DELAY, 0
 			TIM_DIS		SCI_DLY_OC
 			EQU	*
+#emac
+#endif	
+
+#ifdef	SCI_DLY_EN
+;#Wait for one delay period (approx. 2 SCI frames)
+; args:   none 
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	SCI_WAIT_DELAY, 0
+			SEI						;start atomic sequence
+			SCI_INIT_DELAY					;restart timer delay
+			BSET	SCI_FLGS, #SCI_FLG_DELAY_PENDING 	;flag pending delay
+LOOP			ISTACK_WAIT 					;wait for any event
+			BRSET	SCI_FLGS, #SCI_FLG_DELAY_PENDING, LOOP  ;wait for next event
 #emac
 #endif	
 	
@@ -1107,7 +1150,7 @@ SCI_TX_DONE_NB		EQU	*
 			CBA
 			BNE	SCI_TX_DONE_NB_1 ;transmissions queued
 			;Check SCI status
-			BRSET	SCISR1, #(TDRE|TC), SCI_TX_DONE_NB_2 	;all transmissionscomplete
+			BRSET	SCISR1, #(TDRE|TC), SCI_TX_DONE_NB_2 	;all transmissions complete
 			;Transmissions ongoing
 			;Restore registers	
 SCI_TX_DONE_NB_1	SSTACK_PREPULL	4
@@ -1298,16 +1341,83 @@ SCI_SET_BAUD		EQU	*
 			PULY					;pull Y from the SSTACK
 			;Done
 			RTS
+	
+#ifndef	SCI_FC_NONE
+;#Halt SCI communication 
+; args:   none
+; result: none
+; SSTACK: 2 bytes
+;         X, Y, and D are preserved 
+SCI_HALT_COM		EQU	*
+#ifdef	SCI_FC_RTSCTS
+			;Force flow control
+			BSET	SCI_FLGS, #SCI_FLG_RX_BLOCKED 	;update flag
+			;Deassert CTS (stop incoming data)
+			SCI_DEASSERT_CTS 			;clear CTS
+#endif
+#ifdef SCI_FC_XONXOFF
+			;Force flow control
+			BSET	SCI_FLGS, #(SCI_FLG_RX_BLOCKED|SCI_FLG_SEND_XONXOFF)
+			MOVB	#(TXIE|RIE|TE|RE), SCICR2 	;enable TX interrupts	
+			;Wait for remaining incoming data (approx. 2 SCI frames) 
+			SCI_WAIT_DELAY				;~2 SCI frames
+#endif
+			;Wait for remaining incoming data (approx. 4 SCI frames) 
+			SCI_WAIT_DELAY				;~2 SCI frames
+			SCI_WAIT_DELAY				;~2 SCI frames
+			;Done
+			SSTACK_PREPULL	6
+			RTS
+#endif
 
+#ifndef	SCI_FC_NONE
+;#Resume SCI communication 
+; args:   none
+; result: none
+; SSTACK: 2 or 4 bytes
+;         X, Y, and D are preserved 
+SCI_RESUME_COM		EQU	*	
+#ifdef	SCI_FC_RTSCTS
+			;Save registers
+			PSHD					;push D onto the SSTACK
+			;Release flow control
+			BCLR	SCI_FLGS, #SCI_FLG_RX_BLOCKED 	;update flag
+			;Update CTS
+			LDD	SCI_RXBUF_IN 			;A:B=in:out
+			SBA		   			;A=in-out
+			ANDA	#SCI_RXBUF_MASK			;wrap A	
+			CMPA	#SCI_RX_EMPTY_LEVEL		;Check CTS assert level
+			BHI	SCI_RESUME_COM_1		;keep CTS deasserted
+			;Assert CTS (allow incoming data)
+			SCI_ASSERT_CTS 				;set CTS
+			;Restore registers
+SCI_RESUME_COM_1	SSTACK_PREPULL	4
+			PULD					;pull D from the SSTACK
+#endif
+#ifdef SCI_FC_XONXOFF
+			;Release flow control
+			BCLR	SCI_FLGS, #SCI_FLG_RX_BLOCKED 	;update flag
+			SCI_SEND_XONXOFF			;update flow control
+#endif
+			;Done
+			RTS
+#endif
+
+;ISRs 
+;---- 
 #ifdef	SCI_DLY_EN
 ;#Timer delay
+;------------ 
 ; period: approx. 2 SCI frames
 ; RTS/CTS:    if RTS polling is requested (SCI_FLG_POLL_RTS) -> enable TX IRQ
 ; XON/XOFF:   if reminder count == 1 -> request XON/XOFF reminder, enable TX IRQ
 ;	      if reminder count > 1  -> decrement reminder count, retrigger delay
 ; workaround: retrigger delay, jump to SCI_ISR_RXTX
 SCI_ISR_DELAY		EQU	*
+			;Flag execution of ISR
+			BCLR	SCI_FLGS, #SCI_FLG_DELAY_PENDING 			;clear flag
 #ifndef	SCI_IRQ_WORKAROUND_ON
+			;Clear retrigger request (default behavior)
 			CLC								;don't retrigger
 #endif
 #ifdef	SCI_FC_RTSCTS
@@ -1349,7 +1459,8 @@ SCI_ISR_DELAY_5		SCI_STOP_DELAY
 #endif
 #endif
 	
-			;#Transmit ISR (status flags in A)
+;#Transmit ISR (status flags in A)
+;--------------------------------- 
 SCI_ISR_TX		BITA	#TDRE					;check if SCI is ready for new TX data
 			BEQ	<SCI_ISR_TX_4				;done for now
 #ifdef	SCI_FC_XONXOFF
@@ -1359,6 +1470,8 @@ SCI_ISR_TX		BITA	#TDRE					;check if SCI is ready for new TX data
 			BRCLR	SCI_FLGS, #SCI_FLG_SEND_XONXOFF, SCI_ISR_TX_1 ;XON/XOFF not requested
 			;Clear XON/XOFF request
 			BCLR	SCI_FLGS, #SCI_FLG_SEND_XONXOFF
+			;Check for forced XOFF
+			BRSET	SCI_FLGS, #SCI_FLG_RX_BLOCKED, SCI_ISR_TX_6 ;transmit XOFF
 			;Check RX queue
 			LDD	SCI_RXBUF_IN
 			SBA			
@@ -1425,6 +1538,7 @@ SCI_ISR_TX_7		MOVW	#SCI_XONXOFF_REMINDER, SCI_XONXOFF_REMCNT
 #endif	
 
 ;#Receive/Transmit ISR (Common ISR entry point for the SCI)
+;---------------------------------------------------------- 
 SCI_ISR_RXTX		EQU	*
 			;Common entry point for all SCI interrupts
 			;Load flags
@@ -1447,6 +1561,7 @@ SCI_ISR_RXTX		EQU	*
 			BEQ	SCI_ISR_TX				; is full or if an overrun has occured
 			
 ;#Receive ISR (status flags in A)
+;-------------------------------- 
 SCI_ISR_RX		LDAB	SCIDRL					;load receive data into accu B (clears flags)
 			ANDA	#(OR|NF|FE|PF)				;only maintain relevant error flags
 #ifdef	SCI_DETECT_C0

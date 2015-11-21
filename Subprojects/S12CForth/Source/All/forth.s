@@ -64,7 +64,10 @@
 ;FPS
 ;FPS_NO_CHECK		EQU	1 		;disable range checks
 
-;#Busy signal 
+;S12CBase subroutine stack size 
+#ifndef SSTACK_DEPTH
+SSTACK_DEPTH		EQU	32
+#endif
 	
 ;###############################################################################
 ;# Constants                                                                   #
@@ -111,6 +114,10 @@ FCDICT_VARS_START	EQU	*
 FCDICT_VARS_START_LIN	EQU	@
 			ORG	FCDICT_VARS_END, FCDICT_VARS_END_LIN
 
+FNVDICT_VARS_START	EQU	*
+FNVDICT_VARS_START_LIN	EQU	@
+			ORG	FNVDICT_VARS_END, FNVDICT_VARS_END_LIN
+
 FUDICT_VARS_START	EQU	*
 FUDICT_VARS_START_LIN	EQU	@
 			ORG	FUDICT_VARS_END, FUDICT_VARS_END_LIN
@@ -150,17 +157,33 @@ FORTH_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Busy/Idle signal 
+#ifnmac	FORTH_SIGNAL_BUSY
+#ifmac	LED_BUSY_ON
+#macro FORTH_SIGNAL_BUSY, 0
+			LED_BUSY_ON 
+#emac
+#endif	
+#endif	
+#ifnmac	FORTH_SIGNAL_IDLE
+#ifmac	LED_BUSY_OFF
+#macro FORTH_SIGNAL_IDLE, 0
+			LED_BUSY_OFF 
+#emac
+#endif	
+#endif	
+	
 ;#Break handler
 #ifnmac	SCI_BREAK_ACTION	
 #macro	SCI_BREAK_ACTION, 0
-	FOUTER_INVOKE_ABORT
+	;FOUTER_INVOKE_ABORT
 #emac
 #endif	
 	
 ;#Suspend handler
 #ifnmac	SCI_SUSPEND_ACTION
 #macro	SCI_SUSPEND_ACTION, 0
-	FOUTER_INVOKE_SUSPEND
+	;FOUTER_INVOKE_SUSPEND
 #emac
 #endif	
 
@@ -172,6 +195,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FPS_INIT
 	FOUTER_INIT
 	FCDICT_INIT
+	FNVDICT_INIT
 	FUDICT_INIT
 	FEXCPT_INIT
 	;FCORE_INIT
@@ -197,6 +221,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FIO_ABORT
 	FOUTER_ABORT
 	FCDICT_ABORT
+	FNVDICT_ABORT
 	FUDICT_ABORT
 	FEXCPT_ABORT
 	;FCORE_ABORT
@@ -222,6 +247,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FIO_QUIT
 	FOUTER_QUIT
 	FCDICT_QUIT
+	FNVDICT_QUIT
 	FUDICT_QUIT
 	FEXCPT_QUIT
 	;FCORE_QUIT
@@ -247,6 +273,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FIO_SUSPEND
 	FOUTER_SUSPEND
 	FCDICT_SUSPEND
+	FNVDICT_SUSPEND
 	FUDICT_SUSPEND
 	FEXCPT_SUSPEND
 	;FCORE_SUSPEND
@@ -299,6 +326,10 @@ FOUTER_CODE_START_LIN	EQU	@
 FCDICT_CODE_START	EQU	*
 FCDICT_CODE_START_LIN	EQU	@
 			ORG	FCDICT_CODE_END, FCDICT_CODE_END_LIN
+
+FNVDICT_CODE_START	EQU	*
+FNVDICT_CODE_START_LIN	EQU	@
+			ORG	FNVDICT_CODE_END, FNVDICT_CODE_END_LIN
 
 FUDICT_CODE_START	EQU	*
 FUDICT_CODE_START_LIN	EQU	@
@@ -378,6 +409,10 @@ FCDICT_TABS_START	EQU	*
 FCDICT_TABS_START_LIN	EQU	@
 			ORG	FCDICT_TABS_END, FCDICT_TABS_END_LIN
 
+FNVDICT_TABS_START	EQU	*
+FNVDICT_TABS_START_LIN	EQU	@
+			ORG	FNVDICT_TABS_END, FNVDICT_TABS_END_LIN
+
 FUDICT_TABS_START	EQU	*
 FUDICT_TABS_START_LIN	EQU	@
 			ORG	FUDICT_TABS_END, FUDICT_TABS_END_LIN
@@ -450,6 +485,10 @@ FCDICT_WORDS_START	EQU	*
 FCDICT_WORDS_START_LIN	EQU	@
 			ORG	FCDICT_WORDS_END, FCDICT_WORDS_END_LIN
 
+FNVDICT_WORDS_START	EQU	*
+FNVDICT_WORDS_START_LIN	EQU	@
+			ORG	FNVDICT_WORDS_END, FNVDICT_WORDS_END_LIN
+
 FUDICT_WORDS_START	EQU	*
 FUDICT_WORDS_START_LIN	EQU	@
 			ORG	FUDICT_WORDS_END, FUDICT_WORDS_END_LIN
@@ -497,6 +536,7 @@ FORTH_WORDS_END_LIN	EQU	@
 #include ../All/firq.s						;interrupt requests
 #include ../All/fcdict.s					;core dictionary
 #include ../All/fcdict_tree.s					;core dictionary search tree
+#include ../All/fnvdict.s					;non-volatile dictionary
 #include ../All/fudict.s					;user dictionary
 ;#include ../All/fcore.s					;core words
 ;#include ../All/fdouble.s					;double-number words

@@ -96,7 +96,8 @@ DEMO_VARS_START_LIN	EQU	@
 ;             RS_TIB_END -> +--------------+--------------+
 ;Dictionary, PAD, and parameter stack 
 UDICT_PS_START		EQU	*			;start of shared DICT/PAD/PS space
-UDICT_PS_END		EQU	((MMAP_RAM_END-*)*2)/3	;end of shared DICT/PAD/PS space
+UDICT_PS_SIZE		EQU	((MMAP_RAM_END-*)*2)/3	;2/3 of available RAM space
+UDICT_PS_END		EQU	(*+UDICT_PS_SIZE)&$FFFE	;end of shared DICT/PAD/PS space
 	
 ;TIB and return stack
 RS_TIB_START		EQU	UDICT_PS_END		;start of shared TIB/RS space
@@ -146,18 +147,6 @@ DEMO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Busy signal 
-#macro FORTH_SIGNAL_BUSY, 0
-			LED_BUSY_ON 
-#emac
-#macro FORTH_SIGNAL_IDLE, 0
-			LED_BUSY_OFF 
-#emac
-
-;Break handler
-#macro	SCI_BREAK_ACTION, 0
-			FORCE_SRESET
-#emac
 	
 ;###############################################################################
 ;# Code                                                                        #

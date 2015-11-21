@@ -48,16 +48,7 @@
 ;#    FINNER - Forth inner interpreter                                         #
 ;#    FIO    - Forth communication interface                                   #
 ;#    FRS    - Forth return stack                                              #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
-;#                                                                             #
 ;#    FPS    - Forth parameter stack                                           #
-;#    FRS    - Forth return stack                                              #
-;#    FINNER - Forth inner interpreter                                         #
-;#    FIO    - Forth communication interface                                   #
 ;#    FEXCPT - Forth Exception Handler                                         #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
@@ -90,7 +81,15 @@
 ;Safety distance to return stack
 ;------------------------------- 
 #ifndef TIB_PADDING
-TIB_PADDING		EQU	4 		;default is 4 bytes
+TIB_PADDING		EQU	4 	;default is 4 bytes
+#endif
+
+;Newline handling:
+;----------------- 
+#ifndef FOUTER_NL_LF
+#ifndef FOUTER_NL_CR
+FOUTER_NL_LF		EQU	1 	;interpret LF as line break, ignore CR
+#endif
 #endif
 	
 ;###############################################################################
@@ -106,15 +105,6 @@ TIB_START		EQU	RS_TIB_START
 ;Default line width 
 DEFAULT_LINE_WIDTH	EQU	80
 
-;ASCII C0 codes 
-FOUTER_SYM_LF  		EQU	STRING_SYM_LF
-FOUTER_SYM_CR  		EQU	STRING_SYM_CR
-FOUTER_SYM_BACKSPACE  	EQU	STRING_SYM_BACKSPACE
-FOUTER_SYM_DEL  	EQU	STRING_SYM_DEL
-FOUTER_SYM_TAB  	EQU	STRING_SYM_TAB
-FOUTER_SYM_BELL  	EQU	STRING_SYM_BELL
-FOUTER_SYM_SPACE  	EQU	STRING_SYM_SPACE
-	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -125,9 +115,10 @@ FOUTER_SYM_SPACE  	EQU	STRING_SYM_SPACE
 FOUTER_VARS_START_LIN	EQU	@
 #endif	
 			ALIGN	1	
+BASE			DS	2 		;default radix
 STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
 NUMBER_TIB  		DS	2		;number of chars in the TIB
-TO_IN  			DS	2		;parse index (TIB_START+TO_IN -> start of parse area)
+TO_IN  			DS	2		;parse index (parse area empty if >IN = #TIB) 
 	
 FOUTER_VARS_END		EQU	*
 FOUTER_VARS_END_LIN	EQU	@
@@ -138,6 +129,8 @@ FOUTER_VARS_END_LIN	EQU	@
 ;#Initialization
 ;===============
 #macro	FOUTER_INIT, 0
+			MOVW	#10,    BASE     	;decimal
+			MOVW	#$0000, STATE	   	;interpretation state
 			MOVW	#$0000, NUMBER_TIB	;empty TIB
 			MOVW	#$0000, TO_IN		;reset parser
 #emac
@@ -164,18 +157,16 @@ FOUTER_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         X is  preserved
 #macro FOUTER_PROMPT, 0
-			;Initialize TIB pointer
-			LDY	TIB_START
-			;Add line break (string pointer in Y)
-			STRING_MOVE_NL_NONTERM STRING_NL_BYTE_COUNT,Y+
 			;Check for unparsed command line (string pointer in Y)
 			CLRA				;ignore whitespace in TIB
-			FOUTER_SKIP_DELIMITER		;
+			FOUTER_SKIP_DELIMITER		;check for unparsed  content
+			;Add line break (string pointer in Y, C-flag set if unparsed content found)
+			LDY	#TIB_START 		;TIB_START -> Y
+			FIO_MOVE_NL_NONTERM (FIO_NL_BYTE_COUNT,Y+);add line break
+			;Warn prompt (string pointer in Y, C-flag set if unparsed content found)
 			BCC	FOUTER_PROMPT_1		;TIB was empty
 			MOVB	#"!", 1,Y+		;add warn prompt
-FOUTER_PROMPT_1		MOVW	#$0000, NUMBER_TIB	;empty TIB
-			MOVW	#$0000, TO_IN		;reset parser
-			;Check for SUSPEND mode(string pointer in Y)
+FOUTER_PROMPT_1		;Check for SUSPEND mode(string pointer in Y)
 			LDD	IP			;check IP
 			BEQ	FOUTER_PROMPT_2
 			MOVB	#"S", 1,Y+		;add SUSPEND prompt
@@ -186,12 +177,10 @@ FOUTER_PROMPT_2		LDD	STATE 			;check STATE
 			JOB	FOUTER_PROMPT_5		;print whitespace
 			;Determine compile prompt (string pointer in Y)
 FOUTER_PROMPT_3		EQU	*			
-#ifdef	NVC
 			LDD	NVC 			;check check for NV compile
 			BEQ	FOUTER_PROMPT_4		;RAM compile
 			MOVB	#"@", 1,Y+		;add NV compile prompt
 			JOB	FOUTER_PROMPT_5		;print whitespace
-#endif
 FOUTER_PROMPT_4		MOVB	#"+", 1,Y+		;add NV compile prompt			
 			;Print whitespace (string pointer in Y)
 FOUTER_PROMPT_5		MOVB	#(STRING_SYM_SPACE|STRING_TERM), 1,Y+;add NV compile prompt
@@ -205,27 +194,11 @@ FOUTER_PROMPT_5		MOVB	#(STRING_SYM_SPACE|STRING_TERM), 1,Y+;add NV compile promp
 ;         All registers preserved
 #macro	FOUTER_CHECK_DELIMITER, 0
 			TBNE	A, CUSTOM_DELIMITER  	;custom delimiter
-			CMPB	FOUTER_SYM_SPACE	;" "
+			CMPB	#FIO_SYM_SPACE	;" "
 			BEQ	DONE
-			CMPB	FOUTER_SYM_TAB		;tab
+			CMPB	#FIO_SYM_TAB		;tab
 			JOB	DONE
 CUSTOM_DELIMITER	CBA				;custom
-DONE			EQU	*
-#emac
-
-;#Check if parse area is exceeded
-; args:   Y:      >IN	
-;         #TIB:   char count in TIB
-; result: C-flag: !=no overrun, 0=overrun
-;	  Y:      cleared on overrun, otherwise unchanged
-;         #TIB:   cleared on overrun, otherwise unchanged
-; SSTACK: 0 bytes
-;         D and X are preserved
-#macro	FOUTER_CHECK_OVERRUN, 0
-			CPY	NUMBER_TIB		;check for parse overrun
-			BLO	DONE			;parse overrun
-			LDY	#$0000
-			STY	NUMBER_TIB
 DONE			EQU	*
 #emac
 	
@@ -252,28 +225,27 @@ DONE			EQU	*
 ; result: D:      char count
 ;	  X:      string pointer
 ;	  Y:      new >IN 
-;         #TIB:   cleared on overrun, otherwise unchanged
-;         >IN:    cleared on overrun, otherwise new >IN
+;         #TIB:   unchanged
+;         >IN:    new >IN
 ; SSTACK: 0 bytes
-;         A and X are preserved
+;         No registers are preserved
 #macro	FOUTER_COUNT_AND_TERMINATE, 0
-			;Find end of word (delimiter in A, parse index in Y)
-LOOP			TFR	Y, X 			;save parse index
-			LEAX	1,X			;advance parse index
-			FOUTER_CHECK_OVERRUN 		;check for parse overrun
-			BCC	END_OF_WORD		;parse overrun
-			LDAB	TIB_START,Y		;get next char
+			;Find end of word (delimiter in A, >IN in Y)
+			LEAX	TIB_START,Y 			;strong pointer -> X
+			;Count loop (delimiter in A, start of string in X, new >IN in Y)
+LOOP			LDAB	TIB_START,Y		;get next char
 			ANDB	#~STRING_TERM		;remove termination
 			STAB	TIB_START,Y		;update char	
 			FOUTER_CHECK_DELIMITER		;check for whitespace
-			BNE	LOOP			;non-delimiter
-			;End of word found (index of last char in X, new parse index in Y) 
-END_OF_WORD		BSET	TIB_START,X,#STRING_TERM;terminate string
-			TFR	X, D			;calculate char count
-			SUBD	TO_IN			;char count -> D
-			LDX	TO_IN			;determine string pointer
-			LEAX	TIB_START,X		;string pointer -> X
-			STY	TO_IN			;update >IN
+			BEQ	END_OF_WORD		;end of word found
+			INY				
+			CPY	NUMBER_TIB		;check if TIB is parsed
+			BLO	LOOP			;more to parse
+			;End of word found (start of string in X, new >IN in Y)
+END_OF_WORD		BSET	(TIB_START-1),Y,#FIO_TERM;terminate string
+			TFR	Y, D			 ;new >IN -> D
+			SUBD	TO_IN			 ;(new >IN - ols >IN) -> D
+			STY	TO_IN			 ;update >IN
 #emac
 	
 ;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
@@ -289,19 +261,237 @@ END_OF_WORD		BSET	TIB_START,X,#STRING_TERM;terminate string
 			SSTACK_JOBSR	FOUTER_PARSE, 6
 #emac
 
-;#Find the next string (delimited by whitespace) on the TIB and terminate it. 
-; args:   #TIB: char count in TIB
-;         >IN:  TIB parse index
-; result: X:    string pointer
-;	  D:    character count
-;         >IN:  new TIB parse index
-; SSTACK: 6 bytes
+;#Look-up word in dictionaries 
+; args:   X: string pointer (terminated string)
+; result: X: execution token (unchanged if word not found)
+;	  D: 1=immediate, -1=non-immediate, 0=not found
+; SSTACK: 4 bytes
 ;         Y is preserved
-#macro	FOUTER_PARSE_WS, 0
-			CLRA
-			FOUTER_PARSE
+#macro	FOUTER_FIND, 0	
+			SSTACK_JOBSR	FOUTER_FIND, 4
+#emac
+
+;#Fix and load BASE
+; args:   BASE: any base value
+; result: B:    range adjusted base value (2<=base<=16)
+;         BASE: range adjusted base value (2<=base<=16)
+; SSTACK: 0 bytes
+;         X, Y, and A are preserved
+#macro	FOUTER_FIX_BASE, 0
+			;Check BASE value
+			TST	BASE 			;check upper byte
+			BNE	FOUTER_FIX_BASE_1	;BASE >255
+			LDAB	BASE+1 			;BASE -> B
+			CMPB	#NUM_BASE_MAX		;compare BASE against upper limit
+			BHI	FOUTER_FIX_BASE_1	;BASE value is too high
+			CMPB	#NUM_BASE_MIN		;compare BASE against lower limit
+			BHS	FOUTER_FIX_BASE_2	;BASE is value within valid range
+FOUTER_FIX_BASE_1	LDAB	#NUM_BASE_DEFAULT	;return default value
+			MOVW	#NUM_BASE_DEFAULT, BASE	;update BASE
+FOUTER_FIX_BASE_2	EQU	*
 #emac
 	
+;#Remove number prefix from string and extract base and sign information
+; args:   X:    string pointer
+;	  BASE: default base
+; result: X:    trimmed string pointer
+;	  A:    sign (0=positive, -1=negative)
+;	  B:    base
+;	  BASE: NUM_BASE_DEFAULT if invalid
+; SSTACK: 0 bytes
+;         Y is preserved
+#macro	FOUTER_PARSE_PREFIX, 0	
+			;Initialize prefix information (string pointer in X)
+			CLRA				;0 -> A
+			;Check first character (string pointer in X, sign in A)) 
+			LDAB	0,X 			;char -> B
+			BMI	<FOUTER_PARSE_PREFIX_13	;set default base, done
+			;Check for sign	(string pointer in X, sign in A, char in B)
+			CMPB	#"+" 			;check for plus sign
+			BNE	<FOUTER_PARSE_PREFIX_1	;check for minus sign
+			LDAA	#1			;set positive sign (to be set to 0 later)
+			BRA	FOUTER_PARSE_PREFIX_2	;check next char
+FOUTER_PARSE_PREFIX_1	CMPB	#"-" 			;check for minus sign
+			BNE	<FOUTER_PARSE_PREFIX_3	;check for C-style prefix
+			LDAA	#-1			;set negative sign
+FOUTER_PARSE_PREFIX_2	LDAB	1,+X 			;next char -> B
+			BMI	<FOUTER_PARSE_PREFIX_12	;adjust sign, use default base, done
+			;Check for C-style prefix (string pointer in X, sign in A, char in B)
+FOUTER_PARSE_PREFIX_3	CMPB	#"0" 			;check for plus sign
+			BNE	<FOUTER_PARSE_PREFIX_14	;check for ASM-style prefix
+			LDAB	1,+X 			;next char -> B
+			BMI	<FOUTER_PARSE_PREFIX_12	;adjust sign, set default base, done
+			ORAB	#$20			;ignore case
+			;Binary
+			CMPB	"b"			;check for binary selector
+			BNE	<FOUTER_PARSE_PREFIX_5	;check for octal selector	
+FOUTER_PARSE_PREFIX_4	LDAB	#2 			;set base
+			BRA	<FOUTER_PARSE_PREFIX_11	;adjust sign, advance string pointer, done
+			;Octal
+FOUTER_PARSE_PREFIX_5	CMPB	"o"			;check for octal selector		
+			BNE	<FOUTER_PARSE_PREFIX_7	;check for decimal selector
+FOUTER_PARSE_PREFIX_6	LDAB	#8 			;set base
+			BRA	FOUTER_PARSE_PREFIX_11	;adjust sign, advance string pointer, done
+			;Decimal
+FOUTER_PARSE_PREFIX_7	CMPB	"d"			;check for decimal selector		
+			BNE	<FOUTER_PARSE_PREFIX_9	;check for hexadecimal selector
+FOUTER_PARSE_PREFIX_8	LDAB	#8 			;set base
+			BRA	<FOUTER_PARSE_PREFIX_11	;adjust sign, advance string pointer, done
+			;Hexadecimal
+FOUTER_PARSE_PREFIX_9	CMPB	"h"			;check for hexadecimal selector		
+			BEQ	<FOUTER_PARSE_PREFIX_10	;hexadecimal selector found
+			CMPB	"x"			;check for hexadecimal selector	
+			BNE	<FOUTER_PARSE_PREFIX_10 ;adjust sign, set default base, done
+FOUTER_PARSE_PREFIX_10	LDAB	#16 			;set base
+			;Adjust sign, advance string pointer, done (string pointer in X, sign in A, char in B)
+FOUTER_PARSE_PREFIX_11	ASRA				;adjust sign
+			BRA	<FOUTER_PARSE_PREFIX_21	;advance string pointer, done
+			;Adjust sign, set default base, done (string pointer in X, sign in A, char in B)
+FOUTER_PARSE_PREFIX_12	ASRA				;adjust sign
+			;Set default base, done (string pointer in X, sign in A, char in B)
+FOUTER_PARSE_PREFIX_13	FOUTER_FIX_BASE			;load default base
+			BRA	<FOUTER_PARSE_PREFIX_22	;done
+			;Check for ASM-style prefix (string pointer in X, sign in A, char in B)
+			;Binary
+FOUTER_PARSE_PREFIX_14	CMPB	#"%"			;check for binary selector
+			BNE	<FOUTER_PARSE_PREFIX_15	;check for octal selector	
+			LDAB	#2 			;set base
+			BRA	<FOUTER_PARSE_PREFIX_18	;check for sign at 2nd position
+			;Octal
+FOUTER_PARSE_PREFIX_15	CMPB	#"@"			;check for octal selector
+			BNE	<FOUTER_PARSE_PREFIX_16	;check for decimal selector	
+			LDAB	#8 			;set base
+			BRA	<FOUTER_PARSE_PREFIX_18	;check for sign at 2nd position
+			;Decimal
+FOUTER_PARSE_PREFIX_16	CMPB	#"&"			;check for decimal selector
+			BNE	<FOUTER_PARSE_PREFIX_17	;check for hexadecimal selector	
+			LDAB	#10 			;set base
+			BRA	<FOUTER_PARSE_PREFIX_18	;check for sign at 2nd position
+			;Hexadecimal
+FOUTER_PARSE_PREFIX_17	CMPB	#"$"			;check for hexadecimal selector
+			BNE	<FOUTER_PARSE_PREFIX_12	;adjust sign, set default base, done	
+			LDAB	#10 			;set base
+			;Check for sign at 2nd position (string pointer in X, sign in A, char in B)
+FOUTER_PARSE_PREFIX_18	TBNE	A,FOUTER_PARSE_PREFIX_11;adjust sign, advance string pointer
+			LDAA	1,+X 			;next char -> B
+			BMI	<FOUTER_PARSE_PREFIX_19	;set positive sign, done
+			CMPA	#"+" 			;check for plus sign
+			BNE	<FOUTER_PARSE_PREFIX_20	;check for minus sign
+			INX				;advance string pointer
+			;Set positive sign, done (string pointer in X, sign in A, char in B)
+FOUTER_PARSE_PREFIX_19	CLRA				;set positive sign
+			BRA	<FOUTER_PARSE_PREFIX_22	;done
+FOUTER_PARSE_PREFIX_20	CMPA	#"-" 			;set positive sign, done
+			BNE	<FOUTER_PARSE_PREFIX_19	;set positive sign, done
+			LDAA	#-1			;set negative sign
+			;Advance string pointer, done (string pointer in X, sign in A, char in B)
+FOUTER_PARSE_PREFIX_21	INX
+			;Done (string pointer in X, sign in A, char in B)
+FOUTER_PARSE_PREFIX_22	EQU	*
+#emac
+
+;#Convert a character int a digit value
+; args:   B:       char
+; result: B:       digit (-1 if char was invalid)
+;	  N-flag : set char was invalid		
+; SSTACK: 0 bytes
+;         X, Y, and A are preserved
+#macro	FOUTER_CHAR_2_DIGIT, 0	
+			;Chech for 
+			ANDB	#~STRING_TERM 		;remove termination
+			SUBB	#"0"			;remove "0" offset
+			BMI	FOUTER_CHAR_2_DIGIT_1	;invalid char
+			CMPB	#9			;check for valid decimal digit
+			BLS	FOUTER_CHAR_2_DIGIT_2	;done	
+			SUBB	#(("A")-("0"))		;remove "A" offset
+			BMI	FOUTER_CHAR_2_DIGIT_1	;invalid char
+			ADDB	#10			;add numerical offset
+#ifdef NUM_MAX_BASE_16
+			CMPB	#16			;check for valid alphanumeric digit
+#else
+			CMPB	#32			;check for valid alphanumeric digit
+#endif
+			BLO	FOUTER_CHAR_2_DIGIT_2	;done	
+			SUBB	#(("a")-(("A")+10))	;remove "A" offset
+			BMI	FOUTER_CHAR_2_DIGIT_1	;invalid char			
+			ADDB	#10			;add numerical offset
+#ifdef NUM_MAX_BASE_16
+			CMPB	#16			;check for valid alphanumeric digit
+#else
+			CMPB	#32			;check for valid alphanumeric digit
+			BLO	FOUTER_CHAR_2_DIGIT_2	;done	
+#endif
+			;Invalid char
+FOUTER_CHAR_2_DIGIT_1	LDD	#-1	
+			;Done (digit in B)
+FOUTER_CHAR_2_DIGIT_2	EQU	*
+#emac
+
+;#Append_digit to double cell
+; args:   1: pointer to address of double cell
+;	  2: address of digit	
+;	  3: address of base (byte)		
+; result: C-flag : set on overflow	
+; SSTACK: 0 bytes
+;         X is preserved
+#macro	FOUTER_APPEND_DIGIT, 3	
+			;Multiply MSW by base 
+			LDY	[\1] 			;MSW -> Y
+			BEQ	 FOUTER_APPEND_DIGIT_2	;skip if MSW is zero
+			CLRA				;base -> D
+			LDAB	\3			;
+			EMUL				;Y*D -> Y:D
+			TBEQ	Y, FOUTER_APPEND_DIGIT_1;no overflow
+			SEC				;signal overflow
+			JOB	FOUTER_APPEND_DIGIT_3	;done
+FOUTER_APPEND_DIGIT_1	STD	[\1]			;update MSW
+			;Multiply LSW by base
+FOUTER_APPEND_DIGIT_2	LDY	\1   			;double cell address -> Y
+			LDY	2,Y 			;LSW -> Y
+			CLRA				;base -> D
+			LDAB	\3			;
+			EMUL				;Y*D -> Y:D
+			;Add digit (lower product in Y:D)
+			ADDB	\2 			;add digit
+			ADCA	#0			;add carry
+			EXG	Y, D			;Y <-> D
+			ADCB	#0			;add carry
+			ADCA	#0			;add carry
+			BCS	FOUTER_APPEND_DIGIT_3	;overflow
+			ADDD	\1			;add MSWs
+			BCS	FOUTER_APPEND_DIGIT_3	;overflow
+			STD	[\1]			;update MSW
+			EXG	Y, D			;Y <-> D
+			LDY	\1   			;double cell address -> Y
+			STD	2,Y			;update LSW
+			;Done
+FOUTER_APPEND_DIGIT_3	EQU	*
+#emac
+
+;#Convert a terminated string into a number (appending digits to a given double
+; cell number)
+; args:   X:      string pointer (terminated string)
+;         Y:      double cell pointer (terminated string)
+;         B:      base
+; result: [Y]:    new double cell number
+;	  X:      new string pointer	
+;	  C-flag: set on overflow	
+; SSTACK: 6 bytes
+;         Y and DBare preserved
+#macro	FOUTER_TO_NUMBER, 0	
+			SSTACK_JOBSR	FOUTER_TO_NUMBER, 6
+#emac
+
+;#Try to convert a terminated string into an integer 
+; args:   X: string pointer (terminated string)
+; result: Y:X: integer (X is unchanged if word not found)
+;	  D: 1=single cell, 2=double cell, 0=no integer
+; SSTACK: 16 bytes
+;          No registers are preserved
+#macro	FOUTER_INTEGER, 0	
+			SSTACK_JOBSR	FOUTER_INTEGER, 16
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -326,69 +516,208 @@ FOUTER_CODE_START_LIN	EQU	@
 FOUTER_SKIP_DELIMITER	EQU	*
 			;Skip delimiter chars 
 			LDY	TO_IN 			;read parse pointer
-			SSTACK_PREPULL	2		;check SSTACK
-FOUTER_SKIP_DELIMITER_1	FOUTER_CHECK_OVERRUN		;check for parse overrun
-			STY	TO_IN			;update >IN
-			BCC	FOUTER_SKIP_DELIMITER_2	;parse overrun
+FOUTER_SKIP_DELIMITER_1 CPY	NUMBER_TIB		;check if TIB is parsed
+			BHS	FOUTER_SKIP_DELIMITER_2	;TIB is fully parsed
 			LDAB	TIB_START,Y		;check next char
-			ANDB	#~STRING_TERM		;remove termination
-			LEAY	1,Y			;advance parse pointer
+			ANDB	#~FIO_TERM		;remove termination
 			FOUTER_CHECK_DELIMITER		;check for delimiter
-			BEQ	FOUTER_SKIP_DELIMITER_1	;delimiter found
-			;Flag parsable content and done 
-			SEC
-FOUTER_SKIP_DELIMITER_2	RTS
+			BNE	FOUTER_SKIP_DELIMITER_3	;non-delimeter char found
+			;Skip to next chasr (new TO_IN in Y)
+			IBNE	Y, FOUTER_SKIP_DELIMITER_1;increment and loop
+			;No parsable content found
+FOUTER_SKIP_DELIMITER_2	LDY	NUMBER_TIB 		;mark buffer as parsed (redundand)
+			;Parsable content found (new TO_IN in Y)
+FOUTER_SKIP_DELIMITER_3	STY	TO_IN			;update >IN
+			SSTACK_PREPULL	2		;check SSTACK
+			CPY	NUMBER_TIB		;set C if >IN < #TIB
+			RTS				;done
 		
-;#Find the next string (delimited by a selectable character) on the TIB and terminate it. 
+;#Find the next word (delimited by a selectable character) on the TIB and terminate it. 
 ; args:   A:    delimiter (0=any whitespace)
 ;         #TIB: char count in TIB
 ;         >IN:  TIB parse index
 ; result: X:    string pointer
 ;	  D:    character count	
 ;         #TIB:   new char count in TIB
-;         >IN:  new TIB parseindex
+;         >IN:  new TIB parse index
 ; SSTACK: 6 bytes
 ;         Y is preserved
 FOUTER_PARSE		EQU	*	
 			;Save registers
 			PSHY				;save Y
 			;Skip over delimiters (delimiter in A)
-			FOUTER_SKIP_DELIMITER  		;skip over delimiters
-			BCC	FOUTER_PARSE_2		;TIB is empty
+			FOUTER_SKIP_DELIMITER  		;skip over delimiters	
+			BCC	FOUTER_PARSE_2		;TIB is fully parsed
 			;Count chars and terminate word (delimiter in A, >IN in Y)
 			FOUTER_COUNT_AND_TERMINATE
 			;Retore registers 
-			SSTACK_PREPULL	4		;check SSTACK
+FOUTER_PARSE_1		SSTACK_PREPULL	4		;check SSTACK
 			PULY				;restore Y
 			;Done
 			RTS
-
+			;TIB is fully parsed
+FOUTER_PARSE_2		CLRA				;clear char count
+			CLRB				;
+			TFR	D, X			;empty string
+			JOB	FOUTER_PARSE_1
+	
 ;#Look-up word in dictionaries 
+; args:   X: string pointer (terminated string)
+; result: X: execution token (unchanged if word not found)
+;	  D: 1=immediate, -1=non-immediate, 0=not found
+; SSTACK: 4+? bytes
+;         Y is preserved
+FOUTER_FIND		EQU	*	
+			;Save registers
+			PSHY				;save Y
+#ifmac	FUDICT_FIND	
+			;Search user directory
+			FUDICT_FIND 			;search FUDICT
+			TBNE	D, FOUTER_FIND_1	;search successful
+#endif
+#ifmac	FNVDICT_FIND	
+			;Search non-volatile user directory
+			FNVDICT_FIND 			;search FNVDICT
+			TBNE	D, FOUTER_FIND_1	;search successful
+#endif
+			;Search core directory
+			FCDICT_FIND 			;search CDICT
+			JOB	FOUTER_FIND_1		;done
+FOUTER_FIND_1		EQU	FOUTER_PARSE_1		;reuse parse exit
+	
+;#Convert a terminated string into a number (appending digits to a given double
+; cell number)
 ; args:   X:      string pointer (terminated string)
-; result: Y:      new >IN
-;	  B:      next char in TIB
-;         C-flag: set if TIB contains parsable content 
-;         #TIB:   new char count in TIB
-;         >IN:    new TIB parse index
-; SSTACK: 2 bytes
-;         A and X are preserved
+;         Y:      double cell pointer (terminated string)
+;         B:      base
+; result: [Y]:    new double cell number
+;	  X:      new string pointer (points first unparsed char)	
+;	  C-flag: set on overflow	
+; SSTACK: 6 bytes
+;         Y and B are preserved
+FOUTER_TO_NUMBER	EQU	*	
+			;Save registers
+			;Stack:  +--------+--------+
+			;        | D. Cell Pointer | SP+0
+			;        +--------+--------+
+			;        |  Digit |  Base  | SP+2
+			;        +--------+--------+
+			PSHD				;save base
+			PSHY				;save double cell pointer
+			;Get next digit (string pointer in X)
+FOUTER_TO_NUMBER_1	LDAB	0,X 			;char -> B
+			ANDB	#~STRING_TERM		;remove termination
+			CMPB	#"_"			;skip filler chars
+			BEQ	FOUTER_TO_NUMBER_2	;next char
+			FOUTER_CHAR_2_DIGIT		;convert char to digit value
+			BMI	FOUTER_TO_NUMBER_3	;invalid char
+			CMPB	3,SP			;check if digit < base
+			BHS	FOUTER_TO_NUMBER_3	;invalid char	
+			STAB	2,SP 			;save digit
+			;Add digit to result (string pointer in X)
+			FOUTER_APPEND_DIGIT (0,SP), (2,SP), (3,SP)
+			BCS	FOUTER_TO_NUMBER_5 	;overflow
+			;Next char (string pointer in X, double cell pointer in Y, double cell pointer in Y)
+FOUTER_TO_NUMBER_2	BRCLR	1,X+, #STRING_TERM, FOUTER_TO_NUMBER_1 ;get next char	
+			;String parsed w/out overflow (string pointer in X)
+FOUTER_TO_NUMBER_3	SSTACK_PREPULL	6 		;check subroutine stack
+			CLC				;signal no overflow
+FOUTER_TO_NUMBER_4	PULY				;return MSW
+			PULD				;return LSW
+			RTS
+			;Overflow (string pointer in X)
+#ifdef	SSTACK_NO_CHECK 
+FOUTER_TO_NUMBER_5	EQU	FOUTER_TO_NUMBER_4 	;shortcut
+#else
+FOUTER_TO_NUMBER_5	SSTACK_PREPULL	8 		;check subroutine stack	
+			SEC				;signal overflow
+			JOB	FOUTER_TO_NUMBER_4 	;done
+#endif
 
+;#Try to convert a terminated string into an integer 
+; args:   X: string pointer (terminated string)
+; result: Y:X: integer (X is unchanged if word not found)
+;	  D: 1=single cell, 2=double cell, 0=no integer
+; SSTACK: 16 bytes
+;          No registers are preserved
+FOUTER_INTEGER		EQU	*	
+			;Save registers (string pointer in X)
+			;Stack:  +--------+--------+
+			;        |  Sign  |  Base  | SP+0
+			;        +--------+--------+
+			;        |   Double Cell   | SP+2
+			;        |     Number      | SP+4
+			;        +--------+--------+
+			;        |  String Pointer | SP+6
+			;        +--------+--------+
+			PSHX				;save string pointer
+			CLRA				;initialize double cell 
+			CLRB				; number
+			PSHD				;
+			PSHD				;
+			PSHD				;allocate space for sign flag
+			;Parse number prefix (string pointer in X)
+			FOUTER_PARSE_PREFIX 		;parse prefix
+			STD	0,SP			;save sign and base
+			;Parse digits (string pointer in X, base in B)
+			LEAY	2,SP 			;double cell pointer -> Y
+			FOUTER_TO_NUMBER		;convert string to number (SSTACK: 6 bytes)
+			BCS	FOUTER_INTEGER_4	;overflow
+			;Single cell integer
+			BRCLR	-1,X,#STRING_TERM,FOUTER_INTEGER_5;check for double cell format
+			LDY	2,SP			;MSW must be zero
+			BNE	FOUTER_INTEGER_4	;overflow			
+			LDD	4,SP			;load LSW
+			BRCLR	0,SP,#$FF,FOUTER_INTEGER_1;positive single cell number
+			TSTA				;LSW must be < 2^15
+			BMI	FOUTER_INTEGER_4	;overflow
+			COMA				;negate LSW
+			COMB				;
+			ADDD	#1			;
+			;DEY				;invert Y	
+FOUTER_INTEGER_1	LDX	#1 			;cell count -> X
+FOUTER_INTEGER_2	EXG	D, X			;D <-> X
+			;Clean up (integer in Y:X, cell count in D)
+FOUTER_INTEGER_3	SSTACK_PREPULL	10 		;check subroutine stack
+			LEAS	8,SP			;free stack space
+			;Done
+			RTS
+			;Overflow/invalid format
+FOUTER_INTEGER_4	LDX	6,SP 			;restore string pointer
+			CLRA				;cell count -> D
+			CLRB				;
+			;TFR	D, Y			;clear Y
+			JOB	FOUTER_INTEGER_3	;clean up stack
+			;Double cell integer (string pointer in X)
+FOUTER_INTEGER_5	LDAB	0,X 			;check string for double cell format
+			CMPB	#((".")|STRING_TERM)	;make sure that string ends with "."	
+			BNE	FOUTER_INTEGER_4	;invalid format
+			LDD	2,SP			;load MSW
+			LDY	4,SP			;load LSW
+			BRCLR	0,SP,#$FF,FOUTER_INTEGER_6;positive double cell number
+			TSTA				;MSW must be < 2^15
+			BMI	FOUTER_INTEGER_4	;overflow
+			COMA				;invert MSW
+			COMB				;
+			LDY	4,SP			;load LSW
+			EXG	D, Y			;D <-> Y
+			COMA				;negate LSW
+			COMB				;
+			ADDD	#1			;
+			EXG	D, Y			;D <-> Y
+			ADCB	#0			;add carry to MSW
+			ADCA	#0			;
+FOUTER_INTEGER_6	EXG	D, Y			;D <-> Y
+			LDX	#2			;cell count -> X
+			JOB	FOUTER_INTEGER_4	;clean up stack
 
-
-
-
-
-
-
-	
-	
 ;Code fields:
 ;============
 
 ;QUERY ( -- ) Query command line input
 ;Make the user input device the input source. Receive input into the terminal
 ;input buffer,mreplacing any previous contents. Make the result, whose address is
-;returned by TIB, the input buffer.  Set >IN to zero.
+-;returned by TIB, the input buffer.  Set >IN to zero.
 ; args:   none
 ; result: #TIB: char count in TIB
 ;         >IN:  index pointing to the start of the TIB => 0x0000
@@ -406,19 +735,27 @@ CF_QUERY		EQU	*
 CF_QUERY_1		EXEC_CF	CF_EKEY			;input char -> [PS+0]
 			;Get input (input char in [PS+0])
 			LDD	[PSP] 			;input char -> B
-			;Ignore LF (input char in B)
-			CMPB	#FOUTER_SYM_LF
-			BEQ	CF_QUERY_4		;ignore
-			;Check for ENTER (CR) (input char in B and in [PS+0])
-			CMPB	#FOUTER_SYM_CR	
+			;Handle CR - ignore by default (input char in B)
+			CMPB	#FIO_SYM_CR
+#ifdef	FOUTER_NL_CR
 			BEQ	CF_QUERY_8		;command line complete		
+#else
+			BEQ	CF_QUERY_4		;ignore
+#endif
+			;Hanfle LF - newline by default (input char in B and in [PS+0])
+			CMPB	#FIO_SYM_LF	
+#ifdef	FOUTER_NL_LF
+			BEQ	CF_QUERY_8		;command line complete		
+#else
+			BEQ	CF_QUERY_4		;ignore
+#endif
 			;Check for BACKSPACE (input char in B and in [PS+0])
-			CMPB	#FOUTER_SYM_BACKSPACE	
+			CMPB	#FIO_SYM_BACKSPACE	
 			BEQ	CF_QUERY_7	 	;backspace
-			CMPB	#FOUTER_SYM_DEL	
+			CMPB	#FIO_SYM_DEL	
 			BEQ	CF_QUERY_7	 	;backspace
 			;Check for valid special characters (input char in B and in [PS+0])
-			CMPB	#FOUTER_SYM_TAB	
+			CMPB	#FIO_SYM_TAB	
 			BEQ	CF_QUERY_2	 	;echo and append to buffer
 			;Check for invalid characters (input char in B and in [PS+0])
 			CMPB	#" " 			;first legal character in ASCII table
@@ -433,7 +770,7 @@ CF_QUERY_2		LDX	NUMBER_TIB 		;determine TIB size
 			;Append char to input line (input char in B and in [PS+0], TIB pointer+padding in X)
 			STAB	-TIB_PADDING,X 		;append char
 			LDX	NUMBER_TIB		;increment NUMBER_TIB
-			LEAX	1,X
+			INX
 			STX	NUMBER_TIB			
 			;Echo input char (input char in [PS+0])
 CF_QUERY_3		EXEC_CF	CF_EMIT			;print character
@@ -444,12 +781,14 @@ CF_QUERY_4		LDY	PSP 			;drop char from PS
 			STY	PSP
 			JOB	CF_QUERY_1
 			;BEEP			
-CF_QUERY_5		LDD	#FOUTER_SYM_BEEP	;replace received char by a beep
+CF_QUERY_5		LDD	#FIO_SYM_BEEP		;replace received char by a beep
 CF_QUERY_6		STD	[PSP]
 			JOB	CF_QUERY_3 		;transmit beep
 			;Check for buffer underflow (input char in [PS+0])
 CF_QUERY_7		LDY	NUMBER_TIB 		;compare char count
 			BEQ	CF_QUERY_5		;beep
+			DEY				;decrement #TIB
+			STY	NUMBER_TIB		;
 			LDD	#STRING_SYM_BACKSPACE	;replace received char by a backspace
 			JOB	CF_QUERY_6
 			;Command line complete
@@ -458,14 +797,14 @@ CF_QUERY_8		LDY	PSP 			;drop char from PS
 			STY	PSP
 			LDY	NUMBER_TIB 		;check char count
 			BEQ	CF_QUERY_9 		;command line is empty
-			LEAY	-1,Y			;terminate last character
+			DEY				;terminate last character
 			BSET	TIB_START,Y, #STRING_TERM
 CF_QUERY_9		NEXT
 
 ;PARSE ( char "ccc<char>" -- c-addr u ) Parse the TIB
 ;Parse ccc delimited by the delimiter char. c-addr is the address (within the
 ;input buffer) and u is the length of the parsed string.  If the parse area was
-;empty, the resulting string has a zero length.
+;;empty, the resulting string has a zero length.
 ; args:   PSP+0: delimiter char (0=any whitespace)
 ; result: PSP+0: character count
 ;         PSP+2: string pointer
@@ -478,10 +817,11 @@ CF_PARSE		EQU	*
 			;Check PS
 			PS_CHECK_UFOF	1, 1 		;check PSP
 			STY	PSP			;new PSP -> Y
-			;Parse next word (new PSP in Y) 
+			;Parse next word (PSP in Y) 
 			LDAA	3,Y 			;delimiter -> A
 			FOUTER_PARSE			;parse
-			STX	2,Y			;return string pointer
+			;Return resuls (PSP in Y, string pointer in X, char count in D)) 
+CF_PARSE_1		STX	2,Y			;return string pointer
 			STD	0,Y			;return char count
 			;Done
 			NEXT
@@ -496,65 +836,24 @@ CF_PARSE		EQU	*
 ; result: PSP+0: 1 if match is immediate, -1 if match is not immediate, 0 in
 ;         	 case of a mismatch
 ;  	  PSP+2: execution token on match, input string on mismatch
-; SSTACK: 0 bytes
+; SSTACK: ? bytes
 ; PS:     1 cell
 ; RS:     1 cell
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_PSUF
 CF_FIND			EQU	*
-			;Check UDICT
-			EXEC_CF	CF_UDICT_FIND 			;search UDICT
-			;PS_CHECK_UF 2				;PSP -> Y
-			LDY	PSP
-			LDD	0,Y				;check result
-			BNE	CF_FIND_1			;done
-			LEAY	2,Y				;drop result flag
-			STY	PSP
-#ifdef NVC	
-			;Check NVDICT
-			EXEC_CF	CF_NVDICT_FIND 			;search NVDICT
-			;PS_CHECK_UF 2				;PSP -> Y
-			LDY	PSP
-			LDD	0,Y				;check result
-			BNE	CF_FIND_1			;done
-			LEAY	2,Y				;drop result flag
-			STY	PSP
-#endif
-			;Check CDICT
-			EXEC_CF	CF_CDICT_FIND 			;search CDICT
-			;Done
-CF_FIND_1		NEXT
-
-;PREFIX ( c-addr1 -- flag u c-addr2 )  
-;Remove any number prefix from terminated string c-addr1. Return sign information
-;flag (true if negative), base u and the remaining terminated string c-addr2. 
-;PREFIX recognizes C and ASM prefix notations:
-; args:   PSP+0: terminated string
-; result: PSP+0: new terminated string
-;         PSP+2: base
-;         PSP+4: sign (true if negative)
-; SSTACK: 0 bytes
-; PS:     2 cells
-; RS:     1 cell
-; throws: FEXCPT_EC_PSOF
-;         FEXCPT_EC_PSUF
-;
-CF_PREFIX		EQU	*
 			;Check PS
-			PS_CHECK_UFOF	1, 2 		;new PSP -> Y
-			STY	PSP
-			;Set default values (PSP in Y)
-			LDX	4,Y 			;move string pointer
-			STX	0,Y
-			MOVW	BASE, 2,Y 		;set default base
-			MOVW	#$0000, 4,Y		;positive by default
-			;Check for sign (PSP in Y, string pointer in X)
-			LDAB	0,X	  		;read forst char
-			BMI	CF_PREFIX_ 		;string too short
-			CMPA	"+"                     
-			BEQ	CF_PREFIX_
-	
-
+			PS_CHECK_UFOF	1, 1 		;check PSP
+			STY	PSP			;new PSP -> Y
+			;Search dictionaries (PSP in Y) 
+			LDX	0,Y 			;string pointer -> X
+			FOUTER_FIND
+			;Return resuls (PSP in Y, xt/string pointer in X, meta info in D)) 
+			JOB	CF_PARSE_1 		;code reuse
+			;STX	2,Y			;return xt/string pointer
+			;STD	0,Y			;return meta info
+			;;Done
+			;NEXT
 
 ;Empty the data stack and perform the function of QUIT, which includes emptying
 ;the return stack, without displaying a message. 
@@ -566,11 +865,11 @@ CF_PREFIX		EQU	*
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
-CF_ABORT_RT		EQU	*
+CF_ABORT_SHELL		EQU	*
 			;Execute ABORT actions
 			FORTH_ABORT
 			;Execute QUIT actions
-			;JOB	CF_QUIT_RT
+			;JOB	CF_QUIT_SHELL
 
 ;QUIT run-time ( -- ) ( R: j*x -- )
 ;Empty the return stack, store zero in SOURCE-ID if it is present, make the user
@@ -588,13 +887,13 @@ CF_ABORT_RT		EQU	*
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
-CF_QUIT_RT		EQU	*
+CF_QUIT_SHELL		EQU	*
 			;Execute QUIT actions
 			FORTH_QUIT
 			;Execute SUSPEND actions
 			;JOB	CF_SUSPEND_RT
 
-;SUSPEND ( -- )
+;SUSPEND shell ( -- )
 ;Execute a temporary debug shell.
 ; args:   none
 ; result: none
@@ -604,7 +903,7 @@ CF_QUIT_RT		EQU	*
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
-CF_SUSPEND_RT		EQU	*
+CF_SUSPEND_SHELL	EQU	*
 			;Execute SUSPEND actions
 			FORTH_SUSPEND
 			;Start shell
@@ -615,7 +914,7 @@ CF_SUSPEND_RT		EQU	*
 ; args:   none
 ; result: none
 ; SSTACK: 22 bytes
-; PS:     1 cell
+6; PS:     1 cell
 ; RS:     2 cells
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_RSOF
@@ -623,142 +922,138 @@ CF_SUSPEND_RT		EQU	*
 CF_SHELL		EQU	*
 			;Print shell prompt
 CF_SHELL_1		FOUTER_PROMPT 				;assemble prompt in TIB
-			PS_PUSH	TIB_START			;print TIB
-			EXEC_CF	CF_DOT_STRING
+			PS_PUSH	#TIB_START			;TIB pointer -> PS
+			EXEC_CF	CF_STRING_DOT			;print string
 			;Query command line
 			EXEC_CF	CF_QUERY 			;query command line
 			;Parse command line
-CF_SHELL_2		CLRA					;delimiter is any whitespace
+CF_SHELL_2		CLRA					;set delimiter to any whitespace
 			FOUTER_PARSE				;parse next word
-			TBEQ	D, CF_SHELL_1			;no word found
-			;Check parsed word (string pointer in X, char count in D) 
-
+			TBNE	D, CF_SHELL_3			;word found
+			;Print acknowledge string 
+			PS_PUSH	#FOUTER_SYSTEM_ACK 		;string pointer -> PS
+			EXEC_CF	CF_STRING_DOT			;print string
+			JOB	CF_SHELL_1			;new command line
+			;Lookup word in dictionaries word (string pointer in X)
+CF_SHELL_3		FOUTER_FIND 				;search dictionaries
+			TBEQ	D, CF_SHELL_5			;word not in dictionaries
+			;Compile semantics (xt in X, meta info in D)
+			LDY	STATE 				;check compile state
+			BEQ	CF_SHELL_4			;interpret xt
+			DBEQ	D, CF_SHELL_4			;interpret immediate xt
+			FUDICT_COMPILE_CELL 			;compile xt
+			JOB	CF_SHELL_2 			;parse next word
+			;Interpretation semantics (xt in X, meta info in D)
+CF_SHELL_4		EXEC_CFA_X 				;execute xt
+			JOB	CF_SHELL_2 			;parse next word
+			;Interpret word as number (string pointer in X)
+CF_SHELL_5		FOUTER_INTEGER 				;interpret as integer
+			TBEQ	D, CF_SHELL_9			;syntax error (not an integer)
+			DBEQ	D, CF_SHELL_8			;single cell
+			;DBNE	D, CF_SHELL_9			;syntax error
+			;Double cell number (number in Y:X) 
+			LDD	STATE 				;check compile state
+			BEQ	CF_SHELL_6			;interpret
+			;Compile semantics (number in Y:X)
+			TFR	X, D		    		;save LSW
+			LDX	#CFA_TWO_LITERAL_RT 		;compile xt
+			FUDICT_COMPILE_CELL 			;
+			TFR	Y, X				;compile MSW
+			FUDICT_COMPILE_CELL 			;
+			TFR	D, X				;compile LSW
+			FUDICT_COMPILE_CELL 			;
+			JOB	CF_SHELL_2			;parse next wprd
+			;Interpretation semantics (number in Y:X)
+CF_SHELL_6		TFR	Y, D		    		;push MSW onto PS
+			PS_PUSH_D				;
+CF_SHELL_7		PS_PUSH_X				;push LSW onto PS
+			JOB	CF_SHELL_2			;parse next wprd
+			;Single cell number (number in X) 
+CF_SHELL_8		LDD	STATE 				;check compile state
+			BEQ	CF_SHELL_7			;interpret
+			;Compile semantics (number in Y:X)
+			TFR	X, D		    		;save LSW
+			LDX	#CFA_TWO_LITERAL_RT 		;compile xt
+			FUDICT_COMPILE_CELL 			;
+			TFR	D, X				;compile LSW
+			FUDICT_COMPILE_CELL 			;
+			JOB	CF_SHELL_2			;parse next word
+			;Syntax error (string pointer in X)
+CF_SHELL_9		LDD	#FEXCPT_EC_UDEFWORD 		;set error code
+			FEXCPT_PRINT_ERROR_BL			;print error message
+			;Check IP
+			LDX	IP 				;IP -> X
+			BEQ	CF_QUIT_SHELL 			;restart QUIT shell			
+			;Check HANDLER
+			LDX	HANDLER				;HANDLER -> X
+			;CPX	FEXCPT_DEFAULT_HANDLER		;=$0000
+			BEQ	CF_QUIT_SHELL 			;restart QUIT shell
+			;Restart suspend shell (HANDLER in X)
+			CPX	#(RS_EMPTY-8)			;check for 4 cell exception frame
+			BHI	CF_QUIT_SHELL 			;restart QUIT shell				
+			STX	RSP				;restore RSP
+			MOVW	2,X, PSP			;restore PSP
+			MOVW	6,X, IP				;resore IP
+			JOB	CF_SUSPEND_SHELL		;restart SUSPEND shell
 	
-
-			PS_PUSH	#0 				;0=all whitespace
-			EXEC_CF	CF_PARSE	
-			;Check PARSE results
-			PS_PULL_D 				;check char count
-			TBEQ	D, CF_SHELL_2			;process input
-			PS_DROP	1				;clean up PS
-			JOB	CF_SHELL_1			;prompt for new input
-			;Look-up string in dictionaries
-CF_SHELL_2		EXEC_CF	CF_FIND
-			PS_CHECK_UF 2				;PSP -> Y
-			LDD	0,Y				;check result
-			
-
-
-
-
+;SUSPEND handler (ERROR -- )
+;Enter SUSPEND mode.
+; args:   none
+; result: none
+; SSTACK: 26 bytes
+; PS:     0 cells
+; RS:     5 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+CF_SUSPEND_HANDLER	EQU		*
+			;Pull error code from PS
+			PS_PULL_D
+			;Don't catch ABORTs (error code in D)
+			CPD	#FEXCPT_EC_ABORT  		;check error code
+			BEQ	FEXCPT_THROW			;rethroe ABORT
+			CPD	#FEXCPT_EC_ABORTQ  		;check error code
+			BEQ	FEXCPT_THROW			;rethroe ABORTQ
+			;Print error message (error code in D)
+			;FEXCPT_PRINT_MSG 			;Print error message (SSTACK: 26 bytes)
+			;Enter SUSPEND shell
+			;JOB	CF_SUSPEND
 	
+;SUSPEND ( -- ) RS:( -- HANDLER PSP CF_SUSPEND_HANDLER IP)
+;Enter SUSPEND mode.
+; args:   none
+; result: none
+; SSTACK: 16 bytes
+; PS:     0 cells
+; RS:     5 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+CF_SUSPEND		EQU		*
+			;Push return address and exception stack frame
+			RS_PUSH4 IP CFA_SUSPEND_HANDLER PSP HANDLER
+			;Update handler
+			MOVW	RSP, HANDLER
+			;Switch to suspend shell
+			JOB	CF_SUSPEND_SHELL
 
-			;Parse command line
-CF_SHELL_5        	FOUTER_PARSE_WS
-			TBEQ	D, CF_SHELL_1      	;parse next line
-
-
-
-;			TBNE	D, CF_SHELL_7      	;parse next line
-;			JOB	CF_SHELL_1
-			;Search UDICT (string pointer in X, char count in D)
-CF_SHELL_7		EQU	*	
-#ifdef	NVC
-			LDY	NVC	  		;ignore UDICT in NVCOMPILE mode
-			BNE	CF_SHELL_8 		;skip UDICT search
-#endif
-;TBD			FUDICT_SEARCH	   		;search UDICT
-;TBD			BCS	CF_SHELL_9		;process word	
-CF_SHELL_8		EQU	*
-#ifdef	NVC
-			;Search NVDICT (string pointer in X, char count in D)
-			FNVDICT_SEARCH
-			BCS	CF_SHELL_9		;process word	
-#endif
-			;Search CDICT (string pointer in X, char count in D)
-			FCDICT_SEARCH
-			BCC	CF_SHELL_12		;evaluate string as integer	
-			;Process word ({IMMEDIATE, CFA>>1} in D)
-CF_SHELL_9		LSLD				;extract CFA
-			BCS	CF_SHELL_10		;execute immediate word
-			LDY	STATE			;check STATE
-			BNE	CF_SHELL_11		;compile word	
-			;Execute word (CFA in D)
-CF_SHELL_10 		TFR	D, X
-			EXEC_CFA_X
-			JOB	CF_SHELL_6		;parse next word
-			;Compile word (CFA in D)
-CF_SHELL_11	;TBD	UDICT_COMPILE_WORD	 	;compile to UDICT or NVDICT buffer
-			JOB	CF_SHELL_6		;parse next word
-			;Evaluate string as integer (string pointer in X, char count in D) 
-CF_SHELL_12		FOUTER_INTEGER	     		;(SSTACK: 22 bytes)
-			DBNE	D, CF_SHELL_14 		;double cell integer
-			;Process single cell integer (number in X)
-			LDD	STATE			;check STATE
-			BNE	CF_SHELL_13		;compile number as literal
-			;Push single cell integer onto PS (number in X)
-			PS_CHECK_OF	1 		;new PSP -> Y
-			STY	PSP			;update PSP
-			STX	0,Y	   		;push number onto PS
-			JOB	CF_SHELL_6		;parse next word
-			;Compile single cell integern integer as literal (number in X)
-CF_SHELL_13	;TBD	UDICT_COMPILE_LIT	 	;compile to UDICT or NVDICT buffer
-			JOB	CF_SHELL_6		;parse next word
-			;Check for valid double cell integer (cell count-1 in D,  number in Y:X)
-CF_SHELL_14		DBNE	D, CF_SHELL_16 		;invalid number
-			;Process double number (number in Y:X)
-			LDD	STATE			;check STATE
-			BNE	CF_SHELL_15		;compile number as literal
-			;Push double number onto PS (number in Y:X)
-			TFR	Y, D
-			PS_CHECK_OF	2 		;new PSP -> Y
-			STY	PSP			;update PSP
-			STD	0,Y			;push double number onto PS
-			STX	2,Y
-			JOB	CF_SHELL_4		;parse next word
-			;Compile double number as literal (number in Y:X)
-CF_SHELL_15	;TBD	UDICT_COMPILE_DLIT	 	;compile to UDICT or NVDICT buffer
-			JOB	CF_SHELL_6		;parse next word
-			;Unknown word (or number out of range)
-CF_SHELL_16		THROW	 FEXCPT_EC_UDEFWORD
-	
-
-
-
-
-;RESUME ( -- )
+;RESUME ( -- ) RS:( HANDLER PSP CF_SUSPEND_HANDLER IP -- )
 ;Resume from a temporary debug shell.
 ; args:   none
 ; result: none
-; SSTACK: 8 bytes
-; PS:     1 cell
-; RS:     2 cells
+; SSTACK: 16 bytes
+; PS:     0 cell
+; RS:     0 cells
 ; throws: FEXCPT_EC_PSOF
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
 CF_RESUME		EQU	*
-			;Check if SUSPEND_MARKER is already set
-			LDX	SUSPEND_MARKER	
-			TBNE	X, CF_RESUME_ 			;SUSPEND_MARKER is already set
-			;Resore SUSPEND context	(SUSPEND_MARKER in X)
-			RS_CHECK_UF 5				;check for underflow
-			MOVW	2,X+, BASE			;restore conversion radix
-			MOVW	2,X+, STATE			;restore compile state
-			MOVW	2,X+, TO_IN			;restore parse index
-			MOVW	2,X+, IP			;restore instruction pointer
-			MOVW	2,X+, HANDLER			;restore exception handler
-			MOVW	#$0000, SUSPEND_MARKER		;clear SUSPEND_MARKER	
-			STX	RSP				;X -> RSP	
-			;Restore TIB
-			LDD	TIB_OFFSET			;restore char count
-			SUBD	#TIB_START
-			STD	NUMBER_TIB
-			MOVW	#TIB_START,TIB_OFFSET		;reset TIB
-			;Done
+			;Check return stack
+			RS_CHECK_UF	5 			;exception frame and IP expected
+			LEAX	(2*4),X				;remove exception reame
+			;Resume execution (RSP in X) 
+			MOVW	IP, 2,X+ 			;restore IP
 			NEXT
-
-
-	
 
 ;>NUMBER ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 ) 
 ;ud2 is the unsigned result of converting the characters within the string
@@ -769,105 +1064,40 @@ CF_RESUME		EQU	*
 ;location of the first unconverted character or the first character past the end
 ;of the string if the string was entirely converted. u2 is the number of
 ;unconverted characters in the string. If ud2 overflows during the conversion,
-;both result and conversion string are left untouched.	
+;a "result out of range" exception (-11) is thrown .	
 ; args:   PSP+0: character count
-;         PSP+1: string pointer
-;         PSP+2: initial number
+;         PSP+2: string pointer
+;         PSP+4: initial number
 ; result: PSP+0: remaining character count
-;         PSP+1: pointer to unconverted substring
-;         PSP+2: resulting number
-; SSTACK: 18 bytes
+;         PSP+2: pointer to unconverted substring
+;         PSP+4: resulting number
+; SSTACK: 8 bytes
 ; PS:     none
 ; RS:     none
 ; throws: FEXCPT_EC_PSUF
+;         FEXCPT_EC_RESOR
 CF_TO_NUMBER		EQU	*
 			;Check PS
-			PS_CHECK_UF	4 		;PSP -> Y			
-			;Check SSTACK (PSP in Y)
-			SSTACK_PREPUSH	18
-			;Copy parameters from PS to SSTACK (PSP in Y)
-			MOVW	6,Y, 2,SP- 		;number LSW
-			MOVW	4,Y, 2,SP-		;number MSW
-			MOVW	2,Y, 2,SP-		;string pointer
-			MOVW	0,Y, 2,SP-		;char count
-			;copy BASE to SSTACK (PSP in Y)
-			FOUTER_FIX_BASE
-			PSHD
-			;Try to convert string to number  (PSP in Y)
-			FOUTER_TO_NUMBER		;(SSTACK: 8 bytes)
-			BCC	CF_TO_NUMBER_1		;numeric overflow
-			;Copy parameters from SSTACK to PS (PSP in Y)
-			SSTACK_PREPULL	10
-			MOVW	2,SP, 0,Y 		;char count
-			MOVW	4,SP, 2,Y 		;string pointer
-			MOVW	6,SP, 4,Y 		;number MSW
-			MOVW	8,SP, 6,Y 		;number LSW
-			;Clean up SSTACK
-CF_TO_NUMBER_1		LEAS	10,SP
+			PS_CHECK_UF	4 		;PSP -> Y
+			;Terminate string at character count (PSP in Y)
+			LDX	2,Y 			;string pointer -> X
+			LDD	0,Y			;string length -> D
+			STRING_RESIZE			;adjust termination
+			;Convert string to number (string pointer in X, PSP in Y)
+			FOUTER_FIX_BASE			;BASE -> B
+			LEAY	4,Y			;address of double cell number -> Y
+			FOUTER_TO_NUMBER		;convert number (SSTACK: 8 bytes)
+			BCS	CF_TO_NUMBER_1		;overflow
+			;Save string pointer and char count (new string pointer in X, PSP+4 in Y)
+			LDD	-4,Y 			;old char count -> D
+			ADDD	-2,Y			;old char count + old string pointer -> D
+			STX	-2,Y			;store new string pointer
+			SUBD	-2,Y			;new char count -> D
+			STD	-4,Y 			;store new char count
 			;Done
 			NEXT
-	
-;INTEGER ( c-addr u -- d s | n 1 | 0) Interpret string as integer
-;Interpret string as integer value and return a single or double cell number
-;along with the cell count. If the interpretation was unsuccessful, return a
-;FALSE flag
-; args:   PSP+0: char count
-;         PSP+1: string pointer
-; result: PSP+0: cell count
-;         PSP+1: double value
-; or
-;         PSP+0: cell count
-;         PSP+1: single value
-; or
-;         PSP+0: false flag
-; SSTACK: 22 bytes
-; PS:     1 cell
-; RS:     none
-; throws: FEXCPT_EC_PSOF
-;         FEXCPT_EC_PSUF
-CF_INTEGER		EQU	*
-			;Check PS
-			PS_CHECK_UFOF	2, 1 		;new PSP -> Y
-			STY	PSP
-			;Interpret string (PSP in Y)
-			LDD	2,Y
-			LDX	4,Y
-			FOUTER_INTEGER			;(SSTACK: 22 bytes)
-			STD	0,Y			;store cell count
-			DBEQ	D, CF_INTEGER_4		;single cell
-			DBNE	D, CF_INTEGER_2		;not an integer (done)
-			;Double cell value (integer in Y:X) 
-			TFR	Y, D
-			LDY	PSP
-			STD	2,Y
-			STX	4,Y
-			;Done
-CF_INTEGER_1		NEXT
-			;Not an integer 
-CF_INTEGER_2		LDY	PSP
-			MOVW	#$0000, 4,+Y
-CF_INTEGER_3		STY	PSP
-			JOB	CF_INTEGER_1 		;done
-			;Single cell value (integer in X) 
-CF_INTEGER_4		LDY	PSP
-			MOVW	#$0001, 2,+Y
-			JOB	CF_INTEGER_3
-
-;RESUME ( -- ) IMMEDIATE
-;Exit suspend mode 
-;
-;Throws:
-;"Return stack underflow"
-CF_RESUME		EQU	*
-#ifdef HANDLER
-			RS_PULL5	HANDLER, TO_IN, NUMBER_TIB, TIB_OFFSET, IP
-#else
-			RS_PULL4	TO_IN, NUMBER_TIB, TIB_OFFSET, IP
-#endif
-
-			LDX	NEXT_WATCH 
-			STX	NEXT_PTR
-			JMP	0,X 			;jump to next watch
+			;Parse overflow
+CF_TO_NUMBER_1		FEXCPT_THROW FEXCPT_EC_RESOR	;throw "result out of range" exception
 	
 ;LITERAL run-time semantics
 ;Run-time: ( -- x )
@@ -927,10 +1157,6 @@ FOUTER_NVCOMPILE_PROMPT	FCS	"@ "
 #endif
 FOUTER_SYSTEM_ACK	FCS	" ok"
 
-FOUTER_TREE_EOB		EQU	$00 	;end of branch
-FOUTER_TREE_BI		EQU	$00 	;branch indicator
-FOUTER_TREE_ES		EQU	$00 	;empty string
-	
 FOUTER_TABS_END		EQU	*
 FOUTER_TABS_END_LIN	EQU	@
 
@@ -1033,16 +1259,6 @@ CFA_WORDS		DW	CF_INNER
 
 ;#S12CForth Words:
 ;=================
-;Word: INTEGER ( c-addr u -- d s | n 1 | 0)
-;Interpret string as integer value and return a single or double cell number
-;along with the cell count. If the interpretation was unsuccessful, return a
-;FALSE flag
-;
-;Throws:
-;"Parameter stack underflow"
-;"Parameter stack overflow"
-CFA_INTEGER		DW	CF_INTEGER
-
 ;Word: SUSPEND ( -- )
 ;Execute a temporary debug shell.
 ;
@@ -1065,8 +1281,8 @@ CFA_RESUME		DW	CF_RESUME
 ;
 ;Throws:
 ;"Parameter stack overflow"
-CFA_TIB_OFFSET		DW	CF_CONSTANT_RT
-			DW	TIB_OFFSET
+;CFA_TIB_OFFSET		DW	CF_CONSTANT_RT
+;			DW	TIB_OFFSET
 
 ;LITERAL run-time semantics
 ;Run-time: ( -- x )
@@ -1086,6 +1302,10 @@ CFA_LITERAL_RT		DW	CF_LITERAL_RT
 ;"Parameter stack overflow"
 CFA_TWO_LITERAL_RT	DW	CF_TWO_LITERAL_RT
 
+;SUSPEND handler (ERROR -- )
+;Enter SUSPEND mode.
+CFA_SUSPEND_HANDLER	DW	CF_SUSPEND_HANDLER
+	
 FOUTER_WORDS_END	EQU	*
 FOUTER_WORDS_END_LIN	EQU	@
 #endif

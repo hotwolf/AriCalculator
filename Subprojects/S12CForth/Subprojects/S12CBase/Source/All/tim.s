@@ -102,17 +102,17 @@ TIM_VARS_END_LIN	EQU	@
 #macro	TIM_INIT, 0		 ;7 6 5 4 3 2 1 0
 			;MOVB	#%1_1_1_1_1_1_0_0, TIOS 	;default setup
 			;MOVB	#%0_0_0_0_0_0_0_0, TIOS 	;keep at zero, for configuration with BSET
-				 ;      D S S S 		;  0=input capture
-				 ;      E C C C 		;  1=output compare
-				 ;      L I I I
-				 ;      A B B B
-				 ;      Y D D D
-				 ;        T N P
-				 ;        O E E
-
-			;CFORC
-			;OC7M 
-
+				 ;      D S S S S		;  0=input capture
+				 ;      E C C C C		;  1=output compare
+				 ;      L I I I	I
+				 ;      A B B B	B
+				 ;      Y D D D	D
+				 ;        T N P	P
+				 ;        O E E	E
+						
+			;CFORC			
+			;OC7M 			
+						
 			 	 ;7 6 5 4 3 2 1 0
 			;MOVB	#%0_0_0_0_0_0_0_0, TOC7D	;default setup
 			;MOVB	#%0_0_0_0_0_0_0_0, TOC7D	;keep at zero, for configuration with BSET
@@ -184,6 +184,14 @@ TIM_VARS_END_LIN	EQU	@
 			TIM_MULT_EN	($1<<\1)
 #emac
 
+;#Enable the timer counter only
+; args: none
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_CNT_EN, 0
+			MOVB	#(TEN|TSFRZ), TSCR1		;enable timer
+#emac
+	
 ;#Disable multiple timer channels
 ; args: 1: channel mask
 ; SSTACK: none
@@ -206,6 +214,20 @@ DONE			EQU	*
 			TIM_MULT_DIS	(1<<\1)
 #emac
 
+;#Disable the timer counter
+; args: none
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_CNT_DIS, 0
+			TST	TIE
+			BNE	DONE
+#ifdef	TIM_OCPD_CHECK_ON
+			BRSET	OCPD, #$FF, DISABLE
+#endif			JOB	DONE
+DISABLE			CLR	TSCR1
+DONE			EQU	*
+#emac
+	
 ;#Clear multiple interrupt flags
 ; args: 1: channel mask
 ; SSTACK: none

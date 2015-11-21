@@ -65,6 +65,8 @@ $pag_addrspace     = {};
 $max_name_length   = 0;
 $tree_layout_width = 0;
 @zero_terms        = ();
+@first_entry       = ();
+$first_cfa         = undef;
 
 ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
 $year += 1900;
@@ -288,8 +290,8 @@ if ($code->{problems}) {
 
 	#Print header
 	#------------ 
-        printf FILEHANDLE ";#ifndef FCDICT_TREE_COMPILED\n"; 
-        printf FILEHANDLE ";#define FCDICT_TREE_COMPILED\n"; 
+        printf FILEHANDLE "#ifndef FCDICT_TREE_COMPILED\n"; 
+        printf FILEHANDLE "#define FCDICT_TREE_COMPILED\n"; 
         printf FILEHANDLE ";###############################################################################\n"; 
         printf FILEHANDLE ";# S12CForth - Search Tree for the Core Dictionary                             #\n";
         printf FILEHANDLE ";###############################################################################\n";
@@ -328,6 +330,25 @@ if ($code->{problems}) {
         printf FILEHANDLE "; -> ";
 	print_tree_layout(\%dict_tree, ";    ");
 
+	#Constants label
+        printf FILEHANDLE "\n";
+        printf FILEHANDLE ";###############################################################################\n";
+        printf FILEHANDLE ";# Constants                                                                   #\n";
+        printf FILEHANDLE ";###############################################################################\n";
+        printf FILEHANDLE "\n";
+
+	#Constants
+        printf FILEHANDLE ";Global constants\n";
+        printf FILEHANDLE "#ifndef      NULL\n";
+        printf FILEHANDLE "NULL                    EQU     $0000\n";
+        printf FILEHANDLE "#endif\n";
+ 	printf FILEHANDLE "\n";
+        printf FILEHANDLE ";Tree depth\n";
+        printf FILEHANDLE "FCDICT_TREE_DEPTH       EQU     %d\n", get_tree_depth(\%dict_tree);
+ 	printf FILEHANDLE "\n";
+        printf FILEHANDLE ";First CFA\n";
+        printf FILEHANDLE "FCDICT_FIRST_CFA        EQU     %s\n", $first_cfa;
+ 
 	#Macro label
         printf FILEHANDLE "\n";
         printf FILEHANDLE ";###############################################################################\n";
@@ -336,12 +357,6 @@ if ($code->{problems}) {
         printf FILEHANDLE "\n";
 
 	#Print tree
-        printf FILEHANDLE "#ifndef FCDICT_TREE_EXTSTS\n";
-        printf FILEHANDLE "FCDICT_TREE_EXISTS      EQU     1\n";
-	printf FILEHANDLE "\n";
-        printf FILEHANDLE ";Global constants\n";
-        printf FILEHANDLE "FCDICT_TREE_DEPTH       EQU     %d\n", get_tree_depth(\%dict_tree);
- 	printf FILEHANDLE "\n";
         printf FILEHANDLE ";Dictionary tree\n";
         printf FILEHANDLE "#macro       FCDICT_TREE, 0\n";
         printf FILEHANDLE ";Local constants\n";
@@ -351,9 +366,22 @@ if ($code->{problems}) {
         printf FILEHANDLE "END_OF_BRANCH           EQU     \$00\n";
         printf FILEHANDLE "IMMEDIATE               EQU     \$8000\n";
         #printf FILEHANDLE "\n";
-	print_tree(\%dict_tree, "", []);
+	my $mem_offset = 0;
+	print_tree(\%dict_tree, "", [], \$mem_offset);
         printf FILEHANDLE "#emac\n";
-        printf FILEHANDLE "#endif\n";
+
+	#Initialize tree pointer structure
+        printf FILEHANDLE ";#Set pointer structure to first CDICT entry\n";
+        printf FILEHANDLE "; args:   1: address of CDICT root\n";
+        printf FILEHANDLE ";         2: index register to address tree entry structure\n";
+        printf FILEHANDLE ";         3: offset of tree entry structure\n";
+        printf FILEHANDLE "; result: none\n";
+        printf FILEHANDLE "; SSTACK: none\n";
+        printf FILEHANDLE ";         All registers are preserved\n";
+        printf FILEHANDLE "#macro FCDICT_ITERATOR_INIT, 3\n";
+ 	print_init_macro();
+        printf FILEHANDLE "#emac\n";
+
         printf FILEHANDLE "#endif\n";
  
 	close FILEHANDLE;
@@ -525,6 +553,9 @@ sub print_tree_layout {
 		printf FILEHANDLE "-";
 	    }
 	    printf FILEHANDLE "> %s %s\n", $tree->{$string}->{cfa_name}, $tree->{$string}->{is_immediate} ? "(immediate)" : "" ;
+	    if (! defined $first_cfa) {
+		$first_cfa = $tree->{$string}->{cfa_name};
+	    }
 	} else {
 	    #check if string is terminated
 	    my $nt_string = $string;
@@ -539,6 +570,9 @@ sub print_tree_layout {
 		    printf FILEHANDLE "-";
 		}
 		printf FILEHANDLE "> %s %s\n", $tree->{$string}->{cfa_name}, $tree->{$string}->{is_immediate} ? "(immediate)" : "" ;
+		if (! defined $first_cfa) {
+		    $first_cfa = $tree->{$string}->{cfa_name};
+		}
 	    } else {
 		#string is not terminated
 		#printf FILEHANDLE sprintf("%%-%ds", ($max_string_length+1)), $nt_string;
@@ -574,10 +608,12 @@ sub print_tree_layout {
 sub print_tree {
     my $tree              = shift @_;    
     my $substring         = shift @_;    
-    my $position          = shift @_;    
+    my $position          = shift @_;
+    my $mem_offset_ref    = shift @_;
     my @strings           = sort keys %$tree;
     my @subtree_order     = ();
     my $subtree_reordered = 0;
+    my $root_label        = "FCDICT_TREE";
     my $label_format      = "FCDICT_TREE_%s";
     my $instr_form_nc     = "%-23s %-7s %s\n";
     my $instr_form        = "%-23s %-7s %-31s ;%s\n";
@@ -585,7 +621,9 @@ sub print_tree {
     #Print subtree comment
     my $comment_line   = "";
     if ($#{$position} >= 0) {
-	$comment_line .= sprintf("Subtree %s => \"%s\"", join("->", @$position), $substring);
+	$comment_line .= sprintf("Subtree %-15s%-10s-> %s+%2X", join("->", @$position) . " =>", 
+                                                                sprintf("\"%s\"", $substring), 
+				                                $root_label, $$mem_offset_ref);
     } else  {
 	$comment_line .= "Root";
     }
@@ -596,6 +634,36 @@ sub print_tree {
     #}
     #printf FILEHANDLE "\n";
 
+    #Update first entry
+    my $is_fitst_entry = 1; 
+    foreach my $pos(@$position) {
+	if ($pos != 0) {
+	    $is_fitst_entry = 0;
+	    last;
+	}
+    }
+    if ($is_fitst_entry) {
+	my $substring =  $strings[0];
+	chomp($substring);
+	if ($#first_entry < 0) {
+	    #printf STDERR "first entry1: %d %d %s %s\n", $#first_entry,
+	    #                                             $$mem_offset_ref,
+	    #                                             $root_label,
+	    #                                             $substring;
+	    push @first_entry, {offset    => $$mem_offset_ref,
+				label     => $root_label,
+				substring => $substring};
+	} else {
+	    #printf STDERR "first entry2: %d %d %s %s\n", $#first_entry,
+	    #                                             $$mem_offset_ref,
+	    #                                             sprintf($label_format, join("_", @$position)),
+	    #                                             $substring;
+	    push @first_entry, {offset    => $$mem_offset_ref,
+				label     => sprintf($label_format, join("_", @$position)),
+				substring => $substring};
+	}
+    }
+
     my $is_first_line = 1;
     foreach my $string_index (0..($#strings)) {
 	my $string    = $strings[$string_index];
@@ -603,12 +671,12 @@ sub print_tree {
 	chomp($nt_string);
 	my $combo_string = $substring . $nt_string;
 
-
 	#Determine left column
 	my $left_col = "";
 	if ($is_first_line) {
 	    if ($#{$position} < 0) {
-		$left_col = sprintf($label_format, "TOP");
+		#$left_col = sprintf($label_format, "TOP");
+		$left_col = $root_label;
 	    } else {
 		$left_col = sprintf($label_format, join("_", @$position));
 	    }
@@ -620,11 +688,15 @@ sub print_tree {
 	    #String is not terminated
 	    if ($nt_string !~ /\"/) {
 		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
+		$$mem_offset_ref += scalar(split("", $string));
 	    } else {
 		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
+		$$mem_offset_ref += scalar(split("", $string));
 	    }
 	    printf FILEHANDLE $instr_form_nc, "", "DB", "BRANCH";
+	    $$mem_offset_ref += 1;
 	    printf FILEHANDLE $instr_form, "", "DW", sprintf($label_format, join("_", @$position, $string_index)), sprintf("%s...", $combo_string);
+	    $$mem_offset_ref += 2;
 	    
 	    #Optimize subtree order
 	    if ($subtree_reordered) {
@@ -656,14 +728,18 @@ sub print_tree {
 		#Non-zero length
 		if ($nt_string !~ /\"/) {
 		    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
+		    $$mem_offset_ref += scalar(split("", $string));
 		} else {
 		    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
+		    $$mem_offset_ref += scalar(split("", $string));
 		}
 		#printf FILEHANDLE $instr_form_nc, "", "DB", "STRING_TERMINATION";
 	    } else {
 		printf FILEHANDLE $instr_form_nc, $left_col, "DB", "EMPTY_STRING";
+		$$mem_offset_ref += 1;
 	    }
 	    printf FILEHANDLE $instr_form, "", "DW", $cfa_entry, sprintf("-> %s", $combo_string); 
+	    $$mem_offset_ref += 2;
 	}
 	$left_col = "";
     }
@@ -671,9 +747,12 @@ sub print_tree {
     #Print substree termination
     if ($subtree_reordered) {
   	#printf FILEHANDLE $instr_form, "", ";DB", "END_OF_BRANCH", "merged";
+	#$$mem_offset_ref += 1;
  	printf FILEHANDLE $instr_form_nc, "", ";DB", "END_OF_BRANCH";
+	$$mem_offset_ref += 1;
     } else {
 	printf FILEHANDLE $instr_form_nc, "", "DB", "END_OF_BRANCH";
+        $$mem_offset_ref += 1;
     }
   	
     #Print next level of subtrees
@@ -685,9 +764,27 @@ sub print_tree {
 	#printf FILEHANDLE "Position: %s\n", join(",", @{$position}, $string_index);
 
 	#Print subtree
-	print_tree($tree->{$string}, $combo_string, [@{$position}, $string_index]);
+	print_tree($tree->{$string}, $combo_string, [@{$position}, $string_index], $mem_offset_ref);
     }
     1;
+}
+
+####################
+# Print init macro #
+####################
+sub print_init_macro {
+    my $tree_depth   = get_tree_depth(\%dict_tree);
+    my @init_offsets = @first_entry;
+    
+    foreach my $level (0...$tree_depth) {
+	if ($#init_offsets >= 0) {
+	    my $entry = shift @init_offsets;
+	    printf FILEHANDLE "                        %-30s;%s\n", sprintf("MOVW #(\\1+\$%.2X), \(\\3+\$%.2X),\\2", $entry->{offset}, (2*$level)),
+    	                                                            sprintf("%-20s(\"%s\")", $entry->{label}, $entry->{substring});
+	} else {
+	    printf FILEHANDLE "                        %-30s;\n",   sprintf("MOVW #NULL,     \(\\3+\$%.2X),\\2", (2*$level)),
+	}
+    }
 }
 
 1;

@@ -80,8 +80,8 @@
 ;FPS_NO_CHECK	EQU	1 
 
 ;Boundaries
-;UDICT_RS_START		EQU	0
-;UDICT_RS_END		EQU	0
+;UDICT_PS_START		EQU	0
+;UDICT_PS_END		EQU	0
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -626,8 +626,8 @@ CF_TWO_ROT_1		EQU	CF_SWAP_1
 FPS_THROW_PSOF		BGND					;parameter stack overflow
 FPS_THROW_PSUF		BGND					;parameter stack underflow
 #else
-FPS_THROW_PSOF		THROW	FEXCPT_EC_PSOF			;parameter stack overflow
-FPS_THROW_PSUF		THROW	FEXCPT_EC_PSUF			;parameter stack underflow
+FPS_THROW_PSOF		FEXCPT_THROW	FEXCPT_EC_PSOF		;parameter stack overflow
+FPS_THROW_PSUF		FEXCPT_THROW	FEXCPT_EC_PSUF		;parameter stack underflow
 #endif
 #endif
 	

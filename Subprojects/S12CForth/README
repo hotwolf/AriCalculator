@@ -39,7 +39,7 @@ Directories:
 +-Tools				;tool chain
   +-HSW12          		;link to the HSW12 assembler
   +-Test Builder                ;script to build test cases runnung from RAM
-  +-NFA Tree Generator		;search tree generator for the CORE words
+  +-Dictionary Tree Generator	;search tree generator for the CORE words
   +-Update Subprojects          ;updates all subprojects
 
 S12CForth is free software: you can redistribute it and/or modify
