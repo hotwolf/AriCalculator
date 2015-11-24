@@ -308,7 +308,7 @@ FCDICT_FIND		EQU	*
 FCDICT_FIND_1		LDAB	1,X+ 					;search char -> B
 			FIO_UPPER 					;make search char upper case
 			TSTB						;check if char has been terminated
-			BMI	FCDICT_FIND_5				;end of search string
+			BMI	FCDICT_FIND_6				;end of search string
 			LDAA	1,Y+ 					;dict char -> A
 			BEQ	FCDICT_FIND_2 				;empty string (skip to next sibling)
 			BMI	FCDICT_FIND_8	 			;end of CDICT substring
@@ -316,38 +316,38 @@ FCDICT_FIND_1		LDAB	1,X+ 					;search char -> B
 			BEQ	FCDICT_FIND_1				;compare next char
 			;Skip to next sibling (CDICT pointer in Y)
 			BRCLR	1,Y+, #FIO_TERM, * 			;skip past the end of the CDICT substring
-FCDICT_FIND_1a		LDX	0,SP 					;reset search substring
-FCDICT_FIND_2		TST	2,Y+ 					;check for children
+FCDICT_FIND_2		LDX	0,SP 					;reset search substring
+			TST	2,Y+ 					;check for children
 			BNE	FCDICT_FIND_3 				;no childeren found
 			LEAY	1,Y 					;adjust CDICT pointer
 FCDICT_FIND_3		TST	0,Y 					;check for end of branch
 			BNE	FCDICT_FIND_1 				;skip to next char
 			;Search unsuccessful 
-FCDICT_FIND_3a		CLRA						;return 0=not found
+FCDICT_FIND_4		CLRA						;return 0=not found
 			CLRB		  				;
 			;Done (result in D) 
-FCDICT_FIND_4		SSTACK_PREPULL	8 				;check stack
+FCDICT_FIND_5		SSTACK_PREPULL	8 				;check stack
 			LEAS	2,SP 					;clean up tmp vars
 			PULX						;restore X
 			PULY						;restore Y
 			RTS
 			;End of search string (CDICT pointer in Y, CDICT char in A, search char in B)
-FCDICT_FIND_5		LDAA	1,Y+ 					;dict char -> A
+FCDICT_FIND_6		LDAA	1,Y+ 					;dict char -> A
 			CBA						;compare chars
-			BNE	FCDICT_FIND_4 				;search unsuccessful
+			BNE	FCDICT_FIND_5 				;search unsuccessful
 			BRCLR	0,Y, #$FF, FCDICT_FIND_7 		;check for blank children
 			LDD	0,Y
-			JOB	FCDICT_FIND_4 				;search successful
+			JOB	FCDICT_FIND_5 				;search successful
 			;check for blank child (CDICT pointer in Y)
 FCDICT_FIND_7		LDY	1,Y 					;skip to subtree
-			BRCLR	0,Y, #$FF, FCDICT_FIND_4 		;search successful
-			JOB	FCDICT_FIND_3a 				;search unsuccessful
+			BRCLR	0,Y, #$FF, FCDICT_FIND_5 		;search successful
+			JOB	FCDICT_FIND_4 				;search unsuccessful
 			;End of CDICT substring (CDICT pointer in Y, CDICT char in A, search char in B)
 FCDICT_FIND_8		ANDA	#(~FIO_TERM) 				;remove termination
 			CBA						;compare chars
-			BNE	FCDICT_FIND_1a 				;search unsuccessful
+			BNE	FCDICT_FIND_2 				;search unsuccessful
 			TST	1,Y+ 					;check for subtree
-			BNE	FCDICT_FIND_3a 				;search unsuccessful
+			BNE	FCDICT_FIND_4 				;search unsuccessful
 			STX	0,SP 					;set new search substring
 			LDY	0,Y 					;skip to subtree
 			JOB	FCDICT_FIND_1
@@ -528,7 +528,8 @@ CF_FIND_CDICT		EQU	*
 			;Search core directory (PSP in Y)
 			LDX	2,Y
 			FCDICT_FIND 			;(SSTACK: 8 bytes)
-TBD			STD	0,Y
+			FOUTER_FIND_FORMAT		;(SSTACK: 2 bytes)
+			STD	0,Y
 			STX	2,Y
 			;Done
 			NEXT

@@ -189,11 +189,10 @@ FNVDICT_VARS_END_LIN	EQU	@
 ;======================	
 ;#Look-up word in user dictionary 
 ; args:   X: string pointer (terminated string)
-; result: X: execution token (unchanged if word not found)
-;	  D: 1=immediate, -1=non-immediate, 0=not found
 ;	  Y: start of dictionary (last NFA)
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
 ; SSTACK: 8 bytes
-;         No registers are preserved
+;         X and Y are preserved
 #macro	FNVDICT_FIND, 0
 			LDD	#$0000
 #emac

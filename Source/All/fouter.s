@@ -263,14 +263,24 @@ END_OF_WORD		BSET	(TIB_START-1),Y,#FIO_TERM;terminate string
 
 ;#Look-up word in dictionaries 
 ; args:   X: string pointer (terminated string)
-; result: X: execution token (unchanged if word not found)
-;	  D: 1=immediate, -1=non-immediate, 0=not found
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
 ; SSTACK: 4 bytes
-;         Y is preserved
+;         X and Y are preserved
 #macro	FOUTER_FIND, 0	
 			SSTACK_JOBSR	FOUTER_FIND, 4
 #emac
 
+	
+;#Transform FOUTER_FIND results into FIND format
+; args:   D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
+; result: X: execution token (unchanged if word not found)
+;	  D: 1=immediate, -1=non-immediate, 0=not found
+; SSTACK: 2 bytes
+;         Y is preserved
+#macro	FOUTER_FIND_FORMAT, 0	
+			SSTACK_JOBSR	FOUTER_FIND_FORMAT, 2
+#emac
+	
 ;#Fix and load BASE
 ; args:   BASE: any base value
 ; result: B:    range adjusted base value (2<=base<=16)
@@ -563,28 +573,43 @@ FOUTER_PARSE_2		CLRA				;clear char count
 	
 ;#Look-up word in dictionaries 
 ; args:   X: string pointer (terminated string)
-; result: X: execution token (unchanged if word not found)
-;	  D: 1=immediate, -1=non-immediate, 0=not found
-; SSTACK: 4+? bytes
-;         Y is preserved
-TBD
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
+; SSTACK: 4 bytes
+;         X and Y are preserved
 FOUTER_FIND		EQU	*	
-			;Save registers
+			;Save registers (string pointer in X)
 			PSHY				;save Y
-#ifmac	FUDICT_FIND	
-			;Search user directory
-			FUDICT_FIND 			;search FUDICT
+			;Search user directory (string pointer in X)
+			FUDICT_FIND			;(SSTACK: 8 bytes)
 			TBNE	D, FOUTER_FIND_1	;search successful
-#endif
-#ifmac	FNVDICT_FIND	
-			;Search non-volatile user directory
+			;Search non-volatile user directory (string pointer in X)			
 			FNVDICT_FIND 			;search FNVDICT
 			TBNE	D, FOUTER_FIND_1	;search successful
-#endif
 			;Search core directory
 			FCDICT_FIND 			;search CDICT
 			JOB	FOUTER_FIND_1		;done
 FOUTER_FIND_1		EQU	FOUTER_PARSE_1		;reuse parse exit
+	
+;#Transform FOUTER_FIND results into FIND format
+; args:   D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
+; result: X: execution token (unchanged if word not found)
+;	  D: 1=immediate, -1=non-immediate, 0=not found
+; SSTACK: 2 bytes
+;         Y is preserved
+FOUTER_FIND_FORMAT	EQU	*
+			;Check if conversion is required ({IMMEDIATE, CFA>>1} in D) 
+			TBEQ	D, FOUTER_FIND_FORMAT_1	;word not found
+			;Transform result ({IMMEDIATE, CFA>>1} in D) 
+			LSLD				;CFA -> D, IMMEDIATE-> C-flag
+			TFR	D, X			;CFA -> X
+			LDAB	#$00			;don't touch C-flag
+			ROLB				;IMMEDIATE -> B
+			LSLB				;2*IMMEDIATE -> B
+			DECB				;result -> B
+			SEX	B, D			;result -> D
+			;Done (results in X and D)
+FOUTER_FIND_FORMAT_1	SSTACK_PREPULL	2
+			RTS
 	
 ;#Convert a terminated string into a number (appending digits to a given double
 ; cell number)
@@ -847,8 +872,9 @@ CF_FIND			EQU	*
 			PS_CHECK_UFOF	1, 1 		;check PSP
 			STY	PSP			;new PSP -> Y
 			;Search dictionaries (PSP in Y) 
-			LDX	0,Y 			;string pointer -> X
-			FOUTER_FIND
+			LDX	2,Y 			;string pointer -> X
+			FOUTER_FIND			;(SSTACK: 4 bytes)
+			FOUTER_FIND_FORMAT		;(SSTACK: 2 bytes)
 			;Return resuls (PSP in Y, xt/string pointer in X, meta info in D)) 
 			JOB	CF_PARSE_1 		;code reuse
 			;STX	2,Y			;return xt/string pointer
