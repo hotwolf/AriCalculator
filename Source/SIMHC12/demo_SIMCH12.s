@@ -143,6 +143,12 @@ START_OF_CODE		EQU	*		;Start of code
 			BASE_INIT
 			FORTH_INIT
 
+			LDX	#TEST_WORD
+			FCDICT_FIND
+			BGND
+
+TEST_WORD		FCS	"resume"
+	
 			;Enter QUIT shell
 			JOB	CF_QUIT_SHELL
 	

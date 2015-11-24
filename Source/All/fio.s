@@ -53,6 +53,9 @@
 ;	...code to signal inactivity (inside CF)
 ;#emac
 
+//STRING_UPPER is required
+STRING_ENABLE_UPPER	EQU	1
+	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
@@ -243,6 +246,14 @@ FIO_VARS_END_LIN	EQU	@
 			STRING_MOVE_NL_NONTERM (\1)
 #emac
 	
+;#Convert a lower case character to upper case
+; args:   B: ASCII character (w/ or w/out termination)
+; result: B: lower case ASCII character 
+; SSTACK: 2 bytes
+;         X, Y, and A are preserved 
+#macro	FIO_UPPER, 0
+			STRING_UPPER 
+#emac
 
 ;###############################################################################
 ;# Code                                                                        #
