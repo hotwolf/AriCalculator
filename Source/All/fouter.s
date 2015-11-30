@@ -103,7 +103,7 @@ STATE_COMPILE		EQU	TRUE
 TIB_START		EQU	RS_TIB_START
 
 ;Default line width 
-DEFAULT_LINE_WIDTH	EQU	80
+DEFAULT_LINE_WIDTH	EQU	74
 
 ;###############################################################################
 ;# Variables                                                                   #

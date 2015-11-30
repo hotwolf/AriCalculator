@@ -568,7 +568,7 @@ CF_WORDS_CDICT_COLCNT	EQU	(2*(FCDICT_TREE_DEPTH+2)) 	;column counter offset
 			MOVW #FCDICT_LINE_WIDTH, CF_WORDS_CDICT_COLCNT,Y;initialize column counter
 			;Check column width (PSP in Y)
 CF_WORDS_CDICT_1	FCDICT_ITERATOR_WC 			;word length -> D (SSTACK: 6 bytes)
-			ADDD	(2*(FCDICT_TREE_DEPTH+1)),Y	;add to line width
+			ADDD	CF_WORDS_CDICT_COLCNT,Y		;add to line width
 			CPD	#(FCDICT_LINE_WIDTH+1)		;check line width
 			BLS	CF_WORDS_CDICT_2 		;insert white space
 			;Insert line break (PSP in Y)			
@@ -581,21 +581,25 @@ CF_WORDS_CDICT_2	ADDD	#1				;count space char
 			EXEC_CF	CF_SPACE			;print whitespace
 			;Print word						
 CF_WORDS_CDICT_3	LDY	PSP				;PSP -> Y
-			LDX	0,Y
-CF_WORDS_CDICT_4	STY	CF_WORDS_CDICT_ITPTR,Y		;store itertator pointer
-			PS_PUSH_X				;print substring
+			STY	CF_WORDS_CDICT_ITPTR,Y		;reset itertator pointer
+			LDX	0,Y				;substring -> X
+CF_WORDS_CDICT_4	PS_PUSH_X				;print substring
 			EXEC_CF	CF_STRING_DOT			;
 			LDY	PSP				;PSP -> Y
-			LDY	CF_WORDS_CDICT_ITPTR,Y		;get itertator pointer
-			LDX	2,+Y				;get substring pointer
-			BNE	CF_WORDS_CDICT_4		;substring exists
+			LDX	CF_WORDS_CDICT_ITPTR,Y		;get itertator pointer
+			LEAX	2,X				;get substring pointer
+			STX	CF_WORDS_CDICT_ITPTR,Y		;update itertator pointer
+			LDX	0,X				;substring -> X
+			BEQ	CF_WORDS_CDICT_5	 	;substring exists
+			TST	0,X				;check for empty substring
+			BNE	CF_WORDS_CDICT_4
 			;Skip to next word						
-			LDY	PSP				;iterator pointer -> Y
+CF_WORDS_CDICT_5	LDY	PSP				;iterator pointer -> Y
 			FCDICT_ITERATOR_NEXT			;advance iterator (SSTACK: 6 bytes)
 			TST	0,Y				;check for empty iterator
 			BNE	CF_WORDS_CDICT_1		;print next word
 			;Clean up (PSP in Y)						
-CF_WORDS_CDICT_5	PS_CHECK_UF	FCDICT_TREE_DEPTH+3 	;PSP -> Y
+                	PS_CHECK_UF	FCDICT_TREE_DEPTH+3 	;PSP -> Y
 			LEAY	(2*(FCDICT_TREE_DEPTH+3)),Y
 			STY	PSP
 			NEXT

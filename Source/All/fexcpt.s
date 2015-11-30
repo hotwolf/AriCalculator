@@ -441,13 +441,13 @@ FEXCPT_PRINT_ERROR_BL	EQU	*
 			;Print info string (string pointer in X)
 			LDX	0,SP 						;info string -> X
 			BEQ	FEXCPT_PRINT_ERROR_BL_1				;no info string
-			LDX	FEXCPT_ERROR_STRING_3 				;3rd substring -> X
+			LDX	#FEXCPT_ERROR_STRING_3 				;3rd substring -> X
 			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
 			LDX	0,SP 						;info string -> X
 			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
-			LDX	FEXCPT_ERROR_STRING_4 				;4th substring -> X
+			LDX	#FEXCPT_ERROR_STRING_4 				;4th substring -> X
 			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
-FEXCPT_PRINT_ERROR_BL_1	LDX	FEXCPT_ERROR_STRING_5 				;5th substring -> X
+FEXCPT_PRINT_ERROR_BL_1	LDX	#FEXCPT_ERROR_STRING_5 				;5th substring -> X
 			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
 			;Done 
 			SSTACK_PREPULL	4 					;check subroutine stack
