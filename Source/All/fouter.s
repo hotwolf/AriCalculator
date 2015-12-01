@@ -401,20 +401,20 @@ FOUTER_PARSE_PREFIX_22	EQU	*
 #emac
 
 ;#Convert a character int a digit value
-; args:   B:       char
+; args:   B:       char (non-terminated)
 ; result: B:       digit (-1 if char was invalid)
-;	  N-flag : set char was invalid		
+;         N-flag:  set if char was invalid	 
 ; SSTACK: 0 bytes
 ;         X, Y, and A are preserved
 #macro	FOUTER_CHAR_2_DIGIT, 0	
-			;Chech for 
-			ANDB	#~STRING_TERM 		;remove termination
+			;Check for valid characters
+			;ANDB	#~STRING_TERM 		;remove termination
 			SUBB	#"0"			;remove "0" offset
-			BMI	FOUTER_CHAR_2_DIGIT_1	;invalid char
+			BLO	FOUTER_CHAR_2_DIGIT_1	;invalid char
 			CMPB	#9			;check for valid decimal digit
 			BLS	FOUTER_CHAR_2_DIGIT_2	;done	
 			SUBB	#(("A")-("0"))		;remove "A" offset
-			BMI	FOUTER_CHAR_2_DIGIT_1	;invalid char
+			BLO	FOUTER_CHAR_2_DIGIT_1	;invalid char
 			ADDB	#10			;add numerical offset
 #ifdef NUM_MAX_BASE_16
 			CMPB	#16			;check for valid alphanumeric digit
@@ -422,19 +422,10 @@ FOUTER_PARSE_PREFIX_22	EQU	*
 			CMPB	#32			;check for valid alphanumeric digit
 #endif
 			BLO	FOUTER_CHAR_2_DIGIT_2	;done	
-			SUBB	#(("a")-(("A")+10))	;remove "A" offset
-			BMI	FOUTER_CHAR_2_DIGIT_1	;invalid char			
-			ADDB	#10			;add numerical offset
-#ifdef NUM_MAX_BASE_16
-			CMPB	#16			;check for valid alphanumeric digit
-#else
-			CMPB	#32			;check for valid alphanumeric digit
-			BLO	FOUTER_CHAR_2_DIGIT_2	;done	
-#endif
 			;Invalid char
-FOUTER_CHAR_2_DIGIT_1	LDD	#-1	
+FOUTER_CHAR_2_DIGIT_1	LDAB	#-1	
 			;Done (digit in B)
-FOUTER_CHAR_2_DIGIT_2	EQU	*
+FOUTER_CHAR_2_DIGIT_2	TSTB
 #emac
 
 ;#Append_digit to double cell
@@ -579,12 +570,12 @@ FOUTER_PARSE_2		CLRA				;clear char count
 FOUTER_FIND		EQU	*	
 			;Save registers (string pointer in X)
 			PSHY				;save Y
-			;Search user directory (string pointer in X)
-			FUDICT_FIND			;(SSTACK: 8 bytes)
-			TBNE	D, FOUTER_FIND_1	;search successful
-			;Search non-volatile user directory (string pointer in X)			
-			FNVDICT_FIND 			;search FNVDICT
-			TBNE	D, FOUTER_FIND_1	;search successful
+;TBD			;Search user directory (string pointer in X)
+;			FUDICT_FIND			;(SSTACK: 8 bytes)
+;			TBNE	D, FOUTER_FIND_1	;search successful
+;			;Search non-volatile user directory (string pointer in X)			
+;			FNVDICT_FIND 			;search FNVDICT
+;			TBNE	D, FOUTER_FIND_1	;search successful
 			;Search core directory
 			FCDICT_FIND 			;search CDICT
 			JOB	FOUTER_FIND_1		;done
@@ -964,14 +955,16 @@ CF_SHELL_2		CLRA					;set delimiter to any whitespace
 			;Lookup word in dictionaries word (string pointer in X)
 CF_SHELL_3		FOUTER_FIND 				;search dictionaries
 			TBEQ	D, CF_SHELL_5			;word not in dictionaries
-			;Compile semantics (xt in X, meta info in D)
+			;Compile semantics ({IMMEDIATE, CFA>>1} in D)
+			LSLD					;extract immediate flag
+			BCS	CF_SHELL_4			;interpret, no matter what STATE
 			LDY	STATE 				;check compile state
 			BEQ	CF_SHELL_4			;interpret xt
-			DBEQ	D, CF_SHELL_4			;interpret immediate xt
 			FUDICT_COMPILE_CELL 			;compile xt
 			JOB	CF_SHELL_2 			;parse next word
-			;Interpretation semantics (xt in X, meta info in D)
-CF_SHELL_4		EXEC_CFA_X 				;execute xt
+			;Interpretation semantics (CFA in D)
+CF_SHELL_4		TFR	D, X	   			;CFA -> X
+			EXEC_CFA_X 				;execute xt
 			JOB	CF_SHELL_2 			;parse next word
 			;Interpret word as number (string pointer in X)
 CF_SHELL_5		FOUTER_INTEGER 				;interpret as integer
@@ -1010,14 +1003,16 @@ CF_SHELL_9		LDD	#FEXCPT_EC_UDEFWORD 		;set error code
 			FEXCPT_PRINT_ERROR_BL			;print error message
 			;Check IP
 			LDX	IP 				;IP -> X
-			BEQ	CF_QUIT_SHELL 			;restart QUIT shell			
+			BEQ	CF_ABORT_SHELL 			;restart ABORT shell			
 			;Check HANDLER
 			LDX	HANDLER				;HANDLER -> X
 			;CPX	FEXCPT_DEFAULT_HANDLER		;=$0000
-			BEQ	CF_QUIT_SHELL 			;restart QUIT shell
-			;Restart suspend shell (HANDLER in X)
+			BEQ	CF_ABORT_SHELL 			;restart ABORT shell
 			CPX	#(RS_EMPTY-8)			;check for 4 cell exception frame
-			BHI	CF_QUIT_SHELL 			;restart QUIT shell				
+			BHI	CF_ABORT_SHELL 			;restart QUIT shell
+			;Restart suspend shell (HANDLER in X)
+			FORTH_ABORT 				;perform ABORT action (leave X untouchef)
+			STX	HANDLER				;keep HANDLER
 			STX	RSP				;restore RSP
 			MOVW	2,X, PSP			;restore PSP
 			MOVW	6,X, IP				;resore IP

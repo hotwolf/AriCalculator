@@ -221,12 +221,12 @@ FUDICT_VARS_END_LIN	EQU	@
 #emac			
 
 ;Compile cell into user dictionary
-; args:   X: cell value
+; args:   D: cell value
 ; result: X: CP_PRELIM+new bytes
 ; SSTACK: none
-;         X and D are preserved 
+;         Y and D are preserved 
 #macro	FUDICT_COMPILE_CELL, 0
-			STX	[CP] 			;store cell in next free space
+			STD	[CP] 			;store cell in next free space
 			UDICT_CHECK_OF 2		;allocate storage space
 #emac			
 

@@ -630,8 +630,8 @@ FEXCPT_ANON_NAME 	FCS		"NONAME"
 FEXCPT_ERROR_STRING_1	FIO_NL_NONTERM 				;1st substring
 			FCS		"Error "
 FEXCPT_ERROR_STRING_2	FCS		"! "			;2nd substring
-FEXCPT_ERROR_STRING_3	FCS		" ("			;3rd substring
-FEXCPT_ERROR_STRING_4	FCS		")"			;4rd substring
+FEXCPT_ERROR_STRING_3	FCS		': "'			;3rd substring
+FEXCPT_ERROR_STRING_4	FCS		'"'			;4rd substring
 FEXCPT_ERROR_STRING_5	FCS		"!"			;5rd substring
 
 ;Info output
