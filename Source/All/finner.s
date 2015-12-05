@@ -131,7 +131,7 @@ FINNER_VARS_END_LIN	EQU	@
 	
 ;#Quit action (to be executed in addition of SUSPEND action)
 #macro	FINNER_QUIT, 0
-			MOVW	#$0000, IP
+;TBD			;MOVW	#$0000, IP
 #emac
 	
 ;#Suspend action

@@ -36,7 +36,7 @@
 ;#        SUSPEND: Restart outer interpreter                                   #
 ;#                                                                             #
 ;#        Compile mode if STATE != 0                                           #
-;#        SUSPEND mode if    IP != 0                                           #
+;#        SUSPEND mode if SHELL != 0                                           #
 ;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -54,25 +54,48 @@
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
 ;###############################################################################
-;        
-;                         +--------------+--------------+        
-;        RS_TIB_START, -> |              |              |
-;           TIB_START     |              |              | <- [TIB_OFFSET]          
-;                         |              |              | |          
-;                         |       Text Input Buffer     | | [NUMBER_TIB]
-;                         |              |              | |	       
-;                         |              v              | |	       
-;                     -+- | --- --- --- --- --- --- --- | v	       
-;          TIB_PADDING |  .                             . <- [TIB_OFFSET+NUMBER_TIB] 
-;                     -+- .                             .            
-;                         | --- --- --- --- --- --- --- |            
-;                         |              ^              | <- [RSP]
-;                         |              |              |
-;                         |        Return Stack         |
-;                         |              |              |
-;                         +--------------+--------------+
+        
+;###############################################################################
+;# Memory Layout                                                               #
+;###############################################################################
+;                                
+;                         RAM:       
+;                         +----------+----------+        
+;        RS_TIB_START, -> |          |          | |          
+;           TIB_START     |   Text Input Buffer | | [TIB_CNT]
+;                         |          |          | |	       
+;                         |          v          | <	       
+;                     -+- | --- --- --- --- --- | 	       
+;          TIB_PADDING |  .                     . <- [TIB_START+TIB_CNT] 
+;                     -+- .                     .            
+;                         | --- --- --- --- --- |            
+;                         |          ^          | <- [RSP]
+;                         |          |          |
+;                         |    Return Stack     |
+;                         |          |          |
+;                         +----------+----------+
 ;             RS_EMPTY, ->                                 
 ;           RS_TIB_END
+;
+;                         Return Stack:               	
+;                         +---------------------+     
+;                   RSP-> |                     |     
+;                         |                     |     
+;                         |                     | 
+;                         +---------------------+ <-+ 
+;                 SHELL-> |   previous SHELL    |   |
+;                         +---------------------+   |
+;                         |  xt after SUSPEND   |   |
+;                         +---------------------+   |
+;                         |   #TIB (unparsed)   |   |SUSPEND
+;                         +---------------------+   |shell  
+;                         |                     |   |stack   
+;                         |      unparsed       |   |frame   
+;                         |      section        |   | 
+;                         |       of TIB        |   | 
+;                         |          +----------+   | 
+;                         |          | alignment|   | 
+;                         +----------+----------+ <-+     
 ;
 	
 ;###############################################################################
@@ -105,6 +128,9 @@ TIB_START		EQU	RS_TIB_START
 ;Default line width 
 DEFAULT_LINE_WIDTH	EQU	74
 
+;Default exception handler  
+FOUTER_DEFAULT_SHELL	EQU	$0000 	;initial shell structure
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -119,6 +145,7 @@ BASE			DS	2 		;default radix
 STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
 NUMBER_TIB  		DS	2		;number of chars in the TIB
 TO_IN  			DS	2		;parse index (parse area empty if >IN = #TIB) 
+SHELL			DS	2 		;
 	
 FOUTER_VARS_END		EQU	*
 FOUTER_VARS_END_LIN	EQU	@
@@ -133,15 +160,25 @@ FOUTER_VARS_END_LIN	EQU	@
 			MOVW	#$0000, STATE	   	;interpretation state
 			MOVW	#$0000, NUMBER_TIB	;empty TIB
 			MOVW	#$0000, TO_IN		;reset parser
+			
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
+; Empty the data stack and perform the function of QUIT, which includes emptying
+; the return stack, without displaying a message. 
 #macro	FOUTER_ABORT, 0
 			MOVW	#$0000, NUMBER_TIB	;empty TIB
 			MOVW	#$0000, TO_IN		;reset parser
 #emac
 	
 ;#Quit action (to be executed in addition of SUSPEND action)
+; Empty the return stack, enter interpretation state.  Do not display a message.
+; Repeat the following: 
+; –  Accept a line from the input source into the input buffer, set >IN to zero,
+;    and interpret. 
+; –  Display the implementation-defined system prompt if in interpretation
+;    state, all processing has been completed, and no ambiguous condition
+;    exists.   
 #macro	FOUTER_QUIT, 0
 #emac
 	
@@ -155,35 +192,32 @@ FOUTER_VARS_END_LIN	EQU	@
 ; args:   none
 ; result: none
 ; SSTACK: none
-;         X is  preserved
+;         No registers are  preserved
 #macro FOUTER_PROMPT, 0
-			;Check for unparsed command line (string pointer in Y)
-			CLRA				;ignore whitespace in TIB
-			FOUTER_SKIP_DELIMITER		;check for unparsed  content
-			;Add line break (string pointer in Y, C-flag set if unparsed content found)
-			LDY	#TIB_START 		;TIB_START -> Y
-			FIO_MOVE_NL_NONTERM (FIO_NL_BYTE_COUNT,Y+);add line break
-			;Warn prompt (string pointer in Y, C-flag set if unparsed content found)
-			BCC	FOUTER_PROMPT_1		;TIB was empty
-			MOVB	#"!", 1,Y+		;add warn prompt
-FOUTER_PROMPT_1		;Check for SUSPEND mode(string pointer in Y)
-			LDD	IP			;check IP
-			BEQ	FOUTER_PROMPT_2
-			MOVB	#"S", 1,Y+		;add SUSPEND prompt
-			;Check for interactive prompt(string pointer in Y)
-FOUTER_PROMPT_2		LDD	STATE 			;check STATE
-			BNE	FOUTER_PROMPT_3		;compile state
-			MOVB	#">", 1,Y+		;add interactive prompt
-			JOB	FOUTER_PROMPT_5		;print whitespace
-			;Determine compile prompt (string pointer in Y)
-FOUTER_PROMPT_3		EQU	*			
-			LDD	NVC 			;check check for NV compile
-			BEQ	FOUTER_PROMPT_4		;RAM compile
-			MOVB	#"@", 1,Y+		;add NV compile prompt
-			JOB	FOUTER_PROMPT_5		;print whitespace
-FOUTER_PROMPT_4		MOVB	#"+", 1,Y+		;add NV compile prompt			
-			;Print whitespace (string pointer in Y)
-FOUTER_PROMPT_5		MOVB	#(STRING_SYM_SPACE|STRING_TERM), 1,Y+;add NV compile prompt
+			;Check for SUSPEND mode
+			LDD	SHELL			;check SHELL
+			BEQ	FOUTER_PROMPT_		;not in SUSPEND mode
+			PS_PUSH	#FOUTER_SUSPEND_PROMPT	;push prompt onto PS
+			EXEC_CF	CF_EMIT			;print prompt
+			;SUSPEND mode: check for COMPILE mode 
+			LDD	STATE 			;check STATE
+			BEQ	FOUTER_PROMPT_3		;print white space
+			;SUSPEND mode: check for COMPILE mode 
+FOUTER_PROMPT_1		LDX	#FOUTER_COMPILE_PROMPT	;compile prompt -> X
+			LDD	NVC			;check check for NV compile
+			BEQ	FOUTER_PROMPT_2		;RAM compile
+			LDX	#FOUTER_NVCOMPILE_PROMPT;NV compile prompt -> X
+FOUTER_PROMPT_2		PS_PUSH_X			;push prompt onto PS			
+			EXEC_CF	CF_EMIT			;print prompt
+			JOB	FOUTER_PROMPT_3		;print white space
+			;NON-SUSPEND mode: check for COMPILE mode 
+			LDD	STATE 			;check STATE
+			BNE	FOUTER_PROMPT_1		;print compile mode
+			;INTERACTIVE mode
+			PS_PUSH	#FOUTER_INTERACT_PROMPT	;push prompt onto PS
+			EXEC_CF	CF_EMIT			;print prompt
+			;Print white space
+FOUTER_PROMPT_3		EXEC_CF	CF_SPACE		;print prompt
 #emac
 
 ;#Check if a char is a delimiter 
@@ -911,22 +945,6 @@ CF_QUIT_SHELL		EQU	*
 			;Execute SUSPEND actions
 			;JOB	CF_SUSPEND_RT
 
-;SUSPEND shell ( -- )
-;Execute a temporary debug shell.
-; args:   none
-; result: none
-; SSTACK: 8 bytes
-; PS:     0 cells
-; RS:     5 cells
-; throws: FEXCPT_EC_PSOF
-;         FEXCPT_EC_RSOF
-;         FEXCPT_EC_COMERR
-CF_SUSPEND_SHELL	EQU	*
-			;Execute SUSPEND actions
-			FORTH_SUSPEND
-			;Start shell
-			;JOB	CF_SHELL
-	
 ;SHELL ( -- ) Generic interactive shell
 ;Common S12CForth shell. 
 ; args:   none
@@ -1041,7 +1059,7 @@ CF_SUSPEND_HANDLER	EQU		*
 			;Enter SUSPEND shell
 			;JOB	CF_SUSPEND
 	
-;SUSPEND ( -- ) RS:( -- HANDLER PSP CF_SUSPEND_HANDLER IP)
+;SUSPEND ( -- ) RS:( -- SUSPEND frame)
 ;Enter SUSPEND mode.
 ; args:   none
 ; result: none
@@ -1052,6 +1070,11 @@ CF_SUSPEND_HANDLER	EQU		*
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
 CF_SUSPEND		EQU		*
+			;
+			
+
+
+
 			;Push return address and exception stack frame
 			RS_PUSH4 IP CFA_SUSPEND_HANDLER PSP HANDLER
 			;Update handler
@@ -1169,14 +1192,10 @@ FOUTER_TABS_START_LIN	EQU	@
 FOUTER_SYMTAB		EQU	NUM_SYMTAB
 	
 ;System prompts
-FOUTER_NL_SUSPEND	STRING_NL_NONTERM
-			FCS	"!"
-FOUTER_NL_PLAIN   	EQU	STRING_STR_NL
+FOUTER_SUSPEND_PROMPT	FCS	"S "
 FOUTER_INTERACT_PROMPT	FCS	"> "
 FOUTER_COMPILE_PROMPT	FCS	"+ "
-#ifdef NVC
 FOUTER_NVCOMPILE_PROMPT	FCS	"@ "
-#endif
 FOUTER_SYSTEM_ACK	FCS	" ok"
 
 FOUTER_TABS_END		EQU	*

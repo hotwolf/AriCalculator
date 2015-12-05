@@ -78,6 +78,9 @@ FIO_SYM_TAB  		EQU	STRING_SYM_TAB
 FIO_SYM_BEEP  		EQU	STRING_SYM_BEEP
 FIO_SYM_SPACE  		EQU	STRING_SYM_SPACE
 	
+;#Empty string 
+FIO_EMPTY_STRING	EQU	STRING_TERM
+	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################

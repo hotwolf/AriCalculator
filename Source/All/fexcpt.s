@@ -168,8 +168,8 @@ FEXCPT_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FEXCPT_INIT, 0
-			MOVW	#$0000, HANDLER		;reset exception handler
-			MOVW	#$0000, ABORT_MSG	;clear inner message
+			MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER	;reset exception handler
+			MOVW	#FIO_EMPTY_STRING      , ABORT_MSG	;clear inner message
 #emac
 
 ;#Abort action (to be executed in addition of quit action)
@@ -179,7 +179,7 @@ FEXCPT_VARS_END_LIN	EQU	@
 ;#Quit action (to be executed in addition of SUSPEND action)
 #macro	FEXCPT_QUIT, 0
 			;Set default handler
-			MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER
+;TBD			;MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER
 #emac
 	
 ;#Suspend action
