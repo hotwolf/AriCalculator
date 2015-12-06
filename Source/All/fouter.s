@@ -62,11 +62,11 @@
 ;                         RAM:       
 ;                         +----------+----------+        
 ;        RS_TIB_START, -> |          |          | |          
-;           TIB_START     |   Text Input Buffer | | [TIB_CNT]
+;           TIB_START     |   Text Input Buffer | | [NUMBER_TIB]
 ;                         |          |          | |	       
 ;                         |          v          | <	       
 ;                     -+- | --- --- --- --- --- | 	       
-;          TIB_PADDING |  .                     . <- [TIB_START+TIB_CNT] 
+;          TIB_PADDING |  .                     . <- [TIB_START+NUMBER_TIB] 
 ;                     -+- .                     .            
 ;                         | --- --- --- --- --- |            
 ;                         |          ^          | <- [RSP]
@@ -88,14 +88,14 @@
 ;                         |  xt after SUSPEND   |   |
 ;                         +---------------------+   |
 ;                         |   #TIB (unparsed)   |   |SUSPEND
-;                         +---------------------+   |shell  
-;                         |                     |   |stack   
-;                         |      unparsed       |   |frame   
+;                         +----------+----------+   |shell  
+;                         |alignment |          |   |stack   
+;                         +----------+          |   |frame   
+;                         |      unparsed       |   |        
 ;                         |      section        |   | 
 ;                         |       of TIB        |   | 
-;                         |          +----------+   | 
-;                         |          | alignment|   | 
-;                         +----------+----------+ <-+     
+;                         |                     |   | 
+;                         +---------------------+ <-+     
 ;
 	
 ;###############################################################################
@@ -1070,11 +1070,30 @@ CF_SUSPEND_HANDLER	EQU		*
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
 CF_SUSPEND		EQU		*
-			;
-			
+			;Check return stack space (3-4 cells needed on top of parse area)
+			RS_CHECK_OF	4 			;require 4 cells
+			;Determine the size of the parse area
+			LDD	NUMBER_TIB 			;#TIB -> D
+			TFR	D, X				;#TIB -> X
+			SUBD	TO_IN				;size of parse area -> D
+			BEQ	CF_SUSPEND_			;parse area is empty
+			;Add alignment char to RS (size of parse area in D #TIB in X)
+			LDY	RSP 				;RSP -> Y
+			BITB	#$01				;che
 
 
+	
 
+			;Copy parse area to RS
+			LDD	NUMBER_TIB 			;#TIB -> D
+			TFR	D, X				;#TIB -> X
+			SUBD	TO_IN				;size of parse area -> D
+			BEQ	CF_SUSPEND_			;parse area is empty
+			LEAX	TIB_START, X			;source address -> X
+			LDY	PSP				;PSP -> Y
+CF_SUSPEND_1		MOVB	1,-X, 1,-Y			;copy 
+			DBNE	D, SUSPEND_1			;copy loop
+	
 			;Push return address and exception stack frame
 			RS_PUSH4 IP CFA_SUSPEND_HANDLER PSP HANDLER
 			;Update handler
