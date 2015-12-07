@@ -2,8 +2,6 @@ AriCalculator
 =============
 A homemade pocket calculator.
 
-This design is based on the S12G Micro EVB (https://github.com/hotwolf/S12G-Micro-EVB).
-
 Directories:
 ============
 |
@@ -18,9 +16,18 @@ Directories:
 +-Subprojects           - Repository clones of the projects that AriCalculator
                           is based on
 
+The AriCalculator software is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-This work is licensed under a Creative Commons Attribution-ShareAlike 3.0
-Unported License (http://creativecommons.org/licenses/by-sa/3.0/).
+You should have received a copy of the GNU General Public License
+along with the AriCalulator software. If not, see
+<http://www.gnu.org/licenses/>.
+
+The hardware design of the Aricalculator project is licensed under a Creative
+Commons Attribution-ShareAlike 3.0 Unported License
+(http://creativecommons.org/licenses/by-sa/3.0/).
 
 Hardware RevC uses Kicad library components by Walter Lain which are licensed
 under a Creative Commons Attribution-ShareAlike 3.0 License 
