@@ -82,6 +82,25 @@ NUM_VARS_END_LIN	EQU	@
 #macro	NUM_INIT, 0
 #emac	
 
+;#Negate double word
+; args:   Y:X: signed double value
+; result: Y:X: negated double value
+; SSTACK: 0 bytes
+;         D is preserved
+#macro	NUM_NEGATE, 0
+			EXG	Y, D 						;Y <-> D
+			COMA							;invert D (upper word)
+			COMB							;
+			EXG	X, D 						;X <-> D	
+			COMA							;invert D (lower word)
+			COMB							;
+			ADDD	#1   						;increment D (lower word)
+			EXG	X, D 						;X <-> D	
+			ADCB	#0 						;propagate carry (upper word)
+			ADCA	#0   						;
+			EXG	Y, D 						;Y <-> D
+#emac
+
 ;#Reverse unsigned double word
 ; args:   Y:X: unsigned double value
 ; 	  B:   base   (2<=base<=16)
@@ -113,7 +132,7 @@ NUM_VARS_END_LIN	EQU	@
 			LEAS	6,SP
 #emac
 
-;#Print a reserse number digit - non-blocking
+;#Print a reverse number digit - non-blocking
 ; args:   B:    base (2<=base<=16)
 ;         SP+0: MSB   
 ;         SP+1:  |    
@@ -134,7 +153,7 @@ NUM_VARS_END_LIN	EQU	@
 			SSTACK_JOBSR	NUM_REVPRINT_NB, 8
 #emac
 	
-;#Print a reserse number digit - blocking
+;#Print a reverse number digit - blocking
 ; args:   B:    base (2<=base<=16)
 ;         SP+0: MSB   
 ;         SP+1:  |    
@@ -149,10 +168,10 @@ NUM_VARS_END_LIN	EQU	@
 ;         SP+4:  |number      
 ;         SP+5: LSB   
 ;         C-flag: set if successful
-; SSTACK: 8 bytes
+; SSTACK: 8 bytes  (+6 arg bytes)
 ;         X, Y and D are preserved 
 #macro	NUM_REVPRINT_BL, 0
-			NUM_CALL_BL	NUM_REVPRINT_NB, 19
+			NUM_CALL_BL	NUM_REVPRINT_NB, 8
 #emac
 
 ;#Turn a non-blocking subroutine into a blocking subroutine	
@@ -189,7 +208,7 @@ LOOP			;Wait until TX buffer accepts new data
 #else
 			ORG 	NUM_CODE_START
 #endif
-
+	
 ;#Reverse unsigned double word
 ; args:   Y:X: unsigned double value
 ; 	  B:   base   (2<=base<=16)

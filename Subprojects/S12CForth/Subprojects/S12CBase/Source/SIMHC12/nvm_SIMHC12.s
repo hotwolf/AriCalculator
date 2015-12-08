@@ -32,6 +32,8 @@
 ;# Version History:                                                            #
 ;#    May 27, 2013                                                             #
 ;#      - Initial release                                                      #
+;#    October 27, 2015                                                         #
+;#      - New user interface                                                   #
 ;###############################################################################
 	
 ;###############################################################################
@@ -43,9 +45,13 @@
 ;###############################################################################
 ;#Program/erase sizes
 ;-------------------- 
-NVM_PHRASE_SIZE		EQU	64
-NVM_SECTOR_SIZE		EQU	1024
+NVM_PHRASE_SIZE		EQU	8
 
+;#NVM space
+;---------- 
+NVM_SPACE_START		EQU	$8000
+NVM_SPACE_END		EQU	$C000
+	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -64,37 +70,30 @@ NVM_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	NVM_INIT, 0
+			NVM_ERASE 				;erase nvm space
 #emac	
-	
-;#Program phrase
-; args:   X:      target address within paging window
-;	  PPAGE:  current page
-;	  Y:      data pointer 
-; result: C-flag: set if successful
-; SSTACK: 2 bytes
-;         X, Y, and D are preserved
-#macro	NVM_PROGRAM_PHRASE, 0
-			SSTACK_JOBSR	NVM_PROGRAM_PHRASE, 18
-#emac
 
-;#Erase sector
-; args:   X:      sector address
-;	  PPAGE:  current page
+;#User interface
+;---------------      
+;#Erase NVM data
+; args:   none
 ; result: C-flag: set if successful
 ; SSTACK: 6 bytes
-;         X, Y, and D are preserved
-#macro	NVM_ERASE_SECTOR, 0
-			SSTACK_JOBSR	NVM_ERASE_SECTOR, 18
-#emac
+;         All registers are preserved
+#macro	NVM_ERASE, 0
+			SSTACK_JOBSR	NVM_ERASE, 6
+#emac	
 
-;#Erase page
-; args:   PPAGE:  current page
+;#Copy data to NVM
+; args:   X: source address in RAM
+;	  Y: destination address 
+;	  D: number of bytes to copy
 ; result: C-flag: set if successful
-; SSTACK: 10 bytes
-;         X, Y, and D are preserved
-#macro	NVM_ERASE_PAGE, 0
-			SSTACK_JOBSR	NVM_ERASE_PAGE, 22
-#emac
+; SSTACK: 8 bytes
+;         All registers are preserved
+#macro	 NVM_PROGRAM, 0
+			SSTACK_JOBSR	NVM_PROGRAM, 8
+#emac	
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -105,69 +104,59 @@ NVM_VARS_END_LIN	EQU	@
 			ORG 	NVM_CODE_START
 NVM_CODE_START_LIN	EQU	@			
 #endif	
-	
-;#Program phrase
-; args:   X:      target address within paging window
-;	  PPAGE:  current page (ignored)
-;	  Y:      data pointer 
-; result: C-flag: set if successful
-; SSTACK: 2 bytes
-;         X, Y, and D are preserved
-NVM_PROGRAM_PHRASE	EQU	*
-			MOVW	0,X, 0,Y	
-			MOVW	2,X, 2,Y	
-			MOVW	4,X, 4,Y	
-			MOVW	6,X, 6,Y	
-			;Done
-			SSTACK_PREPULL	2
-			SEC
-			RTS
-						
-;#Erase sector
-; args:   X:      sector address
-;	  PPAGE:  current page (ignored)
+
+;#User interface
+;---------------      
+;#Erase NVM data
+; args:   none
 ; result: C-flag: set if successful
 ; SSTACK: 6 bytes
-;         X, Y, and D are preserved
-NVM_ERASE_SECTOR	EQU	*
-			;Save registers (paged address in X)
-			PSHD 					;push D onto the SSTACK
-			PSHX 					;push X onto the SSTACK
-			;Erase memory (paged address in X)
-			LDD	#(NVM_SECTOR_SIZE/2)
-NVM_ERASE_SECTOR_1	MOVW	#$FFFF, 2,X+
-			DBNE	D, NVM_ERASE_SECTOR_1 
+;         All registers are preserved
+NVM_ERASE       	EQU	*
+			;Save registers
+			PSHX 					;save X
+			PSHD 					;save D
+			;Erase memory
+			LDD	#$FFFF 				;erase pattern
+			LDX	#NVM_SPACE_START			;initialize index
+NVM_ERASE_1		STD	2,X+				;erase eight bytes
+			STD	2,X+				;
+			STD	2,X+				;
+			STD	2,X+				;
+			CPX	#NVM_SPACE_END			;
+			BLO	NVM_ERASE_1			;more to erase
 			;Done
-			SSTACK_PREPULL	6
-			SEC
+			SSTACK_PREPULL	6 			;check stack
+			PULD					;restore D
+			PULX					;restore X
+			SEC					
 			RTS
-	
-;#Erase page
-; args:   PPAGE:  current page
+
+;#Copy data to NVM
+; args:   X: source address in RAM
+;	  Y: destination address 
+;	  D: number of bytes to copy
 ; result: C-flag: set if successful
-; SSTACK: 10 bytes
-;         X, Y, and D are preserved
-NVM_ERASE_PAGE		EQU	*
-			;Save registers (paged address in X, data pointer in Y)
-			PSHX 					;push X onto the SSTACK
-			;Erase all 16 sdectors sector 
-			LDX	#$8000		
-NVM_ERASE_PAGE_1	NVM_ERASE_SECTOR
-			BCC	NVM_ERASE_PAGE_2			;error occured
-			LEAX	NVM_SECTOR_SIZE,X
-			CPX	$C000
-			BLO	NVM_ERASE_PAGE_1
-			;Restore registers (page erased)
-			SSTACK_PREPULL	4
-			PULX					;pull X from the SSTACK
+; SSTACK: 6 bytes
+;         All registers are preserved
+NVM_PROGRAM       	EQU	*
+			;Save registers (source in X, desination in Y, byte count in D)
+			PSHX 					;save X
+			PSHY 					;save Y
+			PSHD 					;save D
+			;Copy data (source in X, desination in Y, byte count in D)
+NVM_PROGRAM_1		MOVW	2,X+, 2,Y+ 			;copy 8 bytes
+			MOVW	2,X+, 2,Y+			;
+			MOVW	2,X+, 2,Y+			;
+			MOVW	2,X+, 2,Y+			;
+			SUBD	#8				;adjust byte count
+			BPL	NVM_PROGRAM_1			;more bytes to copy
 			;Done
-			SEC
-			RTS
-			;Restore registers (error condition)
-NVM_ERASE_PAGE_2	SSTACK_PREPULL	4
-			PULX					;pull X from the SSTACK
-			;Done
-			CLC
+			SSTACK_PREPULL	6 			;check stack
+			PULD					;restore D
+			PULY					;restore Y
+			PULX					;restore X
+			SEC					
 			RTS
 	
 NVM_CODE_END		EQU	*	
