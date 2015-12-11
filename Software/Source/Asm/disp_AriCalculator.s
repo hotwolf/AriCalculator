@@ -116,10 +116,6 @@ DISP_ESC_ESC		EQU	$FF		;transmit escape character
 DISP_ESC_CMD		EQU	$FE		;switch to command mode
 DISP_ESC_DATA		EQU	$FD		;switch to data mode
 
-;#Status flags
-DISP_STAT_BUSY		EQU	$80 		;transmission in progress
-DISP_STAT_REPEAT	EQU	$7F 		;repeat counter
-
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -138,11 +134,12 @@ DISP_BUF_IN		DS	1		;points to the next free space
 DISP_BUF_OUT		DS	1		;points to the oldest entry
 
 DISP_AUTO_LOC2		EQU	*		;2nd auto-place location
-
-;#Status flags
-DISP_STAT		EQU	((DISP_AUTO_LOC1&1)*DISP_AUTO_LOC1)+((~(DISP_AUTO_LOC1)&1)*DISP_AUTO_LOC2)
 			UNALIGN	((~DISP_AUTO_LOC1)&1)
-
+;#Ongoing transmission counter
+DISP_TXCNT		EQU	((DISP_AUTO_LOC1&1)*DISP_AUTO_LOC1)+((~(DISP_AUTO_LOC1)&1)*DISP_AUTO_LOC2)
+;#Repeat counter
+DISP_RPTCNT		DS	1
+	
 DISP_VARS_END		EQU	*
 DISP_VARS_END_LIN	EQU	@
 	
@@ -156,7 +153,8 @@ DISP_VARS_END_LIN	EQU	@
 			MOVB	#DISP_RESET_PIN, DISP_RESET_PORT ;shortcut
 			;Initialize Variables 
 			MOVW	#$0000, DISP_BUF_IN
-			CLR	DISP_STAT
+			CLR	DISP_TXCNT
+			CLR	DISP_RPTCNT
 			;Initialize SPI	
 			MOVW	#((DISP_SPICR1_CONFIG<<8)|DISP_SPICR2_CONFIG), SPICR1
 			MOVB	#DISP_SPIBR_CONFIG, SPIBR
@@ -389,7 +387,9 @@ DISP_ISR		EQU	*
 			BITA	#SPIF 						;check SPIF flag (transmission complete)
 			BEQ	DISP_ISR_1 					;check SPTEF flag (transmit buffer empty) 
 			TST	SPIDRL			   			;clear SPIF flag
-			BCLR	DISP_STAT, #DISP_STAT_BUSY 			;clear busy indicator
+			DEC	DISP_TXCNT 					;mark one transmission complete
+			;BPL	DISP_ISR_1					;saturate transmission count at zero
+			;DEC	DISP_TXCNT 					;should not be necessary
 			;Check SPTEF flag (SPISR in A)
 DISP_ISR_1		BITA	#SPTEF						;check SPTEF flag (transmit buffer empty)
 			BEQ	DISP_ISR_4					;Spi's transmit buffer is full
@@ -399,8 +399,7 @@ DISP_ISR_1		BITA	#SPTEF						;check SPTEF flag (transmit buffer empty)
 			BEQ	DISP_ISR_5 					;TX buffer is empty
 			;Check transmission counter (OUT in B) 
 			LDX	#DISP_BUF
-			LDAA	DISP_STAT
- 			ANDA	#DISP_STAT_REPEAT
+			LDAA	DISP_RPTCNT
 			BNE	DISP_ISR_7 					;repeat transmission
 			;Check for escape character (buffer pointer in X, OUT in B)
 			LDAA	B,X 						;next char->A
@@ -408,23 +407,23 @@ DISP_ISR_1		BITA	#SPTEF						;check SPTEF flag (transmit buffer empty)
 			BEQ	DISP_ISR_8 					;escape character found
 			;Transmit character (char in A, OUT in B)
 DISP_ISR_2		STAA	SPIDRL 						;transmit character
-			BSET	DISP_STAT, #DISP_STAT_BUSY 			;set busy indicator
+			INC	DISP_TXCNT 					;update transmission counter
 DISP_ISR_3		INCB							;advance OUT index
 			ANDB	#(DISP_BUF_SIZE-1)
 			STAB	DISP_BUF_OUT
 			;Done
 DISP_ISR_4		ISTACK_RTI
 			;Wait for more TX data
-DISP_ISR_5		BRSET 	DISP_STAT, #DISP_STAT_BUSY, DISP_ISR_6 		;check for ongoing transmission
+DISP_ISR_5		TST	DISP_TXCNT					;check for ongoing transmission			
+			BNE	DISP_ISR_6 					;transmission ongoing
 			MOVB	#DISP_SPICR1_CONFIG, SPICR1 			;disable SPI
 			JOB	DISP_ISR_4 					;done
 DISP_ISR_6		MOVB	#(SPE|DISP_SPICR1_CONFIG), SPICR1 		;disable transmit buffer empty interrupt
 			JOB	DISP_ISR_4 					;done
-			;Repeat transmission (buffer pointer in X, OUT in B, DISP_STAT_REPEAT in A)
+			;Repeat transmission (buffer pointer in X, OUT in B, DISP_REPCNT in A)
 DISP_ISR_7		MOVB	B,X, SPIDRL 					;Transmit data
 			DECA	
-			ORAA	#DISP_STAT_BUSY
-			STAA	DISP_STAT
+			STAA	DISP_RPTCNT
 			JOB	DISP_ISR_4 					;done
 			;Escape character found (buffer pointer in X, OUT in B)
 DISP_ISR_8		INCB							;skip ESC character 
@@ -439,22 +438,22 @@ DISP_ISR_8		INCB							;skip ESC character
 			;Set TX counter (TX count+3 in A, new OUT in B)
 			;SUBA	#4 						;adjust repeat count
 			SUBA	#3 						;adjust repeat count
-			BRCLR	DISP_STAT, #DISP_STAT_BUSY, DISP_ISR_9		;transmission in progress
-			ORAA	#DISP_STAT_BUSY
-DISP_ISR_9		STAA	DISP_STAT 					;set TX count
+DISP_ISR_9		STAA	DISP_RPTCNT 					;set TX count
 			JOB	DISP_ISR_3					;remove ESC sequence from TX buffer
 			;Transmit escape character (new OUT in B) 
 DISP_ISR_10		LDAA	#DISP_ESC_START
 			JOB	DISP_ISR_2
 			;Switch to command mode (new OUT in B) 
 DISP_ISR_11		BRCLR	DISP_A0_PORT, #DISP_A0_PIN, DISP_ISR_3		;already in command mode
-			BRSET	DISP_STAT, #DISP_STAT_BUSY, DISP_ISR_6		;transmission in progress
+			TST	SISP_TXCNT					;check for ongoing transmission
+			BNE	DISP_ISR_6 					;transmission ongoing
 			;BCLR	DISP_A0_PORT, #DISP_A0_PIN 			;switch to command mode
 			MOVB	#DISP_RESET_PIN, DISP_A0_PORT  			; shortcut
 			JOB	DISP_ISR_3					;escape sequence processed
 			;Switch to data mode (new OUT in B) 
 DISP_ISR_12		BRSET	DISP_A0_PORT, #DISP_A0_PIN, DISP_ISR_3		;already in data mode
-			BRSET	DISP_STAT, #DISP_STAT_BUSY, DISP_ISR_6		;transmission in progress
+			TST	SISP_TXCNT					;check for ongoing transmission
+			BNE	DISP_ISR_6 					;transmission ongoing
 			;BSET	DISP_A0_PORT, #DISP_A0_PIN 			;switch to data mode
 			MOVB	#(DISP_A0_PIN|DISP_RESET_PIN), DISP_A0_PORT  	; shortcut
 			JOB	DISP_ISR_3					;escape sequence processed	
