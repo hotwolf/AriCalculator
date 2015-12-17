@@ -112,8 +112,8 @@
 ;#     PS6 - SPI SCK                      (output       low      )             #
 ;#     PS7 - /SS                          (output       high     )             #
 ;#    Port T:                                                                  #
-;#     PT0 - SCI RX                       (input        no pull  )             #
-;#     PT1 - SCI_RX                       (input        no pull  )             #
+;#     PT0 - NC                           (input        no pull  )             #
+;#     PT1 - NC                           (input        no pull  )             #
 ;#     PT2 - NC                           (input        pull-up  )             #
 ;#     PT3 - NC                           (input        pull-up  )             #
 ;#     PT4 - NC                           (input        pull-up  )             #
