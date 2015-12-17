@@ -413,7 +413,7 @@ STRING_UPPER		EQU	*
 			BLO	STRING_UPPER_2
 			CMPB	#$7A		;"z"
 			BLS	STRING_UPPER_1
-			CMPB	#$EA		;"a"+$80
+			CMPB	#$E1		;"a"+$80
 			BLO	STRING_UPPER_2
 			CMPB	#$FA		;"z"+$80
 			BHI	STRING_UPPER_2

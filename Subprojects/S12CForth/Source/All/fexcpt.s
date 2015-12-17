@@ -168,8 +168,8 @@ FEXCPT_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FEXCPT_INIT, 0
-			MOVW	#$0000, HANDLER		;reset exception handler
-			MOVW	#$0000, ABORT_MSG	;clear inner message
+			MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER	;reset exception handler
+			MOVW	#FIO_EMPTY_STRING      , ABORT_MSG	;clear inner message
 #emac
 
 ;#Abort action (to be executed in addition of quit action)
@@ -179,7 +179,7 @@ FEXCPT_VARS_END_LIN	EQU	@
 ;#Quit action (to be executed in addition of SUSPEND action)
 #macro	FEXCPT_QUIT, 0
 			;Set default handler
-			MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER
+;TBD			;MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER
 #emac
 	
 ;#Suspend action
@@ -441,13 +441,13 @@ FEXCPT_PRINT_ERROR_BL	EQU	*
 			;Print info string (string pointer in X)
 			LDX	0,SP 						;info string -> X
 			BEQ	FEXCPT_PRINT_ERROR_BL_1				;no info string
-			LDX	FEXCPT_ERROR_STRING_3 				;3rd substring -> X
+			LDX	#FEXCPT_ERROR_STRING_3 				;3rd substring -> X
 			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
 			LDX	0,SP 						;info string -> X
 			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
-			LDX	FEXCPT_ERROR_STRING_4 				;4th substring -> X
+			LDX	#FEXCPT_ERROR_STRING_4 				;4th substring -> X
 			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
-FEXCPT_PRINT_ERROR_BL_1	LDX	FEXCPT_ERROR_STRING_5 				;5th substring -> X
+FEXCPT_PRINT_ERROR_BL_1	LDX	#FEXCPT_ERROR_STRING_5 				;5th substring -> X
 			FIO_PRINT_BL 						;print substring (SSTACK: 10 bytes)
 			;Done 
 			SSTACK_PREPULL	4 					;check subroutine stack
@@ -630,8 +630,8 @@ FEXCPT_ANON_NAME 	FCS		"NONAME"
 FEXCPT_ERROR_STRING_1	FIO_NL_NONTERM 				;1st substring
 			FCS		"Error "
 FEXCPT_ERROR_STRING_2	FCS		"! "			;2nd substring
-FEXCPT_ERROR_STRING_3	FCS		" ("			;3rd substring
-FEXCPT_ERROR_STRING_4	FCS		")"			;4rd substring
+FEXCPT_ERROR_STRING_3	FCS		': "'			;3rd substring
+FEXCPT_ERROR_STRING_4	FCS		'"'			;4rd substring
 FEXCPT_ERROR_STRING_5	FCS		"!"			;5rd substring
 
 ;Info output

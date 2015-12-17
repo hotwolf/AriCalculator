@@ -36,7 +36,7 @@
 ;#        SUSPEND: Restart outer interpreter                                   #
 ;#                                                                             #
 ;#        Compile mode if STATE != 0                                           #
-;#        SUSPEND mode if    IP != 0                                           #
+;#        SUSPEND mode if SHELL != 0                                           #
 ;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -54,25 +54,48 @@
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
 ;###############################################################################
-;        
-;                         +--------------+--------------+        
-;        RS_TIB_START, -> |              |              |
-;           TIB_START     |              |              | <- [TIB_OFFSET]          
-;                         |              |              | |          
-;                         |       Text Input Buffer     | | [NUMBER_TIB]
-;                         |              |              | |	       
-;                         |              v              | |	       
-;                     -+- | --- --- --- --- --- --- --- | v	       
-;          TIB_PADDING |  .                             . <- [TIB_OFFSET+NUMBER_TIB] 
-;                     -+- .                             .            
-;                         | --- --- --- --- --- --- --- |            
-;                         |              ^              | <- [RSP]
-;                         |              |              |
-;                         |        Return Stack         |
-;                         |              |              |
-;                         +--------------+--------------+
+        
+;###############################################################################
+;# Memory Layout                                                               #
+;###############################################################################
+;                                
+;                         RAM:       
+;                         +----------+----------+        
+;        RS_TIB_START, -> |          |          | |          
+;           TIB_START     |   Text Input Buffer | | [NUMBER_TIB]
+;                         |          |          | |	       
+;                         |          v          | <	       
+;                     -+- | --- --- --- --- --- | 	       
+;          TIB_PADDING |  .                     . <- [TIB_START+NUMBER_TIB] 
+;                     -+- .                     .            
+;                         | --- --- --- --- --- |            
+;                         |          ^          | <- [RSP]
+;                         |          |          |
+;                         |    Return Stack     |
+;                         |          |          |
+;                         +----------+----------+
 ;             RS_EMPTY, ->                                 
 ;           RS_TIB_END
+;
+;                         Return Stack:               	
+;                         +---------------------+     
+;                   RSP-> |                     |     
+;                         |                     |     
+;                         |                     | 
+;                         +---------------------+ <-+ 
+;                 SHELL-> |   previous SHELL    |   |
+;                         +---------------------+   |
+;                         |  xt after SUSPEND   |   |
+;                         +---------------------+   |
+;                         |   #TIB (unparsed)   |   |SUSPEND
+;                         +----------+----------+   |shell  
+;                         |alignment |          |   |stack   
+;                         +----------+          |   |frame   
+;                         |      unparsed       |   |        
+;                         |      section        |   | 
+;                         |       of TIB        |   | 
+;                         |                     |   | 
+;                         +---------------------+ <-+     
 ;
 	
 ;###############################################################################
@@ -103,7 +126,10 @@ STATE_COMPILE		EQU	TRUE
 TIB_START		EQU	RS_TIB_START
 
 ;Default line width 
-DEFAULT_LINE_WIDTH	EQU	80
+DEFAULT_LINE_WIDTH	EQU	74
+
+;Default exception handler  
+FOUTER_DEFAULT_SHELL	EQU	$0000 	;initial shell structure
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -119,6 +145,7 @@ BASE			DS	2 		;default radix
 STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
 NUMBER_TIB  		DS	2		;number of chars in the TIB
 TO_IN  			DS	2		;parse index (parse area empty if >IN = #TIB) 
+SHELL			DS	2 		;
 	
 FOUTER_VARS_END		EQU	*
 FOUTER_VARS_END_LIN	EQU	@
@@ -133,15 +160,25 @@ FOUTER_VARS_END_LIN	EQU	@
 			MOVW	#$0000, STATE	   	;interpretation state
 			MOVW	#$0000, NUMBER_TIB	;empty TIB
 			MOVW	#$0000, TO_IN		;reset parser
+			
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
+; Empty the data stack and perform the function of QUIT, which includes emptying
+; the return stack, without displaying a message. 
 #macro	FOUTER_ABORT, 0
 			MOVW	#$0000, NUMBER_TIB	;empty TIB
 			MOVW	#$0000, TO_IN		;reset parser
 #emac
 	
 ;#Quit action (to be executed in addition of SUSPEND action)
+; Empty the return stack, enter interpretation state.  Do not display a message.
+; Repeat the following: 
+; –  Accept a line from the input source into the input buffer, set >IN to zero,
+;    and interpret. 
+; –  Display the implementation-defined system prompt if in interpretation
+;    state, all processing has been completed, and no ambiguous condition
+;    exists.   
 #macro	FOUTER_QUIT, 0
 #emac
 	
@@ -155,35 +192,32 @@ FOUTER_VARS_END_LIN	EQU	@
 ; args:   none
 ; result: none
 ; SSTACK: none
-;         X is  preserved
+;         No registers are  preserved
 #macro FOUTER_PROMPT, 0
-			;Check for unparsed command line (string pointer in Y)
-			CLRA				;ignore whitespace in TIB
-			FOUTER_SKIP_DELIMITER		;check for unparsed  content
-			;Add line break (string pointer in Y, C-flag set if unparsed content found)
-			LDY	#TIB_START 		;TIB_START -> Y
-			FIO_MOVE_NL_NONTERM (FIO_NL_BYTE_COUNT,Y+);add line break
-			;Warn prompt (string pointer in Y, C-flag set if unparsed content found)
-			BCC	FOUTER_PROMPT_1		;TIB was empty
-			MOVB	#"!", 1,Y+		;add warn prompt
-FOUTER_PROMPT_1		;Check for SUSPEND mode(string pointer in Y)
-			LDD	IP			;check IP
-			BEQ	FOUTER_PROMPT_2
-			MOVB	#"S", 1,Y+		;add SUSPEND prompt
-			;Check for interactive prompt(string pointer in Y)
-FOUTER_PROMPT_2		LDD	STATE 			;check STATE
-			BNE	FOUTER_PROMPT_3		;compile state
-			MOVB	#">", 1,Y+		;add interactive prompt
-			JOB	FOUTER_PROMPT_5		;print whitespace
-			;Determine compile prompt (string pointer in Y)
-FOUTER_PROMPT_3		EQU	*			
-			LDD	NVC 			;check check for NV compile
-			BEQ	FOUTER_PROMPT_4		;RAM compile
-			MOVB	#"@", 1,Y+		;add NV compile prompt
-			JOB	FOUTER_PROMPT_5		;print whitespace
-FOUTER_PROMPT_4		MOVB	#"+", 1,Y+		;add NV compile prompt			
-			;Print whitespace (string pointer in Y)
-FOUTER_PROMPT_5		MOVB	#(STRING_SYM_SPACE|STRING_TERM), 1,Y+;add NV compile prompt
+			;Check for SUSPEND mode
+			LDD	SHELL			;check SHELL
+			BEQ	FOUTER_PROMPT_		;not in SUSPEND mode
+			PS_PUSH	#FOUTER_SUSPEND_PROMPT	;push prompt onto PS
+			EXEC_CF	CF_EMIT			;print prompt
+			;SUSPEND mode: check for COMPILE mode 
+			LDD	STATE 			;check STATE
+			BEQ	FOUTER_PROMPT_3		;print white space
+			;SUSPEND mode: check for COMPILE mode 
+FOUTER_PROMPT_1		LDX	#FOUTER_COMPILE_PROMPT	;compile prompt -> X
+			LDD	NVC			;check check for NV compile
+			BEQ	FOUTER_PROMPT_2		;RAM compile
+			LDX	#FOUTER_NVCOMPILE_PROMPT;NV compile prompt -> X
+FOUTER_PROMPT_2		PS_PUSH_X			;push prompt onto PS			
+			EXEC_CF	CF_EMIT			;print prompt
+			JOB	FOUTER_PROMPT_3		;print white space
+			;NON-SUSPEND mode: check for COMPILE mode 
+			LDD	STATE 			;check STATE
+			BNE	FOUTER_PROMPT_1		;print compile mode
+			;INTERACTIVE mode
+			PS_PUSH	#FOUTER_INTERACT_PROMPT	;push prompt onto PS
+			EXEC_CF	CF_EMIT			;print prompt
+			;Print white space
+FOUTER_PROMPT_3		EXEC_CF	CF_SPACE		;print prompt
 #emac
 
 ;#Check if a char is a delimiter 
@@ -263,14 +297,24 @@ END_OF_WORD		BSET	(TIB_START-1),Y,#FIO_TERM;terminate string
 
 ;#Look-up word in dictionaries 
 ; args:   X: string pointer (terminated string)
-; result: X: execution token (unchanged if word not found)
-;	  D: 1=immediate, -1=non-immediate, 0=not found
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
 ; SSTACK: 4 bytes
-;         Y is preserved
+;         X and Y are preserved
 #macro	FOUTER_FIND, 0	
 			SSTACK_JOBSR	FOUTER_FIND, 4
 #emac
 
+	
+;#Transform FOUTER_FIND results into FIND format
+; args:   D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
+; result: X: execution token (unchanged if word not found)
+;	  D: 1=immediate, -1=non-immediate, 0=not found
+; SSTACK: 2 bytes
+;         Y is preserved
+#macro	FOUTER_FIND_FORMAT, 0	
+			SSTACK_JOBSR	FOUTER_FIND_FORMAT, 2
+#emac
+	
 ;#Fix and load BASE
 ; args:   BASE: any base value
 ; result: B:    range adjusted base value (2<=base<=16)
@@ -391,20 +435,20 @@ FOUTER_PARSE_PREFIX_22	EQU	*
 #emac
 
 ;#Convert a character int a digit value
-; args:   B:       char
+; args:   B:       char (non-terminated)
 ; result: B:       digit (-1 if char was invalid)
-;	  N-flag : set char was invalid		
+;         N-flag:  set if char was invalid	 
 ; SSTACK: 0 bytes
 ;         X, Y, and A are preserved
 #macro	FOUTER_CHAR_2_DIGIT, 0	
-			;Chech for 
-			ANDB	#~STRING_TERM 		;remove termination
+			;Check for valid characters
+			;ANDB	#~STRING_TERM 		;remove termination
 			SUBB	#"0"			;remove "0" offset
-			BMI	FOUTER_CHAR_2_DIGIT_1	;invalid char
+			BLO	FOUTER_CHAR_2_DIGIT_1	;invalid char
 			CMPB	#9			;check for valid decimal digit
 			BLS	FOUTER_CHAR_2_DIGIT_2	;done	
 			SUBB	#(("A")-("0"))		;remove "A" offset
-			BMI	FOUTER_CHAR_2_DIGIT_1	;invalid char
+			BLO	FOUTER_CHAR_2_DIGIT_1	;invalid char
 			ADDB	#10			;add numerical offset
 #ifdef NUM_MAX_BASE_16
 			CMPB	#16			;check for valid alphanumeric digit
@@ -412,19 +456,10 @@ FOUTER_PARSE_PREFIX_22	EQU	*
 			CMPB	#32			;check for valid alphanumeric digit
 #endif
 			BLO	FOUTER_CHAR_2_DIGIT_2	;done	
-			SUBB	#(("a")-(("A")+10))	;remove "A" offset
-			BMI	FOUTER_CHAR_2_DIGIT_1	;invalid char			
-			ADDB	#10			;add numerical offset
-#ifdef NUM_MAX_BASE_16
-			CMPB	#16			;check for valid alphanumeric digit
-#else
-			CMPB	#32			;check for valid alphanumeric digit
-			BLO	FOUTER_CHAR_2_DIGIT_2	;done	
-#endif
 			;Invalid char
-FOUTER_CHAR_2_DIGIT_1	LDD	#-1	
+FOUTER_CHAR_2_DIGIT_1	LDAB	#-1	
 			;Done (digit in B)
-FOUTER_CHAR_2_DIGIT_2	EQU	*
+FOUTER_CHAR_2_DIGIT_2	TSTB
 #emac
 
 ;#Append_digit to double cell
@@ -563,27 +598,43 @@ FOUTER_PARSE_2		CLRA				;clear char count
 	
 ;#Look-up word in dictionaries 
 ; args:   X: string pointer (terminated string)
-; result: X: execution token (unchanged if word not found)
-;	  D: 1=immediate, -1=non-immediate, 0=not found
-; SSTACK: 4+? bytes
-;         Y is preserved
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
+; SSTACK: 4 bytes
+;         X and Y are preserved
 FOUTER_FIND		EQU	*	
-			;Save registers
+			;Save registers (string pointer in X)
 			PSHY				;save Y
-#ifmac	FUDICT_FIND	
-			;Search user directory
-			FUDICT_FIND 			;search FUDICT
-			TBNE	D, FOUTER_FIND_1	;search successful
-#endif
-#ifmac	FNVDICT_FIND	
-			;Search non-volatile user directory
-			FNVDICT_FIND 			;search FNVDICT
-			TBNE	D, FOUTER_FIND_1	;search successful
-#endif
+;TBD			;Search user directory (string pointer in X)
+;			FUDICT_FIND			;(SSTACK: 8 bytes)
+;			TBNE	D, FOUTER_FIND_1	;search successful
+;			;Search non-volatile user directory (string pointer in X)			
+;			FNVDICT_FIND 			;search FNVDICT
+;			TBNE	D, FOUTER_FIND_1	;search successful
 			;Search core directory
 			FCDICT_FIND 			;search CDICT
 			JOB	FOUTER_FIND_1		;done
 FOUTER_FIND_1		EQU	FOUTER_PARSE_1		;reuse parse exit
+	
+;#Transform FOUTER_FIND results into FIND format
+; args:   D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
+; result: X: execution token (unchanged if word not found)
+;	  D: 1=immediate, -1=non-immediate, 0=not found
+; SSTACK: 2 bytes
+;         Y is preserved
+FOUTER_FIND_FORMAT	EQU	*
+			;Check if conversion is required ({IMMEDIATE, CFA>>1} in D) 
+			TBEQ	D, FOUTER_FIND_FORMAT_1	;word not found
+			;Transform result ({IMMEDIATE, CFA>>1} in D) 
+			LSLD				;CFA -> D, IMMEDIATE-> C-flag
+			TFR	D, X			;CFA -> X
+			LDAB	#$00			;don't touch C-flag
+			ROLB				;IMMEDIATE -> B
+			LSLB				;2*IMMEDIATE -> B
+			DECB				;result -> B
+			SEX	B, D			;result -> D
+			;Done (results in X and D)
+FOUTER_FIND_FORMAT_1	SSTACK_PREPULL	2
+			RTS
 	
 ;#Convert a terminated string into a number (appending digits to a given double
 ; cell number)
@@ -846,8 +897,9 @@ CF_FIND			EQU	*
 			PS_CHECK_UFOF	1, 1 		;check PSP
 			STY	PSP			;new PSP -> Y
 			;Search dictionaries (PSP in Y) 
-			LDX	0,Y 			;string pointer -> X
-			FOUTER_FIND
+			LDX	2,Y 			;string pointer -> X
+			FOUTER_FIND			;(SSTACK: 4 bytes)
+			FOUTER_FIND_FORMAT		;(SSTACK: 2 bytes)
 			;Return resuls (PSP in Y, xt/string pointer in X, meta info in D)) 
 			JOB	CF_PARSE_1 		;code reuse
 			;STX	2,Y			;return xt/string pointer
@@ -893,22 +945,6 @@ CF_QUIT_SHELL		EQU	*
 			;Execute SUSPEND actions
 			;JOB	CF_SUSPEND_RT
 
-;SUSPEND shell ( -- )
-;Execute a temporary debug shell.
-; args:   none
-; result: none
-; SSTACK: 8 bytes
-; PS:     0 cells
-; RS:     5 cells
-; throws: FEXCPT_EC_PSOF
-;         FEXCPT_EC_RSOF
-;         FEXCPT_EC_COMERR
-CF_SUSPEND_SHELL	EQU	*
-			;Execute SUSPEND actions
-			FORTH_SUSPEND
-			;Start shell
-			;JOB	CF_SHELL
-	
 ;SHELL ( -- ) Generic interactive shell
 ;Common S12CForth shell. 
 ; args:   none
@@ -937,14 +973,16 @@ CF_SHELL_2		CLRA					;set delimiter to any whitespace
 			;Lookup word in dictionaries word (string pointer in X)
 CF_SHELL_3		FOUTER_FIND 				;search dictionaries
 			TBEQ	D, CF_SHELL_5			;word not in dictionaries
-			;Compile semantics (xt in X, meta info in D)
+			;Compile semantics ({IMMEDIATE, CFA>>1} in D)
+			LSLD					;extract immediate flag
+			BCS	CF_SHELL_4			;interpret, no matter what STATE
 			LDY	STATE 				;check compile state
 			BEQ	CF_SHELL_4			;interpret xt
-			DBEQ	D, CF_SHELL_4			;interpret immediate xt
 			FUDICT_COMPILE_CELL 			;compile xt
 			JOB	CF_SHELL_2 			;parse next word
-			;Interpretation semantics (xt in X, meta info in D)
-CF_SHELL_4		EXEC_CFA_X 				;execute xt
+			;Interpretation semantics (CFA in D)
+CF_SHELL_4		TFR	D, X	   			;CFA -> X
+			EXEC_CFA_X 				;execute xt
 			JOB	CF_SHELL_2 			;parse next word
 			;Interpret word as number (string pointer in X)
 CF_SHELL_5		FOUTER_INTEGER 				;interpret as integer
@@ -983,14 +1021,16 @@ CF_SHELL_9		LDD	#FEXCPT_EC_UDEFWORD 		;set error code
 			FEXCPT_PRINT_ERROR_BL			;print error message
 			;Check IP
 			LDX	IP 				;IP -> X
-			BEQ	CF_QUIT_SHELL 			;restart QUIT shell			
+			BEQ	CF_ABORT_SHELL 			;restart ABORT shell			
 			;Check HANDLER
 			LDX	HANDLER				;HANDLER -> X
 			;CPX	FEXCPT_DEFAULT_HANDLER		;=$0000
-			BEQ	CF_QUIT_SHELL 			;restart QUIT shell
-			;Restart suspend shell (HANDLER in X)
+			BEQ	CF_ABORT_SHELL 			;restart ABORT shell
 			CPX	#(RS_EMPTY-8)			;check for 4 cell exception frame
-			BHI	CF_QUIT_SHELL 			;restart QUIT shell				
+			BHI	CF_ABORT_SHELL 			;restart QUIT shell
+			;Restart suspend shell (HANDLER in X)
+			FORTH_ABORT 				;perform ABORT action (leave X untouchef)
+			STX	HANDLER				;keep HANDLER
 			STX	RSP				;restore RSP
 			MOVW	2,X, PSP			;restore PSP
 			MOVW	6,X, IP				;resore IP
@@ -1019,7 +1059,7 @@ CF_SUSPEND_HANDLER	EQU		*
 			;Enter SUSPEND shell
 			;JOB	CF_SUSPEND
 	
-;SUSPEND ( -- ) RS:( -- HANDLER PSP CF_SUSPEND_HANDLER IP)
+;SUSPEND ( -- ) RS:( -- SUSPEND frame)
 ;Enter SUSPEND mode.
 ; args:   none
 ; result: none
@@ -1030,6 +1070,30 @@ CF_SUSPEND_HANDLER	EQU		*
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
 CF_SUSPEND		EQU		*
+			;Check return stack space (3-4 cells needed on top of parse area)
+			RS_CHECK_OF	4 			;require 4 cells
+			;Determine the size of the parse area
+			LDD	NUMBER_TIB 			;#TIB -> D
+			TFR	D, X				;#TIB -> X
+			SUBD	TO_IN				;size of parse area -> D
+			BEQ	CF_SUSPEND_			;parse area is empty
+			;Add alignment char to RS (size of parse area in D #TIB in X)
+			LDY	RSP 				;RSP -> Y
+			BITB	#$01				;che
+
+
+	
+
+			;Copy parse area to RS
+			LDD	NUMBER_TIB 			;#TIB -> D
+			TFR	D, X				;#TIB -> X
+			SUBD	TO_IN				;size of parse area -> D
+			BEQ	CF_SUSPEND_			;parse area is empty
+			LEAX	TIB_START, X			;source address -> X
+			LDY	PSP				;PSP -> Y
+CF_SUSPEND_1		MOVB	1,-X, 1,-Y			;copy 
+			DBNE	D, SUSPEND_1			;copy loop
+	
 			;Push return address and exception stack frame
 			RS_PUSH4 IP CFA_SUSPEND_HANDLER PSP HANDLER
 			;Update handler
@@ -1147,14 +1211,10 @@ FOUTER_TABS_START_LIN	EQU	@
 FOUTER_SYMTAB		EQU	NUM_SYMTAB
 	
 ;System prompts
-FOUTER_NL_SUSPEND	STRING_NL_NONTERM
-			FCS	"!"
-FOUTER_NL_PLAIN   	EQU	STRING_STR_NL
+FOUTER_SUSPEND_PROMPT	FCS	"S "
 FOUTER_INTERACT_PROMPT	FCS	"> "
 FOUTER_COMPILE_PROMPT	FCS	"+ "
-#ifdef NVC
 FOUTER_NVCOMPILE_PROMPT	FCS	"@ "
-#endif
 FOUTER_SYSTEM_ACK	FCS	" ok"
 
 FOUTER_TABS_END		EQU	*

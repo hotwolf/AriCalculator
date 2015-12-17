@@ -109,8 +109,7 @@ FCDICT_VARS_END_LIN	EQU	@
 ;======================	
 ;#Look-up word in CORE dictionariy 
 ; args:   X: search string (terminated string)
-; result: X: execution token (unchanged if word not found)
-;	  D: 1=immediate, -1=non-immediate, 0=not found
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
 ; SSTACK: 8 bytes
 ;         Y is preserved
 #macro	FCDICT_FIND, 0
@@ -295,10 +294,9 @@ FCDICT_CODE_START_LIN	EQU	@
 ;======================	
 ;#Look-up word in CORE dictionary 
 ; args:   X: search string (terminated string)
-; result: X: execution token (unchanged if word not found)
-;	  D: 1=immediate, -1=non-immediate, 0=not found
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
 ; SSTACK: 8 bytes
-;         Y is preserved
+;         X and Y are preserved
 FCDICT_FIND		EQU	*	
 			;Save registers (search string in X)
 			PSHY						;save Y
@@ -306,52 +304,51 @@ FCDICT_FIND		EQU	*
 			PSHX						;search substring pointer	
 			;Initialize tree pointer (search string in X)
 			LDY	#FCDICT_TREE_START 			;start of CDICT -> Y
-			;Compare char (search string in X, CDICT pointer in Y)
-FCDICT_FIND_1		LDAA	1,X+ 					;search char -> A
-			BMI	FCDICT_FIND_5				;end of search string
-			LDAB	1,Y+ 					;dict char -> B
-			BEQ	FCDICT_find_2
-			BMI	FCDICT_FIND_8	 			;end of CDICT substring
+			;Compare chars (search string in X, CDICT pointer in Y)
+FCDICT_FIND_1		LDAB	1,X+ 					;search char -> B
+			FIO_UPPER 					;make search char upper case
+			TSTB						;check if char has been terminated
+			BMI	FCDICT_FIND_7				;end of search string
+			LDAA	1,Y+ 					;dict char -> A
+			BEQ	FCDICT_FIND_3 				;empty string (skip to next sibling)
+			BMI	FCDICT_FIND_9	 			;end of CDICT substring
 			CBA						;compare chars
 			BEQ	FCDICT_FIND_1				;compare next char
-			;Skip to next sibling (CDICT pointer in Y))
-			LDX	0,SP 					;reset search substring
-			BRCLR	1,Y+, #FIO_TERM, * 			;skip past the end of the CDICT substring
-FCDICT_find_2		TST	2,Y+ 					;check for children
-			BNE	FCDICT_FIND_3 				;no childeren found
+			;Skip to next sibling (CDICT pointer in Y)
+FCDICT_find_2		BRCLR	1,Y+, #FIO_TERM, * 			;skip past the end of the CDICT substring
+FCDICT_FIND_3		LDX	0,SP 					;reset search substring
+			TST	2,Y+ 					;check for children
+			BNE	FCDICT_FIND_4 				;no childeren found
 			LEAY	1,Y 					;adjust CDICT pointer
-FCDICT_FIND_3		TST	0,Y 					;check for end of branch
-			BNE	FCDICT_FIND_1 				;skip to nect char
+FCDICT_FIND_4		TST	0,Y 					;check for end of branch
+			BNE	FCDICT_FIND_1 				;skip to next char
 			;Search unsuccessful 
-FCDICT_FIND_4		SSTACK_PREPULL	8 				;check stack
+FCDICT_FIND_5		CLRA						;return 0=not found
+			CLRB		  				;
+			;Done (result in D) 
+FCDICT_FIND_6		SSTACK_PREPULL	8 				;check stack
 			LEAS	2,SP 					;clean up tmp vars
 			PULX						;restore X
 			PULY						;restore Y
 			RTS
-			;End of search string (CDICT pointer in Y, search char in A, CDICT char in B)
-FCDICT_FIND_5		CBA						;compare chars
-			BNE	FCDICT_FIND_4 				;search unsuccessful
-			BRCLR	0,Y, #$FF, FCDICT_FIND_7 		;check for blank children
-			LDD	0,Y
-			;Search successful ({IMMEDIATE, CFA>>1} in D)
-FCDICT_FIND_6		LSLD						;CFA -> D, IMMEDIATE -> C-flag
-			STD	2,SP 					;return CFA
-			LDAB	#$00 					;preserve C-flag
-			ROLB						;immediate flag -> B
-			LSLB						;B*2 -> B
-			DECB						;B-1 -> B
-			SEX	B, D					;B -> D
-			JOB	FCDICT_FIND_4
-			;check for blank child (CDICT pointer in Y)
-FCDICT_FIND_7		LDY	1,Y 					;skip to subtree
-			BRCLR	0,Y, #$FF, FCDICT_FIND_6 		;search successful
-			JOB	FCDICT_FIND_4 				;search unsuccessful
-			;End of CDICT substring (CDICT pointer in Y, search char in A, CDICT char in B)
-FCDICT_FIND_8		ANDB	#(~FIO_TERM) 				;remove termination
+			;End of search string (CDICT pointer in Y, CDICT char in A, search char in B)
+FCDICT_FIND_7		LDAA	1,Y+ 					;dict char -> A
+			BPL	FCDICT_find_2 				;skip to nect sibling
 			CBA						;compare chars
-			BNE	FCDICT_FIND_4 				;search unsuccessful
+			BNE	FCDICT_FIND_3 				;search unsuccessful
+			BRCLR	0,Y, #$FF, FCDICT_FIND_8 		;check for blank children
+			LDD	0,Y
+			JOB	FCDICT_FIND_6 				;search successful
+			;check for blank child (CDICT pointer in Y)
+FCDICT_FIND_8		LDY	1,Y 					;skip to subtree
+			BRCLR	0,Y, #$FF, FCDICT_FIND_6 		;search successful
+			JOB	FCDICT_FIND_5 				;search unsuccessful
+			;End of CDICT substring (CDICT pointer in Y, CDICT char in A, search char in B)
+FCDICT_FIND_9		ANDA	#(~FIO_TERM) 				;remove termination
+			CBA						;compare chars
+			BNE	FCDICT_FIND_3 				;search unsuccessful
 			TST	1,Y+ 					;check for subtree
-			BNE	FCDICT_FIND_4 				;search unsuccessful
+			BNE	FCDICT_FIND_5 				;search unsuccessful
 			STX	0,SP 					;set new search substring
 			LDY	0,Y 					;skip to subtree
 			JOB	FCDICT_FIND_1
@@ -532,6 +529,7 @@ CF_FIND_CDICT		EQU	*
 			;Search core directory (PSP in Y)
 			LDX	2,Y
 			FCDICT_FIND 			;(SSTACK: 8 bytes)
+			FOUTER_FIND_FORMAT		;(SSTACK: 2 bytes)
 			STD	0,Y
 			STX	2,Y
 			;Done
@@ -571,7 +569,7 @@ CF_WORDS_CDICT_COLCNT	EQU	(2*(FCDICT_TREE_DEPTH+2)) 	;column counter offset
 			MOVW #FCDICT_LINE_WIDTH, CF_WORDS_CDICT_COLCNT,Y;initialize column counter
 			;Check column width (PSP in Y)
 CF_WORDS_CDICT_1	FCDICT_ITERATOR_WC 			;word length -> D (SSTACK: 6 bytes)
-			ADDD	(2*(FCDICT_TREE_DEPTH+1)),Y	;add to line width
+			ADDD	CF_WORDS_CDICT_COLCNT,Y		;add to line width
 			CPD	#(FCDICT_LINE_WIDTH+1)		;check line width
 			BLS	CF_WORDS_CDICT_2 		;insert white space
 			;Insert line break (PSP in Y)			
@@ -584,21 +582,25 @@ CF_WORDS_CDICT_2	ADDD	#1				;count space char
 			EXEC_CF	CF_SPACE			;print whitespace
 			;Print word						
 CF_WORDS_CDICT_3	LDY	PSP				;PSP -> Y
-			LDX	0,Y
-CF_WORDS_CDICT_4	STY	CF_WORDS_CDICT_ITPTR,Y		;store itertator pointer
-			PS_PUSH_X				;print substring
+			STY	CF_WORDS_CDICT_ITPTR,Y		;reset itertator pointer
+			LDX	0,Y				;substring -> X
+CF_WORDS_CDICT_4	PS_PUSH_X				;print substring
 			EXEC_CF	CF_STRING_DOT			;
 			LDY	PSP				;PSP -> Y
-			LDY	CF_WORDS_CDICT_ITPTR,Y		;get itertator pointer
-			LDX	2,+Y				;get substring pointer
-			BNE	CF_WORDS_CDICT_4		;substring exists
+			LDX	CF_WORDS_CDICT_ITPTR,Y		;get itertator pointer
+			LEAX	2,X				;get substring pointer
+			STX	CF_WORDS_CDICT_ITPTR,Y		;update itertator pointer
+			LDX	0,X				;substring -> X
+			BEQ	CF_WORDS_CDICT_5	 	;substring exists
+			TST	0,X				;check for empty substring
+			BNE	CF_WORDS_CDICT_4
 			;Skip to next word						
-			LDY	PSP				;iterator pointer -> Y
+CF_WORDS_CDICT_5	LDY	PSP				;iterator pointer -> Y
 			FCDICT_ITERATOR_NEXT			;advance iterator (SSTACK: 6 bytes)
 			TST	0,Y				;check for empty iterator
 			BNE	CF_WORDS_CDICT_1		;print next word
 			;Clean up (PSP in Y)						
-CF_WORDS_CDICT_5	PS_CHECK_UF	FCDICT_TREE_DEPTH+3 	;PSP -> Y
+                	PS_CHECK_UF	FCDICT_TREE_DEPTH+3 	;PSP -> Y
 			LEAY	(2*(FCDICT_TREE_DEPTH+3)),Y
 			STY	PSP
 			NEXT

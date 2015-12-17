@@ -50,11 +50,11 @@
 ;         
 ;                           +--------------+--------------+        
 ;          RS_TIB_START, -> |              |              | |          
-;             TIB_START     |       Text Input Buffer     | | [TIB_CNT]
+;             TIB_START     |       Text Input Buffer     | | [NUMBER_TIB]
 ;                           |              |              | |	       
 ;                           |              v              | <	       
 ;                       -+- | --- --- --- --- --- --- --- | 	       
-;            TIB_PADDING |  .                             . <- [TIB_START+TIB_CNT] 
+;            TIB_PADDING |  .                             . <- [TIB_START+NUMBER_TIB] 
 ;                       -+- .                             .            
 ;                           | --- --- --- --- --- --- --- |            
 ;                           |              ^              | <- [RSP]

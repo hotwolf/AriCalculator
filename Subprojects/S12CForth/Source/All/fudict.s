@@ -221,12 +221,12 @@ FUDICT_VARS_END_LIN	EQU	@
 #emac			
 
 ;Compile cell into user dictionary
-; args:   X: cell value
+; args:   D: cell value
 ; result: X: CP_PRELIM+new bytes
 ; SSTACK: none
-;         X and D are preserved 
+;         Y and D are preserved 
 #macro	FUDICT_COMPILE_CELL, 0
-			STX	[CP] 			;store cell in next free space
+			STD	[CP] 			;store cell in next free space
 			UDICT_CHECK_OF 2		;allocate storage space
 #emac			
 
@@ -234,13 +234,12 @@ FUDICT_VARS_END_LIN	EQU	@
 ;======================	
 ;#Look-up word in user dictionary 
 ; args:   X: string pointer (terminated string)
-; result: X: execution token (unchanged if word not found)
-;	  D: 1=immediate, -1=non-immediate, 0=not found
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
 ;	  Y: start of dictionary (last NFA)
 ; SSTACK: 8 bytes
-;         No registers are preserved
+;         X is preserved
 #macro	FUDICT_FIND, 0
-			LDY	UDICT_LAST_NFA	
+			LDY	UDICT_LAST_NFA 		;start of UDICT -> Y
 			SSTACK_JOBSR	FUDICT_FIND, 8
 #emac
 	
@@ -389,16 +388,13 @@ FUDICT_CODE_START_LIN	EQU	@
 ;#Look-up word in user dictionary 
 ; args:   X: string pointer (terminated string)
 ;	  Y: start of dictionary (last NFA)
-; result: X: execution token (unchanged if word not found)
-;	  D: 1=immediate, -1=non-immediate, 0=not found
+; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
 ; SSTACK: 8 bytes
-;         Y is preserved
+;         X and Y are preserved
 FUDICT_FIND		EQU	*
 			;Save registers (string pointer in X, start of dictionary in Y)
-			PSHY						;start of dictionary
 			PSHX						;string pointer
-			;Allocate iterator (string pointer in X, start of dictionary in Y)
-			;FUDICT_ITERATOR_FIRST	(2,-SP)			;ITERATOR -> 0,SP
+			PSHY						;start of dictionary
 			PSHY						;ITERATOR -> 0,SP
 			;Compare strings (string pointer in X)
 			LDY	0,SP					;current NFA -> Y
@@ -410,17 +406,11 @@ FUDICT_FIND_2		LDAB	1,X+					;string char -> A
 			;Match (pointer to code field or padding in Y)
 			FUDICT_WORD_ALIGN Y 				;word align Y
 			LDD	2,Y 					;{IMMEDIATE, CFA>>1} -> D
-			TFR	X, D					;{IMMEDIATE, CFA>>1} -> X
-			LEAX	D,X					;CFA -> X
-			CLRB
-			LSLA						;immediate flag -> C
-			ROLB						;immediate flag -> B
-			LSLB						;B*2 -> B
-			DECB						;B-1 -> B
-			SEX	B, D					;B -> D
-			;Done (result in D, execution token/string pointer X)
+			;Done (result in D)
 FUDICT_FIND_3		SSTACK_PREPULL	8 				;check stack
-			LDY	4,+SP					;restore Y	
+			LEAS	2,SP 					;clean up temporary variables
+			PULY						;restore Y
+			PULX						;restore X
 			RTS
 			;Mismatch
 FUDICT_FIND_4		FUDICT_ITERATOR_NEXT	(0,SP) 			;advance iterator
@@ -429,7 +419,6 @@ FUDICT_FIND_4		FUDICT_ITERATOR_NEXT	(0,SP) 			;advance iterator
 			;Search unsuccessful (string pointer in X)
 			CLRA						;set result
 			CLRB						; -> not found
-			LDX	2,SP	      				;restore X
 			JOB	FUDICT_FIND_3 				;done
 
 ;#Reverse lookup a CFA and print the corresponding word
@@ -524,6 +513,7 @@ CF_FIND_UDICT		EQU	*
 			;Search core directory (PSP in Y)
 			LDX	2,Y
 			FUDICT_FIND 			;(SSTACK: 8 bytes)
+			FOUTER_FIND_FORMAT		;(SSTACK: 2 bytes)
 			STD	0,Y
 			STX	2,Y
 			;Done
