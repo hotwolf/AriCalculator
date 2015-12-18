@@ -74,7 +74,6 @@ RANDOM_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization (initialization done by ISTACK module)
 #macro	RANDOM_INIT, 0
-#emac
 			RANDOM_SEED 			;set a random seed
 #emac
 	
@@ -84,8 +83,8 @@ RANDOM_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         X, Y, and D are preserved 
 #macro	RANDOM_SEED, 0
-			LDD	LSFR_SEED 		;start RAM content
-			ADD	TCNT			;add TIM counter
+			LDD	RANDOM_LSFR 		;start RAM content
+			ADDD	TCNT			;add TIM counter
 			EXG	A, B			;swap nibbles
 			BNE	DONE			;done
 			LDD	#$1234			;non-zero seed
