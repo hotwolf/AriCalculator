@@ -149,7 +149,7 @@ START_OF_CODE		EQU	*		;Start of code
 ;			LDX	#TEST_WORD
 ;			FCDICT_FIND
 ;			BGND
-;TEST_WORD		FCS	"words-udictx"
+;TEST_WORD		FCS	"words-udict"
 	
 			;Enter QUIT shell
 			JOB	CF_QUIT_SHELL

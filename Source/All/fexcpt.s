@@ -176,13 +176,13 @@ FEXCPT_VARS_END_LIN	EQU	@
 #macro	FEXCPT_ABORT, 0
 #emac
 	
-;#Quit action (to be executed in addition of SUSPEND action)
+;#Quit action
 #macro	FEXCPT_QUIT, 0
 			;Set default handler
 ;TBD			;MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER
 #emac
 	
-;#Suspend action
+;#Suspend action (to be executed in addition of quit action)
 #macro	FEXCPT_SUSPEND, 0
 #emac
 
@@ -503,25 +503,23 @@ FEXCPT_UNCOUGHT_HANDLER	EQU	*
 ;         no registers are preserved 
 FEXCPT_THROW		EQU	*
 			;Check if the excption is cought (error code in D)
-			LDX	HANDLER						;check if an exception handler exists
-			BEQ	FEXCPT_UNCOUGHT_HANDLER				;use default exception handler
-			;Caught exception (error code in D, HANDLER in X)
-			CPX	RSP 						;check that HANDLER is on the RS
-			BLO	FEXCPT_UNCOUGHT_HANDLER   			;error frame is located above the stack
-			CPX	#(RS_EMPTY-6)					;check for 3 cell exception frame
-			BHI	FEXCPT_UNCOUGHT_HANDLER 			;no error frame is located on the stack					
-			;Restore stacks (HANDLER in X, error code in D)
+			LDX	HANDLER						;HANDLER -> X
+			BEQ	FEXCPT_UNCOUGHT_HANDLER 			;uncought exception
+			LEAY	-(2*3),Y 					;HANDLER - frame size -> Y
+			CPY	SHELL 						;compare against SUSPEND shell nesting
+			BHS	 FEXCPT_UNCOUGHT_HANDLER			;uncought exception
+			;HANDLER is trusted to be valid -> no checks (error code in D, HANDLER in X)
+			;CPX	RSP 						;compare against RSP
+			;BLO	FEXCPT_UNCOUGHT_HANDLER 			;uncought exception
+			;CPY	#RS_EMPTY					;compare against botton of RS
+			;BHI	FEXCPT_UNCOUGHT_HANDLER 			;uncought exception		
+			;Caught exception (error code in D, new RSP in X)
 			MOVW	2,X+, HANDLER					;pull previous HANDLER (RSP -> X)
 			LDY	2,X+						;pull previous PSP (RSP -> X)		
+			STY	PSP						;update PSP
 			MOVW	2,X+, IP					;pull next IP (RSP -> X)		
-			STX	RSP
-			;Check if PSP is valid (new PSP in Y, error code in D)
-			CPY	#PS_EMPTY 					;check for PS underflow
-			BHI	FEXCPT_UNCOUGHT_HANDLER	  			;invalid exception handler
-			LDX	PAD
-			LEAX	2,X	     					;make sure there is room for the return value
-			BLO	FEXCPT_UNCOUGHT_HANDLER	  				;invalid exception handler
-			;Push error code onto PS (new in Y, error code in D)
+			STX	RSP 						;update RSP
+			;Push error code onto PS (new PSP in Y, error code in D)
 			STD	2,-Y						;push error code onto PS
 			STY	PSP						;set PSP
 			NEXT

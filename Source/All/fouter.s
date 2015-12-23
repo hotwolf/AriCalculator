@@ -85,17 +85,17 @@
 ;                         +---------------------+ <-+ 
 ;                 SHELL-> |   previous SHELL    |   |
 ;                         +---------------------+   |
-;                         |  xt after SUSPEND   |   |
+;                         |   IP at SUSPEND     |   |
 ;                         +---------------------+   |
 ;                         |   #TIB (unparsed)   |   |SUSPEND
-;                         +----------+----------+   |shell  
-;                         |alignment |          |   |stack   
-;                         +----------+          |   |frame   
-;                         |      unparsed       |   |        
+;                         +---------------------+   |shell  
+;                         |                     |   |stack   
+;                         |      unparsed       |   |frame         
 ;                         |      section        |   | 
 ;                         |       of TIB        |   | 
-;                         |                     |   | 
-;                         +---------------------+ <-+     
+;                         +----------+          |   |
+;                         |alignment |          |   |
+;                         +----------+----------+ <-+     
 ;
 	
 ;###############################################################################
@@ -145,7 +145,7 @@ BASE			DS	2 		;default radix
 STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
 NUMBER_TIB  		DS	2		;number of chars in the TIB
 TO_IN  			DS	2		;parse index (parse area empty if >IN = #TIB) 
-SHELL			DS	2 		;
+SHELL			DS	2 		;shell frame pointer
 	
 FOUTER_VARS_END		EQU	*
 FOUTER_VARS_END_LIN	EQU	@
@@ -160,18 +160,18 @@ FOUTER_VARS_END_LIN	EQU	@
 			MOVW	#$0000, STATE	   	;interpretation state
 			MOVW	#$0000, NUMBER_TIB	;empty TIB
 			MOVW	#$0000, TO_IN		;reset parser
-			
+			MOVW	#$0000, SHELL		;reset SHELL
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
 ; Empty the data stack and perform the function of QUIT, which includes emptying
 ; the return stack, without displaying a message. 
 #macro	FOUTER_ABORT, 0
-			MOVW	#$0000, NUMBER_TIB	;empty TIB
-			MOVW	#$0000, TO_IN		;reset parser
+			MOVW	#$0000, STATE	   	;interpretation state
+			MOVW	#$0000, SHELL		;reset SHELL
 #emac
 	
-;#Quit action (to be executed in addition of SUSPEND action)
+;#Quit action
 ; Empty the return stack, enter interpretation state.  Do not display a message.
 ; Repeat the following: 
 ; –  Accept a line from the input source into the input buffer, set >IN to zero,
@@ -180,9 +180,11 @@ FOUTER_VARS_END_LIN	EQU	@
 ;    state, all processing has been completed, and no ambiguous condition
 ;    exists.   
 #macro	FOUTER_QUIT, 0
+			MOVW	#$0000, NUMBER_TIB	;empty TIB
+			MOVW	#$0000, TO_IN		;reset parser
 #emac
 	
-;#Suspend action
+;#Suspend action (to be executed in addition of QUIT action)
 #macro	FOUTER_SUSPEND, 0
 #emac
 
@@ -196,12 +198,12 @@ FOUTER_VARS_END_LIN	EQU	@
 #macro FOUTER_PROMPT, 0
 			;Check for SUSPEND mode
 			LDD	SHELL			;check SHELL
-			BEQ	FOUTER_PROMPT_		;not in SUSPEND mode
+			BEQ	FOUTER_PROMPT_3		;not in SUSPEND mode
 			PS_PUSH	#FOUTER_SUSPEND_PROMPT	;push prompt onto PS
 			EXEC_CF	CF_EMIT			;print prompt
 			;SUSPEND mode: check for COMPILE mode 
 			LDD	STATE 			;check STATE
-			BEQ	FOUTER_PROMPT_3		;print white space
+			BEQ	FOUTER_PROMPT_4		;print white space
 			;SUSPEND mode: check for COMPILE mode 
 FOUTER_PROMPT_1		LDX	#FOUTER_COMPILE_PROMPT	;compile prompt -> X
 			LDD	NVC			;check check for NV compile
@@ -209,15 +211,15 @@ FOUTER_PROMPT_1		LDX	#FOUTER_COMPILE_PROMPT	;compile prompt -> X
 			LDX	#FOUTER_NVCOMPILE_PROMPT;NV compile prompt -> X
 FOUTER_PROMPT_2		PS_PUSH_X			;push prompt onto PS			
 			EXEC_CF	CF_EMIT			;print prompt
-			JOB	FOUTER_PROMPT_3		;print white space
+			JOB	FOUTER_PROMPT_4		;print white space
 			;NON-SUSPEND mode: check for COMPILE mode 
-			LDD	STATE 			;check STATE
+FOUTER_PROMPT_3			LDD	STATE 			;check STATE
 			BNE	FOUTER_PROMPT_1		;print compile mode
 			;INTERACTIVE mode
 			PS_PUSH	#FOUTER_INTERACT_PROMPT	;push prompt onto PS
 			EXEC_CF	CF_EMIT			;print prompt
 			;Print white space
-FOUTER_PROMPT_3		EXEC_CF	CF_SPACE		;print prompt
+FOUTER_PROMPT_4		EXEC_CF	CF_SPACE		;print prompt
 #emac
 
 ;#Check if a char is a delimiter 
@@ -228,7 +230,7 @@ FOUTER_PROMPT_3		EXEC_CF	CF_SPACE		;print prompt
 ;         All registers preserved
 #macro	FOUTER_CHECK_DELIMITER, 0
 			TBNE	A, CUSTOM_DELIMITER  	;custom delimiter
-			CMPB	#FIO_SYM_SPACE	;" "
+			CMPB	#FIO_SYM_SPACE		;" "
 			BEQ	DONE
 			CMPB	#FIO_SYM_TAB		;tab
 			JOB	DONE
@@ -761,9 +763,110 @@ FOUTER_INTEGER_5	LDAB	0,X 			;check string for double cell format
 FOUTER_INTEGER_6	EXG	D, Y			;D <-> Y
 			LDX	#2			;cell count -> X
 			JOB	FOUTER_INTEGER_4	;clean up stack
+	
+;Inner interpreter:
+;==================
+;#ABORT_NEXT: Force ABORT
+; args:	  IP:   pointer to next instruction
+; result: IP:   pointer to current instruction
+;         W/X:  new CFA
+;         Y:    IP (=pointer to current instruction)
+; PS:     none
+; RS:     none
+; throws: none
+ABORT_NEXT		EQU	CF_ABORT_SHELL
 
+;#SUSPEND_NEXT: Restore NP and enter SUSPEND Mode
+; args:	  IP:   pointer to next instruction
+; result: IP:   pointer to current instruction
+;         W/X:  new CFA
+;         Y:    IP (=pointer to current instruction)
+; PS:     none
+; RS:     none
+; throws: none
+SUSPEND_NEXT		EQU	*
+#ifdef	IRQ_NEXT
+			MOVW	#IRQ_NEXT, NP 			;switch NP
+#else
+			MOVW	#NEXT,  NP 			;switch NP
+#endif	
+			;JOB	CF_SUSPEND			;enter SUSPEND mode
+	
 ;Code fields:
 ;============
+;SUSPEND ( -- ) RS:( -- SUSPEND frame)
+;Enter SUSPEND mode.
+; args:   none
+; result: none
+; SSTACK: 16 bytes
+; PS:     0 cells
+; RS:     5 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+CF_SUSPEND		EQU		*
+			;Check return stack space (3-4 cells needed on top of parse area)
+			RS_CHECK_OF	4 			;require 4 cells (
+			;Determine the size of the remaining parse area
+			LDY	RSP 				;RSP -> Y
+			LDX	NUMBER_TIB 			;#TIB -> X
+			TFR	X, D				;#TIB -> D
+			LEAX	TIB_START,X			;end of TIB -> X
+			SUBD	TO_IN				;unparsed char count -> D
+			BEQ	CF_SUSPEND_2			;parse area is empty	
+			ADDD	#1				;word align parse area
+			LSRD					;unparsed word count -> D
+			;Save remaining parse area onto RS (unparsed word count in D,  #TIB in X, RSP in Y)
+CF_SUSPEND_1		MOVW	2,-X, 2,-Y 			;copy loop
+			DBNE	D, CF_SUSPEND_1			;next iteration
+			LDD	NUMBER_TIB			;recalculate unparsed char count
+			SUBD	TO_IN				;unparsed char count -> D
+			;Complete SUSPEND shell frame (unparsed word count in D, new RSP in Y)
+CF_SUSPEND_2		STD	2,-Y 				;push new #TIB onto the RS		
+			MOVW	IP, 2,-Y			;push current IP onto the RS
+			MOVW	SHELL, 2,-Y			;push SHELL onto the RS
+			;STY	PSP				;update PSP (already done in CF_SHELL))
+			STY	SHELL				;update SHELL
+			;Perform SUSPEND ACTION 
+			FORTH_SUSPEND
+			;Start new QUIT shell
+			JOB	CF_QUIT_SHELL
+
+;RESUME ( -- ) RS:( SUSPEND frame -- )
+;Resume from a temporary debug shell.
+; args:   none
+; result: none
+; SSTACK: 16 bytes
+; PS:     0 cell
+; RS:     0 cells
+; throws: FEXCPT_EC_PSOF
+;         FEXCPT_EC_RSOF
+;         FEXCPT_EC_COMERR
+CF_RESUME		EQU	*
+			;Restore SHELL
+			LDX	SHELL 				;SHELL -> X
+			BEQ	CF_RESUME_3			;not in SUSPEND mode
+			;SHELL is trusted to be valid -> no checks (SHELL in X)
+			;CPX	RSP 				compare against RSP
+			;BLO	CF_ABORT_SHELL 			;SHELL corrupted
+			;CPX	#(RS_EMPTY-(2*3)) 		;compare against botton of RS
+			;BHI	CF_ABORT_SHELL			;SHELL corrupted
+			;Restore state variables (RSP in X)
+			MOVW	#$0000, TO_IN			;reset parse pointer
+			MOVW	2,X+, SHELL 			;restore SHELL
+			MOVW	2,X+, IP 			;restore IP
+			LDD	2,X+				;unparsed char count -> D
+			STD	 NUMBER_TIB 			;restore #TIB
+			BEQ	CF_RESUME_2			;TIB is empty
+			;Restore TIB (new RSP in X, unparsed char count in D)
+			ADDD	#1				;word align char count
+			LSRD					;unparsed word count -> D
+			LDY	#TIB_START			;TIB_START
+CF_RESUME_1		MOVW	2,X+, 2,Y+			;copy loop
+			DBNE	D, CF_RESUME_1			;next iteration
+			;Done (new RSP in X)
+CF_RESUME_2		STX	RSP 				;update RSP
+CF_RESUME_3		NEXT
 
 ;QUERY ( -- ) Query command line input
 ;Make the user input device the input source. Receive input into the terminal
@@ -956,6 +1059,10 @@ CF_QUIT_SHELL		EQU	*
 ;         FEXCPT_EC_RSOF
 ;         FEXCPT_EC_COMERR
 CF_SHELL		EQU	*
+			;Set RSP to current shell stack frame (SHELL is trusted to have valid content) 
+			LDX	SHELL 				;shell stack frame -> X
+			BEQ	CF_SHELL_1			;skip for non-suspend shell 
+			STX	RSP				;adjust RSP
 			;Print shell prompt
 CF_SHELL_1		FOUTER_PROMPT 				;assemble prompt in TIB
 			PS_PUSH	#TIB_START			;TIB pointer -> PS
@@ -1019,105 +1126,8 @@ CF_SHELL_8		LDD	STATE 				;check compile state
 			;Syntax error (string pointer in X)
 CF_SHELL_9		LDD	#FEXCPT_EC_UDEFWORD 		;set error code
 			FEXCPT_PRINT_ERROR_BL			;print error message
-			;Check IP
-			LDX	IP 				;IP -> X
-			BEQ	CF_ABORT_SHELL 			;restart ABORT shell			
-			;Check HANDLER
-			LDX	HANDLER				;HANDLER -> X
-			;CPX	FEXCPT_DEFAULT_HANDLER		;=$0000
-			BEQ	CF_ABORT_SHELL 			;restart ABORT shell
-			CPX	#(RS_EMPTY-8)			;check for 4 cell exception frame
-			BHI	CF_ABORT_SHELL 			;restart QUIT shell
-			;Restart suspend shell (HANDLER in X)
-			FORTH_ABORT 				;perform ABORT action (leave X untouchef)
-			STX	HANDLER				;keep HANDLER
-			STX	RSP				;restore RSP
-			MOVW	2,X, PSP			;restore PSP
-			MOVW	6,X, IP				;resore IP
-			JOB	CF_SUSPEND_SHELL		;restart SUSPEND shell
+			JOB	CF_ABORT_SHELL 			;restart ABORT shell			
 	
-;SUSPEND handler (ERROR -- )
-;Enter SUSPEND mode.
-; args:   none
-; result: none
-; SSTACK: 26 bytes
-; PS:     0 cells
-; RS:     5 cells
-; throws: FEXCPT_EC_PSOF
-;         FEXCPT_EC_RSOF
-;         FEXCPT_EC_COMERR
-CF_SUSPEND_HANDLER	EQU		*
-			;Pull error code from PS
-			PS_PULL_D
-			;Don't catch ABORTs (error code in D)
-			CPD	#FEXCPT_EC_ABORT  		;check error code
-			BEQ	FEXCPT_THROW			;rethroe ABORT
-			CPD	#FEXCPT_EC_ABORTQ  		;check error code
-			BEQ	FEXCPT_THROW			;rethroe ABORTQ
-			;Print error message (error code in D)
-			;FEXCPT_PRINT_MSG 			;Print error message (SSTACK: 26 bytes)
-			;Enter SUSPEND shell
-			;JOB	CF_SUSPEND
-	
-;SUSPEND ( -- ) RS:( -- SUSPEND frame)
-;Enter SUSPEND mode.
-; args:   none
-; result: none
-; SSTACK: 16 bytes
-; PS:     0 cells
-; RS:     5 cells
-; throws: FEXCPT_EC_PSOF
-;         FEXCPT_EC_RSOF
-;         FEXCPT_EC_COMERR
-CF_SUSPEND		EQU		*
-			;Check return stack space (3-4 cells needed on top of parse area)
-			RS_CHECK_OF	4 			;require 4 cells
-			;Determine the size of the parse area
-			LDD	NUMBER_TIB 			;#TIB -> D
-			TFR	D, X				;#TIB -> X
-			SUBD	TO_IN				;size of parse area -> D
-			BEQ	CF_SUSPEND_			;parse area is empty
-			;Add alignment char to RS (size of parse area in D #TIB in X)
-			LDY	RSP 				;RSP -> Y
-			BITB	#$01				;che
-
-
-	
-
-			;Copy parse area to RS
-			LDD	NUMBER_TIB 			;#TIB -> D
-			TFR	D, X				;#TIB -> X
-			SUBD	TO_IN				;size of parse area -> D
-			BEQ	CF_SUSPEND_			;parse area is empty
-			LEAX	TIB_START, X			;source address -> X
-			LDY	PSP				;PSP -> Y
-CF_SUSPEND_1		MOVB	1,-X, 1,-Y			;copy 
-			DBNE	D, SUSPEND_1			;copy loop
-	
-			;Push return address and exception stack frame
-			RS_PUSH4 IP CFA_SUSPEND_HANDLER PSP HANDLER
-			;Update handler
-			MOVW	RSP, HANDLER
-			;Switch to suspend shell
-			JOB	CF_SUSPEND_SHELL
-
-;RESUME ( -- ) RS:( HANDLER PSP CF_SUSPEND_HANDLER IP -- )
-;Resume from a temporary debug shell.
-; args:   none
-; result: none
-; SSTACK: 16 bytes
-; PS:     0 cell
-; RS:     0 cells
-; throws: FEXCPT_EC_PSOF
-;         FEXCPT_EC_RSOF
-;         FEXCPT_EC_COMERR
-CF_RESUME		EQU	*
-			;Check return stack
-			RS_CHECK_UF	5 			;exception frame and IP expected
-			LEAX	(2*4),X				;remove exception reame
-			;Resume execution (RSP in X) 
-			MOVW	IP, 2,X+ 			;restore IP
-			NEXT
 
 ;>NUMBER ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 ) 
 ;ud2 is the unsigned result of converting the characters within the string
@@ -1362,10 +1372,6 @@ CFA_LITERAL_RT		DW	CF_LITERAL_RT
 ;"Parameter stack overflow"
 CFA_TWO_LITERAL_RT	DW	CF_TWO_LITERAL_RT
 
-;SUSPEND handler (ERROR -- )
-;Enter SUSPEND mode.
-CFA_SUSPEND_HANDLER	DW	CF_SUSPEND_HANDLER
-	
 FOUTER_WORDS_END	EQU	*
 FOUTER_WORDS_END_LIN	EQU	@
 #endif

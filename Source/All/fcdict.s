@@ -111,7 +111,7 @@ FCDICT_VARS_END_LIN	EQU	@
 ; args:   X: search string (terminated string)
 ; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
 ; SSTACK: 8 bytes
-;         Y is preserved
+;         X and Y are preserved
 #macro	FCDICT_FIND, 0
 			SSTACK_JOBSR	FCDICT_FIND, 8
 #emac
@@ -311,11 +311,11 @@ FCDICT_FIND_1		LDAB	1,X+ 					;search char -> B
 			BMI	FCDICT_FIND_7				;end of search string
 			LDAA	1,Y+ 					;dict char -> A
 			BEQ	FCDICT_FIND_3 				;empty string (skip to next sibling)
-			BMI	FCDICT_FIND_9	 			;end of CDICT substring
+			BMI	FCDICT_FIND_10	 			;end of CDICT substring
 			CBA						;compare chars
 			BEQ	FCDICT_FIND_1				;compare next char
 			;Skip to next sibling (CDICT pointer in Y)
-FCDICT_find_2		BRCLR	1,Y+, #FIO_TERM, * 			;skip past the end of the CDICT substring
+FCDICT_FIND_2		BRCLR	1,Y+, #FIO_TERM, * 			;skip past the end of the CDICT substring
 FCDICT_FIND_3		LDX	0,SP 					;reset search substring
 			TST	2,Y+ 					;check for children
 			BNE	FCDICT_FIND_4 				;no childeren found
@@ -336,15 +336,15 @@ FCDICT_FIND_7		LDAA	1,Y+ 					;dict char -> A
 			BPL	FCDICT_find_2 				;skip to nect sibling
 			CBA						;compare chars
 			BNE	FCDICT_FIND_3 				;search unsuccessful
-			BRCLR	0,Y, #$FF, FCDICT_FIND_8 		;check for blank children
-			LDD	0,Y
+			BRCLR	0,Y, #$FF, FCDICT_FIND_9 		;check for blank children
+FCDICT_FIND_8		LDD	0,Y
 			JOB	FCDICT_FIND_6 				;search successful
 			;check for blank child (CDICT pointer in Y)
-FCDICT_FIND_8		LDY	1,Y 					;skip to subtree
-			BRCLR	0,Y, #$FF, FCDICT_FIND_6 		;search successful
+FCDICT_FIND_9		LDY	1,Y 					;skip to subtree
+			BRCLR	1,Y+, #$FF, FCDICT_FIND_8		;search successful
 			JOB	FCDICT_FIND_5 				;search unsuccessful
 			;End of CDICT substring (CDICT pointer in Y, CDICT char in A, search char in B)
-FCDICT_FIND_9		ANDA	#(~FIO_TERM) 				;remove termination
+FCDICT_FIND_10		ANDA	#(~FIO_TERM) 				;remove termination
 			CBA						;compare chars
 			BNE	FCDICT_FIND_3 				;search unsuccessful
 			TST	1,Y+ 					;check for subtree

@@ -129,22 +129,22 @@ FINNER_VARS_END_LIN	EQU	@
 			MOVW	#NEXT,  NP
 #emac
 	
-;#Quit action (to be executed in addition of SUSPEND action)
+;#Quit action
 #macro	FINNER_QUIT, 0
-;TBD			;MOVW	#$0000, IP
+			;MOVW	#$0000, IP
 #emac
 	
-;#Suspend action
+;#Suspend action (to be executed in addition of QUIT action)
 #macro	FINNER_SUSPEND, 0
 #emac
 	
 ;Inner interpreter:
 ;==================
 ;#NEXT:	Jump to the next instruction
-; args:	  IP:   pointer to next instruction
-; result: IP:   pointer to current instruction
-;         W/X:  new CFA
-;         Y:    IP (=pointer to current instruction)
+; args:	  IP:  points to the current instruction
+; result: IP:  points to next instruction
+;         W/X: new CFA
+;         Y:   IP (=pointer to current instruction)
 ; SSTACK: none
 ;         No registers are preserved
 #macro	NEXT, 0	
@@ -152,10 +152,10 @@ FINNER_VARS_END_LIN	EQU	@
 #emac
 
 ;#SKIP_NEXT: Skip next instruction and jump to one after
-; args:	  IP:   pointer to next instruction
-; result: IP:   pointer to current instruction
-;         W/X:  new CFA
-;         Y:    IP (=pointer to current instruction)
+; args:	  IP:  points to the current instruction
+; result: IP:  points to next instruction
+;         W/X: new CFA
+;         Y:   IP (=pointer to current instruction)
 ; SSTACK: none
 ;         No registers are preserved
 #macro	SKIP_NEXT, 0	
@@ -163,10 +163,10 @@ FINNER_VARS_END_LIN	EQU	@
 #emac
 
 ;#JUMP_NEXT: Read the next word entry and jump to that instruction 
-; args:	  IP:   pointer to next instruction
-; result: IP:   pointer to current instruction
-;         W/X:  new CFA
-;         Y:    IP (=pointer to current instruction)
+; args:	  IP:  points to the current instruction
+; result: IP:  points to next instruction
+;         W/X: new CFA
+;         Y:   IP (=pointer to current instruction)
 ; SSTACK: none
 ;         No registers are preserved
 #macro	JUMP_NEXT, 0	
@@ -286,9 +286,8 @@ FINNER_CODE_START_LIN	EQU	@
 ;==================
 
 ;#SKIP_NEXT: skip the next instruction and jump to the one after
-; args:	  IP:  pointer to next instruction
-;	  IRQ: pending interrupt requests
-; result: IP:  pointer to current instruction
+; args:	  IP:  points to the current instruction
+; result: IP:  points to next instruction
 ;         W/X: new CFA
 ;         Y:   IP (=pointer to current instruction)
 ; SSTACK: none
@@ -306,9 +305,8 @@ SKIP_NEXT		EQU	*
 							;                         29 cycles
 
 ;#JUMP_NEXT: Read the next word entry and jump to that instruction 
-; args:	  IP:  pointer to next instruction
-;	  IRQ: pending interrupt requests
-; result: IP:  pointer to current instruction
+; args:	  IP:  points to the current instruction
+; result: IP:  points to next instruction
 ;         W/X: new CFA
 ;         Y:   IP (=pointer to current instruction)
 ; SSTACK: none
@@ -327,10 +325,11 @@ JUMP_NEXT		EQU	*
 							;                         31 cycles
 
 ;#NEXT: jump to the next instruction
-; args:	  IP:   pointer to next instruction
-; result: IP:   pointer to current instruction
-;         W/X:  new CFA
-;         Y:    IP (=pointer to current instruction)
+; args:	  IP:  points to the current instruction
+; result: IP:  points to next instruction
+;         W/X: new CFA
+;         Y:   IP (=pointer to current instruction)
+; SSTACK: none
 ; PS:     none
 ; RS:     none
 ; throws: none
