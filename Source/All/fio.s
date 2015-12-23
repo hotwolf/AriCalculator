@@ -251,7 +251,7 @@ FIO_VARS_END_LIN	EQU	@
 	
 ;#Convert a lower case character to upper case
 ; args:   B: ASCII character (w/ or w/out termination)
-; result: B: lower case ASCII character 
+; result: B: upper case ASCII character 
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
 #macro	FIO_UPPER, 0
@@ -541,7 +541,7 @@ FIO_TABS_END_LIN	EQU	@
 			ORG 	FIO_WORDS_START
 FIO_WORDS_START_LIN	EQU	@
 #endif	
-			ALIGN	1
+			ALIGN	1, $FF
 ;#ANSForth Words:
 ;================
 ;Word: EKEY ( u --  )

@@ -48,7 +48,7 @@
 ;                       |   |   Node pointer  |   |a   
 ;                       |   +--------+--------+   |t 
 ;                       |   :                 :   |h
-;          1+           |   +--------+--------+   V
+;          2+           |   +--------+--------+   V
 ; (2*FCDICT_TREE_DEPTH) |   |   Node pointer  | <- end of path
 ;                       |   +--------+--------+ 
 ;                       |   |      NULL       | 
@@ -575,7 +575,7 @@ CF_WORDS_CDICT_1	FCDICT_ITERATOR_WC 			;word length -> D (SSTACK: 6 bytes)
 			;Insert line break (PSP in Y)			
 			MOVW	#$0000, CF_WORDS_CDICT_COLCNT,Y	;reset column counter
 			EXEC_CF	CF_CR 				;print line break
-			JOB	CF_WORDS_CDICT_3			;print word
+			JOB	CF_WORDS_CDICT_3		;print word
 			;Insert white space (PSP in Y, new column count in D)			
 CF_WORDS_CDICT_2	ADDD	#1				;count space char
 			STD	CF_WORDS_CDICT_COLCNT,Y		;update column counter

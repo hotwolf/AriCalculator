@@ -89,6 +89,9 @@
 ;Bottom of parameter stack
 PS_EMPTY		EQU	UDICT_PS_END
 
+;Max. line length
+FPS_LINE_WIDTH		EQU	DEFAULT_LINE_WIDTH
+
 ;Error codes
 #ifndef FPS_NO_CHECK	EQU	1 
 FPS_EC_OF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
@@ -129,7 +132,7 @@ FPS_VARS_END_LIN	EQU	@
 #macro	FPS_QUIT, 0
 #emac
 	
-;#Suspend action
+;#Suspend action (to be executed in addition of quit action)
 #macro	FPS_SUSPEND, 0
 #emac
 
@@ -587,10 +590,23 @@ CF_TWO_ROT_1		EQU	CF_SWAP_1
 ; PS:      4 cells
 ; RS:      1 cell
 ; throws: FEXCPT_EC_PSOF
-;CF_DOT_S		EQU	*
-;			;Print header
-;			PS_PUSH	#FPS_DOT_S_HEADER
-;			EXEC_CF	CF_STRING_DOT
+CF_DOT_S		EQU	*
+			;PS layout:
+			; +--------+--------+
+			; |     Iterator    | PSP+0
+			; +--------+--------+
+			; | Column counter  | PSP+2
+			; +--------+--------+
+			;Print header
+			PS_PUSH	#FPS_DOT_S_HEADER
+			EXEC_CF	CF_STRING_DOT
+			NEXT
+
+;			;Reserve and populate local stack space
+;			FPS_CHECK_OF	2 			;reserve 2 cells
+;			MOVW	#(PS_EMPTY-2), 0,Y		;initialize iterator
+;			MOVW	#, 0,Y				;initialize column counter	
+;			STY	PSP				;update PSP
 ;			;Reserve and populate local stack space
 ;			FPS_CHECK_OF	4 			;reserve 3 cells
 ;			MOVW	PSP, 6,Y			;initialize index
@@ -644,9 +660,9 @@ FPS_CODE_END_LIN	EQU	@
 FPS_TABS_START_LIN	EQU	@
 #endif	
 
-;FPS_DOT_S_HEADER	STRING_NL_NONTERM
-;			FCC	"Parameter stack:"
-;			STRING_NL_TERM
+FPS_DOT_S_HEADER	STRING_NL_NONTERM
+			FCC	"Parameter stack:"
+			STRING_NL_TERM
 ;FPS_DOT_S_SEPARATOR	FCS	": "
 	
 FPS_TABS_END		EQU	*
@@ -661,7 +677,7 @@ FPS_TABS_END_LIN	EQU	@
 			ORG 	FPS_WORDS_START
 FPS_WORDS_START_LIN	EQU	@
 #endif	
-
+			ALIGN	1, $FF
 ;#ANSForth Words:
 ;================
 ;Word: DUP ( x -- x x )

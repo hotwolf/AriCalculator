@@ -405,7 +405,7 @@ FINNER_TABS_END_LIN	EQU	@
 			ORG 	FINNER_WORDS_START
 FINNER_WORDS_START_LIN	EQU	@
 #endif	
-			ALIGN	1
+			ALIGN	1, $FF
 ;#ANSForth Words:
 ;================
 	

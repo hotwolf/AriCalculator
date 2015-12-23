@@ -83,18 +83,18 @@
 ;                         |                     |     
 ;                         |                     | 
 ;                         +---------------------+ <-+ 
-;                 SHELL-> |   previous SHELL    |   |
+;                 SHELL-> |   Previous SHELL    |   |
 ;                         +---------------------+   |
 ;                         |   IP at SUSPEND     |   |
 ;                         +---------------------+   |
 ;                         |   #TIB (unparsed)   |   |SUSPEND
-;                         +---------------------+   |shell  
-;                         |                     |   |stack   
-;                         |      unparsed       |   |frame         
-;                         |      section        |   | 
+;                         +---------------------+   |Shell  
+;                         |                     |   |Stack   
+;                         |      Unparsed       |   |Frame         
+;                         |      Section        |   | 
 ;                         |       of TIB        |   | 
-;                         +----------+          |   |
-;                         |alignment |          |   |
+;                         |          +----------+   |
+;                         |          | Padding  |   |
 ;                         +----------+----------+ <-+     
 ;
 	
@@ -131,6 +131,12 @@ DEFAULT_LINE_WIDTH	EQU	74
 ;Default exception handler  
 FOUTER_DEFAULT_SHELL	EQU	$0000 	;initial shell structure
 
+;System prompts
+FOUTER_SUSPEND_PROMPT	EQU	"S"
+FOUTER_INTERACT_PROMPT	EQU	">"
+FOUTER_COMPILE_PROMPT	EQU	"+"
+FOUTER_NVCOMPILE_PROMPT	EQU	"@"
+	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -168,7 +174,6 @@ FOUTER_VARS_END_LIN	EQU	@
 ; the return stack, without displaying a message. 
 #macro	FOUTER_ABORT, 0
 			MOVW	#$0000, STATE	   	;interpretation state
-			MOVW	#$0000, SHELL		;reset SHELL
 #emac
 	
 ;#Quit action
@@ -188,6 +193,28 @@ FOUTER_VARS_END_LIN	EQU	@
 #macro	FOUTER_SUSPEND, 0
 #emac
 
+;Parse restrictions:
+;===================
+;COMPILE_ONLY: Ensure that the system is in compile state
+; args:   none
+; result: none
+; SSTACK: none
+;         X and Y are  preserved
+#macro	COMPILE_ONLY, 0
+			LDD	STATE
+			BEQ	CF_COMPILE_ONLY_1
+#emac
+	
+;INTERPRET_ONLY: Ensure that the system is in interpretation state
+; args:   none
+; result: none
+; SSTACK: none
+;         X and Y are  preserved
+#macro	INTERPRET_ONLY, 0
+			LDD	STATE
+			BNE	CF_INTERPRET_ONLY_1
+#emac
+	
 ;Functions:
 ;==========
 ;#Assemble prompt in TIB
@@ -196,30 +223,27 @@ FOUTER_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         No registers are  preserved
 #macro FOUTER_PROMPT, 0
+			;Print line break
+			EXEC_CF	CF_CR 			;line break
 			;Check for SUSPEND mode
 			LDD	SHELL			;check SHELL
-			BEQ	FOUTER_PROMPT_3		;not in SUSPEND mode
+			BEQ	FOUTER_PROMPT_1		;not in SUSPEND mode
 			PS_PUSH	#FOUTER_SUSPEND_PROMPT	;push prompt onto PS
 			EXEC_CF	CF_EMIT			;print prompt
-			;SUSPEND mode: check for COMPILE mode 
+			;Check COMPILE/INTERACTIVE mode
+FOUTER_PROMPT_1		LDX	#FOUTER_INTERACT_PROMPT	;interactive prompt
 			LDD	STATE 			;check STATE
-			BEQ	FOUTER_PROMPT_4		;print white space
-			;SUSPEND mode: check for COMPILE mode 
-FOUTER_PROMPT_1		LDX	#FOUTER_COMPILE_PROMPT	;compile prompt -> X
+			BEQ	FOUTER_PROMPT_2		;print prompt
+			LDX	#FOUTER_COMPILE_PROMPT	;compile prompt -> X
+#ifdef	NVC
 			LDD	NVC			;check check for NV compile
-			BEQ	FOUTER_PROMPT_2		;RAM compile
-			LDX	#FOUTER_NVCOMPILE_PROMPT;NV compile prompt -> X
+			BEQ	FOUTER_PROMPT_2		;print prompt
+			LDX	#FOUTER_NVCOMPILE_PROMPT	;compile prompt -> X
+#endif
+			;Print prompt
 FOUTER_PROMPT_2		PS_PUSH_X			;push prompt onto PS			
 			EXEC_CF	CF_EMIT			;print prompt
-			JOB	FOUTER_PROMPT_4		;print white space
-			;NON-SUSPEND mode: check for COMPILE mode 
-FOUTER_PROMPT_3			LDD	STATE 			;check STATE
-			BNE	FOUTER_PROMPT_1		;print compile mode
-			;INTERACTIVE mode
-			PS_PUSH	#FOUTER_INTERACT_PROMPT	;push prompt onto PS
-			EXEC_CF	CF_EMIT			;print prompt
-			;Print white space
-FOUTER_PROMPT_4		EXEC_CF	CF_SPACE		;print prompt
+			EXEC_CF	CF_SPACE		;print space
 #emac
 
 ;#Check if a char is a delimiter 
@@ -495,7 +519,7 @@ FOUTER_APPEND_DIGIT_2	LDY	\1   			;double cell address -> Y
 			ADCB	#0			;add carry
 			ADCA	#0			;add carry
 			BCS	FOUTER_APPEND_DIGIT_3	;overflow
-			ADDD	\1			;add MSWs
+			ADDD	[\1]			;add MSWs
 			BCS	FOUTER_APPEND_DIGIT_3	;overflow
 			STD	[\1]			;update MSW
 			EXG	Y, D			;Y <-> D
@@ -514,7 +538,7 @@ FOUTER_APPEND_DIGIT_3	EQU	*
 ;	  X:      new string pointer	
 ;	  C-flag: set on overflow	
 ; SSTACK: 6 bytes
-;         Y and DBare preserved
+;         Y and B are preserved
 #macro	FOUTER_TO_NUMBER, 0	
 			SSTACK_JOBSR	FOUTER_TO_NUMBER, 6
 #emac
@@ -606,9 +630,9 @@ FOUTER_PARSE_2		CLRA				;clear char count
 FOUTER_FIND		EQU	*	
 			;Save registers (string pointer in X)
 			PSHY				;save Y
-;TBD			;Search user directory (string pointer in X)
-;			FUDICT_FIND			;(SSTACK: 8 bytes)
-;			TBNE	D, FOUTER_FIND_1	;search successful
+			;Search user directory (string pointer in X)
+			FUDICT_FIND			;(SSTACK: 8 bytes)
+			TBNE	D, FOUTER_FIND_1	;search successful
 ;			;Search non-volatile user directory (string pointer in X)			
 ;			FNVDICT_FIND 			;search FNVDICT
 ;			TBNE	D, FOUTER_FIND_1	;search successful
@@ -1065,8 +1089,6 @@ CF_SHELL		EQU	*
 			STX	RSP				;adjust RSP
 			;Print shell prompt
 CF_SHELL_1		FOUTER_PROMPT 				;assemble prompt in TIB
-			PS_PUSH	#TIB_START			;TIB pointer -> PS
-			EXEC_CF	CF_STRING_DOT			;print string
 			;Query command line
 			EXEC_CF	CF_QUERY 			;query command line
 			;Parse command line
@@ -1100,13 +1122,12 @@ CF_SHELL_5		FOUTER_INTEGER 				;interpret as integer
 			LDD	STATE 				;check compile state
 			BEQ	CF_SHELL_6			;interpret
 			;Compile semantics (number in Y:X)
-			TFR	X, D		    		;save LSW
-			LDX	#CFA_TWO_LITERAL_RT 		;compile xt
-			FUDICT_COMPILE_CELL 			;
-			TFR	Y, X				;compile MSW
-			FUDICT_COMPILE_CELL 			;
-			TFR	D, X				;compile LSW
-			FUDICT_COMPILE_CELL 			;
+			TFR	Y, D		    		;save LSW
+			UDICT_CHECK_OF	6			;CP+6 -> Y
+			STY	CP				;update CP
+			MOVW	#CFA_TWO_LITERAL_RT, -6,Y	;compile xt
+			LDD	-4,Y				;compile MSW
+			LDX	-2,Y				;compile LSW
 			JOB	CF_SHELL_2			;parse next wprd
 			;Interpretation semantics (number in Y:X)
 CF_SHELL_6		TFR	Y, D		    		;push MSW onto PS
@@ -1116,12 +1137,12 @@ CF_SHELL_7		PS_PUSH_X				;push LSW onto PS
 			;Single cell number (number in X) 
 CF_SHELL_8		LDD	STATE 				;check compile state
 			BEQ	CF_SHELL_7			;interpret
-			;Compile semantics (number in Y:X)
-			TFR	X, D		    		;save LSW
-			LDX	#CFA_TWO_LITERAL_RT 		;compile xt
-			FUDICT_COMPILE_CELL 			;
-			TFR	D, X				;compile LSW
-			FUDICT_COMPILE_CELL 			;
+			;Compile semantics (number in X)
+			UDICT_CHECK_OF	4			;CP+4 -> Y
+			STY	CP				;update CP
+			MOVW	#CFA_LITERAL_RT, -4,Y		;compile xt
+			LDX	-2,Y				;compile LSW
+			JOB	CF_SHELL_2			;parse next wprd
 			JOB	CF_SHELL_2			;parse next word
 			;Syntax error (string pointer in X)
 CF_SHELL_9		LDD	#FEXCPT_EC_UDEFWORD 		;set error code
@@ -1173,8 +1194,7 @@ CF_TO_NUMBER		EQU	*
 			;Parse overflow
 CF_TO_NUMBER_1		FEXCPT_THROW FEXCPT_EC_RESOR	;throw "result out of range" exception
 	
-;LITERAL run-time semantics
-;Run-time: ( -- x )
+;LITERAL run-time semantics ( -- x )
 ;Place x on the stack.
 ;
 ;S12CForth implementation details:
@@ -1188,8 +1208,7 @@ CF_LITERAL_RT		EQU	*
 			STY	PSP
 			NEXT
 
-;2LITERAL run-time semantics
-;Run-time: ( -- d )
+;2LITERAL run-time semantics ( -- d )
 ;Place d on the stack.
 ;
 ;S12CForth implementation details:
@@ -1204,8 +1223,33 @@ CF_TWO_LITERAL_RT	EQU	*
 			STY	PSP
 			NEXT
 	
+;COMPILE-ONLY ( -- )
+;Ensures that the outer interpreter is in compile state.
+;
+;S12CForth implementation details:
+;Throws:
+;"Compile-only word"
+CF_COMPILE_ONLY		EQU	* 
+			LDD	STATE			;check state
+			BEQ	CF_COMPILE_ONLY_1	;outer interpreter is in interpretation state
+			NEXT
+CF_COMPILE_ONLY_1	FEXCPT_THROW	FEXCPT_EC_COMPONLY
+	
+;INTERPRET-ONLY ( -- )
+;Ensures that the outer interpreter is in interpretation state.
+;
+;S12CForth implementation details:
+;Throws:
+;"Nested compilation"
+CF_INTERPRET_ONLY	EQU	* 
+			LDD	STATE			;check state
+			BNE	CF_INTERPRET_ONLY_1	;outer interpreter is in compile state
+			NEXT
+CF_INTERPRET_ONLY_1	FEXCPT_THROW	FEXCPT_EC_COMPNEST
+
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@
+
 	
 ;###############################################################################
 ;# Tables                                                                      #
@@ -1221,10 +1265,6 @@ FOUTER_TABS_START_LIN	EQU	@
 FOUTER_SYMTAB		EQU	NUM_SYMTAB
 	
 ;System prompts
-FOUTER_SUSPEND_PROMPT	FCS	"S "
-FOUTER_INTERACT_PROMPT	FCS	"> "
-FOUTER_COMPILE_PROMPT	FCS	"+ "
-FOUTER_NVCOMPILE_PROMPT	FCS	"@ "
 FOUTER_SYSTEM_ACK	FCS	" ok"
 
 FOUTER_TABS_END		EQU	*
@@ -1239,7 +1279,7 @@ FOUTER_TABS_END_LIN	EQU	@
 			ORG 	FOUTER_WORDS_START
 FOUTER_WORDS_START_LIN	EQU	@
 #endif	
-			ALIGN	1
+			ALIGN	1, $FF
 ;#ANSForth Words:
 ;================
 ;Word: QUERY ( -- )
@@ -1324,6 +1364,7 @@ CFA_NUMBER_TIB		DW	CF_CONSTANT_RT
 ;WORDS may be implemented using pictured numeric output words. Consequently, its
 ;use may corrupt the transient region identified by #>.
 CFA_WORDS		DW	CF_INNER
+			DW	CFA_WORDS_UDICT
 			DW	CFA_WORDS_CDICT
 			DW	CFA_EOW
 
@@ -1345,33 +1386,36 @@ CFA_SUSPEND		DW	CF_SUSPEND
 ;"Return stack underflow"
 CFA_RESUME		DW	CF_RESUME
 
-;Word: TIB-OFFSET ( -- a-addr )
-;a-addr is the address of a cell containing the number of characters in the
-;terminal input buffer.
-;
-;Throws:
-;"Parameter stack overflow"
-;CFA_TIB_OFFSET		DW	CF_CONSTANT_RT
-;			DW	TIB_OFFSET
-
-;LITERAL run-time semantics
-;Run-time: ( -- x )
+;LITERAL run-time semantics ( -- x )
 ;Place x on the stack.
 ;
-;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack overflow"
 CFA_LITERAL_RT		DW	CF_LITERAL_RT
 
-;2LITERAL run-time semantics
-;Run-time: ( -- x1 x2 )
+;2LITERAL run-time semantics ( -- x1 x2 )
 ;Place cell pair x1 x2 on the stack.
 ;
-;S12CForth implementation details:
 ;Throws:
 ;"Parameter stack overflow"
 CFA_TWO_LITERAL_RT	DW	CF_TWO_LITERAL_RT
 
+;Word: COMPILE-ONLY ( -- )
+;Ensures that the outer interpreter is in compile state.
+;
+;S12CForth implementation details:
+;Throws:
+;"Compile-only word"
+CFA_COMPILE_ONLY	DW	CF_COMPILE_ONLY
+	
+;Word: INTERPRET-ONLY ( -- )
+;Ensures that the outer interpreter is in interpretation state.
+;
+;S12CForth implementation details:
+;Throws:
+;"Nested compilation"
+CFA_INTERPRET_ONLY	DW	CF_INTERPRET_ONLY
+	
 FOUTER_WORDS_END	EQU	*
 FOUTER_WORDS_END_LIN	EQU	@
 #endif

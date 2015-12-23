@@ -357,8 +357,8 @@ FEXCPT_PRINT_NAME_BL	EQU	*
 			PSHX							;save X	
 			PSHY							;save Y	
 			;Check UDICT (CFA in D) -> Skipped, because exception is always thrown by CDICT words
-			;FUDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 18 bytes)
-			;BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
+			FUDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 18 bytes)
+			BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
 			;Check NVDICT (CFA in D) -> Skipped, because exception is always thrown by CDICT words
 			;FNVDICT_REVPRINT_BL 					;reverse look-up (SSTACK: 2*FCDICT_TREE_DEPTH + 6 bytes)
 			;BCS	FEXCPT_PRINT_NAME_BL_1				;word has been printed
@@ -630,7 +630,7 @@ FEXCPT_ERROR_STRING_1	FIO_NL_NONTERM 				;1st substring
 FEXCPT_ERROR_STRING_2	FCS		"! "			;2nd substring
 FEXCPT_ERROR_STRING_3	FCS		': "'			;3rd substring
 FEXCPT_ERROR_STRING_4	FCS		'"'			;4rd substring
-FEXCPT_ERROR_STRING_5	FCS		"!"			;5rd substring
+FEXCPT_ERROR_STRING_5	FCS		"."			;5rd substring
 
 ;Info output
 FEXCPT_INFO_STRING_1	FIO_NL_NONTERM				;1st substring
@@ -684,7 +684,7 @@ FEXCPT_TABS_END_LIN	EQU	@
 			ORG 	FEXCPT_WORDS_START
 FEXCPT_WORDS_START_LIN	EQU	@
 #endif	
-			ALIGN	1
+			ALIGN	1, $FF
 ;#ANSForth Words:
 ;================
 ;Word: CATCH ( i*x xt -- j*x 0 | i*x n )
