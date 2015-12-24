@@ -182,7 +182,7 @@ STRING_VARS_END_LIN	EQU	@
 #ifdef STRING_ENABLE_UPPER	
 ;#Convert a lower case character to upper case
 ; args:   B: ASCII character (w/ or w/out termination)
-; result: B: lower case ASCII character 
+; result: B: upper case ASCII character 
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
 #macro	STRING_UPPER, 0
@@ -193,7 +193,7 @@ STRING_VARS_END_LIN	EQU	@
 #ifdef STRING_ENABLE_LOWER	
 ;#Convert an upper case character to lower case (uncomment if needed)
 ; args:   B: ASCII character (w/ or w/out termination)
-; result: B: upper case ASCII character
+; result: B: lower case ASCII character
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
 #macro	STRING_LOWER, 0
@@ -405,7 +405,7 @@ STRING_FILL_BL		EQU	*
 #ifdef	STRING_ENABLE_UPPER
 ;#Convert a lower case character to upper case
 ; args:   B: ASCII character (w/ or w/out termination)
-; result: B: lower case ASCII character 
+; result: B: upper case ASCII character 
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
 STRING_UPPER		EQU	*
@@ -426,7 +426,7 @@ STRING_UPPER_2		RTS
 #ifdef STRING_ENABLE_LOWER
 ;#Convert an upper case character to lower case (uncomment if needed)
 ; args:   B: ASCII character (w/ or w/out termination)
-; result: B: upper case ASCII character
+; result: B: lower case ASCII character
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
 STRING_LOWER		EQU	*
