@@ -147,6 +147,13 @@ FNVDICT_PHRASE_SIZE	EQU	NVM_PHRASE_SIZE
 #else
 FNVDICT_PHRASE_SIZE	EQU	8	
 #endif	
+
+;NVC variable 
+NVC_VOLATILE		EQU	FALSE
+NVC_NON_VOLATILE	EQU	TRUE
+	
+;Max. line length
+FUDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
 	
 ;###############################################################################
 ;# Variables                                                                   #

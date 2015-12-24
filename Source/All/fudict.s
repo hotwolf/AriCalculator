@@ -176,7 +176,11 @@ FUDICT_VARS_END_LIN	EQU	@
 			CLRB
 			STD	UDICT_LAST_NFA
 			;Initialize compile pointers
+#ifdef	DP
+			LDD	DP
+#else
 			LDD	#UDICT_PS_START
+#endif
 			STD	CP
 			STD	CP_SAVED	
 			;Initialize PAD (DICT_START in D)
@@ -201,6 +205,11 @@ FUDICT_VARS_END_LIN	EQU	@
 ;========================
 ;Complile operations:
 ;====================	
+
+
+
+
+
 ;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
 ; args:   1: required space in bytes (constant, A, B, or D are valid args)
 ; result: Y: CP+new bytes
