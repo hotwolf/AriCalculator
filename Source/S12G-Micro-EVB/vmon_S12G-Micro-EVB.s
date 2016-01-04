@@ -297,11 +297,11 @@ DONE				CLI
 				ORG 	VMON_CODE_START, VMON_CODE_START_LIN
 #else				
 				ORG 	VMON_CODE_START
-VMON_CODE_START_		EQU	@			
+VMON_CODE_START_LIN		EQU	@			
 #endif				
 				
-;#ADC Compare IS		
-;#--------------		
+;#ADC Compare ISR		
+;#---------------		
 #ifdef	VMON_ANY		
 VMON_ISR			EQU	*
 #ifdef	VMON_VUS		
