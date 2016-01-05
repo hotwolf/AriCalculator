@@ -651,11 +651,14 @@ CF_COLON_2		FEXCPT_THROW	FEXCPT_EC_NONAME,	;Error -16! "Missing name argument"
 CF_COLON_NONAME		EQU	*			
 			;Ensure interpretation state  
 			INTERPRET_ONLY				;check for nested definition
-			;Push colon-sys (zero)  )onto PS 
-			PS_PUSH	#$0000				;push zero
+			;Push xt and colon-sys (zero) onto the PS 
+			PS_CHECK_OF 2 				;new PS -> Y
+			MOVW	CP, 2,Y				;push xt
+			MOVW	#$0000, 0,Y			;push colon-sys
+			STY	PSP				;update PSP			
 			;Allocate header
 			UDICT_CHECK_OF	2			;new_compile count in Y
-			MOVW	#CF_INNER, -2,Y		;execution semantics (inner interpreter)
+			MOVW	#CF_INNER, -2,Y			;execution semantics (inner interpreter)
 			STY	CP				;update CP
 			;Set compile state 	
 			MOVW	#STATE_COMPILE, STATE 		;switch to compile state
@@ -688,16 +691,13 @@ CF_SEMICOLON		EQU	*
 			STY	CP				;update CP
 			;Pull colon-sys
 			PS_PULL_D 				;colon-sys -> D
-			BEQ	CF_SEMICOLON_2			;don't update UDICT_LAST_NFA
+			BEQ	CF_SEMICOLON_1			;don't update UDICT_LAST_NFA
 			STD	UDICT_LAST_NFA			;update UDICT_LAST_NFA
 			;Save CP 	
 CF_SEMICOLON_1		MOVW	CP, CP_SAVED
 			;Set interpretation state 	
 			MOVW	#STATE_COMPILE, STATE 		;switch to compile state
 			NEXT
-			;Push xt onto PS
-			PS_PUSH	CP_SAVED
-CF_SEMICOLON_2		JOB	CF_SEMICOLON_1	
 
 ;IMMEDIATE ( -- )
 ;Make the most recent definition an immediate word. An ambiguous condition
