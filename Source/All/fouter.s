@@ -235,7 +235,7 @@ FOUTER_PROMPT_1		LDX	#FOUTER_INTERACT_PROMPT	;interactive prompt
 			LDD	STATE 			;check STATE
 			BEQ	FOUTER_PROMPT_2		;print prompt
 			LDX	#FOUTER_COMPILE_PROMPT	;compile prompt -> X
-#ifdef	NVC
+#ifdef	NVDICT_ON
 			LDD	NVC			;check check for NV compile
 			BEQ	FOUTER_PROMPT_2		;print prompt
 			LDX	#FOUTER_NVCOMPILE_PROMPT	;compile prompt -> X
@@ -1365,6 +1365,9 @@ CFA_NUMBER_TIB		DW	CF_CONSTANT_RT
 ;use may corrupt the transient region identified by #>.
 CFA_WORDS		DW	CF_INNER
 			DW	CFA_WORDS_UDICT
+#ifdef NVDICT_ON
+			DW	CFA_WORDS_NVDICT
+#endif
 			DW	CFA_WORDS_CDICT
 			DW	CFA_EOW
 

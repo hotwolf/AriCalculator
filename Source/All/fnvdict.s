@@ -121,6 +121,13 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;Non-volatile dictionary 
+#ifndef	NVDICT_ON
+#ifndef	NVDICT_OFF
+NVDICT_ON		EQU	1 		;NVDICT enabled by default
+#endif
+#endif
+
 ;Flash pages reserved for the NVDICT 
 #ifdef	NVDICT_FIRST_PAGE
 NVDICT_FIRST_PAGE	EQU	$E0 		;default first page in 512k flash
@@ -153,7 +160,7 @@ NVC_VOLATILE		EQU	FALSE
 NVC_NON_VOLATILE	EQU	TRUE
 	
 ;Max. line length
-FUDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
+FNVDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -164,10 +171,12 @@ FUDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
 			ORG 	FNVDICT_VARS_START
 FNVDICT_VARS_START_LIN	EQU	@
 #endif	
-
+#ifdef NVDICT_ON	
+	
 DP			DS	2 		;data pointer (next free space in the data space) 
 NVC			DS	2 		;non-volatile compile flag 
 
+#endif	
 FNVDICT_VARS_END	EQU	*
 FNVDICT_VARS_END_LIN	EQU	@
 
@@ -176,8 +185,10 @@ FNVDICT_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	FNVDICT_INIT, 0
+#ifdef NVDICT_ON	
 			MOVW	#$0000, DP
 			MOVW	#$0000, NVC
+#endif	
 #emac
 
 ;#Abort action (to be executed in addition of quit action)
@@ -266,8 +277,12 @@ FNVDICT_WORDS_START_LIN	EQU	@
 ;Throws:
 ;"Parameter stack overflow"
 CFA_NVC			DW	CF_CONSTANT_RT
+#ifdef NVDICT_ON
 			DW	NVC
-
+#else
+			DW	*+2
+			DW	$0000
+#endif
 
 FNVDICT_WORDS_END	EQU	*
 FNVDICT_WORDS_END_LIN	EQU	@

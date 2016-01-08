@@ -25,7 +25,7 @@
 ;#    words.                                                                   #
 ;#                                                                             #
 ;###############################################################################
-;# Generated on Tue, Nov 10 2015                                               #
+;# Generated on Thu, Jan 07 2016                                               #
 ;###############################################################################
 
 ;###############################################################################
@@ -41,11 +41,16 @@
 ;    |        ROT -------------------> CFA_TWO_ROT 
 ;    |        SWAP ------------------> CFA_TWO_SWAP 
 ;    |        
+;    : -----> -----------------------> CFA_COLON (immediate)
+;    |        NONAME ----------------> CFA_COLON_NONAME (immediate)
+;    |        
+;    ; ------------------------------> CFA_SEMICOLON (immediate)
 ;    > -----> IN --------------------> CFA_TO_IN 
 ;    |        NUMBER ----------------> CFA_TO_NUMBER 
 ;    |        
 ;    BASE ---------------------------> CFA_BASE 
 ;    C -----> ATCH ------------------> CFA_CATCH 
+;    |        OMPILE-ONLY -----------> CFA_COMPILE_ONLY 
 ;    |        R ---------------------> CFA_CR 
 ;    |        
 ;    D -----> ROP -------------------> CFA_DROP 
@@ -59,6 +64,9 @@
 ;    |        
 ;    FIND- -> CDICT -----------------> CFA_FIND_CDICT 
 ;    |        UDICT -----------------> CFA_FIND_UDICT 
+;    |        
+;    I -----> MMEDIATE --------------> CFA_IMMEDIATE 
+;    |        NTERPRET-ONLY ---------> CFA_INTERPRET_ONLY 
 ;    |        
 ;    N -----> OP --------------------> CFA_NOP 
 ;    |        VC --------------------> CFA_NVC 
@@ -74,9 +82,7 @@
 ;    |        USPEND ----------------> CFA_SUSPEND 
 ;    |        WAP -------------------> CFA_SWAP 
 ;    |        
-;    T -----> HROW ------------------> CFA_THROW 
-;    |        IB-OFFSET -------------> CFA_LITERAL_RT 
-;    |        
+;    THROW --------------------------> CFA_THROW 
 ;    W -----> AIT -------------------> CFA_WAIT 
 ;             ORDS -> ---------------> CFA_WORDS 
 ;                     - -> CDICT ----> CFA_WORDS_CDICT 
@@ -116,26 +122,34 @@ FCDICT_TREE             FCS     "#TIB"
                         FCS     "2"
                         DB      BRANCH
                         DW      FCDICT_TREE_2                   ;2...
+                        FCS     ":"
+                        DB      BRANCH
+                        DW      FCDICT_TREE_3                   ;:...
+                        FCS     ";"
+                        DW      (CFA_SEMICOLON>>1)|IMMEDIATE    ;-> ;
                         FCS     ">"
                         DB      BRANCH
-                        DW      FCDICT_TREE_3                   ;>...
+                        DW      FCDICT_TREE_5                   ;>...
                         FCS     "BASE"
                         DW      (CFA_BASE>>1)                   ;-> BASE
                         FCS     "C"
                         DB      BRANCH
-                        DW      FCDICT_TREE_5                   ;C...
+                        DW      FCDICT_TREE_7                   ;C...
                         FCS     "D"
                         DB      BRANCH
-                        DW      FCDICT_TREE_6                   ;D...
+                        DW      FCDICT_TREE_8                   ;D...
                         FCS     "E"
                         DB      BRANCH
-                        DW      FCDICT_TREE_7                   ;E...
+                        DW      FCDICT_TREE_9                   ;E...
                         FCS     "FIND-"
                         DB      BRANCH
-                        DW      FCDICT_TREE_8                   ;FIND-...
+                        DW      FCDICT_TREE_10                  ;FIND-...
+                        FCS     "I"
+                        DB      BRANCH
+                        DW      FCDICT_TREE_11                  ;I...
                         FCS     "N"
                         DB      BRANCH
-                        DW      FCDICT_TREE_9                   ;N...
+                        DW      FCDICT_TREE_12                  ;N...
                         FCS     "OVER"
                         DW      (CFA_OVER>>1)                   ;-> OVER
                         FCS     "PARSE"
@@ -144,18 +158,23 @@ FCDICT_TREE             FCS     "#TIB"
                         DW      (CFA_QUERY>>1)                  ;-> QUERY
                         FCS     "R"
                         DB      BRANCH
-                        DW      FCDICT_TREE_13                  ;R...
+                        DW      FCDICT_TREE_16                  ;R...
                         FCS     "S"
                         DB      BRANCH
-                        DW      FCDICT_TREE_14                  ;S...
-                        FCS     "T"
-                        DB      BRANCH
-                        DW      FCDICT_TREE_15                  ;T...
+                        DW      FCDICT_TREE_17                  ;S...
+                        FCS     "THROW"
+                        DW      (CFA_THROW>>1)                  ;-> THROW
                         FCS     "W"
                         DB      BRANCH
-                        DW      FCDICT_TREE_16                  ;W...
+                        DW      FCDICT_TREE_19                  ;W...
+                        ;DB     END_OF_BRANCH
+;Subtree 3 =>           ":"       -> FCDICT_TREE+6B
+FCDICT_TREE_3           DB      EMPTY_STRING
+                        DW      (CFA_COLON>>1)|IMMEDIATE        ;-> :
+                        FCS     "NONAME"
+                        DW      (CFA_COLON_NONAME>>1)|IMMEDIATE ;-> :NONAME
                         DB      END_OF_BRANCH
-;Subtree 2 =>           "2"       -> FCDICT_TREE+5B
+;Subtree 2 =>           "2"       -> FCDICT_TREE+78
 FCDICT_TREE_2           FCS     "D"
                         DB      BRANCH
                         DW      FCDICT_TREE_2_0                 ;2D...
@@ -166,70 +185,78 @@ FCDICT_TREE_2           FCS     "D"
                         FCS     "SWAP"
                         DW      (CFA_TWO_SWAP>>1)               ;-> 2SWAP
                         DB      END_OF_BRANCH
-;Subtree 2->0 =>        "2D"      -> FCDICT_TREE+74
+;Subtree 2->0 =>        "2D"      -> FCDICT_TREE+91
 FCDICT_TREE_2_0         FCS     "ROP"
                         DW      (CFA_TWO_DROP>>1)               ;-> 2DROP
                         FCS     "UP"
                         DW      (CFA_TWO_DUP>>1)                ;-> 2DUP
                         DB      END_OF_BRANCH
-;Subtree 3 =>           ">"       -> FCDICT_TREE+80
-FCDICT_TREE_3           FCS     "IN"
+;Subtree 5 =>           ">"       -> FCDICT_TREE+9D
+FCDICT_TREE_5           FCS     "IN"
                         DW      (CFA_TO_IN>>1)                  ;-> >IN
                         FCS     "NUMBER"
                         DW      (CFA_TO_NUMBER>>1)              ;-> >NUMBER
                         DB      END_OF_BRANCH
-;Subtree 5 =>           "C"       -> FCDICT_TREE+8F
-FCDICT_TREE_5           FCS     "ATCH"
+;Subtree 7 =>           "C"       -> FCDICT_TREE+AC
+FCDICT_TREE_7           FCS     "ATCH"
                         DW      (CFA_CATCH>>1)                  ;-> CATCH
+                        FCS     "OMPILE-ONLY"
+                        DW      (CFA_COMPILE_ONLY>>1)           ;-> COMPILE-ONLY
                         FCS     "R"
                         DW      (CFA_CR>>1)                     ;-> CR
                         DB      END_OF_BRANCH
-;Subtree 6 =>           "D"       -> FCDICT_TREE+9B
-FCDICT_TREE_6           FCS     "ROP"
+;Subtree 8 =>           "D"       -> FCDICT_TREE+C6
+FCDICT_TREE_8           FCS     "ROP"
                         DW      (CFA_DROP>>1)                   ;-> DROP
                         FCS     "UP"
                         DW      (CFA_DUP>>1)                    ;-> DUP
                         DB      END_OF_BRANCH
-;Subtree 7 =>           "E"       -> FCDICT_TREE+A7
-FCDICT_TREE_7           FCS     "KEY"
+;Subtree 9 =>           "E"       -> FCDICT_TREE+D2
+FCDICT_TREE_9           FCS     "KEY"
                         DB      BRANCH
-                        DW      FCDICT_TREE_7_0                 ;EKEY...
+                        DW      FCDICT_TREE_9_0                 ;EKEY...
                         FCS     "MIT"
                         DB      BRANCH
-                        DW      FCDICT_TREE_7_1                 ;EMIT...
+                        DW      FCDICT_TREE_9_1                 ;EMIT...
                         ;DB     END_OF_BRANCH
-;Subtree 7->0 =>        "EKEY"    -> FCDICT_TREE+B4
-FCDICT_TREE_7_0         DB      EMPTY_STRING
+;Subtree 9->0 =>        "EKEY"    -> FCDICT_TREE+DF
+FCDICT_TREE_9_0         DB      EMPTY_STRING
                         DW      (CFA_EKEY>>1)                   ;-> EKEY
                         FCS     "?"
                         DW      (CFA_EKEY_QUESTION>>1)          ;-> EKEY?
                         DB      END_OF_BRANCH
-;Subtree 7->1 =>        "EMIT"    -> FCDICT_TREE+BC
-FCDICT_TREE_7_1         DB      EMPTY_STRING
+;Subtree 9->1 =>        "EMIT"    -> FCDICT_TREE+E7
+FCDICT_TREE_9_1         DB      EMPTY_STRING
                         DW      (CFA_EMIT>>1)                   ;-> EMIT
                         FCS     "?"
                         DW      (CFA_EMIT_QUESTION>>1)          ;-> EMIT?
                         DB      END_OF_BRANCH
-;Subtree 8 =>           "FIND-"   -> FCDICT_TREE+C4
-FCDICT_TREE_8           FCS     "CDICT"
+;Subtree 10 =>          "FIND-"   -> FCDICT_TREE+EF
+FCDICT_TREE_10          FCS     "CDICT"
                         DW      (CFA_FIND_CDICT>>1)             ;-> FIND-CDICT
                         FCS     "UDICT"
                         DW      (CFA_FIND_UDICT>>1)             ;-> FIND-UDICT
                         DB      END_OF_BRANCH
-;Subtree 9 =>           "N"       -> FCDICT_TREE+D5
-FCDICT_TREE_9           FCS     "OP"
+;Subtree 11 =>          "I"       -> FCDICT_TREE+100
+FCDICT_TREE_11          FCS     "MMEDIATE"
+                        DW      (CFA_IMMEDIATE>>1)              ;-> IMMEDIATE
+                        FCS     "NTERPRET-ONLY"
+                        DW      (CFA_INTERPRET_ONLY>>1)         ;-> INTERPRET-ONLY
+                        DB      END_OF_BRANCH
+;Subtree 12 =>          "N"       -> FCDICT_TREE+11C
+FCDICT_TREE_12          FCS     "OP"
                         DW      (CFA_NOP>>1)                    ;-> NOP
                         FCS     "VC"
                         DW      (CFA_NVC>>1)                    ;-> NVC
                         DB      END_OF_BRANCH
-;Subtree 13 =>          "R"       -> FCDICT_TREE+E0
-FCDICT_TREE_13          FCS     "ESUME"
+;Subtree 16 =>          "R"       -> FCDICT_TREE+127
+FCDICT_TREE_16          FCS     "ESUME"
                         DW      (CFA_RESUME>>1)|IMMEDIATE       ;-> RESUME
                         FCS     "OT"
                         DW      (CFA_ROT>>1)                    ;-> ROT
                         DB      END_OF_BRANCH
-;Subtree 14 =>          "S"       -> FCDICT_TREE+EE
-FCDICT_TREE_14          FCS     "PACE"
+;Subtree 17 =>          "S"       -> FCDICT_TREE+135
+FCDICT_TREE_17          FCS     "PACE"
                         DW      (CFA_SPACE>>1)                  ;-> SPACE
                         FCS     "TATE"
                         DW      (CFA_STATE>>1)                  ;-> STATE
@@ -238,28 +265,22 @@ FCDICT_TREE_14          FCS     "PACE"
                         FCS     "WAP"
                         DW      (CFA_SWAP>>1)                   ;-> SWAP
                         DB      END_OF_BRANCH
-;Subtree 15 =>          "T"       -> FCDICT_TREE+10C
-FCDICT_TREE_15          FCS     "HROW"
-                        DW      (CFA_THROW>>1)                  ;-> THROW
-                        FCS     "IB-OFFSET"
-                        DW      (CFA_LITERAL_RT>>1)             ;-> TIB-OFFSET
-                        DB      END_OF_BRANCH
-;Subtree 16 =>          "W"       -> FCDICT_TREE+120
-FCDICT_TREE_16          FCS     "AIT"
+;Subtree 19 =>          "W"       -> FCDICT_TREE+153
+FCDICT_TREE_19          FCS     "AIT"
                         DW      (CFA_WAIT>>1)                   ;-> WAIT
                         FCS     "ORDS"
                         DB      BRANCH
-                        DW      FCDICT_TREE_16_1                ;WORDS...
+                        DW      FCDICT_TREE_19_1                ;WORDS...
                         ;DB     END_OF_BRANCH
-;Subtree 16->1 =>       "WORDS"   -> FCDICT_TREE+12E
-FCDICT_TREE_16_1        DB      EMPTY_STRING
+;Subtree 19->1 =>       "WORDS"   -> FCDICT_TREE+161
+FCDICT_TREE_19_1        DB      EMPTY_STRING
                         DW      (CFA_WORDS>>1)                  ;-> WORDS
                         FCS     "-"
                         DB      BRANCH
-                        DW      FCDICT_TREE_16_1_1              ;WORDS-...
+                        DW      FCDICT_TREE_19_1_1              ;WORDS-...
                         DB      END_OF_BRANCH
-;Subtree 16->1->1 =>    "WORDS-"  -> FCDICT_TREE+136
-FCDICT_TREE_16_1_1      FCS     "CDICT"
+;Subtree 19->1->1 =>    "WORDS-"  -> FCDICT_TREE+169
+FCDICT_TREE_19_1_1      FCS     "CDICT"
                         DW      (CFA_WORDS_CDICT>>1)            ;-> WORDS-CDICT
                         FCS     "UDICT"
                         DW      (CFA_WORDS_UDICT>>1)            ;-> WORDS-UDICT

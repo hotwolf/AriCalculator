@@ -137,10 +137,6 @@ NULL			EQU	$0000
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;NVC variable 
-NVC_VOLATILE		EQU	FALSE
-NVC_NON_VOLATILE	EQU	TRUE
-	
 ;Max. line length
 FUDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
 	
@@ -176,7 +172,7 @@ FUDICT_VARS_END_LIN	EQU	@
 			CLRB
 			STD	UDICT_LAST_NFA
 			;Initialize compile pointers
-#ifdef	DP
+#ifdef	NVDICT_ON
 			LDD	DP
 #else
 			LDD	#UDICT_PS_START
@@ -205,11 +201,6 @@ FUDICT_VARS_END_LIN	EQU	@
 ;========================
 ;Complile operations:
 ;====================	
-
-
-
-
-
 ;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
 ; args:   1: required space in bytes (constant, A, B, or D are valid args)
 ; result: Y: CP+new bytes
@@ -341,7 +332,11 @@ FUDICT_VARS_END_LIN	EQU	@
 			LEAX	2,X			;start of string -> X
 			BRCLR	1,X+, #FIO_TERM, *	;skip over string
 			FUDICT_WORD_ALIGN X 		;word align X
-			LDD	2,+X			;{IMMEDIATE, CFA>>1} -> D
+			LDD	0,Y 			;CFA    -> D
+			LSRD				;CFA>>1 -> D
+			BRCLR	0,SP, #$80, DONE	;check if word is IMMEDIATE
+			ORAB	#$80 			;make result IMMEDIATE	
+DONE			EQU	*
 #emac
 
 ;Pointer operations:
@@ -352,9 +347,10 @@ FUDICT_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         All registers except for 1 are preserved
 #macro FUDICT_WORD_ALIGN, 1
-			EXG	D, \1 			; index <-> D
-			ANDB	#$FE			; word align D 
-			EXG	D, \1 			; index <-> D
+			EXG	D, \1 			;index <-> D
+			ADDD	#1			;increment D
+			ANDB	#$FE			;clear LSB 
+			EXG	D, \1 			;index <-> D
 #emac
 	
 ;#Pictured numeric output buffer (PAD)
@@ -422,7 +418,7 @@ FUDICT_CODE_START_LIN	EQU	@
 FUDICT_FIND		EQU	*
 			;Save registers (string pointer in X)
 			PSHY						;start of dictionary
-#ifdef	NVC
+#ifdef	NVDICT_ON
 			;Check NVC (string pointer in X)
 			LDY	NVC 					;check NVC
 			BNE	FUDICT_FIND_1 				;no UDICT if NVC is set
@@ -450,12 +446,16 @@ FUDICT_GENFIND	EQU	*
 			LDY	0,SP					;current NFA -> Y
 FUDICT_GENFIND_1	LEAY	2,Y					;start of dict string -> Y
 FUDICT_GENFIND_2	LDAB	1,X+					;string char -> A
+			FIO_UPPER		 			;make upper case
 			CMPB	1,Y+ 					;compare chars
 			BNE	FUDICT_GENFIND_4 			;mismatch
 			BRCLR	-1,X, #FIO_TERM, FUDICT_GENFIND_2 	;check next char
 			;Match (pointer to code field or padding in Y)
 			FUDICT_WORD_ALIGN Y 				;word align Y
-			LDD	2,Y 					;{IMMEDIATE, CFA>>1} -> D
+			TFR	Y, D 					;CFA    -> D
+			LSRD						;CFA>>1 -> D
+			BRCLR	0,SP, #$80, FUDICT_GENFIND_3	 	;check if word is IMMEDIATE
+			ORAB	#$80 					;make result IMMEDIATE	
 			;Done (result in D)
 FUDICT_GENFIND_3	SSTACK_PREPULL	8 				;check stack
 			LEAS	2,SP 					;clean up temporary variables
@@ -696,7 +696,7 @@ CF_SEMICOLON		EQU	*
 			;Save CP 	
 CF_SEMICOLON_1		MOVW	CP, CP_SAVED
 			;Set interpretation state 	
-			MOVW	#STATE_COMPILE, STATE 		;switch to compile state
+			MOVW	#STATE_INTERPRET, STATE 	;switch to interpretation state
 			NEXT
 
 ;IMMEDIATE ( -- )
@@ -754,13 +754,17 @@ CF_WORDS_UDICT		EQU	*
 			; +--------+--------+
 			; | Column counter  | PSP+2
 			; +--------+--------+
-#ifdef NVC
+#ifdef NVDICT_ON
 			;Check NVC 
 			LDD	NVC			;check NVC
 			BNE	CF_WORDS_UDICT_4	;no UDICT if NVC is set
 #endif
+			;Check if dictionary is empty 
+			LDD	UDICT_LAST_NFA 		;check if any NFA exists
+			BEQ	CF_WORDS_UDICT_4	;no NFA
 			;Print header
 			PS_PUSH	#FUDICT_WORDS_HEADER
+			EXEC_CF	CF_STRING_DOT
 			;Allocate stack space
 			PS_CHECK_OF	2		;new PSP -> Y
 			STY	PSP
@@ -768,7 +772,7 @@ CF_WORDS_UDICT		EQU	*
 			FUDICT_ITERATOR_FIRST	(0,Y)	;initialize iterator
 			MOVW #FUDICT_LINE_WIDTH, 2,Y	;initialize column count
 			;Check column width (PSP in Y)
-CF_WORDS_UDICT_1	LDD	2,Y 			;column clint -> D
+CF_WORDS_UDICT_1	LDD	2,Y 			;column count -> D
 			FUDICT_ITERATOR_WC (0,Y)
 			CPD	#(FUDICT_LINE_WIDTH+1)	;check line width
 			BLS	CF_WORDS_UDICT_2 	;insert white space
@@ -822,9 +826,8 @@ FUDICT_STR_NL		EQU	FIO_STR_NL
 
 ;#Header line for WORDS output 
 FUDICT_WORDS_HEADER	FIO_NL_NONTERM
-			FCC	"User Dictionary:"
-			;FCC	"UDICT:"
-			FIO_NL_TERM
+			FCS	"User Dictionary:"
+			;FCS	"UDICT:"
 
 FUDICT_TABS_END		EQU	*
 FUDICT_TABS_END_LIN	EQU	@
