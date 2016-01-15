@@ -249,9 +249,13 @@ FSCI_TXBUF_OUT		DS	1		;points to the oldest entry
 FSCI_BVAL		DS	2		;value of the SCIBD register
 FSCI_BVAL_INV		DS	2		;inverted value of the SCIBD register
 
+#ifndef FSCI_BAUD_AUTO
 
 
 
+
+#endif
+	
 FSCI_VARS_END		EQU	*
 FSCI_VARS_END_LIN	EQU	@
 	
