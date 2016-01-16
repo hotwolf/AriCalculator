@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - TIM - Timer Driver                                               #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -39,6 +39,8 @@
 ;#      - Back-ported LFBDMPGMR updates                                        #
 ;#    November 14, 2012                                                        #
 ;#      - Total redo                                                           #
+;#    January 15, 2016                                                         #
+;#      - Implemented configurable initialization                              #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    REGDEF - Register Definitions                                            #
@@ -69,18 +71,6 @@ TIM_OCPD_CHECK_OFF	EQU	1 		;disable OCPD checks
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;#SCI channels defaults
-TIM_SCI			EQU	$0F	;all channels		 
-TIM_SCIBDPE		EQU	$01	;posedge/toggle detection
-TIM_SCIBDNE		EQU	$02	;negedge detection 
-TIM_SCIBDTO		EQU	$04	;Baud rate detection
-TIM_SCITO		EQU	$08	;XON/XOFF reminders
-
-;#BDM channel defaults	
-TIM_BDM			EQU	$E0	;all channels		  
-TIM_BDMPE		EQU	$20	;posedge/toggle detection 
-TIM_BDMNE		EQU	$40	;negedge detection  
-TIM_BDMTO		EQU	$80	;SCI bug workaround 
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -99,69 +89,33 @@ TIM_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	TIM_INIT, 0		 ;7 6 5 4 3 2 1 0
-			;MOVB	#%1_1_1_1_1_1_0_0, TIOS 	;default setup
-			;MOVB	#%0_0_0_0_0_0_0_0, TIOS 	;keep at zero, for configuration with BSET
-				 ;      D S S S S		;  0=input capture
-				 ;      E C C C C		;  1=output compare
-				 ;      L I I I	I
-				 ;      A B B B	B
-				 ;      Y D D D	D
-				 ;        T N P	P
-				 ;        O E E	E
-						
-			;CFORC			
-			;OC7M 			
-						
-			 	 ;7 6 5 4 3 2 1 0
-			;MOVB	#%0_0_0_0_0_0_0_0, TOC7D	;default setup
-			;MOVB	#%0_0_0_0_0_0_0_0, TOC7D	;keep at zero, for configuration with BSET
-				 ;      D S S S S
-				 ;      E C C C C
-				 ;      L I I I I
-				 ;      A T B B B
-				 ;      Y O D D D
-				 ;          T N P
-				 ;          O E E
-
-			;TCNT 
-
+#macro	TIM_INIT, 0
+#ifdef TIM_TIOS_INIT
+			;TIOS 
+			MOVB	#TIM_TIOS_INIT, TIOS
+#endif
+#ifdef TIM_TOCMD_INIT
+			;TOC7M/TOC7D
+			MOVW	#TIM_TOCMD_INIT, TOCM
+#endif
+#ifdef TIM_TTOV_INIT
+			;TTOV 
+			MOVB	#TIM_TTOV_INIT, TTOV
+#endif
+#ifdef TIM_TCTL12_INIT
+			;TCTL1/TCTL2
+			MOVW	#TIM_TCTL12_INIT, TCTL1
+#endif
+#ifdef TIM_TCTL34_INIT
+			;TCTL3/TCTL4
+			MOVW	#TIM_TCTL34_INIT, TCTL3
+#endif
 #ifdef	TIM_DIV2_ON
+			;TSCR2
 			MOVB	#$01, TSCR2 			;run on half bus frequency
 #endif
-
-			;TTOV 
-	
-				 ;7 6 5 4 3 2 1 0
-			;MOVW	#%0000000000000000, TCTL1 	;keep at zero, for configuration with BSET
-				 ;      D S S S S		;  00=no OC
-				 ;      E C C C C		;  01=toggle
-				 ;      L I I I I		;  10=clear
-				 ;      A T B B B		;  11=set
-				 ;      Y O D D D
-				 ;          T N P
-				 ;          O E E
-
-			 	 ;7 6 5 4 3 2 1 0
-			;MOVW	#%0000000000000000, TCTL3 	;keep at zero, for configuration with BSET
-				 ;      D S S S S		;  00=no capture	
-				 ;      E C C C C		;  01=posedge
-				 ;      L I I I I		;  10=negedge
-				 ;      A T B B B		;  11=any edge
-				 ;      Y O D D D
-				 ;          T N P
-				 ;          O E E
-
-			;TIE
-			;TSCR2
-			;TFLG1
-			;TFLG2
-			;TC0 ... TC7
-			;PACTL
-			;PAFLG
-			;PACN0 ... PACN3
-
 #ifdef	TIM_OCPD_CHECK_ON
+			;OCPD
 			MOVW	#$FF, OCPD 			;disconnect all IO
 #endif	
 #emac
