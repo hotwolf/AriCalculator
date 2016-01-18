@@ -28,6 +28,8 @@
 ;#      - Initial release                                                      #
 ;#    January 30, 2015                                                         #
 ;#      - Updated during S12CBASE overhaul                                     #
+;#    Dcember 17, 2015                                                         #
+;#      - Included pseudo-random number generator                              #
 ;###############################################################################
 
 ;###############################################################################
@@ -136,6 +138,10 @@ VECTAB_VARS_START	EQU	*
 VECTAB_VARS_START_LIN	EQU	@
 			ORG	VECTAB_VARS_END, VECTAB_VARS_END_LIN
 
+RANDOM_VARS_START	EQU	*
+RANDOM_VARS_START_LIN	EQU	@
+			ORG	RANDOM_VARS_END, RANDOM_VARS_END_LIN
+
 BASE_VARS_END		EQU	*	
 BASE_VARS_END_LIN	EQU	@
 
@@ -180,6 +186,7 @@ BASE_VARS_END_LIN	EQU	@
 			NUM_INIT
 			NVM_INIT
 			SCI_INIT
+			RANDOM_INIT
 			CLOCK_WAIT_FOR_PLL
 			SCI_ENABLE
 			RESET_BR_ERR	ERROR	;severe error detected 
@@ -249,6 +256,10 @@ NVM_CODE_START_LIN	EQU	@
 VECTAB_CODE_START	EQU	*
 VECTAB_CODE_START_LIN	EQU	@
 			ORG	VECTAB_CODE_END, VECTAB_CODE_END_LIN
+
+RANDOM_CODE_START	EQU	*
+RANDOM_CODE_START_LIN	EQU	@
+			ORG	RANDOM_CODE_END, RANDOM_CODE_END_LIN
 
 BASE_CODE_END		EQU	*	
 BASE_CODE_END_LIN	EQU	@
@@ -328,6 +339,10 @@ VECTAB_TABS_START	EQU	*
 VECTAB_TABS_START_LIN	EQU	@
 			ORG	VECTAB_TABS_END, VECTAB_TABS_END_LIN
 	
+RANDOM_TABS_START	EQU	*
+RANDOM_TABS_START_LIN	EQU	@
+			ORG	RANDOM_TABS_END, RANDOM_TABS_END_LIN
+	
 BASE_TABS_END		EQU	*	
 BASE_TABS_END_LIN	EQU	@
 	
@@ -349,4 +364,5 @@ BASE_TABS_END_LIN	EQU	@
 #include ../All/num.s	   		;Number printing routines
 #include ../Mini-BDM-Pod/nvm_Mini-BDM-Pod.s;NVM driver
 #include ./vectab_BEPM.s		;S12XEP100 vector table
+#include ../All/random.s	   	;Pseudo-random number generator
 #endif
