@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - SCI - Serial Communication Interface Driver                      #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -84,24 +84,10 @@
 ;#         Baud rate detection will be triggered.                              #
 ;#         This condition will be reported to the application.                 #       
 ;#                                                                             #
-;#    The SCI module is capable of detecting the baud rate of received data.   #
-;#    Whenever a framing error, a parity error or noise is detected, the baud  #
-;#    rate detection is activated and the module begins measuring all high and #
-;#    low pulses on the RX line. Assuming that the sender uses one of the      #
-;#    following baud rates:     4800	                                       #
-;#                              7200	                                       #
-;#                              9600	                                       #
-;#                             14400	                                       #
-;#                             19200	                                       #
-;#                             28800	                                       #
-;#                             38400	                                       #
-;#                             57600	                                       #
-;#    ...it finds the senders baud rate by elimination. When the baud rate has #
-;#    been detected (all but one of the valid baud rates eliminated) and 15    #
-;#    consecutive low or high ulses match this baud rate, then the SCI will be #
-;#    set to the new baud rate.	                                               #
-;#    While the baud rate detection is active, a communication error will be   #
-;#    signaled over the LED.                                                   #
+;#    The SCI module is capable of detecting the baud rate of the serial       #
+;#    communication. After each power-up, the RX pin is probed, expecting to   #
+;#    receive a CR character. The boud rate is then determined based on the    #
+;#    observed pusle widths.                                                   #
 ;#                                                                             #
 ;#    The SCI driver supports hardware flow control (RTS/CTS) to allow 8-bit   #
 ;#    data transmissions. The flow control signals are implemented to using    #
@@ -152,6 +138,8 @@
 ;#      - Changed control character handling                                   #
 ;#    October 28, 2015                                                         #
 ;#      - Added feature to halt SCI communication                              #
+;#    April 23, 2009                                                           #
+;#      - Moved from countinuous to initial baud rate detection                #
 ;###############################################################################
 
 ;###############################################################################
@@ -175,6 +163,38 @@ CLOCK_BUS_FREQ		EQU	25000000 	;default is 25MHz
 #ifndef	SCI_RXTX_ACTLO
 #ifndef	SCI_RXTX_ACTHI
 SCI_RXTX_ACTLO		EQU	1 		;default is active low RXD/TXD
+#endif
+#endif
+	
+;TIM configuration
+;Input capture channel for baud rate detection
+#ifndef	SCI_IC
+SCI_IC			EQU	0 		;default is IC0
+#endif
+;Output compare channel for flow control, baud rate detection and MC9S12DP256 SCI IRQ workaround
+#ifndef	SCI_OC
+SCI_OC			EQU	1 		;default is OC1
+#endif
+	
+;Baud rate
+;---------
+#ifndef SCI_BAUD_AUTO
+#ifndef SCI_BAUD_4800 	
+#ifndef SCI_BAUD_7200 	
+#ifndef SCI_BAUD_9600 	
+#ifndef SCI_BAUD_14400	
+#ifndef SCI_BAUD_19200	
+#ifndef SCI_BAUD_28800	
+#ifndef SCI_BAUD_38400	
+#ifndef SCI_BAUD_57600	
+SCI_BAUD_AUTO		EQU	1 		;default is auto detection
+#endif
+#endif
+#endif
+#endif
+#endif
+#endif
+#endif
 #endif
 #endif
 	
@@ -248,73 +268,13 @@ SCI_IRQ_WORKAROUND_OFF	EQU	1 		;IRQ workaround disabled by default
 #endif
 #endif
 
-;Delay counter 
-;------------- 
-;SCI_DLY_OC		EQU	$3		;default is OC3
-	
-;Baud rate detection 
-;------------------- 
-;Enable (SCI_BD_ON or SCI_BD_OFF)
-#ifndef	SCI_BD_ON
-#ifndef	SCI_BD_OFF
-SCI_BD_ON		EQU	1 		;default is SCI_BD_ON
+;#Buffer sizes		
+#ifndef	SCI_RXBUF_SIZE	
+SCI_RXBUF_SIZE		EQU	 16*2		;size of the receive buffer (8 error:data entries)
 #endif
+#ifndef	SCI_TXBUF_SIZE	
+SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
 #endif
-
-;Baud rate detection configuration 
-#ifdef SCI_BD_ON
-
-;ECT or TIM
-#ifndef	SCI_BD_TIM
-#ifndef	SCI_BD_ECT
-SCI_BD_TIM		EQU	1 		;default is TIM
-#endif
-#endif
-
-;TIM configuration
-#ifdef 	SCI_BD_TIM
-;Input capture channels (pulse capture)
-#ifndef	SCI_BD_ICPE
-SCI_BD_ICPE		EQU	$0		;default is IC0
-#endif
-#ifndef	SCI_BD_ICNE
-SCI_BD_ICNE		EQU	$1		;default is IC1			
-#endif
-#endif
-
-;ECT configuration
-#ifdef 	SCI_BD_ECT
-;Input capture channel (pulse capture)
-#ifndef SCI_BD_TC
-SCI_BD_IC		EQU	$0		;default is IC0		
-#endif
-#endif
-	
-;Output compare channels (time out)
-#ifndef	SCI_BD_OC
-SCI_BD_OC		EQU	$2		;default is OC2			
-#endif
-
-;Log captured BD pulse length 
-#ifndef	SCI_BD_LOG_ON
-#ifndef	SCI_BD_LOG_OFF
-SCI_BD_LOG_OFF		EQU	1 		;default is SCI_BD_LOG_OFF
-#endif
-#endif
-#endif
-
-;Blocking subroutines
-;-------------------- 
-;Enable blocking subroutines
-#ifndef	SCI_BLOCKING_ON
-#ifndef	SCI_BLOCKING_OFF
-SCI_BLOCKING_OFF	EQU	1 		;blocking functions disabled by default
-#endif
-#endif
-
-;TX buffer size (minimize to 1 for debugging) 
-;-------------------------------------------- 
-;SCI_TXBUF_SIZE		EQU	  1 		;minimum size of the transmit buffer
 	
 ;C0 character handling
 ;--------------------- 
@@ -329,6 +289,14 @@ SCI_BLOCKING_OFF	EQU	1 		;blocking functions disabled by default
 
 ;Communication error signaling
 ;----------------------------- 
+;Signal active baud rate detection -> define macros SCI_BDSIG_START and SCI_BDSIG_STOP
+;#mac SCI_BDSIG_START, 0
+;	...code to start signaling active baud rate detection (inside ISR)
+;#emac
+;#mac SCI_BDSIG_STOP, 0
+;	...code to stop signaling active baud rate detection (inside ISR)
+;#emac
+	
 ;Signal RX errors -> define macros SCI_ERRSIG_START and SCI_ERRSIG_STOP
 ;#mac SCI_ERRSIG_START, 0
 ;	...code to start error signaling (inside ISR)
@@ -356,7 +324,6 @@ SCI_76800       	EQU	(CLOCK_BUS_FREQ/(16* 76800))+(((2*CLOCK_BUS_FREQ)/(16* 7680
 SCI_115200		EQU	(CLOCK_BUS_FREQ/(16*115200))+(((2*CLOCK_BUS_FREQ)/(16*115200))&1)	
 SCI_153600		EQU	(CLOCK_BUS_FREQ/(16*153600))+(((2*CLOCK_BUS_FREQ)/(16*153600))&1)
 SCI_BDEF		EQU	SCI_9600 			;default baud rate
-SCI_BMUL		EQU	$FFFF/SCI_153600	 	;Multiplicator for storing the baud rate
 		
 ;#Frame format
 SCI_8N1			EQU	  ILT		;8N1
@@ -372,16 +339,11 @@ SCI_XON			EQU	$11 		;unblock transmission
 SCI_XOFF		EQU	$13		;block transmission
 SCI_SUSPEND		EQU	$1A 		;ctrl-z (suspend program execution)
 
-;#Buffer sizes		
-SCI_RXBUF_SIZE		EQU	 16*2		;size of the receive buffer (8 error:data entries)
-#ifndef	SCI_TXBUF_SIZE	
-SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
-#endif
-SCI_RXBUF_MASK		EQU	$1F		;mask for rolling over the RX buffer
-;SCI_TXBUF_MASK		EQU	$07		;mask for rolling over the TX buffer
-SCI_TXBUF_MASK		EQU	$01		;mask for rolling over the TX buffer
+;#Buffer masks		
+SCI_RXBUF_MASK		EQU	SCI_TXBUF_SIZE-1;mask for rolling over the RX buffer
+SCI_TXBUF_MASK		EQU	SCI_TXBUF_SIZE-1;mask for rolling over the TX buffer
 
-;#Hardware handshake borders
+;#Flow control thresholds
 SCI_RX_FULL_LEVEL	EQU	 8*2		;RX buffer threshold to block transmissions 
 SCI_RX_EMPTY_LEVEL	EQU	 2*2		;RX buffer threshold to unblock transmissions
 	
@@ -395,6 +357,11 @@ SCI_FLG_TX_BLOCKED	EQU	$04		;don't transmit (XOFF received)
 SCI_FLG_RX_ESC		EQU	$02		;character is to be escaped
 SCI_FLG_TX_ESC		EQU	$01		;character is to be escaped
 
+
+
+<----------Hier weiter
+
+	
 ;#Flow control
 #ifdef	SCI_FC_RTSCTS
 SCI_FC_EN		EQU	1

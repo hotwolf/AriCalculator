@@ -21,16 +21,8 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    The module controls the timer. The eight timer channes are used as       #
-;#    follows:                                                                 #
-;#      IC0:     SCI baud rate detection (capture posedges on RX pin)          #
-;#      IC1:     SCI baud rate detection (capture negedges on RX pin)          #
-;#      OC2:     SCI baud rate detection (timeout)                             #
-;#      OC3:     SCI (timeout)                                                 #
-;#      OC4:     delay driver                                                  #
-;#      OC5:     unasigned                                                     #
-;#      OC6:     unasigned                                                     #
-;#      OC7:     unasigned                                                     #
+;#    The module controls the shared timer module.                             #
+;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #

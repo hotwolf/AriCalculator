@@ -49,52 +49,56 @@
 ;#      - Added option to disable stack range checks "SSTACK_NO_CHECK"         #
 ;#    November 14, 2012                                                        #
 ;#      - Removed PSH/PUL macros                                               #
+;#    January 16, 2016                                                         #
+;#      - New generic implementation                                           #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    SSTACK - Subroutine stack handler                                        #
-;#    RESET  - Reset handler                                                   #
+;#    - none                                                                   #
+;#                                                                             #
 ;###############################################################################
 ;###############################################################################
 ;# Stack Layout                                                                #
 ;###############################################################################
-; ISTACK_VARS_START,   +-------------------+
-;        ISTACK_TOP -> |                   |
-;                      | ISTACK_FRAME_SIZE |
-;                      |                   |
+;###############################################################################
 ;                      +-------------------+
 ;        SSTACK_TOP -> |                   |
 ;                      |                   |
+;                      |      SSTACK       |     
 ;                      |                   |
 ;                      |                   |
-;                      |    SSTACK_DEPTH   |
-;                      |                   |
-;                      |                   |
-;                      |                   |
-;     SSTACK_BOTTOM,   |                   |
-;     ISTACK_BOTTOM,   +-------------------+
-;   ISTACK_VARS_END ->
+;                      +-------------------+
+;     SSTACK_BOTTOM ->
 ;
-;The SSTACK is checked once before every JOBSR and once before every RTS.
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Debug option for stack over/underflows
-;SSTACK_DEBUG		EQU	1 
-	
-;Disable stack range checks
-;SSTACK_NO_CHECK	EQU	1 
-
-;Stack depth 
-#ifndef SSTACK_DEPTH
-SSTACK_DEPTH		EQU	27
+;Stack allocation
+#ifndef	SSTACK_SIZE
+SSTACK_SIZE		EQU	32		;default is one stack frame
 #endif
+;...or...
+;SSTACK_TOP		EQU	...		;top of stack
+;SSTACK_BOTTOM		EQU	...		;bottom of stack
+
+;Enable stack range checks
+#ifndef	SSTACK_CHECK_ON
+#ifndef	SSTACK_CHECK_OFF
+SSTACK_CHECK_OFF	EQU	1 		;default is S12
+#endif
+#endif
+
+;Range checks
+;#mac SSTACK_PREPUSH, 0
+;	...code to start signaling active baud rate detection (inside ISR)
+;#emac
+;#mac SSTACK_PREPULL, 0
+;	...code to stop signaling active baud rate detection (inside ISR)
+;#emac
 	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-SSTACK_TOP		EQU	ISTACK_TOP+ISTACK_FRAME_SIZE
-SSTACK_BOTTOM		EQU	ISTACK_BOTTOM
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -103,6 +107,14 @@ SSTACK_BOTTOM		EQU	ISTACK_BOTTOM
 			ORG 	SSTACK_VARS_START, SSTACK_VARS_START_LIN
 #else
 			ORG 	SSTACK_VARS_START
+#endif	
+
+#ifndef	SSTACK_TOP
+#ifndef	SSTACK_BOTTOM
+;Default allocation 
+SSTACK_TOP		DS	SSTACK_SIZE
+SSTACK_BOTTOM		EQU	*
+#endif	
 #endif	
 
 SSTACK_VARS_END		EQU	*
@@ -114,42 +126,18 @@ SSTACK_VARS_END_LIN	EQU	@
 ;#Initialization (initialization done by ISTACK module)
 #macro	SSTACK_INIT, 0
 #emac
-
-;#Check stack boundaries	
-; args:   1: required stack capacity (bytes)
-;         2: expected stack content  (bytes)
-; result: none 
-; SSTACK: none
-;         X, Y, and D are preserved 
-#macro	SSTACK_CHECK_BOUNDARIES, 2
-#ifndef	SSTACK_NO_CHECK 
-			CPS	#SSTACK_TOP+\1 		;=> 2 cycles	 3 bytes
-			BLO	OF	      		;=> 3 cycles	 4 bytes
-			CPS	#SSTACK_BOTTOM-\2	;=> 2 cycles	 3 bytes
-			BHI	UF			;=> 3 cycles	 4 bytes
-					      		;  ---------	--------
-					      		;  10 cycles	14 bytes
-#ifdef	SSTACK_DEBUG
-			JOB	DONE
-UF			BGND
-OF			BGND
-DONE			EQU	*	
-#else
-UF			EQU	SSTACK_UF
-OF			EQU	SSTACK_OF
-#endif
-#endif
-#emac
 	
+#ifnmac	SSTACK_PREPUSH
 ;#Check stack before push operation	
 ; args:   1: required stack capacity (bytes)
 ; result: none 
 ; SSTACK: none
 ;         X, Y, and D are preserved
 #macro	SSTACK_PREPUSH, 1 //number of bytes to push
-			SSTACK_CHECK_BOUNDARIES	\1, 0
 #emac
+#endif
 
+#ifnmac	SSTACK_PREPULL
 ;#Check stack before pull operation	
 ; args:   1: expecteded stack content (bytes)
 ; result: none 
@@ -158,6 +146,7 @@ OF			EQU	SSTACK_OF
 #macro	SSTACK_PREPULL, 1 //number of bytes to pull
 			SSTACK_CHECK_BOUNDARIES	0, \1
 #emac
+#endif
 	
 ;#Check stack and call subroutine	
 ; args:   required stack capacity (bytes)
@@ -167,7 +156,9 @@ OF			EQU	SSTACK_OF
 ;         register content may be changed by the subroutine
 ; args:   1: Number of bytes to be allocated (args + local vars)
 #macro	SSTACK_JOBSR, 2
+#ifdef	SSTACK_CHECK_ON
 			SSTACK_PREPUSH	\2
+#endif
 			JOBSR	\1
 #emac
 	
@@ -177,7 +168,9 @@ OF			EQU	SSTACK_OF
 ; SSTACK: arg 1
 ;         X, Y, and D are preserved 
 #macro	SSTACK_ALLOC, 1
+#ifdef	SSTACK_CHECK_ON
 			SSTACK_PREPUSH	\1
+#endif
 			LEAS	-\1,SP
 #emac
 
@@ -187,7 +180,9 @@ OF			EQU	SSTACK_OF
 ; SSTACK: 0 bytes
 ;         X, Y, and D are preserved 
 #macro	SSTACK_DEALLOC, 1
+#ifdef	SSTACK_CHECK_ON
 			SSTACK_PREPULL	\1
+#endif
 			LEAS	\1,SP
 #emac
 
@@ -198,22 +193,6 @@ OF			EQU	SSTACK_OF
 			ORG 	SSTACK_CODE_START, SSTACK_CODE_START_LIN
 #else
 			ORG 	SSTACK_CODE_START
-#endif
-
-;#Handle stack overflows
-#ifndef	SSTACK_NO_CHECK
-#ifndef	SSTACK_DEBUG
-SSTACK_OF		EQU	*
-			RESET_FATAL	SSTACK_MSG_OF ;throw a fatal error
-#endif
-#endif
-
-;#Handle stack underflows
-#ifndef	SSTACK_NO_CHECK
-#ifndef	SSTACK_DEBUG
-SSTACK_UF		EQU	*
-			RESET_FATAL	SSTACK_MSG_UF ;throw a fatal error
-#endif
 #endif
 		
 SSTACK_CODE_END		EQU	*
@@ -227,14 +206,6 @@ SSTACK_CODE_END_LIN	EQU	@
 #else
 			ORG 	SSTACK_TABS_START
 #endif	
-
-;#Error Messages
-#ifndef	SSTACK_NO_CHECK 
-#ifndef	SSTACK_DEBUG
-SSTACK_MSG_OF		RESET_MSG	"Subroutine stack overflow"
-SSTACK_MSG_UF		RESET_MSG	"Subroutine stack underflow"
-#endif
-#endif
 
 SSTACK_TABS_END		EQU	*
 SSTACK_TABS_END_LIN	EQU	@
