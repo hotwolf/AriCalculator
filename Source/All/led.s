@@ -21,7 +21,7 @@
 ;#    along with S12CBase.  If not, see <http://www.gnu.org/licenses/>.        #
 ;###############################################################################
 ;# Description:                                                                #
-;#    The module drives sequentioal patterns onto the LEDs.                    #
+;#    The module drives sequential patterns onto the LEDs.                     #
 ;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -29,7 +29,7 @@
 ;#      - Initial release                                                      #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    REGDEF - Register Definitions                                            #
+;#    TIM - Timer Driver                                                       #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -45,6 +45,7 @@ LED_OC			EQU	2 		;default is OC2
 #endif
 
 ;I/O configuration
+; Red
 #ifndef LED_NO_RED	
 #ifndef	LED_PORT_RED
 LED_PORT_RED		EQU	PORTE 		;default is PE
@@ -52,14 +53,18 @@ LED_PORT_RED		EQU	PORTE 		;default is PE
 #ifndef	LED_PIN_RED
 LED_PORT_RED		EQU	PE1 		;default is PE1
 #endif
+#endif
+; Green
+#ifndef LED_NO_GREEN	
+#ifndef	LED_PORT_GREEN
+LED_PORT_GREEN		EQU	PORTE 		;default is PE
+#endif
+#ifndef	LED_PIN_GREEN
+LED_PORT_GREEN		EQU	PE0 		;default is PE0
+#endif
+#endif
 
-
-
-
-LED_RED			EQU	PE1	
-LED_GREEN		EQU	PE0		
-
-
+#endif
 	
 ;###############################################################################
 ;# Constants                                                                   #
@@ -74,11 +79,8 @@ LED_TIOS_INIT		EQU	1<<LED_OC
 ; TCTL1/2
 ;SCI_TCTL12_INIT	EQU	0
 ; TCTL3/4
-SCI_TCTL34_INIT		EQU	0
-
-
-
-	
+;SCI_TCTL34_INIT	EQU	0
+ 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################

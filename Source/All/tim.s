@@ -52,8 +52,8 @@ TIM_DIV2_OFF		EQU	1 	;default no clock divider
 #endif
 #endif
 
-; OCPD checks (only disable timer if all OCPD bits are set)
-;-------------
+;OCPD checks (only disable timer if all OCPD bits are set)
+;---------------------------------------------------------
 #ifndef	TIM_OCPD_CHECK_ON
 #ifndef	TIM_OCPD_CHECK_OFF
 TIM_OCPD_CHECK_OFF	EQU	1 		;disable OCPD checks
@@ -63,6 +63,13 @@ TIM_OCPD_CHECK_OFF	EQU	1 		;disable OCPD checks
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;Timer frequency
+;---------------
+#ifdef TIM_DIV2_OFF
+TIM_FREQ		EQU	CLOCK_BUS_FREQ 		;frequency in Hz
+#else
+TIM_FREQ		EQU	CLOCK_BUS_FREQ/2 	;frequency in Hz
+#endif
 	
 ;###############################################################################
 ;# Variables                                                                   #
