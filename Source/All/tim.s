@@ -46,9 +46,21 @@
 ;###############################################################################
 ;Clock divider
 ;-------------
-#ifndef	TIM_DIV2_ON
-#ifndef	TIM_DIV2_OFF
-TIM_DIV2_OFF		EQU	1 	;default no clock divider
+#ifndef	TIM_DIV_OFF
+#ifndef	TIM_DIV_2
+#ifndef	TIM_DIV_4
+#ifndef	TIM_DIV_8
+#ifndef	TIM_DIV_16
+#ifndef	TIM_DIV_32
+#ifndef	TIM_DIV_64
+#ifndef	TIM_DIV_128
+TIM_DIV_OFF		EQU	1 	;default no clock divider
+#endif
+#endif
+#endif
+#endif
+#endif
+#endif
 #endif
 #endif
 
@@ -65,10 +77,29 @@ TIM_OCPD_CHECK_OFF	EQU	1 		;disable OCPD checks
 ;###############################################################################
 ;Timer frequency
 ;---------------
-#ifdef TIM_DIV2_OFF
+#ifdef TIM_DIV_OFF
 TIM_FREQ		EQU	CLOCK_BUS_FREQ 		;frequency in Hz
-#else
+#endif
+#ifdef TIM_DIV_2
 TIM_FREQ		EQU	CLOCK_BUS_FREQ/2 	;frequency in Hz
+#endif
+#ifdef TIM_DIV_4
+TIM_FREQ		EQU	CLOCK_BUS_FREQ/4 	;frequency in Hz
+#endif
+#ifdef TIM_DIV_8
+TIM_FREQ		EQU	CLOCK_BUS_FREQ/8 	;frequency in Hz
+#endif
+#ifdef TIM_DIV_16
+TIM_FREQ		EQU	CLOCK_BUS_FREQ/16 	;frequency in Hz
+#endif
+#ifdef TIM_DIV_32
+TIM_FREQ		EQU	CLOCK_BUS_FREQ/32 	;frequency in Hz
+#endif
+#ifdef TIM_DIV_64
+TIM_FREQ		EQU	CLOCK_BUS_FREQ/64 	;frequency in Hz
+#endif
+#ifdef TIM_DIV_128
+TIM_FREQ		EQU	CLOCK_BUS_FREQ/128 	;frequency in Hz
 #endif
 	
 ;###############################################################################
@@ -109,9 +140,33 @@ TIM_VARS_END_LIN	EQU	@
 			;TCTL3/TCTL4
 			MOVW	#TIM_TCTL34_INIT, TCTL3
 #endif
-#ifdef	TIM_DIV2_ON
+#ifdef	TIM_DIV_2
 			;TSCR2
-			MOVB	#$01, TSCR2 			;run on half bus frequency
+			MOVB	#$01, TSCR2 			;timer clock = bus clock/2
+#endif
+#ifdef	TIM_DIV_4
+			;TSCR2
+			MOVB	#$02, TSCR2 			;timer clock = bus clock/4
+#endif
+#ifdef	TIM_DIV_8
+			;TSCR2
+			MOVB	#$03, TSCR2 			;timer clock = bus clock/8
+#endif
+#ifdef	TIM_DIV_16
+			;TSCR2
+			MOVB	#$04, TSCR2 			;timer clock = bus clock/16
+#endif
+#ifdef	TIM_DIV_32
+			;TSCR2
+			MOVB	#$05, TSCR2 			;timer clock = bus clock/32
+#endif
+#ifdef	TIM_DIV_64
+			;TSCR2
+			MOVB	#$06, TSCR2 			;timer clock = bus clock/64
+#endif
+#ifdef	TIM_DIV_128
+			;TSCR2
+			MOVB	#$07, TSCR2 			;timer clock = bus clock/128
 #endif
 #ifdef	TIM_OCPD_CHECK_ON
 			;OCPD
@@ -200,15 +255,11 @@ DONE			EQU	*
 	
 ;#Setup timer delay
 ; args: 1: channel number
-;       2: delay (in bus cycles)
+;       2: delay (in timer counts)
 ; SSTACK: none
 ;         X, and Y are preserved 
 #macro	TIM_SET_DLY_IMM, 2
-#ifdef	TIM_DIV2_ON
-			LDD	#(\2>>1)
-#else
 			LDD	#\2		
-#endif
 			ADDD	TCNT				;RPO
 			STD	(TC0+(2*\1))			;PWO
 #emac
@@ -219,9 +270,6 @@ DONE			EQU	*
 ; SSTACK: none
 ;         X, and Y are preserved 
 #macro	TIM_SET_DLY_D, 1
-#ifdef	TIM_DIV2_ON
-			LSRD
-#endif
 			ADDD	TCNT
 			STD	(TC0+(2*\1))
 #emac

@@ -91,6 +91,16 @@ LED_TIOS_INIT		EQU	1<<LED_OC
 LED_VARS_START_LIN	EQU	@			
 #endif	
 
+LED_AUTO_LOC1		EQU	* 		;1st auto-place location
+			ALIGN	1
+;#Flags
+LED_DELAY		DS	2	
+
+;#Flags
+LED_AUTO_LOC2		EQU	*		;2nd auto-place location
+LED_FLGS		EQU	((LED_AUTO_LOC1&1)*LED_AUTO_LOC1)+(((~LED_AUTO_LOC1)&1)*LED_AUTO_LOC2)
+			UNALIGN	((~LED_AUTO_LOC1)&1)
+	
 LED_VARS_END		EQU	*
 LED_VARS_END_LIN	EQU	@
 
