@@ -209,7 +209,8 @@ TIM_VARS_END_LIN	EQU	@
 			BNE	DONE
 #ifdef	TIM_OCPD_CHECK_ON
 			BRSET	OCPD, #$FF, DISABLE
-#endif			JOB	DONE
+			JOB	DONE
+#endif
 DISABLE			CLR	TSCR1
 DONE			EQU	*
 #emac
@@ -231,7 +232,8 @@ DONE			EQU	*
 			BNE	DONE
 #ifdef	TIM_OCPD_CHECK_ON
 			BRSET	OCPD, #$FF, DISABLE
-#endif			JOB	DONE
+			JOB	DONE
+#endif
 DISABLE			CLR	TSCR1
 DONE			EQU	*
 #emac
@@ -270,8 +272,8 @@ DONE			EQU	*
 ; SSTACK: none
 ;         X, and Y are preserved 
 #macro	TIM_SET_DLY_D, 1
-			ADDD	TCNT
-			STD	(TC0+(2*\1))
+			ADDD	TCNT 				;RPO
+			STD	(TC0+(2*\1))			;PWO
 #emac
 
 ;#Setup timer delay if timer channel is inactive

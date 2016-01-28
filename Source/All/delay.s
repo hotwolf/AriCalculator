@@ -45,6 +45,23 @@ DELAY_OC		EQU	3 		;default is OC2
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;#Timer configuration
+; TIOS 
+DELAY_TIOS_INIT		EQU	1<<DELAY_OC
+; TOC7M/D
+;DELAY_TOC7MD_INIT	EQU	0
+; TTOV
+;DELAY_TTOV_INIT	EQU	0
+; TCTL1/2
+;DELAY_TCTL12_INIT	EQU	0
+; TCTL3/4
+;DELAY_TCTL34_INIT	EQU	0
+
+;#Output compare register
+DELAY_OC_REG		EQU	TC0+(2*DELAY_OC)
+	
+;#Shortest OC period (8 bus cycles)
+DELAY_MIN_TC		EQU	8*(CLOCK_BUS_FREQ/TIM_FREQ)
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -56,14 +73,7 @@ DELAY_OC		EQU	3 		;default is OC2
 DELAY_VARS_START_LIN	EQU	@			
 #endif	
 
-DELAY_AUTO_LOC1		ALIGN	1
-DELAY_AUTO_LOC1_SEL	EQU	*-DELAY_AUTO_LOC1		;1st auto-place location
-
-DELAY_REMTC_LSW		DS	2 				;remaining timer counts
-DELAT_REMTC_MSB		EQU	(DELAY_AUTO_LOC1_SEL*DELAY_AUTO_LOC1)+(DELAY_AUTO_LOC2_SEL*DELAY_AUTO_LOC2)
-
-DELAY_AUTO_LOC2		UNALIGN	(1-DELAY_AUTO_LOC1_SEL)		;2nd auto-place location
-DELAY_AUTO_LOC2_SEL	EQU	*-DELAY_AUTO_LOC2
+DELAY_REM_TIME		DS	2 		;counts remaining timer intervalls
 	
 DELAY_VARS_END		EQU	*
 DELAY_VARS_END_LIN	EQU	@
@@ -73,10 +83,17 @@ DELAY_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization (0 in D)
 #macro	DELAY_INIT, 0
-			STAA	DELAT_REMTC_MSB
-			STD	DELAT_REMTC_LSW
 #emac
 	
+;#Wait for a given time (or longer)
+; args:   D: delay in ms
+; result: none
+; SSTACK: 6 bytes
+;         X, Y, and D are preserved 
+#mac DELAY_WAIT_MS, 0
+			SSTACK_JOBSR	DELAY_WAIT_MS, 6
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -89,62 +106,55 @@ DELAY_VARS_END_LIN	EQU	@
 ;#Wait for a given time (or longer)
 ; args:   D: delay in ms
 ; result: none
-; SSTACK: 2 or 4 bytes
+; SSTACK: 6 bytes
 ;         X, Y, and D are preserved 
 DELAY_WAIT_MS		EQU	*
-
-			;Save registers ()
-			PSHY
-			PSHX
-			PSHD
-			MOVB	DELAY_REM_TC_MSB, 1,-SP
-
-
-			;Calculate timer counts (ms delay in D)
+			;Save registers (ms delay in D)
+			PSHY					;save Y
+			PSHD					;save D
+			;Calculate tc delay (ms delay in D)
 			LDY	#(TIM_FREQ/1000) 		;TIM freq in kHz -> Y
-			TFR	Y, X				;TIM freq in kHz -> X
-			IDIV					;D / X -> X remainder -> D
-			EXG	X, D				
-			STAB	DELAY_REM_TC_MSB
-			EXG	X, Y
-			CLRA
-			CLRB
-			EDIV					;Y:D / X -> Y remmainder -> D
-			STY	DELAY_REM_TC_LSW
-	
-	
-
+			EMUL					;D * Y -> Y:D
+			;Adjust tc delay if LSW is to short (tc delay in Y:D)
+			EXG	D, Y 				;tc delay ->D:Y
+			CPY	#DELAY_MIN_TC			;check for min. timer delay
+			SBCB	#0				;subtract one
+			SBCA	#0				; timer intervall
+			BCS	DELAY_WAIT_MS_3 		;do nothing
+			EXG	D, Y 				;adjusted tc delay ->Y:D
+			;Set up timer (adjusted tc delay in Y:D)
+			SEI		       			;start of atomoc sequence
+			STD	DELAY_REM_TIME			;set remainig time counter
+			TIM_EN		DELAY_OC		;enable timer
+			TIM_SET_DLY_D	DELAY_OC		;RPO PWO OPwP
+			TIM_CLRIF	DELAY_OC		;|<------->| 8 bus cycles
+			;Wait until delay is over
+DELAY_WAIT_MS_1		BRCLR	TIE, #(1<<DELAY_OC), DELAY_WAIT_MS_2;check IF
+			ISTACK_WAI				;wait for any event
+			SEI					;prevent interrupts
+			JOB	DELAY_WAIT_MS_1			;check IF
+			;Done
+DELAY_WAIT_MS_2		CLI					;end of atomic sequence
+DELAY_WAIT_MS_3		SSTACK_PREPULL	6			;check SSTACK
+			PULD					;restore D
+			PULY					;restore Y
+			RTS
 	
 ;#ISR
 ;---- 
 DELAY_ISR		EQU	*			
 			;Clear interrupt flag
 			TIM_CLRIF	DELAY_OC		;clear interrupt flag		
-			;Check MSW of remaining delay 
-			LDX	DELAY_TIME_LEFT_MSW		;remaining time (MSW) -> X
-			BNE	DELAY_ISR_3 			;wait for a full timer period
-			;Check LSW of remaining delay 		
-			LDD	DELAY_TIME_LEFT_LSW		;remaining time (LSW) -> D
-			BEQ	DELAY_ISR_2 			;delay is over
-			MOVW	#$0000, DELAY_TIME_LEFT_LSW	;update remaining time
-			BMI	DELAY_ISR_4			;delay >= 2^15 timer counts
-			;Delay < 2^15 timer counts (LSW of remaining timer counts in D)
-			ADDD	DELAY_TC_REG			;calculate new output compare value
-			STD	DELAY_TC_REG			;update delay
-			CPD 	TCNT				;check if output compare was missed
-			BPL	DELAY_ISR_2			;output compare still ahead (done)
+			;Adjust remaining time
+			LDX	DELAY_REM_TIME			;remaining time -> X
+			BEQ	DELAY_ISR_1			;delay is over
+			DEX					;decrement remaining time
+			STX	DELAY_REM_TIME			;update remaining time
+			ISTACK_RTI				;done
 			;Delay is over 
 DELAY_ISR_1		TIM_DIS	DELAY_OC 			;disable timer
-DELAY_ISR_2		ISTACK_RTI				;done
-			;Wait for a full timer period (MSW of emaining timer counts in X)
-DELAY_ISR_3		DEX					;subtract one timer intervall
-			STX	DELAY_TIME_LEFT_MSW		;update remaining time
 			ISTACK_RTI				;done
-			;Delay >= 2^15 timer counts (LSW of remaining timer counts in D)
-DELAY_ISR_4		ADDD	DELAY_TC_REG			;calculate new output compare value
-			STD	DELAY_TC_REG			;update delay
-			ISTACK_RTI				;done
-
+			
 DELAY_CODE_END		EQU	*
 DELAY_CODE_END_LIN	EQU	@
 
