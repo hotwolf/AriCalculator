@@ -35,26 +35,28 @@
 ;#                                                                             #
 ;#   Pattern assignment:                                                       #
 ;#   +---+ --------------+----------------                                     #
-;#   | 0 | Short pulse   |                  ^                                  #
+;#   | 8 | Short pulse   |                  ^                                  #
 ;#   +---+               | Non-recurring    |h                                 #
-;#   | 1 | Long pulse    |                  |i                                 #
+;#   | 7 | Long pulse    |                  |i                                 #
 ;#   +---+ --------------+----------------  |g                                 #
-;#   | 2 | Fast blink    |                  |h                                 #
+;#   | 6 | Fast blink    |                  |h                                 #
 ;#   +---+               |                  |                                  #
-;#   | 3 | Slow blink    |                  |p                                 #
-;#   +---+               |                  |r                                 #
-;#   | 4 | Shingle gap   | Recurring        |i                                 #
-;#   +---+               |                  |o                                 #
-;#   | 5 | Double gap    |                  |                                  #
-;#   +---+               |                  |l                                 #
-;#   | 6 | Heart beat    |                  |o                                 #
-;#   +---+ --------------+----------------  |w                                 #
-;#   | 7 | On            | Untimed          v                                  #
+;#   | 5 | Slow blink    |                  |                                  #
+;#   +---+               |                  |p                                 #
+;#   | 4 | Shingle gap   | Recurring        |r                                 #
+;#   +---+               |                  |i                                 #
+;#   | 3 | Double gap    |                  |o                                 #
+;#   +---+               |                  |                                  #
+;#   | 2 | Heart beat    |                  |                                  #
+;#   +---+ --------------+----------------  |l                                 #
+;#   | 1 | On            |                  |o                                 #
+;#   +---+               | Untimed          |w                                 #
+;#   | 0 | Off           |                  v                                  #
 ;#   +---+ --------------+----------------                                     #
 ;#                                                                             #
 ;###############################################################################
 
-;#######################################################x########################
+;#######################################################x#######################
 ;# Configuration                                                               #
 ;###############################################################################
 ;TIM configuration
@@ -64,7 +66,7 @@ LED_OC			EQU	2 		;default is OC2
 #endif
 
 ;I/O configuration
-#ifndef LED_NO_RED	
+#ifdef LED_RED_ENABLE	
 ; Red
 #ifndef	LED_RED_PORT
 LED_RED_PORT		EQU	PORTE 		;default is PE
@@ -73,12 +75,12 @@ LED_RED_PORT		EQU	PORTE 		;default is PE
 LED_RED_PIN		EQU	PE1 		;default is PE1
 #endif
 #endif
-#ifndef LED_NO_GREEN	
+#ifdef LED_GREEN_ENABLE	
 ; Green
 #ifndef	LED_GREEN_PORT
 LED_GREEN_PORT		EQU	PORTE 		;default is PE
 #endif
-#ifndef	LED_GREEN_PIN
+\ifndef	LED_GREEN_PIN
 LED_GREEN_PIN		EQU	PE0 		;default is PE0
 #endif
 #endif
@@ -115,7 +117,7 @@ LED_VARS_START_LIN	EQU	@
 LED_REM_TIME		DS	1 				;remaining timer intervalls
 LED_SEQ_ITERATOR	DS	1				;sequence iterator
 
-#ifndef LED_NO_RED	
+#ifdef LED_RED_ENABLE	
 #ifndef	LED_RED_PORT
 ;#Red LED
 LED_RED_REQ		DS	1 				;signal requests
@@ -123,7 +125,7 @@ LED_RED_CUR_SEQ		DS	1 				;signal selector
 #endif	
 #endif	
 	
-#ifndef LED_NO_GREEN	
+#ifdef LED_GREEN_ENABLE	
 #ifndef	LED_GREEN_PORT
 ;#Green LED
 LED_RED_REQ		DS	1 				;signal requests
@@ -137,30 +139,46 @@ LED_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Initialization (0 in D)
+;#Initialization
 #macro	LED_INIT, 0
 			;Common variables
+			CLR	LED_REM_TIME	       		;start with no remaining time
 			MOVB	#$80, LED_SEQ_ITERATOR		;sequence iterator
-#ifndef LED_NO_RED	
+#ifdef LED_RED_ENABLE	
 			;Red LED
-			STD	LED_RED_REQ 			;red LED status
+			MOVW	#$0000,	LED_RED_REQ 		;red LED status
 #endif	
-#ifndef LED_NO_GREEN	
+#ifdef LED_GREEN_ENABLE	
 			;Green LED
-			STD	LED_GREEN_REQ 			;green LED status
+			MOVW	#$0000,	LED_GREEN_REQ 		;green LED status
 #endif	
 #emac
+
 
 ;#Set signal
 ; args:   1: color ("RED" or "GREEN")
 ;         2: signal index (7..0)
 ; result: none
 ; SSTACK: none
-;         X, Y, and D are preserved 
-#macro	LED_SET_SIGNAL, 2
-			BSET	LED_\1_REQ, #(1<<\2) 		;set request
-			BSET	TIE, #(1<<LED_OC)		;enable timer interrupt
-			MOVB	#(TEN|TSFRZ), TSCR1		;enable timer
+;         X, and Y, and D are preserved 
+#macro	LED_SET, 2
+			SEI					;start if atomic sequence
+			LED_SET_ATOMIC	\1, \2			;set signal
+			CLI					;end of atomic sequence
+#emac
+	
+;#Set signal (must be in an atomic sequence -> I-bit set)
+; args:   1: color ("RED" or "GREEN")
+;         2: signal index (7..0)
+; result: none
+; SSTACK: none
+;         X and Y are preserved 
+#macro	LED_SET_ATOMIC, 2
+			BSET	 LED_\1_REQ, #(1<<\2) 		;set request
+			TIM_BREN LED_OC, LED_SET_ATOMIC_1	;timer already enabled
+			TIM_EN	 LED_OC				;enable timer
+			TIM_SET_DLY_IMM	#5			;trigger interrupt
+LED_SET_ATOMIC_1	EQU	* 				;done
 #emac
 
 ;#Clear signal
@@ -169,9 +187,46 @@ LED_VARS_END_LIN	EQU	@
 ; result: none
 ; SSTACK: 4 bytes
 ;         X, Y, and D are preserved 
-#macro	LED_CLR_SIGNAL, 2
+#macro	LED_CLR, 2
 			BCLR	LED_\1_REQ, #(1<<\2) 		;clear request
 #emac
+
+;#Initernal macros
+;----------------- 
+
+
+
+
+
+
+;#Update LED
+; args:   1: color ("RED" or "GREEN")
+;         Y: points to sequence table
+; result: none
+; SSTACK: none
+;         X, Y, and A are preserved 
+#macro	LED_UPDATE, 1
+			LDAB	LED_\1_CUR_SEQ			;sequence selector -> B
+			BITB	#$FE				;checl for on or off
+			BEQ	LED_UPDATE_2			;do nothing
+			LDAB	B,Y				;sequence -> B	       
+			ANDB	LED_SEQ_ITERATOR		;LED state -> B	       
+			BEQ	LED_UPDATE_1			;clear LED	       
+			BSET	LED_\1_PORT, #LED_\1_PIN	;set LED	       
+			JOB	LED_UPDATE_2			;LED updated	       
+LED_UPDATE_1		BCLR	LED_\1_PORT, #LED_\1_PIN	;clear LED	       
+LED_UPDATE_2		EQU	*				;LED updated	       
+#emac
+
+;#Check requests
+; args:   1: color ("RED" or "GREEN")
+;         Y: points to sequence table
+; result: none
+; SSTACK: none
+;         X, Y, and A are preserved 
+#macro	LED_CHECK_REQ, 1
+			LDAB	
+
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -193,36 +248,28 @@ LED_ISR		EQU	*
 			DECB					;decrement remaining time
 			STAB	LED_REM_TIME			;update remaining time
 			ISTACK_RTI				;done
+			;Check for pattern transition
+LED_ISR_1		BRCLR	LED_SEQ_ITERATOR, #$7F, LED_ISR_
 			;Update LEDs
-LED_ISR_1		LDY	#LED_SEQ_TAB	 		;sequence table -> Y
-#ifndef LED_NO_RED	
-			;Update red LED 
-			LDAB	LED_RED_CUR_SEQ			;sequence selector -> B 
-			LDAB	B,Y				;sequence -> B	       
-			ANDB	LED_SEQ_ITERATOR		;LED state -> B	       
-			BEQ	LED_ISR_2			;clear LED	       
-			BSET	LED_RED_PORT, #LED_RED_PIN	;set LED	       
-			JOB	LED_ISR_3			;LED updated	       
-LED_ISR_2		BCLR	LED_RED_PORT, #LED_RED_PIN	;clear LED	       
-LED_ISR_3		EQU	*				;LED updated	       
+         		LDY	#LED_SEQ_TAB	 		;sequence table -> Y
+#ifdef LED_RED_ENABLE	
+			;Update red LED (sequence table in Y)
+			LED_UPDATE	RED
 #endif
-#ifndef LED_NO_GREEN	
-			;Update green LED 
-			LDAB	LED_GREEN_CUR_SEQ               ;sequence selector -> B
-			LDAB	B,Y				;sequence -> B	       
-			ANDB	LED_SEQ_ITERATOR		;LED state -> B	       
-			BEQ	LED_ISR_4			;clear LED	       
-			BSET	LED_GREEN_PORT, #LED_GREEN_PIN	;set LED	       
-			JOB	LED_ISR_5			;LED updated	       
-LED_ISR_4		BCLR	LED_GREEN_PORT, #LED_GREEN_PIN	;clear LED	       
-LED_ISR_5		EQU	*				;LED updated	       
+#ifdef LED_GREEN_ENABLE	
+			;Update green LED (sequence table in Y)
+			LED_UPDATE	GREEN
 #endif
 			;Advance sequence 
 			LSR	LED_SEQ_ITERATOR 		;advance sequence iterator
-			BCC	LED_ISR_			;set up next timer delay
-			;Sequence complete 
+			BEQ	LED_ISR_			;handle next request
+			
+
+
+
+				;Sequence complete 
 			MOVB	#$80, LED_SEQ_ITERATOR		;reset sequence iterator			
-#ifndef LED_NO_RED	
+#ifdef LED_RED_ENABLE	
 			;Check requests for red LED 
 			CLRA					;
 			LDAB	#80
@@ -282,16 +329,15 @@ LED_CODE_END_LIN	EQU	@
 			ORG 	LED_TABS_START
 #endif	
 			;Pattern table
-LED_SEQ_TAB		EQU	*
-LED_SEQ_L0NG_PULSE	DB	%01111110
-LED_SEQ_SHORT_PULSE	DB	%01000000
-LED_SEQ_FAST_BLINK	DB	%01010101
-LED_SEQ_SLOW_BLINK	DB	%01111000
-LED_SEQ_SINGLE_GAP	DB	%11001111
-LED_SEQ_DOUBLE_GAP	DB	%10110111
-LED_SEQ_HEART_BEAT	DB	%01010000
-LED_SEQ_ON  		DB	%11111111
-	
+LED_SEQ_TAB		EQU	*-2
+LED_SEQ_HEART_BEAT	DB	%01010000	;prio 2 |h
+LED_SEQ_DOUBLE_GAP	DB	%10110111	;prio 3 |i
+LED_SEQ_SINGLE_GAP	DB	%11001111	;prio 4 |g
+LED_SEQ_SLOW_BLINK	DB	%01111000	;prio 5 |h
+LED_SEQ_FAST_BLINK	DB	%01010101	;prio 6 |e
+LED_SEQ_SHORT_PULSE	DB	%01000000	;prio 7 |r
+LED_SEQ_L0NG_PULSE	DB	%01111110	;prio 8 V
+
 LED_TABS_END		EQU	*
 LED_TABS_END_LIN	EQU	@
 #endif

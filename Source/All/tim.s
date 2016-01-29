@@ -200,6 +200,21 @@ TIM_VARS_END_LIN	EQU	@
 			MOVB	#(TEN|TSFRZ), TSCR1		;enable timer
 #emac
 	
+;#Disable the timer counter
+; args: none
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_CNT_DIS, 0
+			TST	TIE
+			BNE	DONE
+#ifdef	TIM_OCPD_CHECK_ON
+			BRSET	OCPD, #$FF, DISABLE
+			JOB	DONE
+#endif
+DISABLE			CLR	TSCR1
+DONE			EQU	*
+#emac
+	
 ;#Disable multiple timer channels
 ; args: 1: channel mask
 ; SSTACK: none
@@ -223,21 +238,24 @@ DONE			EQU	*
 			TIM_MULT_DIS	(1<<\1)
 #emac
 
-;#Disable the timer counter
-; args: none
+;#Branch if channel is enabled
+; args: 1: channel number
+;       2: branch address
 ; SSTACK: none
 ;         X, Y, and D are preserved 
-#macro	TIM_CNT_DIS, 0
-			TST	TIE
-			BNE	DONE
-#ifdef	TIM_OCPD_CHECK_ON
-			BRSET	OCPD, #$FF, DISABLE
-			JOB	DONE
-#endif
-DISABLE			CLR	TSCR1
-DONE			EQU	*
+#macro	TIM_BREN, 2
+			BRSET	TIE, #(1<<\1), \2
 #emac
-	
+
+;#Branch if channel is disnabled
+; args: 1: channel number
+;       2: branch address
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_BRDIS, 2
+			BRCLR	TIE, #(1<<\1), \2
+#emac
+
 ;#Clear multiple interrupt flags
 ; args: 1: channel mask
 ; SSTACK: none
@@ -276,18 +294,8 @@ DONE			EQU	*
 			STD	(TC0+(2*\1))			;PWO
 #emac
 
-;#Setup timer delay if timer channel is inactive
-; args: 1: channel number
-;       D: delay (in bus cycles)
-; SSTACK: none
-;         X, and Y are preserved 
-#macro	TIM_START_DLY, 1
-			BRSET	TIE, #(1<<\1), DONE 		;skip if timer channel is already active
-			TIM_SET_DLY	\1			
-			BSET	TIE, #(1<<\1)			;enable interrupts
-			MOVB	#(TEN|TSFRZ), TSCR1		;enable timer
-DONE			EQU		*
-#emac
+
+
 	
 ;###############################################################################
 ;# Code                                                                        #
