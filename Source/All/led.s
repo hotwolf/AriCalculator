@@ -59,21 +59,27 @@
 ;#######################################################x#######################
 ;# Configuration                                                               #
 ;###############################################################################
+;LED enables (red is always enabled)
+; Green
+#ifndef LED_GREEN_ENABLE		
+#ifndef LED_GREEN_DISABLE		
+LED_GREEN_ENABLE	EQU	1 		;green LED enabled by default
+#endif
+#endif
+
 ;TIM configuration
 ;Output compare channel
 #ifndef	LED_OC
 LED_OC			EQU	2 		;default is OC2
 #endif
-
+	
 ;I/O configuration
-#ifdef LED_RED_ENABLE	
 ; Red
 #ifndef	LED_RED_PORT
 LED_RED_PORT		EQU	PORTE 		;default is PE
 #endif
 #ifndef	LED_RED_PIN
 LED_RED_PIN		EQU	PE1 		;default is PE1
-#endif
 #endif
 #ifdef LED_GREEN_ENABLE	
 ; Green
@@ -84,7 +90,12 @@ LED_GREEN_PORT		EQU	PORTE 		;default is PE
 LED_GREEN_PIN		EQU	PE0 		;default is PE0
 #endif
 #endif
-	
+
+;Non-requrring sequences
+#ifndef	LED_NONREC_MASK
+LED_NONREC_MASK		EQU	#$C0 		;default is patterns 7 and 8
+#endif
+
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
@@ -102,6 +113,9 @@ LED_TIOS_INIT		EQU	1<<LED_OC
  	
 ;#Output compare register
 LED_OC_REG		EQU	TC0+(2*LED_OC)
+
+;#timer intervall
+LED_TIM_INTERVALL	EQU	TIM_FREQ/4 	;2sec/8
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -117,20 +131,14 @@ LED_VARS_START_LIN	EQU	@
 LED_REM_TIME		DS	1 				;remaining timer intervalls
 LED_SEQ_ITERATOR	DS	1				;sequence iterator
 
-#ifdef LED_RED_ENABLE	
-#ifndef	LED_RED_PORT
 ;#Red LED
 LED_RED_REQ		DS	1 				;signal requests
 LED_RED_CUR_SEQ		DS	1 				;signal selector
-#endif	
-#endif	
 	
 #ifdef LED_GREEN_ENABLE	
-#ifndef	LED_GREEN_PORT
 ;#Green LED
 LED_RED_REQ		DS	1 				;signal requests
 LED_RED_CUR_SEQ		DS	1 				;signal selector
-#endif	
 #endif	
 	
 LED_VARS_END		EQU	*
@@ -142,15 +150,13 @@ LED_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	LED_INIT, 0
 			;Common variables
-			CLR	LED_REM_TIME	       		;start with no remaining time
-			MOVB	#$80, LED_SEQ_ITERATOR		;sequence iterator
-#ifdef LED_RED_ENABLE	
+			CLRD			      		;zero -> D
+			STD	LED_REM_TIME			;no remaining time, iterator reset
 			;Red LED
-			MOVW	#$0000,	LED_RED_REQ 		;red LED status
-#endif	
+			STD	LED_RED_REQ 			;no requests, LED off
 #ifdef LED_GREEN_ENABLE	
 			;Green LED
-			MOVW	#$0000,	LED_GREEN_REQ 		;green LED status
+			STD	LED_GREEN_REQ 			;no requests, LED off
 #endif	
 #emac
 
@@ -160,7 +166,7 @@ LED_VARS_END_LIN	EQU	@
 ;         2: signal index (7..0)
 ; result: none
 ; SSTACK: none
-;         X, and Y, and D are preserved 
+;         X and Y are preserved 
 #macro	LED_SET, 2
 			SEI					;start if atomic sequence
 			LED_SET_ATOMIC	\1, \2			;set signal
@@ -177,7 +183,7 @@ LED_VARS_END_LIN	EQU	@
 			BSET	 LED_\1_REQ, #(1<<\2) 		;set request
 			TIM_BREN LED_OC, LED_SET_ATOMIC_1	;timer already enabled
 			TIM_EN	 LED_OC				;enable timer
-			TIM_SET_DLY_IMM	#5			;trigger interrupt
+			TIM_SET_DLY    	#5			;trigger interrupt
 LED_SET_ATOMIC_1	EQU	* 				;done
 #emac
 
@@ -193,41 +199,41 @@ LED_SET_ATOMIC_1	EQU	* 				;done
 
 ;#Initernal macros
 ;----------------- 
-
-
-
-
-
-
-;#Update LED
-; args:   1: color ("RED" or "GREEN")
-;         Y: points to sequence table
-; result: none
-; SSTACK: none
-;         X, Y, and A are preserved 
-#macro	LED_UPDATE, 1
-			LDAB	LED_\1_CUR_SEQ			;sequence selector -> B
-			BITB	#$FE				;checl for on or off
-			BEQ	LED_UPDATE_2			;do nothing
-			LDAB	B,Y				;sequence -> B	       
-			ANDB	LED_SEQ_ITERATOR		;LED state -> B	       
-			BEQ	LED_UPDATE_1			;clear LED	       
-			BSET	LED_\1_PORT, #LED_\1_PIN	;set LED	       
-			JOB	LED_UPDATE_2			;LED updated	       
-LED_UPDATE_1		BCLR	LED_\1_PORT, #LED_\1_PIN	;clear LED	       
-LED_UPDATE_2		EQU	*				;LED updated	       
-#emac
-
 ;#Check requests
 ; args:   1: color ("RED" or "GREEN")
-;         Y: points to sequence table
+; result: none
+; SSTACK: none
+;         X and Y  are preserved 
+#macro	LED_CHECK_REQ, 1
+			LDAA	#$80 				;initiate request selector
+			LDAB	#$08				;initiate sequence selector
+LED_CHECK_REQ_1		BITA	LED_\1_REQ			;check request
+			BNE	LED_CHECK_REQ_2			;request found
+			LSRA					;advance request selector
+			DBNE	B, LED_CHECK_REQ_1		;decrement sequence selector
+LED_CHECK_REQ_2		COMA					;clear non-recurring requests
+			ORAA	#~LED_NONREC_MASK		;
+			ANDA	LED_\1_REQ 			;
+			STD	LED_\1_REQ 			;update requests and sequence selector
+#emac
+
+;#Drive LED
+; args:   1: color ("RED" or "GREEN")
+;         Y: pointer to sequence table
 ; result: none
 ; SSTACK: none
 ;         X, Y, and A are preserved 
-#macro	LED_CHECK_REQ, 1
-			LDAB	
+#macro	LED_DRIVE, 1
+			LDAB	LED_\1_CUR_SEQ			;sequence selector -> B
+			LDAB	B,Y				;sequence -> B	       
+			BITB	LED_SEQ_ITERATOR		;LED state -> Z-flag
+			BEQ	LED_DRIVE_1			;turn off LED
+			BSET	LED_\1_PORT, #LED_\1_PIN	;turn on LED	       
+			JOB	LED_DRIVE_2			;done	       
+LED_DRIVE_1		BCLR	LED_\1_PORT, #LED_\1_PIN	;turn off LED	       
+LED_DRIVE_2		EQU	*				;done	       
+#emac
 
-	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -240,81 +246,48 @@ LED_UPDATE_2		EQU	*				;LED updated
 ;#ISR
 ;---- 
 LED_ISR		EQU	*			
-			;Clear interrupt flag
-			TIM_CLRIF	LED_OC			;clear interrupt flag		
-			;Adjust remaining time
+			;Check and adjust remaining time
 			LDAB	LED_REM_TIME			;remaining time -> X
-			BEQ	LED_ISR_1			;update LEDs
+			BEQ	LED_ISR_1			;
 			DECB					;decrement remaining time
 			STAB	LED_REM_TIME			;update remaining time
 			ISTACK_RTI				;done
-			;Check for pattern transition
-LED_ISR_1		BRCLR	LED_SEQ_ITERATOR, #$7F, LED_ISR_
-			;Update LEDs
-         		LDY	#LED_SEQ_TAB	 		;sequence table -> Y
-#ifdef LED_RED_ENABLE	
-			;Update red LED (sequence table in Y)
-			LED_UPDATE	RED
+			;Advance and check pattern iterator
+			LSR	LED_SEQ_ITERATOR 		;advance sequence iterator
+			BNE	LED_ISR_			;update LEDs
+			MOVB	#$80, LED_SEQ_ITERATOR		;reset sequence iterator
+			;Check requests				
+			LED_CHECK_REQ	RED 			;check red requests
+#ifdef LED_GREEN_ENABLE	
+			LED_CHECK_REQ	GREEN 			;check green requests
+#endif
+			;Drive LEDs
+			LDY	#LED_SEQ_TAB  			;sequence table -> Y
+			LED_DRIVE_REQ	RED 			;drive red requests
+#ifdef LED_GREEN_ENABLE	
+			LED_DRIVE_REQ	GREEN 			;drive green requests
 #endif
 #ifdef LED_GREEN_ENABLE	
-			;Update green LED (sequence table in Y)
-			LED_UPDATE	GREEN
+			;Check if both LEDs are untimed
+			LDAB	LED_RED_CUR_SEQ 		;check red sequence
+			ORAB	LED_GREEN_CUR_SEQ 		;check green sequence
+			LSRB					;check if both are untimed
+			BEQ	LED_ISR_			;both LEDs are untimed
+#else
+			;Check if red LED is untimed
+			BRCLR	LED_RED_CUR_SEQ,#$FE,LED_ISR_1	;LED is untimed
 #endif
-			;Advance sequence 
-			LSR	LED_SEQ_ITERATOR 		;advance sequence iterator
-			BEQ	LED_ISR_			;handle next request
-			
-
-
-
-				;Sequence complete 
-			MOVB	#$80, LED_SEQ_ITERATOR		;reset sequence iterator			
-#ifdef LED_RED_ENABLE	
-			;Check requests for red LED 
-			CLRA					;
-			LDAB	#80
-			BITA	LED_RED_REQ
-			BNE	LED_ISR_ 			;request found
-			INCA
-			LSRB
-			TBNE	
-
-	
-			;Update output compare register asap
-			LDD	LED_TIME_LEFT_LSW		;remaining time (LSW) -> D
-			ADDD	LED_OC_REG
-			STD	LED_OC_REG
-			;Clear interrupt flag
+			;Retrigger timer 
+			MOVB	#(LED_TIM_INTERVALL>>16), LED_REM_TIME;update remaining time
+			LDD	TC0+(2*LED_OC) 			;update timer delay
+			ADDD	#LED_TIM_INTERVALL		;
+			STD	TC0+(2*LED_OC)			;
 			TIM_CLRIF	LED_OC			;clear interrupt flag		
-			
-
-
-
-			;Check MSB of remaining delay 
-			LDAB	LED_TIME_LEFT_MSB		;remaining time (MSB) -> B
-			BNE	LED_ISR_ 			;wait for a full timer period
-			;Check LSW of remaining delay 		
-			LDD	LED_TIME_LEFT_LSW		;remaining time (LSW) -> D
-			BEQ	DELAY_ISR_2 			;delay is over
-			ADDD	LED_OC_REG
-			STD	LED_OC_REG
-
-
-
-			MOVW	#$0000, DELAY_TIME_LEFT_LSW	;update remaining time
-			BMI	DELAY_ISR_4			;delay >= 2^15 timer counts
-
-
-	
-
-LED_REMTC_MSB		DS	1				;remaining timer counts (MSB)
-LED_REMTC_LSW		DS	2 				;remaining timer counts (LSW)
-
-
-
-
-
-
+			ISTACK_RTI				;done
+			;Disable timer 
+LED_ISR_1		MOVW	#$0000, LED_REM_TIME		;no remaining time, iterator reset
+			TIM_DIS	LED_OC				;disable timer
+			ISTACK_RTI				;done
 
 	
 LED_CODE_END		EQU	*
@@ -329,7 +302,9 @@ LED_CODE_END_LIN	EQU	@
 			ORG 	LED_TABS_START
 #endif	
 			;Pattern table
-LED_SEQ_TAB		EQU	*-2
+LED_SEQ_TAB		EQU	*
+LED_SEQ_OFF		DB	%00000000	;prio 0 |
+LED_SEQ_ON		DB	%11111111	;prio 1 |
 LED_SEQ_HEART_BEAT	DB	%01010000	;prio 2 |h
 LED_SEQ_DOUBLE_GAP	DB	%10110111	;prio 3 |i
 LED_SEQ_SINGLE_GAP	DB	%11001111	;prio 4 |g

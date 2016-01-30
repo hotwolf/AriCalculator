@@ -278,7 +278,7 @@ DONE			EQU	*
 ;       2: delay (in timer counts)
 ; SSTACK: none
 ;         X, and Y are preserved 
-#macro	TIM_SET_DLY_IMM, 2
+#macro	TIM_SET_DLY, 2
 			LDD	#\2		
 			ADDD	TCNT				;RPO
 			STD	(TC0+(2*\1))			;PWO
