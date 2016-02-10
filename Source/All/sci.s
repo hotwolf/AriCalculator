@@ -104,6 +104,29 @@
 ;#          Remember the last received XON/XOFF                                #
 ;#          Only transmit if XON was received last                             #
 ;#          Forbid incoming data                                               #
+;###############################################################################
+;# Timer usage:                                                                #
+;#   Baud rate detection:                                                      #
+;#     Set IC to capture any transition of the RX pin. Keep track of the       #
+;#     shortest valid RX pulse. Everytime a pulse is captured set the OC 16    #
+;#     times the length of the shortest pulse. When the OC times out, the      #
+;#     shortest pulse and the associated baud rate has been detected. The      #
+;#     SCI can be enabled immediately.                                         #
+;#     The baud rate detection is should always detect the character           #
+;#     combination CR LF ($0D_0A -> %00001101_00001010).                       #
+;#                                                                             #
+;#   RTS/CTS flow control:                                                     #
+;#     Enable RTS polling if RTS is low while atempting to transmit data.      #
+;#     Disable RTS polling if data has been transmitted successfully. While    #
+;#     RTS polling is enabled, set (and reset) OC to reatempt to transmit      #
+;#     approx. every 2 SCI frame lengths.                                      #
+;#                                                                             #
+;#   XON/XOFF flow control:                                                    #
+;#     Set (and reset) OC periodically. Keep a count of OC events to send out  #
+;#     a XON/XOFF reminder every couple of seconds.                            #
+;#                                                                             #
+;#   MC9S12DP256 SCI IRQ workaround:                                           #
+;#     Set (and reset) OC to check all IFs approx. every 2 SCI frame lengths.  #
 ;#                                                                             #
 ;###############################################################################
 ;# Required Modules:                                                           #
@@ -308,6 +331,17 @@ SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;Parameter check 
+#ifdef TIM_DIV_32
+			ERROR	"Parameter TIM_DIV_32 not supported by SCI"
+#endif
+#ifdef TIM_DIV_64
+			ERROR	"Parameter TIM_DIV_64 not supported by SCI"
+#endif
+#ifdef TIM_DIV_128
+			ERROR	"Parameter TIM_DIV_128 not supported by SCI"
+#endif
+
 ;#Baud rate devider settings
 ; SCIBD = 25MHz / (16*baud rate)
 SCI_1200        	EQU	(CLOCK_BUS_FREQ/(16*  1200))+(((2*CLOCK_BUS_FREQ)/(16*  1200))&1)	
@@ -357,11 +391,6 @@ SCI_FLG_TX_BLOCKED	EQU	$04		;don't transmit (XOFF received)
 SCI_FLG_RX_ESC		EQU	$02		;character is to be escaped
 SCI_FLG_TX_ESC		EQU	$01		;character is to be escaped
 
-
-
-<----------Hier weiter
-
-	
 ;#Flow control
 #ifdef	SCI_FC_RTSCTS
 SCI_FC_EN		EQU	1
@@ -369,6 +398,11 @@ SCI_FC_EN		EQU	1
 #ifdef	SCI_FC_XONXOFF
 SCI_FC_EN		EQU	1
 #endif	
+	
+
+
+<----------Hier weiter
+
 	
 ;#Baud rate detection
 #ifdef	SCI_BD_ON
@@ -1372,6 +1406,101 @@ SCI_RESUME_COM_1	SSTACK_PREPULL	4
 
 ;ISRs 
 ;---- 
+;#TIM IC ISR
+SCI_ISR_IC		EQU	*
+			;Capture timestamp
+			LDD	TC0+(2*SCI_IC) 			;TC -> D
+			TIM_CLRIF	SCI_IC			;clear interrupt flag
+			TFR	D, X 				;TC -> X
+			TIM_BRDIS	SCI_OC, SCI_ISR_IC_3	;TCs have been captured before
+			;Calculate pulse width (current TC in D)
+			SUBD	SCI_LAST_TC			;pulse width -> D
+			STX	SCI_LAST_TC			;update last TC
+			CPD	SCI_SHORTEST_PULSE		;find shortest pulse                                     
+			BLE	SCI_ISR_IC_1			;previous pulse was shorter
+			CPD	#SCI_MIN_PULSE			;filter noise
+			BLS	SCI_ISR_IC_1			;ignore pulse
+			STD	SCI_SHORTEST_PULSE		;update shortest pulse
+			;Setup OC (shortest pulse width in in D, TC in X)
+SCI_ISR_IC_1		LDD	SCI_SHORTEST_PULSE		;shortest pulse -> D
+			BITA	$F0 				;check if OC must be reduced
+			BNE	SCI_ISR_IC_2			;reduce OC delay to 2^16-1
+			LSLD   					;multiply pulse width by 16
+			LSLD					;
+			LSLD					;
+			LSLD					;
+			LEAX	D,Y				;
+SCI_ISR_IC_2		STX	TC0+(2*SCI_IC) 			;set OC
+			TIM_CLRIF	SCI_OC			;clear OC interrupt flag
+			ISTACK_RTS				;done
+SCI_ISR_IC_3		TIM_EN		SCI_OC			;enable OC interrupt
+			JOB	SCI_ISR_IC_2			;set OC
+
+
+;#TIM OC ISR
+			;Check if baud rate detection is enabled
+			TIM_BRDIS	SCI_IC, SCI_ISR_IC_	;baud rate detection disabled
+			;Determine baud rate settings
+			LDD	SCI_SHORTEST_PULSE		;shortest pulse -> D
+#ifdnef TIM_DIV_16
+			LSRD					;determine SCIBD value 
+#ifndef TIM_DIV_8
+			LSRD					;
+#ifndef TIM_DIV_4
+			LSRD					;
+#ifndef TIM_DIV_2
+			LSRD					;
+#endif
+#endif
+#endif
+#endif
+			
+
+	
+
+			;Check result of baud rate detection
+			LDD	SCI_SHORTEST_PULSE		;shortest pulse -> D
+			CPD	#SCI_MAX_PULSE			;check if pulse is too long
+			BHS	SCI_ISR_IC_			;restart baud rate detection
+			CPD	#SCI_MIN_PULSE			;check if pulse is too short
+			BLS	SCI_ISR_IC_			;restart baud rate detection
+
+
+	
+
+
+#ifdef TIM_DIV_2
+
+
+
+LSRD					;determine SCIBD value 
+			LSRD					; SCIBD = pulse width/8
+			LSRD					;
+#endif
+#ifdef TIM_DIV_4
+			LSRD					;determine SCIBD value 
+			LSRD					; SCIBD = pulse width/4
+#endif
+#ifdef TIM_DIV_8
+			LSRD					;SCIBD = pulse width/2
+#endif
+#ifdef TIM_DIV_32
+			LSLD					;SCIBD = pulse width*2
+#endif
+#ifdef TIM_DIV_64
+			LSLD					;determine SCIBD value 
+			LSLD					; SCIBD = pulse width*4
+#endif
+#ifdef TIM_DIV_128
+			LSLD					;determine SCIBD value 
+			LSLD					; SCIBD = pulse width*8
+			LSLD					;
+#endif
+			STD	SCIBDH 				;set new baud rate
+			SCI_ENABLE				;enable SCI
+			SCI_BD_DISABLE				;disable baud rate 
+	
+	
 #ifdef	SCI_DLY_EN
 ;#Timer delay
 ;------------ 
@@ -1829,28 +1958,6 @@ SCI_CODE_END_LIN	EQU	@
 			ORG 	SCI_TABS_START, SCI_TABS_START_LIN
 #else
 			ORG 	SCI_TABS_START
-#endif	
-
-			ALIGN	1, $FF
-
-			;List of prescaler values
-SCI_BTAB		EQU	*
-			DW	SCI_4800 	
-			DW	SCI_7200 	
-			DW	SCI_9600 	
-			DW	SCI_14400	
-			DW	SCI_19200	
-			DW	SCI_28800	
-			DW	SCI_38400	
-			DW	SCI_57600	
-SCI_BTAB_END		EQU	*
-
-#ifdef	SCI_BD_ON
-			;Search tree for low pulses
-SCI_BD_LOW_PULSE_TREE	SCI_BD_LOW_PULSE_TREE
-
-			;Search tree for high pulses
-SCI_BD_HIGH_PULSE_TREE	SCI_BD_HIGH_PULSE_TREE		
 #endif	
 
 SCI_TABS_END		EQU	*
