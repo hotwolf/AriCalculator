@@ -1438,11 +1438,12 @@ SCI_ISR_IC_3		TIM_EN		SCI_OC			;enable OC interrupt
 
 
 ;#TIM OC ISR
+SCI_ISR			EQU	*	
 			;Check if baud rate detection is enabled
-			TIM_BRDIS	SCI_IC, SCI_ISR_IC_	;baud rate detection disabled
+			TIM_BRDIS	SCI_IC, SCI_ISR_OC_	;baud rate detection disabled
 			;Determine baud rate settings
 			LDD	SCI_SHORTEST_PULSE		;shortest pulse -> D
-#ifdnef TIM_DIV_16
+#ifndef TIM_DIV_16
 			LSRD					;determine SCIBD value 
 #ifndef TIM_DIV_8
 			LSRD					;
@@ -1454,48 +1455,13 @@ SCI_ISR_IC_3		TIM_EN		SCI_OC			;enable OC interrupt
 #endif
 #endif
 #endif
+			BEQ	SCI_ISR_OC_			;redundant sanity check
+			BITA	$E0				;check if baud rate divider is too high
+			BNE	SCI_ISR_OC_			;baud rate divider is too high
+			;Baud rate determined (SCIBD value in D) 
 			
 
 	
-
-			;Check result of baud rate detection
-			LDD	SCI_SHORTEST_PULSE		;shortest pulse -> D
-			CPD	#SCI_MAX_PULSE			;check if pulse is too long
-			BHS	SCI_ISR_IC_			;restart baud rate detection
-			CPD	#SCI_MIN_PULSE			;check if pulse is too short
-			BLS	SCI_ISR_IC_			;restart baud rate detection
-
-
-	
-
-
-#ifdef TIM_DIV_2
-
-
-
-LSRD					;determine SCIBD value 
-			LSRD					; SCIBD = pulse width/8
-			LSRD					;
-#endif
-#ifdef TIM_DIV_4
-			LSRD					;determine SCIBD value 
-			LSRD					; SCIBD = pulse width/4
-#endif
-#ifdef TIM_DIV_8
-			LSRD					;SCIBD = pulse width/2
-#endif
-#ifdef TIM_DIV_32
-			LSLD					;SCIBD = pulse width*2
-#endif
-#ifdef TIM_DIV_64
-			LSLD					;determine SCIBD value 
-			LSLD					; SCIBD = pulse width*4
-#endif
-#ifdef TIM_DIV_128
-			LSLD					;determine SCIBD value 
-			LSLD					; SCIBD = pulse width*8
-			LSLD					;
-#endif
 			STD	SCIBDH 				;set new baud rate
 			SCI_ENABLE				;enable SCI
 			SCI_BD_DISABLE				;disable baud rate 
