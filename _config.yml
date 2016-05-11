@@ -3,7 +3,7 @@ auto:        true
 server:      true
 server_port: 80
 baseurl:     /
-url:         http://hotwolf.github.com/AriCalculator
+url:         //hotwolf.github.io/AriCalculator
 
 source:      .
 destination: ./_site
