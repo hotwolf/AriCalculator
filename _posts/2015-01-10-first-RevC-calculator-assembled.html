@@ -1,0 +1,21 @@
+---
+layout: post
+title: First RevC Calculator Assembled
+---
+
+<p>The first RevC calculator nas been built. I still need to do something to improve the contrast of the keypad labels.</p>
+<p style="text-align:center;"><img src="{{ site.url }}/images/AriCalculatorRevCFront.png" alt="" /> <img src="{{ site.url }}/images/AriCalculatorRevCBack.png" alt="" /></p>
+<p>RevC comes with lasercut acrylic spacers.</p>
+<p style="text-align:center;"><img src="{{ site.url }}/images/AriCalculatorRevCSide.png" alt="" /></p>
+<p>I was out of 1uF <span class="caps">SMD</span> capacitors, but the <span class="caps">PCB</span> has enough room for through hole components.</p>
+<p style="text-align:center;"><img src="{{ site.url }}/images/AriCalculatorRevCThroughHoleCaps.png" alt="" /></p>
+<p>During the <span class="caps">PCB</span> assembly I&#8217;ve discoverd one design bug: LED1 and LED2 have been flipped the wrong way around in the <br />
+<a href="//github.com/hotwolf/AriCalculator/raw/master/Hardware/RevC/AriCalculator-RevC%20Schematic.pdf">schemactics</a>. Therefore the cathode markings<br />
+ on the silkscreen are on the wrong side. The design files have been corrected in the current git commit.</p>
+<p style="text-align:center;"><img src="{{ site.url }}/images/AriCalculatorRevCLed1Led2.png" alt="" /></p>
+<p>There had also been a mistake in the <a href="//github.com/hotwolf/AriCalculator/raw/master/Hardware/RevC/AriCalculator-RevC%20Assembly%20Plan.pdf">assembly plan</a>: <br />
+resistor labels R9 and R10 had been swapped (also fixed in the current commit).</p>
+<p style="text-align:center;"><img src="{{ site.url }}/images/AriCalculatorRevCR9R10.png" alt="" /></p>
+<p>A further pitfall is the orientation of resistors R11 and R12. The <a href="//github.com/hotwolf/AriCalculator/raw/master/Hardware/RevC/AriCalculator-RevC%20Assembly%20Plan.pdf">assembly plan</a><br />
+ didn&#8217;t give any hint that they need to be mounted horizontally, whereas all neighboring components ate aligned vertically.</p>
+p=. <img src="{{ site.url }}/images/AriCalculatorRevCR11R12.png" alt="" />

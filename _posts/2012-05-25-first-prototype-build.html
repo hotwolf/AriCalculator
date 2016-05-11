@@ -1,0 +1,13 @@
+---
+layout: post
+title: First Prototype Built
+---
+
+<p>The first calculator hardware (RevA) has been built and it works! My daughters actually soldered most of the main board. I found a couple of bugs and design flaws, but nothing that couldn&#8217;t be fixed. Here are some pictures:</p>
+<p style="text-align:center;"><img src="{{ site.url }}/images/AriCalculatorRevAFront.png" alt="" /></p>
+<p>The buttons I&#8217;ve used are not meant for top side soldering. This made the the assembly unecessary difficult. RevB will contain vias and the leads of the buttons will only be soldered from the bottom.</p>
+<p style="text-align:center;"><img src="{{ site.url }}/images/AriCalculatorRevASide.png" alt="" /></p>
+<p>The calculator is about 18mm thick. Right now I&#8217;m using a reflective <span class="caps">LCD</span> (EA DOGL128L-6), which fits right in the available space. If I will aver add a backlight, I will need to move the <span class="caps">MCU</span> board underneath the keyboard.</p>
+<p style="text-align:center;"><img src="{{ site.url }}/images/AriCalculatorRevABack.png" alt="" /></p>
+<p>The back side shows most of RevA&#8217;s problems. The MCU&#8217;s supply is not connected, one of the LCD&#8217;s capacitors is connected to V<sub>Bat</sub> instead of <span class="caps">GND</span>, the pads of the on/off switch are not close enough to the edge of the board, and the back cover doesn&#8217;t have a cut out for the <span class="caps">USB</span> connector. I broke my back cover trying to cut it out manually.</p>
+<p>All bug fixes and design improvements have already been applied to the RevB design. However I don&#8217;t plan on building RevB for a while. For now I&#8217;ve got a working hardware that I can use for software development.</p>
