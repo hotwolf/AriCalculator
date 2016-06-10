@@ -4,7 +4,7 @@
 ;# S12CBase - SCI - Serial Communication Interface Driver                      #
 ;###############################################################################
 ;#    Copyright 2010-2016 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU           #
 ;#    family.                                                                  #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
@@ -42,8 +42,6 @@
 ;#    SCI_RX_PEEK   - This function reads the oldest buffer entry and the      #
 ;#                    number receive buffer entries, without modifying the     #
 ;#                    buffer.                                                  #
-;#    SCI_BAUD      - This function allows the application to set the SCI's    #
-;#                    baud rate manually.                                      #
 ;#                                                                             #
 ;#    For convinience, all of these functions may also be called as macro.     #
 ;#                                                                             #
@@ -53,20 +51,20 @@
 ;#         The main program has failed to free up the RX queeue in time.       #
 ;#         The received data is considerd to be valid.                         #
 ;#         Baud rate detection will not be triggered.                          #
-;#         This condition will be reported to the application.                 #       
+;#         This condition will be reported to the application.                 #
 ;#                                                                             #
 ;#    OR - Overrun (in SCI hardware)                                           #
 ;#         The software has failed to transfer RX data to the RX queue in      #
 ;#         time.                                                               #
 ;#         The received data is considerd to be valid.                         #
 ;#         Baud rate detection will not be triggered.                          #
-;#         This condition will be reported to the application.                 #       
+;#         This condition will be reported to the application.                 #
 ;#                                                                             #
 ;#    NF - Noise (Flag)                                                        #
 ;#         Noise has been detected on the RX line.                             #
 ;#         The received data is still considerd to be valid.                   #
 ;#         Baud rate detection will be triggered.                              #
-;#         This condition will not be reported to the application.             #       
+;#         This condition will not be reported to the application.             #
 ;#                                                                             #
 ;#    FE - Framing Error                                                       #
 ;#         An invalid data frame (stop bit) has been received                  #
@@ -74,7 +72,7 @@
 ;#         If a sequence of invalid data is received, only one entry will be   #
 ;#         stored in the RX queue.                                             #
 ;#         Baud rate detection will be triggered.                              #
-;#         This condition will be reported to the application.                 #       
+;#         This condition will be reported to the application.                 #
 ;#                                                                             #
 ;#    PE - Parity Error (only occurs if parity is enabled)                     #
 ;#         An invalid parity bit has been received                             #
@@ -82,7 +80,7 @@
 ;#         If a sequence of invalid data is received, only one entry will be   #
 ;#         stored in the RX queue.                                             #
 ;#         Baud rate detection will be triggered.                              #
-;#         This condition will be reported to the application.                 #       
+;#         This condition will be reported to the application.                 #
 ;#                                                                             #
 ;#    The SCI module is capable of detecting the baud rate of the serial       #
 ;#    communication. After each power-up, the RX pin is probed, expecting to   #
@@ -114,6 +112,7 @@
 ;#     SCI can be enabled immediately.                                         #
 ;#     The baud rate detection is should always detect the character           #
 ;#     combination CR LF ($0D_0A -> %00001101_00001010).                       #
+;#     Active baud rate detection is indicated by the enabled IC channel.      #
 ;#                                                                             #
 ;#   RTS/CTS flow control:                                                     #
 ;#     Enable RTS polling if RTS is low while atempting to transmit data.      #
@@ -166,23 +165,27 @@
 ;###############################################################################
 
 ;###############################################################################
-;# Baud rate detection                                                         #
-;###############################################################################
-;typ. bus speed:     25 MHz
-;max. baud rate:  153600 baud   ==>  162 bus cycles per bit
-;min. baud rate:    4800 baud   ==> 5208 bus cycles per bit (46875 per frame)
-
-;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
 ;General settings
 ;----------------
+;SCI version
+#ifndef	SCI_V6
+#ifndef	SCI_V5
+#ifndef	SCI_V4
+#ifndef	SCI_V3
+SCI_V5			EQU	1	 	;default is V5
+#endif
+#endif
+#endif
+#endif
+	
 ;Bus frequency
 #ifndef	CLOCK_BUS_FREQ
 CLOCK_BUS_FREQ		EQU	25000000 	;default is 25MHz
 #endif
 	
-;Invert RXD/TXD 
+;Invert RXD/TXD
 #ifndef	SCI_RXTX_ACTLO
 #ifndef	SCI_RXTX_ACTHI
 SCI_RXTX_ACTLO		EQU	1 		;default is active low RXD/TXD
@@ -194,22 +197,24 @@ SCI_RXTX_ACTLO		EQU	1 		;default is active low RXD/TXD
 #ifndef	SCI_IC
 SCI_IC			EQU	0 		;default is IC0
 #endif
-;Output compare channel for flow control, baud rate detection and MC9S12DP256 SCI IRQ workaround
+;Output compare channel for baud rate detection, shutdown, flow control, and MC9S12DP256 IRQ workaround
+;Past baud rate detection, the OC will always measure time periods of roughly 2 SCI frames
 #ifndef	SCI_OC
-SCI_OC			EQU	1 		;default is OC1
+SCI_OC			EQU	0 		;default is OC0
 #endif
 	
 ;Baud rate
 ;---------
 #ifndef SCI_BAUD_AUTO
-#ifndef SCI_BAUD_4800 	
-#ifndef SCI_BAUD_7200 	
 #ifndef SCI_BAUD_9600 	
 #ifndef SCI_BAUD_14400	
 #ifndef SCI_BAUD_19200	
 #ifndef SCI_BAUD_28800	
 #ifndef SCI_BAUD_38400	
 #ifndef SCI_BAUD_57600	
+#ifndef SCI_BAUD_76800       	
+#ifndef SCI_BAUD_115200		
+#ifndef SCI_BAUD_153600
 SCI_BAUD_AUTO		EQU	1 		;default is auto detection
 #endif
 #endif
@@ -220,9 +225,22 @@ SCI_BAUD_AUTO		EQU	1 		;default is auto detection
 #endif
 #endif
 #endif
+#endif
+	
+;Frame format
+;------------
+#ifndef SCI_FORMAT_8N1
+#ifndef SCI_FORMAT_8E1
+#ifndef SCI_FORMAT_8O1
+#ifndef SCI_FORMAT_8N2
+SCI_FORMAT_8N1		
+#endif
+#endif
+#endif
+#endif
 	
 ;Flow control
-;------------ 
+;------------
 ;RTS/CTS or XON/XOFF
 #ifndef	SCI_FC_RTSCTS
 #ifndef	SCI_FC_XONXOFF
@@ -236,7 +254,7 @@ SCI_FC_RTSCTS		EQU	1 		;default is SCI_RTSCTS
 #ifdef	SCI_FC_XONXOFF
 ;XON/XOFF reminder intervall
 #ifndef	SCI_XONXOFF_REMINDER
-SCI_XONXOFF_REMINDER	EQU	(10*CLOCK_BUS_FREQ)/65536
+SCI_XONXOFF_REMINDER	EQU	(10*TIM_FREQ)/65536
 #endif
 #endif
 
@@ -271,7 +289,7 @@ SCI_CTS_STRONG_DRIVE	EQU	1		;default is strong drive
 #endif
 
 ;MC9S12DP256 SCI IRQ workaround (MUCts00510)
-;------------------------------------------- 
+;-------------------------------------------
 ;###############################################################################
 ;# The will SCI only request interrupts if an odd number of interrupt flags is #
 ;# This will cause disabled and spourious interrupts.                          #
@@ -284,10 +302,10 @@ SCI_CTS_STRONG_DRIVE	EQU	1		;default is strong drive
 ;#    Simplification:                                                          #
 ;#    TIM period = 0x100 * SCIBD * bus cycles                                  #
 ;###############################################################################
-;Enable IRQ workaround
-#ifndef	SCI_IRQ_WORKAROUND_ON
-#ifndef	SCI_IRQ_WORKAROUND_OFF
-SCI_IRQ_WORKAROUND_OFF	EQU	1 		;IRQ workaround disabled by default
+;Enable workaround for MUCts00510
+#ifndef	SCI_IRQBUG_ON
+#ifndef	SCI_IRQBUG_OFF
+SCI_IRQ_IRQBUG_OFF	EQU	1 		;IRQ workaround disabled by default
 #endif
 #endif
 
@@ -300,7 +318,7 @@ SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
 #endif
 	
 ;C0 character handling
-;--------------------- 
+;---------------------
 ;Detect BREAK character -> define macro SCI_BREAK_ACTION
 ;#mac SCI_BREAK_ACTION, 0
 ;	...code to be executed on BREAK condition (inside ISR)
@@ -311,7 +329,7 @@ SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
 ;#emac
 
 ;Communication error signaling
-;----------------------------- 
+;-----------------------------
 ;Signal active baud rate detection -> define macros SCI_BDSIG_START and SCI_BDSIG_STOP
 ;#mac SCI_BDSIG_START, 0
 ;	...code to start signaling active baud rate detection (inside ISR)
@@ -324,14 +342,17 @@ SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
 ;#mac SCI_ERRSIG_START, 0
 ;	...code to start error signaling (inside ISR)
 ;#emac
-;#mac SCI_ERRSIG_STOP, 0			;X, Y, and D are preserved 
+;#mac SCI_ERRSIG_STOP, 0			;X, Y, and D are preserved
 ;	...code to stop error signaling (inside ISR)
 ;#emac
 	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Parameter check 
+;Parameter check
+#ifdef TIM_DIV_16
+			ERROR	"Parameter TIM_DIV_16 not supported by SCI"
+#endif
 #ifdef TIM_DIV_32
 			ERROR	"Parameter TIM_DIV_32 not supported by SCI"
 #endif
@@ -342,34 +363,78 @@ SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
 			ERROR	"Parameter TIM_DIV_128 not supported by SCI"
 #endif
 
-;#Baud rate devider settings
-; SCIBD = 25MHz / (16*baud rate)
-SCI_1200        	EQU	(CLOCK_BUS_FREQ/(16*  1200))+(((2*CLOCK_BUS_FREQ)/(16*  1200))&1)	
-SCI_2400        	EQU	(CLOCK_BUS_FREQ/(16*  2400))+(((2*CLOCK_BUS_FREQ)/(16*  2400))&1)	
-SCI_4800        	EQU	(CLOCK_BUS_FREQ/(16*  4800))+(((2*CLOCK_BUS_FREQ)/(16*  4800))&1)	
-SCI_7200        	EQU	(CLOCK_BUS_FREQ/(16*  7200))+(((2*CLOCK_BUS_FREQ)/(16*  7200))&1)	
-SCI_9600        	EQU	(CLOCK_BUS_FREQ/(16*  9600))+(((2*CLOCK_BUS_FREQ)/(16*  9600))&1)	
-SCI_14400       	EQU	(CLOCK_BUS_FREQ/(16* 14400))+(((2*CLOCK_BUS_FREQ)/(16* 14400))&1)	
-SCI_19200       	EQU	(CLOCK_BUS_FREQ/(16* 19200))+(((2*CLOCK_BUS_FREQ)/(16* 19200))&1)	
-SCI_28800       	EQU	(CLOCK_BUS_FREQ/(16* 28800))+(((2*CLOCK_BUS_FREQ)/(16* 28800))&1)	
-SCI_38400       	EQU	(CLOCK_BUS_FREQ/(16* 38400))+(((2*CLOCK_BUS_FREQ)/(16* 38400))&1)	
-SCI_57600       	EQU	(CLOCK_BUS_FREQ/(16* 57600))+(((2*CLOCK_BUS_FREQ)/(16* 57600))&1)	
-SCI_76800       	EQU	(CLOCK_BUS_FREQ/(16* 76800))+(((2*CLOCK_BUS_FREQ)/(16* 76800))&1)	
-SCI_115200		EQU	(CLOCK_BUS_FREQ/(16*115200))+(((2*CLOCK_BUS_FREQ)/(16*115200))&1)	
-SCI_153600		EQU	(CLOCK_BUS_FREQ/(16*153600))+(((2*CLOCK_BUS_FREQ)/(16*153600))&1)
-SCI_BDEF		EQU	SCI_9600 			;default baud rate
-		
+;#Baud rate
+#ifdef SCI_BAUD_9600        	
+SCI_BAUD		EQU	9600
+#endif
+#ifdef SCI_BAUD_14400       	
+SCI_BAUD		EQU	14400
+#endif
+#ifdef SCI_BAUD_19200       	
+SCI_BAUD		EQU	19200
+#endif
+#ifdef SCI_BAUD_28800       	
+SCI_BAUD		EQU	28800
+#endif
+#ifdef SCI_BAUD_38400       	
+SCI_BAUD		EQU	38400
+#endif
+#ifdef SCI_BAUD_57600       	
+SCI_BAUD		EQU	57600
+#endif
+#ifdef SCI_BAUD_76800       	
+SCI_BAUD		EQU	76800
+#endif
+#ifdef SCI_BAUD_115200		
+SCI_BAUD		EQU	115200
+#endif
+#ifdef SCI_BAUD_153600
+SCI_BAUD		EQU	153600
+#endif
+	
+;#Baud rate divider (SCIBD)
+; SCI V5: SCIBD = bus clock / (16*baud rate)
+; SCI V6: SCIBD = bus clock / (baud rate)
+#ifndef SCI_BAUD_AUTO	
+#ifdef	SCI_V6
+SCI_BDIV		EQU	(CLOCK_BUS_FREQ/SCI_BAUD)+(((2*CLOCK_BUS_FREQ)/SCI_BAUD)&1)			
+#else
+SCI_BDIV		EQU	(CLOCK_BUS_FREQ/(16*SCI_BAUD))+(((2*CLOCK_BUS_FREQ)/(16*SCI_BAUD))&1)
+#endif
+#endif
+
+;#Pulse range for faud rate detection
+;max. baud rate:  153600 baud +10% = 168960 baud
+;min. baud rate:  TIM_FREQ/$FFFF   ~ 7626 baud (TIM_FREQ=25MHz)
+SCI_BD_MAX_BAUD		EQU	168960 				;highest baud rate
+SCI_BD_MIN_BAUD		EQU	20*TIM_FREQ/$FFFF		;lowest baud rate
+SCI_BD_MIN_PULSE	EQU	TIM_FREQ/SCI_BD_MAX_BAUD	;shortest bit pulse
+SCI_BD_MAX_PULSE	EQU	TIM_FREQ/SCI_BD_MIN_BAUD	;longest bit pulse
+	
 ;#Frame format
 SCI_8N1			EQU	  ILT		;8N1
 SCI_8E1			EQU	  ILT|PE	;8E1
 SCI_8O1			EQU	  ILT|PE|PT	;8O1
 SCI_8N2		 	EQU	M|ILT		;8N2 TX8=1
+
+#ifdef SCI_FORMAT_8N1
+SCI_FORMAT		EQU	SCI_8N1
+#endif
+#ifdef SCI_FORMAT_8E1
+SCI_FORMAT		EQU	SCI_8E1
+#endif
+#ifdef SCI_FORMAT_8O1
+SCI_FORMAT		EQU	SCI_8O1
+#endif
+#ifdef SCI_FORMAT_8N2
+SCI_FORMAT		EQU	SCI_8N2
+#endif
 	
 ;#C0 characters
 SCI_C0_MASK		EQU	$E0 		;mask for C0 character range
 SCI_BREAK		EQU	$03 		;ctrl-c (terminate program execution)
 SCI_DLE			EQU	$10		;data link escape (treat next byte as data)
-SCI_XON			EQU	$11 		;unblock transmission 
+SCI_XON			EQU	$11 		;unblock transmission
 SCI_XOFF		EQU	$13		;block transmission
 SCI_SUSPEND		EQU	$1A 		;ctrl-z (suspend program execution)
 
@@ -378,93 +443,76 @@ SCI_RXBUF_MASK		EQU	SCI_TXBUF_SIZE-1;mask for rolling over the RX buffer
 SCI_TXBUF_MASK		EQU	SCI_TXBUF_SIZE-1;mask for rolling over the TX buffer
 
 ;#Flow control thresholds
-SCI_RX_FULL_LEVEL	EQU	 8*2		;RX buffer threshold to block transmissions 
+SCI_RX_FULL_LEVEL	EQU	 8*2		;RX buffer threshold to block transmissions
 SCI_RX_EMPTY_LEVEL	EQU	 2*2		;RX buffer threshold to unblock transmissions
 	
 ;#Flag definitions
+
+SCI_FLG_SWOR		EQU	$10		;software buffer overrun (RX buffer)
+SCI_FLG_ENABLE		EQU	$xx		;SCI is enabled
+
+
 SCI_FLG_SEND_XONXOFF	EQU	$80		;send XON/XOFF symbol asap
 SCI_FLG_POLL_RTS	EQU	$40		;poll RTS input
 SCI_FLG_DELAY_PENDING	EQU	$20		;bit to detect the execution of the delay ISR
 SCI_FLG_SWOR		EQU	$10		;software buffer overrun (RX buffer)
-SCI_FLG_RX_BLOCKED	EQU	$08		;don't allow incommint traffic (send XOFF, clear CTS) 
+SCI_FLG_SHUTDOWN	EQU	$08		;SCI is disabled
 SCI_FLG_TX_BLOCKED	EQU	$04		;don't transmit (XOFF received)
 SCI_FLG_RX_ESC		EQU	$02		;character is to be escaped
 SCI_FLG_TX_ESC		EQU	$01		;character is to be escaped
 
 ;#Flow control
 #ifdef	SCI_FC_RTSCTS
-SCI_FC_EN		EQU	1
+SCI_FC_ON		EQU	1 		;use flow control
 #endif	
 #ifdef	SCI_FC_XONXOFF
-SCI_FC_EN		EQU	1
+SCI_FC_ON		EQU	1 		;use flow control
 #endif	
+
+;#Timer usage and configuration
+#ifdef SCI_BAUD_AUTO
+SCI_OC_ON		EQU	1		;use OC
+SCI_IC_ON		EQU	1 		;use IC
+SCI_TIOS_INIT		EQU	1<<SCI_OC 	;use OC
+SCI_TCTL34_INIT		EQU	3<<SCI_IC	;capture any edge (baud rate detection)
+#else
+#ifdef	SCI_FC_ON
+SCI_OC_ON		EQU	1		;use OC
+SCI_IC_OFF		EQU	1		;no IC needed
+SCI_TIOS_INIT		EQU	1<<SCI_OC 	;use OC
+SCI_TCTL34_INIT		EQU	0		;no IC needed
+#else
+#ifdef	SCI_IRQBUG_ON
+SCI_OC_ON		EQU	1		;use OC
+SCI_IC_OFF		EQU	1		;no IC needed
+SCI_TIOS_INIT		EQU	1<<SCI_OC 	;use OC
+SCI_TCTL34_INIT		EQU	0		;no IC needed
+#else
+SCI_OC_OFF		EQU	1		;no OC needed
+SCI_IC_OFF		EQU	1		;no IC needed
+SCI_TIOS_INIT		EQU	0 		;use OC
+SCI_TCTL34_INIT		EQU	0		;no IC needed
+#endif	
+#endif	
+#endif	
+
+;#Timer channels
+SCI_ICTC		EQU	TC0+(2*SCI_IC)	;IC capture register
+SCI_OCTC		EQU	TC0+(2*SCI_OC)	;OC compare register
 	
 
-
-<----------Hier weiter
-
 	
-;#Baud rate detection
-#ifdef	SCI_BD_ON
-SCI_BD_LIST_INIT	EQU	$FF
-#endif	
-
-;#Timer setup for baud rate detection
-#ifdef	SCI_BD_TIM
-SCI_SET_TIOS		EQU	1
-SCI_BD_TIOS_VAL		EQU	(1<<SCI_BD_OC)
-SCI_SET_TCTL3		EQU	1
-SCI_BD_TCTL3_VAL	EQU 	(1<<(2*SCI_BD_ICPE))|(2<<(2*SCI_BD_ICNE))
-SCI_BD_TCS		EQU	(1<<SCI_BD_OC)|(1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)
-#else
-#ifdef	SCI_BD_ECT
-SCI_SET_TIOS		EQU	1
-SCI_BD_TIOS_VAL		EQU	(1<<SCI_BD_OC)
-SCI_SET_TCTL3		EQU	1
-SCI_BD_TCTL3_VAL	EQU 	(3<<(2*SCI_BD_IC))
-SCI_SET_ICSYS		EQU	1
-SCI_BD_TCS		EQU	(1<<SCI_BD_OC)|(1<<SCI_BD_IC)
-#else
-SCI_BD_TIOS_VAL		EQU	0
-SCI_BD_TCS		EQU	0
-#endif	
-#endif
-
-;#Timer setup for the delay counter
-#ifdef	SCI_FC_XONXOFF
-SCI_DLY_EN		EQU	1		;enable delay counter for XON/XOFF reminders
-#endif
-#ifdef SCI_FC_RTSCTS
-SCI_DLY_EN		EQU	1		;enable delay counter for RTS polling
-#endif
-#ifdef	SCI_IRQ_WORKAROUND_ON
-SCI_DLY_EN		EQU	1		;enable delay counter for periodic ISR execution
-#endif
-
-;#Delay counter 
-#ifdef	SCI_DLY_EN
-#ifndef	SCI_DLY_OC
-SCI_DLY_OC		EQU	$3		;default is OC3
-#endif
-SCI_SET_TIOS		EQU	1
-SCI_DLY_TIOS_VAL	EQU	(1<<SCI_DLY_OC)
-SCI_DLY_TCS		EQU	(1<<SCI_DLY_OC)
-#else
-SCI_DLY_TIOS_VAL	EQU	0
-SCI_DLY_TCS		EQU	0
-#endif
-
 ;#RX error detection
 #ifdef	SCI_FC_XONXOFF
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty XON/XOFF symbols 
+SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty XON/XOFF symbols
 #endif
 #ifmac	SCI_BREAK_ACTION
 SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty BREAK symbols
 #endif
 #ifmac	SCI_SUSPEND_ACTION
-SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty SUSPEND symbols 
+SCI_CHECK_RX_ERR	EQU	1		;check for RX errors to ignore faulty SUSPEND symbols
 #endif	
-#ifmac	SCI_ERRSIG_START
+#ifmac	SCI_ERRSIG_START160*CLOCK_BUS_FREQ)/TIM_FREQ
 ;Check for RX errors to start the error signal
 SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
 #endif	
@@ -474,14 +522,14 @@ SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
 #endif	
 
 ;#C0 character handling
-#ifdef	SCI_FC_XONXOFF
-SCI_DETECT_C0		EQU	1		;detect XON/XOFF symbols 
+#ifdef	SCI_FC_XONXOFF160*CLOCK_BUS_FREQ)/TIM_FREQ
+SCI_DETECT_C0		EQU	1		;detect XON/XOFF symbols
 #endif
 #ifmac	SCI_BREAK_ACTION
 SCI_DETECT_C0		EQU	1		;detect BREAK symbol
 #endif
 #ifmac	SCI_SUSPEND_ACTION
-SCI_DETECT_C0		EQU	1		;detect SUSPEND symbol 
+SCI_DETECT_C0		EQU	1		;detect SUSPEND symbol
 #endif	
 	
 ;###############################################################################
@@ -504,32 +552,39 @@ SCI_RXBUF_OUT		DS	1		;points to the oldest entry
 SCI_TXBUF		DS	SCI_TXBUF_SIZE
 SCI_TXBUF_IN		DS	1		;points to the next free space
 SCI_TXBUF_OUT		DS	1		;points to the oldest entry
-;#Baud rate (reset proof) 
-SCI_BVAL		DS	2		;value of the SCIBD register *SCI_BMUL
 
+;#OC delay counter
+#ifdef	SCI_BAUD_AUTO
+SCI_OC_CNT		DS	2		;counter variable for OC events
+#else
+#ifdef	SCI_FC_ON
+SCI_OC_CNT		DS	2		;counter variable for OC events
+#else
+#ifdef	SCI_FC_ON
+SCI_OC_CNT		DS	2		;counter variable for OC events
+	
+	
 ;#XON/XOFF reminder count
 #ifdef	SCI_FC_XONXOFF
 SCI_XONXOFF_REMCNT	DS	2		;counter for XON/XOFF reminder
 #endif
-
-;#BD log buffer
-#ifdef SCI_BD_LOG_ON	
-SCI_BD_LOG_IDX		DS	2
-SCI_BD_LOG_BUF		DS	4*32
-SCI_BD_LOG_BUF_END	EQU	*
+	
+#ifndef SCI_BAUD_AUTO
+;#Baud rate detection (only active before the RX buffer is used)	
+SCI_BD_BIT_LENGTH	EQU	SCI_RXBUF+0 	;detected bit length (share RX buffer)
+SCI_BD_LAST_TC		EQU	SCI_RXBUF+2 	;capture previous timer counter (share RX buffer)
+SCI_BD_LAST_TC_VALID	EQU	SCI_RXBUF+4 	;>0 if previous TC captured (share RX buffer)
+;#Baud rate (reset proof)
+SCI_SAVED_BDIV		DS	2		;value of the SCIBD register
+SCI_SAVED_BDIV_CS	DS	1		;checksum (~(SCI_SAVED_BDIV[15:8]+SCI_SAVED_BDIV[7:0])
 #endif
 	
 SCI_AUTO_LOC2		EQU	*		;2nd auto-place location
 
 ;#Flags
 SCI_FLGS		EQU	((SCI_AUTO_LOC1&1)*SCI_AUTO_LOC1)+(((~SCI_AUTO_LOC1)&1)*SCI_AUTO_LOC2)
-			UNALIGN	((~SCI_AUTO_LOC1)&1)
+			ALIGN	((~SCI_AUTO_LOC1)&1)
 	
-;#Baud rate detection registers
-#ifdef SCI_BD_ON
-SCI_BD_LIST		DS	1		;list of potential baud rates
-#endif
-
 SCI_VARS_END		EQU	*
 SCI_VARS_END_LIN	EQU	@
 	
@@ -539,91 +594,176 @@ SCI_VARS_END_LIN	EQU	@
 ;#Initialization
 ;#--------------
 #macro	SCI_INIT, 0
-			;Initialize timer
-#ifdef	SCI_SET_TIOS
-			BSET	TIOS, #(SCI_DLY_TIOS_VAL|SCI_BD_TIOS_VAL)
-#endif	
-#ifdef	SCI_SET_ICSYS
-			MOVB	#BUFEN, ICSYS
-#endif	
-	
-			;Invert RXD/TXD polarity
-#ifdef	SCI_RXTX_ACTHI
-			MOVB	#(TXPOL|RXPOL), SCISR2
-#endif
-	
-			;Set baud rate
-			;Check for POR
-#ifdef	CLOCK_FLGS
-			LDAB	CLOCK_FLGS
-			BITA	#(PORF|LVRF)
-			BNE	<SCI_INIT_2
-#endif
-			;Check if stored baud rate is still valid
-			LDD	SCI_BVAL 				;SCI_BMUL*baud rate -> D
-			BEQ	<SCI_INIT_2				;use default value if zero
-			LDX	#SCI_BMUL				;SCI_BMUL -> X
-			IDIV						;D/X -> X, D%X -> D
-			CPD	#$0000					;check if the remainder is 0
-			BNE	<SCI_INIT_2				;stored baud rate is invalid
-			;Check if baud rate is listed 
-			LDY	#SCI_BTAB				;start of baud table -> Y
-SCI_INIT_1		CPX     2,Y+					;compare table entry with X	
-			BEQ	<SCI_INIT_3				;match
-			CPY	#SCI_BTAB_END				;check if the end of the table has been reached
-			BNE	<SCI_INIT_1				;loop
-			;No match use default
-SCI_INIT_2		LDX	#SCI_BDEF	 			;default baud rate
-			MOVW	#(SCI_BDEF*SCI_BMUL), SCI_BVAL
-			;Match 
-SCI_INIT_3		STX	SCIBDH					;set baud rate
+			;Clear flags
+			CLR	SCI_FLGS
+
+			;Initialize queues	
+			MOVW	#$0000,SCI_TXBUF_IN 		;reset in and out pointer of the TX buffer
+			MOVW	#$0000,SCI_RXBUF_IN 		;reset in and out pointer of the RX buffer
 
 			;Set frame format
-			MOVB	#SCI_8N1, SCICR1 			;8N1
+			MOVB	#SCI_FORMAT, SCICR1
+#ifdef	SCI_FORMAT_8N2
+			MOVB	#T8, SCIDRH
+#endif	
+#ifdef	SCI_RXTX_ACTHI
 
-#ifdef	SCI_BD_ON
-			;Initialize baud rate detection
-			;BSET	TCTL3, #(SCI_BD_TCTL3_VAL>>8)
-			BSET	TCTL4, #(SCI_BD_TCTL3_VAL&$00FF)
+			;Invert RXD/TXD polarity
+			MOVB	#(TXPOL|RXPOL), SCISR2
+#endif
+
+#ifdef	SCI_BAUD_AUTO
+			;Baud rate detection
+#ifdef	CLOCK_FLGS
+			;Always start baud rate detection after POR or LVR				
+			LDAB	CLOCK_FLGS 			;check for POR or LVR
+			BITA	#(PORF|LVRF)			;
+			BNE	SCI_INIT_1			;start baud rate detection
+#endif
+			;Check for saved baud rate divider value
+			LDD	SCI_SAVED_BDIV 			;stored baud rate setting -> D
+			TFR	D, X				;stored baud rate setting -> X
+			ABA					;calculate checksum
+			EORA	SCI_SAVED_BDIV_CS		;compare checksums
+			IBNE	A, SCI_INIT_1			;start baud rate detection
+			STX	SCIBD				;set stored baud rate
+			SCI_ENABLE				;enable SCI
+			JOB	SCI_INIT_2			;done
+			;Start baud rate detection
+SCI_INIT_1		MOVW	#$FFFF, SCI_BD_BIT_LENGTH ;set max. bit length
+#ifmac	SCI_BDSIG_START
+			SCI_BDSIG_START 			;signal baud rate detection	
+#endif
+		       ;TIM_DIS	SCI_OC 				;OC must be disabled
+			TIM_EN	SCI_IC 				;start baud rate detection
+SCI_INIT_2		EQU	*				;done
+#else
+			;Enable SCI with fixed baud rate
+			MOVW	#SCI_BDIV, SCIBD		;set baud rate
+			SCI_ENABLE				;enable SCI
 #endif
 #emac
 
+;#Functions
+;#---------
+
+;#Load TCs for the length of two SCI frames into accu D
+; args:   none
+; result: D: TCs roughly equivalent to 2 SCI frames
+; SSTACK: 0 bytes
+;         X is preserved
+; SCI V6: TC =  20 * SCIBD * CLOCK_BUS_FREQ/TIM_FREQ
+; SCI V5: TC = 320 * SCIBD * CLOCK_BUS_FREQ/TIM_FREQ
+#ifdef SCI_OC_ON
+#macro	SCI_LDD_2FRAME_TC, 0
+	
+			;Baud rate detection
+#ifdef	SCI_V6	
+			LDD	#((20*CLOCK_BUS_FREQ/TIM_FREQ) ;delay in bit length -> D
+#else
+			LDD	#((320*CLOCK_BUS_FREQ/TIM_FREQ);TC in bit length -> D
+#endif
+			LDY	SCI_BDIV 			;baud rate divider -> Y
+			EMUL					;TC -> Y:D
+
+#else
+			;Fixed baud rate
+			LDD	#((20*SCI_BAUD)/TIM_FREQ) 	;TC -> D
+#endif
+#emac
+	
+;#Enable SCI
+; args:   none
+; result: none
+; SSTACK: 0 bytes
+;         X is preserved
+; Must not be interrupted by
+#macro	SCI_ENABLE, 0
+#ifdef SCI_FC_RTSCTS
+			;Initialize RTS/CTS flow control (allow incoming data)
+			SCI_ASSERT_CTS 				;signal clear to send
+
+#endif
+#ifdef SCI_FC_XONXOFF
+			;Initialize XON/XOFF flow control
+			BSET	SCI_FLGS,#SCI_FLG_SEND_XONXOFF ;request transmission of XON/XOFF
+			MOVB	#(TXIE|RIE|TE|RE), SCICR2 	;enable SCI and transmit XON
+#else
+			MOVB	#(RIE|TE|RE), SCICR2 		;enable SCI
+#endif
+#ifdef	SCI_OC_ON
+
+			;Trigger periodic interrupt
+			SCI_LDD_2FRAME_TC 			;TC -> D
+			ADDD	SCI_OCTC			;set OC intervall
+			STD	SCI_OCTC			;
+			TIM_EN	SCI_OC 				;start OC channel
+#endif
+
+			;Flag SCI as enabled
+			BSET	SCI_FLGS,#SCI_FLG_EN 		;Allow SCI communication
+#emac
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+	
 ;#Enable SCI
 ;#----------
 #macro	SCI_ENABLE, 0
-			;Initialize queues and state flags	
-			LDD	#$0000
-			STD	SCI_TXBUF_IN 				;reset in and out pointer of the TX buffer
-			STD	SCI_RXBUF_IN 				;reset in and out pointer of the RX buffer
 #ifdef SCI_FC_XONXOFF
-			MOVB	#SCI_FLG_SEND_XONXOFF,	SCI_FLGS        ;request transmission of XON/XOFF
+			;Initialize XON/XOFF flow control
+			MOVB	#SCI_FLG_SEND_XONXOFF,	SCI_FLGS;request transmission of XON/XOFF
+			MOVB	#(TXIE|RIE|TE|RE), SCICR2 	;enable SCI and transmit XON
 #else
-			STAA	SCI_FLGS
+			STAA	SCI_FLGS        		;reset flags
+			MOVB	#(RIE|TE|RE), SCICR2 		;enable SCI
 #endif
-
 #ifdef SCI_FC_RTSCTS
-			;Initialize CTS (allow incoming data)
+			;Initialize RTS/CTS flow control (allow incoming data)
 			SCI_ASSERT_CTS
 #endif
-	
-#ifdef SCI_BD_ON	
-			;Initialize baud rate detection
-			STAA	SCI_BD_LIST	 			;reset baud rate check list
-#endif	
-			;Enable transmission
-#ifdef	SCI_FC_XONXOFF	
-			MOVB	#(TXIE|RIE|TE|RE), SCICR2 		;transmit XON
-#else
-			MOVB	#(RIE|TE|RE), SCICR2 			;keep TX IRQs disabled
-#endif	
-
 #ifdef	SCI_IRQ_WORKAROUND_ON
 			;Trigger periodic interrupt
-			SCI_START_DELAY
+			;SCI_START_DELAY <-TBD
 #endif
 #emac
 
-;#Disable SCI
+;#Functions	
+;#Transmit one byte - non-blocking
+; args:   none
+; result: D: TCs roughly equivalent to 2 SCI frames
+; SSTACK: 0 bytes
+;         X is preserved
+; SCI V6: TC =  10 * SCIBD * CLOCK_BUS_FREQ/TIM_FREQ
+; SCI V5: TC = 160 * SCIBD * CLOCK_BUS_FREQ/TIM_FREQ
+#macro	SCI_LDD_2FRAME_TC, 0
+#ifdef SCI_BAUD_AUTO
+			
+
+#else
+#ifdef	SCI_V6	
+			LDD	#((20*CLOCK_BUS_FREQ*SCI_BAUD)/TIM_FREQ) ;TC -> D
+#else
+			LDD	#((320*CLOCK_BUS_FREQ*SCI_BAUD)/TIM_FREQ);TC -> D
+#endif
+#endif
+	
+;#Disable SCI TBD
 ;#-----------
 #macro	SCI_DISABLE, 0
 
@@ -631,7 +771,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 			CLR	SCICR2
 #ifdef	SCI_FC_RTSCTS		
 			;Clear CTS (minimize output current)
-			SCI_ASSERT_CTS 
+			SCI_ASSERT_CTS
 #endif	
 			;Stop timer channels
 			TIM_MULT_DIS	(SCI_BD_TCS|SCI_DLY_TCS)
@@ -653,7 +793,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; args:   B:      data to be send
 ; result: C-flag: set if successful
 ; SSTACK: 5 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SCI_TX_NB, 0
 			SSTACK_JOBSR	SCI_TX_NB, 5
 #emac
@@ -661,7 +801,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ;#Transmit one byte - blocking
 ; args:   B: data to be send
 ; SSTACK: 7 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #ifdef	SCI_BLOCKING_ON
 #macro	SCI_TX_BL, 0
 			SSTACK_JOBSR	SCI_TX_BL, 7
@@ -676,7 +816,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; args:   none
 ; result:  C-flag: set if all transmissionsare complete
 ; SSTACK: 4 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SCI_TX_DONE_NB, 0
 			SSTACK_JOBSR	SCI_TX_DONE_NB, 4
 #emac
@@ -685,7 +825,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; args:   none
 ; result: A: number of entries left in TX queue
 ; SSTACK: 6 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #ifdef	SCI_BLOCKING_ON
 #macro	SCI_TX_DONE_BL, 0
 			SSTACK_JOBSR	SCI_TX_DONE_BL, 6
@@ -700,7 +840,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; args:   none
 ; result: C-flag: set if successful
 ; SSTACK: 4 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SCI_TX_READY_NB, 0
 			SSTACK_JOBSR	SCI_TX_READY_NB, 4
 #emac
@@ -709,7 +849,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; args:   none
 ; result: none
 ; SSTACK: 6 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #ifdef	SCI_BLOCKING_ON
 #macro	SCI_TX_READY_BL, 0
 			SSTACK_JOBSR	SCI_TX_READY_BL, 6
@@ -722,21 +862,21 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 
 ;#Receive one byte - non-blocking
 ; args:   none
-; result: A:      error flags 
-;         B:      received data 
+; result: A:      error flags
+;         B:      received data
 ;         C-flag: set if successful
 ; SSTACK: 4 bytes
-;         X and Y are preserved 
+;         X and Y are preserved
 #macro	SCI_RX_NB, 0
 			SSTACK_JOBSR	SCI_RX_NB, 4
 #emac
 
 ;#Receive one byte - blocking
 ; args:   none
-; result: A: error flags 
+; result: A: error flags
 ;         B: received data
 ; SSTACK: 6 bytes
-;         X and Y are preserved 
+;         X and Y are preserved
 #ifdef	SCI_BLOCKING_ON
 #macro	SCI_RX_BL, 0
 			SSTACK_JOBSR	SCI_RX_BL, 6
@@ -751,7 +891,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; args:   none
 ; result: C-flag: set if successful
 ; SSTACK: 4 bytes
-;         X, Y and B are preserved 
+;         X, Y and B are preserved
 #macro	SCI_RX_READY_NB, 0
 			SSTACK_JOBSR	SCI_RX_READY_NB, 4
 #emac
@@ -760,7 +900,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; args:   none
 ; result: C-flag: set if successful
 ; SSTACK: 6 bytes
-;         X, Y and B are preserved 
+;         X, Y and B are preserved
 #ifdef	SCI_BLOCKING_ON
 #macro	SCI_RX_READY_BL, 0
 			SSTACK_JOBSR	SCI_RX_READY_BL, 6
@@ -775,18 +915,18 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; args:   none
 ; result: none
 ; SSTACK: 2 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SCI_HALT_COM, 0
 #ifndef	SCI_FC_NONE
 			SSTACK_JOBSR	SCI_HALT_COM, 3
 #endif
 #emac
 
-;#Resume SCI communication 
+;#Resume SCI communication
 ; args:   none
 ; result: none
 ; SSTACK: 2 or 4 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SCI_RESUME_COM, 0
 #ifdef	SCI_FC_RTSCTS
 			SSTACK_JOBSR	SCI_RESUME_COM, 4
@@ -800,7 +940,7 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 ; args:   D: new SCIBD value
 ; result: none
 ; SSTACK: 6 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SCI_SET_BAUD, 0
 			SSTACK_JOBSR	SCI_SET_BAUD, 6
 #emac
@@ -809,9 +949,9 @@ SCI_INIT_3		STX	SCIBDH					;set baud rate
 
 ;#Turn a non-blocking subroutine into a blocking subroutine	
 ; args:   1: non-blocking function
-;         2: subroutine stack usage of non-blocking function 
+;         2: subroutine stack usage of non-blocking function
 ; SSTACK: stack usage of non-blocking function + 2
-;         rgister output of the non-blocking function is preserved 
+;         rgister output of the non-blocking function is preserved
 #macro	SCI_MAKE_BL, 2
 			;Disable interrupts
 LOOP			SEI
@@ -824,7 +964,7 @@ LOOP			SEI
 			;Done
 			SSTACK_PREPULL	2
 			RTS
-			;Wait for next interrupt 
+			;Wait for next interrupt
 WAIT			ISTACK_WAIT
 			;Try again
 			SSTACK_PREPUSH	\2
@@ -833,16 +973,16 @@ WAIT			ISTACK_WAIT
 
 ;#Run a non-blocking subroutine as if it was blocking	
 ; args:   1: non-blocking function
-;         2: subroutine stack usage of non-blocking function 
+;         2: subroutine stack usage of non-blocking function
 ; SSTACK: stack usage of non-blocking function + 2
-;         rgister output of the non-blocking function is preserved 
+;         rgister output of the non-blocking function is preserved
 #macro	SCI_CALL_BL, 2
 			;Disable interrupts
 LOOP			SEI
 			;Call non-blocking function
 			SSTACK_JOBSR	\1, \2
 			BCS	DONE 		;function successful
-			;Wait for next interrupt 
+			;Wait for next interrupt
 			ISTACK_WAIT
 			;Try again
 			JOB	LOOP
@@ -852,12 +992,12 @@ DONE			CLI
 	
 #ifdef	SCI_FC_RTSCTS
 ;#Assert CTS (Clear To Send - allow incoming data)
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SCI_ASSERT_CTS, 0
 #ifdef	SCI_CTS_WEAK_DRIVE
-			BCLR	SCI_CTS_PORT, #SCI_CTS_PIN 		;clear CTS (allow RX data
+			BCLR	SCI_CTS_PORT,#SCI_CTS_PIN 		;clear CTS (allow RX data
 			BSET	SCI_CTS_DDR, #SCI_CTS_PIN		;drive speed-up pulse
 			BSET	SCI_CTS_PPS, #SCI_CTS_PIN 		;select pull-down device
 			BCLR	SCI_CTS_DDR, #SCI_CTS_PIN		;end speed-up pulse
@@ -869,9 +1009,9 @@ DONE			CLI
 
 #ifdef	SCI_FC_RTSCTS
 ;#Deassert CTS (stop incoming data)
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SCI_DEASSERT_CTS, 0
 #ifdef	SCI_CTS_WEAK_DRIVE
 			BSET	SCI_CTS_PORT, #SCI_CTS_PIN 		;set CTS (prohibit RX data)
@@ -886,9 +1026,9 @@ DONE			CLI
 	
 #ifdef SCI_FC_XONXOFF
 ;#Send XON/XOFF symbol
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SCI_SEND_XONXOFF, 0
 			BSET	SCI_FLGS, #SCI_FLG_SEND_XONXOFF		;request transmission of XON/XOFF
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2 		;enable TX interrupts	
@@ -897,9 +1037,9 @@ DONE			CLI
 
 #ifdef	SCI_DLY_EN
 ;#RESET delay (approx. 2 SCI frames)
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, and Y are preserved 
+;         X, and Y are preserved
 #macro	SCI_RESET_DELAY, 0
 			TIM_CLRIF   	SCI_DLY_OC
 			LDD	SCIBDH 					;retrigger delay
@@ -913,9 +1053,9 @@ MAX_DELAY		EQU	*
 
 #ifdef	SCI_DLY_EN
 ;#Start delay (always retrigger) (approx. 2 SCI frames)
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, and Y are preserved 
+;         X, and Y are preserved
 #macro	SCI_INIT_DELAY, 0
 			SCI_RESET_DELAY
 			TIM_EN		SCI_DLY_OC
@@ -924,9 +1064,9 @@ MAX_DELAY		EQU	*
 	
 #ifdef	SCI_DLY_EN
 ;#Start delay (don't retrigger) (approx. 2 SCI frames)
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, and Y are preserved 
+;         X, and Y are preserved
 #macro	SCI_START_DELAY, 0
 			BRSET	TIE, #(1<<SCI_DLY_OC), DONE 		;skip if delay has already been triggered
 			SCI_INIT_DELAY
@@ -936,9 +1076,9 @@ DONE			EQU	*
 
 #ifdef	SCI_DLY_EN
 ;#Stop delay (approx. 2 SCI frames)
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SCI_STOP_DELAY, 0
 			TIM_DIS		SCI_DLY_OC
 			EQU	*
@@ -947,9 +1087,9 @@ DONE			EQU	*
 
 #ifdef	SCI_DLY_EN
 ;#Wait for one delay period (approx. 2 SCI frames)
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SCI_WAIT_DELAY, 0
 			SEI						;start atomic sequence
 			SCI_INIT_DELAY					;restart timer delay
@@ -961,14 +1101,14 @@ LOOP			ISTACK_WAIT 					;wait for any event
 	
 #ifdef	SCI_BD_ON
 ;Start baud rate detection (I-bit must be set)
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, and Y are preserved 
+;         X, and Y are preserved
 #macro	SCI_START_BD, 0
 			TST	SCI_BD_LIST
 			BNE	DONE 					;baud rate detection is already running
 #ifdef SCI_BD_LOG_ON
-			;Clear BD log 
+			;Clear BD log
 			SCI_BD_CLEAR_LOG
 #endif
 			;Enable timer
@@ -995,9 +1135,9 @@ DONE			EQU	*
 	
 #ifdef	SCI_BD_ON
 ;Stop baud rate detection
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SCI_STOP_BD, 0
 			BRCLR	SCI_BD_LIST, #$FF, DONE			;baud rate detection already inactive
 			;Stop edge detection
@@ -1017,9 +1157,9 @@ DONE			EQU	*
 
 #ifdef	SCI_BD_ON
 ;Start edge detection
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, and Y are preserved 
+;         X, and Y are preserved
 #macro	SCI_BD_START_EDGE_DETECT, 0
 			;BSET	TCTL3, #(SCI_BD_TCTL3_VAL>>8)		;start edge detection
 			BSET	TCTL4, #(SCI_BD_TCTL3_VAL&$00FF)
@@ -1028,9 +1168,9 @@ DONE			EQU	*
 
 #ifdef	SCI_BD_ON
 ;Stop edge detection
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, and Y are preserved 
+;         X, and Y are preserved
 #macro	SCI_BD_STOP_EDGE_DETECT, 0
 			;BCLR	TCTL3, #(SCI_BD_TCTL3_VAL>>8)		;stop edge detection
 			BCLR	TCTL4, #(SCI_BD_TCTL3_VAL&$00FF)
@@ -1040,9 +1180,9 @@ DONE			EQU	*
 #ifdef	SCI_BD_ON
 #ifdef	SCI_BD_LOG_ON
 ;Clear BD pulse log
-; args:   none 
+; args:   none
 ; SSTACK: none
-;         X, and Y are preserved 
+;         X, and Y are preserved
 #macro	SCI_BD_CLEAR_LOG, 0
 			TFR	Y,D
 			LDY	#SCI_BD_LOG_BUF
@@ -1059,9 +1199,9 @@ LOOP			MOVW	#$0000, 2,Y+
 #ifdef	SCI_BD_LOG_ON
 ;Log BD pulse length
 ; args: X: pulse length
-;       Y: search tree pointer 
+;       Y: search tree pointer
 ; SSTACK: none
-;         X, and Y are preserved 
+;         X, and Y are preserved
 #macro	SCI_BD_LOG, 0
 		TFR	Y,D
 		LDY	SCI_BD_LOG_IDX
@@ -1083,14 +1223,54 @@ DONE		TFR	D,Y
 #else
 			ORG 	SCI_CODE_START
 #endif
+
+;#Enable SCI
+; args:   none
+; result: none
+; SSTACK: 2 bytes
+;         X and Y are preserved
+SCI_ENABLE		EQU	*
+#ifdef SCI_FC_XONXOFF
+			;Initialize XON/XOFF flow control
+			BSET	SCI_FLGS,#SCI_FLG_SEND_XONXOFF ;request transmission of XON/XOFF
+			MOVB	#(TXIE|RIE|TE|RE), SCICR2 	;enable SCI and transmit XON
+#else
+			MOVB	#(RIE|TE|RE), SCICR2 		;enable SCI
+#endif
+#ifdef SCI_FC_RTSCTS
+			;Initialize RTS/CTS flow control (allow incoming data)
+			SCI_ASSERT_CTS 				;signal clear to send
+#endif
+#ifdef	SCI_IRQ_WORKAROUND_ON
+			;Trigger periodic interrupt
+				;SCI_START_DELAY <-TBD
+#endif
+			;Flag SCI as enabled
+			BSET	SCI_FLGS,#SCI_FLG_SHUTDOWN
+			;Done
+			SSTACK_PREPULL	2 			;check SSTACK
+			RTS					;done
+
+;#Disable SCI - non-blocking
+; args:   none
+; result: C-flag: set if successful
+; SSTACK: 2 bytes
+;         X and Y are preserved
+SCI_DISABLE_NB		EQU	*
+			;Flag SCI as disabled
+			BSET	SCI_FLGS,#SCI_FLG_SHUTDOWN
+
+
+	
+
 	
 ;#Transmit one byte - non-blocking
 ; args:   B: data to be send
 ; result: C-flag: set if successful
 ; SSTACK: 5 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 SCI_TX_NB		EQU	*
-			;Check if SCI transmitter is enabled 
+			;Check if SCI transmitter is enabled
 			BRCLR	SCICR2, #TE, SCI_TX_NB_1 		;do nothing and flag success
 			;Save registers (data in B)
 			PSHY
@@ -1106,7 +1286,7 @@ SCI_TX_NB		EQU	*
 			BEQ	SCI_TX_NB_2 				;buffer is full
 			;Update buffer
 			STAA	SCI_TXBUF_IN
-			;Enable interrupts 
+			;Enable interrupts
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2				;enable TX interrupt
 			;Restore registers
 			SSTACK_PREPULL	5
@@ -1116,7 +1296,7 @@ SCI_TX_NB		EQU	*
 SCI_TX_NB_1		SEC
 			;Done
 			RTS
-			;Buffer is full 
+			;Buffer is full
 			;Restore registers
 SCI_TX_NB_2		SSTACK_PREPULL	5
 			PULA
@@ -1130,7 +1310,7 @@ SCI_TX_NB_2		SSTACK_PREPULL	5
 ; args:   B: data to be send
 ; result: none
 ; SSTACK: 7 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #ifdef	SCI_BLOCKING_ON
 SCI_TX_BL		EQU	*
 			SCI_MAKE_BL	SCI_TX_NB, 5
@@ -1140,9 +1320,9 @@ SCI_TX_BL		EQU	*
 ; args:   none
 ; result:  C-flag: set if all transmissions are complete
 ; SSTACK: 4 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 SCI_TX_DONE_NB		EQU	*
-			;Check if SCI transmitter is enabled 
+			;Check if SCI transmitter is enabled
 			BRCLR	SCICR2, #TE, SCI_TX_DONE_NB_3 		;do nothing and flag success
 			;Save registers
 			PSHD
@@ -1173,7 +1353,7 @@ SCI_TX_DONE_NB_3	SEC
 ; args:   none
 ; result: none
 ; SSTACK: 6 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #ifdef	SCI_BLOCKING_ON
 SCI_TX_DONE_BL		EQU	*
 			SCI_MAKE_BL	SCI_TX_DONE_NB, 4	
@@ -1183,9 +1363,9 @@ SCI_TX_DONE_BL		EQU	*
 ; args:   none
 ; result: C-flag: set if successful
 ; SSTACK: 4 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 SCI_TX_READY_NB		EQU	*
-			;Check if SCI transmitter is enabled 
+			;Check if SCI transmitter is enabled
 			BRCLR	SCICR2, #TE, SCI_TX_READY_NB_1 		;do nothing and flag success
 			;Save registers
 			PSHD
@@ -1212,7 +1392,7 @@ SCI_TX_READY_NB_2	SSTACK_PREPULL	4
 ; args:   none
 ; result: none
 ; SSTACK: 6 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #ifdef	SCI_BLOCKING_ON
 SCI_TX_READY_BL		EQU	*
 			SCI_MAKE_BL	SCI_TX_READY_NB, 4	
@@ -1220,13 +1400,13 @@ SCI_TX_READY_BL		EQU	*
 
 ;#Receive one byte - non-blocking ;OK!
 ; args:   none
-; result: A:      error flags 
+; result: A:      error flags
 ;         B:      received data
 ;	  C-flag: set if successful
 ; SSTACK: 4 bytes
-;         X and Y are preserved 
+;         X and Y are preserved
 SCI_RX_NB		EQU	*
-			;Check if SCI receiver is enabled 
+			;Check if SCI receiver is enabled
 			BRCLR	SCICR2, #TE, SCI_RX_NB_3 		;do nothing and flag failure
 			;Save registers
 			PSHX
@@ -1234,7 +1414,7 @@ SCI_RX_NB		EQU	*
 			LDD	SCI_RXBUF_IN 				;A:B=in:out
 			SBA		   				;A=in-out
 			BEQ	SCI_RX_NB_2 				;RX buffer is empty
-#ifdef	SCI_FC_EN
+#ifdef	SCI_FC_ON
 			;Check if more RX data is allowed  (in-out in A)
 			ANDA	#SCI_RXBUF_MASK
 			CMPA	#SCI_RX_EMPTY_LEVEL
@@ -1247,7 +1427,7 @@ SCI_RX_NB_1		LDX	#SCI_RXBUF
 			ANDB	#SCI_RXBUF_MASK
 			STAB	SCI_RXBUF_OUT
 			;MOVB	#(TXIE|RIE|TE|RE), SCICR2		;trigger RXTX ISR
-			TFR	X, D 
+			TFR	X, D
 			;Restore registers
 			SSTACK_PREPULL	4
 			PULX
@@ -1273,11 +1453,11 @@ SCI_RX_NB_4		SCI_SEND_XONXOFF
 	
 ;#Receive one byte - blocking
 ; args:   none
-; result: A:      error flags 
+; result: A:      error flags
 ;         B:      received data
 ;	  C-flag: set if successful
 ; SSTACK: 6 bytes
-;         X and Y are preserved 
+;         X and Y are preserved
 #ifdef	SCI_BLOCKING_ON
 SCI_RX_BL		EQU	*
 			SCI_MAKE_BL	SCI_RX_NB, 4
@@ -1287,9 +1467,9 @@ SCI_RX_BL		EQU	*
 ; args:   none
 ; result: C-flag: set if successful
 ; SSTACK: 4 bytes
-;         X, Y and D are preserved 
+;         X, Y and D are preserved
 SCI_RX_READY_NB		EQU	*
-			;Check if SCI receiver is enabled 
+			;Check if SCI receiver is enabled
 			BRCLR	SCICR2, #TE, SCI_RX_READY_NB_2 		;do nothing and flag failure
 			;Save registers
 			PSHD
@@ -1314,7 +1494,7 @@ SCI_RX_READY_NB_2	CLC
 ; args:   none
 ; result: C-flag: set if successful
 ; SSTACK: 4 bytes
-;         X, Y and D are preserved 
+;         X, Y and D are preserved
 #ifdef	SCI_BLOCKING_ON
 SCI_RX_READY_BL		EQU	*
 			SCI_MAKE_BL	SCI_RX_READY_BL, 4
@@ -1324,7 +1504,7 @@ SCI_RX_READY_BL		EQU	*
 ; args:   D: new SCIBD value
 ; result: none
 ; SSTACK: 6 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 SCI_SET_BAUD		EQU	*
 			;Save registers (new SCIBD value in D)
 			PSHY 					;push Y onto the SSTACK
@@ -1344,11 +1524,11 @@ SCI_SET_BAUD		EQU	*
 			RTS
 	
 #ifndef	SCI_FC_NONE
-;#Halt SCI communication 
+;#Halt SCI communication
 ; args:   none
 ; result: none
 ; SSTACK: 2 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 SCI_HALT_COM		EQU	*
 #ifdef	SCI_FC_RTSCTS
 			;Force flow control
@@ -1360,10 +1540,10 @@ SCI_HALT_COM		EQU	*
 			;Force flow control
 			BSET	SCI_FLGS, #(SCI_FLG_RX_BLOCKED|SCI_FLG_SEND_XONXOFF)
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2 	;enable TX interrupts	
-			;Wait for remaining incoming data (approx. 2 SCI frames) 
+			;Wait for remaining incoming data (approx. 2 SCI frames)
 			SCI_WAIT_DELAY				;~2 SCI frames
 #endif
-			;Wait for remaining incoming data (approx. 4 SCI frames) 
+			;Wait for remaining incoming data (approx. 4 SCI frames)
 			SCI_WAIT_DELAY				;~2 SCI frames
 			SCI_WAIT_DELAY				;~2 SCI frames
 			;Done
@@ -1372,11 +1552,11 @@ SCI_HALT_COM		EQU	*
 #endif
 
 #ifndef	SCI_FC_NONE
-;#Resume SCI communication 
+;#Resume SCI communication
 ; args:   none
 ; result: none
 ; SSTACK: 2 or 4 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 SCI_RESUME_COM		EQU	*	
 #ifdef	SCI_FC_RTSCTS
 			;Save registers
@@ -1404,47 +1584,51 @@ SCI_RESUME_COM_1	SSTACK_PREPULL	4
 			RTS
 #endif
 
-;ISRs 
-;---- 
-;#TIM IC ISR
+;ISRs
+;----
+#ifdef SCI_BAUD_AUTO
+;#TIM IC ISR (used for baud rate detection)
+
+
+	
 SCI_ISR_IC		EQU	*
 			;Capture timestamp
 			LDD	TC0+(2*SCI_IC) 			;TC -> D
 			TIM_CLRIF	SCI_IC			;clear interrupt flag
-			TFR	D, X 				;TC -> X
-			TIM_BRDIS	SCI_OC, SCI_ISR_IC_3	;TCs have been captured before
+			BRCLR	SCI_BD_LAST_TC_VALID,#$FF,SCI_ISR_IC_BD_3;first TC captured
 			;Calculate pulse width (current TC in D)
-			SUBD	SCI_LAST_TC			;pulse width -> D
-			STX	SCI_LAST_TC			;update last TC
-			CPD	SCI_SHORTEST_PULSE		;find shortest pulse                                     
-			BLE	SCI_ISR_IC_1			;previous pulse was shorter
-			CPD	#SCI_MIN_PULSE			;filter noise
-			BLS	SCI_ISR_IC_1			;ignore pulse
-			STD	SCI_SHORTEST_PULSE		;update shortest pulse
-			;Setup OC (shortest pulse width in in D, TC in X)
-SCI_ISR_IC_1		LDD	SCI_SHORTEST_PULSE		;shortest pulse -> D
-			BITA	$F0 				;check if OC must be reduced
-			BNE	SCI_ISR_IC_2			;reduce OC delay to 2^16-1
-			LSLD   					;multiply pulse width by 16
-			LSLD					;
-			LSLD					;
-			LSLD					;
-			LEAX	D,Y				;
-SCI_ISR_IC_2		STX	TC0+(2*SCI_IC) 			;set OC
+			TFR	D, X 				;TC -> X
+			SUBD	SCI_BD_LAST_TC			;pulse width -> D
+			STX	SCI_BD_LAST_TC			;update last TC
+			CPD	SCI_BD_BIT_LENGTH		;find shortest pulse
+			BHS	SCI_ISR_IC_BD_1			;previous pulse was shorter
+			CPD	#SCI_BD_MIN_PULSE		;filter noise
+			BLS	SCI_ISR_IC_BD_1			;ignore pulse
+			STD	SCI_BD_BIT_LENGTH		;update bit length
+			;Setup OC (TC in X)
+SCI_ISR_IC_BD_1		TIM_BREN	SCI_OC, SCI_ISR_IC_BD_2	;OC already active
+			STX		TC0+(2*SCI_OC) 		;set OC
 			TIM_CLRIF	SCI_OC			;clear OC interrupt flag
-			ISTACK_RTS				;done
-SCI_ISR_IC_3		TIM_EN		SCI_OC			;enable OC interrupt
-			JOB	SCI_ISR_IC_2			;set OC
-
+SCI_ISR_IC_BD_2		ISTACK_RTS				;done
+			;First TC captured (TC in D)
+SCI_ISR_IC_BD_3		STD	SCI_BD_LAST_TC			;set last TC	
+			MOWB	#$FF, SCI_BD_LAST_TC_VALID,	;validate last TC
+			JOB	SCI_ISR_IC_BD_2			;done
+#endif
 
 ;#TIM OC ISR
-SCI_ISR			EQU	*	
+SCI_ISR_OC		EQU	*	
+
+
+
+
+
 			;Check if baud rate detection is enabled
 			TIM_BRDIS	SCI_IC, SCI_ISR_OC_	;baud rate detection disabled
 			;Determine baud rate settings
 			LDD	SCI_SHORTEST_PULSE		;shortest pulse -> D
 #ifndef TIM_DIV_16
-			LSRD					;determine SCIBD value 
+			LSRD					;determine SCIBD value
 #ifndef TIM_DIV_8
 			LSRD					;
 #ifndef TIM_DIV_4
@@ -1458,18 +1642,18 @@ SCI_ISR			EQU	*
 			BEQ	SCI_ISR_OC_			;redundant sanity check
 			BITA	$E0				;check if baud rate divider is too high
 			BNE	SCI_ISR_OC_			;baud rate divider is too high
-			;Baud rate determined (SCIBD value in D) 
+			;Baud rate determined (SCIBD value in D)
 			
 
 	
 			STD	SCIBDH 				;set new baud rate
 			SCI_ENABLE				;enable SCI
-			SCI_BD_DISABLE				;disable baud rate 
+			SCI_BD_DISABLE				;disable baud rate
 	
 	
 #ifdef	SCI_DLY_EN
 ;#Timer delay
-;------------ 
+;------------
 ; period: approx. 2 SCI frames
 ; RTS/CTS:    if RTS polling is requested (SCI_FLG_POLL_RTS) -> enable TX IRQ
 ; XON/XOFF:   if reminder count == 1 -> request XON/XOFF reminder, enable TX IRQ
@@ -1522,7 +1706,7 @@ SCI_ISR_DELAY_5		SCI_STOP_DELAY
 #endif
 	
 ;#Transmit ISR (status flags in A)
-;--------------------------------- 
+;---------------------------------
 SCI_ISR_TX		BITA	#TDRE					;check if SCI is ready for new TX data
 			BEQ	<SCI_ISR_TX_4				;done for now
 #ifdef	SCI_FC_XONXOFF
@@ -1600,12 +1784,12 @@ SCI_ISR_TX_7		MOVW	#SCI_XONXOFF_REMINDER, SCI_XONXOFF_REMCNT
 #endif	
 
 ;#Receive/Transmit ISR (Common ISR entry point for the SCI)
-;---------------------------------------------------------- 
+;----------------------------------------------------------
 SCI_ISR_RXTX		EQU	*
 			;Common entry point for all SCI interrupts
 			;Load flags
 			LDAA	SCISR1					;load status flags into accu A
-									;SCI Flag order:				 
+									;SCI Flag order:				
 									; 7:TDRE (Transmit Data Register Empty Flag)
 									; 6:TC   (TransmitCompleteFlag)
 									; 5:RDRF (Receive Data Register Full Flag)
@@ -1623,7 +1807,7 @@ SCI_ISR_RXTX		EQU	*
 			BEQ	SCI_ISR_TX				; is full or if an overrun has occured
 			
 ;#Receive ISR (status flags in A)
-;-------------------------------- 
+;--------------------------------
 SCI_ISR_RX		LDAB	SCIDRL					;load receive data into accu B (clears flags)
 			ANDA	#(OR|NF|FE|PF)				;only maintain relevant error flags
 #ifdef	SCI_DETECT_C0
@@ -1650,7 +1834,7 @@ SCI_ISR_RX		LDAB	SCIDRL					;load receive data into accu B (clears flags)
 			BLE	SCI_ISR_RX_8				;determine control signal
 #endif	
 
-			;Place data into RX queue (status flags in A, RX data in B) 
+			;Place data into RX queue (status flags in A, RX data in B)
 SCI_ISR_RX_1		TFR	D, Y					;flags:data -> Y
 			LDX	#SCI_RXBUF   				;buffer pointer -> X
 			LDD	SCI_RXBUF_IN				;in:out -> A:B
@@ -1660,7 +1844,7 @@ SCI_ISR_RX_1		TFR	D, Y					;flags:data -> Y
 			CBA
                 	BEQ	<SCI_ISR_RX_9				;buffer overflow
 			STAA	SCI_RXBUF_IN				;update IN pointer
-#ifdef	SCI_FC_EN
+#ifdef	SCI_FC_ON
 			;Check if flow control must be applied (in:out in D, flags:data in Y)
 			SBA
 			ANDA	#SCI_RXBUF_MASK
@@ -1681,7 +1865,7 @@ SCI_ISR_RX_3		EQU	*
 #endif
 #endif
 #ifdef	SCI_IRQ_WORKAROUND_ON
-			;Continue with TX 
+			;Continue with TX
 SCI_ISR_RX_4		JOB	SCI_ISR_RXTX
 #else
 			;Done
@@ -1731,7 +1915,7 @@ SCI_ISR_RX_8		EQU	*
 #endif
 			;Buffer overflow (flags:data in Y)
 SCI_ISR_RX_9		BSET	SCI_FLGS, #SCI_FLG_SWOR 		;set overflow flag
-#ifdef	SCI_FC_EN
+#ifdef	SCI_FC_ON
 			;Signal buffer full (flags:data in Y)
 #ifdef	SCI_FC_RTSCTS
 			;Deassert CTS (stop incomming data) (flags:data in Y)
@@ -1761,20 +1945,20 @@ SCI_ISR_RX_12		EQU	*
 #endif
 SCI_ISR_RX_13		JOB	SCI_ISR_RX_4 				;done			
 #ifmac	SCI_SUSPEND_ACTION
-			;Handle SUSPEND 
+			;Handle SUSPEND
 SCI_ISR_RX_14		SCI_SUSPEND_ACTION
 			JOB	SCI_ISR_RX_13 				;done
 #endif
 #ifdef	SCI_FC_XONXOFF
-			;Handle XOFF 
+			;Handle XOFF
 SCI_ISR_RX_15		BSET	SCI_FLGS, #SCI_FLG_TX_BLOCKED		;stop transmitting
 			JOB	SCI_ISR_RX_13 				;done
-			;Handle XON 
+			;Handle XON
 SCI_ISR_RX_16		BSET	SCI_FLGS, #SCI_FLG_TX_BLOCKED		;allow transmissions
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2		;enable TX interrupt
 			JOB	SCI_ISR_RX_13 				;done
 #endif
-			;Handle DLE 
+			;Handle DLE
 SCI_ISR_RX_17		BSET	SCI_FLGS, #SCI_FLG_RX_ESC 		;remember start of escape sequence
 			LDD	SCI_RXBUF_IN				;in:out -> A:B
 			ANDA	#SCI_RXBUF_MASK
@@ -1783,7 +1967,7 @@ SCI_ISR_RX_17		BSET	SCI_FLGS, #SCI_FLG_RX_ESC 		;remember start of escape sequen
 			JOB	SCI_ISR_RX_11				;check for RX errors
 
 #ifmac	SCI_BREAK_ACTION
-			;Handle BREAK 
+			;Handle BREAK
 SCI_ISR_RX_18		SCI_BREAK_ACTION
 			JOB	SCI_ISR_RX_13 				;done
 #endif
@@ -1804,7 +1988,7 @@ SCI_ISR_BD_NE		EQU	*
 			;Allow nested interrupts (current edge in X, previous edge in Y, interrupt flags in B)
 			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
 			;Make sure no time-out has and no early edge has occured (current edge in X, previous edge in Y, interrupt flags in B)
-			BITB	#((1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)) 
+			BITB	#((1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC))
 			BNE	SCI_ISR_BD_NEPE_4 			;done
 			;Calculate pulse length (current edge in X, previous edge in Y, polarity flags in B)
 			LDD	#-1
@@ -1829,7 +2013,7 @@ SCI_ISR_BD_PE		EQU	*
 			;Allow nested interrupts (current edge in X, previous edge in Y, interrupt flags in B)
 			ISTACK_CHECK_AND_CLI 				;allow interrupts if there is enough room on the stack
 			;Make sure no time-out has and no early edge has occured (current edge in X, previous edge in Y, interrupt flags in B)
-			BITB	#((1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC)) 
+			BITB	#((1<<SCI_BD_ICPE)|(1<<SCI_BD_ICNE)|(1<<SCI_BD_OC))
 			BNE	SCI_ISR_BD_NEPE_4 			;done
 			;Calculate pulse length (current edge in X, previous edge in Y, polarity flags in B)
 			LDD	#-1
@@ -1851,7 +2035,7 @@ SCI_ISR_BD_NEPE		EQU	*
 			LDAB	MCFLG					;capture polarity flags
 			;Make sure no time-out has and no early edge has occured
 			BRCLR	TFLG1, ((1<<SCI_BD_IC)|(1<<SCI_BD_OC)), SCI_ISR_BD_NEPE_1
-			;Reset time-out and discard captured values 
+			;Reset time-out and discard captured values
 			STX	(TC0+(2*SCI_BD_OC))		
 			TIM_CLRIF	SCI_BD_OC
 			JOB	SCI_ISR_BD_NEPE_4 			;done
@@ -1886,7 +2070,7 @@ SCI_ISR_BD_NEPE_2	EQU	*
 			SEI
 			ANDB	SCI_BD_LIST 				;remove mismatching baud rates from the list
 			BEQ	SCI_ISR_BD_NEPE_5	 		;no valid baud rate found
-			STAB	SCI_BD_LIST 
+			STAB	SCI_BD_LIST
 			;Check if baud rate has been determined (potential baud rates in B (not zero))
 			CLRA
 SCI_ISR_BD_NEPE_3	INCA
@@ -1897,7 +2081,7 @@ SCI_ISR_BD_NEPE_3	INCA
 SCI_ISR_BD_NEPE_4	ISTACK_RTI
 			;No valid baud rate found
 SCI_ISR_BD_NEPE_5	BRCLR	SCI_BD_LIST, #$FF, SCI_ISR_BD_NEPE_4	;done
-			;Restart baud rate detection 
+			;Restart baud rate detection
 			MOVB	#$FF, SCI_BD_LIST
 			JOB	SCI_ISR_BD_NEPE_4 			;done
 			;New baud rate found (index+1 in A, $00 in B)

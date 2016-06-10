@@ -4,7 +4,7 @@
 ;# S12CBase - GPIO - GPIO Handler (MagniCube)                                  #
 ;###############################################################################
 ;#    Copyright 2010-2016 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
+;#    This file is part of the S12CBase framework for NXP's S12(X) MCU         #
 ;#    families.                                                                #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
@@ -108,12 +108,13 @@ GPIO_VARS_END_LIN	EQU	@
 		MOVB	#$84, MODRR2 				;map SCI0 to PS[1:0], connect TIM1IC1 to RXD
 #endif		
 		;#Port P
-		;MOVB	#$00,   PTP 			
-		MOVB	#$3F,   DDRP 				;switch pins to output
-		;MOVB	#$00,   RDRP
-		;MOVB	#$FF	PERP				
-		;MOVB	#$00,   PPSP 			
-		;MOVB	#$00,	PIEP 			
+		;MOVB	#$00, PTP 			
+		MOVB	#$3F, DDRP 				;switch pins to output
+		;MOVB	#$00, RDRP
+		;MOVB	#$FF  PERP				
+		;MOVB	#$00, PPSP 			
+		;MOVB	#$00, PIEP 			
+		;MOVB	#$00, PIFP 			
 		;#Port L		
 		;MOVB	#$00, PTAENL
 		;MOVB	#$00, PTADIRL
@@ -121,39 +122,23 @@ GPIO_VARS_END_LIN	EQU	@
 		;MOVB	#$00, PTPSL
 		;MOVB	#$00, DIENL
 		;MOVB	#$00, PTTEL
-
------>hier weiter	
-
+		;MOVB	#$00, PIRL
+		;MOVB	#$00, PPSL
+		;MOVB	#$00, PIEL
+		;MOVB	#$00, PIFL
 		;#Port AD
-		MOVW	#%1111_1100_1111_1111, ATDDIEN   	;switch unused pins to digital
-		;MOVW	#$0000, PT0AD
-		;MOVW	#$0000, DDR0AD
-		MOVW	#%1111_1100_1111_1111, PER0AD
-		;MOVW	#$0000, PPS0AD
-		;MOVW	#$0000, PIE0AD
-		;#Port J
-		;MOVB	#$00,   PTJ 			
-		;MOVB	#$00,   DDRJ 			
-		;MOVB	#$FF	PERJ
-		MOVB	#$0F,   PPSJ 			
-		;MOVB	#$00FF,	PIEJ				;PIEJ/PIFJ 			
-		;#Port M
-		;MOVB	#$00,   PTM 			
-		MOVB	#$02,   DDRM 			
-		MOVW	#$0D01	PERM 				;PERM/PPSM
-		;MOVB	#$02,	WOMM
-		;#Port P
-		;MOVB	#$00,   PTP 			
-		MOVB	#$3F,   DDRP 				;drive keyboard columns low
-		MOVB	#$FF	PERP
-		;MOVB	#$00,   PPSP 			
-		;MOVB	#$00FF,	PIEP				;PIEP/PIFP 			
+		;MOVB	#$00, ATDDIENH
+		MOVB	#$3F, ATDDIENL 				;enable digital inputs of PP[5:0]
+		;MOVB	#$00, PT1AD
+		MOVB	#$2F, DDR1AD				;switch pins to output
+		;MOVB	#$00, PER1AD
+		;MOVB	#$00, PPS1AD
+		;MOVB	#$00, PIE1AD
 
 		;General setup
 		LDAA	#MODC					;lock MODE register into NSC mode
 		STAA	MODE		
 		STAA	MODE
-		MOVB	PKGCR, PKGCR 				;lock PKGCR
 #emac
 	
 ;###############################################################################
