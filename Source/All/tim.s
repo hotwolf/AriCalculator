@@ -151,7 +151,7 @@ TIM_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-;#Instance "TIM" (default)
+;#Default initialization macro
 #macro	TIM_INIT, 0
 #ifdef	TIM_TIOS_INIT
 			;TIOS 
@@ -319,6 +319,63 @@ TIM_VARS_END_LIN	EQU	@
 #ifdef	TIM_OCPD_CHECK_ON
 			;OCPD
 			MOVW	#$FF, TIM1_OCPD 	;disconnect all IO
+#endif	
+#emac
+
+;#Instance "TIM"
+#macro	TIM_INIT_TIM, 0
+#ifdef	TIM_TIM_TIOS_INIT
+			;TIOS 
+			MOVB	#TIM_TIM_TIOS_INIT, TIM_TIOS
+
+#endif
+#ifdef	TIM_TIM_TOCMD_INIT
+			;TOC7M/TOC7D
+			MOVW	#TIM_TIM_TOCMD_INIT, TIM_TOCM
+#endif
+#ifdef	TIM_TIM_TTOV_INIT
+			;TTOV 
+			MOVB	#TIM_TIM_TTOV_INIT, TIM_TTOV
+#endif
+#ifdef	TIM_TIM_TCTL12_INIT
+			;TCTL1/TCTL2
+			MOVW	#TIM_TIM_TCTL12_INIT, TIM_TCTL1
+#endif
+#ifdef	TIM_TIM_TCTL34_INIT
+			;TCTL3/TCTL4
+			MOVW	#TIM_TIM_TCTL34_INIT, TIM_TCTL3
+#endif
+#ifdef	TIM_DIV_2
+			;TSCR2
+			MOVB	#$01, TIM_TSCR2 	;timer clock = bus clock/2
+#endif
+#ifdef	TIM_DIV_4
+			;TSCR2
+			MOVB	#$02, TIM_TSCR2 	;timer clock = bus clock/4
+#endif
+#ifdef	TIM_DIV_8
+			;TSCR2
+			MOVB	#$03, TIM_TSCR2 	;timer clock = bus clock/8
+#endif
+#ifdef	TIM_DIV_16
+			;TSCR2
+			MOVB	#$04, TIM_TSCR2 	;timer clock = bus clock/16
+#endif
+#ifdef	TIM_DIV_32
+			;TSCR2
+			MOVB	#$05, TIM_TSCR2 	;timer clock = bus clock/32
+#endif
+#ifdef	TIM_DIV_64
+			;TSCR2
+			MOVB	#$06, TIM_TSCR2 	;timer clock = bus clock/64
+#endif
+#ifdef	TIM_DIV_128
+			;TSCR2
+			MOVB	#$07, TIM_TSCR2 	;timer clock = bus clock/128
+#endif
+#ifdef	TIM_OCPD_CHECK_ON
+			;OCPD
+			MOVW	#$FF, TIM_OCPD 		;disconnect all IO
 #endif	
 #emac
 	
