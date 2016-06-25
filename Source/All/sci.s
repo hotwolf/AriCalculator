@@ -231,7 +231,7 @@ SCI_RXTX_ACTLO		EQU	1 		;default is active low RXD/TXD
 ;TIM configuration
 ;TIM instance for baud rate detection
 #ifndef	SCI_IC_TINST
-SCI_IC_TINST		EQU	TIM 		;default is IC0
+SCI_IC_TIM		EQU	TIOS 		;default is the TIM instance associated with TIOS
 #endif
 ;Input capture channel for baud rate detection
 #ifndef	SCI_IC
@@ -239,7 +239,7 @@ SCI_IC			EQU	0 		;default is IC0
 #endif
 ;TIM instance for baud rate detection, shutdown, flow control, and MC9S12DP256 IRQ workaround
 #ifndef	SCI_IC_TINST
-SCI_IC_TINST		EQU	TIM 		;default is IC0
+SCI_IC_TIM		EQU	TIOS 		;default is the TIM instance associated with TIOS
 #endif
 ;Output compare channel for baud rate detection, shutdown, flow control, and MC9S12DP256 IRQ workaround
 ;Past baud rate detection, the OC will always measure time periods of roughly 2 SCI frames
@@ -652,9 +652,11 @@ START_BD		MOVW	#$FFFF, SCI_BD_PULSE		;start with max. pulse length
 #ifmac	SCI_BDSIG_START
 			SCI_BDSIG_START				;signal baud rate detection
 #endif
-			TIM_EN	SCI_IC 				;start baud rate detection
+			TIM_EN	SCI_IC_TIM, SCI_IC 		;start baud rate detection
 			JOB	DONE
-
+#else
+			MOVW	#SCI_BDIV, SCIBD 		;set fixed baud rate
+	
 			;Activate SCI 
 			SCI_GO					;start SCI
 DONE			EQU	*				;done
@@ -662,7 +664,7 @@ DONE			EQU	*				;done
 
 ;#Helper functions
 ;#----------------
-;#Activate SCI
+;#Activate the SCI (at initialzation)
 ; args:   none
 ; result: none
 ; SSTACK: 0 bytes
@@ -670,10 +672,35 @@ DONE			EQU	*				;done
 ; Must not be interrupted by
 #macro	SCI_GO, 0
 			;Activate SCI 
-			
+			MOVB	#
 
 
 
+;#Deactivate SCI
+; args:   none
+; result: none
+; SSTACK: 0 bytes
+;         X is preserved
+; Must not be interrupted by
+#macro	SCI_PAUSE, 0
+			;Activate SCI 
+
+
+;#Reactivate SCI
+; args:   none
+; result: none
+; SSTACK: 0 bytes
+;         X is preserved
+; Must not be interrupted by
+#macro	SCI_RESUME, 0
+			;Activate SCI 
+
+
+
+
+
+
+	
 
 
 
