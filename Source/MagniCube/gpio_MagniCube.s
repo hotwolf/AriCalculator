@@ -43,7 +43,7 @@
 ;#    Port S:                                                                  #
 ;#     PS0  - SCI RX                      (input        pull-up  )             #
 ;#     PS1  - SCI TX                      (output       high     )             #
-;#     PS3  - LED column 14               (output       low      )             #
+;#     PS2  - LED column 14               (output       low      )             #
 ;#     PS3  - LED column 15               (output       low      )             #
 ;#     PS4  - NC                          (input        pull-up  )             #
 ;#     PS5  - NC                          (input        pull-up  )             #
