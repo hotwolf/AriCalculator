@@ -927,7 +927,6 @@ SCI1DRH         EQU     $00D6
 
 SCI1DRL         EQU     $00D7
 
-
 SPICR1          EQU     $00D8
 SPI0CR1         EQU     $00D8
 SPIE            EQU     $80

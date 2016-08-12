@@ -373,14 +373,6 @@ SSTACK_TABS_END_LIN	EQU	@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;CPU
-;---
-#ifndef	ISTACK_S12
-#ifndef	ISTACK_S12X
-ISTACK_S12		EQU	1 		;default is S12
-#endif
-#endif
-
 ;Wait mode when idle
 ;-------------------
 #ifndef	ISTACK_WAI
@@ -452,7 +444,7 @@ ISTACK_CCR		EQU	%0100_0000
 ;        +----------------+
 ;        |      RTNl      | SP+8
 ;        +----------------+ 	
-#ifdef	ISTACK_S12
+#ifcpu	S12
 ISTACK_FRAME_SIZE	EQU	9
 ISTACK_FRAME_CCR	EQU	0	
 ISTACK_FRAME_D		EQU	1	
@@ -483,7 +475,7 @@ ISTACK_FRAME_RTN	EQU	7
 ;        +----------------+
 ;        |      RTNl      | SP+9
 ;        +----------------+ 	
-#ifdef	ISTACK_S12X
+#ifcpu	S12X
 ISTACK_FRAME_SIZE	EQU	10
 ISTACK_FRAME_CCR	EQU	0	
 ISTACK_FRAME_D		EQU	2	
