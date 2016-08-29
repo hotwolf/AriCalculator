@@ -79,28 +79,28 @@ TIM_OCPD_CHECK_OFF	EQU	1 		;disable OCPD checks
 ;###############################################################################
 ;Timer frequency
 ;---------------
-#ifdef TIM_DIV_OFF
+#ifdef	TIM_DIV_OFF
 TIM_FREQ		EQU	CLOCK_BUS_FREQ 		;frequency in Hz
 #endif
-#ifdef TIM_DIV_2
+#ifdef	TIM_DIV_2
 TIM_FREQ		EQU	CLOCK_BUS_FREQ/2 	;frequency in Hz
 #endif
-#ifdef TIM_DIV_4
+#ifdef	TIM_DIV_4
 TIM_FREQ		EQU	CLOCK_BUS_FREQ/4 	;frequency in Hz
 #endif
-#ifdef TIM_DIV_8
+#ifdef	TIM_DIV_8
 TIM_FREQ		EQU	CLOCK_BUS_FREQ/8 	;frequency in Hz
 #endif
-#ifdef TIM_DIV_16
+#ifdef	TIM_DIV_16
 TIM_FREQ		EQU	CLOCK_BUS_FREQ/16 	;frequency in Hz
 #endif
-#ifdef TIM_DIV_32
+#ifdef	TIM_DIV_32
 TIM_FREQ		EQU	CLOCK_BUS_FREQ/32 	;frequency in Hz
 #endif
-#ifdef TIM_DIV_64
+#ifdef	TIM_DIV_64
 TIM_FREQ		EQU	CLOCK_BUS_FREQ/64 	;frequency in Hz
 #endif
-#ifdef TIM_DIV_128
+#ifdef	TIM_DIV_128
 TIM_FREQ		EQU	CLOCK_BUS_FREQ/128 	;frequency in Hz
 #endif
 
@@ -137,7 +137,7 @@ OCPD_OFFSET		EQU	$002C
 ###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef TIM_VARS_START_LIN
+#ifdef	TIM_VARS_START_LIN
 			ORG 	TIM_VARS_START, TIM_VARS_START_LIN
 #else
 			ORG 	TIM_VARS_START
@@ -565,10 +565,18 @@ DONE			EQU	*
 			STD	(\1+TC0_OFFSET+(2*\2))		;PWO
 #emac
 	
+;#Do nothing
+; args: 1: start address of register space
+;       2: channel number
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_NOP, 2
+#emac
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef TIM_CODE_START_LIN
+#ifdef	TIM_CODE_START_LIN
 			ORG 	TIM_CODE_START, TIM_CODE_START_LIN
 #else
 			ORG 	TIM_CODE_START
@@ -580,7 +588,7 @@ TIM_CODE_END_LIN	EQU	@
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef TIM_TABS_START_LIN
+#ifdef	TIM_TABS_START_LIN
 			ORG 	TIM_TABS_START, TIM_TABS_START_LIN
 #else
 			ORG 	TIM_TABS_START
