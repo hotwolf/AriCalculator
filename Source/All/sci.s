@@ -511,12 +511,14 @@ SCI_FLG_TX_ESC		EQU	$01		;character is to be escaped
 
 ;#Timer usage and configuration
 #ifdef	SCI_BAUD_AUTO
-SCI_TCTL34_INIT		EQU	3<<SCI_IC	;capture any edge (baud rate detection)
+SCI_IC_TCTL34_INIT	EQU	3<<SCI_IC	;capture any edge (baud rate detection)
 #else
-SCI_TCTL34_INIT		EQU	0		;no IC needed
+SCI_IC_TCTL34_INIT	EQU	0		;no IC needed
 #endif	
-SCI_TIOS_INIT		EQU	1<<SCI_OC 	;use OC
+SCI_OC_TIOS_INIT	EQU	1<<SCI_OC 	;use OC
+SCI_IRQBUG_TIOS_INIT	EQU	1<<SCI_IRQBUG_OC;use OC
 
+	
 ;#Timer channels
 SCI_IC_TC		EQU	SCI_IC_TIM+TC0_OFFSET+(2*SCI_IC)	;IC capture register
 SCI_OC_TC		EQU	SCI_OC_TIM+TC0_OFFSET+(2*SCI_OC)	;OC compare register

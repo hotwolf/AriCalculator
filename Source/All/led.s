@@ -68,9 +68,13 @@ LED_GREEN_ENABLE	EQU	1 		;green LED enabled by default
 #endif
 
 ;TIM configuration
+;TIM instance
+#ifndef	SCI_OC_TIM
+LED_TIM			EQU	TIOS 		;default is the TIM instance associated with TIOS
+#endif
 ;Output compare channel
 #ifndef	LED_OC
-LED_OC			EQU	2 		;default is OC2
+LED_OC			EQU	3 		;default is OC3
 #endif
 	
 ;I/O configuration
@@ -86,7 +90,7 @@ LED_RED_PIN		EQU	PE1 		;default is PE1
 #ifndef	LED_GREEN_PORT
 LED_GREEN_PORT		EQU	PORTE 		;default is PE
 #endif
-\ifndef	LED_GREEN_PIN
+#ifndef	LED_GREEN_PIN
 LED_GREEN_PIN		EQU	PE0 		;default is PE0
 #endif
 #endif
@@ -181,9 +185,9 @@ LED_VARS_END_LIN	EQU	@
 ;         X and Y are preserved 
 #macro	LED_SET_ATOMIC, 2
 			BSET	 LED_\1_REQ, #(1<<\2) 		;set request
-			TIM_BREN LED_OC, LED_SET_ATOMIC_1	;timer already enabled
-			TIM_EN	 LED_OC				;enable timer
-			TIM_SET_DLY    	#5			;trigger interrupt
+			TIM_BREN LED_TIM,LED_OC, LED_SET_ATOMIC_1;timer already enabled
+			TIM_EN	 LED_TIM,LED_OC			;enable timer
+			TIM_SET_DLY LED_TIM,#5			;trigger interrupt
 LED_SET_ATOMIC_1	EQU	* 				;done
 #emac
 
@@ -282,11 +286,11 @@ LED_ISR		EQU	*
 			LDD	TC0+(2*LED_OC) 			;update timer delay
 			ADDD	#LED_TIM_INTERVALL		;
 			STD	TC0+(2*LED_OC)			;
-			TIM_CLRIF	LED_OC			;clear interrupt flag		
+			TIM_CLRIF	LED_TIM, LED_OC		;clear interrupt flag		
 			ISTACK_RTI				;done
 			;Disable timer 
 LED_ISR_1		MOVW	#$0000, LED_REM_TIME		;no remaining time, iterator reset
-			TIM_DIS	LED_OC				;disable timer
+			TIM_DIS	LED_TIM, LED_OC			;disable timer
 			ISTACK_RTI				;done
 
 	
