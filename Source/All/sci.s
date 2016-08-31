@@ -219,7 +219,7 @@ SCI_IC_TIM		EQU	TIOS 		;default is the TIM instance associated with TIOS
 #endif
 ;Input capture channel for baud rate detection
 #ifndef	SCI_IC
-SCI_IC			EQU	1 		;default is IC0
+SCI_IC			EQU	1 		;default is IC1
 #endif
 ;TIM instance for baud rate detection, shutdown, and flow control
 #ifndef	SCI_OC_TIM
@@ -237,7 +237,7 @@ SCI_IRQBUG_TIM		EQU	TIOS 		;default is the TIM instance associated with TIOS
 ;Output compare channel for the MUCts00510 workaround
 ;Past baud rate detection, the OC will always measure time periods of roughly 2 SCI frames
 #ifndef	SCI_OC_IRQBUG
-SCI_IRQBUG_OC		EQU	2 		;default is OC0
+SCI_IRQBUG_OC		EQU	2 		;default is OC02
 #endif
 	
 ;Baud rate
@@ -374,7 +374,7 @@ SCI_TXBUF_SIZE		EQU	  8		;size of the transmit buffer
 ;#mac SCI_ERRSIG_START, 0
 ;	...code to start error signal (inside ISR)
 ;#emac
-;#mac SCI_ERRSIG_STOP, 0			;X, Y, and D are preserved
+;#mac SCI_ERRSIG_STOP, 0
 ;	...code to stop error signal (inside ISR)
 ;#emac
 

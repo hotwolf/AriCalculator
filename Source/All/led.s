@@ -43,7 +43,7 @@
 ;#   +---+               |                  |                                  #
 ;#   | 5 | Slow blink    |                  |                                  #
 ;#   +---+               |                  |p                                 #
-;#   | 4 | Shingle gap   | Recurring        |r                                 #
+;#   | 4 | Single gap    | Recurring        |r                                 #
 ;#   +---+               |                  |i                                 #
 ;#   | 3 | Double gap    |                  |o                                 #
 ;#   +---+               |                  |                                  #
@@ -59,14 +59,6 @@
 ;#######################################################x#######################
 ;# Configuration                                                               #
 ;###############################################################################
-;LED enables (red is always enabled)
-; Green
-#ifndef LED_GREEN_ENABLE		
-#ifndef LED_GREEN_DISABLE		
-LED_GREEN_ENABLE	EQU	1 		;green LED enabled by default
-#endif
-#endif
-
 ;TIM configuration
 ;TIM instance
 #ifndef	SCI_OC_TIM
@@ -77,22 +69,78 @@ LED_TIM			EQU	TIOS 		;default is the TIM instance associated with TIOS
 LED_OC			EQU	3 		;default is OC3
 #endif
 	
-;I/O configuration
-; Red
-#ifndef	LED_RED_PORT
-LED_RED_PORT		EQU	PORTE 		;default is PE
+;LED configuration
+;LED0
+#ifndef LED_LED0_ENABLE		
+#ifndef LED_LED0_DISABLE		
+LED_LED0_DISABLE	EQU	1 		;green LED enabled by default
+#endif
+#endif
+#ifndef	LED_LED0_PORT
+LED_LED0_PORT		EQU	PTP 		;default is PP
 #endif
 #ifndef	LED_RED_PIN
-LED_RED_PIN		EQU	PE1 		;default is PE1
+LED_LED0_PIN		EQU	PP0 		;default is P0
 #endif
-#ifdef LED_GREEN_ENABLE	
-; Green
-#ifndef	LED_GREEN_PORT
-LED_GREEN_PORT		EQU	PORTE 		;default is PE
+;LED1
+#ifndef LED_LED1_ENABLE		
+#ifndef LED_LED1_DISABLE		
+LED_LED1_DISABLE	EQU	1 		;green LED enabled by default
 #endif
-#ifndef	LED_GREEN_PIN
-LED_GREEN_PIN		EQU	PE0 		;default is PE0
 #endif
+#ifndef	LED_LED1_PORT
+LED_LED1_PORT		EQU	PTP 		;default is PP
+#endif
+#ifndef	LED_RED_PIN
+LED_LED1_PIN		EQU	PP1 		;default is P1
+#endif
+;LED2
+#ifndef LED_LED2_ENABLE		
+#ifndef LED_LED2_DISABLE		
+LED_LED2_DISABLE	EQU	1 		;green LED enabled by default
+#endif
+#endif
+#ifndef	LED_LED2_PORT
+LED_LED2_PORT		EQU	PTP 		;default is PP
+#endif
+#ifndef	LED_RED_PIN
+LED_LED2_PIN		EQU	PP2 		;default is P2
+#endif
+;LED3
+#ifndef LED_LED3_ENABLE		
+#ifndef LED_LED3_DISABLE		
+LED_LED3_DISABLE	EQU	1 		;green LED enabled by default
+#endif
+#endif
+#ifndef	LED_LED3_PORT
+LED_LED3_PORT		EQU	PTP 		;default is PP
+#endif
+#ifndef	LED_RED_PIN
+LED_LED3_PIN		EQU	PP3 		;default is P3
+#endif
+;LED4
+#ifndef LED_LED4_ENABLE		
+#ifndef LED_LED4_DISABLE		
+LED_LED4_DISABLE	EQU	1 		;green LED enabled by default
+#endif
+#endif
+#ifndef	LED_LED4_PORT
+LED_LED4_PORT		EQU	PTP 		;default is PP
+#endif
+#ifndef	LED_RED_PIN
+LED_LED4_PIN		EQU	PP4 		;default is P4
+#endif
+;LED5
+#ifndef LED_LED5_ENABLE		
+#ifndef LED_LED5_DISABLE		
+LED_LED5_DISABLE	EQU	1 		;green LED enabled by default
+#endif
+#endif
+#ifndef	LED_LED5_PORT
+LED_LED5_PORT		EQU	PTP 		;default is PP
+#endif
+#ifndef	LED_RED_PIN
+LED_LED5_PIN		EQU	PP5 		;default is P5
 #endif
 
 ;Non-requrring sequences
@@ -106,17 +154,9 @@ LED_NONREC_MASK		EQU	#$C0 		;default is patterns 7 and 8
 ;#Timer configuration
 ; TIOS 
 LED_TIOS_INIT		EQU	1<<LED_OC
-; TOC7M/D
-;LED_TOC7MD_INIT	EQU	0
-; TTOV
-;LED_TTOV_INIT		EQU	0
-; TCTL1/2
-;LED_TCTL12_INIT	EQU	0
-; TCTL3/4
-;LED_TCTL34_INIT	EQU	0
  	
 ;#Output compare register
-LED_OC_REG		EQU	TC0+(2*LED_OC)
+LED_OC_TC		EQU	TC0+(2*LED_OC)
 
 ;#timer intervall
 LED_TIM_INTERVALL	EQU	TIM_FREQ/4 	;2sec/8
@@ -132,19 +172,35 @@ LED_VARS_START_LIN	EQU	@
 #endif	
 
 ;#Common variables
-LED_REM_TIME		DS	1 				;remaining timer intervalls
-LED_SEQ_ITERATOR	DS	1				;sequence iterator
+LED_OC_CNT		DS	1 				;OC event counter
+LED_SEQ_ITR		DS	1				;sequence iterator
 
-;#Red LED
-LED_RED_REQ		DS	1 				;signal requests
-LED_RED_CUR_SEQ		DS	1 				;signal selector
-	
-#ifdef LED_GREEN_ENABLE	
-;#Green LED
-LED_RED_REQ		DS	1 				;signal requests
-LED_RED_CUR_SEQ		DS	1 				;signal selector
+;#LED status
+#ifdef LED_LED0_ENABLE	
+LED_LED0_REQ		DS	1 				;signal requests
+LED_LED0_SEQ		DS	1 				;signal selector
 #endif	
-	
+#ifdef LED_LED1_ENABLE	
+LED_LED1_REQ		DS	1 				;signal requests
+LED_LED1_SEQ		DS	1 				;signal selector
+#endif	
+#ifdef LED_LED2_ENABLE	
+LED_LED2_REQ		DS	1 				;signal requests
+LED_LED2_SEQ		DS	1 				;signal selector
+#endif	
+#ifdef LED_LED3_ENABLE	
+LED_LED3_REQ		DS	1 				;signal requests
+LED_LED3_SEQ		DS	1 				;signal selector
+#endif	
+#ifdef LED_LED4_ENABLE	
+LED_LED4_REQ		DS	1 				;signal requests
+LED_LED4_SEQ		DS	1 				;signal selector
+#endif	
+#ifdef LED_LED5_ENABLE	
+LED_LED5_REQ		DS	1 				;signal requests
+LED_LED5_SEQ		DS	1 				;signal selector
+#endif	
+
 LED_VARS_END		EQU	*
 LED_VARS_END_LIN	EQU	@
 
@@ -152,21 +208,37 @@ LED_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
+;#--------------
 #macro	LED_INIT, 0
 			;Common variables
 			CLRD			      		;zero -> D
-			STD	LED_REM_TIME			;no remaining time, iterator reset
-			;Red LED
-			STD	LED_RED_REQ 			;no requests, LED off
-#ifdef LED_GREEN_ENABLE	
-			;Green LED
-			STD	LED_GREEN_REQ 			;no requests, LED off
+			STD	LED_OC_CNT			;no remaining time, iterator reset
+			;#LED status
+#ifdef LED_LED0_ENABLE	
+			STD	LED_LED0_REQ			;turn off LED0
+#endif	
+#ifdef LED_LED1_ENABLE	
+			STD	LED_LED1_REQ			;turn off LED1
+#endif	
+#ifdef LED_LED2_ENABLE	
+			STD	LED_LED2_REQ			;turn off LED2
+#endif	
+#ifdef LED_LED3_ENABLE	
+			STD	LED_LED3_REQ			;turn off LED3
+#endif	
+#ifdef LED_LED4_ENABLE	
+			STD	LED_LED4_REQ			;turn off LED4
+#endif	
+#ifdef LED_LED5_ENABLE	
+			STD	LED_LED5_REQ			;turn off LED5
 #endif	
 #emac
 
+;#User functions
+;#--------------
 
 ;#Set signal
-; args:   1: color ("RED" or "GREEN")
+; args:   1: LED index (LED5..LED0)
 ;         2: signal index (7..0)
 ; result: none
 ; SSTACK: none
@@ -178,17 +250,17 @@ LED_VARS_END_LIN	EQU	@
 #emac
 	
 ;#Set signal (must be in an atomic sequence -> I-bit set)
-; args:   1: color ("RED" or "GREEN")
+; args:   1: LED index (LED5..LED0)
 ;         2: signal index (7..0)
 ; result: none
 ; SSTACK: none
 ;         X and Y are preserved 
 #macro	LED_SET_ATOMIC, 2
 			BSET	 LED_\1_REQ, #(1<<\2) 		;set request
-			TIM_BREN LED_TIM,LED_OC, LED_SET_ATOMIC_1;timer already enabled
+			TIM_BREN LED_TIM,LED_OC, DONE		;timer already enabled
 			TIM_EN	 LED_TIM,LED_OC			;enable timer
 			TIM_SET_DLY LED_TIM,#5			;trigger interrupt
-LED_SET_ATOMIC_1	EQU	* 				;done
+DONE			EQU	* 				;done
 #emac
 
 ;#Clear signal
@@ -201,8 +273,8 @@ LED_SET_ATOMIC_1	EQU	* 				;done
 			BCLR	LED_\1_REQ, #(1<<\2) 		;clear request
 #emac
 
-;#Initernal macros
-;----------------- 
+;#Helper functions
+;#----------------
 ;#Check requests
 ; args:   1: color ("RED" or "GREEN")
 ; result: none
@@ -249,14 +321,55 @@ LED_DRIVE_2		EQU	*				;done
 
 ;#ISR
 ;---- 
-LED_ISR		EQU	*			
+LED_ISR			EQU	*			
+			;Clear interrupt flag
+			TIM_CLRIF LED_TIM, LED_OC 		;clear IF
 			;Check and adjust remaining time
-			LDAB	LED_REM_TIME			;remaining time -> X
-			BEQ	LED_ISR_1			;
-			DECB					;decrement remaining time
-			STAB	LED_REM_TIME			;update remaining time
+			LDD	LED_OC_CNT			;OC counter -> A, seq. iterator -> B
+			TBEQ	A, LED_ISR_1			;OC event count surpassed
+			DBEQ	A, LED_ISR_1			;OC event count reached
+			STAB	LED_OC_CNT			;update OC event countXS
 			ISTACK_RTI				;done
-			;Advance and check pattern iterator
+			;Advance sequence iterator iterator (0 in A, sequence iterator in B)
+LED_ISR_1		LSRB			 		;shift sequence iterator
+			BNE	LED_ISR_			;update LEDs
+			;Load sequence patterns (0 in A)
+#ifdef LED_LED0_ENABLE	
+			LED_LOAD_SEQUENCE LED0 			;load sequence for LED0
+#endif	
+#ifdef LED_LED1_ENABLE	
+			LED_LOAD_SEQUENCE LED1 			;load sequence for LED1
+#endif	
+#ifdef LED_LED2_ENABLE	
+			LED_LOAD_SEQUENCE LED2 			;load sequence for LED2
+#endif	
+#ifdef LED_LED3_ENABLE	
+			LED_LOAD_SEQUENCE LED3 			;load sequence for LED3
+#endif	
+#ifdef LED_LED4_ENABLE	
+			LED_LOAD_SEQUENCE LED4 			;load sequence for LED4
+#endif	
+#ifdef LED_LED5_ENABLE	
+			LED_LOAD_SEQUENCE LED5 			;load sequence for LED5
+#endif	
+			;Check if timer is needed (ORed requests in A)
+
+
+<-------------Hier weiter
+
+
+
+			LDAB	#$80, LED_SEQ_ITERATOR		;reset sequence iterator
+			STAB	LED_SEQ_ITR			;storew sequence iterator
+
+	
+
+
+			;Reset OC event count (0 in A, sequence iterator in B) 
+			MOVB	#(LED_TIM_INTERVALL>>16), LED_OC_CNT;update remaining time
+			
+	
+			;Advance and check pattern iterator 
 			LSR	LED_SEQ_ITERATOR 		;advance sequence iterator
 			BNE	LED_ISR_			;update LEDs
 			MOVB	#$80, LED_SEQ_ITERATOR		;reset sequence iterator

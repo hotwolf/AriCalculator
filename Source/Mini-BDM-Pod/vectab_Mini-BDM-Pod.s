@@ -83,7 +83,7 @@ VECTAB_VARS_END_LIN	EQU	@
 #endif
 			;Disable XGATE interrupts
 			CLR	XGPRIO
-#ifdef	SCI_ISR_BD_NEPE
+#ifdef	SCI_ISR_IC
 			;Give TC0 high priority
 			MOVB	#(VEC_ECT_TC0&$F0), CFADDR
 			MOVB	#$07, (CFDATA0+((VEC_ECT_TC0&$000E)>>1))
@@ -245,10 +245,18 @@ ISR_ECT_TC3		EQU	SCI_ISR_DELAY
 #else
 ISR_ECT_TC3		BGND
 #endif
-ISR_ECT_TC2		BGND				;vector base + $EA
-ISR_ECT_TC1		BGND				;vector base + $EC
-#ifdef	SCI_ISR_BD_NEPE					;vector base + $EE
-ISR_ECT_TC0		EQU	SCI_ISR_BD_NEPE
+#ifdef	SCI_ISR_LED					;vector base + $EA
+ISR_ECT_TC2		EQU	SCI_ISR_LED
+#else
+ISR_ECT_TC2		BGND
+#endif
+#ifdef	SCI_ISR_OC					;vector base + $EC
+ISR_ECT_TC1		EQU	SCI_ISR_OC
+#else
+ISR_ECT_TC1		BGND
+#endif
+#ifdef	SCI_ISR_IC					;vector base + $EE
+ISR_ECT_TC0		EQU	SCI_ISR_IC
 #else
 ISR_ECT_TC0		BGND
 #endif
@@ -387,10 +395,18 @@ ISR_ECT_TC3		EQU	SCI_ISR_DELAY
 #else
 ISR_ECT_TC3		EQU	RESET_ISR_FATAL
 #endif
-ISR_ECT_TC2		EQU	RESET_ISR_FATAL		;vector base + $EA
-ISR_ECT_TC1		EQU	RESET_ISR_FATAL		;vector base + $EC
-#ifdef	SCI_ISR_BD_NEPE					;vector base + $EE
-ISR_ECT_TC0		EQU	SCI_ISR_BD_NEPE
+#ifdef	SCI_ISR_LED					;vector base + $EA
+ISR_ECT_TC2		EQU	SCI_ISR_LED
+#else
+ISR_ECT_TC2		EQU	RESET_ISR_FATAL
+#endif
+#ifdef	SCI_ISR_OC					;vector base + $EC
+ISR_ECT_TC1		EQU	SCI_ISR_OC
+#else
+ISR_ECT_TC1		EQU	RESET_ISR_FATAL
+#endif
+#ifdef	SCI_ISR_IC					;vector base + $EE
+ISR_ECT_TC0		EQU	SCI_ISR_IC
 #else
 ISR_ECT_TC0		EQU	RESET_ISR_FATAL
 #endif

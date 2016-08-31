@@ -1,9 +1,8 @@
 ;###############################################################################
 ;# S12CBase - Demo (Mini-BDM-Pod)                                              #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12 MCU family.    #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -79,11 +78,6 @@ DEMO_TABS_START_LIN	EQU	@
 BASE_TABS_START		EQU	*
 BASE_TABS_START_LIN	EQU	@
 
-;###############################################################################
-;# Includes                                                                    #
-;###############################################################################
-#include ./base_Mini-BDM-Pod.s		;S12CBase bundle
-	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -248,6 +242,9 @@ DEMO_HEADER		STRING_NL_NONTERM
 DEMO_TABS_END		EQU	*	
 DEMO_TABS_END_LIN	EQU	@	
 
-
-
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+#include ./base_Mini-BDM-Pod.s		;S12CBase bundle
+	
 
