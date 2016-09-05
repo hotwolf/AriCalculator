@@ -456,6 +456,24 @@ TIM_VARS_END_LIN	EQU	@
 			TIM_MULT_EN	\1, (1<<\2)
 #emac
 
+;#Enable multiple timer interrupts
+; args: 1: start address of register space
+;       2: channels  mask
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_MULT_IE, 2
+			BSET	\1+TIE_OFFSET, #\2		;enable interrupts
+#emac
+
+;#Enable one timer interrupt
+; args: 1: start address of register space
+;       2: channel number
+; SSTACK: none
+;         X, Y, and D are preserved 
+#macro	TIM_IE, 2
+			TIM_MULT_IE	\1, (1<<\2)
+#emac
+
 ;#Enable the timer counter only
 ; args: 1: start address of register space
 ; SSTACK: none

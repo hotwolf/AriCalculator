@@ -33,25 +33,23 @@
 ;#                                                                             #
 ;###############################################################################
 ;#                                                                             #
-;#   Pattern assignment:                                                       #
+;#   Blink pattern assignment:                                                 #
 ;#   +---+ --------------+----------------                                     #
-;#   | 8 | Short pulse   |                  ^                                  #
+;#   | 7 | Short pulse   |                  ^                                  #
 ;#   +---+               | Non-recurring    |h                                 #
-;#   | 7 | Long pulse    |                  |i                                 #
+;#   | 6 | Long pulse    |                  |i                                 #
 ;#   +---+ --------------+----------------  |g                                 #
-;#   | 6 | Fast blink    |                  |h                                 #
+;#   | 5 | Fast blink    |                  |h                                 #
 ;#   +---+               |                  |                                  #
-;#   | 5 | Slow blink    |                  |                                  #
-;#   +---+               |                  |p                                 #
-;#   | 4 | Single gap    | Recurring        |r                                 #
-;#   +---+               |                  |i                                 #
-;#   | 3 | Double gap    |                  |o                                 #
-;#   +---+               |                  |                                  #
-;#   | 2 | Heart beat    |                  |                                  #
-;#   +---+ --------------+----------------  |l                                 #
-;#   | 1 | On            |                  |o                                 #
-;#   +---+               | Untimed          |w                                 #
-;#   | 0 | Off           |                  v                                  #
+;#   | 4 | Slow blink    |                  |p                                 #
+;#   +---+               |                  |r                                 #
+;#   | 3 | Single gap    | Recurring        |i                                 #
+;#   +---+               |                  |o                                 #
+;#   | 2 | Double gap    |                  |                                  #
+;#   +---+               |                  |l                                 #
+;#   | 1 | Heart beat    |                  |o                                 #
+;#   +---+ --------------+----------------  |w                                 #
+;#   | 0 | On            | Untimed          v                                  #
 ;#   +---+ --------------+----------------                                     #
 ;#                                                                             #
 ;###############################################################################
@@ -60,6 +58,7 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;TIM configuration
+;----------------- 
 ;TIM instance
 #ifndef	SCI_OC_TIM
 LED_TIM			EQU	TIOS 		;default is the TIM instance associated with TIOS
@@ -70,77 +69,57 @@ LED_OC			EQU	3 		;default is OC3
 #endif
 	
 ;LED configuration
-;LED0
-#ifndef LED_LED0_ENABLE		
-#ifndef LED_LED0_DISABLE		
-LED_LED0_DISABLE	EQU	1 		;green LED enabled by default
+;----------------- 
+;LED A
+#ifndef LED_A_BLINK_ON		
+#ifndef LED_A_BLINK_OFF		
+LED_A_BLINK_OFF		EQU	1 		;blink patterns disabled by default
 #endif
 #endif
-#ifndef	LED_LED0_PORT
-LED_LED0_PORT		EQU	PTP 		;default is PP
+#ifndef	LED_A_PORT
+LED_A_PORT		EQU	PTP 		;default is PP
 #endif
-#ifndef	LED_RED_PIN
-LED_LED0_PIN		EQU	PP0 		;default is P0
+#ifndef	LED_A_PIN
+LED_A_PIN		EQU	PP0 		;default is P0
 #endif
-;LED1
-#ifndef LED_LED1_ENABLE		
-#ifndef LED_LED1_DISABLE		
-LED_LED1_DISABLE	EQU	1 		;green LED enabled by default
-#endif
-#endif
-#ifndef	LED_LED1_PORT
-LED_LED1_PORT		EQU	PTP 		;default is PP
-#endif
-#ifndef	LED_RED_PIN
-LED_LED1_PIN		EQU	PP1 		;default is P1
-#endif
-;LED2
-#ifndef LED_LED2_ENABLE		
-#ifndef LED_LED2_DISABLE		
-LED_LED2_DISABLE	EQU	1 		;green LED enabled by default
+
+;LED B
+#ifndef LED_B_BLINK_ON		
+#ifndef LED_B_BLINK_OFF		
+LED_B_BLINK_OFF		EQU	1 		;blink patterns disabled by default
 #endif
 #endif
-#ifndef	LED_LED2_PORT
-LED_LED2_PORT		EQU	PTP 		;default is PP
+#ifndef	LED_B_PORT
+LED_B_PORT		EQU	PTP 		;default is PP
 #endif
-#ifndef	LED_RED_PIN
-LED_LED2_PIN		EQU	PP2 		;default is P2
+#ifndef	LED_B_PIN
+LED_B_PIN		EQU	PP1 		;default is P1
 #endif
-;LED3
-#ifndef LED_LED3_ENABLE		
-#ifndef LED_LED3_DISABLE		
-LED_LED3_DISABLE	EQU	1 		;green LED enabled by default
-#endif
-#endif
-#ifndef	LED_LED3_PORT
-LED_LED3_PORT		EQU	PTP 		;default is PP
-#endif
-#ifndef	LED_RED_PIN
-LED_LED3_PIN		EQU	PP3 		;default is P3
-#endif
-;LED4
-#ifndef LED_LED4_ENABLE		
-#ifndef LED_LED4_DISABLE		
-LED_LED4_DISABLE	EQU	1 		;green LED enabled by default
+
+;LED C
+#ifndef LED_C_BLINK_ON		
+#ifndef LED_C_BLINK_OFF		
+LED_C_BLINK_OFF		EQU	1 		;blink patterns disabled by default
 #endif
 #endif
-#ifndef	LED_LED4_PORT
-LED_LED4_PORT		EQU	PTP 		;default is PP
+#ifndef	LED_C_PORT
+LED_C_PORT		EQU	PTP 		;default is PP
 #endif
-#ifndef	LED_RED_PIN
-LED_LED4_PIN		EQU	PP4 		;default is P4
+#ifndef	LED_C_IN
+LED_C_PIN		EQU	PP2 		;default is P2
 #endif
-;LED5
-#ifndef LED_LED5_ENABLE		
-#ifndef LED_LED5_DISABLE		
-LED_LED5_DISABLE	EQU	1 		;green LED enabled by default
+
+;LED D
+#ifndef LED_D_BLINK_ON		
+#ifndef LED_D_BLINK_OFF		
+LED_D_BLINK_OFF		EQU	1 		;blink patterns disabled by default
 #endif
 #endif
-#ifndef	LED_LED5_PORT
-LED_LED5_PORT		EQU	PTP 		;default is PP
+#ifndef	LED_D_PORT
+LED_D_PORT		EQU	PTP 		;default is PP
 #endif
-#ifndef	LED_RED_PIN
-LED_LED5_PIN		EQU	PP5 		;default is P5
+#ifndef	LED_D_PIN
+LED_D_PIN		EQU	PP3 		;default is P3
 #endif
 
 ;Non-requrring sequences
@@ -152,13 +131,31 @@ LED_NONREC_MASK		EQU	#$C0 		;default is patterns 7 and 8
 ;# Constants                                                                   #
 ;###############################################################################
 ;#Timer configuration
+;#Timer enable 
+#ifdef LED_A_BLINK_ON
+LED_TIM_ON		EQU	1
+#endif
+#ifdef LED_B_BLINK_ON
+LED_TIM_ON		EQU	1
+#endif
+#ifdef LED_C_BLINK_ON
+LED_TIM_ON		EQU	1
+#endif
+#ifdef LED_D_BLINK_ON
+LED_TIM_ON		EQU	1
+#endif
+	
 ; TIOS 
+#ifdef LED_TIM_ON
 LED_TIOS_INIT		EQU	1<<LED_OC
- 	
+#else
+LED_TIOS_INIT		EQU	0
+#endif
+	
 ;#Output compare register
 LED_OC_TC		EQU	TC0+(2*LED_OC)
 
-;#timer intervall
+;#Timer intervall
 LED_TIM_INTERVALL	EQU	TIM_FREQ/4 	;2sec/8
 	
 ;###############################################################################
@@ -172,33 +169,31 @@ LED_VARS_START_LIN	EQU	@
 #endif	
 
 ;#Common variables
+#ifdef LED_TIM_ON 	
 LED_OC_CNT		DS	1 				;OC event counter
 LED_SEQ_ITR		DS	1				;sequence iterator
+#endif
 
 ;#LED status
-#ifdef LED_LED0_ENABLE	
-LED_LED0_REQ		DS	1 				;signal requests
-LED_LED0_SEQ		DS	1 				;signal selector
+#ifdef LED_A_BLINK_ON	
+LED_A_REQ		DS	1 				;signal requests
+LED_A_SEQ		DS	1 				;signal selector
 #endif	
-#ifdef LED_LED1_ENABLE	
-LED_LED1_REQ		DS	1 				;signal requests
-LED_LED1_SEQ		DS	1 				;signal selector
+#ifdef LED_B_BLINK_ON	
+LED_B_REQ		DS	1 				;signal requests
+LED_B_SEQ		DS	1 				;signal selector
 #endif	
-#ifdef LED_LED2_ENABLE	
-LED_LED2_REQ		DS	1 				;signal requests
-LED_LED2_SEQ		DS	1 				;signal selector
+#ifdef LED_C_BLINK_ON	
+LED_C_REQ		DS	1 				;signal requests
+LED_C_SEQ		DS	1 				;signal selector
 #endif	
-#ifdef LED_LED3_ENABLE	
-LED_LED3_REQ		DS	1 				;signal requests
-LED_LED3_SEQ		DS	1 				;signal selector
+#ifdef LED_D_BLINK_ON	
+LED_C_REQ		DS	1 				;signal requests
+LED_C_SEQ		DS	1 				;signal selector
 #endif	
 #ifdef LED_LED4_ENABLE	
 LED_LED4_REQ		DS	1 				;signal requests
 LED_LED4_SEQ		DS	1 				;signal selector
-#endif	
-#ifdef LED_LED5_ENABLE	
-LED_LED5_REQ		DS	1 				;signal requests
-LED_LED5_SEQ		DS	1 				;signal selector
 #endif	
 
 LED_VARS_END		EQU	*
@@ -210,27 +205,23 @@ LED_VARS_END_LIN	EQU	@
 ;#Initialization
 ;#--------------
 #macro	LED_INIT, 0
+#ifdef LED_TIM_ON
 			;Common variables
 			CLRD			      		;zero -> D
 			STD	LED_OC_CNT			;no remaining time, iterator reset
 			;#LED status
-#ifdef LED_LED0_ENABLE	
-			STD	LED_LED0_REQ			;turn off LED0
+#ifdef LED_A_BLINK_ON	
+			STD	LED_A_REQ			;turn off LED A
 #endif	
-#ifdef LED_LED1_ENABLE	
-			STD	LED_LED1_REQ			;turn off LED1
+#ifdef LED_B_BLINK_ON	
+			STD	LED_B_REQ			;turn off LED B
 #endif	
-#ifdef LED_LED2_ENABLE	
-			STD	LED_LED2_REQ			;turn off LED2
+#ifdef LED_C_BLINK_ON	
+			STD	LED_C_REQ			;turn off LED C
 #endif	
-#ifdef LED_LED3_ENABLE	
-			STD	LED_LED3_REQ			;turn off LED3
+#ifdef LED_D_ENABLE	
+			STD	LED_D_REQ			;turn off LED D
 #endif	
-#ifdef LED_LED4_ENABLE	
-			STD	LED_LED4_REQ			;turn off LED4
-#endif	
-#ifdef LED_LED5_ENABLE	
-			STD	LED_LED5_REQ			;turn off LED5
 #endif	
 #emac
 
@@ -238,8 +229,8 @@ LED_VARS_END_LIN	EQU	@
 ;#--------------
 
 ;#Set signal
-; args:   1: LED index (LED5..LED0)
-;         2: signal index (7..0)
+; args:   1: LED index (A..D)
+;         2: signal index (0..7)
 ; result: none
 ; SSTACK: none
 ;         X and Y are preserved 
