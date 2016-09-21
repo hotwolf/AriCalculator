@@ -50,7 +50,7 @@ STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_FC_START, MMAP_RAM_FC_START_LIN
+			ORG	MMAP_RAM_F9_START, MMAP_RAM_F9_START_LIN
 ;Code
 START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*
@@ -73,11 +73,18 @@ BASE_VARS_START_LIN	EQU	@
 ;Tables
 DEMO_TABS_START		EQU	*
 DEMO_TABS_START_LIN	EQU	@
-			ORG	DEMO_TABS_END, DEMO_CODE_END_LIN
-	
+			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
+
 BASE_TABS_START		EQU	*
 BASE_TABS_START_LIN	EQU	@
+			ORG	BASE_TABS_END, BASE_TABS_END_LIN
 
+;Stack 
+SSTACK_TOP		EQU	*
+SSTACK_TOP_LIN		EQU	@
+SSTACK_BOTTOM		EQU	VECTAB_START
+SSTACK_BOTTOM_LIN	EQU	VECTAB_START_LIN
+	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -92,14 +99,22 @@ DEMO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Welcome message
+#macro	WELCOME_MESSAGE, 0
+			RESET_BR_ERR	DONE		;severe error detected 
+			LDX	#WELCOME_MESSAGE	;print welcome message
+			STRING_PRINT_BL
+DONE			EQU	*
+#emac
+
 ;Break handler
 #macro	SCI_BREAK_ACTION, 0
-			LED_BUSY_ON
+			LED_SET	D, LED_SEQ_HEART_BEAT
 #emac
 	
 ;Suspend handler
 #macro	SCI_SUSPEND_ACTION, 0
-			LED_BUSY_OFF
+			LED_CLR	D, LED_SEQ_HEART_BEAT
 #emac
 
 ;###############################################################################
@@ -109,6 +124,7 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;Initialization
 			BASE_INIT
+			WELCOME_MESSAGE
 	
 ;;Setup trace buffer
 ;			;Configure DBG module
@@ -129,8 +145,8 @@ DEMO_VARS_END_LIN	EQU	@
 			
 ;Application code
 			;Print header string
-			LDX	#DEMO_HEADER
-			STRING_PRINT_BL
+			;LDX	#DEMO_HEADER
+			;STRING_PRINT_BL
 
 			;Loop
 DEMO_LOOP		SCI_RX_BL
@@ -232,6 +248,12 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
+;#Welcome message
+#ifndef	WELCOME_MESSAGE
+WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
+			STRING_NL_TERM
+#endif
+	
 DEMO_HEADER		STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"

@@ -1,11 +1,10 @@
 #ifndef BASE_COMPILED
 #define	BASE_COMPILED
 ;###############################################################################
-;# S12CBase - Base Bundle (Mini-BDM-Pod)                                  #
+;# S12CBase - Base Bundle (Mini-BDM-Pod)                                       #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -28,17 +27,19 @@
 ;#      - Initial release                                                      #
 ;#    January 29, 2015                                                         #
 ;#      - Updated during S12CBASE overhaul                                     #
-;#    Dcember 17, 2015                                                         #
+;#    December 17, 2015                                                        #
 ;#      - Included pseudo-random number generator                              #
+;#    Septemember 21, 2016                                                     #
+;#      - S12CBASE overhaul                                                    #
 ;###############################################################################
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Clore
+;#Core
 			CPU	S12X
 	
-;# Clocks
+;#Clocks
 CLOCK_CRG		EQU	1		;old CRG
 CLOCK_OSC_FREQ		EQU	10000000	;10 MHz
 CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
@@ -46,43 +47,71 @@ CLOCK_REF_FREQ		EQU	CLOCK_OSC_FREQ	;10 MHz
 CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
 CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
 
-;# TIM
-;  IC0 - SCI baud rate detection
-;  OC1 - SCI general purpose
-;  OC2 - LED
+;#TIM
+; IC0 - SCI baud rate detection
+; OC1 - SCI general purpose
+; OC2 - LED
 TIM_DIV_2		EQU	1 		;25 MHz
 TIM_ECT_TIOS_INIT	EQU	SCI_OC_TIOS_INIT|LED_TIOS_INIT|DELAY_TIOS_INIT
 TIM_ECT_TCTL34_INIT	EQU	SCI_IC_TCTL34_INIT
+
+;#LED
+; LED A: PP2 non-blinking -> target disconnected
+; LED B: PP3 non-blinking -> target connected 
+; LED C: PP4 blinking     -> error
+; LED D: PP5 blinking     -> busy
+; Timer usage 
+LED_TIM			EQU	ECT 		;ECT
+LED_OC			EQU	2 		;OC2
+; LED A
+LED_A_BLINK_OFF		EQU	1 		;no blink patterns
+LED_A_PORT		EQU	PTP 		;port P
+LED_A_PIN		EQU	PP2 		;PP2
+; LED B
+LED_B_BLINK_OFF		EQU	1 		;no blink patterns
+LED_B_PORT		EQU	PTP 		;port P
+LED_B_PIN		EQU	PP3 		;PP3
+; LED C
+LED_C_BLINK_ON		EQU	1 		;blink patterns
+LED_C_PORT		EQU	PTP 		;port P
+LED_C_PIN		EQU	PP4 		;PP4
+; LED D
+LED_D_BLINK_ON		EQU	1 		;blink patterns
+LED_D_PORT		EQU	PTP 		;port P
+LED_D_PIN		EQU	PP4 		;PP4
 	
-;# SCI
+;#SCI
 SCI_BAUD_AUTO		EQU	1 		;automatic baud rate detection
 SCI_IC_TIM		EQU	ECT 		;ECT
 SCI_IC			EQU	0 		;IC0
-SCI_IC_TIM		EQU	ECT 		;ECT
-SCI_IC			EQU	1 		;OC1
-#mac SCI_BDSIG_START, 0
-			LED_ATOMIC_SET	RED, 4 	;start single gap on red LED
+SCI_OC_TIM		EQU	ECT 		;ECT
+SCI_OC			EQU	1 		;OC1
+#macro SCI_BDSIG_START, 0
+			LED_SET	C, LED_SEQ_SINGLE_GAP;start single gap on red LED
 #emac
-#mac SCI_BDSIG_STOP, 0
-			LED_CLR		RED, 4 	;stop single gap on red LED
+#macro SCI_BDSIG_STOP, 0
+			LED_CLR	C, LED_SEQ_SINGLE_GAP;stop single gap on red LED
 #emac
-#mac SCI_ERRSIG_START, 0
-			LED_ATOMIC_SET	RED, 6 	;start fast blink on red LED
+#macro SCI_ERRSIG_START, 0
+			LED_SET	C, LED_SEQ_FAST_BLINK;start fast blink on red LED
 #emac
-#mac SCI_ERRSIG_STOP, 0
-			LED_CLR		RED, 6 	;stop fast blink on red LED
+#macro SCI_ERRSIG_STOP, 0
+			LED_CLR	C, LED_SEQ_FAST_BLINK;stop fast blink on red LED
 #emac
 
-;# LED
-LED_GREEN_ENABLE	EQU	1 		;green LED enabled
-LED_TIM			EQU	ECT 		;ECT
-LED_OC			EQU	2 		;OC2
-LED_RED_PORT		EQU	PTP 		;port P
-LED_RED_PIN		EQU	PP2 		;PP2
-LED_GREEN_PORT		EQU	PTP 		;port P
-LED_GREEN_PIN		EQU	PP3 		;PP3
-
-;# DELAY
+;#TVMON
+;Signal low voltage level
+#macro TVMON_SIGNAL_LV, 0
+			LED_OFF	B 		;turn off green LED
+			LED_ON	A		;turn on red LED
+#emac
+;Signal high voltage level
+#macro TVMON_SIGNAL_HV, 0
+			LED_OFF	A 		;turn off red LED
+			LED_ON	B		;turn on green LED
+#emac
+	
+;#DELAY
 DELAY_TIM		EQU	ECT 		;ECT
 DELAY_OC		EQU	3		;OC2
 	
@@ -169,25 +198,18 @@ BASE_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Welcome message
-;------------_--- 
-#ifnmac	WELCOME_MESSAGE
-#macro	WELCOME_MESSAGE, 0
-			LDX	#WELCOME_MESSAGE	;print welcome message
-			STRING_PRINT_BL
-#emac
-#endif
-
 ;#Error message
-;-------------- 
+;;------------- 
 #ifnmac	ERROR_MESSAGE
 #macro	ERROR_MESSAGE, 0
+			RESET_BR_NOERR	DONE		;no error detected 
 			LDX	#ERROR_HEADER		;print error header
 			STRING_PRINT_BL
 			TFR	Y, X			;print error message
 			STRING_PRINT_BL
 			LDX	#ERROR_TRAILER		;print error TRAILER
 			STRING_PRINT_BL
+DONE			EQU	*
 #emac
 #endif
 
@@ -217,20 +239,15 @@ BASE_VARS_END_LIN	EQU	@
 			ISTACK_INIT
 			LED_INIT
 			TVMON_INIT	
-			TIM_ECT_INIT
+			TIM_INIT_ECT
 			STRING_INIT
 			NUM_INIT
 			NVM_INIT
-			SCI_INIT
 			RANDOM_INIT
 			DELAY_INIT
 			CLOCK_WAIT_FOR_PLL
-			SCI_ENABLE
-			RESET_BR_ERR	ERROR	;severe error detected 
-			WELCOME_MESSAGE
-			JOB	DONE	
-ERROR			ERROR_MESSAGE					
-DONE			EQU	*
+			SCI_INIT
+			ERROR_MESSAGE					
 #emac
 
 ;###############################################################################
@@ -322,11 +339,6 @@ BASE_CODE_END_LIN	EQU	@
 			ORG 	BASE_TABS_START
 #endif	
 
-;#Welcome message
-#ifndef	WELCOME_MESSAGE
-WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
-			STRING_NL_TERM
-#endif
 ;#Error message format
 #ifndef	ERROR_HEADER
 ERROR_HEADER		FCS	"FATAL ERROR! "
@@ -418,15 +430,14 @@ BASE_TABS_END_LIN	EQU	@
 #include ../All/clock.s			;CRG setup
 #include ../All/cop.s			;COP handler
 #include ../All/tim.s			;TIM driver
-#include ./led.s			;LED driver
+#include ../All/led.s			;LED driver
 #include ./tvmon_Mini-BDM-Pod.s		;Target Vdd monitor
-#include ./sci_bdtab_Mini-BDM-Pod.s	;Search tree for SCI baud rate detection
+#include ../All/random.s	   	;Pseudo-random number generator
 #include ../All/sci.s			;SCI driver
 #include ../All/string.s		;String printing routines
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
 #include ./nvm_Mini-BDM-Pod.s		;NVM driver
 #include ./vectab_Mini-BDM-Pod.s	;S12XEP100 vector table
-#include ../All/random.s	   	;Pseudo-random number generator
 #include ../All/delay.s	  	 	;Delay driver
 #endif

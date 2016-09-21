@@ -54,7 +54,7 @@ DELAY_OC		EQU	3 		;default is OC3
 DELAY_TIOS_INIT		EQU	1<<DELAY_OC
 
 ;#Output compare register
-DELAY_OC_TC		EQU	DELAY_OC_TIM+TC0_OFFSET+(2*DELAY_OC);OC compare register
+DELAY_OC_TC		EQU	DELAY_TIM+TC0_OFFSET+(2*DELAY_OC);OC compare register
 	
 ;#Shortest OC period (8 bus cycles)
 DELAY_MIN_TC		EQU	8*(CLOCK_BUS_FREQ/TIM_FREQ)
@@ -89,8 +89,8 @@ DELAY_VARS_END_LIN	EQU	@
 ; result: none
 ; SSTACK: 6 bytes
 ;         X, Y, and D are preserved 
-#mac DELAY_INITIATE, 0
-			SSTACK_JOBSR	DELAY_INITIATE, 6
+#macro DELAY_INDUCE, 0
+			SSTACK_JOBSR	DELAY_INDUCE, 6
 #emac
 
 ;#Wait until delay is over - non-blocking
@@ -98,7 +98,7 @@ DELAY_VARS_END_LIN	EQU	@
 ; result: C-flag: set if successful (delay over)
 ; SSTACK: 0 bytes
 ;         X, Y, and D are preserved 
-#mac DELAY_WAIT_NB, 0
+#macro DELAY_WAIT_NB, 0
 			JOBSR	DELAY_WAIT_NB
 #emac
 
@@ -107,7 +107,7 @@ DELAY_VARS_END_LIN	EQU	@
 ; result: none
 ; SSTACK: 2 bytes
 ;         X, Y, and D are preserved 
-#mac DELAY_WAIT_BL, 0
+#macro DELAY_WAIT_BL, 0
 			SSTACK_JOBSR	DELAY_WAIT_BL, 2
 #emac
 
@@ -116,7 +116,7 @@ DELAY_VARS_END_LIN	EQU	@
 ; result: none
 ; SSTACK: 8 bytes
 ;         X, Y, and D are preserved 
-#mac DELAY_MS_BL, 0
+#macro DELAY_MS_BL, 0
 			SSTACK_JOBSR	DELAY_MS_BL, 8
 #emac
 
@@ -127,7 +127,7 @@ DELAY_VARS_END_LIN	EQU	@
 ;         2: subroutine stack usage of non-blocking function
 ; SSTACK: stack usage of non-blocking function + 2
 ;         rgister output of the non-blocking function is preserved
-#macro	SCI_MAKE_BL, 2
+#macro	DELAY_MAKE_BL, 2
 			;Disable interrupts
 LOOP			SEI
 			;Call non-blocking function
@@ -160,7 +160,7 @@ WAIT			ISTACK_WAIT
 ; result: none
 ; SSTACK: 6 bytes
 ;         X, Y, and D are preserved 
-DELAY_INITIATE		EQU	*
+DELAY_INDUCE		EQU	*
 			;Save registers (ms delay in D)
 			PSHY					;save Y
 			PSHD					;save D
@@ -172,7 +172,7 @@ DELAY_INITIATE		EQU	*
 			CPY	#DELAY_MIN_TC			;check for min. timer delay
 			SBCB	#0				;subtract one
 			SBCA	#0				; timer intervall
-			BCS	DELAY_INITIATE_1 		;do nothing
+			BCS	DELAY_INDUCE_1 		;do nothing
 			EXG	D, Y 				;adjusted tc delay ->Y:D
 			;Set up timer (adjusted tc delay in Y:D)
 			SEI		       			;start of atomic sequence
@@ -181,7 +181,7 @@ DELAY_INITIATE		EQU	*
 			TIM_SET_DLY_D	DELAY_TIM, DELAY_OC	;RPO PWO OPwP
 			CLI		       			;end of atomic sequence
 			;Restore registers (ms delay in D)
-DELAY_INITIATE_1	SSTACK_PREPULL	6			;check SSTACK
+DELAY_INDUCE_1	SSTACK_PREPULL	6			;check SSTACK
 			PULD					;restore D
 			PULY					;restore Y
 			RTS					;done
@@ -193,7 +193,7 @@ DELAY_INITIATE_1	SSTACK_PREPULL	6			;check SSTACK
 ;         X, Y, and D are preserved 
 DELAY_WAIT_NB		EQU	*
 			CLC					;flag failure by default
-			TIM_BREN DELAY_TIM, DELAY_OCD, DELAY_WAIT_NB_1;delau still ongoing
+			TIM_BREN DELAY_TIM,DELAY_OC,DELAY_WAIT_NB_1;delau still ongoing
 			SEC					;flag success
 DELAY_WAIT_NB_1		RTS					;done
 
@@ -211,7 +211,7 @@ DELAY_WAIT_BL		EQU	*
 ; SSTACK: 8 bytes
 ;         X, Y, and D are preserved 
 DELAY_MS_BL		EQU	*
-			DELAY INITIATE				;initiate delay
+			DELAY_INDUCE				;initiate delay
 			DELAY_WAIT_BL				;wait
 			RTS					;done
 	

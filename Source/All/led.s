@@ -80,7 +80,7 @@ LED_A_BLINK_OFF		EQU	1 		;blink patterns disabled by default
 LED_A_PORT		EQU	PTP 		;default is PP
 #endif
 #ifndef	LED_A_PIN
-LED_A_PIN		EQU	PP0 		;default is P0
+LED_A_PIN		EQU	PP0 		;default is PP0
 #endif
 
 ;LED B
@@ -90,10 +90,10 @@ LED_B_BLINK_OFF		EQU	1 		;blink patterns disabled by default
 #endif
 #endif
 #ifndef	LED_B_PORT
-LED_B_PORT		EQU	PTP 		;default is PP
+LED_B_PORT		EQU	PTP 		;default is port P
 #endif
 #ifndef	LED_B_PIN
-LED_B_PIN		EQU	PP1 		;default is P1
+LED_B_PIN		EQU	PP1 		;default is PP1
 #endif
 
 ;LED C
@@ -103,10 +103,10 @@ LED_C_BLINK_OFF		EQU	1 		;blink patterns disabled by default
 #endif
 #endif
 #ifndef	LED_C_PORT
-LED_C_PORT		EQU	PTP 		;default is PP
+LED_C_PORT		EQU	PTP 		;default is port P
 #endif
-#ifndef	LED_C_IN
-LED_C_PIN		EQU	PP2 		;default is P2
+#ifndef	LED_C_PIN
+LED_C_PIN		EQU	PP2 		;default is PP2
 #endif
 
 ;LED D
@@ -116,15 +116,15 @@ LED_D_BLINK_OFF		EQU	1 		;blink patterns disabled by default
 #endif
 #endif
 #ifndef	LED_D_PORT
-LED_D_PORT		EQU	PTP 		;default is PP
+LED_D_PORT		EQU	PTP 		;default is port P
 #endif
 #ifndef	LED_D_PIN
-LED_D_PIN		EQU	PP3 		;default is P3
+LED_D_PIN		EQU	PP3 		;default is PP3
 #endif
 
 ;Non-requrring sequences
 #ifndef	LED_NONREC_MASK
-LED_NONREC_MASK		EQU	#$C0 		;default is patterns 7 and 8
+LED_NONREC_MASK		EQU	$C0 		;default is patterns 7 and 8
 #endif
 
 ;###############################################################################
@@ -162,6 +162,15 @@ LED_OC_CNT_RST		EQU	(TIM_FREQ/4)>>16 		;2sec/8
 LED_TIMED_REQS		EQU	$FE 				;mask for timed requests
 LED_NONREC_REQS		EQU	$C0 				;mask for non-recurring requests
 	
+;#Signal indexes
+LED_SEQ_SHORT_PULSE	EQU	7
+LED_SEQ_L0NG_PULSE	EQU	6
+LED_SEQ_FAST_BLINK	EQU	5
+LED_SEQ_SLOW_BLINK	EQU	4
+LED_SEQ_SINGLE_GAP	EQU	3
+LED_SEQ_DOUBLE_GAP	EQU	2
+LED_SEQ_HEART_BEAT	EQU	1
+LED_SEQ_ON		EQU	0
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -192,8 +201,8 @@ LED_C_REQ		DS	1 				;signal requests
 LED_C_SEQ		DS	1 				;signal selector
 #endif	
 #ifdef LED_D_BLINK_ON	
-LED_C_REQ		DS	1 				;signal requests
-LED_C_SEQ		DS	1 				;signal selector
+LED_D_REQ		DS	1 				;signal requests
+LED_D_SEQ		DS	1 				;signal selector
 #endif	
 #ifdef LED_LED4_ENABLE	
 LED_LED4_REQ		DS	1 				;signal requests
@@ -237,7 +246,7 @@ LED_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         X,Y and D are preserved 
 #macro	LED_ON, 1
-			BCLR	LED\1_PORT, #LED\1_PIN 		;clear port pin
+			BCLR	LED_\1_PORT, #LED_\1_PIN 	;clear port pin
 #emac
 
 ;#Turn off non-blinking LED
@@ -246,7 +255,7 @@ LED_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         X, Y and D are preserved 
 #macro	LED_OFF, 1
-			BSET	LED\1_PORT, #LED\1_PIN 		;set port pin
+			BSET	LED_\1_PORT, #LED_\1_PIN 	;set port pin
 #emac
 	
 ;#Set blink pattern
@@ -286,10 +295,10 @@ LED_VARS_END_LIN	EQU	@
 			BPL	LED_LOAD_SEQ_1			;no (non-recurring) short pulse requested
 			;Short pulse (accumulated requests in A, requests in B)
 			BCLR	LED_\1_REQ,#$80			;clear non-recurring short pulse request
-			LDAB	LED_SEQ_SHORT_PULSE		;sequence pattern -> B
+			LDAB	LED_SEQ_TAB_SHORT_PULSE		;sequence pattern -> B
 			JOB	LED_LOAD_SEQ_4			;update sqeuence
 			;Long pulse (accumulated requests in A, requests in B)
-LED_LOAD_SEQ_1		LDX	#LED_SEQ_L0NG_PULSE 		;sequence table pointer -> X
+LED_LOAD_SEQ_1		LDX	#LED_SEQ_TAB_L0NG_PULSE 	;sequence table pointer -> X
 			LSLB					;shift towards MSB
 			BPL	LED_LOAD_SEQ_2			;no (non-recurring) long pulse requested
 			BCLR	LED_\1_REQ,#$40			;clear non-recurring long pulse request
@@ -391,14 +400,14 @@ LED_CODE_END_LIN	EQU	@
 #endif	
 			;Pattern table
 LED_SEQ_TAB		EQU	*
-LED_SEQ_SHORT_PULSE	DB	%01000000	;prio 7 ^
-LED_SEQ_L0NG_PULSE	DB	%01111110	;prio 6 |h
-LED_SEQ_FAST_BLINK	DB	%01010101	;prio 5 |i
-LED_SEQ_SLOW_BLINK	DB	%01111000	;prio 4 |g
-LED_SEQ_SINGLE_GAP	DB	%11001111	;prio 3 |h
-LED_SEQ_DOUBLE_GAP	DB	%10110111	;prio 2 |e
-LED_SEQ_HEART_BEAT	DB	%01010000	;prio 1 |r
-LED_SEQ_ON		DB	%11111111	;prio 0 |
+LED_SEQ_TAB_SHORT_PULSE	DB	%01000000	;prio 7 ^
+LED_SEQ_TAB_L0NG_PULSE	DB	%01111110	;prio 6 |h
+LED_SEQ_TAB_FAST_BLINK	DB	%01010101	;prio 5 |i
+LED_SEQ_TAB_SLOW_BLINK	DB	%01111000	;prio 4 |g
+LED_SEQ_TAB_SINGLE_GAP	DB	%11001111	;prio 3 |h
+LED_SEQ_TAB_DOUBLE_GAP	DB	%10110111	;prio 2 |e
+LED_SEQ_TAB_HEART_BEAT	DB	%01010000	;prio 1 |r
+LED_SEQ_TAB_ON		DB	%11111111	;prio 0 |
 
 LED_TABS_END		EQU	*
 LED_TABS_END_LIN	EQU	@

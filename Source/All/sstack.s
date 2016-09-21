@@ -91,7 +91,7 @@
 
 ;Range checks
 ;------------
-;General stack range checkenable
+;General stack range check enable
 #ifndef	SSTACK_CHECK_ON
 #ifndef	SSTACK_CHECK_OFF
 SSTACK_CHECK_OFF	EQU	1 		;default is off
@@ -130,6 +130,19 @@ SSTACK_DEBUG_OFF	EQU	1 		;default is off
 SSTACK_VARS_END		EQU	*
 SSTACK_VARS_END_LIN	EQU	@
 
+;###############################################################################
+;# Stack space                                                                 #
+;###############################################################################
+#ifdef SSTACK_TOP
+#ifdef SSTACK_TOP_LIN
+			ORG 	SSTACK_TOP, SSTACK_TOP_LIN
+#else
+			ORG 	SSTACK_TOP
+#endif	
+			;Declare RAM space (to be recognized by the assembler) 
+			DS	SSTACK_BOTTOM-SSTACK_TOP
+#endif	
+	
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
@@ -177,6 +190,7 @@ SSTACK_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         X, Y, and D are preserved
 #macro	SSTACK_PREPUSH, 1 //number of bytes to push
+#ifdef	SSTACK_CHECK_ON
 			SSTACK_BROF	\1, OF
 #ifdef	SSTACK_DEBUG_ON
 			JOB	DONE
@@ -184,6 +198,7 @@ OF			BGND
 DONE			EQU	*	
 #else
 OF			EQU	SSTACK_OF
+#endif
 #endif
 #emac
 #endif
@@ -195,6 +210,7 @@ OF			EQU	SSTACK_OF
 ; SSTACK: none
 ;         X, Y, and D are preserved
 #macro	SSTACK_PREPULL, 1 //number of bytes to pull
+#ifdef	SSTACK_CHECK_ON
 			SSTACK_BRUF	\1, UF
 #ifdef	SSTACK_DEBUG_ON
 			JOB	DONE
@@ -202,6 +218,7 @@ UF			BGND
 DONE			EQU	*	
 #else
 UF			EQU	SSTACK_UF
+#endif
 #endif
 #emac
 #endif

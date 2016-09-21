@@ -49,6 +49,17 @@ TVMON_UPPER_THRESHOLD	EQU	(30*$FFFF)/(2*50) ;default 3.0V
 TVMON_LOWER_THRESHOLD	EQU	 (5*$FFFF)/(2*50) ;default 0.5V
 #endif	
 
+;Voltage level signaling
+;-----------------------
+;Signal low voltage level
+;#mac TVMON_SIGNAL_LV, 0
+;	...code to signal low voltage
+;#emac
+;Signal high voltage level
+;#mac TVMON_SIGNAL_HV, 0
+;	...code to signal high voltage
+;#emac
+
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
@@ -128,7 +139,7 @@ TVMON_VARS_END_LIN	EQU	@
 			MOVW	#TVMON_UPPER_THRESHOLD, ATDDR0
 
 			;Initially flag missing target
-			LED_BICOLOR_RED
+			TVMON_SIGNAL_LV
 
 			;Start ATD conversions
 			MOVB	#TVMON_ATDCTL5_CONFIG, ATDCTL5
@@ -145,7 +156,20 @@ TVMON_VARS_END_LIN	EQU	@
 #macro	TVMON_BRTGT, 1
 			BRCLR	ATDCMPHTL, #$01, \1	
 #emac
-	
+
+;#Dummy macros
+;#------------
+;Low voltage signal
+#ifnmac TVMON_SIGNAL_LV	
+#mac TVMON_SIGNAL_LV, 0
+#emac
+#endif
+;High voltage signal
+#ifnmac TVMON_SIGNAL_HV	
+#mac TVMON_SIGNAL_HV, 0
+#emac
+#endif
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -160,14 +184,14 @@ TVMON_ISR		EQU	*
 			BRSET	ATDCMPHTH+$1, #$01, TVMON_ISR_1 ;target Vdd detected
 
 			;Target Vdd missing
-			LED_BICOLOR_RED				;flag missing target Vdd
+			TVMON_SIGNAL_LV				;flag missing target Vdd
 			BSET	ATDCMPHTL, #$01			;target Vdd must be higher than threshold			
 			MOVW	#TVMON_UPPER_THRESHOLD, ATDDR0	;set upper threshold value
 			CLR	PTM				;disable target interface
 			JOB	TVMON_ISR_2			;restart ADC conversion
 			
 			;Target Vdd detected
-TVMON_ISR_1		LED_BICOLOR_GREEN			;flag detected target Vdd
+TVMON_ISR_1		TVMON_SIGNAL_HV				;flag detected target Vdd
 			BCLR	ATDCMPHTL, #$01			;target Vdd must be lower than threshold			
 			MOVW	#TVMON_LOWER_THRESHOLD, ATDDR0	;set lower threshold value
 			MOVB	#PM7, PTM			;enable target interface

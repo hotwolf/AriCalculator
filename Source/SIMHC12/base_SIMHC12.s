@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - Base Bundle (SIMHC12)                                            #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU  family.  #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -30,6 +29,8 @@
 ;#      - Updated during S12CBASE overhaul                                     #
 ;#    Dcember 17, 2015                                                         #
 ;#      - Included pseudo-random number generator                              #
+;#    Septemember 21, 2016                                                     #
+;#      - S12CBASE overhaul                                                    #
 ;###############################################################################
 
 ;###############################################################################
@@ -125,25 +126,18 @@ BASE_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-#Welcome message
-;---------------- 
-#ifnmac	WELCOME_MESSAGE
-#macro	WELCOME_MESSAGE, 0
-			LDX	#WELCOME_MESSAGE	;print welcome message
-			STRING_PRINT_BL
-#emac
-#endif
-
 ;#Error message
-;-------------- 
+;;------------- 
 #ifnmac	ERROR_MESSAGE
 #macro	ERROR_MESSAGE, 0
+			RESET_BR_NOERR	DONE		;no error detected 
 			LDX	#ERROR_HEADER		;print error header
 			STRING_PRINT_BL
 			TFR	Y, X			;print error message
 			STRING_PRINT_BL
 			LDX	#ERROR_TRAILER		;print error TRAILER
 			STRING_PRINT_BL
+DONE			EQU	*
 #emac
 #endif
 
@@ -164,6 +158,7 @@ BASE_VARS_END_LIN	EQU	@
 			SCI_INIT
 			SCI_ENABLE
 			RANDOM_INIT
+			DELAY_INIT
 			RESET_BR_ERR	ERROR	;severe error detected 
 			WELCOME_MESSAGE
 			JOB	DONE	
@@ -236,7 +231,11 @@ RANDOM_CODE_START	EQU	*
 RANDOM_CODE_START_LIN	EQU	@
 			ORG	RANDOM_CODE_END, RANDOM_CODE_END_LIN
 
-BASE_CODE_END		EQU	*	
+DELAY_CODE_START	EQU	*
+DELAY_CODE_START_LIN	EQU	@
+			ORG	DELAY_CODE_END, DELAY_CODE_END_LIN
+
+BBASE_CODE_END		EQU	*	
 BASE_CODE_END_LIN	EQU	@
 
 ;###############################################################################
@@ -310,6 +309,10 @@ RANDOM_TABS_START	EQU	*
 RANDOM_TABS_START_LIN	EQU	@
 			ORG	RANDOM_TABS_END, RANDOM_TABS_END_LIN
 	
+DELAY_TABS_START	EQU	*
+DELAY_TABS_START_LIN	EQU	@
+			ORG	DELAY_TABS_END, DELAY_TABS_END_LIN
+	
 BASE_TABS_END		EQU	*	
 BASE_TABS_END_LIN	EQU	@
 
@@ -322,13 +325,14 @@ BASE_TABS_END_LIN	EQU	@
 #include ../All/sstack.s		;Subroutine stack
 #include ../All/istack.s		;Interrupt stack
 #include ../All/tim.s			;TIM driver
+#include ../All/random.s	   	;Pseudo-random number generator
 #include ../All/sci.s			;SCI driver
 #include ../All/string.s		;String printing routines
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
 #include ./nvm_SIMHC12.s		;NVM driver
 #include ./vectab_SIMHC12.s		;HC12A4 vector table
-#include ../All/random.s	   	;Pseudo-random number generator
+#include ../All/delay.s	  	 	;Delay driver
 #endif	
 
 
