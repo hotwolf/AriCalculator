@@ -50,11 +50,16 @@ CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
 ;#TIM
 ; IC0 - SCI baud rate detection
 ; OC1 - SCI general purpose
-; OC2 - LED
+; OC2 - DELAY
+; OC3 - LED
 TIM_DIV_2		EQU	1 		;25 MHz
 TIM_ECT_TIOS_INIT	EQU	SCI_OC_TIOS_INIT|LED_TIOS_INIT|DELAY_TIOS_INIT
 TIM_ECT_TCTL34_INIT	EQU	SCI_IC_TCTL34_INIT
 
+;#DELAY
+DELAY_TIM		EQU	ECT 		;ECT
+DELAY_OC		EQU	2		;OC2
+	
 ;#LED
 ; LED A: PP2 non-blinking -> target disconnected
 ; LED B: PP3 non-blinking -> target connected 
@@ -62,7 +67,7 @@ TIM_ECT_TCTL34_INIT	EQU	SCI_IC_TCTL34_INIT
 ; LED D: PP5 blinking     -> busy
 ; Timer usage 
 LED_TIM			EQU	ECT 		;ECT
-LED_OC			EQU	2 		;OC2
+LED_OC			EQU	3 		;OC3
 ; LED A
 LED_A_BLINK_OFF		EQU	1 		;no blink patterns
 LED_A_PORT		EQU	PTP 		;port P
@@ -110,10 +115,6 @@ SCI_OC			EQU	1 		;OC1
 			LED_OFF	A 		;turn off red LED
 			LED_ON	B		;turn on green LED
 #emac
-	
-;#DELAY
-DELAY_TIM		EQU	ECT 		;ECT
-DELAY_OC		EQU	3		;OC2
 	
 ;###############################################################################
 ;# Variables                                                                   #

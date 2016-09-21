@@ -155,15 +155,10 @@ DONE			EQU	*
 			STRING_INIT
 			NUM_INIT
 			NVM_INIT
-			SCI_INIT
-			SCI_ENABLE
 			RANDOM_INIT
 			DELAY_INIT
-			RESET_BR_ERR	ERROR	;severe error detected 
-			WELCOME_MESSAGE
-			JOB	DONE	
-ERROR			ERROR_MESSAGE					
-DONE			EQU	*
+			SCI_INIT
+			ERROR_MESSAGE					
 #emac
 
 ;# COP replacement macros
@@ -247,11 +242,6 @@ BASE_CODE_END_LIN	EQU	@
 			ORG 	BASE_TABS_START
 #endif	
 
-#Welcome message
-#ifndef	WELCOME_MESSAGE
-WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
-			STRING_NL_TERM
-#endif
 ;#Error message format
 #ifndef	ERROR_HEADER
 ERROR_HEADER		FCS	"FATAL ERROR! "
