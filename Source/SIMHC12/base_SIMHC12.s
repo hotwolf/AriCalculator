@@ -36,32 +36,36 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Clocks
+;#Core
+			CPU	S12
+	
+;#Clocks
 #ifndef	CLOCK_BUS_FREQ	
 CLOCK_BUS_FREQ		EQU	8000000		;8 MHz
 #endif
 
-;# COP
+;#COP
 COP_DEBUG		EQU	1 		;disable COP
 
-;# RESET
+;#RESET
 RESET_COP_OFF		EQU	1 		;no COP reset
+
+;#TIM
+; OC0 - SCI general purpose
+; OC1 - DELAY
+TIM_DIV_OFF		EQU	1 		;4 MHz
+TIM_TIOS_INIT		EQU	SCI_OC_TIOS_INIT|DELAY_TIOS_INIT
+
+;#DELAY
+DELAY_TIM		EQU	TIM 		;TIM
+DELAY_OC		EQU	1		;OC1
 	
-#ifndef	SCI_FC_RTS_CTS
-#ifndef	SCI_FC_XON_XOFF
-#ifndef SCI_FC_NONE	
-SCI_FC_NONE		EQU	1 		;no flow control
-#endif
-#endif
-#endif
-#ifndef	SCI_BD_ON
-#ifndef	SCI_BD_OFF
-SCI_BD_OFF		EQU	1 		;no baud rate detection
-#endif
-#endif
-#ifndef	SCI_DLY_OC
-SCI_DLY_OC		EQU	3		;OC3
-#endif
+;#SCI
+SCI_V2			EQU	1   		;old SCI
+SCI_BAUD_9600		EQU	1 		;fixed baud rate
+SCI_OC_TIM		EQU	TIM 		;TIM
+SCI_OC			EQU	0 		;OC0
+SCI_NOFC		EQU	1		;no flow control
 
 ;###############################################################################
 ;# Variables                                                                   #

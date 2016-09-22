@@ -86,11 +86,13 @@ LED_D_PORT		EQU	PTP 		;port P
 LED_D_PIN		EQU	PP4 		;PP4
 	
 ;#SCI
+SCI_V5			EQU	1   		;V5
 SCI_BAUD_AUTO		EQU	1 		;automatic baud rate detection
 SCI_IC_TIM		EQU	ECT 		;ECT
 SCI_IC			EQU	0 		;IC0
 SCI_OC_TIM		EQU	ECT 		;ECT
 SCI_OC			EQU	1 		;OC1
+SCI_XONXOFF		EQU	1		;XON/XOFF flow control
 #macro SCI_BDSIG_START, 0
 			LED_SET	C, LED_SEQ_SINGLE_GAP;start single gap on red LED
 #emac
