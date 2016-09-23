@@ -217,8 +217,8 @@ RESET_INIT_5		EQU	*
 ; SSTACK: none
 ;         X, and D are preserved 
 #macro	RESET_BR_ERR, 1
-	LDY	RESET_MSG_PTR
-	BNE	\1
+			LDY	RESET_MSG_PTR
+			BNE	\1
 #emac
 	
 ;Branch on no error
@@ -227,8 +227,8 @@ RESET_INIT_5		EQU	*
 ; SSTACK: none
 ;         X, and D are preserved 
 #macro	RESET_BR_NOERR, 1
-	LDY	RESET_MSG_PTR
-	BEQ	\1
+			LDY	RESET_MSG_PTR
+			BEQ	\1
 #emac
 	
 ;#Perform a reset due to a fatal error (immediate error code)

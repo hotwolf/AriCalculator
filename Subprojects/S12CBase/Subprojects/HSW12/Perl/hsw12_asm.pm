@@ -6,7 +6,7 @@
 # author:  Dirk Heisswolf                                                        #
 # purpose: This is the core of the HSW12 Assembler                               #
 ##################################################################################
-# Copyright (C) 2003-2005 by Dirk Heisswolf. All rights reserved.                #
+# Copyright (C) 2003-2016 by Dirk Heisswolf. All rights reserved.                #
 # This file is part of "HSW12". HSW12 is free software;                          #
 # you can redistribute it and/or modify it under the same terms as Perl itself.  #
 ##################################################################################
@@ -346,6 +346,25 @@ Dirk Heisswolf
 
 =item V00.49 - Feb 5, 2015
  -added subroutine "print_mem_alloc" to print an overview of the memory allocation.
+
+=item V00.50 - Jan 25, 2016
+ -added opcode "CLRD"
+
+=item V00.51 - Feb 9, 2016
+ -added pseudo-opcode "ERROR".
+
+=item V00.52 - Feb 10, 2016
+ -added subroutine "print_error_summary" to print the first 5 error messages.
+
+=item V00.53 - Jun 22, 2016
+ -macro enhancement: arg substitution for labels and code listing
+
+=item V00.54 - Aug 13, 2016
+ -added precompiler directives #ifcpu and #ifncpu to check the current target 
+  processor.
+ -Be carefull when using the pseudo-opcode "CPU" inside macros. The precompile
+  step may have a compile order then the remaining compile steps  
+
 =cut
 
 #################
@@ -393,7 +412,7 @@ use File::Basename;
 ###########
 # version #
 ###########
-*version = \"00.49";#"
+*version = \"00.53";#"
 
 #############################
 # default S-record settings #
@@ -442,8 +461,8 @@ if ($^O =~ /MSWin/i) {
 *precomp_ifmac        = \qr/ifmac/i;
 *precomp_ifnmac       = \qr/ifnmac/i;
 *precomp_if           = \qr/if/i;
-*precomp_ifeq         = \qr/ifeq/i;
-*precomp_ifneq        = \qr/ifneq/i;
+*precomp_ifcpu        = \qr/ifcpu/i;
+*precomp_ifncpu       = \qr/ifncpu/i;
 *precomp_else         = \qr/else/i;
 *precomp_endif        = \qr/endif/i;
 *precomp_include      = \qr/include/i;
@@ -451,8 +470,8 @@ if ($^O =~ /MSWin/i) {
 *precomp_emac         = \qr/emac/i;
 *precomp_blanc_line   = \qr/^\s*$/;
 *precomp_comment_line = \qr/^\s*[\;\*]/;
-#*precomp_opcode       = \qr/^([^\#]\w*\`?):?\s*([\w\.]*)\s*([^;]*)\s*[;\*]?/;        #$1:label $2:opcode $3:arguments
-*precomp_opcode       = \qr/^([^\#]\w*\`?):?\s*([\\\w\.]*)\s*((?:\".*?\"|\'.*?\'|[^;])*)\s*[;\*]?/;        #$1:label $2:opcode $3:arguments
+#*precomp_opcode      = \qr/^([^\#][\\\w]*\`?):?\s*([\w\.]*)\s*([^;]*)\s*[;\*]?/;                       #$1:label $2:opcode $3:arguments
+*precomp_opcode       = \qr/^([^\#][\\\w]*\`?):?\s*([\\\w\.]*)\s*((?:\".*?\"|\'.*?\'|[^;])*)\s*[;\*]?/; #$1:label $2:opcode $3:arguments
 
 #############
 # TFR codes #
@@ -810,6 +829,7 @@ if ($^O =~ /MSWin/i) {
                               [$amod_hc11_indy,         \&check_hc11_indy,              "18 6F"]], #IND,Y
                  "CLRA"   => [[$amod_inh,               \&check_inh,                    "4F"   ]], #INH
                  "CLRB"   => [[$amod_inh,               \&check_inh,                    "5F"   ]], #INH
+                 "CLRD"   => [[$amod_inh,               \&check_inh,                    "4F 5F"]], #INH
                  "CLV"    => [[$amod_inh,               \&check_inh,                    "0A"   ]], #INH
                  "CMPA"   => [[$amod_imm8,              \&check_imm8,                   "81"   ],  #IMM
                               [$amod_dir,               \&check_dir,                    "91"   ],  #DIR
@@ -1228,6 +1248,7 @@ if ($^O =~ /MSWin/i) {
                               [$amod_iext,              \&check_iext,                   "69"   ]], #[EXT]
                  "CLRA"   => [[$amod_inh,               \&check_inh,                    "87"   ]], #INH
                  "CLRB"   => [[$amod_inh,               \&check_inh,                    "C7"   ]], #INH
+                 "CLRD"   => [[$amod_inh,               \&check_inh,                    "87 C7"]], #INH
                  "CLV"    => [[$amod_inh,               \&check_inh,                    "10 FD"]], #INH
                  "CMPA"   => [[$amod_imm8,              \&check_imm8,                   "81"   ],  #IMM
                               [$amod_dir,               \&check_dir,                    "91"   ],  #DIR
@@ -2029,6 +2050,7 @@ if ($^O =~ /MSWin/i) {
                               [$amod_iext,              \&check_iext,                   "69"   ]], #[EXT]
                  "CLRA"   => [[$amod_inh,               \&check_inh,                    "87"   ]], #INH
                  "CLRB"   => [[$amod_inh,               \&check_inh,                    "C7"   ]], #INH
+                 "CLRD"   => [[$amod_inh,               \&check_inh,                    "87 C7"]], #INH
                  "CLRW"   => [[$amod_ext,               \&check_ext,                    "18 79"],  #EXT
                               [$amod_idx,               \&check_idx,                    "18 69"],  #IDX
                               [$amod_idx1,              \&check_idx1,                   "18 69"],  #IDX1
@@ -3051,6 +3073,7 @@ if ($^O =~ /MSWin/i) {
                     "DS.B"     => \&psop_dsb,
                     "DS.W"     => \&psop_dsw,
                     "DW"       => \&psop_dw,
+                    "ERROR"    => \&psop_error,
                     "EQU"      => \&psop_equ,
                     "FCB"      => \&psop_db,
                     "FCC"      => \&psop_fcc,
@@ -3301,6 +3324,8 @@ sub precompile {
     #errors
     my $error;
     my $error_count;
+    #CPU
+    my $cpu = $self->{cpu};
     #line
     my $line;
     my $line_count;
@@ -3460,6 +3485,12 @@ sub precompile {
                     #printf " ===> \"%s\" \"%s\" \"%s\"\n", $label, $opcode, $arguments;
                     #check ifdef stack
                     if ($ifdef_stack->[$#$ifdef_stack]->[0]){
+
+			#Interpret pseudo opcode CPU
+			if ($cpcode eq $psop_cpu) {
+			    $cpu = uc($arguments);
+			}
+
                         #store source code line
                         push @srccode_sequence, $line;
 			if (defined $macro) {
@@ -3608,11 +3639,43 @@ sub precompile {
                         # ifnmac #
                         ##########
                         /$precomp_ifnmac/ && do {
-                            #print "   => ifdef\n";
+                            #print "   => ifnmac\n";
                             #printf "   => %s\n", join(", ", keys %{$self->{macros}});
                             #check ifdef stack
                             if ($ifdef_stack->[$#$ifdef_stack]->[0]){
                                 if (! exists $self->{macros}->{uc($arg1)}) {
+                                    push @$ifdef_stack, [1, 0, 1];
+                                } else {
+                                    push @$ifdef_stack, [0, 0, 1];
+                                }
+                            } else {
+                                push @$ifdef_stack, [0, 0, 0];
+                            }
+                            last;};
+                        #########
+                        # ifcpu #
+                        #########
+                        /$precomp_ifcpu/ && do {
+                            #print "   => ifcpu\n";
+                            #check ifdef stack
+                            if ($ifdef_stack->[$#$ifdef_stack]->[0]){
+                                if ($cpu eq uc($arg1)) {
+                                    push @$ifdef_stack, [1, 0, 1];
+                                } else {
+                                    push @$ifdef_stack, [0, 0, 1];
+                                }
+                            } else {
+                                push @$ifdef_stack, [0, 0, 0];
+                            }
+                            last;};
+                        ##########
+                        # ifncpu #
+                        ##########
+                        /$precomp_ifncpu/ && do {
+                            #print "   => ifncpu\n";
+                            #printf "   => %s\n", join(", ", keys %{$self->{macros}});
+                            if ($ifdef_stack->[$#$ifdef_stack]->[0]){
+                                if ($cpu ne uc($arg1)) {
                                     push @$ifdef_stack, [1, 0, 1];
                                 } else {
                                     push @$ifdef_stack, [0, 0, 1];
@@ -4005,8 +4068,16 @@ sub compile_run {
     #macros
     my $maro_name;
     my @macro_args;
-    my $macro_arg;
     my $macro_argc;
+    my @macro_comments;
+    my $macro_comment;
+    my $macro_comment_replace;
+    my $macro_comment_keep;
+    my $macro_label;
+    my $macro_label_replace;
+    my $macro_opcode;
+    my $macro_opcode_replace;
+    my $macro_arg;
     my $macro_arg_replace;
     my $macro_hierarchy;
     my $maro_sym_tab;
@@ -4015,6 +4086,7 @@ sub compile_run {
     my $macro_entries;
     my $macro_entry;
     my @macro_code_list;
+
     #label
     my @label_stack;
     my $prev_macro_depth;
@@ -4278,6 +4350,30 @@ sub compile_run {
 		    $macro_entries = []; 
 		    foreach $macro_entry (@{$self->{macros}->{$maro_name}}) {
 
+			#replace macro comments
+			@macro_comments = @{$macro_entry->[2]};
+			$macro_comment  = pop @macro_comments;
+			if ($macro_comment =~ /^(.*)(\;.*)$/ ) {
+			    $macro_comment = $1;
+			    $macro_comment_keep = $2;
+			} else {
+			    $macro_comment_keep = "";
+			}
+			foreach $macro_argc (1..$self->{macro_argcs}->{$maro_name}) {
+			    $macro_comment_replace = $macro_args[$macro_argc-1];
+			    $macro_comment =~ s/\\$macro_argc/$macro_comment_replace/g;
+			    #printf "replace macro comment: %d \"%s\" => \"%s\"\n", $macro_argc, $macro_comment_replace, $macro_comment;
+			}
+			$macro_comment .=  $macro_comment_keep;
+			
+			#replace macro label
+			$macro_label = $macro_entry->[3];
+			foreach $macro_argc (1..$self->{macro_argcs}->{$maro_name}) {
+			    $macro_label_replace = $macro_args[$macro_argc-1];
+			    $macro_label =~ s/\\$macro_argc/$macro_label_replace/g;
+			    #printf "replace macro label: %d \"%s\", \"%s\" => \"%s\"\n", $macro_argc, $macro_entry->[3], $macro_label_replace, $macro_label;
+			}
+
 			#replace macro opcodes
 			$macro_opcode = $macro_entry->[4];
 			foreach $macro_argc (1..$self->{macro_argcs}->{$maro_name}) {
@@ -4297,8 +4393,8 @@ sub compile_run {
 			#copy macro element
 			push @$macro_entries , [$macro_entry->[0],
 						$macro_entry->[1],
-						$macro_entry->[2],
-						$macro_entry->[3],
+						[@macro_comments, $macro_comment],
+						$macro_label,
 						$macro_opcode,
 						$macro_arg,
 						$macro_entry->[6],
@@ -6090,6 +6186,77 @@ sub print_pag_binary {
     }
 }
 
+#######################
+# print_error_summary #
+#######################
+sub print_error_summary {
+    my $self      = shift @_;
+
+    #code
+    my $code_entry;
+    my $code_file;
+    my $code_line;
+    my $code_comments;
+    my $code_pc_lin;
+    my $code_pc_pag;
+    my $code_hex;
+    my $code_errors;
+    my $code_error;
+    my $code_macros;
+    #comments
+    my @cmt_lines;
+    my $cmt_last_line;
+   #output
+   my $out_string;
+   my $out_count;
+
+    ############################
+    # initialize output string #
+    ############################
+    $out_string = "";
+    $out_count  = 0;
+
+    #############
+    # code loop #
+    #############
+    foreach $code_entry (@{$self->{code}}) {
+
+        $code_line     = $code_entry->[0];
+        $code_file     = $code_entry->[1];
+        $code_comments = $code_entry->[2];
+        $code_pc_lin   = $code_entry->[6];
+        $code_pc_pag   = $code_entry->[7];
+        $code_hex      = $code_entry->[8];
+        $code_errors   = $code_entry->[10];
+        $code_macros   = $code_entry->[11];
+
+        ################
+        # print errors #
+        ################
+        foreach $code_error (@$code_errors) {
+	    $out_count++;
+	    if ($out_count <= 5) {
+		#extract source code
+		#@cmt_lines = @$code_comments;
+		#$cmt_last_line = pop @cmt_lines;
+		#print error message
+		#$out_string .= sprintf("ERROR! %s (%s, line: %d) -> %s\n", ($code_error,
+		#						            $$code_file,
+		#						            $code_line,
+                #                                                            $cmt_last_line));
+		$out_string .= sprintf("ERROR! %s (%s, line: %d)\n", ($code_error,
+								      $$code_file,
+								      $code_line));
+	    } elsif ($out_count == 6) {
+		$out_string .= "...\n";
+	    } else {
+		last;
+	    }
+        }
+    }
+    return $out_string;
+}
+
 ###################
 # print_mem_alloc #
 ###################
@@ -6802,6 +6969,65 @@ sub psop_dsw {
         $$error_count_ref++;
         $$pc_lin_ref = undef;
         $$pc_pag_ref = undef;
+    }
+}
+
+##############
+# psop_error #
+##############
+sub psop_error {
+    my $self            = shift @_;
+    my $pc_lin_ref      = shift @_;
+    my $pc_pag_ref      = shift @_;
+    my $loc_cnt_ref     = shift @_;
+    my $error_count_ref = shift @_;
+    my $undef_count_ref = shift @_;
+    my $label_value_ref = shift @_;
+    my $code_entry      = shift @_;
+
+    #arguments
+    my $code_args;
+    my $string;
+    my $first_char;
+    #hex code
+    my $char;
+    my @hex_code;
+    #temporary
+
+    ##################
+    # read arguments #
+    ##################
+    $code_args  = $code_entry->[5];
+
+    ##################
+    # check argument #
+    ##################
+    if ($code_args =~ /$psop_string/) {
+        $string = $1;
+
+        #trim string
+        $string =~ s/^\s*//;
+        $string =~ s/\s*$//;
+
+        #trim first character
+        $string     =~ s/^(.)//;
+        $first_char = $1;
+
+        #trim send of string
+        if ($string =~ /^(.*)$first_char/) {$string = $1;}
+        #printf STDERR "fcc: \"%s\" \"%s\"\n", $first_char, $string;
+
+        $error = $string;
+        $code_entry->[10] = [@{$code_entry->[10]}, $error];
+        $$error_count_ref++;
+	
+    } else {
+        ################
+        # syntax error #
+        ################
+        $error = "intentional compile error";
+        $code_entry->[10] = [@{$code_entry->[10]}, $error];
+        $$error_count_ref++;
     }
 }
 
