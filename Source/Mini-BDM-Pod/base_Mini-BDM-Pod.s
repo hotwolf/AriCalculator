@@ -45,7 +45,7 @@ CLOCK_OSC_FREQ		EQU	10000000	;10 MHz
 CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
 CLOCK_REF_FREQ		EQU	CLOCK_OSC_FREQ	;10 MHz
 CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
-CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
+CLOCK_REFFRQ		EQU	2		;Ref=2Mhz
 
 ;#TIM
 ; IC0 - SCI baud rate detection
@@ -216,19 +216,6 @@ DONE			EQU	*
 #emac
 #endif
 
-;#SCI RX error signal
-;-------------------- 
-#ifnmac	SCI_ERRSIG_START
-#macro SCI_ERRSIG_START, 0
-			LED_COMERR_ON
-#emac
-#endif
-#ifnmac	SCI_ERRSIG_STOP
-#macro SCI_ERRSIG_STOP, 0
-			LED_COMERR_OFF
-#emac
-#endif
-	
 ;#Initialization
 ;--------------- 
 #macro	BASE_INIT, 0

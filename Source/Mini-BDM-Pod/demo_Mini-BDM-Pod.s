@@ -34,17 +34,17 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Memory map:
+;#Memory map:
 MMAP_S12XEP100		EQU	1 		;S12XEP100
 MMAP_RAM		EQU	1 		;use RAM memory map
 
-;# COP
+;#COP
 COP_DEBUG		EQU	1 		;disable COP
 
-;# Vector table
+;#Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 
-;# STRING
+;#STRING
 STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
 STRING_ENABLE_FILL_BL	EQU	1 		;enable STRING_FILL_BL
 STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
