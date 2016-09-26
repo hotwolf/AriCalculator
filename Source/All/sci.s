@@ -560,32 +560,32 @@ SCI_CHECK_RX_ERR	EQU	1		;check for RX errors
 ;#Dummy macros
 ;BREAK action
 #ifnmac SCI_BREAK_ACTION	
-#mac SCI_BREAK_ACTION, 0
+#macro SCI_BREAK_ACTION, 0
 #emac
 #endif
 ;SUSPEND action
 #ifnmac SCI_SUSPEND_ACTION	
-#mac SCI_SUSPEND_ACTION, 0
+#macro SCI_SUSPEND_ACTION, 0
 #emac
 #endif
 ;Start BD signal 
 #ifnmac SCI_BDSIG_START
-#mac SCI_BDSIG_START, 0
+#macro SCI_BDSIG_START, 0
 #emac
 #endif
 ;Stop BD signal 
 #ifnmac SCI_BDSIG_STOP
-#mac SCI_BDSIG_STOP, 0
+#macro SCI_BDSIG_STOP, 0
 #emac
 #endif
 ;Start error signal 
 #ifnmac SCI_ERRSIG_START
-#mac SCI_ERRSIG_START, 0
+#macro SCI_ERRSIG_START, 0
 #emac
 #endif
 ;Stop error signal 
 #ifnmac SCI_ERRSIG_STOP
-#mac SCI_ERRSIG_STOP, 0
+#macro SCI_ERRSIG_STOP, 0
 #emac
 #endif
 	
@@ -1543,7 +1543,7 @@ SCI_ISR_RX_2		EQU	*
 			SBA
 			ANDA	#SCI_RXBUF_MASK
 			CMPA	#SCI_RX_FULL_LEVEL
-			BHS	<SCI_ISR_RX_12 				;buffer is getting full
+			BHS	<SCI_ISR_RX_13 				;buffer is getting full
 #endif
 			;Restart pause time-out	(flags:data in Y) 
 SCI_ISR_RX_3		BRCLR	SCI_FLGS,#SCI_FLG_PAUSE,SCI_ISR_RX_4	;no pause requested
@@ -1593,14 +1593,14 @@ SCI_ISR_RX_11		SCI_SUSPEND_ACTION 				;SUSPEND action
 #endif
 #endif
 			;Buffer overflow
-			BSET	SCI_FLGS, #SCI_FLG_SWOR 		;set SWOR bit (software overrun)	
+SCI_ISR_RX_12		BSET	SCI_FLGS, #SCI_FLG_SWOR 		;set SWOR bit (software overrun)	
 #ifdef	SCI_XONXOFF
 			;Apply flow control (flags:data in Y)
-SCI_ISR_RX_12		SCI_TX_XONXOFF 					;signal XOFF
+SCI_ISR_RX_13		SCI_TX_XONXOFF 					;signal XOFF
 #endif
 #ifdef	SCI_RTSCTS
 			;Apply flow control (flags:data in Y)
-SCI_ISR_RX_12		SCI_DEASSERT_CTS 				;clear CTS
+SCI_ISR_RX_13		SCI_DEASSERT_CTS 				;clear CTS
 #endif
 			JOB	SCI_ISR_RX_3				;restart pause delay
 	
