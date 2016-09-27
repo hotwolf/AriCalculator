@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - GPIO - GPIO Handler (SIMHC12)                                    #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU  family.  #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -111,14 +110,14 @@
 ;#     PS6 - NC                           (input        no pull)               #
 ;#     PS7 - NC                           (input        no pull)               #
 ;#    Port T:                                                                  #
-;#     PT0 - NC                           (input        no pull)               #
-;#     PT1 - NC                           (input        no pull)               #
-;#     PT2 - NC                           (input        no pull)               #
-;#     PT3 - NC                           (input        no pull)               #
-;#     PT4 - NC                           (input        no pull)               #
-;#     PT5 - NC                           (input        no pull)               #
-;#     PT6 - NC                           (input        no pull)               #
-;#     PT7 - NC                           (input        no pull)               #
+;#     PT0 - Debug output                 (output       low    )               #
+;#     PT1 - Debug output                 (output       low    )               #
+;#     PT2 - Debug output                 (output       low    )               #
+;#     PT3 - Debug output                 (output       low    )               #
+;#     PT4 - Debug output                 (output       low    )               #
+;#     PT5 - Debug output                 (output       low    )               #
+;#     PT6 - Debug output                 (output       low    )               #
+;#     PT7 - Debug output                 (output       low    )               #
 ;#    Port AD:                                                                 #
 ;#     PAD0 - NC                          (input        no pull)               #
 ;#     PAD1 - NC                          (input        no pull)               #
@@ -138,8 +137,10 @@
 ;# Version History:                                                            #
 ;#    April 4, 2010                                                            #
 ;#      - Initial release                                                      #
-;#    July 10, 2012                                                             #
+;#    July 10, 2012                                                            #
 ;#      - Added support for linear PC                                          #
+;#    September 27, 2016                                                       #
+;#      - Added debug output (port T)                                          #
 ;###############################################################################
 
 ;###############################################################################
@@ -164,6 +165,8 @@ GPIO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	GPIO_INIT, 0
+			;Set port T to output 
+			MOVB	#$FF, DDRT
 #emac
 	
 ;###############################################################################

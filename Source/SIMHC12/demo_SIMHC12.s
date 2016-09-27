@@ -49,15 +49,15 @@ STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_EXTRAM_START
+			ORG	MMAP_EXTRAM_START, UNMAPPED
 ;Variables
 DEMO_VARS_START		EQU	*
 DEMO_VARS_START_LIN	EQU	@
-			ORG	DEMO_VARS_END, DEMO_VARS_END_LIN
+			ORG	DEMO_VARS_END, UNMAPPED
 
 BASE_VARS_START		EQU	*
 BASE_VARS_START_LIN	EQU	@
-			ORG	BASE_VARS_END, BASE_VARS_END_LIN
+			ORG	BASE_VARS_END, UNMAPPED
 	
 ;Stack 
 SSTACK_TOP		EQU	*
@@ -85,12 +85,19 @@ BASE_TABS_START_LIN	EQU	@
 			ORG	BASE_TABS_END, BASE_TABS_END_LIN
 	
 ;###############################################################################
+;# Constants                                                                   #
+;###############################################################################
+
+HEADER_REPEAT		EQU	20
+	
+;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 			ORG 	DEMO_VARS_START, DEMO_VARS_START_LIN
 
+LINE_COUNT		DS	1	
+
 DEMO_VARS_END		EQU	*
-	
 DEMO_VARS_END_LIN	EQU	@
 
 ;###############################################################################
@@ -104,6 +111,16 @@ DEMO_VARS_END_LIN	EQU	@
 DONE			EQU	*
 #emac
 
+;Break handler
+#macro	SCI_BREAK_ACTION, 0
+			INC	PORTT
+#emac
+	
+;Suspend handler
+#macro	SCI_SUSPEND_ACTION, 0
+			DEC	PORTT
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -112,14 +129,23 @@ DONE			EQU	*
 ;Initialization
 			BASE_INIT
 			WELCOME_MESSAGE
-
+			MOVB	#1, LINE_COUNT
+		
+	
 ;Application code
-DEMO_LOOP		SCI_RX_BL
-			;Ignore RX errors
-			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
-			BNE	DEMO_LOOP
-			;TBNE	A, DEMO_LOOP
+			;Print header
+DEMO_LOOP		DEC	LINE_COUNT
+			BNE	DEMO_GET_CHAR
+			MOVB	#HEADER_REPEAT, LINE_COUNT
+			LDX	#DEMO_HEADER
+			STRING_PRINT_BL
 
+			;Wait for input
+DEMO_GET_CHAR		SCI_RX_BL
+			;Ignore RX errors (char in B)
+			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
+			BNE	DEMO_GET_CHAR
+	
 			;Print ASCII character (char in B)
 			TFR	D, X
 			LDAA	#4
@@ -205,7 +231,6 @@ WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
 #endif
 	
 DEMO_HEADER		STRING_NL_NONTERM
-			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM
 			FCC	"------------------------------"

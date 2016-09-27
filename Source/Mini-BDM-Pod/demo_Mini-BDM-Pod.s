@@ -88,12 +88,20 @@ SSTACK_BOTTOM		EQU	VECTAB_START
 SSTACK_BOTTOM_LIN	EQU	VECTAB_START_LIN
 	
 ;###############################################################################
+;# Constants                                                                   #
+;###############################################################################
+
+HEADER_REPEAT		EQU	20
+	
+;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 			ORG 	DEMO_VARS_START, DEMO_VARS_START_LIN
 
 ;			ALIGN	16
 ;DEMO_TRACE		DS	8*64
+
+LINE_COUNT		DS	1	
 
 DEMO_VARS_END		EQU	*
 DEMO_VARS_END_LIN	EQU	@
@@ -111,12 +119,16 @@ DONE			EQU	*
 
 ;Break handler
 #macro	SCI_BREAK_ACTION, 0
-			LED_SET	D, LED_SEQ_HEART_BEAT
+			LDAA	#$80
+			EORA	PORTT
+			STAA	PORTT
 #emac
 	
 ;Suspend handler
 #macro	SCI_SUSPEND_ACTION, 0
-			LED_CLR	D, LED_SEQ_HEART_BEAT
+			LDAA	#$40
+			EORA	PORTT
+			STAA	PORTT
 #emac
 
 ;###############################################################################
@@ -146,16 +158,18 @@ DONE			EQU	*
 ;			MOVB	#ARM, DBGC1
 			
 ;Application code
-			;Print header string
-			;LDX	#DEMO_HEADER
-			;STRING_PRINT_BL
+			;Print header
+DEMO_LOOP		DEC	LINE_COUNT
+			BNE	DEMO_GET_CHAR
+			MOVB	#HEADER_REPEAT, LINE_COUNT
+			LDX	#DEMO_HEADER
+			STRING_PRINT_BL
 
-			;Loop
-DEMO_LOOP		SCI_RX_BL
-			;Ignore RX errors 
+			;Wait for input
+DEMO_GET_CHAR		SCI_RX_BL
+			;Ignore RX errors (char in B)
 			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
-			BNE	DEMO_LOOP
-			;TBNE	A, DEMO_LOOP
+			BNE	DEMO_GET_CHAR
 
 			;Print ASCII character (char in B)
 			TFR	D, X
@@ -257,7 +271,6 @@ WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
 #endif
 	
 DEMO_HEADER		STRING_NL_NONTERM
-			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM
 			FCC	"------------------------------"
