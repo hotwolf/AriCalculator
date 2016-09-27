@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - MMAP - Memory Map (Mini-BDM-Pod)                                 #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
-;#    families.                                                                #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -38,6 +37,8 @@
 ;#      - Updated memory mapping                                               #
 ;#    October 27, 2015							       #
 ;#	- Cleanup							       #
+;#    September 23, 2016                                                       #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 ;  Flash Memory Map:
 ;  -----------------  
@@ -47,7 +48,7 @@
 ;   	  RAM->+ +-------------+ $0800
 ;  	       | |  Variables  |
 ;  	       | +-------------+
-;              | |/////////////|	     
+;              | | Stack Space |	     
 ;  	Flash->+ +-------------+ $8000
 ;              | | Page Window |	     
 ;              + +-------------+ $C000
@@ -67,14 +68,16 @@
 ;                     S12XE                
 ;        	 +-------------+ $0000
 ;  		 |  Registers  |
-;  	  RAM->+ +-------------+ $0800
+;  	         +-------------+ $0800
+;                |/////////////|	     
+;  	  RAM->+ +-------------+ $1000
 ;  	       | |  Variables  |
 ;  	       | +-------------+
 ;  	       | |    Code     |
 ;  	       | +-------------+
 ;  	       | |   Tables    |
 ;  	       | +-------------+
-;              | |/////////////|	     
+;              | | Stack Space |	     
 ;  	       | +-------------+ $7F10
 ;  	       | |   Vectors   |
 ;  	       + +-------------+ $8000

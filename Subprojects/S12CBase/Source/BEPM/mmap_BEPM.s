@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - MMAP - Memory Map (BEPM)                                         #
 ;###############################################################################
-;#    Copyright 2010-2014 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
-;#    families.                                                                #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -35,6 +34,8 @@
 ;#      - Initial release                                                      #
 ;#    October 27, 2015							       #
 ;#	- Cleanup							       #
+;#    September 23, 2016                                                       #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 ;  Flash Memory Map:
 ;  -----------------  
@@ -142,6 +143,11 @@ MMAP_EERAM_FF_END_LIN	EQU	$14_0000
 ;RAM
 MMAP_RAM_WIN_START	EQU	$1000
 MMAP_RAM_WIN_END	EQU	$2000
+
+MMAP_RAM_F9_START	EQU	$1000
+MMAP_RAM_F9_END		EQU	$2000
+MMAP_RAM_F9_START_LIN	EQU	$0F_9000
+MMAP_RAM_F9_END_LIN	EQU	$0F_A000
 
 MMAP_RAM_FA_START	EQU	$2C00
 MMAP_RAM_FA_END		EQU	$3000

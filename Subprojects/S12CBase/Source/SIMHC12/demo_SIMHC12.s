@@ -28,31 +28,18 @@
 ;# Version History:                                                            #
 ;#    November 14, 2012                                                        #
 ;#      - Initial release                                                      #
-;#    January 30, 2015                                                         #
+;#    September 23, 2016                                                       #
 ;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Memory map:
-;MMAP_RAM		EQU	1 		;use RAM memory map
-
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
 	
 ;# VECTAB
 VECTAB_DEBUG		EQU	1 		;break on false interrupt
-
-;# SSTACK
-SSTACK_DEBUG		EQU	1 
-SSTACK_NO_CHECK		EQU	1 
-SSTACK_DEPTH		EQU	40
-
-;# ISTACK
-ISTACK_DEBUG		EQU	1 
-ISTACK_NO_WAI		EQU	1 
-ISTACK_NO_CHECK		EQU	1 
 	
 ;# STRING
 STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
@@ -62,54 +49,76 @@ STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_START
+			ORG	MMAP_EXTRAM_START, UNMAPPED
 ;Variables
 DEMO_VARS_START		EQU	*
 DEMO_VARS_START_LIN	EQU	@
+			ORG	DEMO_VARS_END, UNMAPPED
+
+BASE_VARS_START		EQU	*
+BASE_VARS_START_LIN	EQU	@
+			ORG	BASE_VARS_END, UNMAPPED
 	
-BASE_VARS_START		EQU	DEMO_VARS_END
-BASE_VARS_START_LIN	EQU	DEMO_VARS_END_LIN
+;Stack 
+SSTACK_TOP		EQU	*
+SSTACK_TOP_LIN		EQU	@
+SSTACK_BOTTOM		EQU	MMAP_EXTRAM_END
 
 			ORG	MMAP_FLASH3F_START
 ;Code
 START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
-
-BASE_CODE_START		EQU	DEMO_CODE_END
-BASE_CODE_START_LIN	EQU	DEMO_CODE_END_LIN
+			ORG	DEMO_CODE_END, DEMO_CODE_END_LIN
+	
+BASE_CODE_START		EQU	*
+BASE_CODE_START_LIN	EQU	@
+			ORG	BASE_CODE_END, BASE_CODE_END_LIN
 
 ;Tables
-DEMO_TABS_START		EQU	BASE_CODE_END
-DEMO_TABS_START_LIN	EQU	BASE_CODE_END_LIN
-	
-BASE_TABS_START		EQU	DEMO_TABS_END
-BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
+DEMO_TABS_START		EQU	*
+DEMO_TABS_START_LIN	EQU	@
+			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
 
+BASE_TABS_START		EQU	*
+BASE_TABS_START_LIN	EQU	@
+			ORG	BASE_TABS_END, BASE_TABS_END_LIN
+	
 ;###############################################################################
-;# Includes                                                                    #
+;# Constants                                                                   #
 ;###############################################################################
-#include ./base_SIMHC12.s	;S12CBase bundle
+
+HEADER_REPEAT		EQU	20
 	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 			ORG 	DEMO_VARS_START, DEMO_VARS_START_LIN
 
+LINE_COUNT		DS	1	
+
 DEMO_VARS_END		EQU	*
-	
 DEMO_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
-;###############################################################################;Break handler
+;###############################################################################
+;#Welcome message
+#macro	WELCOME_MESSAGE, 0
+			RESET_BR_ERR	DONE		;severe error detected 
+			LDX	#WELCOME_MESSAGE	;print welcome message
+			STRING_PRINT_BL
+DONE			EQU	*
+#emac
+
+;Break handler
 #macro	SCI_BREAK_ACTION, 0
-			MOVB	#$A0, PORTT
+			INC	PORTT
 #emac
 	
 ;Suspend handler
 #macro	SCI_SUSPEND_ACTION, 0
-			MOVB	#$50, PORTT
+			DEC	PORTT
 #emac
 
 ;###############################################################################
@@ -119,16 +128,24 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;Initialization
 			BASE_INIT
-
-			MOVB	#$C0, DDRT
+			WELCOME_MESSAGE
+			MOVB	#1, LINE_COUNT
+		
 	
 ;Application code
-DEMO_LOOP		SCI_RX_BL
-			;Ignore RX errors
-			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
-			BNE	DEMO_LOOP
-			;TBNE	A, DEMO_LOOP
+			;Print header
+DEMO_LOOP		DEC	LINE_COUNT
+			BNE	DEMO_GET_CHAR
+			MOVB	#HEADER_REPEAT, LINE_COUNT
+			LDX	#DEMO_HEADER
+			STRING_PRINT_BL
 
+			;Wait for input
+DEMO_GET_CHAR		SCI_RX_BL
+			;Ignore RX errors (char in B)
+			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
+			BNE	DEMO_GET_CHAR
+	
 			;Print ASCII character (char in B)
 			TFR	D, X
 			LDAA	#4
@@ -207,8 +224,13 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
+;#Welcome message
+#ifndef	WELCOME_MESSAGE
+WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
+			STRING_NL_TERM
+#endif
+	
 DEMO_HEADER		STRING_NL_NONTERM
-			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
 			STRING_NL_NONTERM
 			FCC	"------------------------------"
@@ -217,6 +239,11 @@ DEMO_HEADER		STRING_NL_NONTERM
 DEMO_TABS_END		EQU	*	
 DEMO_TABS_END_LIN	EQU	@	
 
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+#include ./base_SIMHC12.s	;S12CBase bundle
+	
 
 
 

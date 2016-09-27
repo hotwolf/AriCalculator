@@ -216,19 +216,6 @@ DONE			EQU	*
 #emac
 #endif
 
-;#SCI RX error signal
-;-------------------- 
-#ifnmac	SCI_ERRSIG_START
-#macro SCI_ERRSIG_START, 0
-			LED_COMERR_ON
-#emac
-#endif
-#ifnmac	SCI_ERRSIG_STOP
-#macro SCI_ERRSIG_STOP, 0
-			LED_COMERR_OFF
-#emac
-#endif
-	
 ;#Initialization
 ;--------------- 
 #macro	BASE_INIT, 0

@@ -571,6 +571,7 @@ CTCTL           EQU     $003E
 
 ARMCOP          EQU     $003F
 
+ECT		EQU     $0040
 TIOS            EQU     $0040
 ECT_TIOS        EQU     $0040
 IOS7            EQU     $80
@@ -4581,6 +4582,7 @@ XGR7            EQU    	$03AE
 
 ;$03B0 to $03CF reserved
 
+TIM		EQU	$03D0
 TIM_TIOS        EQU     $03D0
 ;IOS7           EQU     $80
 ;IOS6           EQU     $40
