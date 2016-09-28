@@ -4,8 +4,7 @@
 ;# S12CBase - ISTACK - Interrupt Stack Handler                                 #
 ;###############################################################################
 ;#    Copyright 2010-2016 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -52,6 +51,8 @@
 ;#      - New generic implementation                                           #
 ;#    August 16, 2016                                                          #
 ;#      - replaced define "ISTACK_S12" by "#ifcpu"                             #
+;#    Septemember 28, 2016                                                     #
+;#      - S12CBASE overhaul                                                    #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    SSTACK - Subroutine stack handler                                        #
@@ -61,12 +62,12 @@
 ;###############################################################################
 ;# Stack Layout                                                                #
 ;###############################################################################
-;                      +-------------------+
+;        SSTACK_TOP,   +-------------------+
 ;        ISTACK_TOP -> |                   |
 ;                      |      ISTACK       |
 ;                      |                   |
 ;                      +-------------------+
-;        SSTACK_TOP -> |                   |
+;                      |                   |
 ;                      |                   |
 ;                      |                   |
 ;                      |                   |
@@ -87,19 +88,6 @@
 #ifndef	ISTACK_NO_WAI
 ISTACK_WAI		EQU	1 		;default is no WAI
 #endif
-#endif
-
-;Stack allocation
-;----------------
-;Top of the stack (optional for range checks)
-#ifndef	ISTACK_TOP
-#ifdef	SSTACK_TOP
-ISTACK_TOP		EQU	SSTACK_TOP
-#endif
-#endif
-;Bottom of the stack (mandatory)
-#ifndef	ISTACK_BOTTOM
-ISTACK_BOTTOM		EQU	SSTACK_BOTTOM
 #endif
 
 ;Range checks
@@ -130,7 +118,11 @@ ISTACK_DEBUG_OFF	EQU	1 		;default is off
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-ISTACK_CCR		EQU	%0100_0000
+;Stack allocation
+;----------------
+ISTACK_TOP		EQU	SSTACK_TOP
+ISTACK_BOTTOM		EQU	SSTACK_BOTTOM
+ISTACK_SIZE		EQU	SSTACK_SIZE
 
 #ifcpu	S12X
 ;S12X stack layout:
