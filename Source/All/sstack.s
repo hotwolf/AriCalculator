@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - SSTACK - Subroutine Stack Handler                                #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -51,21 +50,22 @@
 ;#      - Removed PSH/PUL macros                                               #
 ;#    January 16, 2016                                                         #
 ;#      - New generic implementation                                           #
+;#    Septemember 28, 2016                                                     #
+;#      - S12CBASE overhaul                                                    #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    SSTACK - Subroutine stack handler                                        #
 ;#    RESET  - Reset handler                                                   #
 ;#                                                                             #
 ;###############################################################################
 ;###############################################################################
 ;# Stack Layout                                                                #
 ;###############################################################################
-;                      +-------------------+
+;        SSTACK_TOP,   +-------------------+
 ;        ISTACK_TOP -> |                   |
 ;                      |      ISTACK       |
 ;                      |                   |
 ;                      +-------------------+
-;        SSTACK_TOP -> |                   |
+;                      |                   |
 ;                      |                   |
 ;                      |                   |
 ;                      |                   |
@@ -117,6 +117,9 @@ SSTACK_DEBUG_OFF	EQU	1 		;default is off
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;Stack size 
+;----------
+SSTACK_SIZE		EQU	(SSTACK_BOTTOM-SSTACK_TOP)
 	
 ;###############################################################################
 ;# Variables                                                                   #
