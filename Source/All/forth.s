@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CForth - S12CForth Framework Bundle                                      #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
-;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CForth framework for NXP's S12C MCU family.  #
 ;#                                                                             #
 ;#    S12CForth is free software: you can redistribute it and/or modify        #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -38,6 +37,8 @@
 ;# Version History:                                                            #
 ;#    February 4, 2015                                                         #
 ;#      - Initial release                                                      #
+;#    September 28, 2016                                                       #
+;#      - Started subroutine threaded implementation                           #
 ;###############################################################################
 
 ;###############################################################################
@@ -57,18 +58,6 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;#Stack protection
-;FRS
-;FRS_NO_CHECK		EQU	1 		;disable range checks
-	
-;FPS
-;FPS_NO_CHECK		EQU	1 		;disable range checks
-
-;S12CBase subroutine stack size 
-#ifndef SSTACK_DEPTH
-SSTACK_DEPTH		EQU	32
-#endif
-
 ;Non-volatile dictionary 
 #ifndef	NVDICT_ON
 #ifndef	NVDICT_OFF
@@ -454,83 +443,6 @@ FEXCPT_TABS_START_LIN	EQU	@
 
 FORTH_TABS_END		EQU	*	
 FORTH_TABS_END_LIN	EQU	@
-
-;###############################################################################
-;# Forth words                                                                 #
-;###############################################################################
-#ifdef FORTH_WORDS_START_LIN
-			ORG 	FORTH_WORDS_START, FORTH_WORDS_START_LIN
-#else
-			ORG 	FORTH_WORDS_START
-#endif	
-			ALIGN	1, $FF
-	
-FRS_WORDS_START		EQU	*
-FRS_WORDS_START_LIN	EQU	@
-			ORG	FRS_WORDS_END, FRS_WORDS_END_LIN
-
-FINNER_WORDS_START	EQU	*
-FINNER_WORDS_START_LIN	EQU	@
-			ORG	FINNER_WORDS_END, FINNER_WORDS_END_LIN
-
-FIRQ_WORDS_START		EQU	*
-FIRQ_WORDS_START_LIN	EQU	@
-			ORG	FIRQ_WORDS_END, FIRQ_WORDS_END_LIN
-
-FPS_WORDS_START		EQU	*
-FPS_WORDS_START_LIN	EQU	@
-			ORG	FPS_WORDS_END, FPS_WORDS_END_LIN
-
-FIO_WORDS_START		EQU	*
-FIO_WORDS_START_LIN	EQU	@
-			ORG	FIO_WORDS_END, FIO_WORDS_END_LIN
-
-FOUTER_WORDS_START	EQU	*
-FOUTER_WORDS_START_LIN	EQU	@
-			ORG	FOUTER_WORDS_END, FOUTER_WORDS_END_LIN
-
-FCDICT_WORDS_START	EQU	*
-FCDICT_WORDS_START_LIN	EQU	@
-			ORG	FCDICT_WORDS_END, FCDICT_WORDS_END_LIN
-
-FNVDICT_WORDS_START	EQU	*
-FNVDICT_WORDS_START_LIN	EQU	@
-			ORG	FNVDICT_WORDS_END, FNVDICT_WORDS_END_LIN
-	
-FUDICT_WORDS_START	EQU	*
-FUDICT_WORDS_START_LIN	EQU	@
-			ORG	FUDICT_WORDS_END, FUDICT_WORDS_END_LIN
-
-FEXCPT_WORDS_START	EQU	*
-FEXCPT_WORDS_START_LIN	EQU	@
-			ORG	FEXCPT_WORDS_END, FEXCPT_WORDS_END_LIN
-
-;FCORE_WORDS_START	EQU	*
-;FCORE_WORDS_START_LIN	EQU	@
-;			ORG	FCORE_WORDS_END, FCORE_WORDS_END_LIN
-;
-;FDOUBLE_WORDS_START	EQU	*
-;FDOUBLE_WORDS_START_LIN	EQU	@
-;			ORG	FDOUBLE_WORDS_END, FDOUBLE_WORDS_END_LIN
-;
-;FFLOAT_WORDS_START	EQU	*
-;FFLOAT_WORDS_START_LIN	EQU	@
-;			ORG	FFLOAT_WORDS_END, FFLOAT_WORDS_END_LIN
-;
-;FTOOLS_WORDS_START	EQU	*
-;FTOOLS_WORDS_START_LIN	EQU	@
-;			ORG	FTOOLS_WORDS_END, FTOOLS_WORDS_END_LIN
-;
-;FFACIL_WORDS_START	EQU	*
-;FFACIL_WORDS_START_LIN	EQU	@
-;			ORG	FFACIL_WORDS_END, FFACIL_WORDS_END_LIN
-;
-;FSCI_WORDS_START	EQU	*
-;FSCI_WORDS_START_LIN	EQU	@
-;			ORG	FSCI_WORDS_END, FSCI_WORDS_END_LIN
-
-FORTH_WORDS_END		EQU	*	
-FORTH_WORDS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Includes                                                                    #
