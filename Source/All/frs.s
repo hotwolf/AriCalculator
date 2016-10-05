@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CForth- FRS - Return Stack                                               #
 ;###############################################################################
-;#    Copyright 2011-2016 Dirk Heisswolf                                       #
+;#    Copyright 2009-2016 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for NXP's S12C MCU          #
 ;#                                                                             #
 ;#    S12CForth is free software: you can redistribute it and/or modify        #
@@ -107,6 +107,7 @@ FRS_VARS_END_LIN	EQU	@
 ;#Quit action
 ;============
 #macro	FRS_QUIT, 0
+			LDS	#RS_EMPTY 		;reset return stack
 #emac
 
 ;###############################################################################
@@ -134,4 +135,5 @@ FRS_TABS_START_LIN	EQU	@
 
 FRS_TABS_END		EQU	*
 FRS_TABS_END_LIN	EQU	@
+#endif	
 

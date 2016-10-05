@@ -156,7 +156,7 @@ START_OF_CODE		EQU	*
 			WELCOME_MESSAGE
 
 ;Application code
-			JOB	CF_ABORT
+			JOB	CF_ABORT_RT
 			BRA	*
 	
 DEMO_CODE_END		EQU	*
