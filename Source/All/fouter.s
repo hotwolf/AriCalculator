@@ -1,11 +1,10 @@
 #ifndef FOUTER_COMPILED
 #define FOUTER_COMPILED
 ;###############################################################################
-;# S12CForth - FOUTER - Forth outer interpreter                                #
+;# S12CForth - FOUTER - Forth Outer Interpreter                                #
 ;###############################################################################
-;#    Copyright 2011-2015 Dirk Heisswolf                                       #
-;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
-;#    family.                                                                  #
+;#    Copyright 2011-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CForth framework for NXP's S12C MCU          #
 ;#                                                                             #
 ;#    S12CForth is free software: you can redistribute it and/or modify        #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -24,8 +23,20 @@
 ;#    This module implements the outer interpreter of the S12CForth            #
 ;#    environment.                                                             #
 ;#                                                                             #
-;#    The outer interpreter implements these registers:                        #
-;#          STATE = Compilation (>0) or interpretation (=0) state              #
+;#    S12CForth register assignments:                                          #
+;#      IP  (instruction pounter)     = PC (subroutine theaded)                #
+;#      RSP (return stack pointer)    = SP                                     #
+;#      PSP (parameter stack pointer) = Y                                      #
+;#  									       #
+;#    Interrupts must be disabled while Y is temporarily used for other        #
+;#    purposes.								       #
+;#  									       #
+;#    S12CForth system variables:                                              #
+;#           BASE = Default radix (2<=BASE<=16)                                #
+;#          STATE = State of the outer interpreter:                            #
+;#  		        0: Interpretation State				       #
+;#  		       -1: RAM Compile State				       #
+;#  		       +1: NV Compile State				       #
 ;#     NUMBER_TIB = Number of chars in the TIB                                 #
 ;#          TO_IN = In-pointer of the TIB (>IN)	       			       #
 ;#       	    (TIB_START+TO_IN) points to the next character	       #
@@ -33,10 +44,6 @@
 ;#    Program termination options:                                             #
 ;#        ABORT:   Restart outer interpreter                                   #
 ;#        QUIT:    Restart outer interpreter                                   #
-;#        SUSPEND: Restart outer interpreter                                   #
-;#                                                                             #
-;#        Compile mode if STATE != 0                                           #
-;#        SUSPEND mode if SHELL != 0                                           #
 ;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
@@ -45,11 +52,9 @@
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    BASE - S12CBase framework                                                #
-;#    FINNER - Forth inner interpreter                                         #
-;#    FIO    - Forth communication interface                                   #
+;#    FTIB   - Forth text input buffer                                         #
 ;#    FRS    - Forth return stack                                              #
 ;#    FPS    - Forth parameter stack                                           #
-;#    FEXCPT - Forth Exception Handler                                         #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -59,14 +64,13 @@
 ;# Memory Layout                                                               #
 ;###############################################################################
 ;                                
-;                         RAM:       
 ;                         +----------+----------+        
-;        RS_TIB_START, -> |          |          | |          
-;           TIB_START     |   Text Input Buffer | | [NUMBER_TIB]
+;        RS_TIB_START, -> |          |          | |
+;           TIB_START     |  Text Input Buffer  | | [NUMBER_TIB]
 ;                         |          |          | |	       
 ;                         |          v          | <	       
 ;                     -+- | --- --- --- --- --- | 	       
-;          TIB_PADDING |  .                     . <- [TIB_START+NUMBER_TIB] 
+;             TIB_PADDING .                     . <- TIB_START+[NUMBER_TIB] 
 ;                     -+- .                     .            
 ;                         | --- --- --- --- --- |            
 ;                         |          ^          | <- [RSP]
@@ -77,47 +81,17 @@
 ;             RS_EMPTY, ->                                 
 ;           RS_TIB_END
 ;
-;                         Return Stack:               	
-;                         +---------------------+     
-;                   RSP-> |                     |     
-;                         |                     |     
-;                         |                     | 
-;                         +---------------------+ <-+ 
-;                 SHELL-> |   Previous SHELL    |   |
-;                         +---------------------+   |
-;                         |   IP at SUSPEND     |   |
-;                         +---------------------+   |
-;                         |   #TIB (unparsed)   |   |SUSPEND
-;                         +---------------------+   |Shell  
-;                         |                     |   |Stack   
-;                         |      Unparsed       |   |Frame         
-;                         |      Section        |   | 
-;                         |       of TIB        |   | 
-;                         |          +----------+   |
-;                         |          | Padding  |   |
-;                         +----------+----------+ <-+     
-;
 	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Safety distance to return stack
-;------------------------------- 
-#ifndef TIB_PADDING
-TIB_PADDING		EQU	4 	;default is 4 bytes
-#endif
-
-;Newline handling:
-;----------------- 
-#ifndef FOUTER_NL_LF
-#ifndef FOUTER_NL_CR
-FOUTER_NL_LF		EQU	1 	;interpret LF as line break, ignore CR
-#endif
-#endif
 	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;#ASCII code 
+FOUTER_SYM_SPACE	EQU	STRING_SYM_SPACE	;space (first printable ASCII character)
+
 ;STATE variable 
 STATE_INTERPRET		EQU	FALSE
 STATE_COMPILE		EQU	TRUE
@@ -132,7 +106,6 @@ DEFAULT_LINE_WIDTH	EQU	74
 FOUTER_DEFAULT_SHELL	EQU	$0000 	;initial shell structure
 
 ;System prompts
-FOUTER_SUSPEND_PROMPT	EQU	"S"
 FOUTER_INTERACT_PROMPT	EQU	">"
 FOUTER_COMPILE_PROMPT	EQU	"+"
 FOUTER_NVCOMPILE_PROMPT	EQU	"@"
@@ -149,9 +122,6 @@ FOUTER_VARS_START_LIN	EQU	@
 			ALIGN	1	
 BASE			DS	2 		;default radix
 STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
-NUMBER_TIB  		DS	2		;number of chars in the TIB
-TO_IN  			DS	2		;parse index (parse area empty if >IN = #TIB) 
-SHELL			DS	2 		;shell frame pointer
 	
 FOUTER_VARS_END		EQU	*
 FOUTER_VARS_END_LIN	EQU	@
@@ -159,38 +129,22 @@ FOUTER_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Initialization
+;#Initialization (executed along with ABORT action)
 ;===============
 #macro	FOUTER_INIT, 0
 			MOVW	#10,    BASE     	;decimal
-			MOVW	#$0000, STATE	   	;interpretation state
-			MOVW	#$0000, NUMBER_TIB	;empty TIB
-			MOVW	#$0000, TO_IN		;reset parser
-			MOVW	#$0000, SHELL		;reset SHELL
 #emac
 
+
 ;#Abort action (to be executed in addition of QUIT action)
-; Empty the data stack and perform the function of QUIT, which includes emptying
-; the return stack, without displaying a message. 
-#macro	FOUTER_ABORT, 0
+;=============
+#macro	FRS_ABORT, 0
 			MOVW	#$0000, STATE	   	;interpretation state
 #emac
 	
 ;#Quit action
-; Empty the return stack, enter interpretation state.  Do not display a message.
-; Repeat the following: 
-; –  Accept a line from the input source into the input buffer, set >IN to zero,
-;    and interpret. 
-; –  Display the implementation-defined system prompt if in interpretation
-;    state, all processing has been completed, and no ambiguous condition
-;    exists.   
-#macro	FOUTER_QUIT, 0
-			MOVW	#$0000, NUMBER_TIB	;empty TIB
-			MOVW	#$0000, TO_IN		;reset parser
-#emac
-	
-;#Suspend action (to be executed in addition of QUIT action)
-#macro	FOUTER_SUSPEND, 0
+;============
+#macro	FRS_QUIT, 0
 #emac
 
 ;Parse restrictions:
@@ -562,6 +516,109 @@ FOUTER_APPEND_DIGIT_3	EQU	*
 			ORG 	FOUTER_CODE_START
 FOUTER_CODE_START_LIN	EQU	@
 #endif
+
+;#IO
+;===
+;#Transmit one char
+; args:   B: data to be send
+; SSTACK: 8 bytes
+;         X, Y, and D are preserved
+FOUTER_TX_CHAR		EQU	SCI_TX_BL
+
+;#Prints a MSB terminated string
+; args:   X:      start of the string
+; result: X;      points to the byte after the string
+; SSTACK: 10 bytes
+;         Y and D are preserved
+FOUTER_TX_STRING	EQU	STRING_PRINT_BL
+
+
+
+
+
+;#########
+;# Words #
+;#########
+	
+;SPACE ( -- ) Print whitespace
+;Print one space character.	
+IF_CR			DB	0
+CF_SPACE		EQU	*
+			LDAB	FOUTER_SYM_SPACE 	;SPACE char -> B
+			JOB	FOUTER_TX_CHAR		;print SPACE char
+		
+;Word: CR ( -- ) Print line break
+;Cause subsequent output to appear at the beginning of the next line.
+IF_CR			DB	0
+CF_CR			EQU	*
+			LDAB	#FOUTER_STR_NL 		;line break sequence -> X
+			JOB	FOUTER_TX_STRING	;print line break sequence
+
+;Word: PROMPT ( -- ) Print shell prompt
+;Prints a STATE specific command line prompt.
+IF_PROMPT		DB	0
+CF_PROMPT		EQU	*
+			JOBSR	CF_CR			;line break
+			MOVW	#CF_SPACE, 2,-SP	;push return address	
+			LDAB	#FOUTER_INTERACT_PROMPT	;interactive prompt -> B
+			LDX	STATE			;check STATE
+			BEQ	FOUTER_TX_CHAR		;print interactive prompt
+			BPL	CF_PROMPT_1		;NV compile
+			LDAB	#FOUTER_COMPILE_PROMPT	;RAM compile prompt -> B 
+CF_PROMPT_1		JOB	FOUTER_TX_CHAR		;print RAM compile prompt
+			LDAB	#FOUTER_NVCOMPILE_PROMPT;NV compile prompt -> B 
+			JOB	FOUTER_TX_CHAR		;print NV compile prompt
+			
+;ABORT run-time ( i*x -- ) ( R: j*x -- )
+;Empty the data stack and perform the function of QUIT, which includes emptying
+;the return stack, without displaying a message.
+CF_ABORT_RT		EQU	*
+			;Execute QUIT actions
+			FORTH_ABORT
+
+;QUIT run-time ( -- ) ( R: j*x -- )
+;Empty the return stack, store zero in SOURCE-ID if it is present, make the user
+;input device the input source, and enter interpretation state. Do not display a
+;message. Repeat the following: 
+; -Accept a line from the input source into the input buffer, set >IN to zero,
+;  and interpret. 
+; -Display the system prompt if in interpretation state,
+;  all processing has been completed, and no ambiguous condition exists.
+CF_QUIT_RT		EQU	*
+			;Execute QUIT actions
+			FORTH_QUIT
+			;Print command line prompt 
+CF_QUIT_RT_1		JOBSR	CF_PROMPT
+			;Query command line 
+			JOBSR	CF_QUERY
+
+			;Loop 
+			JOB	CF_QUIT_RT_1
+
+
+
+
+
+
+;Word: PARSE ( char "ccc<char>" -- c-addr u )
+;Parse ccc delimited by the delimiter char. c-addr is the address (within the
+;input buffer) and u is the length of the parsed string.  If the parse area was
+;empty, the resulting string has a zero length.
+CF_PARSE		EQU	*
+			
+
+	
+
+
+
+
+
+
+
+	
+
+
+
 
 ;#Skip delimiter in TIB 
 ; args:   A:      delimiter (0=any whitespace)
@@ -1262,11 +1319,14 @@ FOUTER_TABS_START_LIN	EQU	@
 #endif	
 
 ;Symbol tables
+FOUTER_STR_NL		EQU	STRING_STR_NL
+
+;System prompts
+FOUTER_STR_OK		FCS	" ok"
+	
+;Symbol tables
 FOUTER_SYMTAB		EQU	NUM_SYMTAB
 	
-;System prompts
-FOUTER_SYSTEM_ACK	FCS	" ok"
-
 FOUTER_TABS_END		EQU	*
 FOUTER_TABS_END_LIN	EQU	@
 

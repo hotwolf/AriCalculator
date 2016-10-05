@@ -149,14 +149,16 @@ DONE			EQU	*
 			ORG 	DEMO_CODE_START
 #endif	
 
+START_OF_CODE		EQU	*
 ;Initialization
 			BASE_INIT
 			FORTH_INIT
 			WELCOME_MESSAGE
-	
-;Application code
-DEMO_LOOP		JOB	*
 
+;Application code
+			JOB	CF_ABORT
+			BRA	*
+	
 DEMO_CODE_END		EQU	*
 DEMO_CODE_END_LIN	EQU	@
 	
@@ -168,6 +170,15 @@ DEMO_CODE_END_LIN	EQU	@
 #else
 			ORG 	DEMO_TABS_START
 #endif	
+
+;#Welcome message
+#ifndef	WELCOME_MESSAGE
+WELCOME_MESSAGE		FCC	"Hello, this is S12CForth!"
+			STRING_NL_TERM
+#endif
+
+PROMPT			STRING_NL_NONTERM
+			FCS	"> "
 	
 DEMO_TABS_END		EQU	*
 DEMO_TABS_END_LIN	EQU	@
