@@ -489,6 +489,7 @@ SCI_C0_XON		EQU	$11 		;unblock transmission
 SCI_C0_XOFF		EQU	$13		;block transmission
 SCI_C0_SUSPEND		EQU	$1A 		;ctrl-z (suspend program execution)
 SCI_C0_US		EQU	$1A 		;last C0 character (unit separator)
+SCI_C0_DEL		EQU	$7F 		;DELETE
 	
 ;#Buffer masks		
 SCI_RXBUF_MASK		EQU	SCI_TXBUF_SIZE-1;mask for rolling over the RX buffer
@@ -1001,15 +1002,15 @@ DONE			EQU	* 					;done
 ;         X, Y, and D are preserved
 SCI_TX_NB		EQU	*
 			;Save registers (data in B)
-			PSHY						;save Y
+			PSHX						;save X
 			PSHA						;save A
 			CLC						;default result: failure
 			PSHC						;save CCR (incl. default result)
 			;Write data into the TX buffer (data in B)
-			LDY	#SCI_TXBUF 				;buffer pointer -> Y
+			LDX	#SCI_TXBUF 				;buffer pointer -> X
 			LDAA	SCI_TXBUF_IN 				;in -> A
-			STAB	A,Y 					;store data in buffer
-			;Check if there is room for this entry (data in B, in-index in A, TX buffer pointer in Y)
+			STAB	A,X 					;store data in buffer
+			;Check if there is room for this entry (data in B, in-index in A, TX buffer pointer in X)
 			INCA						;increment index
 			ANDA	#SCI_TXBUF_MASK				;wrap index
 			CMPA	SCI_TXBUF_OUT 				;check if buffer is full
@@ -1024,7 +1025,7 @@ SCI_TX_NB		EQU	*
 SCI_TX_NB_1		SSTACK_PREPULL	6 				;check SSTACK
 			PULC						;restore CCR (incl. result)
 			PULA						;restore A
-			PULY						;restore Y
+			PULX						;restore X
 			;Done
 			RTS
 			
@@ -1492,42 +1493,45 @@ SCI_ISR_RX_1		EQU	*
 #ifdef	SCI_CHECK_RX_ERR
 			;Check for RX errors (status flags in A, RX data in B)
 			BITA	#(SCI_FLG_SWOR|OR|NF|FE|PF) 		;don't handle control characters with errors
-			BNE	<SCI_ISR_RX_2  				;queue data
+			BNE	<SCI_ISR_RX_3  				;queue data
 			SCI_ERRSIG_STOP 				;release error signal
 #endif
 #ifdef	SCI_HANDLE_C0
 			;Check character is escaped (status flags in A, RX data in B)
-			BRSET	SCI_FLGS,#SCI_FLG_RX_ESC,SCI_ISR_RX_2	;charakter is escaped (skip detection)			
+			BRSET	SCI_FLGS,#SCI_FLG_RX_ESC,SCI_ISR_RX_3	;charakter is escaped (skip detection)			
+			;Check for DEL charakter (status flags in A, RX data in B)
+			CMPB	#SCI_C0_DEL	 			;check for DEL charakter
+			BEQ	<SCI_ISR_RX_2				;flag control character
 			;Check for C0 charakters (status flags in A, RX data in B)
 			CMPB	#SCI_C0_US	 			;check for C0 charakters
-			BHI	<SCI_ISR_RX_2				;C1 character found
+			BHI	<SCI_ISR_RX_3				;C1 character found
 #ifdef	SCI_XONXOFF
 			;Process XOFF (status flags in A, RX data in B)
 			CMPB	#SCI_C0_XOFF 				;check for XOFF
-			BEQ	<SCI_ISR_RX_7				;handle XOFF
+			BEQ	<SCI_ISR_RX_8				;handle XOFF
 			;Process XOFF (status flags in A, RX data in B)
 			CMPB	#SCI_C0_XOFF 				;check for XON
-			BEQ	<SCI_ISR_RX_8				;handle XON
+			BEQ	<SCI_ISR_RX_9				;handle XON
 #endif
 			;Process DLE (status flags in A, RX data in B)
 			CMPB	#SCI_C0_DLE 				;check for DLE
-			BEQ	<SCI_ISR_RX_9				;handle DLE
+			BEQ	<SCI_ISR_RX_10				;handle DLE
 
 #ifdef	SCI_HANDLE_BREAK
 			;Process BREAK (status flags in A, RX data in B)
 			CMPB	#SCI_C0_BREAK 				;check for BREAK
-			BEQ	<SCI_ISR_RX_10 				;handle BREAK
+			BEQ	<SCI_ISR_RX_11 				;handle BREAK
 #endif
 #ifdef	SCI_HANDLE_SUSPEND
 			;Process SUSPEND (status flags in A, RX data in B)
 			CMPB	#SCI_C0_SUSPEND 			;check for SUSPEND
-			BEQ	<SCI_ISR_RX_11 				;handle SUSPEND
+			BEQ	<SCI_ISR_RX_12 				;handle SUSPEND
 #endif
 			;Handle other C0 characters (status flags in A, RX data in B)
-			ORAA	#SCI_FLG_CTRL 				;flag control character
+SCI_ISR_RX_2		ORAA	#SCI_FLG_CTRL 				;flag control character
 #endif
 			;Place data into RX queue (status flags in A, RX data in B)
-SCI_ISR_RX_2		EQU	*
+SCI_ISR_RX_3		EQU	*
 #ifdef	SCI_HANDLE_C0
 			BCLR	SCI_FLGS, #SCI_FLG_RX_ESC		;remove escape flag			
 #endif
@@ -1538,32 +1542,32 @@ SCI_ISR_RX_2		EQU	*
 			ADDA	#2 					;advance in pointer
 			ANDA	#SCI_RXBUF_MASK				;
 			CBA		     				;check for buffer overflow
-                	BEQ	<SCI_ISR_RX_12				;buffer overflow
+                	BEQ	<SCI_ISR_RX_13				;buffer overflow
 			STAA	SCI_RXBUF_IN				;update IN pointer
 #ifndef	SCI_NOFC
 			;Check if flow control must be applied (in:out in D, flags:data in Y)
 			SBA
 			ANDA	#SCI_RXBUF_MASK
 			CMPA	#SCI_RX_FULL_LEVEL
-			BHS	<SCI_ISR_RX_13 				;buffer is getting full
+			BHS	<SCI_ISR_RX_14 				;buffer is getting full
 #endif
 			;Restart pause time-out	(flags:data in Y) 
-SCI_ISR_RX_3		BRCLR	SCI_FLGS,#SCI_FLG_PAUSE,SCI_ISR_RX_4	;no pause requested
+SCI_ISR_RX_4		BRCLR	SCI_FLGS,#SCI_FLG_PAUSE,SCI_ISR_RX_5	;no pause requested
 			MOVB	#SCI_PAUSE_DLY, SCI_OC_CNT 		;reset down counter
 			MOVW	SCI_OC_TCNT, SCI_OC_TC 			;reset OC register
 #ifdef	SCI_XONXOFF
-			JOB	SCI_ISR_RX_5
+			JOB	SCI_ISR_RX_6
 			;Restart XON/XOFF reminder delay (flags:data in Y)
-SCI_ISR_RX_4		MOVB	#SCI_XONXOFF_DLY, SCI_OC_CNT 		;reset down counter
+SCI_ISR_RX_5		MOVB	#SCI_XONXOFF_DLY, SCI_OC_CNT 		;reset down counter
 			MOVW	#SCI_OC_TCNT, SCI_OC_TC 		;reset down counter
-SCI_ISR_RX_5		EQU	*
+SCI_ISR_RX_6		EQU	*
 #else
-SCI_ISR_RX_4		EQU	SCI_ISR_RX_6 				;done
+SCI_ISR_RX_5		EQU	SCI_ISR_RX_7 				;done
 #endif
 			MOVW	SCI_OC_TCNT, SCI_OC_TC 			;adjust OC
 			TIM_CLRIF SCI_OC_TIM, SCI_OC 			;clear interrupt flag
 			;Done
-SCI_ISR_RX_6		EQU	* 					;done
+SCI_ISR_RX_7		EQU	* 					;done
 #ifmac	RANDOM_SHIFT_TIM
 			RANDOM_SHIFT_TIM SCI_OC_TIM 			;randomize on input
 #endif
@@ -1572,39 +1576,39 @@ SCI_ISR_RX_6		EQU	* 					;done
 			;Handle C0 characters (status flags in A, RX data in B)	
 #ifdef	SCI_XONXOFF
 			;XOFF
-SCI_ISR_RX_7		BSET	SCI_FLGS,#SCI_FLG_RX_XOFF 		;stop transmissions	
-			JOB	SCI_ISR_RX_4				;delay XON/XOFF reminder
+SCI_ISR_RX_8		BSET	SCI_FLGS,#SCI_FLG_RX_XOFF 		;stop transmissions	
+			JOB	SCI_ISR_RX_5				;delay XON/XOFF reminder
 			;XON
-SCI_ISR_RX_8		BCLR	SCI_FLGS,#SCI_FLG_RX_XOFF 		;resume transmissions	
-			JOB	SCI_ISR_RX_4				;delay XON/XOFF reminder
+SCI_ISR_RX_9		BCLR	SCI_FLGS,#SCI_FLG_RX_XOFF 		;resume transmissions	
+			JOB	SCI_ISR_RX_5				;delay XON/XOFF reminder
 #endif
 			;DLE
-SCI_ISR_RX_9		BSET	SCI_FLGS,#SCI_FLG_RX_ESC 		;escape next RX char	
-			JOB	SCI_ISR_RX_3				;restart pause delay
+SCI_ISR_RX_10		BSET	SCI_FLGS,#SCI_FLG_RX_ESC 		;escape next RX char	
+			JOB	SCI_ISR_RX_4				;restart pause delay
 #ifdef	SCI_HANDLE_BREAK
 			;BREAK
-SCI_ISR_RX_10		SCI_BREAK_ACTION 				;BREAK action	
-			JOB	SCI_ISR_RX_6				;done
+SCI_ISR_RX_11		SCI_BREAK_ACTION 				;BREAK action	
+			JOB	SCI_ISR_RX_7				;done
 			;ISTACK_RTI 					;done
 #endif
 #ifdef	SCI_HANDLE_SUSPEND
 			;SUSPEND
-SCI_ISR_RX_11		SCI_SUSPEND_ACTION 				;SUSPEND action
-			JOB	SCI_ISR_RX_6				;done
+SCI_ISR_RX_12		SCI_SUSPEND_ACTION 				;SUSPEND action
+			JOB	SCI_ISR_RX_7				;done
 			;ISTACK_RTI 					;done
 #endif
 #endif
 			;Buffer overflow
-SCI_ISR_RX_12		BSET	SCI_FLGS, #SCI_FLG_SWOR 		;set SWOR bit (software overrun)	
+SCI_ISR_RX_13		BSET	SCI_FLGS, #SCI_FLG_SWOR 		;set SWOR bit (software overrun)	
 #ifdef	SCI_XONXOFF
 			;Apply flow control (flags:data in Y)
-SCI_ISR_RX_13		SCI_TX_XONXOFF 					;signal XOFF
+SCI_ISR_RX_14		SCI_TX_XONXOFF 					;signal XOFF
 #endif
 #ifdef	SCI_RTSCTS
 			;Apply flow control (flags:data in Y)
-SCI_ISR_RX_13		SCI_DEASSERT_CTS 				;clear CTS
+SCI_ISR_RX_14		SCI_DEASSERT_CTS 				;clear CTS
 #endif
-			JOB	SCI_ISR_RX_3				;restart pause delay
+			JOB	SCI_ISR_RX_4				;restart pause delay
 	
 SCI_CODE_END		EQU	*
 SCI_CODE_END_LIN	EQU	@
