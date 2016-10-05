@@ -86,6 +86,7 @@
 ;# Constants                                                                   #
 ;###############################################################################
 ;#ASCII code 
+STRING_SYM_EOT		EQU	$04 	;EOT (ctrl-D)
 STRING_SYM_BEEP		EQU	$07 	;acoustic signal
 STRING_SYM_BACKSPACE	EQU	$08 	;backspace symbol
 STRING_SYM_TAB		EQU	$09 	;tab symbol
