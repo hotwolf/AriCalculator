@@ -532,16 +532,16 @@ FOUTER_TX_STRING	EQU	STRING_PRINT_BL
 	
 ;SPACE ( -- ) Print whitespace
 ;Print one space character.	
-IF_SPACE			DB	0
+IF_SPACE		DB	0
 CF_SPACE		EQU	*
-			LDAB	FOUTER_SYM_SPACE 	;SPACE char -> B
+			LDAB	#FOUTER_SYM_SPACE 	;SPACE char -> B
 			JOB	FOUTER_TX_CHAR		;print SPACE char
 		
 ;Word: CR ( -- ) Print line break
 ;Cause subsequent output to appear at the beginning of the next line.
 IF_CR			DB	0
 CF_CR			EQU	*
-			LDAB	#FOUTER_STR_NL 		;line break sequence -> X
+			LDX 	#FOUTER_STR_NL 		;line break sequence -> X
 			JOB	FOUTER_TX_STRING	;print line break sequence
 
 ;Word: PROMPT ( -- ) Print shell prompt
@@ -595,21 +595,41 @@ CF_QUIT_RT_1		JOBSR	CF_PROMPT
 ;input buffer) and u is the length of the parsed string.  If the parse area was
 ;empty, the resulting string has a zero length.
 CF_PARSE		EQU	*
-			
+	 		;Skip delimeters
+			LDAB	1,Y			;delimeter -> A
+CF_PARSE_1		LDX	TO_IN 			;>IN -> X
+CF_PARSE_2		CPX	NUMBER_TIB		;check if buffer is parsed
+			BHS	CF_PARSE_8		;nothing to parse
+			CMPB	TIB_START,X		;check for delimeter
+			BNE	CF_PARSE_3		;no delimeter
+			INX				;advance >IN
+			JOB	CF_PARSE_2		;check next character
+			;Store string address (delimeter in B, >IN in X) 
+CF_PARSE_3		STX	TO_IN			;update >IN
+			LEAX	TIB_START,X 		;string address -> X
+			STX	0,SP			;push string address
+			LEAX	-TIB_START,X		;>IN -> X
+			MOVW	#$0001, 2,-SP		;push initial char count
+			LDAA	#$01			;char count -> A
+			;Count chars (delimeter in B, char count in A, >IN in X)
+CF_PARSE_4		INX				;advance >IN
+			CPX	NUMBER_TIB		;check if buffer is parsed
+			BHS	CF_PARSE_6		;done
+			ADDA	#$01			;increment char 
+			BCC	CF_PARSE_5		;no carry
+			INC	0,SP			;increment MSW
+CF_PARSE_5		CMPB	TIB_START,X		;check for delimeter
+			BNE	CF_PARSE_4		;no delimeter
+			;Done (char count in A, >IN in X)
+CF_PARSE_6		STAA	1,SP			;update char count
+CF_PARSE_7		STX	TO_IN			;update >IN
+			RTS
+			;Parse unsuccessful  (char count in A, >IN in X) 
+CF_PARSE_8		MOVW	#$0000, 0,SP 		;null string
+			MOVW	#$0000, 2,-SP 		;null length
+			JOB	CF_PARSE_7		;done
 
 	
-
-
-;
-;
-;
-;
-;
-;	
-;
-;
-;
-;
 ;;#Skip delimiter in TIB 
 ;; args:   A:      delimiter (0=any whitespace)
 ;;         #TIB:   char count in TIB

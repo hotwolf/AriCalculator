@@ -221,29 +221,29 @@ CF_QUERY_5		STS	2,-SP			;temporarily push SP onto the stack
 			JOB	CF_QUERY_3		;print char
 			;Handle DEL (new #TIB in X)
 CF_QUERY_6		CMPB	#FTIB_SYM_DEL		;check for DEL char
-			BNE	CF_QUERY_8		;no DEL char
+			BNE	CF_QUERY_9		;no DEL char
 			TBEQ	X, CF_QUERY_2 		;no input (beep)
-			LDAB	#FTIB_SYM_BACKSPACE	;backspace char -> B
-CF_QUERY_7		JOBSR	FTIB_TX_CHAR		;send backspace to terminal
-			DBNE	X, CF_QUERY_7		;repeat until input line is empty
+CF_QUERY_7		LDAB	#FTIB_SYM_BACKSPACE	;backspace char -> B
+CF_QUERY_8		JOBSR	FTIB_TX_CHAR		;send backspace to terminal
+			DBNE	X, CF_QUERY_8		;repeat until input line is empty
 			MOVW	0,SP, NUMBER_TIB	;update #TIB
 			JOB	CF_QUERY_1		;wait new input
 			;Handle BACKSPACE (char in B, new #TIB in X)
-CF_QUERY_8		CMPB	#FTIB_SYM_BACKSPACE 	;check for BACKSPACE char
-			BNE	CF_QUERY_9		;no BACKSPACE
+CF_QUERY_9		CMPB	#FTIB_SYM_BACKSPACE 	;check for BACKSPACE char
+			BNE	CF_QUERY_10		;no BACKSPACE
 			TBEQ	X, CF_QUERY_2 		;no input (beep)
 			DEX				;decrement #TIB
 			CPX	0,SP			;check if old TIB content is affected
 			BLE	CF_QUERY_3		;transmit BACKSPACE char
 			STX	NUMBER_TIB		;update #TIB
 			JOB	CF_QUERY_3		;transmit BACKSPACE char
-			;Handle TAB (cvvvhar in B, new #TIB in X)
-CF_QUERY_9		CMPB	#FTIB_SYM_TAB	 	;check for TAB char
-			BNE	CF_QUERY_12		;no TAB			
+			;Handle TAB (char in B, new #TIB in X)
+CF_QUERY_10		CMPB	#FTIB_SYM_TAB	 	;check for TAB char
+			BNE	CF_QUERY_13		;no TAB			
 			CPX	0,SP 			;check if old TIB content is overwritten
-			BHS	CF_QUERY_10		;old TIB is still intact (char is only appended)
+			BHS	CF_QUERY_11		;old TIB is still intact (char is only appended)
 			MOVW	#$0000,     0,SP 	;clear old #TIB	
-CF_QUERY_10		PSHX				;save new #TIB
+CF_QUERY_11		PSHX				;save new #TIB
 			TFR	X, D			;new #TIB -> D
 			LDX	#FTIB_TAB_WIDTH		;tab width -> X
 			IDIV				;X/D->X, X%D->D
@@ -251,7 +251,7 @@ CF_QUERY_10		PSHX				;save new #TIB
 			LDAA	#FTIB_TAB_WIDTH		;tab width -> A
 			SBA				;A - B -> A
 			LDAB	#FTIB_SYM_SPACE		;SPACE char -> B
-CF_QUERY_11		STS	2,-SP			;temporarily push SP onto the stack
+CF_QUERY_12		STS	2,-SP			;temporarily push SP onto the stack
 			LEAX	(TIB_START+TIB_PADDING+8),X;TIB+padding -> X
 			CPX	2,SP+			;check boundary
 			LEAX	-(TIB_START+TIB_PADDING+8),X;new #TIB -> X
@@ -260,45 +260,45 @@ CF_QUERY_11		STS	2,-SP			;temporarily push SP onto the stack
 			STX	NUMBER_TIB		;update #TIB
 			STAB	(TIB_START-1),X		;append char
 			JOBSR	FTIB_TX_CHAR		;print SPACE char
-			DBNE	A, CF_QUERY_11		;try to print next SPACE char
+			DBNE	A, CF_QUERY_12		;try to print next SPACE char
 			JOB	CF_QUERY_1		;wait new input
 			;Handle restore (char in B, new #TIB in X)
-CF_QUERY_12		CMPB	#FTIB_SYM_EOT	 	;check for EOT char
-			BNE	CF_QUERY_16		;no resore			
+CF_QUERY_13		CMPB	#FTIB_SYM_EOT	 	;check for EOT char
+			BNE	CF_QUERY_17		;no resore			
 			LDD	0,SP			;check if last input is still valid
 			BEQ	CF_QUERY_2		;last input is invalid (beep)
 			TFR	X, D			;new #TIB -> D
 			SUBD	0,SP			;new #TIB - old #TIB -> D
-			BEQ	CF_QUERY_1		;input line already restored
-			BMI	CF_QUERY_15		;restore missing chars
+			BEQ	CF_QUERY_7		;input line already restored -> remove it
+			BMI	CF_QUERY_16		;restore missing chars
 			TFR	D, X			;new #TIB - old #TIB -> X
 			LDAB	#FTIB_SYM_BACKSPACE	;BACKSPACE char -> B
-CF_QUERY_13		JOBSR	FTIB_TX_CHAR		;print SPACE char
-			DBNE	X, CF_QUERY_13		;try to print next SPACE char
-CF_QUERY_14		LDX	0,SP			;new TIB = old TIB
+CF_QUERY_14		JOBSR	FTIB_TX_CHAR		;print BACKSPACE char
+			DBNE	X, CF_QUERY_14		;try to print next SPACE char
+CF_QUERY_15		LDX	0,SP			;new TIB = old TIB
 			JOB	CF_QUERY_1		;wait new input
-CF_QUERY_15		LDAB	TIB_START,X		;next char -> B
+CF_QUERY_16		LDAB	TIB_START,X		;next char -> B
 			JOBSR	FTIB_TX_CHAR		;print char
 			INX				;advance new #TIB
 			CPX	0,SP			;compate new #TIB against old #TIB
-			BLO	CF_QUERY_15		;repeat until input line is restored
-			JOB	CF_QUERY_14		;command line has been restored
+			BLO	CF_QUERY_16		;repeat until input line is restored
+			JOB	CF_QUERY_15		;command line has been restored
 			;Check for line breaks (char in B, new #TIB in X)			
-CF_QUERY_16		CMPB	#FTIB_SYM_CR
+CF_QUERY_17		CMPB	#FTIB_SYM_CR
 #ifdef	FOUTER_NL_CR
-			BEQ	CF_QUERY_17		;command line complete		
+			BEQ	CF_QUERY_18		;command line complete		
 #else
 			BEQ	CF_QUERY_1		;ignore
 #endif
 			CMPB	#FTIB_SYM_LF	
 #ifdef	FOUTER_NL_LF
-			BEQ	CF_QUERY_17		;command line complete		
+			BEQ	CF_QUERY_18		;command line complete		
 #else
 			BEQ	CF_QUERY_1		;ignore
 #endif
 			JOB	CF_QUERY_2		;invalid char (beep)
 			;Command line complete (new #TIB in X)
-CF_QUERY_17		STX	NUMBER_TIB 		;update #TIB
+CF_QUERY_18		STX	NUMBER_TIB 		;update #TIB
 			LEAS	2,SP			;stack space
 			RTS				;done
 
