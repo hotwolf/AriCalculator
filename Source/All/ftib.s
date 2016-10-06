@@ -186,7 +186,7 @@ FTIB_TX_CHAR		EQU	SCI_TX_BL
 ;Make the user input device the input source. Receive input into the terminal
 ;input buffer,mreplacing any previous contents. Make the result, whose address is
 ;returned by TIB, the input buffer.  Set >IN to zero.
-IF_QUERY		DB	0
+IF_QUERY		REGULAR
 CF_QUERY		EQU	*
 			;Allocate temporary #TIB pointers 
 			MOVW	NUMBER_TIB, 2,-SP 	;old #TIB -> SP+0

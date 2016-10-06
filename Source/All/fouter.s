@@ -141,6 +141,27 @@ FOUTER_VARS_END_LIN	EQU	@
 #macro	FOUTER_QUIT, 0
 #emac
 
+;#Word types
+;===========
+;REGULAR:
+;Execute in interactive state, compile reference in compile state
+#macro	REGULAR, 0
+			DB	$00
+#emac
+
+;IMMEDIATE:
+;Execute in interactive and in compile state
+#macro	IMMEDIATE, 0
+			DB	$FF
+#emac
+
+;INLINE:
+;Execute in interactive state, compile code field in compile state
+#macro	INLINE, 1
+			DB	\1_EOI-\1
+#emac
+
+
 ;;Parse restrictions:
 ;;===================
 ;;COMPILE_ONLY: Ensure that the system is in compile state
@@ -530,23 +551,23 @@ FOUTER_TX_STRING	EQU	STRING_PRINT_BL
 ;# Words #
 ;#########
 	
-;SPACE ( -- ) Print whitespace
+;Word: SPACE ( -- ) Print whitespace
 ;Print one space character.	
-IF_SPACE		DB	0
+IF_SPACE		REGULAR
 CF_SPACE		EQU	*
 			LDAB	#FOUTER_SYM_SPACE 	;SPACE char -> B
 			JOB	FOUTER_TX_CHAR		;print SPACE char
 		
 ;Word: CR ( -- ) Print line break
 ;Cause subsequent output to appear at the beginning of the next line.
-IF_CR			DB	0
+IF_CR			REGULAR
 CF_CR			EQU	*
 			LDX 	#FOUTER_STR_NL 		;line break sequence -> X
 			JOB	FOUTER_TX_STRING	;print line break sequence
 
 ;Word: PROMPT ( -- ) Print shell prompt
 ;Prints a STATE specific command line prompt.
-IF_PROMPT		DB	0
+IF_PROMPT		REGULAR
 CF_PROMPT		EQU	*
 			JOBSR	CF_CR			;line break
 			MOVW	#CF_SPACE, 2,-SP	;push return address	
@@ -594,6 +615,7 @@ CF_QUIT_RT_1		JOBSR	CF_PROMPT
 ;Parse ccc delimited by the delimiter char. c-addr is the address (within the
 ;input buffer) and u is the length of the parsed string.  If the parse area was
 ;empty, the resulting string has a zero length.
+IF_PARSE		REGULAR
 CF_PARSE		EQU	*
 	 		;Skip delimeters
 			LDAB	1,Y			;delimeter -> A
