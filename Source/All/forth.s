@@ -81,10 +81,13 @@ NVDICT_OFF		EQU	1 		;NVDICT disabled by default
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;Max. line length
+DEFAULT_LINE_WIDTH	EQU	60
+
 ;#S12CBASE STRING requirements
-STRING_ENABLE_FILL_NB	EQU	1	;enable STRING_FILL_NB 
-STRING_ENABLE_FILL_BL	EQU	1	;enable STRING_FILL_BL 
-STRING_ENABLE_UPPER	EQU	1	;enable STRING_UPPER 
+;STRING_ENABLE_FILL_NB	EQU	1	;enable STRING_FILL_NB 
+;STRING_ENABLE_FILL_BL	EQU	1	;enable STRING_FILL_BL 
+;STRING_ENABLE_UPPER	EQU	1	;enable STRING_UPPER 
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -123,18 +126,18 @@ FOUTER_VARS_START	EQU	*
 FOUTER_VARS_START_LIN	EQU	@
 			ORG	FOUTER_VARS_END, FOUTER_VARS_END_LIN
 
-;FCDICT_VARS_START	EQU	*
-;FCDICT_VARS_START_LIN	EQU	@
-;			ORG	FCDICT_VARS_END, FCDICT_VARS_END_LIN
-;
+FCDICT_VARS_START	EQU	*
+FCDICT_VARS_START_LIN	EQU	@
+			ORG	FCDICT_VARS_END, FCDICT_VARS_END_LIN
+
 ;FNVDICT_VARS_START	EQU	*
 ;FNVDICT_VARS_START_LIN	EQU	@
 ;			ORG	FNVDICT_VARS_END, FNVDICT_VARS_END_LIN
 ;	
-;FUDICT_VARS_START	EQU	*
-;FUDICT_VARS_START_LIN	EQU	@
-;			ORG	FUDICT_VARS_END, FUDICT_VARS_END_LIN
-;
+FUDICT_VARS_START	EQU	*
+FUDICT_VARS_START_LIN	EQU	@
+			ORG	FUDICT_VARS_END, FUDICT_VARS_END_LIN
+
 ;FEXCPT_VARS_START	EQU	*
 ;FEXCPT_VARS_START_LIN	EQU	@
 ;			ORG	FEXCPT_VARS_END, FEXCPT_VARS_END_LIN
@@ -201,9 +204,9 @@ FORTH_VARS_END_LIN	EQU	@
 	;FIRQ_INIT
 	FPS_INIT
 	FOUTER_INIT
-	;FCDICT_INIT
+	FCDICT_INIT
 	;FNVDICT_INIT
-	;FUDICT_INIT
+	FUDICT_INIT
 	;FEXCPT_INIT
 	;FCORE_INIT
 	;FDOUBLE_INIT
@@ -222,9 +225,9 @@ FORTH_VARS_END_LIN	EQU	@
 	FPS_ABORT
 	;FIO_ABORT
 	FOUTER_ABORT
-	;FCDICT_ABORT
+	FCDICT_ABORT
 	;FNVDICT_ABORT
-	;FUDICT_ABORT
+	FUDICT_ABORT
 	;FEXCPT_ABORT
 	;FCORE_ABORT
 	;FDOUBLE_ABORT
@@ -243,9 +246,9 @@ FORTH_VARS_END_LIN	EQU	@
 	FPS_QUIT
 	;FIO_QUIT
 	FOUTER_QUIT
-	;FCDICT_QUIT
+	FCDICT_QUIT
 	;FNVDICT_QUIT
-	;FUDICT_QUIT
+	FUDICT_QUIT
 	;FEXCPT_QUIT
 	;FCORE_QUIT
 	;FDOUBLE_QUIT
@@ -292,18 +295,18 @@ FOUTER_CODE_START	EQU	*
 FOUTER_CODE_START_LIN	EQU	@
 			ORG	FOUTER_CODE_END, FOUTER_CODE_END_LIN
 
-;FCDICT_CODE_START	EQU	*
-;FCDICT_CODE_START_LIN	EQU	@
-;			ORG	FCDICT_CODE_END, FCDICT_CODE_END_LIN
-;
+FCDICT_CODE_START	EQU	*
+FCDICT_CODE_START_LIN	EQU	@
+			ORG	FCDICT_CODE_END, FCDICT_CODE_END_LIN
+
 ;FNVDICT_CODE_START	EQU	*
 ;FNVDICT_CODE_START_LIN	EQU	@
 ;			ORG	FNVDICT_CODE_END, FNVDICT_CODE_END_LIN
 ;	
-;FUDICT_CODE_START	EQU	*
-;FUDICT_CODE_START_LIN	EQU	@
-;			ORG	FUDICT_CODE_END, FUDICT_CODE_END_LIN
-;
+FUDICT_CODE_START	EQU	*
+FUDICT_CODE_START_LIN	EQU	@
+			ORG	FUDICT_CODE_END, FUDICT_CODE_END_LIN
+
 ;FEXCPT_CODE_START	EQU	*
 ;FEXCPT_CODE_START_LIN	EQU	@
 ;			ORG	FEXCPT_CODE_END, FEXCPT_CODE_END_LIN
@@ -372,18 +375,18 @@ FOUTER_TABS_START	EQU	*
 FOUTER_TABS_START_LIN	EQU	@
 			ORG	FOUTER_TABS_END, FOUTER_TABS_END_LIN
 
-;FCDICT_TABS_START	EQU	*
-;FCDICT_TABS_START_LIN	EQU	@
-;			ORG	FCDICT_TABS_END, FCDICT_TABS_END_LIN
-;
+FCDICT_TABS_START	EQU	*
+FCDICT_TABS_START_LIN	EQU	@
+			ORG	FCDICT_TABS_END, FCDICT_TABS_END_LIN
+
 ;FNVDICT_TABS_START	EQU	*
 ;FNVDICT_TABS_START_LIN	EQU	@
 ;			ORG	FNVDICT_TABS_END, FNVDICT_TABS_END_LIN
 ;	
-;FUDICT_TABS_START	EQU	*
-;FUDICT_TABS_START_LIN	EQU	@
-;			ORG	FUDICT_TABS_END, FUDICT_TABS_END_LIN
-;
+FUDICT_TABS_START	EQU	*
+FUDICT_TABS_START_LIN	EQU	@
+			ORG	FUDICT_TABS_END, FUDICT_TABS_END_LIN
+
 ;FEXCPT_TABS_START	EQU	*
 ;FEXCPT_TABS_START_LIN	EQU	@
 ;			ORG	FEXCPT_TABS_END, FEXCPT_TABS_END_LIN
@@ -418,23 +421,23 @@ FORTH_TABS_END_LIN	EQU	@
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./ftib.s						;text input buffer
-#include ../All/frs.s						;return stack
-#include ../All/fps.s						;parameter stack 
-;#include ../All/fio.s						;communication interface 
-;#include ../All/fexcpt.s					;exceptions
-;#include ../All/finner.s					;inner interpreter
-#include ../All/fouter.s					;outer interpreter
-;#include ../All/firq.s						;interrupt requests
-;#include ../All/fcdict.s					;core dictionary
-;#include ../All/fcdict_tree.s					;core dictionary search tree
-;#include ../All/fnvdict.s					;non-volatile dictionary
-;#include ../All/fudict.s					;user dictionary
-;#include ../All/fcore.s					;core words
-;#include ../All/fdouble.s					;double-number words
-;#include ../All/ffloat.s					;floating point words
-;#include ../All/ftools.s					;programming tools words
-;#include ../All/ffacil.s					;facility words
-;#include ../All/fsci.s						;S12CBase SCI wrapper
+#include .//ftib.s					;text input buffer
+#include .//frs.s					;return stack
+#include .//fps.s					;parameter stack 
+;#include .//fio.s					;communication interface 
+;#include .//fexcpt.s					;exceptions
+;#include .//finner.s					;inner interpreter
+#include .//fouter.s					;outer interpreter
+;#include .//firq.s					;interrupt requests
+#include .//fcdict.s					;core dictionary
+#include .//fcdict_tree.s				;core dictionary search tree
+;#include .//fnvdict.s					;non-volatile dictionary
+#include .//fudict.s					;user dictionary
+;#include .//fcore.s					;core words
+;#include .//fdouble.s					;double-number words
+;#include .//ffloat.s					;floating point words
+;#include .//ftools.s					;programming tools words
+;#include .//ffacil.s					;facility words
+;#include .//fsci.s					;S12CBase SCI wrapper
 #endif
 	
