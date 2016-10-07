@@ -71,12 +71,12 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Non-volatile dictionary 
-#ifndef	NVDICT_ON
-#ifndef	NVDICT_OFF
-NVDICT_OFF		EQU	1 		;NVDICT disabled by default
-#endif
-#endif
+;;Non-volatile dictionary 
+;#ifndef	NVDICT_ON
+;#ifndef	NVDICT_OFF
+;NVDICT_OFF		EQU	1 		;NVDICT disabled by default
+;#endif
+;#endif
 	
 ;###############################################################################
 ;# Constants                                                                   #
@@ -130,18 +130,18 @@ FCDICT_VARS_START	EQU	*
 FCDICT_VARS_START_LIN	EQU	@
 			ORG	FCDICT_VARS_END, FCDICT_VARS_END_LIN
 
-;FNVDICT_VARS_START	EQU	*
-;FNVDICT_VARS_START_LIN	EQU	@
-;			ORG	FNVDICT_VARS_END, FNVDICT_VARS_END_LIN
-;	
+FNVDICT_VARS_START	EQU	*
+FNVDICT_VARS_START_LIN	EQU	@
+			ORG	FNVDICT_VARS_END, FNVDICT_VARS_END_LIN
+	
 FUDICT_VARS_START	EQU	*
 FUDICT_VARS_START_LIN	EQU	@
 			ORG	FUDICT_VARS_END, FUDICT_VARS_END_LIN
 
-;FEXCPT_VARS_START	EQU	*
-;FEXCPT_VARS_START_LIN	EQU	@
-;			ORG	FEXCPT_VARS_END, FEXCPT_VARS_END_LIN
-;
+FEXCPT_VARS_START	EQU	*
+FEXCPT_VARS_START_LIN	EQU	@
+			ORG	FEXCPT_VARS_END, FEXCPT_VARS_END_LIN
+
 ;FCORE_VARS_START	EQU	*
 ;FCORE_VARS_START_LIN	EQU	@
 ;			ORG	FCORE_VARS_END, FCORE_VARS_END_LIN
@@ -205,9 +205,9 @@ FORTH_VARS_END_LIN	EQU	@
 	FPS_INIT
 	FOUTER_INIT
 	FCDICT_INIT
-	;FNVDICT_INIT
+	FNVDICT_INIT
 	FUDICT_INIT
-	;FEXCPT_INIT
+	FEXCPT_INIT
 	;FCORE_INIT
 	;FDOUBLE_INIT
 	;FFLOAT_INIT
@@ -226,9 +226,9 @@ FORTH_VARS_END_LIN	EQU	@
 	;FIO_ABORT
 	FOUTER_ABORT
 	FCDICT_ABORT
-	;FNVDICT_ABORT
+	FNVDICT_ABORT
 	FUDICT_ABORT
-	;FEXCPT_ABORT
+	FEXCPT_ABORT
 	;FCORE_ABORT
 	;FDOUBLE_ABORT
 	;FFLOAT_ABORT
@@ -247,9 +247,9 @@ FORTH_VARS_END_LIN	EQU	@
 	;FIO_QUIT
 	FOUTER_QUIT
 	FCDICT_QUIT
-	;FNVDICT_QUIT
+	FNVDICT_QUIT
 	FUDICT_QUIT
-	;FEXCPT_QUIT
+	FEXCPT_QUIT
 	;FCORE_QUIT
 	;FDOUBLE_QUIT
 	;FFLOAT_QUIT
@@ -299,18 +299,18 @@ FCDICT_CODE_START	EQU	*
 FCDICT_CODE_START_LIN	EQU	@
 			ORG	FCDICT_CODE_END, FCDICT_CODE_END_LIN
 
-;FNVDICT_CODE_START	EQU	*
-;FNVDICT_CODE_START_LIN	EQU	@
-;			ORG	FNVDICT_CODE_END, FNVDICT_CODE_END_LIN
-;	
+FNVDICT_CODE_START	EQU	*
+FNVDICT_CODE_START_LIN	EQU	@
+			ORG	FNVDICT_CODE_END, FNVDICT_CODE_END_LIN
+	
 FUDICT_CODE_START	EQU	*
 FUDICT_CODE_START_LIN	EQU	@
 			ORG	FUDICT_CODE_END, FUDICT_CODE_END_LIN
 
-;FEXCPT_CODE_START	EQU	*
-;FEXCPT_CODE_START_LIN	EQU	@
-;			ORG	FEXCPT_CODE_END, FEXCPT_CODE_END_LIN
-;
+FEXCPT_CODE_START	EQU	*
+FEXCPT_CODE_START_LIN	EQU	@
+			ORG	FEXCPT_CODE_END, FEXCPT_CODE_END_LIN
+
 ;FCORE_CODE_START	EQU	*
 ;FCORE_CODE_START_LIN	EQU	@
 ;			ORG	FCORE_CODE_END, FCORE_CODE_END_LIN
@@ -379,18 +379,18 @@ FCDICT_TABS_START	EQU	*
 FCDICT_TABS_START_LIN	EQU	@
 			ORG	FCDICT_TABS_END, FCDICT_TABS_END_LIN
 
-;FNVDICT_TABS_START	EQU	*
-;FNVDICT_TABS_START_LIN	EQU	@
-;			ORG	FNVDICT_TABS_END, FNVDICT_TABS_END_LIN
-;	
+FNVDICT_TABS_START	EQU	*
+FNVDICT_TABS_START_LIN	EQU	@
+			ORG	FNVDICT_TABS_END, FNVDICT_TABS_END_LIN
+	
 FUDICT_TABS_START	EQU	*
 FUDICT_TABS_START_LIN	EQU	@
 			ORG	FUDICT_TABS_END, FUDICT_TABS_END_LIN
 
-;FEXCPT_TABS_START	EQU	*
-;FEXCPT_TABS_START_LIN	EQU	@
-;			ORG	FEXCPT_TABS_END, FEXCPT_TABS_END_LIN
-;
+FEXCPT_TABS_START	EQU	*
+FEXCPT_TABS_START_LIN	EQU	@
+			ORG	FEXCPT_TABS_END, FEXCPT_TABS_END_LIN
+
 ;FCORE_TABS_START	EQU	*
 ;FCORE_TABS_START_LIN	EQU	@
 ;			ORG	FCORE_TABS_END, FCORE_TABS_END_LIN
@@ -425,13 +425,13 @@ FORTH_TABS_END_LIN	EQU	@
 #include .//frs.s					;return stack
 #include .//fps.s					;parameter stack 
 ;#include .//fio.s					;communication interface 
-;#include .//fexcpt.s					;exceptions
+#include .//fexcpt.s					;exceptions
 ;#include .//finner.s					;inner interpreter
 #include .//fouter.s					;outer interpreter
 ;#include .//firq.s					;interrupt requests
 #include .//fcdict.s					;core dictionary
 #include .//fcdict_tree.s				;core dictionary search tree
-;#include .//fnvdict.s					;non-volatile dictionary
+#include .//fnvdict.s					;non-volatile dictionary
 #include .//fudict.s					;user dictionary
 ;#include .//fcore.s					;core words
 ;#include .//fdouble.s					;double-number words

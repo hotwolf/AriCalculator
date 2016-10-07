@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CForth - FNVDICT - Non-Volatile Dictionary and User Variables            #
 ;###############################################################################
-;#    Copyright 2010 - 2013 Dirk Heisswolf                                     #
-;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
-;#    family.                                                                  #
+;#    Copyright 2009-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CForth framework for NXP's S12C MCU          #
 ;#                                                                             #
 ;#    S12CForth is free software: you can redistribute it and/or modify        #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -24,7 +23,16 @@
 ;#    This module implements the non-volatile user dictionary and user         #
 ;#    variables.                                                               # 
 ;#                                                                             #
-;#    The following registers are implemented:                                 #
+;#                                                                             #
+;#    S12CForth register assignments:                                          #
+;#      IP  (instruction pounter)     = PC (subroutine theaded)                #
+;#      RSP (return stack pointer)    = SP                                     #
+;#      PSP (parameter stack pointer) = Y                                      #
+;#  									       #
+;#    Interrupts must be disabled while Y is temporarily used for other        #
+;#    purposes.								       #
+;#  									       #
+;#    S12CForth system variables:                                              #
 ;#             DP = Data pointer                                               #
 ;#                  Points to the next free location in the user variable      #
 ;#                  space                                                      #
@@ -42,13 +50,21 @@
 ;#    space. Then the compilation of a code sequence is finished, the compile  #
 ;#    buffer is copied into the flash as a string.                             #
 ;#                                                                             #
+;#    Program termination options:                                             #
+;#        ABORT:                                                               #
+;#        QUIT:                                                                #
+;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 23, 2009                                                           #
 ;#      - Initial release                                                      #
+;#    October 6, 2016                                                          #
+;#      - Started subroutine threaded implementation                           #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    FEXCPT - Forth Exception Handler                                         #
+;#    BASE - S12CBase framework                                                #
+;#    FPS    - Forth parameter stack                                           #
+;#    FRS    - Forth return stack                                              #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -155,9 +171,9 @@ FNVDICT_PHRASE_SIZE	EQU	NVM_PHRASE_SIZE
 FNVDICT_PHRASE_SIZE	EQU	8	
 #endif	
 
-;NVC variable 
-NVC_VOLATILE		EQU	FALSE
-NVC_NON_VOLATILE	EQU	TRUE
+;;NVC variable 
+;NVC_VOLATILE		EQU	FALSE
+;NVC_NON_VOLATILE	EQU	TRUE
 	
 ;Max. line length
 FNVDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
@@ -183,47 +199,44 @@ FNVDICT_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Initialization
+;#Initialization (executed along with ABORT action)
+;===============
 #macro	FNVDICT_INIT, 0
-#ifdef NVDICT_ON	
 			MOVW	#$0000, DP
 			MOVW	#$0000, NVC
-#endif	
 #emac
 
-;#Abort action (to be executed in addition of quit action)
+;#Abort action (to be executed in addition of QUIT action)
+;=============
 #macro	FNVDICT_ABORT, 0
 #emac
 	
 ;#Quit action
+;============
 #macro	FNVDICT_QUIT, 0
 #emac
-	
-;#Suspend action
-#macro	FNVDICT_SUSPEND, 0
-#emac
 
-;Dictionary operations:
-;======================	
-;#Look-up word in user dictionary 
-; args:   X: string pointer (terminated string)
-;	  Y: start of dictionary (last NFA)
-; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
-; SSTACK: 8 bytes
-;         X and Y are preserved
-#macro	FNVDICT_FIND, 0
-			LDD	#$0000
-#emac
-
-;#Reverse lookup a CFA and print the corresponding word
-; args:   D: CFA
-; result: C-flag: set if successful
-;	  Y: start of dictionary (last NFA)
-; SSTACK: 18 bytes
-;         X and D are preserved
-;#macro	FNVDICT_REVPRINT_BL, 0
-;			CLC
+;;Dictionary operations:
+;;======================	
+;;#Look-up word in user dictionary 
+;; args:   X: string pointer (terminated string)
+;;	  Y: start of dictionary (last NFA)
+;; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
+;; SSTACK: 8 bytes
+;;         X and Y are preserved
+;#macro	FNVDICT_FIND, 0
+;			LDD	#$0000
 ;#emac
+;
+;;#Reverse lookup a CFA and print the corresponding word
+;; args:   D: CFA
+;; result: C-flag: set if successful
+;;	  Y: start of dictionary (last NFA)
+;; SSTACK: 18 bytes
+;;         X and D are preserved
+;;#macro	FNVDICT_REVPRINT_BL, 0
+;;			CLC
+;;#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -251,39 +264,39 @@ FNVDICT_TABS_START_LIN	EQU	@
 FNVDICT_TABS_END		EQU	*
 FNVDICT_TABS_END_LIN	EQU	@
 
-;###############################################################################
-;# Words                                                                       #
-;###############################################################################
-#ifdef FNVDICT_WORDS_START_LIN
-			ORG 	FNVDICT_WORDS_START, FNVDICT_WORDS_START_LIN
-#else
-			ORG 	FNVDICT_WORDS_START
-FNVDICT_WORDS_START_LIN	EQU	@
-#endif	
-
-;#ANSForth Words:
-;================
-
-;S12CForth Words:
-;================
-;Word: NVC ( -- a-addr ) 
-;a-addr is the address of a cell containing the non-volatile compile flag. NVC
-;is true when non-volatile compilation is selected, false otherwise. The true 
-;value in STATE is non-zero. Only the following standard words alter the value
-;in NVC:
-; NV{ and }NV:
-;  Note:  A program shall not directly alter the contents of NV. 
+;;###############################################################################
+;;# Words                                                                       #
+;;###############################################################################
+;#ifdef FNVDICT_WORDS_START_LIN
+;			ORG 	FNVDICT_WORDS_START, FNVDICT_WORDS_START_LIN
+;#else
+;			ORG 	FNVDICT_WORDS_START
+;FNVDICT_WORDS_START_LIN	EQU	@
+;#endif	
 ;
-;Throws:
-;"Parameter stack overflow"
-CFA_NVC			DW	CF_CONSTANT_RT
-#ifdef NVDICT_ON
-			DW	NVC
-#else
-			DW	*+2
-			DW	$0000
-#endif
-
-FNVDICT_WORDS_END	EQU	*
-FNVDICT_WORDS_END_LIN	EQU	@
+;;#ANSForth Words:
+;;================
+;
+;;S12CForth Words:
+;;================
+;;Word: NVC ( -- a-addr ) 
+;;a-addr is the address of a cell containing the non-volatile compile flag. NVC
+;;is true when non-volatile compilation is selected, false otherwise. The true 
+;;value in STATE is non-zero. Only the following standard words alter the value
+;;in NVC:
+;; NV{ and }NV:
+;;  Note:  A program shall not directly alter the contents of NV. 
+;;
+;;Throws:
+;;"Parameter stack overflow"
+;CFA_NVC			DW	CF_CONSTANT_RT
+;#ifdef NVDICT_ON
+;			DW	NVC
+;#else
+;			DW	*+2
+;			DW	$0000
+;#endif
+;
+;FNVDICT_WORDS_END	EQU	*
+;FNVDICT_WORDS_END_LIN	EQU	@
 #endif

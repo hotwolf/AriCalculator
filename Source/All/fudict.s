@@ -35,14 +35,6 @@
 ;#             CP = Compile pointer                                            #
 ;#                  Points to the next free space after the dictionary         #
 ;#       CP_SAVED = Previous compile pointer                                   #
-;#           BASE = Default radix (2<=BASE<=16)                                #
-;#          STATE = State of the outer interpreter:                            #
-;#  		        0: Interpretation State				       #
-;#  		       -1: RAM Compile State				       #
-;#  		       +1: NV Compile State				       #
-;#     NUMBER_TIB = Number of chars in the TIB                                 #
-;#          TO_IN = In-pointer of the TIB (>IN)	       			       #
-;#       	    (TIB_START+TO_IN) points to the next character	       #
 ;#  									       #
 ;#    Program termination options:                                             #
 ;#        ABORT:                                                               #
