@@ -51,7 +51,8 @@ FOUTER_NL_CR		EQU	1 		;interpret CR as line break,
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_EXTRAM_START, UNMAPPED
+;			ORG	MMAP_EXTRAM_START, UNMAPPED
+			ORG	MMAP_INTRAM_START, UNMAPPED
 ;Variables
 DEMO_VARS_START		EQU	*
 DEMO_VARS_START_LIN	EQU	@
@@ -68,7 +69,8 @@ FORTH_VARS_START_LIN	EQU	@
 ;Stack 
 SSTACK_TOP		EQU	* 				;SSTACK, ISTACK, and RS are unified
 SSTACK_TOP_LIN		EQU	@
-SSTACK_BOTTOM		EQU	MMAP_EXTRAM_END
+;SSTACK_BOTTOM		EQU	MMAP_EXTRAM_END
+SSTACK_BOTTOM		EQU	MMAP_INTRAM_END
 
 ;Forth stacks, buffers and dictionary 
 ;      	  UDICT_PS_START -> +--------------+--------------+	     

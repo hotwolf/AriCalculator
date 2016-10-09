@@ -191,6 +191,7 @@ CF_QUERY		EQU	*
 			;Allocate temporary #TIB pointers 
 			MOVW	NUMBER_TIB, 2,-SP 	;old #TIB -> SP+0
 			LDX	#$0000		 	;new #TIB -> X
+			STX	TO_IN			;reset >IN
 			;Wait for input
 CF_QUERY_1		JOBSR	FTIB_RX_CHAR 		;flags:char -> A:B
 			;Check for communication errors (flags:char in A:B, new #TIB in X)

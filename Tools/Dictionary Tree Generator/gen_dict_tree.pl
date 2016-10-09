@@ -292,7 +292,7 @@ if ($code->{problems}) {
         printf FILEHANDLE ";###############################################################################\n"; 
         printf FILEHANDLE ";# S12CForth - Search Tree for the Core Dictionary                             #\n";
         printf FILEHANDLE ";###############################################################################\n";
-        printf FILEHANDLE ";#    Copyright 2009-2015 Dirk Heisswolf                                       #\n";
+        printf FILEHANDLE ";#    Copyright 2009-%4d Dirk Heisswolf                                       #\n", $year;
         printf FILEHANDLE ";#    This file is part of the S12CForth framework for Freescale's S12(X) MCU  #\n";
         printf FILEHANDLE ";#    families.                                                                #\n";
         printf FILEHANDLE ";#                                                                             #\n";

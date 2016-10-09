@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CForth - Search Tree for the Core Dictionary                             #
 ;###############################################################################
-;#    Copyright 2009-2015 Dirk Heisswolf                                       #
+;#    Copyright 2009-2016 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for Freescale's S12(X) MCU  #
 ;#    families.                                                                #
 ;#                                                                             #
@@ -24,7 +24,7 @@
 ;#    This file contains a search tree for S12CForth CORE dictionary.          #
 ;#                                                                             #
 ;###############################################################################
-;# Generated on Thu, Oct 06 2016                                               #
+;# Generated on Sun, Oct 09 2016                                               #
 ;###############################################################################
 
 ;###############################################################################
@@ -41,6 +41,9 @@
 ;    CR ----------------------> CF_CR
 ;    D -----> ROP ------------> CF_DROP
 ;    |        UP -------------> CF_DUP
+;    |        
+;    LU ----> ----------------> CF_LU
+;    |        -CDICT ---------> CF_LU_CDICT
 ;    |        
 ;    OVER --------------------> CF_OVER
 ;    P -----> ARSE -----------> CF_PARSE
@@ -85,20 +88,29 @@ FCDICT_TREE             FCS     "2"
                         FCS     "D"
                         DB      BRANCH
                         DW      FCDICT_TREE_2                   ;D...
+                        FCS     "LU"
+                        DB      BRANCH
+                        DW      FCDICT_TREE_3                   ;LU...
                         FCS     "OVER"
                         DW      CF_OVER                         ;-> OVER
                         FCS     "P"
                         DB      BRANCH
-                        DW      FCDICT_TREE_4                   ;P...
+                        DW      FCDICT_TREE_5                   ;P...
                         FCS     "QUERY"
                         DW      CF_QUERY                        ;-> QUERY
                         FCS     "ROT"
                         DW      CF_ROT                          ;-> ROT
                         FCS     "S"
                         DB      BRANCH
-                        DW      FCDICT_TREE_7                   ;S...
+                        DW      FCDICT_TREE_8                   ;S...
+                        ;DB     END_OF_BRANCH
+;Subtree 3 =>           "LU"    -> FCDICT_TREE+30
+FCDICT_TREE_3           DB      EMPTY_STRING
+                        DW      CF_LU                           ;-> LU
+                        FCS     "-CDICT"
+                        DW      CF_LU_CDICT                     ;-> LU-CDICT
                         DB      END_OF_BRANCH
-;Subtree 0 =>           "2"     -> FCDICT_TREE+2B
+;Subtree 0 =>           "2"     -> FCDICT_TREE+3D
 FCDICT_TREE_0           FCS     "D"
                         DB      BRANCH
                         DW      FCDICT_TREE_0_0                 ;2D...
@@ -109,26 +121,26 @@ FCDICT_TREE_0           FCS     "D"
                         FCS     "SWAP"
                         DW      CF_TWO_SWAP                     ;-> 2SWAP
                         DB      END_OF_BRANCH
-;Subtree 0->0 =>        "2D"    -> FCDICT_TREE+44
+;Subtree 0->0 =>        "2D"    -> FCDICT_TREE+56
 FCDICT_TREE_0_0         FCS     "ROP"
                         DW      CF_TWO_DROP                     ;-> 2DROP
                         FCS     "UP"
                         DW      CF_TWO_DUP                      ;-> 2DUP
                         DB      END_OF_BRANCH
-;Subtree 2 =>           "D"     -> FCDICT_TREE+50
+;Subtree 2 =>           "D"     -> FCDICT_TREE+62
 FCDICT_TREE_2           FCS     "ROP"
                         DW      CF_DROP                         ;-> DROP
                         FCS     "UP"
                         DW      CF_DUP                          ;-> DUP
                         DB      END_OF_BRANCH
-;Subtree 4 =>           "P"     -> FCDICT_TREE+5C
-FCDICT_TREE_4           FCS     "ARSE"
+;Subtree 5 =>           "P"     -> FCDICT_TREE+6E
+FCDICT_TREE_5           FCS     "ARSE"
                         DW      CF_PARSE                        ;-> PARSE
                         FCS     "ROMPT"
                         DW      CF_PROMPT                       ;-> PROMPT
                         DB      END_OF_BRANCH
-;Subtree 7 =>           "S"     -> FCDICT_TREE+6C
-FCDICT_TREE_7           FCS     "PACE"
+;Subtree 8 =>           "S"     -> FCDICT_TREE+7E
+FCDICT_TREE_8           FCS     "PACE"
                         DW      CF_SPACE                        ;-> SPACE
                         FCS     "WAP"
                         DW      CF_SWAP                         ;-> SWAP
@@ -143,8 +155,8 @@ FCDICT_TREE_7           FCS     "PACE"
 ;         All registers are preserved
 #macro FCDICT_ITERATOR_INIT, 3
                         MOVW #(\1+$00), (\3+$00),\2   ;FCDICT_TREE         ("2")
-                        MOVW #(\1+$2B), (\3+$02),\2   ;FCDICT_TREE_0       ("D")
-                        MOVW #(\1+$44), (\3+$04),\2   ;FCDICT_TREE_0_0     ("ROP")
+                        MOVW #(\1+$3D), (\3+$02),\2   ;FCDICT_TREE_0       ("D")
+                        MOVW #(\1+$56), (\3+$04),\2   ;FCDICT_TREE_0_0     ("ROP")
                         MOVW #NULL,     (\3+$06),\2   ;
 #emac
 #endif

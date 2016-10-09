@@ -81,6 +81,8 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;STRING configuration 
+STRING_ENABLE_UPPER	EQU	1
 	
 ;###############################################################################
 ;# Constants                                                                   #
@@ -92,6 +94,9 @@ FCDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
 #ifndef NULL
 NULL			EQU	$0000
 #endif
+
+;#String termination 
+FCDICT_STR_TERM		EQU	STRING_TERM
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -291,7 +296,7 @@ FCDICT_VARS_END_LIN	EQU	@
 ;;         D is preserved
 ;#macro	FCDICT_PARENT, 2
 ;			;Y: points to current entry in CDICT pointer structure 
-;			;X: points to cutrrent byte in directory tree 
+;			;X: points to cutrrent bye in directory tree 
 ;			;Update pointer (iterator pointer in Y)
 ;			MOVW	#NULL, 2,Y- 				;skip to parent node
 ;			CPY	\2					;check for parent
@@ -309,6 +314,91 @@ FCDICT_VARS_END_LIN	EQU	@
 FCDICT_CODE_START_LIN	EQU	@
 #endif
 
+;#String operations
+;==================
+;#Convert a lower case character to upper case
+; args:   B: ASCII character (w/ or w/out termination)
+; result: B: upper case ASCII character 
+; SSTACK: 2 bytes
+;         X, Y, and A are preserved 
+FCDICT_UPPER		EQU	STRING_UPPER
+
+;#########
+;# Words #
+;#########
+
+;Word: LU-CDICT ( c-addr u -- xt | c-addr u false )
+;Look up a name in the CDICT dictionary. The name is referenced by the start
+;address c-addr and the character count u. If successful the resulting execution
+;token xt is returned. Otherwise the name reference remains on the parameter
+;stack along with a false flag.
+IF_LU_CDICT		REGULAR
+CF_LU_CDICT		EQU	*
+			;Prepare search
+			LDD	2,Y 					;c-addr -> D
+			PSHD						;string pointer -> 2,SP
+			ADDD	0,Y 					;calculate EOS
+			;SUBD	#1     
+			PSHD						;EOS            -> 0,SP
+			;Get char of search string  
+			LDAB	[2,SP] 					;current char -> B
+			JOBSR	FCDICT_UPPER 				;make char upper case	
+			;Check first chars on current tree level (current char in B)  
+			LDX	#FCDICT_TREE				;tree pointer -> X
+CF_LU_CDICT_C		LDAA	0,X 					;first char -> A
+			ANDA	#~FCDICT_STR_TERM 			;remove termination
+			CBA						;compare chars (A-B)
+			BHI	CF_LU_CDICT_D 				;past alphabetical order -> search failed
+			BEQ	CF_LU_CDICT_E 				;match
+			;Switch to next sibling (tree pointer in X, current char in B)
+CF_LU_CDICT_A		TST	1,X+ 					;find end of string
+			BPL	CF_LU_CDICT_A 				;skip past the termination
+			TST	2,X+ 					;check for BRANCH symbol
+			BNE	CF_LU_CDICT_B 				;no BRANCH, check sibling
+			LEAX	1,X 					;first char of sibling -> A
+CF_LU_CDICT_B		BNE	CF_LU_CDICT_C 				;check sibling
+			;Search failed 
+CF_LU_CDICT_D		LEAS	6,SP					;clean up return stack
+			MOVW	#FALSE, 2,Y- 				;push fail flag onto PS
+			RTS						;done
+			;First char matches (tree pointer in X)   
+CF_LU_CDICT_E		LDD	2,SP 					;string pointer -> D
+			ADDD	#1 					;advance string pointer
+			CPD	0,SP 					;check for EOS
+			BEQ	CF_LU_CDICT_G 				;search string EOS
+			STD	2,SP 					;update string pointer
+			LDAB	[2,SP] 					;next char -> B
+			JOBSR	FCDICT_UPPER 				;make char upper case	
+			TST	1,X+ 					;check branch for EOS
+			BMI	CF_LU_CDICT_F 				;branch EOS
+			LDAA	0,X 					;next char -> A
+			ANDA	#~FCDICT_STR_TERM 			;remove termination
+			CBA						;compare chars
+			BEQ	CF_LU_CDICT_E 				;match
+			JOB	CF_LU_CDICT_D 				;mismatch -> search failed
+			;Branch EOS  (tree pointer in X)
+CF_LU_CDICT_F		TST	1,X+ 					;check for BRANCH
+			BNE	CF_LU_CDICT_D 				;no BRANCH -> search failed
+			LDX	0,X 					;switch to branch
+			TST	0,X 					;check for empty branch
+			BNE	CF_LU_CDICT_C 				;check subtree
+			LEAX	3,X 					;skip over empty branch
+			JOB	CF_LU_CDICT_C 				;check suntree
+			;End of search tree (tree pointer in X)
+CF_LU_CDICT_G		TST	1,X+ 					;check branch for EOS
+			BPL	CF_LU_CDICT_D 				;no EOS -> search failed
+			TST	0,X 					;check for branch
+			BNE	CF_LU_CDICT_H 				;no branch
+			LDX	1,X 					;switch to branch
+			TST	1,X+ 					;check for empty branch
+			BNE	CF_LU_CDICT_D 				;no empty branch -> search failed
+			;Search successful (X points to xt)
+CF_LU_CDICT_H		LEAS	4,SP 					;clean up RS
+			STX	2,+Y 					;store result
+			RTS						;done
+	
+	
+	
 ;;Dictionary operations:
 ;;======================	
 ;;#Look-up word in CORE dictionary 
@@ -371,7 +461,16 @@ FCDICT_CODE_START_LIN	EQU	@
 ;			STX	0,SP 					;set new search substring
 ;			LDY	0,Y 					;skip to subtree
 ;			JOB	FCDICT_FIND_1
-;
+
+
+
+
+
+
+
+
+
+				;
 ;;#Reverse lookup a CFA and print the corresponding word
 ;; args:   D: CFA
 ;; result: C-flag: set if successful

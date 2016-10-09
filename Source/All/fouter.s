@@ -587,7 +587,7 @@ CF_PROMPT_1		JOB	FOUTER_TX_CHAR		;print RAM compile prompt
 ;the return stack, without displaying a message.
 CF_ABORT_RT		EQU	*
 			;Execute QUIT actions
-			FORTH_ABORT
+			FORTH_ABORT 			;perform all ABORT actions
 
 ;QUIT run-time ( -- ) ( R: j*x -- )
 ;Empty the return stack, store zero in SOURCE-ID if it is present, make the user
@@ -599,19 +599,33 @@ CF_ABORT_RT		EQU	*
 ;  all processing has been completed, and no ambiguous condition exists.
 CF_QUIT_RT		EQU	*
 			;Execute QUIT actions
-			FORTH_QUIT
-			;Print command line prompt 
-CF_QUIT_RT_1		JOBSR	CF_PROMPT
-			;Query command line 
-			JOBSR	CF_QUERY
+			FORTH_QUIT			;perform all ABORT actions
+			;Query loop 
+CF_QUIT_RT_1		JOBSR	CF_PROMPT 		;print prompt
+			JOBSR	CF_QUERY		;query command line 
+			;Parse loop 
+CF_QUIT_RT_2		MOVW	#FOUTER_SYM_SPACE, 2,-Y
+			JOBSR	CF_PARSE 		;parse next word
+			LDD	0,Y			;check result
+			BNE	CF_QUIT_RT_3		;word parsed
+			LEAY	4,Y			;clean up PS
+			JOB	CF_QUIT_RT_1		;querry new input
+			;Check for compile state (c-addr u)
+CF_QUIT_RT_3		LDD	STATE 			;check STATE
+			BEQ	CF_QUIT_RT_A		;interpret
+			;Compile (c-addr u)
 
-			;Loop 
-			JOB	CF_QUIT_RT_1
 
 
+			JOB	CF_QUIT_RT_2 		;parse next word
+			;Interpret (c-addr u)
+CF_QUIT_RT_A		JOBSR	CF_LU 			;look up word
+			LDX	2,Y+			;xt -> X
+			BEQ	CF_QUIT_RT_B		;unknown word
+			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address			
+			JMP	0,X			;execute xt
 
-
-
+CF_QUIT_RT_B		JOB	CF_QUIT_RT_2 		;parse next word
 
 ;Word: PARSE ( char "ccc<char>" -- c-addr u )
 ;Parse ccc delimited by the delimiter char. c-addr is the address (within the
@@ -631,28 +645,49 @@ CF_PARSE_2		CPX	NUMBER_TIB		;check if buffer is parsed
 			;Store string address (delimeter in B, >IN in X) 
 CF_PARSE_3		STX	TO_IN			;update >IN
 			LEAX	TIB_START,X 		;string address -> X
-			STX	0,SP			;push string address
+			STX	0,Y			;push string address
 			LEAX	-TIB_START,X		;>IN -> X
-			MOVW	#$0001, 2,-SP		;push initial char count
-			LDAA	#$01			;char count -> A
+			MOVW	#$0000, 2,-Y		;push initial char count
+			LDAA	#$00			;char count -> A
 			;Count chars (delimeter in B, char count in A, >IN in X)
 CF_PARSE_4		INX				;advance >IN
 			CPX	NUMBER_TIB		;check if buffer is parsed
-			BHS	CF_PARSE_6		;done
+			BHI	CF_PARSE_6		;done
 			ADDA	#$01			;increment char 
 			BCC	CF_PARSE_5		;no carry
-			INC	0,SP			;increment MSW
+			INC	0,Y			;increment MSW
 CF_PARSE_5		CMPB	TIB_START,X		;check for delimeter
 			BNE	CF_PARSE_4		;no delimeter
 			;Done (char count in A, >IN in X)
-CF_PARSE_6		STAA	1,SP			;update char count
+CF_PARSE_6		STAA	1,Y			;update char count
 CF_PARSE_7		STX	TO_IN			;update >IN
-			RTS
+			RTS				;done
 			;Parse unsuccessful  (char count in A, >IN in X) 
-CF_PARSE_8		MOVW	#$0000, 0,SP 		;null string
-			MOVW	#$0000, 2,-SP 		;null length
+CF_PARSE_8		MOVW	#$0000, 0,Y 		;null string
+			MOVW	#$0000, 2,-Y 		;null length
 			JOB	CF_PARSE_7		;done
 
+;Word: LU ( c-addr u -- xt | c-addr u false )
+;Look up a name in any dictionary. The name is referenced by the start address
+;c-addr and the character count u. If successful the resulting execution token
+;xt is returned. Otherwise the name reference remains on the parameter stack 
+;along with a false flag. The dictionaries are searchef in the following order: 
+;UDICT -> NVDICT -> CDICT  
+IF_LU			REGULAR
+CF_LU			EQU	*
+			;;Search UDICT 
+			;JOBSR	LU-UDICT 		;search UDICT
+			;LDD	0,Y			;check result
+			;BNE	CF_LU_			;successful
+			;;Search NVDICT
+			;LEAY	2,Y 			;remove fail flag
+			;JOBSR	LU-NVDICT		;search NVDICT
+			;LDD	0,Y			;check result
+			;BNE	CF_LU_			;successful
+			;;Search CDICT
+			;LEAY	2,Y 			;remove fail flag
+			JOB	CF_LU_CDICT		;search CDICT
+CF_LU_1			RTS				;done
 	
 ;;#Skip delimiter in TIB 
 ;; args:   A:      delimiter (0=any whitespace)
