@@ -621,9 +621,10 @@ CF_QUIT_RT_3		LDD	STATE 			;check STATE
 			;Interpret (c-addr u)
 CF_QUIT_RT_A		JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
+			BGND
+
 			BEQ	CF_QUIT_RT_B		;unknown word
-			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address			
-			JMP	0,X			;execute xt
+			;JSR	0,X			;execute xt
 
 CF_QUIT_RT_B		JOB	CF_QUIT_RT_2 		;parse next word
 
@@ -685,7 +686,8 @@ CF_LU			EQU	*
 			;LDD	0,Y			;check result
 			;BNE	CF_LU_			;successful
 			;;Search CDICT
-			;LEAY	2,Y 			;remove fail flag
+			;LEAY	2,Y
+ 			;remove fail flag			
 			JOB	CF_LU_CDICT		;search CDICT
 CF_LU_1			RTS				;done
 	

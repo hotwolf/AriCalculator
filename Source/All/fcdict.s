@@ -334,6 +334,7 @@ FCDICT_UPPER		EQU	STRING_UPPER
 ;stack along with a false flag.
 IF_LU_CDICT		REGULAR
 CF_LU_CDICT		EQU	*
+			;BGND
 			;Prepare search
 			LDD	2,Y 					;c-addr -> D
 			PSHD						;string pointer -> 2,SP
@@ -345,60 +346,58 @@ CF_LU_CDICT		EQU	*
 			JOBSR	FCDICT_UPPER 				;make char upper case	
 			;Check first chars on current tree level (current char in B)  
 			LDX	#FCDICT_TREE				;tree pointer -> X
-CF_LU_CDICT_C		LDAA	0,X 					;first char -> A
+CF_LU_CDICT_1		LDAA	0,X 					;first char -> A
 			ANDA	#~FCDICT_STR_TERM 			;remove termination
 			CBA						;compare chars (A-B)
-			BHI	CF_LU_CDICT_D 				;past alphabetical order -> search failed
-			BEQ	CF_LU_CDICT_E 				;match
+			BHI	CF_LU_CDICT_3 				;past alphabetical order -> search failed
+			BEQ	CF_LU_CDICT_4 				;match
 			;Switch to next sibling (tree pointer in X, current char in B)
-CF_LU_CDICT_A		TST	1,X+ 					;find end of string
-			BPL	CF_LU_CDICT_A 				;skip past the termination
+CF_LU_CDICT_2		TST	1,X+ 					;find end of string
+			BPL	CF_LU_CDICT_2 				;skip past the termination
 			TST	2,X+ 					;check for BRANCH symbol
-			BNE	CF_LU_CDICT_B 				;no BRANCH, check sibling
+			BNE	CF_LU_CDICT_1 				;no BRANCH, check sibling
 			LEAX	1,X 					;first char of sibling -> A
-CF_LU_CDICT_B		BNE	CF_LU_CDICT_C 				;check sibling
+             		JOB	CF_LU_CDICT_1 				;check sibling
 			;Search failed 
-CF_LU_CDICT_D		LEAS	6,SP					;clean up return stack
-			MOVW	#FALSE, 2,Y- 				;push fail flag onto PS
+CF_LU_CDICT_3		LEAS	4,SP					;clean up return stack
+			MOVW	#FALSE, 2,-Y 				;push fail flag onto PS
 			RTS						;done
 			;First char matches (tree pointer in X)   
-CF_LU_CDICT_E		LDD	2,SP 					;string pointer -> D
+CF_LU_CDICT_4		LDD	2,SP 					;string pointer -> D
 			ADDD	#1 					;advance string pointer
 			CPD	0,SP 					;check for EOS
-			BEQ	CF_LU_CDICT_G 				;search string EOS
+			BEQ	CF_LU_CDICT_6 				;search string EOS
 			STD	2,SP 					;update string pointer
 			LDAB	[2,SP] 					;next char -> B
 			JOBSR	FCDICT_UPPER 				;make char upper case	
 			TST	1,X+ 					;check branch for EOS
-			BMI	CF_LU_CDICT_F 				;branch EOS
+			BMI	CF_LU_CDICT_5 				;branch EOS
 			LDAA	0,X 					;next char -> A
 			ANDA	#~FCDICT_STR_TERM 			;remove termination
 			CBA						;compare chars
-			BEQ	CF_LU_CDICT_E 				;match
-			JOB	CF_LU_CDICT_D 				;mismatch -> search failed
+			BEQ	CF_LU_CDICT_4 				;match
+			JOB	CF_LU_CDICT_3 				;mismatch -> search failed
 			;Branch EOS  (tree pointer in X)
-CF_LU_CDICT_F		TST	1,X+ 					;check for BRANCH
-			BNE	CF_LU_CDICT_D 				;no BRANCH -> search failed
+CF_LU_CDICT_5		TST	1,X+ 					;check for BRANCH
+			BNE	CF_LU_CDICT_3 				;no BRANCH -> search failed
 			LDX	0,X 					;switch to branch
 			TST	0,X 					;check for empty branch
-			BNE	CF_LU_CDICT_C 				;check subtree
+			BNE	CF_LU_CDICT_1 				;check subtree
 			LEAX	3,X 					;skip over empty branch
-			JOB	CF_LU_CDICT_C 				;check suntree
+			JOB	CF_LU_CDICT_1 				;check suntree
 			;End of search tree (tree pointer in X)
-CF_LU_CDICT_G		TST	1,X+ 					;check branch for EOS
-			BPL	CF_LU_CDICT_D 				;no EOS -> search failed
+CF_LU_CDICT_6		TST	1,X+ 					;check branch for EOS
+			BPL	CF_LU_CDICT_3 				;no EOS -> search failed
 			TST	0,X 					;check for branch
-			BNE	CF_LU_CDICT_H 				;no branch
+			BNE	CF_LU_CDICT_7 				;no branch
 			LDX	1,X 					;switch to branch
 			TST	1,X+ 					;check for empty branch
-			BNE	CF_LU_CDICT_D 				;no empty branch -> search failed
+			BNE	CF_LU_CDICT_3 				;no empty branch -> search failed
 			;Search successful (X points to xt)
-CF_LU_CDICT_H		LEAS	4,SP 					;clean up RS
-			STX	2,+Y 					;store result
+CF_LU_CDICT_7		LEAS	4,SP 					;clean up RS
+			MOVW	0,X, 2,+Y 				;store result
 			RTS						;done
 	
-	
-
 ;Word: WORDS-CDICT ( -- )
 ;List the definition names in the core dictionary in alphabetical order.
 IF_WORDS_CDICT		REGULAR
