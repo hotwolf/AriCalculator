@@ -31,28 +31,30 @@
 ;# Dictionary Tree Structure                                                   #
 ;###############################################################################
 ;
-; -> 2 -----> D ----> ROP ----> CF_TWO_DROP
-;    |        |       UP -----> CF_TWO_DUP
-;    |        |       
-;    |        OVER -----------> CF_TWO_OVER
-;    |        ROT ------------> CF_2ROT
-;    |        SWAP -----------> CF_TWO_SWAP
-;    |        
-;    CR ----------------------> CF_CR
-;    D -----> ROP ------------> CF_DROP
-;    |        UP -------------> CF_DUP
-;    |        
-;    LU ----> ----------------> CF_LU
-;    |        -CDICT ---------> CF_LU_CDICT
-;    |        
-;    OVER --------------------> CF_OVER
-;    P -----> ARSE -----------> CF_PARSE
-;    |        ROMPT ----------> CF_PROMPT
-;    |        
-;    QUERY -------------------> CF_QUERY
-;    ROT ---------------------> CF_ROT
-;    S -----> PACE -----------> CF_SPACE
-;             WAP ------------> CF_SWAP
+; -> 2 -----------> D ----> ROP ----> CF_TWO_DROP
+;    |              |       UP -----> CF_TWO_DUP
+;    |              |       
+;    |              OVER -----------> CF_TWO_OVER
+;    |              ROT ------------> CF_2ROT
+;    |              SWAP -----------> CF_TWO_SWAP
+;    |              
+;    CR ----------------------------> CF_CR
+;    D -----------> ROP ------------> CF_DROP
+;    |              UP -------------> CF_DUP
+;    |              
+;    LU ----------> ----------------> CF_LU
+;    |              -CDICT ---------> CF_LU_CDICT
+;    |              
+;    OVER --------------------------> CF_OVER
+;    P -----------> ARSE -----------> CF_PARSE
+;    |              ROMPT ----------> CF_PROMPT
+;    |              
+;    QUERY -------------------------> CF_QUERY
+;    ROT ---------------------------> CF_ROT
+;    S -----------> PACE -----------> CF_SPACE
+;    |              WAP ------------> CF_SWAP
+;    |              
+;    WORDS-CDICT -------------------> CF_WORDS_CDICT
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -67,7 +69,10 @@ NULL                    EQU
 FCDICT_TREE_DEPTH       EQU     3
 
 ;First CF
-FCDICT_FIRST_CF        EQU     CF_TWO_DROP
+FCDICT_FIRST_CF         EQU     CF_TWO_DROP
+
+;Character count of the first word
+FCDICT_FIRST_CC         EQU     0; ()
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -103,14 +108,16 @@ FCDICT_TREE             FCS     "2"
                         FCS     "S"
                         DB      BRANCH
                         DW      FCDICT_TREE_8                   ;S...
+                        FCS     "WORDS-CDICT"
+                        DW      CF_WORDS_CDICT                  ;-> WORDS-CDICT
                         ;DB     END_OF_BRANCH
-;Subtree 3 =>           "LU"    -> FCDICT_TREE+30
+;Subtree 3 =>           "LU"    -> FCDICT_TREE+3E
 FCDICT_TREE_3           DB      EMPTY_STRING
                         DW      CF_LU                           ;-> LU
                         FCS     "-CDICT"
                         DW      CF_LU_CDICT                     ;-> LU-CDICT
                         DB      END_OF_BRANCH
-;Subtree 0 =>           "2"     -> FCDICT_TREE+3D
+;Subtree 0 =>           "2"     -> FCDICT_TREE+4B
 FCDICT_TREE_0           FCS     "D"
                         DB      BRANCH
                         DW      FCDICT_TREE_0_0                 ;2D...
@@ -121,25 +128,25 @@ FCDICT_TREE_0           FCS     "D"
                         FCS     "SWAP"
                         DW      CF_TWO_SWAP                     ;-> 2SWAP
                         DB      END_OF_BRANCH
-;Subtree 0->0 =>        "2D"    -> FCDICT_TREE+56
+;Subtree 0->0 =>        "2D"    -> FCDICT_TREE+64
 FCDICT_TREE_0_0         FCS     "ROP"
                         DW      CF_TWO_DROP                     ;-> 2DROP
                         FCS     "UP"
                         DW      CF_TWO_DUP                      ;-> 2DUP
                         DB      END_OF_BRANCH
-;Subtree 2 =>           "D"     -> FCDICT_TREE+62
+;Subtree 2 =>           "D"     -> FCDICT_TREE+70
 FCDICT_TREE_2           FCS     "ROP"
                         DW      CF_DROP                         ;-> DROP
                         FCS     "UP"
                         DW      CF_DUP                          ;-> DUP
                         DB      END_OF_BRANCH
-;Subtree 5 =>           "P"     -> FCDICT_TREE+6E
+;Subtree 5 =>           "P"     -> FCDICT_TREE+7C
 FCDICT_TREE_5           FCS     "ARSE"
                         DW      CF_PARSE                        ;-> PARSE
                         FCS     "ROMPT"
                         DW      CF_PROMPT                       ;-> PROMPT
                         DB      END_OF_BRANCH
-;Subtree 8 =>           "S"     -> FCDICT_TREE+7E
+;Subtree 8 =>           "S"     -> FCDICT_TREE+8C
 FCDICT_TREE_8           FCS     "PACE"
                         DW      CF_SPACE                        ;-> SPACE
                         FCS     "WAP"
@@ -153,10 +160,9 @@ FCDICT_TREE_8           FCS     "PACE"
 ; result: none
 ; SSTACK: none
 ;         All registers are preserved
-#macro FCDICT_ITERATOR_INIT, 3
+#macro FCDTICT_ITERATOR_INIT, 3
                         MOVW #(\1+$00), (\3+$00),\2   ;FCDICT_TREE         ("2")
-                        MOVW #(\1+$3D), (\3+$02),\2   ;FCDICT_TREE_0       ("D")
-                        MOVW #(\1+$56), (\3+$04),\2   ;FCDICT_TREE_0_0     ("ROP")
-                        MOVW #NULL,     (\3+$06),\2   ;
+                        MOVW #(\1+$4B), (\3+$02),\2   ;FCDICT_TREE_0       ("D")
+                        MOVW #(\1+$64), (\3+$04),\2   ;FCDICT_TREE_0_0     ("ROP")
 #emac
 #endif

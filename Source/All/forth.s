@@ -425,23 +425,23 @@ FORTH_TABS_END_LIN	EQU	@
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include .//ftib.s					;text input buffer
-#include .//frs.s					;return stack
-#include .//fps.s					;parameter stack 
-;#include .//fio.s					;communication interface 
-#include .//fexcpt.s					;exceptions
-;#include .//finner.s					;inner interpreter
-#include .//fouter.s					;outer interpreter
-;#include .//firq.s					;interrupt requests
-#include .//fcdict.s					;core dictionary
-#include .//fcdict_tree.s				;core dictionary search tree
-#include .//fnvdict.s					;non-volatile dictionary
-#include .//fudict.s					;user dictionary
-;#include .//fcore.s					;core words
-;#include .//fdouble.s					;double-number words
-;#include .//ffloat.s					;floating point words
-;#include .//ftools.s					;programming tools words
-;#include .//ffacil.s					;facility words
-;#include .//fsci.s					;S12CBase SCI wrapper
+#include ./ftib.s					;text input buffer
+#include ./frs.s					;return stack
+#include ./fps.s					;parameter stack 
+;#include ./fio.s					;communication interface 
+#include ./fexcpt.s					;exceptions
+;#include ./finner.s					;inner interpreter
+#include ./fouter.s					;outer interpreter
+;#include ./firq.s					;interrupt requests
+#include ./fcdict.s					;core dictionary
+#include ./fcdict_tree.s				;core dictionary search tree
+#include ./fnvdict.s					;non-volatile dictionary
+#include ./fudict.s					;user dictionary
+;#include ./fcore.s					;core words
+;#include ./fdouble.s					;double-number words
+;#include ./ffloat.s					;floating point words
+;#include ./ftools.s					;programming tools words
+;#include ./ffacil.s					;facility words
+;#include ./fsci.s					;S12CBase SCI wrapper
 #endif
 	

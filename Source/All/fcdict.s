@@ -398,108 +398,37 @@ CF_LU_CDICT_H		LEAS	4,SP 					;clean up RS
 			RTS						;done
 	
 	
+
+;Word: WORDS-CDICT ( -- )
+;List the definition names in the core dictionary in alphabetical order.
+IF_WORDS_CDICT		REGULAR
+CF_WORDS_CDICT		EQU	*
+			;RS layout:
+			; +--------+--------+
+			; | Column counter  | SP+0
+			; +--------+--------+
+			; |                 | SP+2
+			; +                 +
+			; :     Iterator    :
+			; +                 +
+			; |                 | SP+(2*(CDICT_TREE_DEPTH))
+			; +--------+--------+
+			;Initialize interator structure 
+			MOVW	#FCDICT_LINE_WIDTH, ((2*FCDICT_TREE_DEPTH)+2),-SP;allocate stack space
+			FCDICT_INIT_ITERATOR	FCDICT_TREE, SP, 2 	;initialize iterator
+			;Determine length of current word 
+			
+	
+
+
+
+
+
+
+
 	
 ;;Dictionary operations:
 ;;======================	
-;;#Look-up word in CORE dictionary 
-;; args:   X: search string (terminated string)
-;; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
-;; SSTACK: 8 bytes
-;;         X and Y are preserved
-;FCDICT_FIND		EQU	*	
-;			;Save registers (search string in X)
-;			PSHY						;save Y
-;			PSHX						;search string pointer
-;			PSHX						;search substring pointer	
-;			;Initialize tree pointer (search string in X)
-;			LDY	#FCDICT_TREE_START 			;start of CDICT -> Y
-;			;Compare chars (search string in X, CDICT pointer in Y)
-;FCDICT_FIND_1		LDAB	1,X+ 					;search char -> B
-;			FIO_UPPER 					;make search char upper case
-;			TSTB						;check if char has been terminated
-;			BMI	FCDICT_FIND_7				;end of search string
-;			LDAA	1,Y+ 					;dict char -> A
-;			BEQ	FCDICT_FIND_3 				;empty string (skip to next sibling)
-;			BMI	FCDICT_FIND_10	 			;end of CDICT substring
-;			CBA						;compare chars
-;			BEQ	FCDICT_FIND_1				;compare next char
-;			;Skip to next sibling (CDICT pointer in Y)
-;FCDICT_FIND_2		BRCLR	1,Y+, #FIO_TERM, * 			;skip past the end of the CDICT substring
-;FCDICT_FIND_3		LDX	0,SP 					;reset search substring
-;			TST	2,Y+ 					;check for children
-;			BNE	FCDICT_FIND_4 				;no childeren found
-;			LEAY	1,Y 					;adjust CDICT pointer
-;FCDICT_FIND_4		TST	0,Y 					;check for end of branch
-;			BNE	FCDICT_FIND_1 				;skip to next char
-;			;Search unsuccessful 
-;FCDICT_FIND_5		CLRA						;return 0=not found
-;			CLRB		  				;
-;			;Done (result in D) 
-;FCDICT_FIND_6		SSTACK_PREPULL	8 				;check stack
-;			LEAS	2,SP 					;clean up tmp vars
-;			PULX						;restore X
-;			PULY						;restore Y
-;			RTS
-;			;End of search string (CDICT pointer in Y, CDICT char in A, search char in B)
-;FCDICT_FIND_7		LDAA	1,Y+ 					;dict char -> A
-;			BPL	FCDICT_find_2 				;skip to nect sibling
-;			CBA						;compare chars
-;			BNE	FCDICT_FIND_3 				;search unsuccessful
-;			BRCLR	0,Y, #$FF, FCDICT_FIND_9 		;check for blank children
-;FCDICT_FIND_8		LDD	0,Y
-;			JOB	FCDICT_FIND_6 				;search successful
-;			;check for blank child (CDICT pointer in Y)
-;FCDICT_FIND_9		LDY	1,Y 					;skip to subtree
-;			BRCLR	1,Y+, #$FF, FCDICT_FIND_8		;search successful
-;			JOB	FCDICT_FIND_5 				;search unsuccessful
-;			;End of CDICT substring (CDICT pointer in Y, CDICT char in A, search char in B)
-;FCDICT_FIND_10		ANDA	#(~FIO_TERM) 				;remove termination
-;			CBA						;compare chars
-;			BNE	FCDICT_FIND_3 				;search unsuccessful
-;			TST	1,Y+ 					;check for subtree
-;			BNE	FCDICT_FIND_5 				;search unsuccessful
-;			STX	0,SP 					;set new search substring
-;			LDY	0,Y 					;skip to subtree
-;			JOB	FCDICT_FIND_1
-
-
-
-
-
-
-
-
-
-				;
-;;#Reverse lookup a CFA and print the corresponding word
-;; args:   D: CFA
-;; result: C-flag: set if successful
-;; SSTACK: 2*FCDICT_TREE_DEPTH + 6 bytes
-;;         All registers are preserved
-;FCDICT_REVPRINT_BL	EQU	*
-;			;Save registers (CFA in D)
-;			PSHY						;save Y	
-;			;Allocate iterator structure (CFA in D)
-;			LEAS	(-2*(FCDICT_TREE_DEPTH+1)),SP 		;allocate space for iterator
-;			TFR	SP, Y 					;start of iterator -> Y
-;			;Reverse lookup (start of iterator in Y, CFA in D)
-;			FCDICT_ITERATOR_REV				;reverse lookup
-;			TST	0,Y 					;check for empty iterator
-;			BEQ	FCDICT_REVPRINT_BL_2 			;search unsucessful
-;			;Print word (start of iterator in Y, CFA in D)
-;			FCDICT_ITERATOR_PRINT 				;print word (SSTACK: 16 bytes)
-;			;Report sucess (CFA in D)
-;			SSTACK_PREPULL (2*(FCDICT_TREE_DEPTH+3)) 	;check stack
-;			SEC				 		;flag success
-;			;Done (CFA in D)
-;FCDICT_REVPRINT_BL_1	LEAS	(2*(FCDICT_TREE_DEPTH+1)),SP 		;deallocate iterator space
-;			PULY						;restore Y	
-;			RTS
-;			;Report failure (CFA in D)
-;FCDICT_REVPRINT_BL_2	SSTACK_PREPULL (2*(FCDICT_TREE_DEPTH+3)) 	;check stack
-;			CLC				 		;flag failure
-;			JOB	FCDICT_REVPRINT_BL_1 			;done
-;	
 ;;Iterator operations:
 ;;====================
 ;;Reverse search CDICT for matching CFA

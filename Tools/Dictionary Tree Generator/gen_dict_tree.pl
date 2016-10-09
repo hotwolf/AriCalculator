@@ -343,7 +343,11 @@ if ($code->{problems}) {
         printf FILEHANDLE "FCDICT_TREE_DEPTH       EQU     %d\n", get_tree_depth(\%dict_tree);
  	printf FILEHANDLE "\n";
         printf FILEHANDLE ";First CF\n";
-        printf FILEHANDLE "FCDICT_FIRST_CF        EQU     %s\n", $first_cf;
+        printf FILEHANDLE "FCDICT_FIRST_CF         EQU     %s\n", $first_cf;
+ 	printf FILEHANDLE "\n";
+        printf FILEHANDLE ";Character count of the first word\n";
+        printf FILEHANDLE "FCDICT_FIRST_CC         EQU     %d   ;\"%s\"\n", length(get_first_word(\%dict_tree)), 
+                                                                        get_first_word(\%dict_tree);
  
 	#Macro label
         printf FILEHANDLE "\n";
@@ -364,6 +368,7 @@ if ($code->{problems}) {
 	my $mem_offset = 0;
 	print_tree(\%dict_tree, "", [], \$mem_offset);
         printf FILEHANDLE "#emac\n";
+        printf FILEHANDLE "\n";
 
 	#Initialize tree pointer structure
         printf FILEHANDLE ";#Set pointer structure to first CDICT entry\n";
@@ -373,12 +378,11 @@ if ($code->{problems}) {
         printf FILEHANDLE "; result: none\n";
         printf FILEHANDLE "; SSTACK: none\n";
         printf FILEHANDLE ";         All registers are preserved\n";
-        printf FILEHANDLE "#macro FCDICT_ITERATOR_INIT, 3\n";
+        printf FILEHANDLE "#macro FCDICT_INIT_ITERATOR, 3\n";
  	print_init_macro();
         printf FILEHANDLE "#emac\n";
-
+        printf FILEHANDLE "\n";
         printf FILEHANDLE "#endif\n";
- 
 	close FILEHANDLE;
     } else {
 	printf STDERR "Can't open output file \"%s\"\r\n", $nfa_tree_file_name;
@@ -768,7 +772,8 @@ sub print_init_macro {
     my $tree_depth   = get_tree_depth(\%dict_tree);
     my @init_offsets = @first_entry;
     
-    foreach my $level (0...$tree_depth) {
+    #foreach my $level (0...$tree_depth) {
+    foreach my $level (0...$tree_depth-1) {
 	if ($#init_offsets >= 0) {
 	    my $entry = shift @init_offsets;
 	    printf FILEHANDLE "                        %-30s;%s\n", sprintf("MOVW #(\\1+\$%.2X), \(\\3+\$%.2X),\\2", $entry->{offset}, (2*$level)),
@@ -777,6 +782,27 @@ sub print_init_macro {
 	    printf FILEHANDLE "                        %-30s;\n",   sprintf("MOVW #NULL,     \(\\3+\$%.2X),\\2", (2*$level)),
 	}
     }
+}
+
+####################################
+# Get char count of the first word #
+####################################
+sub get_first_word {
+    my $tree           = shift @_;
+    my $word = "";
+   
+    my @keys = sort keys %{$tree};
+   
+    if ($#keys >= 0) {
+	if ($keys[0] ne "\n") {	
+	    $word = $keys[0] . get_first_word($tree->{$keys[0]});
+	}
+    }
+    chomp($word);
+    
+    #printf STDERR "word: %d  |%s| \n", length($word), $word;
+    
+    return $word;
 }
 
 1;
