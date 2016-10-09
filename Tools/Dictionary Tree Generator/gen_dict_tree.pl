@@ -293,7 +293,7 @@ if ($code->{problems}) {
         printf FILEHANDLE ";# S12CForth - Search Tree for the Core Dictionary                             #\n";
         printf FILEHANDLE ";###############################################################################\n";
         printf FILEHANDLE ";#    Copyright 2009-%4d Dirk Heisswolf                                       #\n", $year;
-        printf FILEHANDLE ";#    This file is part of the S12CForth framework for Freescale's S12(X) MCU  #\n";
+        printf FILEHANDLE ";#    This file is part of the S12CForth framework for NXP's S12(X) MCU        #\n";
         printf FILEHANDLE ";#    families.                                                                #\n";
         printf FILEHANDLE ";#                                                                             #\n";
         printf FILEHANDLE ";#    S12CForth is free software: you can redistribute it and/or modify        #\n";
@@ -346,8 +346,8 @@ if ($code->{problems}) {
         printf FILEHANDLE "FCDICT_FIRST_CF         EQU     %s\n", $first_cf;
  	printf FILEHANDLE "\n";
         printf FILEHANDLE ";Character count of the first word\n";
-        printf FILEHANDLE "FCDICT_FIRST_CC         EQU     %d   ;\"%s\"\n", length(get_first_word(\%dict_tree)), 
-                                                                        get_first_word(\%dict_tree);
+        printf FILEHANDLE "FCDICT_FIRST_CC         EQU     %d                               ;\"%s\"\n", length(get_first_word(\%dict_tree)), 
+                                                                                                        get_first_word(\%dict_tree);
  
 	#Macro label
         printf FILEHANDLE "\n";
