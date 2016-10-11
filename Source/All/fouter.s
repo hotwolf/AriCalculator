@@ -106,6 +106,9 @@ TIB_START		EQU	RS_TIB_START
 FOUTER_INTERACT_PROMPT	EQU	">"
 FOUTER_COMPILE_PROMPT	EQU	"+"
 FOUTER_NVCOMPILE_PROMPT	EQU	"@"
+
+;Max. line width
+FOUTER_LINE_WIDTH	EQU	80
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -549,6 +552,26 @@ FOUTER_TX_CHAR		EQU	SCI_TX_BL
 ;         Y and D are preserved
 FOUTER_TX_STRING	EQU	STRING_PRINT_BL
 
+;#Prints a list separator (SPACE or line break)
+; args:   D:      char count of next word
+;         0,SP:   line counter 
+; result: 0,SP;   updated line counter
+; SSTACK: 10 bytes
+;         Y is preserved
+FOUTER_LIST_SEP		EQU	*
+			;Add char count to line counter
+			ADDD	2,SP 			;add char count 
+			CPD	#FOUTER_LINE_WIDTH	;check line width
+			BHS	FOUTER_LIST_SEP_1	;line break required
+			;Print SPACE (line counter in D)  
+			ADDD	#1 			;count SPACE
+			STD	2,SP			;update line counter
+			JOB	CF_SPACE		;print SPACE
+			;Print line break (line counter in D)  
+FOUTER_LIST_SEP_1	SUBD	2,SP 			;restore char count
+			STD	2,SP			;update line counter
+			JOB	CF_CR			;print line break
+	
 ;#########
 ;# Words #
 ;#########
@@ -621,10 +644,8 @@ CF_QUIT_RT_3		LDD	STATE 			;check STATE
 			;Interpret (c-addr u)
 CF_QUIT_RT_A		JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
-			BGND
-
 			BEQ	CF_QUIT_RT_B		;unknown word
-			;JSR	0,X			;execute xt
+			JSR	0,X			;execute xt
 
 CF_QUIT_RT_B		JOB	CF_QUIT_RT_2 		;parse next word
 
@@ -690,6 +711,15 @@ CF_LU			EQU	*
  			;remove fail flag			
 			JOB	CF_LU_CDICT		;search CDICT
 CF_LU_1			RTS				;done
+
+;Word: WORDS ( -- )
+;List the definition names in all available dictionaries in compile order.
+IF_WORDS		REGULAR
+CF_WORDS		EQU	*
+
+			JOB	CF_WORDS_CDICT
+
+
 	
 ;;#Skip delimiter in TIB 
 ;; args:   A:      delimiter (0=any whitespace)

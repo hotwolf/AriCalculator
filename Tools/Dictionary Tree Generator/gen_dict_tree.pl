@@ -692,14 +692,18 @@ sub print_tree {
 	    #String is not terminated
 	    if ($nt_string !~ /\"/) {
 		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
-		$$mem_offset_ref += scalar(split("", $string));
+		#printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
+		$$mem_offset_ref += scalar(split("", $nt_string));
 	    } else {
 		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
-		$$mem_offset_ref += scalar(split("", $string));
+		#printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
+		$$mem_offset_ref += scalar(split("", $nt_string));
 	    }
 	    printf FILEHANDLE $instr_form_nc, "", "DB", "BRANCH";
+	    #printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
 	    $$mem_offset_ref += 1;
 	    printf FILEHANDLE $instr_form, "", "DW", sprintf($label_format, join("_", @$position, $string_index)), sprintf("%s...", $combo_string);
+	    #printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
 	    $$mem_offset_ref += 2;
 	    
 	    #Optimize subtree order
@@ -724,17 +728,21 @@ sub print_tree {
 		#Non-zero length
 		if ($nt_string !~ /\"/) {
 		    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
-		    $$mem_offset_ref += scalar(split("", $string));
+		    #printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
+		    $$mem_offset_ref += scalar(split("", $nt_string));
 		} else {
 		    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
-		    $$mem_offset_ref += scalar(split("", $string));
+		    #printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
+		    $$mem_offset_ref += scalar(split("", $nt_string));
 		}
 		#printf FILEHANDLE $instr_form_nc, "", "DB", "STRING_TERMINATION";
 	    } else {
 		printf FILEHANDLE $instr_form_nc, $left_col, "DB", "EMPTY_STRING";
+		#printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
 		$$mem_offset_ref += 1;
 	    }
 	    printf FILEHANDLE $instr_form, "", "DW", $cf_entry, sprintf("-> %s", $combo_string); 
+	    #printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
 	    $$mem_offset_ref += 2;
 	}
 	$left_col = "";
@@ -745,9 +753,11 @@ sub print_tree {
   	#printf FILEHANDLE $instr_form, "", ";DB", "END_OF_BRANCH", "merged";
 	#$$mem_offset_ref += 1;
  	printf FILEHANDLE $instr_form_nc, "", ";DB", "END_OF_BRANCH";
-	$$mem_offset_ref += 1;
+	#printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
+	#$$mem_offset_ref += 1;
     } else {
 	printf FILEHANDLE $instr_form_nc, "", "DB", "END_OF_BRANCH";
+	#printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
         $$mem_offset_ref += 1;
     }
   	
@@ -776,7 +786,7 @@ sub print_init_macro {
     foreach my $level (0...$tree_depth-1) {
 	if ($#init_offsets >= 0) {
 	    my $entry = shift @init_offsets;
-	    printf FILEHANDLE "                        %-30s;%s\n", sprintf("MOVW #(\\1+\$%.2X), \(\\3+\$%.2X),\\2", $entry->{offset}, (2*$level)),
+	    printf FILEHANDLE "                        %-30s;%s\n", sprintf("MOVW #(\\1+\$%.2X), \(\\3+\$%.2X),\\2", $entry->{offset}, (2*($tree_depth-(1+$level)))),
     	                                                            sprintf("%-20s(\"%s\")", $entry->{label}, $entry->{substring});
 	} else {
 	    printf FILEHANDLE "                        %-30s;\n",   sprintf("MOVW #NULL,     \(\\3+\$%.2X),\\2", (2*$level)),
