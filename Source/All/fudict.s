@@ -426,6 +426,29 @@ FUDICT_VARS_END_LIN	EQU	@
 FUDICT_CODE_START_LIN	EQU	@
 #endif
 
+;#########
+;# Words #
+;#########
+
+;Word: LITERAL 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( x -- )
+;Append the run-time semantics given below to the current definition.
+;Run-time: ( -- x )
+;Place x on the stack.
+IF_LITERAL		IMMEDIATE
+CF_LITERAL		EQU	*
+
+;Word: COMPILE, 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( xt -- )
+;Append the execution semantics of the definition represented by xt to the
+;execution semantics of the current definition.
+IF_COMPILE_COMMA	IMMEDIATE
+CF_COMPILE_COMMA	EQU	*
+
+
+
 ;;#User dictionary (UDICT)
 ;;========================
 ;;Complile operations:

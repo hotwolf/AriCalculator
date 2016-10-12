@@ -41,10 +41,44 @@
 ;#          TO_IN = In-pointer of the TIB (>IN)	       			       #
 ;#       	    (TIB_START+TO_IN) points to the next character	       #
 ;#  									       #
-;#    Program termination options:                                             #
-;#        ABORT:   Restart outer interpreter                                   #
-;#        QUIT:    Restart outer interpreter                                   #
+;#    The following notation is used to describe the stack layout in the word  #
+;#    definitions:                                                             #
 ;#                                                                             #
+;#    Symbol          Data type                       Size on stack	       #
+;#    ------          ---------                       -------------	       #
+;#    flag            flag                            1 cell		       #
+;#    true            true flag                       1 cell		       #
+;#    false           false flag                      1 cell		       #
+;#    char            character                       1 cell		       #
+;#    n               signed number                   1 cell		       #
+;#    +n              non-negative number             1 cell		       #
+;#    u               unsigned number                 1 cell		       #
+;#    n|u 1           number                          1 cell		       #
+;#    x               unspecified cell                1 cell		       #
+;#    xt              execution token                 1 cell		       #
+;#    addr            address                         1 cell		       #
+;#    a-addr          aligned address                 1 cell		       #
+;#    c-addr          character-aligned address       1 cell		       #
+;#    d-addr          double address                  2 cells (non-standard)   #
+;#    d               double-cell signed number       2 cells		       #
+;#    +d              double-cell non-negative number 2 cells		       #
+;#    ud              double-cell unsigned number     2 cells		       #
+;#    d|ud 2          double-cell number              2 cells		       #
+;#    xd              unspecified cell pair           2 cells		       #
+;#    colon-sys       definition compilation          implementation dependent #
+;#    do-sys          do-loop structures              implementation dependent #
+;#    case-sys        CASE structures                 implementation dependent #
+;#    of-sys          OF structures                   implementation dependent #
+;#    orig            control-flow origins            implementation dependent #
+;#    dest            control-flow destinations       implementation dependent #
+;#    loop-sys        loop-control parameters         implementation dependent #
+;#    nest-sys        definition calls                implementation dependent #
+;#    i*x, j*x, k*x 3 any data type                   0 or more cells	       #
+;#  									       #
+;#    Counted strings are implemented as terminated strings. String            #
+;#    termination is done by setting bit 7 in the last character of the        #   
+;#    string. Pointers to empty strings have the value $0000.		       #
+;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    February 5, 2013                                                         #
@@ -266,72 +300,69 @@ FOUTER_PREFIX		EQU	*
 			PSHD				;sign:base      -> 0,SP
 			;Check for empty string (string pointer in X sign:base in D)
 			CPX	2,SP 			;check for empty string
-			BEQ	FOUTER_PREFIX_Z		;do nothing
+			BEQ	FOUTER_PREFIX_6		;do nothing
 			;Sign (string pointer in X) 
 			LDAA	1,X+ 			;first char -> A
 			CPX	2,SP			;check for more chars
-			BEQ	FOUTER_PREFIX_D		;last char (revert parsing)
+			BEQ	FOUTER_PREFIX_5		;last char (revert parsing)
 			CMPA	#"-"			;check for sign
-			BNE	FOUTER_PREFIX_A		;no sign change
+			BNE	FOUTER_PREFIX_1		;no sign change
 			MOVW	#$FF, 0,SP		;set negative sign
 			LDAA	1,X+ 			;next char -> A
 			CPX	2,SP			;check for more chars
-			BEQ	FOUTER_PREFIX_D		;last char (revert parsing)
+			BEQ	FOUTER_PREFIX_5		;last char (revert parsing)
 			;Leading zero (string pointer in X, char in A)
-FOUTER_PREFIX_A		CMPA	#"0"			;check for sign
-			BNE	FOUTER_PREFIX_A		;check ASM-style prefix
+FOUTER_PREFIX_1		CMPA	#"0"			;check for sign
+			BNE	FOUTER_PREFIX_7		;check ASM-style prefix
 			LDAA	1,X+ 			;first char -> A
 			CPX	2,SP			;check for more chars
-			BEQ	FOUTER_PREFIX_D		;last char (revert parsing)
+			BEQ	FOUTER_PREFIX_5		;last char (revert parsing)
 			;C-style prefix (string pointer in X, char in A)
 			PSHX				;save string pointer
 			LDX	#FOUTER_C_PFTAB		;C-prefix table -> X
 			LDAB	#FOUTER_C_PFTAB_CNT 	;entry count -> B
-FOUTER_PREFIX_B		CMPA	2,X+			;check table entry
-			BEQ	FOUTER_PREFIX_J 		;C-style prefix found
-			DBNE	B, FOUTER_PREFIX_B	;check next table entry
+FOUTER_PREFIX_2		CMPA	2,X+			;check table entry
+			BEQ	FOUTER_PREFIX_9 	;C-style prefix found
+			DBNE	B, FOUTER_PREFIX_2	;check next table entry
 			PULX				;restore string pointer
 			;Skip zeros and underscores (string pointer in X)
-			JOB	FOUTER_PREFIX_G		;check hor underscore
-FOUTER_PREFIX_C		LDAA	1,X+ 			;first char -> A
+			JOB	FOUTER_PREFIX_4		;check for underscore
+FOUTER_PREFIX_3		LDAA	1,X+ 			;first char -> A
 			CPX	2,SP			;check for more chars
-			BEQ	FOUTER_PREFIX_D		;last char (revert parsing)
-FOUTER_PREFIX_G		CMPA	"_"			;check for underscore
-			BEQ	FOUTER_PREFIX_C		;skip underscore
+			BEQ	FOUTER_PREFIX_5		;last char (revert parsing)
+FOUTER_PREFIX_4		CMPA	"_"			;check for underscore
+			BEQ	FOUTER_PREFIX_3		;skip underscore
 			CMPA	"0"			;check for zero
-			BEQ	FOUTER_PREFIX_C		;skip zero
+			BEQ	FOUTER_PREFIX_3		;skip zero
 			;Return results (string pointer in X)
-FOUTER_PREFIX_D		LEAX	-1,X  			;revert parser to current char
+FOUTER_PREFIX_5		LEAX	-1,X  			;revert parser to current char
 			LDD	4,SP+			;sign:base -> A:B
-FOUTER_PREFIX_Z		RTS				;done
+FOUTER_PREFIX_6		RTS				;done
 			;ASM-style prefix (string pointer in X, char in A)
-FOUTER_PREFIX_E		PSHX				;save string pointer
+FOUTER_PREFIX_7		PSHX				;save string pointer
 			LDX	#FOUTER_ASM_PFTAB	;ASM-prefix table -> X
 			LDAB	#FOUTER_ASM_PFTAB_CNT 	;entry count -> B
-FOUTER_PREFIX_F		CMPA	2,X+			;check table entry
-			BEQ	FOUTER_PREFIX_K 	;ASM-style prefix found
-			DBNE	B, FOUTER_PREFIX_F	;check next table entry
+FOUTER_PREFIX_8		CMPA	2,X+			;check table entry
+			BEQ	FOUTER_PREFIX_10 	;ASM-style prefix found
+			DBNE	B, FOUTER_PREFIX_8	;check next table entry
 			PULX				;restore string pointer
-			JOB	FOUTER_PREFIX_D		;prefix parsed
+			JOB	FOUTER_PREFIX_5		;prefix parsed
 			;C-style prefix found (table pointer in X)
-FOUTER_PREFIX_I		MOVB	-1,X, 1,SP 		;update base
+FOUTER_PREFIX_9		MOVB	-1,X, 1,SP 		;update base
 			PULX				;restore string pointer
-FOUTER_PREFIX_J		LDAA	1,X+ 			;first char -> A
-			CPX	2,SP			;check for more chars
-			BEQ	FOUTER_PREFIX_D		;last char (revert parsing)
-			JOB	FOUTER_PREFIX_G		;check for zero
+			JOB	FOUTER_PREFIX_3		;skip zeros and underscores
 			;ASM-style prefix found (table pointer in X)
-FOUTER_PREFIX_K		MOVB	-1,X, 1,SP 		;update base
+FOUTER_PREFIX_10	MOVB	-1,X, 1,SP 		;update base
 			PULX				;restore string pointer
-FOUTER_PREFIX_L		LDAA	1,X+ 			;first char -> A
+			LDAA	1,X+ 			;first char -> A
 			CPX	2,SP			;check for more chars
-			BEQ	FOUTER_PREFIX_D		;last char (revert parsing)
+			BEQ	FOUTER_PREFIX_5		;last char (revert parsing)
 			CMPA	"-"			;check second sign position
-			BNE	FOUTER_PREFIX_G		;check for zero
+			BNE	FOUTER_PREFIX_4		;check for zero
 			TST	0,SP			;check if result is already negative
-			BNE	FOUTER_PREFIX_D		;result is already negative
+			BNE	FOUTER_PREFIX_5		;result is already negative
 			MOVW	#$FF, 0,SP		;set negative sign
-			JOB	FOUTER_PREFIX_J		;skip zeros and underscores
+			JOB	FOUTER_PREFIX_3		;skip zeros and underscores
 
 ;#Multiply double integer by base and add new digit
 ; args:   A:      digit    
@@ -469,8 +500,8 @@ FOUTER_CONV_DIGIT_4	CLC				;flag failure
 ;by the start address c-addr and the character count u1. If successful the
 ;resulting integer is returned along with the size of the result. Otherwise the
 ;string reference remains on the parameter stack along with a zero cell count.
-IF_TO_INT			REGULAR
-CF_TO_INT			EQU	*
+IF_TO_INT		REGULAR
+CF_TO_INT		EQU	*
 			;RS layout:
 			; +--------+--------+
 			; |     Absolute    | SP+0
@@ -484,7 +515,7 @@ CF_TO_INT			EQU	*
 			;Allocate pointers
 			LDX	2,Y 			;c-addr -> X
 			LDD	0,Y			;u1     -> D
-			BEQ	CF_TO_INT_F		;empty string
+			BEQ	CF_TO_INT_6		;empty string
 			LEAX	D,X			;end of string -> X
 			PSHX				;store end of string
 			LDX	2,Y 			;c-addr -> X
@@ -495,52 +526,52 @@ CF_TO_INT			EQU	*
 			MOVW	#$0000, 2,-SP 		;allocate cleared word
 			MOVW	#$0000, 2,-SP 		;allocate cleared word
 			;Process digit (string pointer in X, base in B)
-CF_TO_INT_A		LDAA	1,X+ 			;char -> A
+CF_TO_INT_1		LDAA	1,X+ 			;char -> A
 			JOBSR	FOUTER_CONV_DIGIT	;digit -> A
-			BCC	CF_TO_INT_F		;inconvertible character
+			BCC	CF_TO_INT_6		;inconvertible character
 			PSHX				;save X
 			LEAX	2,SP			;integer space -> X
 			JOBSR	FOUTER_SHIFT_AND_ADD	;add digit to intager
-			BNE	CF_TO_INT_F		;overflow
+			BNE	CF_TO_INT_6		;overflow
 			PULX				;restore X
-CF_TO_INT_C		CPX	6,SP			;check for remaining chars
-			BNE	CF_TO_INT_A		;process next digit
+CF_TO_INT_2		CPX	6,SP			;check for remaining chars
+			BNE	CF_TO_INT_1		;process next digit
 			;Single cell integer
 			LDD	0,SP 			;check for overflow
-			BNE	CF_TO_INT_F		;overflow
+			BNE	CF_TO_INT_6		;overflow
 			LDD	2,SP			;LSW -> D
 			TST	4,SP			;check sign
-			BEQ	CF_TO_INT_B		;positive number
+			BEQ	CF_TO_INT_3		;positive number
 			TSTA				;check range
-			BMI	CF_TO_INT_F		;overflow
+			BMI	CF_TO_INT_6		;overflow
 			COMA				;invert LSW
 			COMB				;
 			ADDD	#$0001			;negate LSW
-CF_TO_INT_B		STD	2,Y			;return u2
+CF_TO_INT_3		STD	2,Y			;return u2
 			MOVW	#$0001, 0,Y		;return 1
-CF_TO_INT_D		LEAS	8,SP			;free stack space
+CF_TO_INT_4		LEAS	8,SP			;free stack space
 			RTS				;done
 			;Inconvertible (string pointer in X, char in A, base in B)
 			CMPA	"_"			;check for filler
-			BEQ	CF_TO_INT_C		;skip char
+			BEQ	CF_TO_INT_2		;skip char
 			CMPA	"."			;check double indicator
-			BNE	CF_TO_INT_F		;failure
+			BNE	CF_TO_INT_6		;failure
 			CPX	6,SP			;check if period is the last char
-			BNE	CF_TO_INT_A		;failure
+			BNE	CF_TO_INT_1		;failure
 			;Double cell integer
 			TSX				;integer space -> X
 			TST	4,SP			;check sign
-			BEQ	CF_TO_INT_E		;positive number
+			BEQ	CF_TO_INT_5		;positive number
 			TST	0,SP			;check range
-			BMI	CF_TO_INT_F		;overflow
+			BMI	CF_TO_INT_6		;overflow
 			JOBSR	FOUTER_NEGATE		;negate double integer
-CF_TO_INT_E		MOVW	2,SP, 2,Y		;return LSW
+CF_TO_INT_5		MOVW	2,SP, 2,Y		;return LSW
 			MOVW	0,SP, 0,Y		;return MSW
 			MOVW	#$0002, 2,-Y		;return 2
-			JOB	CF_TO_INT_D		;clean up and done
+			JOB	CF_TO_INT_4		;clean up and done
 			;Failure 
-CF_TO_INT_F		MOVW	#$0000, 2,-Y		;return 0
-			JOB	CF_TO_INT_D		;clean up and done
+CF_TO_INT_6		MOVW	#$0000, 2,-Y		;return 0
+			JOB	CF_TO_INT_4		;clean up and done
 	
 ;Word: SPACE ( -- ) Print whitespace
 ;Print one space character.	
