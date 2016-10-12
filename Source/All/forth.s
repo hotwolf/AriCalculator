@@ -93,6 +93,9 @@ FALSE			EQU	$0000
 ;STRING_ENABLE_FILL_BL	EQU	1	;enable STRING_FILL_BL 
 ;STRING_ENABLE_UPPER	EQU	1	;enable STRING_UPPER 
 
+;#S12CBASE NUM requirements
+NUM_MAX_BASE_36		EQU	1
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
