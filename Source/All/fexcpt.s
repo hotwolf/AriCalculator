@@ -172,7 +172,6 @@ FEXCPT_VARS_START_LIN	EQU	@
 #endif	
 	
 HANDLER			DS	2 		;pointer tho the most recent exception handler 
-;ABORT_MSG		DS	2 		;storage for the ABORT" message pointer
 				
 FEXCPT_VARS_END		EQU	*
 FEXCPT_VARS_END_LIN	EQU	@
@@ -184,7 +183,6 @@ FEXCPT_VARS_END_LIN	EQU	@
 ;===============
 #macro	FEXCPT_INIT, 0
 			MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER	;reset exception handler
-			;MOVW	#FIO_EMPTY_STRING      , ABORT_MSG	;clear inner message
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
@@ -339,6 +337,12 @@ FEXCPT_VARS_END_LIN	EQU	@
 FEXCPT_CODE_START_LIN	EQU	@
 #endif
 
+
+
+
+
+
+	
 ;;Functions:
 ;;==========
 ;;#Print the content of a cell hexadecimal format  - blocking

@@ -438,7 +438,8 @@ FUDICT_CODE_START_LIN	EQU	@
 ;Place x on the stack.
 IF_LITERAL		IMMEDIATE
 CF_LITERAL		EQU	*
-
+			RTS
+	
 ;Word: COMPILE, 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( xt -- )
@@ -446,8 +447,7 @@ CF_LITERAL		EQU	*
 ;execution semantics of the current definition.
 IF_COMPILE_COMMA	IMMEDIATE
 CF_COMPILE_COMMA	EQU	*
-
-
+			RTS
 
 ;;#User dictionary (UDICT)
 ;;========================

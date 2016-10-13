@@ -579,13 +579,45 @@ IF_SPACE		REGULAR
 CF_SPACE		EQU	*
 			LDAB	#FOUTER_SYM_SPACE 	;SPACE char -> B
 			JOB	FOUTER_TX_CHAR		;print SPACE char
-		
+
+;Word: SPACES ( n -- )
+;If n is greater than zero, display n spaces.
+IF_SPACES		REGULAR
+CF_SPACES		EQU	*
+			LDX	2,Y+ 			;pick up argument
+			BEQ	CF_SPACES_2		;skip on zero
+CF_SPACES_1		JOBSR	CF_SPACE		;print SPACE
+			DBNE	X, CF_SPACES_1		;loop
+CF_SPACES_2		RTS				;done
+	
 ;Word: CR ( -- ) Print line break
 ;Cause subsequent output to appear at the beginning of the next line.
 IF_CR			REGULAR
 CF_CR			EQU	*
 			LDX 	#FOUTER_STR_NL 		;line break sequence -> X
 			JOB	FOUTER_TX_STRING	;print line break sequence
+
+;Word: .STR ( c-addr u  -- ) Print a string
+;Ptint a string given by the start address c-addr and the character count u.
+IF_DOT_STR		REGULAR
+CF_DOT_STR		EQU	*
+			;Calculate end of string 
+			LDX	0,Y 			;u             -> X
+			LDD	2,Y			;c-addr        -> D
+			LEAX	D,X			;end of string -> X
+			STX	0,Y			;store end of string
+			TFR	D, X			;c-addr        -> X
+CF_DOT_STR_1		LDAB	1,X+			;char          -> B
+			JOBSR	FOUTER_TX_CHAR		;print char
+			CPX	0,Y			;check for end of string
+			BNE	CF_DOT_STR_1		;loop
+			RTS				;done
+			
+;Word: NOP ( -- ) No operation 
+;Do nothing.
+IF_NOP			REGULAR
+CF_NOP			EQU	*
+			RTS				;done
 
 ;Word: PROMPT ( -- ) Print shell prompt
 ;Prints a STATE specific command line prompt.
@@ -629,7 +661,9 @@ CF_QUIT_RT_2		MOVW	#FOUTER_SYM_SPACE, 2,-Y ;use SPACE as word seperator
 			LDD	0,Y			;check result
 			BNE	CF_QUIT_RT_3		;word parsed
 			LEAY	4,Y			;clean up PS
-			JOB	CF_QUIT_RT_1		;querry new input
+			LDX	#FOUTER_STR_OK		;ok string -> X
+			MOVW	#CF_QUIT_RT_1, 2,-SP	;push return address (querry loop)
+			JOB	FOUTER_TX_STRING	;print string
 			;Check for compile state (c-addr u)
 CF_QUIT_RT_3		LDD	STATE 			;check STATE
 			BEQ	CF_QUIT_RT_6		;interpret
@@ -640,25 +674,25 @@ CF_QUIT_RT_3		LDD	STATE 			;check STATE
 			BRSET	-1,X, #$FF, CF_QUIT_RT_7;execute immediate word
 			STX	2,-Y			;
 			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
-			;JOB	CF_COMPILE		;compile word
+			JOB	CF_COMPILE_COMMA	;compile word
 CF_QUIT_RT_4		JOBSR	CF_TO_INT 		;convert to integer
 			LDD	2,Y+			;check result
-			BEQ	CF_QUIT_RT_8		;syntax error
+			BEQ	CF_QUIT_RT_9		;syntax error
 			DBEQ	D, CF_QUIT_RT_5		;compile single cell
-			;JOBSR	CF_LITERAL		;compile literal
+			JOBSR	CF_LITERAL		;compile literal
 CF_QUIT_RT_5		MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
-			;JOB	CF_LITERAL		;compile literal
+			JOB	CF_LITERAL		;compile literal
 			;Interpret (c-addr u)
 CF_QUIT_RT_6		JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
-			BEQ	CF_QUIT_RT_7		;unknown word
+			BEQ	CF_QUIT_RT_8		;unknown word
 CF_QUIT_RT_7		MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
 			;MOVW	#CF_MONITOR, 2,-SP	;push return address (CF_MONITOR)
 			JMP	0,X 			;execute
-			JOBSR	CF_TO_INT 		;convert to integer
+CF_QUIT_RT_8		JOBSR	CF_TO_INT		;convert to integer
 			LDD	2,Y+			;check result
 			BNE	CF_QUIT_RT_2		;parse loop
-CF_QUIT_RT_8		JOB	CF_SYNTAX_ERROR		;syntax error
+CF_QUIT_RT_9		JOB	CF_SYNTAX_ERROR		;syntax error
 
 ;Word: PARSE ( char "ccc<char>" -- c-addr u )
 ;Parse ccc delimited by the delimiter char. c-addr is the address (within the
@@ -731,12 +765,19 @@ CF_WORDS		EQU	*
 			JOB	CF_WORDS_CDICT
 
 ;Word: SYNTAX-ERROR ( c-addr u -- )
-;Print a syntax error message, quoting the word referenced by the start address
+;Print a syntax error message, referencing the word given by the start address
 ;c-addr and the character count u. Then throw an abort exception.
 IF_SYNTAX_ERROR		REGULAR
 CF_SYNTAX_ERROR		EQU	*
-			JOB	CF_ABORT_RT
-
+			;Print left string 
+			LDX	#FOUTER_STR_SYNERR_LEFT ;left side message -> X
+			JOBSR	FOUTER_TX_STRING	;print substring
+			;Print word 
+			JOBSR	CF_DOT_STR 		;print word
+			;Print right string 
+			LDX	#FOUTER_STR_SYNERR_RIGHT;right side message -> X 
+			MOVW	#CF_ABORT_RT, 2,-SP	;push return address (cf_abort_rt)
+			JOB	FOUTER_TX_STRING	;print substring
 
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@
@@ -752,15 +793,26 @@ FOUTER_CODE_END_LIN	EQU	@
 FOUTER_TABS_START_LIN	EQU	@
 #endif	
 
-;Symbol tables
+;Line break
 FOUTER_STR_NL		EQU	STRING_STR_NL
 
 ;System prompts
 FOUTER_STR_OK		FCS	" ok"
-	
-;Symbol tables
-FOUTER_SYMTAB		EQU	NUM_SYMTAB
-FOUTER_SYMTAB_END	EQU	NUM_SYMTAB_END
+
+;Error messages 
+FOUTER_STR_SYNERR_LEFT	STRING_NL_NONTERM
+			FCC	"  Syntax ERROR! "
+			DB	$A2 				;quote with termination
+FOUTER_STR_SYNERR_RIGHT	DB	$22				;quote
+			STRING_NL_TERM
+
+
+;;Cute but implactical: 
+;FOUTER_STR_SYNERR_LEFT	FCC	"Huh?---^"
+;FOUTER_STR_SYNERR_CNT	EQU	*-FOUTER_STR_SYNERR_LEFT
+;			STRING_NL_TERM
+;FOUTER_STR_SYNERR_RIGHT	FCC	"^---Huh?"
+;			STRING_NL_TERM
 
 ;Prefix tables 
 FOUTER_ASM_PFTAB	DB	"%" 	 2
