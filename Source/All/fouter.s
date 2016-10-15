@@ -519,6 +519,7 @@ CF_TO_INT		EQU	*
 			LEAX	D,X			;end of string -> X
 			PSHX				;store end of string
 			LDX	2,Y 			;c-addr -> X
+			BGND
 			;Parse prefix (string pointer in X, char count on D)
 			JOBSR	FOUTER_PREFIX 		;parse prefix
 			PSHD				;store sign:base
@@ -580,15 +581,15 @@ CF_SPACE		EQU	*
 			LDAB	#FOUTER_SYM_SPACE 	;SPACE char -> B
 			JOB	FOUTER_TX_CHAR		;print SPACE char
 
-;Word: SPACES ( n -- )
-;If n is greater than zero, display n spaces.
-IF_SPACES		REGULAR
-CF_SPACES		EQU	*
-			LDX	2,Y+ 			;pick up argument
-			BEQ	CF_SPACES_2		;skip on zero
-CF_SPACES_1		JOBSR	CF_SPACE		;print SPACE
-			DBNE	X, CF_SPACES_1		;loop
-CF_SPACES_2		RTS				;done
+;;Word: SPACES ( n -- )
+;;If n is greater than zero, display n spaces.
+;;IF_SPACES		REGULAR
+;CF_SPACES		EQU	*
+;			LDX	2,Y+ 			;pick up argument
+;			BEQ	CF_SPACES_2		;skip on zero
+;CF_SPACES_1		JOBSR	CF_SPACE		;print SPACE
+;			DBNE	X, CF_SPACES_1		;loop
+;CF_SPACES_2		RTS				;done
 	
 ;Word: CR ( -- ) Print line break
 ;Cause subsequent output to appear at the beginning of the next line.
@@ -597,22 +598,6 @@ CF_CR			EQU	*
 			LDX 	#FOUTER_STR_NL 		;line break sequence -> X
 			JOB	FOUTER_TX_STRING	;print line break sequence
 
-;Word: .STR ( c-addr u  -- ) Print a string
-;Ptint a string given by the start address c-addr and the character count u.
-IF_DOT_STR		REGULAR
-CF_DOT_STR		EQU	*
-			;Calculate end of string 
-			LDX	0,Y 			;u             -> X
-			LDD	2,Y			;c-addr        -> D
-			LEAX	D,X			;end of string -> X
-			STX	0,Y			;store end of string
-			TFR	D, X			;c-addr        -> X
-CF_DOT_STR_1		LDAB	1,X+			;char          -> B
-			JOBSR	FOUTER_TX_CHAR		;print char
-			CPX	0,Y			;check for end of string
-			BNE	CF_DOT_STR_1		;loop
-			RTS				;done
-			
 ;Word: NOP ( -- ) No operation 
 ;Do nothing.
 IF_NOP			REGULAR
@@ -657,7 +642,7 @@ CF_QUIT_RT_1		JOBSR	CF_PROMPT 		;print prompt
 			JOBSR	CF_QUERY		;query command line 
 			;Parse loop 
 CF_QUIT_RT_2		MOVW	#FOUTER_SYM_SPACE, 2,-Y ;use SPACE as word seperator
-			JOBSR	CF_PARSE 		;parse next word
+			JOBSR	CF_SKIP_AND_PARSE 	;parse next word
 			LDD	0,Y			;check result
 			BNE	CF_QUIT_RT_3		;word parsed
 			LEAY	4,Y			;clean up PS
@@ -666,73 +651,86 @@ CF_QUIT_RT_2		MOVW	#FOUTER_SYM_SPACE, 2,-Y ;use SPACE as word seperator
 			JOB	FOUTER_TX_STRING	;print string
 			;Check for compile state (c-addr u)
 CF_QUIT_RT_3		LDD	STATE 			;check STATE
-			BEQ	CF_QUIT_RT_6		;interpret
+			BEQ	CF_QUIT_RT_7		;interpret
 			;Compile (c-addr u)
 			JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
 			BEQ	CF_QUIT_RT_4		;unknown word
-			BRSET	-1,X, #$FF, CF_QUIT_RT_7;execute immediate word
-			STX	2,-Y			;
+			BRSET	-1,X, #$FF, CF_QUIT_RT_8;execute immediate word
+			STX	2,-Y			;xt -> PS
 			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
 			JOB	CF_COMPILE_COMMA	;compile word
 CF_QUIT_RT_4		JOBSR	CF_TO_INT 		;convert to integer
 			LDD	2,Y+			;check result
-			BEQ	CF_QUIT_RT_9		;syntax error
+			BEQ	CF_QUIT_RT_10		;syntax error
 			DBEQ	D, CF_QUIT_RT_5		;compile single cell
 			JOBSR	CF_LITERAL		;compile literal
-CF_QUIT_RT_5		MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
-			JOB	CF_LITERAL		;compile literal
+CF_QUIT_RT_5		JOBSR	CF_LITERAL		;compile literal
+CF_QUIT_RT_6		LDX	#FOUTER_STR_OK		;command line acknowledge string
+			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
+			JOB	FOUTER_TX_STRING	;print string
 			;Interpret (c-addr u)
-CF_QUIT_RT_6		JOBSR	CF_LU 			;look up word
+CF_QUIT_RT_7		JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
-			BEQ	CF_QUIT_RT_8		;unknown word
-CF_QUIT_RT_7		MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
+			BEQ	CF_QUIT_RT_9		;unknown word
+CF_QUIT_RT_8		MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
 			;MOVW	#CF_MONITOR, 2,-SP	;push return address (CF_MONITOR)
 			JMP	0,X 			;execute
-CF_QUIT_RT_8		JOBSR	CF_TO_INT		;convert to integer
+CF_QUIT_RT_9		JOBSR	CF_TO_INT		;convert to integer
 			LDD	2,Y+			;check result
-			BNE	CF_QUIT_RT_2		;parse loop
-CF_QUIT_RT_9		JOB	CF_SYNTAX_ERROR		;syntax error
+			BNE	CF_QUIT_RT_6		;parse loop
+			;Syntax (c-addr u)
+CF_QUIT_RT_10		MOVW	#CF_ABORT_RT, 2,-SP	;push return address (CF_ABORT_RT)
+			JOB	CF_SYNERR_DOT		;print error message
 
+;Word: SKIP&PARSE ( char "ccc<char>" -- c-addr u )
+;Skip over any sequence of char at >IN and execute PARSE.
+IF_SKIP_AND_PARSE	REGULAR
+CF_SKIP_AND_PARSE	EQU	*
+	 		;Skip delimeters
+			LDAB	1,Y			;delimeter -> A
+			LDX	TO_IN 			;>IN -> X
+CF_SKIP_AND_PARSE_1	CPX	NUMBER_TIB		;check if buffer is parsed
+			BHS	CF_PARSE_6		;nothing to parse
+			CMPB	TIB_START,X		;check for delimeter
+			BNE	CF_PARSE_1		;no delimeter
+			INX				;advance >IN
+			JOB	CF_SKIP_AND_PARSE_1	;check next character
+	
 ;Word: PARSE ( char "ccc<char>" -- c-addr u )
 ;Parse ccc delimited by the delimiter char. c-addr is the address (within the
 ;input buffer) and u is the length of the parsed string.  If the parse area was
 ;empty, the resulting string has a zero length.
 IF_PARSE		REGULAR
 CF_PARSE		EQU	*
-	 		;Skip delimeters
+	 		;Read deliniter and >IN
 			LDAB	1,Y			;delimeter -> A
-CF_PARSE_1		LDX	TO_IN 			;>IN -> X
-CF_PARSE_2		CPX	NUMBER_TIB		;check if buffer is parsed
-			BHS	CF_PARSE_8		;nothing to parse
+			LDX	TO_IN			;>IN       -> X
 			CMPB	TIB_START,X		;check for delimeter
-			BNE	CF_PARSE_3		;no delimeter
-			INX				;advance >IN
-			JOB	CF_PARSE_2		;check next character
+			BEQ	CF_PARSE_6		;empty string
 			;Store string address (delimeter in B, >IN in X) 
-CF_PARSE_3		STX	TO_IN			;update >IN
-			LEAX	TIB_START,X 		;string address -> X
+CF_PARSE_1		LEAX	TIB_START,X 		;string address -> X
 			STX	0,Y			;push string address
 			LEAX	-TIB_START,X		;>IN -> X
 			MOVW	#$0000, 2,-Y		;push initial char count
 			LDAA	#$00			;char count -> A
 			;Count chars (delimeter in B, char count in A, >IN in X)
-CF_PARSE_4		INX				;advance >IN
+CF_PARSE_2		INX				;advance >IN
 			CPX	NUMBER_TIB		;check if buffer is parsed
-			BHI	CF_PARSE_6		;done
+			BHI	CF_PARSE_4		;done
 			ADDA	#$01			;increment char 
-			BCC	CF_PARSE_5		;no carry
+			BCC	CF_PARSE_3		;no carry
 			INC	0,Y			;increment MSW
-CF_PARSE_5		CMPB	TIB_START,X		;check for delimeter
-			BNE	CF_PARSE_4		;no delimeter
+CF_PARSE_3		CMPB	TIB_START,X		;check for delimeter
+			BNE	CF_PARSE_2		;no delimeter
 			;Done (char count in A, >IN in X)
-CF_PARSE_6		STAA	1,Y			;update char count
-CF_PARSE_7		STX	TO_IN			;update >IN
+CF_PARSE_4		STAA	1,Y			;update char count
+CF_PARSE_5		STX	TO_IN			;update >IN
 			RTS				;done
 			;Parse unsuccessful  (char count in A, >IN in X) 
-CF_PARSE_8		MOVW	#$0000, 0,Y 		;null string
+CF_PARSE_6		MOVW	#$0000, 0,Y 		;null string
 			MOVW	#$0000, 2,-Y 		;null length
-			JOB	CF_PARSE_7		;done
+			JOB	CF_PARSE_5		;done
 
 ;Word: LU ( c-addr u -- xt | c-addr u false )
 ;Look up a name in any dictionary. The name is referenced by the start address
@@ -764,24 +762,38 @@ CF_WORDS		EQU	*
 
 			JOB	CF_WORDS_CDICT
 
-;Word: SYNTAX-ERROR ( c-addr u -- )
+;Word: $. ( c-addr u  -- ) Print a string
+;Ptint a string given by the start address c-addr and the character count u.
+IF_STRING_DOT		REGULAR
+CF_STRING_DOT		EQU	*
+			;Print string
+			LDD	2,Y 			;c-addr -> D
+			LDX	0,Y			;u      -> X
+			LEAX	D,X			;end of string -> X
+			STX	2,+Y			;end of string -> PS
+			TFR	D, X			;c-addr -> X			
+CF_STRING_DOT_1		LDAB	1,X+			;char          -> B
+			JOBSR	FOUTER_TX_CHAR		;print char
+			CPX	0,Y			;check for end of string
+			BNE	CF_STRING_DOT_1		;loop
+			RTS				;done
+	
+;Word: SYNERR. ( c-addr u -- ) Print a syntax error message
 ;Print a syntax error message, referencing the word given by the start address
 ;c-addr and the character count u. Then throw an abort exception.
-IF_SYNTAX_ERROR		REGULAR
-CF_SYNTAX_ERROR		EQU	*
+IF_SYNERR_DOT		REGULAR
+CF_SYNERR_DOT		EQU	*
 			;Print left string 
 			LDX	#FOUTER_STR_SYNERR_LEFT ;left side message -> X
 			JOBSR	FOUTER_TX_STRING	;print substring
-			;Print word 
-			JOBSR	CF_DOT_STR 		;print word
+			;Print word
+			JOBSR	CF_STRING_DOT 		;print string
 			;Print right string 
 			LDX	#FOUTER_STR_SYNERR_RIGHT;right side message -> X 
-			MOVW	#CF_ABORT_RT, 2,-SP	;push return address (cf_abort_rt)
 			JOB	FOUTER_TX_STRING	;print substring
 
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@
-
 	
 ;###############################################################################
 ;# Tables                                                                      #
@@ -797,22 +809,12 @@ FOUTER_TABS_START_LIN	EQU	@
 FOUTER_STR_NL		EQU	STRING_STR_NL
 
 ;System prompts
-FOUTER_STR_OK		FCS	" ok"
+FOUTER_STR_OK		FCS	"  ok"
 
 ;Error messages 
 FOUTER_STR_SYNERR_LEFT	STRING_NL_NONTERM
-			FCC	"  Syntax ERROR! "
-			DB	$A2 				;quote with termination
-FOUTER_STR_SYNERR_RIGHT	DB	$22				;quote
-			STRING_NL_TERM
-
-
-;;Cute but implactical: 
-;FOUTER_STR_SYNERR_LEFT	FCC	"Huh?---^"
-;FOUTER_STR_SYNERR_CNT	EQU	*-FOUTER_STR_SYNERR_LEFT
-;			STRING_NL_TERM
-;FOUTER_STR_SYNERR_RIGHT	FCC	"^---Huh?"
-;			STRING_NL_TERM
+			FCC	"!!! Syntax Error: "
+FOUTER_STR_SYNERR_RIGHT	DB	$A2 				;quote (terminated)
 
 ;Prefix tables 
 FOUTER_ASM_PFTAB	DB	"%" 	 2

@@ -39,7 +39,44 @@
 ;#    Program termination options:                                             #
 ;#        ABORT:                                                               #
 ;#        QUIT:                                                                #
+;#    The following notation is used to describe the stack layout in the word  #
+;#    definitions:                                                             #
 ;#                                                                             #
+;#    Symbol          Data type                       Size on stack	       #
+;#    ------          ---------                       -------------	       #
+;#    flag            flag                            1 cell		       #
+;#    true            true flag                       1 cell		       #
+;#    false           false flag                      1 cell		       #
+;#    char            character                       1 cell		       #
+;#    n               signed number                   1 cell		       #
+;#    +n              non-negative number             1 cell		       #
+;#    u               unsigned number                 1 cell		       #
+;#    n|u 1           number                          1 cell		       #
+;#    x               unspecified cell                1 cell		       #
+;#    xt              execution token                 1 cell		       #
+;#    addr            address                         1 cell		       #
+;#    a-addr          aligned address                 1 cell		       #
+;#    c-addr          character-aligned address       1 cell		       #
+;#    d-addr          double address                  2 cells (non-standard)   #
+;#    d               double-cell signed number       2 cells		       #
+;#    +d              double-cell non-negative number 2 cells		       #
+;#    ud              double-cell unsigned number     2 cells		       #
+;#    d|ud 2          double-cell number              2 cells		       #
+;#    xd              unspecified cell pair           2 cells		       #
+;#    colon-sys       definition compilation          implementation dependent #
+;#    do-sys          do-loop structures              implementation dependent #
+;#    case-sys        CASE structures                 implementation dependent #
+;#    of-sys          OF structures                   implementation dependent #
+;#    orig            control-flow origins            implementation dependent #
+;#    dest            control-flow destinations       implementation dependent #
+;#    loop-sys        loop-control parameters         implementation dependent #
+;#    nest-sys        definition calls                implementation dependent #
+;#    i*x, j*x, k*x 3 any data type                   0 or more cells	       #
+;#  									       #
+;#    Counted strings are implemented as terminated strings. String            #
+;#    termination is done by setting bit 7 in the last character of the        #   
+;#    string. Pointers to empty strings have the value $0000.		       #
+;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 23, 2009                                                           #
@@ -56,7 +93,7 @@
 ;#    - none                                                                   #
 ;###############################################################################
 
-;###############################################################################
+;###############################################################################o
 ;# Memory Layout                                                               #
 ;###############################################################################
 ;        
@@ -89,21 +126,29 @@
 ;          UDICT_PS_END
 ;	
 ;                           Word format:
-;                           +---+-------------------------+
-;                     NFA-> |IMM|    Previous NFA >> 1    |	
-;                           +---+----------+--------------+
-;                           |                             | 
-;                           |            Name             | 
-;                           |                             | 
-;                           |              +--------------+ 
-;                           |              |    Padding   | 
-;                           +--------------+--------------+
-;                     CFA-> |     Code Field Pointer      |	
-;                           +--------------+--------------+
-;                           |                             | 
-;                           |            Data             | 
-;                           |                             | 
-;                           +--------------+--------------+   
+;                           +--------------+
+;                     NFA-> |   Previous   |	
+;                           |     NFA      | 
+;                           |              | 
+;                           +--------------+
+;                   NFA+2-> |     Name     | 
+;                           |              | 
+;                           |     MSB-     | 
+;                           | terminated   | 
+;                           |    string    | 
+;                           |              | 
+;                           +--------------+
+;                      IF-> |  Info Field  |	
+;                           +--------------+
+;                      CF-> |              | 
+;                           |  Code Field  | 
+;                           |              | 
+;                           +--------------+   
+;                           |   Optional   | 
+;                           |  Data Field  | 
+;                           |   for RAM    | 
+;                           | Compilation  | 
+;                           +--------------+   
 	
 ;###############################################################################
 ;# Configuration                                                               #
@@ -147,9 +192,8 @@
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Max. line length
-FUDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
-	
+
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -162,12 +206,12 @@ FUDICT_VARS_START_LIN	EQU	@
 
 			ALIGN	1	
 CP			DS	2 	;compile pointer (next free space in the dictionary space) 
-CP_SAVED		DS	2 	;previous compile pointer
+CP_SAVE			DS	2 	;previous compile pointer
 
-HLD			DS	2 	;start of PAD space 
-PAD			DS	2 	;end of PAD space 
+;HLD			DS	2 	;start of PAD space 
+;PAD			DS	2 	;end of PAD space 
 	
-UDICT_LAST_NFA		DS	2 	;pointer to the most recent NFA of the UDICT
+LAST_NFA		DS	2 	;pointer to the most recent NFA of the UDICT
 
 FUDICT_VARS_END		EQU	*
 FUDICT_VARS_END_LIN	EQU	@
@@ -178,6 +222,10 @@ FUDICT_VARS_END_LIN	EQU	@
 ;#Initialization (executed along with ABORT action)
 ;===============
 #macro	FUDICT_INIT, 0
+			LDD	DP 			;allocate UDICT 
+			STD	CP_SAVE
+			STD	CP
+
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
@@ -188,7 +236,27 @@ FUDICT_VARS_END_LIN	EQU	@
 ;#Quit action
 ;============
 #macro	FUDICT_QUIT, 0
+			MOVW	CP_SAVE, CP 		;restore cp
 #emac
+
+
+
+;#State restrictions
+;===================
+;Only execute this CF in compile state (STATE -> D)
+#macro	COMPILE_ONLY, 0
+			LDD	STATE 			;STATE -> D
+			BEQ	FUDICT_THROW_COMPONLY	;throw exception
+#emac
+
+;Only execute this CF in interpretation state (STATE -> D)
+#macro	INTERPRET_ONLY, 0
+#emac
+
+
+
+
+
 
 ;;#Initialization
 ;#macro	FUDICT_INIT, 0
@@ -209,18 +277,6 @@ FUDICT_VARS_END_LIN	EQU	@
 ;			STD	HLD
 ;#emac
 ;
-;;#Abort action (to be executed in addition of quit action)
-;#macro	FUDICT_ABORT, 0
-;#emac
-;	
-;;#Quit action
-;#macro	FUDICT_QUIT, 0
-;			MOVW	CP_SAVED, CP 		;restore cp
-;#emac
-;	
-;;#Suspend action (to be executed in addition of quit action)
-;#macro	FUDICT_SUSPEND, 0
-;#emac
 ;
 ;;#User dictionary (UDICT)
 ;;========================
@@ -426,10 +482,48 @@ FUDICT_VARS_END_LIN	EQU	@
 FUDICT_CODE_START_LIN	EQU	@
 #endif
 
+
+;#Functions
+;==========
+;#Throw "interpreting a compile-only word" exception
+; args:   none
+FUDICT_THROW_COMPONLY	EQU	*
+			THROW	FEXCPT_TC_COMPONLY
+
 ;#########
 ;# Words #
 ;#########
 
+;;Word: : ( C: "<spaces>name" -- colon-sys )
+;;Skip leading space delimiters. Parse name delimited by a space. Create a
+;;definition for name, called a colon definition. Enter compilation state and
+;;start the current definition, producing colon-sys. Append the initiation
+;;semantics given below to the current definition.
+;;The execution semantics of name will be determined by the words compiled into
+;;the body of the definition. The current definition shall not be findable in the
+;;dictionary until it is ended (or until the execution of DOES> in some systems).
+;;Initiation: ( i*x -- i*x )  ( R:  -- nest-sys )
+;;Save implementation-dependent information nest-sys about the calling
+;;definition. The stack effects i*x represent arguments to name.
+;;name Execution: ( i*x -- j*x )
+;;Execute the definition name. The stack effects i*x and j*x represent arguments
+;;to and results from name, respectively.
+IF_COLON		IMMEDIATE			
+CF_COLON		INTERPRET_ONLY			;catch nested compilation
+;			;Save colon-sys 
+;			MOVW	CF, 2,-Y		;colon_sys -> PS
+;			;Parse name 
+;			MOVW	#" ", 2,-Y 		;use SPACE as delimiter
+;			JOBSR	CF_PARSE		;parse name
+;			LDD	0,Y			;char count -> D
+;			BNE	CF_COLON_		;check for valid name
+;			MOVW	#ccccc, 2,-Y		;error code -> PS
+;			JOB	CF_THROW		;throw error
+;CF_COLON_		ADDD	#3			;consider NFA and IF
+			
+
+	
+	
 ;Word: LITERAL 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( x -- )
@@ -437,7 +531,7 @@ FUDICT_CODE_START_LIN	EQU	@
 ;Run-time: ( -- x )
 ;Place x on the stack.
 IF_LITERAL		IMMEDIATE
-CF_LITERAL		EQU	*
+CF_LITERAL		COMPILE_ONLY
 			RTS
 	
 ;Word: COMPILE, 
@@ -446,7 +540,17 @@ CF_LITERAL		EQU	*
 ;Append the execution semantics of the definition represented by xt to the
 ;execution semantics of the current definition.
 IF_COMPILE_COMMA	IMMEDIATE
-CF_COMPILE_COMMA	EQU	*
+CF_COMPILE_COMMA	COMPILE_ONLY
+			RTS
+
+
+;Word: $, 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( c-addr u  -- )
+;Append the the string given by start address c-addr and length u to the
+;execution semantics of the current definition.
+IF_COMPILE_COMMA	IMMEDIATE
+CF_COMPILE_COMMA	COMPILE_ONLY
 			RTS
 
 ;;#User dictionary (UDICT)
