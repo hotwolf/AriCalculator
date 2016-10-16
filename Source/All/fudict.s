@@ -549,8 +549,8 @@ CF_COMPILE_COMMA	COMPILE_ONLY
 ;Execution: ( c-addr u  -- )
 ;Append the the string given by start address c-addr and length u to the
 ;execution semantics of the current definition.
-IF_COMPILE_COMMA	IMMEDIATE
-CF_COMPILE_COMMA	COMPILE_ONLY
+IF_STRING_COMMA		IMMEDIATE
+CF_STRING_COMMA		COMPILE_ONLY
 			RTS
 
 ;;#User dictionary (UDICT)

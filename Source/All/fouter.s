@@ -142,12 +142,15 @@ FOUTER_COMPILE_PROMPT	EQU	"+"
 FOUTER_NVCOMPILE_PROMPT	EQU	"@"
 
 ;Max. line width
-FOUTER_LINE_WIDTH	EQU	80
+FOUTER_LINE_WIDTH	EQU	79
 	
 ;Valid number base
 FOUTER_BASE_MIN		EQU	NUM_BASE_MIN		;binary
 FOUTER_BASE_MAX		EQU	NUM_BASE_MAX		;36
 FOUTER_BASE_DEFAULT	EQU	NUM_BASE_DEFAULT	;default base (decimal)
+
+;#String termination 
+FOUTER_TERM		EQU	STRING_TERM
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -406,8 +409,8 @@ FOUTER_SHIFT_AND_ADD_1	STAA	5,SP			;store byte index
 			BPL	FOUTER_SHIFT_AND_ADD_1	;loop whule byte indax >= 0
 			;Clean up (num pointer in X)
 			TST	1,SP+ 			;check extra byte
-			MOVW	2,X+, 0,X		;update result (MSW)
-			MOVW	2,X+, 2,X		;update result (LSW)
+			MOVW	2,SP+, 0,X		;update result (MSW)
+			MOVW	3,SP+, 2,X		;update result (LSW)
 			PULD				;restore D
 			RTS				;done
 	
@@ -519,7 +522,6 @@ CF_TO_INT		EQU	*
 			LEAX	D,X			;end of string -> X
 			PSHX				;store end of string
 			LDX	2,Y 			;c-addr -> X
-			BGND
 			;Parse prefix (string pointer in X, char count on D)
 			JOBSR	FOUTER_PREFIX 		;parse prefix
 			PSHD				;store sign:base
@@ -527,7 +529,11 @@ CF_TO_INT		EQU	*
 			MOVW	#$0000, 2,-SP 		;allocate cleared word
 			MOVW	#$0000, 2,-SP 		;allocate cleared word
 			;Process digit (string pointer in X, base in B)
-CF_TO_INT_1		LDAA	1,X+ 			;char -> A
+CF_TO_INT_1
+
+			BGND
+	
+			LDAA	1,X+ 			;char -> A
 			JOBSR	FOUTER_CONV_DIGIT	;digit -> A
 			BCC	CF_TO_INT_6		;inconvertible character
 			PSHX				;save X
@@ -773,6 +779,7 @@ CF_STRING_DOT		EQU	*
 			STX	2,+Y			;end of string -> PS
 			TFR	D, X			;c-addr -> X			
 CF_STRING_DOT_1		LDAB	1,X+			;char          -> B
+			ANDB	#~FOUTER_TERM		;remove any termination
 			JOBSR	FOUTER_TX_CHAR		;print char
 			CPX	0,Y			;check for end of string
 			BNE	CF_STRING_DOT_1		;loop

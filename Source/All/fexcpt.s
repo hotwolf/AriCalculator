@@ -344,7 +344,7 @@ CF_ABORT_QUOTE_1	LDD	4,Y 				;check X1
 			RTS					;done
 CF_ABORT_QUOTE_2	JOBSR	CF_CR				;line break
 			JOBSR	CF_STRING_DOT			;print ABORT" message
-			JOB	ABORT_RT			;uncatchable!!! (for simplicity)
+			JOB	CF_ABORT_RT			;uncatchable!!! (for simplicity)
 
 ;ABORT" run-time semantics
 CF_ABORT_QUOTE_RT	EQU	*
@@ -355,7 +355,7 @@ CF_ABORT_QUOTE_RT	EQU	*
 			THROW	FEXCPT_TC_ABORTQ		;throw exception
 			;Skip over terminated string  
 CF_ABORT_QUOTE_RT_1	LDX	2,SP+ 				;string pointer -> X
-			BECLR	1,X+,#FEXCPT_TERM,*		;skip over terminated string
+			BRCLR	1,X+,#FEXCPT_TERM,*		;skip over terminated string
 			JMP	0,X				;resume after string
 	
 ;Word: ABORT ( i*x -- ) ( R: j*x -- )
@@ -405,30 +405,35 @@ IF_THROW		REGULAR
 CF_THROW		EQU	*
 			;Check THROW code ( k*x n )
 			LDD	2,Y+				;THROW code -> D
-			BEQ	CF_THROW_			;done
+			BEQ	CF_THROW_2			;done
 			;Check HANDLER ( k*x n ) (THROW code in D)
 CF_THROW_1		LDX	HANDLER				;HANDLER -> X
-			BEQ	CF_THROW_			;default handler
+			BEQ	CF_THROW_3			;default handler
 			;Resume after QUIT 
 			MOVW	2,X+, HANDLER			;update HANDLER
 			STY	2,X+				;update PSP
 			STD	0,Y				;replace THROW code
 			JMP	2,X+				;resume after CATCH
+			;Do nothing
+CF_THROW_2		RTS					;done
 			;Default handler (THROW code in D)
-CF_THROW_2		CPD	FEXCPT_TC_QUIT			;check for QUIT
+CF_THROW_3		CPD	FEXCPT_TC_QUIT			;check for QUIT
 			BEQ	CF_QUIT_RT
 			CPD	#FEXCPT_TC_ABORT 		;check for ABORT
 			BEQ	CF_ABORT_RT			;ABORT
 			CPD	FEXCPT_TC_ABORTQ		;check for ABORT"
-			BNE	CF_THROW_3			;print ABORT" message	
+			BNE	CF_THROW_4			;print ABORT" message	
 			;Print ABORT" message
 			LDX	ABORT_QUOTE_MSG 		;string pointer -> X
-			MOVW	CF_ABORT_RT, 2,-SP		;;push return address (CF_ABORT_RT)
+			BEQ	CF_THROW_2			;no message to be printed
+			MOVW	#$0000, ABORT_QUOTE_MSG 	;remome message
+			MOVW	CF_ABORT_RT, 2,-SP		;push return address (CF_ABORT_RT)
 			JOB	FEXCPT_TX_STRING		;print message
 			;Handle standart errors  (THROW code in D)
-CF_THROW_3		STD	2,-Y 				;THROW code -> PS
-			MOVW	CF_ABORT_RT, 2,-SP		;;push return address (CF_ABORT_RT)
+CF_THROW_4		STD	2,-Y 				;THROW code -> PS	
+			MOVW	CF_ABORT_RT, 2,-SP		;push return address (CF_ABORT_RT)
 			JOB	CF_RTERR_DOT			;print error message
+
 	
 ;Word: RTERR. ( n -- ) Print a runtime error message
 ;Print the runtime error message associated with the THROW code n.

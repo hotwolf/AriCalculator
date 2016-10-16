@@ -789,7 +789,8 @@ sub print_init_macro {
 	    printf FILEHANDLE "                        %-30s;%s\n", sprintf("MOVW #(\\1+\$%.2X), \(\\3+\$%.2X),\\2", $entry->{offset}, (2*($tree_depth-(1+$level)))),
     	                                                            sprintf("%-20s(\"%s\")", $entry->{label}, $entry->{substring});
 	} else {
-	    printf FILEHANDLE "                        %-30s;\n",   sprintf("MOVW #NULL,     \(\\3+\$%.2X),\\2", (2*$level)),
+	    printf FILEHANDLE "                        %-30s;%s\n", sprintf("MOVW #NULL,     \(\\3+\$%.2X),\\2", (2*($tree_depth-(1+$level)))),
+                                                                    "unused";
 	}
     }
 }
