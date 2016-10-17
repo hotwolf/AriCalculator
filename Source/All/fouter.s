@@ -379,39 +379,33 @@ FOUTER_SHIFT_AND_ADD	EQU	*
 			;Allocate local variables (num pointer in X, digit:base in D)
 			;RS layout:
 			; +--------+--------+
-			; |                 | SP+0
-			; +     Integer     +
-			; |                 | SP+2
-			; +        +--------+
-			; | Digit  | Index  | SP+4
+			; |  Scratch Space  | SP+0
 			; +--------+--------+
-			; | Digit  |  Base  | SP+6
+			; | Digit  |  Base  | SP+2
 			; +--------+--------+
-			PSHD				;save digit_base
-			LDAB	#3			;set byte index
-			PSHD				;store byte index
-			MOVW	#$0000, 2,-SP		;allocate intermediate
-			MOVW	#$0000, 2,-SP		; result
-			;Byte loop (num pointer in X, digit:base in D)			
-			LDAA	5,SP 			;byte index -> A 
-FOUTER_SHIFT_AND_ADD_1	STAA	5,SP			;store byte index
-			LDAA	A,X			;operand -> A
-			LDAB	7,SP			;base -> B
+			; | X (Number Ptr.) | SP+4
+			; +--------+--------+
 			PSHX				;save X
-			LEAX	A,SP			;result pointer -> X
+			PSHD				;store digit:base
+			PSHA				;initialize scratch
+			CLR	1,-SP			; space
+			LEAX	3,X			;initialize byte pointer
+			;Iterate over all four bytes (byte pointer in X) 
+FOUTER_SHIFT_AND_ADD_1	LDAA	0,X 			;operand -> A
+			LDAB	3,SP			;base    -> B
 			MUL				;A * B -> A:B
-			ADDD	0,X			;add product to result
-			STD	0,X			;update result
-			LDAB	#$00			;0      -> B
-			ADCB	#00			;C-flag -> B
-			LDAA	5,SP			;byte index -> A
-			DECA				;decrement byte indes
-			BPL	FOUTER_SHIFT_AND_ADD_1	;loop whule byte indax >= 0
-			;Clean up (num pointer in X)
-			TST	1,SP+ 			;check extra byte
-			MOVW	2,SP+, 0,X		;update result (MSW)
-			MOVW	3,SP+, 2,X		;update result (LSW)
+			ADDD	0,SP			;add result to scratch
+			STAB	1,X-			;B -> result
+			TAB				;A      -> B
+			LDAA	#$00			;0      -> A
+			ADCA	#$00			;C-flag -> A	
+			STD	0,SP			;update scratch space			
+			CPX	4,SP			;check if done
+			BHS	FOUTER_SHIFT_AND_ADD_1	;next iteration
+			;Clean up
+			LDX	2,SP+ 			;set Z-flag on overflow
 			PULD				;restore D
+			PULX				;restore X
 			RTS				;done
 	
 ;#Negate double integer if necessary
@@ -529,11 +523,7 @@ CF_TO_INT		EQU	*
 			MOVW	#$0000, 2,-SP 		;allocate cleared word
 			MOVW	#$0000, 2,-SP 		;allocate cleared word
 			;Process digit (string pointer in X, base in B)
-CF_TO_INT_1
-
-			BGND
-	
-			LDAA	1,X+ 			;char -> A
+CF_TO_INT_1		LDAA	1,X+ 			;char -> A
 			JOBSR	FOUTER_CONV_DIGIT	;digit -> A
 			BCC	CF_TO_INT_6		;inconvertible character
 			PSHX				;save X
@@ -672,9 +662,9 @@ CF_QUIT_RT_4		JOBSR	CF_TO_INT 		;convert to integer
 			DBEQ	D, CF_QUIT_RT_5		;compile single cell
 			JOBSR	CF_LITERAL		;compile literal
 CF_QUIT_RT_5		JOBSR	CF_LITERAL		;compile literal
-CF_QUIT_RT_6		LDX	#FOUTER_STR_OK		;command line acknowledge string
-			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
-			JOB	FOUTER_TX_STRING	;print string
+CF_QUIT_RT_6		;LDX	#FOUTER_STR_OK		;command line acknowledge string
+			;MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
+			;JOB	FOUTER_TX_STRING	;print string
 			;Interpret (c-addr u)
 CF_QUIT_RT_7		JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
@@ -684,7 +674,7 @@ CF_QUIT_RT_8		MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
 			JMP	0,X 			;execute
 CF_QUIT_RT_9		JOBSR	CF_TO_INT		;convert to integer
 			LDD	2,Y+			;check result
-			BNE	CF_QUIT_RT_6		;parse loop
+			BNE	CF_QUIT_RT_2		;parse loop
 			;Syntax (c-addr u)
 CF_QUIT_RT_10		MOVW	#CF_ABORT_RT, 2,-SP	;push return address (CF_ABORT_RT)
 			JOB	CF_SYNERR_DOT		;print error message
