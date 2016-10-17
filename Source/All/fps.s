@@ -163,6 +163,63 @@ FPS_VARS_END_LIN	EQU	@
 FPS_CODE_START_LIN	EQU	@
 #endif
 
+;#IO
+;===
+;#Transmit one char
+; args:   B: data to be send
+; SSTACK: 8 bytes
+;         X, Y, and D are preserved
+FPS_TX_CHAR		EQU	SCI_TX_BL
+
+;#Revert cell
+; args:   X: cell pointer
+; result: D: number of digits
+;         SP+0: MSB   
+;         SP+1:  |    
+;         SP+2:  |reverse  
+;         SP+3:  |number  
+;         SP+4:  |    
+;         SP+5: LSB   
+; SSTACK: 26 bytes
+;         X and Y are preserved
+FPS_REVERT_CELL		EQU	SCI_TX_BL
+			;Save registers (cell pointer in X) 
+			PSHX					;save X
+			PSHY					;save Y
+			MOVW	#$0000, 2,-SP			;allocate space for char count
+			;check sign (cell pointer in X) 
+			LDD	0,X				;cell -> D	
+			BPL	FPS_REVERT_CELL_1		;positive
+			MOVB	#$01, 1,SP			;increment char count
+			COMA					;1's complement -> D
+			COMB					;
+			ADDD	#1				;2's complement -> D
+			;Revert cell (absolute cell value in D)  
+FPS_REVERT_CELL_1	TFR	D, X 				;absolute cell value - > X
+			JOBSR	FOUTER_GET_BASE			;BASE -> B
+			SEI					;start of atomic sequence
+			JOBSR	NUM_REVERSE			;(SSTACK: 18 bytes)
+			LDY	8,SP				;restore Y
+			CLI					;end of atomic sequence
+			TAB					;char count -> D
+			CLRA					;
+			ADDD	6,SP 				;add sign length
+			LDX	10,SP				;restore X
+			;Adjust stack (digit count in D) 
+			;SP+ 0: MSB   	                   
+			;SP+ 2:  |rev.num.    	        
+			;SP+ 4: LSB   	      	           
+			;SP+ 6: char count    	      SP+ 0: return addr.    
+			;SP+ 8: Y  	      ==>     SP+ 2: MSB   	    	      
+			;SP+10: X   	      	      SP+ 4:  |rev.num.      	      
+			;SP+12: return addr.   	      SP+ 8: LSB   	   
+			MOVW	12,SP,	6,SP			;move return address
+			MOVW	2,SP+,	6,SP 			;move RHV
+			MOVW	2,SP+,	6,SP 			;move RMV
+			MOVW	2,SP+,	6,SP 			;move RLV
+			RTS
+
+	
 ;#########
 ;# Words #
 ;#########
@@ -257,57 +314,34 @@ CF_2ROT			EQU	*
 			STD	0,Y				;store x2
 CF_2ROT_EOI		RTS					;done
 
-;.S ( -- ) Copy and display the values currently on the data stack.
-; args:   none
-; result: none
-; SSTACK: 18 bytes
-; PS:      4 cells
-; RS:      1 cell
-; throws: FEXCPT_EC_PSOF
-;CF_DOT_S		EQU	*
-;			;PS layout:
-;			; +--------+--------+
-;			; |     Iterator    | PSP+0
-;			; +--------+--------+
-;			; | Column counter  | PSP+2
-;			; +--------+--------+
-;			;Print header
-;			PS_PUSH	#FPS_DOT_S_HEADER
-;			EXEC_CF	CF_STRING_DOT
-;			NEXT
-;
-;			;Reserve and populate local stack space
-;			FPS_CHECK_OF	2 			;reserve 2 cells
-;			MOVW	#(PS_EMPTY-2), 0,Y		;initialize iterator
-;			MOVW	#, 0,Y				;initialize column counter	
-;			STY	PSP				;update PSP
-;			;Reserve and populate local stack space
-;			FPS_CHECK_OF	4 			;reserve 3 cells
-;			MOVW	PSP, 6,Y			;initialize index
-;			STY	PSP				;update PSP
-;			;Print first column (PSP in Y)
-;			MOVW	BASE, 4,Y			;save BASE
-;			LDD	#PS_EMPTY			;calculate line count
-;			SUBD	6,Y
-;			LSRD
-;			STD	2,Y
-;			LDD	#(PS_EMPTY+6)			;calculate number of PS entries
-;			SUBD	PSP
-;			LSRD
-;			TFR	D, X 				;determine digit count
-;			LDD	#10 				;set BASE to decimal
-;			STD	BASE
-;			LDY	#$0000
-;			NUM_REVERSE 				
-;			TAB					;print line number
-;			CLRA
-;			STD	[PSP]
-;			EXEC_CF	CF_DOT_R
-;			;Print separator
-;			PS_PUSH	#FPS_DOT_S_HEADER
-;			EXEC_CF	CF_STRING_DOT
-
-
+;Word: .S ( -- ) Copy and display the values currently on the data stack.
+IF_DOT_S		REGULAR
+CF_DOT_S		EQU	*
+			;Store iterator 
+			PSHY					;store PSP
+			LEAS	2,SP				;allicate column counter
+			LDX	#PS_EMPTY			;first PS entry -> X
+			CPX	2,SP				;check if PS is empty
+			BHI	CF_DOT_S_3			;PS is empty
+			;Print first cell (cell pointer in X) 
+			JOBSR	FPS_REVERT_CELL 		;calculate reverse cell number
+			STD	6,SP				;update column counter
+CF_DOT_S_1		BRCLR	2,X-,#$80,CF_DOT_S_2		;don't print minus sign
+			LDAB	#"-"				;print minus sign
+			JOBSR	FPS_TX_CHAR			;
+CF_DOT_S_2		JOBSR	FOUTER_GET_BASE			;BASE -> B
+			JOBSR	NUM_REVPRINT_BL			;print cell
+			;Print consecutive cells (cell pointer in X) 
+			CPX	2,SP				;check if PS is empty
+			BHI	CF_DOT_S_3			;all cells printed			
+			JOBSR	FPS_REVERT_CELL 		;calculate reverse cell number
+			MOVW	6,SP, 2,-SP			;douplicate column counter
+			JOBSR	FOUTER_LIST_SEP			;print separator
+			MOVW	2,SP+, 6,SP			;update loulumn counter
+			JOB	CF_DOT_S_1			;repeat
+			;Done
+CF_DOT_S_3		LEAS	4,SP 				;free stack space
+			RTS					;done
 	
 ;;Code fields:
 ;;============

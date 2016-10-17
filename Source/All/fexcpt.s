@@ -321,6 +321,7 @@ FEXCPT_CHECK_ERRMSG_3	SEC					;flag success
 FEXCPT_TX_TC		EQU	*
 			;Save registers (THROW code in X)
 			PSHX					;save X
+			PSHY					;save Y
 			PSHD					;save D
 			;Print sign (THROW code in X)
 			TFR	X, D 				;THROW code -> D	
@@ -334,15 +335,15 @@ FEXCPT_TX_TC		EQU	*
 			JOBSR	FEXCPT_TX_CHAR 			;(SSTACK: 8 bytes)
 			;Print number (THROW code in X)
 FEXCPT_TX_TC_1		JOBSR	FOUTER_GET_BASE			;BASE -> B
-			PSHY					;save Y
 			SEI					;start of atomic sequence 
 			LDY	#$0000				;0 -> Y
 			JOBSR	NUM_REVERSE			;(SSTACK: 18 bytes)
-			PULY					;restore Y
+			LDY	8,SP				;restore Y
 			CLI					;end of atomic sequence
 			JOBSR	NUM_REVPRINT_BL			;(SSTACK: 10 bytes +6 arg bytes)
 			;Restore registers
 			PULD					;restore D
+			LEAS	2,SP				;Y has already been restored
 			PULX					;restore X
 			RTS					;done
 	
