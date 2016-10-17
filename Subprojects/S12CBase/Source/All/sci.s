@@ -806,7 +806,6 @@ DONE			EQU	*				;done
 			;Disable interrupts
 LOOP			SEI
 			;Call non-blocking function
-			//SSTACK_PREPUSH	\2
 			JOBSR	\1
 			BCC	WAIT 		;function unsuccessful
 			;Enable interrupts

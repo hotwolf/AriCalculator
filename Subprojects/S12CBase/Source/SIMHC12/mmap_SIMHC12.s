@@ -74,8 +74,8 @@
 ;###############################################################################
 ;# Memory sizes
 MMAP_REG_SIZE		EQU	$0200		;512B
-MMAP_INTRAM_SIZE	EQU	$0800		;  1K
-MMAP_EXTRAM_SIZE	EQU	$0800		; 16K
+MMAP_INTRAM_SIZE	EQU	$0400		;  1K
+MMAP_EXTRAM_SIZE	EQU	$4000		; 16K
 MMAP_FLASH_SIZE		EQU	$8000		; 32K
 
 ;# Memory Locations

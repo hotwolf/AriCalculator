@@ -166,7 +166,6 @@ DEMO_GET_CHAR		SCI_RX_BL
 			STRING_FILL_BL
 			LDAB	#16
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print decimal value (char in X)
 			LDY	#$0000
@@ -179,7 +178,6 @@ DEMO_GET_CHAR		SCI_RX_BL
 			STRING_FILL_BL
 			LDAB	#10
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print octal value (char in X)
 			LDY	#$0000
@@ -192,7 +190,6 @@ DEMO_GET_CHAR		SCI_RX_BL
 			STRING_FILL_BL
 			LDAB	#8
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print binary value (char in X)
 			LDAA	#2
@@ -208,7 +205,6 @@ DEMO_GET_CHAR		SCI_RX_BL
 			STRING_fill_BL
 			LDAB	#2
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print new line
 			LDX	#STRING_STR_NL
