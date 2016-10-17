@@ -283,11 +283,68 @@ FEXCPT_CODE_START_LIN	EQU	@
 FEXCPT_TX_CHAR		EQU	SCI_TX_BL
 
 ;#Prints a MSB terminated string
-; args:   X:      start of the string
-; result: X;      points to the byte after the string
+; args:   X: start of the string
+; result: X: points to the byte after the string
 ; SSTACK: 10 bytes
 ;         Y and D are preserved
 FEXCPT_TX_STRING	EQU	STRING_PRINT_BL
+
+;#Validate error message
+; args:   X:      start of the string
+; result: C-flag: set if message is valid
+; SSTACK: 5 bytes
+;         X, Y and D are preserved
+FEXCPT_CHECK_ERRMSG	EQU	STRING_PRINT_BL
+			;Save registers (string pointer in X)
+			PSHX					;save X
+			PSHA					;save A
+			;Check string (string pointer in X)
+			LDAA	#FEXCPT_MSG_LIMIT		;max. message length -> A
+			CLC					;signal failure by default
+FEXCPT_CHECK_ERRMSG_1	BRCLR	0,X, #$60,FEXCPT_CHECK_ERRMSG_2	;C0 char
+			BRSET	0,X, #$7F,FEXCPT_CHECK_ERRMSG_2	;DEL char
+			BRSET	1,X+,#$80,FEXCPT_CHECK_ERRMSG_3	;string termination
+			DBNE	A, FEXCPT_CHECK_ERRMSG_1	;loop
+			;Restore registers 
+FEXCPT_CHECK_ERRMSG_2	PULA					;restore A
+			PULX					;restore X
+			RTS					;done
+			;Success 
+FEXCPT_CHECK_ERRMSG_3	SEC					;flag success
+			JOB	FEXCPT_CHECK_ERRMSG_2		;done
+		
+;#Print THROW code
+; args:   X: THROW code
+; result: none
+; SSTACK: 10 bytes
+;         X, Y and D are preserved
+FEXCPT_TX_TC		EQU	*
+			;Save registers (THROW code in X)
+			PSHX					;save X
+			PSHD					;save D
+			;Print sign (THROW code in X)
+			TFR	X, D 				;THROW code -> D	
+			TSTA					;check if negative
+			BPL 	FEXCPT_TX_TC_1			;THROW code is positive
+			COMA					;1's complement -> D
+			COMB					;
+			ADDD	#1				;2's complement -> D
+			TFR	D, X 				;negated THROW code -> X
+			LDAB	#"-"				;print minus sign
+			JOBSR	FEXCPT_TX_CHAR 			;(SSTACK: 8 bytes)
+			;Print number (THROW code in X)
+FEXCPT_TX_TC_1		JOBSR	FOUTER_GET_BASE			;BASE -> B
+			PSHY					;save Y
+			SEI					;start of atomic sequence 
+			LDY	#$0000				;0 -> Y
+			JOBSR	NUM_REVERSE			;(SSTACK: 18 bytes)
+			PULY					;restore Y
+			CLI					;end of atomic sequence
+			JOBSR	NUM_REVPRINT_BL			;(SSTACK: 10 bytes +6 arg bytes)
+			;Restore registers
+			PULD					;restore D
+			PULX					;restore X
+			RTS					;done
 	
 ;#########
 ;# Words #
@@ -422,50 +479,50 @@ CF_THROW_3		CPD	FEXCPT_TC_QUIT			;check for QUIT
 			CPD	#FEXCPT_TC_ABORT 		;check for ABORT
 			BEQ	CF_ABORT_RT			;ABORT
 			CPD	FEXCPT_TC_ABORTQ		;check for ABORT"
-			BNE	CF_THROW_4			;print ABORT" message	
-			;Print ABORT" message
+			BNE	CF_THROW_5			;print error message	
+			;Print ABORTQ message
 			LDX	ABORT_QUOTE_MSG 		;string pointer -> X
-			BEQ	CF_THROW_2			;no message to be printed
-			MOVW	#$0000, ABORT_QUOTE_MSG 	;remome message
-			MOVW	CF_ABORT_RT, 2,-SP		;push return address (CF_ABORT_RT)
-			JOB	FEXCPT_TX_STRING		;print message
-			;Handle standart errors  (THROW code in D)
-CF_THROW_4		STD	2,-Y 				;THROW code -> PS	
-			MOVW	CF_ABORT_RT, 2,-SP		;push return address (CF_ABORT_RT)
-			JOB	CF_RTERR_DOT			;print error message
-
+			BEQ	CF_THROW_4			;no message to be printed
+			MOVW	#$0000, ABORT_QUOTE_MSG 	;remove message
+			JOBSR	FEXCPT_CHECK_ERRMSG		;validate error message
+			BCC	CF_THROW_4			;invalid message
+			JOBSR	FEXCPT_TX_STRING		;print message
+CF_THROW_4		JOB	CF_ABORT_RT			;ABORT
+			;Handle standard errors  (THROW code in D)
+CF_THROW_5		MOVW	#CF_ABORT_RT, 2,-SP		;push return address (CF_ABORT_RT)
+			JOB	CF_RTERR_DOT_1			;printerror message
 	
 ;Word: RTERR. ( n -- ) Print a runtime error message
 ;Print the runtime error message associated with the THROW code n.
 IF_RTERR_DOT		REGULAR
 CF_RTERR_DOT		EQU	*
-			;Print left string ( n )
-			LDX	#FEXCPT_STR_RTERR_LEFT 		;left side message -> X
+			;Get THROW code ( n )
+			LDD	2,Y+				;THROW code -> D
+			;Print left string (THROW code in D)
+CF_RTERR_DOT_1		LDX	#FEXCPT_STR_RTERR_LEFT 		;left side message -> X
 			JOBSR	FEXCPT_TX_STRING		;print substring
-			;Check THROW code ( n )
-			LDX	0,Y 				;THROW code -> D
-			CPX	#FEXCPT_SYSTC_MAX		;check for system THROW code
-			BLS	CF_RTERR_DOT_B			;user THROW code
-			;System THROW code ( n )
+			;Check THROW code (THROW code in D)
+			CPD	#FEXCPT_SYSTC_MAX		;check for system THROW code
+			BLS	CF_RTERR_DOT_4			;user THROW code
+			;System THROW code (THROW code in D)
 			LDX	#FEXCPT_MSGTAB 			;MESSAGE TABLE -> X
-CF_RTERR_DOT_A		LDD	2,X+				;table entry -> D
-			BEQ	CF_RTERR_DOT_F			;print (default) message
-			CPD	0,Y				;compare THROW codes
-			BEQ	CF_RTERR_DOT_F			;print error message
+CF_RTERR_DOT_2		TST	1,X				;check for end of table
+			BNE	CF_RTERR_DOT_3			;not yet
+			TST	0,X				;check for end of table
+			BEQ	CF_RTERR_DOT_5			;no matching entry found
+CF_RTERR_DOT_3		CPD	2,X+				;check if entry matches THROW code
+			BEQ	CF_RTERR_DOT_4			;matching entry found
 			BRCLR	1,X+,#FEXCPT_TERM,*		;skip to next table entry
-			JOBSR	CF_RTERR_DOT_A
-			;User defined THROW code ( n ) (string pointer in X)
-CF_RTERR_DOT_B		LDAA	#FEXCPT_MSG_LIMIT		;max. message length -> A
-CF_RTERR_DOT_C		BRCLR	0,X, #$60,CF_RTERR_DOT_D	;invalid message
-			BRSET	0,X, #$7F,CF_RTERR_DOT_D	;invalid message
-			BRSET	1,X+,#$80,CF_RTERR_DOT_E	;valid message
-			DBNE	A, CF_RTERR_DOT_C		;loop
-CF_RTERR_DOT_D		LDX	#FEXCPT_UNKNOWN_MSG		;default message
-			JOB	CF_RTERR_DOT_F			;print error message
-CF_RTERR_DOT_E		LDX	0,X				;user defined error message
-CF_RTERR_DOT_F		LEAY	2,Y				;remove n from PS
-			JOB	FEXCPT_TX_STRING		;print message
-	
+			JOB	CF_RTERR_DOT_2			;check next table entry
+			;User defined THROW code (THROW code in D)
+CF_RTERR_DOT_4		TFR	D, X 				;THROW code -> X
+			JOBSR	FEXCPT_CHECK_ERRMSG		;validate error message
+			BCC	CF_RTERR_DOT_5			;print throw code
+			JOB	FEXCPT_TX_STRING		;print error message
+			;Print THROW code  (THROW code in D)
+CF_RTERR_DOT_5		TFR	D, X 				;THROW code -> X
+			JOB	FEXCPT_TX_TC			;print THROW code
+
 FEXCPT_CODE_END		EQU	*
 FEXCPT_CODE_END_LIN	EQU	@
 
@@ -507,7 +564,7 @@ FEXCPT_MSGTAB		EQU	*
 			;FEXCPT_MSG	FEXCPT_TC_COMPNEST,	"Nested compilation"
 			;FEXCPT_MSG	FEXCPT_TC_NONCREATE,	"Illegal operation on non-CREATEd definition"
 			;FEXCPT_MSG	FEXCPT_TC_INVALNAME,	"Invalid name argument"
-			;FEXCPT_MSG	FEXCPT_TC_INVALBASE,	"Invalid BASE"
+			FEXCPT_MSG	FEXCPT_TC_INVALBASE,	"Invalid BASE"
 			;FEXCPT_MSG	FEXCPT_TC_EXCPTERR,	"Corrupt exception stack frame"
 			;FEXCPT_MSG	FEXCPT_TC_NOMSG,	"Empty message string"
 			;FEXCPT_MSG	FEXCPT_TC_DICTPROT,	"Destruction of dictionary structure"

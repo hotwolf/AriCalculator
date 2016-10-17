@@ -32,7 +32,7 @@
 ;#    purposes.								       #
 ;#  									       #
 ;#    S12CForth system variables:                                              #
-;#           BASE = Default radix (2<=BASE<=16)                                #
+;#           BASE = Default radix (2<=BASE<=36)                                #
 ;#          STATE = State of the outer interpreter:                            #
 ;#  		        0: Interpretation State				       #
 ;#  		       -1: RAM Compile State				       #
@@ -271,18 +271,33 @@ FOUTER_UPPER		EQU	STRING_UPPER
 ;         BASE: range adjusted base value (2<=base<=FOUTER_BASE_MAX)
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved
-FOUTER_FIX_BASE		EQU	*
-			;Check BASE value
+;FOUTER_FIX_BASE		EQU	*
+;			;Check BASE value
+;			TST	BASE 			;check upper byte
+;			BNE	FOUTER_FIX_BASE_1	;BASE >255
+;			LDAB	BASE+1 			;BASE -> B
+;			CMPB	#FOUTER_BASE_MAX	;compare BASE against upper limit
+;			BHI	FOUTER_FIX_BASE_1	;BASE value is too high
+;			CMPB	#FOUTER_BASE_MIN	;compare BASE against lower limit
+;			BHS	FOUTER_FIX_BASE_2	;BASE is value within valid range
+;FOUTER_FIX_BASE_1	LDAB	#FOUTER_BASE_DEFAULT	;return default value
+;			MOVW	#FOUTER_BASE_DEFAULT, BASE;update BASE
+;FOUTER_FIX_BASE_2	RTS				;done
+
+;#Load BASE
+; args:   BASE: any base value
+; result: B:    range checked base value (2<=base<=FOUTER_BASE_MAX)
+; SSTACK: 2 bytes
+;         X, Y, and A are preserved
+FOUTER_GET_BASE		EQU	*
+			;Check BASE value			
 			TST	BASE 			;check upper byte
-			BNE	FOUTER_FIX_BASE_1	;BASE >255
+			BNE	FOUTER_GET_BASE_1	;BASE >255
 			LDAB	BASE+1 			;BASE -> B
 			CMPB	#FOUTER_BASE_MAX	;compare BASE against upper limit
-			BHI	FOUTER_FIX_BASE_1	;BASE value is too high
-			CMPB	#FOUTER_BASE_MIN	;compare BASE against lower limit
-			BHS	FOUTER_FIX_BASE_2	;BASE is value within valid range
-FOUTER_FIX_BASE_1	LDAB	#FOUTER_BASE_DEFAULT	;return default value
-			MOVW	#FOUTER_BASE_DEFAULT, BASE;update BASE
-FOUTER_FIX_BASE_2	RTS				;done
+			BLS	FOUTER_GET_BASE_2	;BASE value valid			
+FOUTER_GET_BASE_1	THROW	FEXCPT_TC_INVALBASE	;throw exception
+FOUTER_GET_BASE_2	RTS				;done
 
 ;#Parse number prefix
 ; args:   X: string pointer    
@@ -299,7 +314,8 @@ FOUTER_PREFIX		EQU	*
 			PSHX				;end of string  -> 2,SP
 			EXG	D, X 			;D <-> X
 			CLRA				;positive sign  -> A
-			JOBSR	FOUTER_FIX_BASE		;base           -> B (SSTACK: 2 bytes)
+			;JOBSR	FOUTER_FIX_BASE		;base           -> B (SSTACK: 2 bytes)
+			JOBSR	FOUTER_GET_BASE		;base           -> B (SSTACK: 2 bytes)
 			PSHD				;sign:base      -> 0,SP
 			;Check for empty string (string pointer in X sign:base in D)
 			CPX	2,SP 			;check for empty string
