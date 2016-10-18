@@ -541,6 +541,8 @@ CF_LITERAL		COMPILE_ONLY
 ;execution semantics of the current definition.
 IF_COMPILE_COMMA	IMMEDIATE
 CF_COMPILE_COMMA	COMPILE_ONLY
+CF_COMPILE_COMMA_1	EQU	*
+	
 			RTS
 
 

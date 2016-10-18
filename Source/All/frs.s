@@ -76,20 +76,20 @@
 ;# Constants                                                                   #
 ;###############################################################################
 ;Bottom of return stack
-RS_EMPTY		EQU	RS_TIB_END
+RS_EMPTY			EQU	RS_TIB_END
 
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 #ifdef FRS_VARS_START_LIN
-			ORG 	FRS_VARS_START, FRS_VARS_START_LIN
-#else
-			ORG 	FRS_VARS_START
-FRS_VARS_START_LIN	EQU	@
-#endif	
-
-FRS_VARS_END		EQU	*
-FRS_VARS_END_LIN	EQU	@
+				ORG 	FRS_VARS_START, FRS_VARS_START_LIN
+#else				
+				ORG 	FRS_VARS_START
+FRS_VARS_START_LIN		EQU	@
+#endif				
+				
+FRS_VARS_END			EQU	*
+FRS_VARS_END_LIN		EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -107,18 +107,45 @@ FRS_VARS_END_LIN	EQU	@
 ;#Quit action
 ;============
 #macro	FRS_QUIT, 0
-			LDS	#RS_EMPTY 		;reset return stack
+				LDS	#RS_EMPTY 		;reset return stack
 #emac
 
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
 #ifdef FRS_CODE_START_LIN
-			ORG 	FRS_CODE_START, FRS_CODE_START_LIN
-#else
-			ORG 	FRS_CODE_START
-FRS_CODE_START_LIN	EQU	@
+				ORG 	FRS_CODE_START, FRS_CODE_START_LIN
+#else				
+				ORG 	FRS_CODE_START
+FRS_CODE_START_LIN		EQU	@
 #endif
+
+;#########
+;# Words #
+;#########
+
+;Word: >R
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( x -- ) ( R:  -- x )
+;Move x to the return stack.
+IF_TO_R				IMMEDIATE
+CF_TO_R				EQU	*
+				;Check STATE 
+				LDD	STATE
+				BEQ	CF_TO_R_1 		;interpret
+				;Compile 
+				MOVW	#CF_TO_R_RT, 2,-Y 	;add CF_TO_R_RT
+				JOB	CF_COMPILE_COMMA_1	; to compilation
+				;Interpret
+CF_TO_R_1			LDX	0,SP 			;return address -> X
+				MOVW	2,Y+, 0,SP 		;x -> RS
+				JMP	0,SP 			;return
+	
+;>R run-time semantics
+IF_TO_R_RT			INLINE	CF_TO_R_RT				
+CF_TO_R_RT			EQU	*
+				MOVW	2,Y+, 2,-SP 		;x -> RS
+CF_TO_R_RT_EOI			EQU	*
 	
 FRS_CODE_END		EQU	*
 FRS_CODE_END_LIN	EQU	@
@@ -127,13 +154,13 @@ FRS_CODE_END_LIN	EQU	@
 ;# Tables                                                                      #
 ;###############################################################################
 #ifdef FRS_TABS_START_LIN
-			ORG 	FRS_TABS_START, FRS_TABS_START_LIN
-#else
-			ORG 	FRS_TABS_START
-FRS_TABS_START_LIN	EQU	@
-#endif	
-
-FRS_TABS_END		EQU	*
-FRS_TABS_END_LIN	EQU	@
+				ORG 	FRS_TABS_START, FRS_TABS_START_LIN
+#else				
+				ORG 	FRS_TABS_START
+FRS_TABS_START_LIN		EQU	@
+#endif				
+				
+FRS_TABS_END			EQU	*
+FRS_TABS_END_LIN		EQU	@
 #endif	
 

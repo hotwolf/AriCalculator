@@ -323,29 +323,9 @@ FEXCPT_TX_TC		EQU	*
 			PSHX					;save X
 			PSHY					;save Y
 			PSHD					;save D
-			;Print sign (THROW code in X)
-			TFR	X, D 				;THROW code -> D	
-			TSTA					;check if negative
-			BPL 	FEXCPT_TX_TC_1			;THROW code is positive
-			COMA					;1's complement -> D
-			COMB					;
-			ADDD	#1				;2's complement -> D
-			TFR	D, X 				;negated THROW code -> X
-			LDAB	#"-"				;print minus sign
-			JOBSR	FEXCPT_TX_CHAR 			;(SSTACK: 8 bytes)
-			;Print number (THROW code in X)
-FEXCPT_TX_TC_1		JOBSR	FOUTER_GET_BASE			;BASE -> B
-			SEI					;start of atomic sequence 
-			LDY	#$0000				;0 -> Y
-			JOBSR	NUM_REVERSE			;(SSTACK: 18 bytes)
-			LDY	8,SP				;restore Y
-			CLI					;end of atomic sequence
-			JOBSR	NUM_REVPRINT_BL			;(SSTACK: 10 bytes +6 arg bytes)
-			;Restore registers
-			PULD					;restore D
-			LEAS	2,SP				;Y has already been restored
-			PULX					;restore X
-			RTS					;done
+			;Print THROW code (THROW code in X)
+			TFR	X, D 				;THROW code -> D
+			JOB	FOUTER_TX_CELL			;print THROW code
 	
 ;#########
 ;# Words #
@@ -401,7 +381,7 @@ CF_ABORT_QUOTE_1	LDD	4,Y 				;check X1
 			LEAY	6,Y				;clean up PS
 			RTS					;done
 CF_ABORT_QUOTE_2	JOBSR	CF_CR				;line break
-			JOBSR	CF_STRING_DOT			;print ABORT" message
+			JOBSR	CF_DOT_STRING			;print ABORT" message
 			JOB	CF_ABORT_RT			;uncatchable!!! (for simplicity)
 
 ;ABORT" run-time semantics
@@ -491,37 +471,37 @@ CF_THROW_3		CPD	FEXCPT_TC_QUIT			;check for QUIT
 CF_THROW_4		JOB	CF_ABORT_RT			;ABORT
 			;Handle standard errors  (THROW code in D)
 CF_THROW_5		MOVW	#CF_ABORT_RT, 2,-SP		;push return address (CF_ABORT_RT)
-			JOB	CF_RTERR_DOT_1			;printerror message
+			JOB	CF_DOT_RTERR_1			;printerror message
 	
-;Word: RTERR. ( n -- ) Print a runtime error message
+;Word: .RTERR ( n -- ) Print a runtime error message
 ;Print the runtime error message associated with the THROW code n.
-IF_RTERR_DOT		REGULAR
-CF_RTERR_DOT		EQU	*
+IF_DOT_RTERR		REGULAR
+CF_DOT_RTERR		EQU	*
 			;Get THROW code ( n )
 			LDD	2,Y+				;THROW code -> D
 			;Print left string (THROW code in D)
-CF_RTERR_DOT_1		LDX	#FEXCPT_STR_RTERR_LEFT 		;left side message -> X
+CF_DOT_RTERR_1		LDX	#FEXCPT_STR_RTERR_LEFT 		;left side message -> X
 			JOBSR	FEXCPT_TX_STRING		;print substring
 			;Check THROW code (THROW code in D)
 			CPD	#FEXCPT_SYSTC_MAX		;check for system THROW code
-			BLS	CF_RTERR_DOT_4			;user THROW code
+			BLS	CF_DOT_RTERR_4			;user THROW code
 			;System THROW code (THROW code in D)
 			LDX	#FEXCPT_MSGTAB 			;MESSAGE TABLE -> X
-CF_RTERR_DOT_2		TST	1,X				;check for end of table
-			BNE	CF_RTERR_DOT_3			;not yet
+CF_DOT_RTERR_2		TST	1,X				;check for end of table
+			BNE	CF_DOT_RTERR_3			;not yet
 			TST	0,X				;check for end of table
-			BEQ	CF_RTERR_DOT_5			;no matching entry found
-CF_RTERR_DOT_3		CPD	2,X+				;check if entry matches THROW code
-			BEQ	CF_RTERR_DOT_4			;matching entry found
+			BEQ	CF_DOT_RTERR_5			;no matching entry found
+CF_DOT_RTERR_3		CPD	2,X+				;check if entry matches THROW code
+			BEQ	CF_DOT_RTERR_4			;matching entry found
 			BRCLR	1,X+,#FEXCPT_TERM,*		;skip to next table entry
-			JOB	CF_RTERR_DOT_2			;check next table entry
+			JOB	CF_DOT_RTERR_2			;check next table entry
 			;User defined THROW code (THROW code in D)
-CF_RTERR_DOT_4		TFR	D, X 				;THROW code -> X
+CF_DOT_RTERR_4		TFR	D, X 				;THROW code -> X
 			JOBSR	FEXCPT_CHECK_ERRMSG		;validate error message
-			BCC	CF_RTERR_DOT_5			;print throw code
+			BCC	CF_DOT_RTERR_5			;print throw code
 			JOB	FEXCPT_TX_STRING		;print error message
 			;Print THROW code  (THROW code in D)
-CF_RTERR_DOT_5		TFR	D, X 				;THROW code -> X
+CF_DOT_RTERR_5		TFR	D, X 				;THROW code -> X
 			JOB	FEXCPT_TX_TC			;print THROW code
 
 FEXCPT_CODE_END		EQU	*
@@ -570,8 +550,7 @@ FEXCPT_MSGTAB		EQU	*
 			;FEXCPT_MSG	FEXCPT_TC_NOMSG,	"Empty message string"
 			;FEXCPT_MSG	FEXCPT_TC_DICTPROT,	"Destruction of dictionary structure"
 			;FEXCPT_MSG	FEXCPT_TC_COMERR,	"Corrupted RX data"
-			DW		0 ;end of table
-FEXCPT_UNKNOWN_MSG	FCS		"Unknown type"		;Default error message
+			DW		0 			;end of table
 
 FEXCPT_TABS_END		EQU	*
 FEXCPT_TABS_END_LIN	EQU	@

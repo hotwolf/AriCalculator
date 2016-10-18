@@ -139,6 +139,16 @@ FCDICT_VARS_END_LIN	EQU	@
 FCDICT_CODE_START_LIN	EQU	@
 #endif
 
+;#IO
+;===
+;#Print a list separator (SPACE or line break)
+; args:   D:      char count of next word
+;         0,SP:   line counter 
+; result: 0,SP;   updated line counter
+; SSTACK: 10 bytes
+;         Y is preserved
+FCDICT_LIST_SEP		EQU	FOUTER_LIST_SEP
+	
 ;#String operations
 ;==================
 ;#Convert a lower case character to upper case
@@ -300,7 +310,7 @@ CF_WORDS_CDICT_14	INCB						;increment
 			DBNE	A, CF_WORDS_CDICT_13			;count substring
 CF_WORDS_CDICT_15	CLRA						;char count -> D 
 			MOVW	#CF_WORDS_CDICT_1, 2,-SP 		;push return address
-			JOB	FOUTER_LIST_SEP				
+			JOB	FCDICT_LIST_SEP				
 	
 FCDICT_CODE_END		EQU	*
 FCDICT_CODE_END_LIN	EQU	@

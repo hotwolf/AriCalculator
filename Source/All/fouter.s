@@ -234,7 +234,76 @@ FOUTER_TX_CHAR		EQU	SCI_TX_BL
 ;         Y and D are preserved
 FOUTER_TX_STRING	EQU	STRING_PRINT_BL
 
-;#Prints a list separator (SPACE or line break)
+;#Print cell value
+; args:   D: cell value
+; result: none
+; SSTACK: 26 bytes
+;         X, Y and D are preserved
+FOUTER_TX_CELL		EQU	*
+			;Save registers (cell value in D)
+			PSHX					;save X
+			PSHY					;save Y
+			PSHD					;save D
+			;Print sign (cell value in D)
+			TFR	D, X		 		;cell value -> X
+FOUTER_TX_CELL_1	TSTA					;check if negative
+			BPL 	FOUTER_TX_CELL_2		;cell value is positive
+			COMA					;1's complement -> D
+			COMB					;
+			ADDD	#1				;2's complement -> D
+			TFR	D, X 				;negated THROW code -> X
+			LDAB	#"-"				;print minus sign
+			JOBSR	FEXCPT_TX_CHAR 			;(SSTACK: 8 bytes)
+			;Print number (absolute cell value in X)
+FOUTER_TX_CELL_2	JOBSR	FOUTER_GET_BASE			;BASE -> B
+			SEI					;start of atomic sequence 
+			LDY	#$0000				;0 -> Y
+			JOBSR	NUM_REVERSE			;(SSTACK: 18 bytes)
+			LDY	8,SP				;restore Y
+			CLI					;end of atomic sequence
+			JOBSR	NUM_REVPRINT_BL			;(SSTACK: 10 bytes +6 arg bytes)
+			;Restore registers
+			PULD					;restore D
+			LEAS	2,SP				;Y has already been restored
+			PULX					;restore X
+			RTS					;done
+
+;#Count the digits (incl. sign) of cell value
+; args:   D: cell value
+; result: D: digits (char count)
+; SSTACK: 26 bytes
+;         X, Y and D are preserved
+FOUTER_CELL_DIGITS	EQU	*
+			;Save registers (cell value in D)
+			PSHX					;save X
+			PSHY					;save Y
+			MOVW	#$0000,	2,-SP			;allocate digit count
+			;Count sign (cell value in D)
+			TFR	D, X		 		;cell value -> X
+			TSTA					;check if negative
+			BPL 	FOUTER_CELL_DIGITS_1		;cell value is positive
+			COMA					;1's complement -> D
+			COMB					;
+			ADDD	#1				;2's complement -> D
+			TFR	D, X 				;negated THROW code -> X
+			MOVB	#$01, 1,SP			;count minus sign
+			;Print number (absolute cell value in X)
+FOUTER_CELL_DIGITS_1	JOBSR	FOUTER_GET_BASE			;BASE -> B
+			SEI					;start of atomic sequence 
+			LDY	#$0000				;0 -> Y
+			JOBSR	NUM_REVERSE			;(SSTACK: 18 bytes)
+			LDY	8,SP				;restore Y
+			CLI					;end of atomic sequence
+			NUM_CLEAN_REVERSE			;clean up stack
+			TFR	A, D				;char count -> D
+			CLRA
+			ADDD	2,SP+				;add sign 
+			;Restore registers (char count in D)
+			PULY					;restore Y
+			PULX					;restore X
+			RTS					;done
+	
+;#Print a list separator (SPACE or line break)
 ; args:   D:      char count of next word
 ;         0,SP:   line counter 
 ; result: 0,SP;   updated line counter
@@ -253,7 +322,7 @@ FOUTER_LIST_SEP		EQU	*
 FOUTER_LIST_SEP_1	SUBD	2,SP 			;restore char count
 			STD	2,SP			;update line counter
 			JOB	CF_CR			;print line break
-	
+
 ;#String operations
 ;==================
 ;#Convert a lower case character to upper case
@@ -593,16 +662,6 @@ CF_SPACE		EQU	*
 			LDAB	#FOUTER_SYM_SPACE 	;SPACE char -> B
 			JOB	FOUTER_TX_CHAR		;print SPACE char
 
-;;Word: SPACES ( n -- )
-;;If n is greater than zero, display n spaces.
-;;IF_SPACES		REGULAR
-;CF_SPACES		EQU	*
-;			LDX	2,Y+ 			;pick up argument
-;			BEQ	CF_SPACES_2		;skip on zero
-;CF_SPACES_1		JOBSR	CF_SPACE		;print SPACE
-;			DBNE	X, CF_SPACES_1		;loop
-;CF_SPACES_2		RTS				;done
-	
 ;Word: CR ( -- ) Print line break
 ;Cause subsequent output to appear at the beginning of the next line.
 IF_CR			REGULAR
@@ -671,7 +730,7 @@ CF_QUIT_RT_3		LDD	STATE 			;check STATE
 			BRSET	-1,X, #$FF, CF_QUIT_RT_8;execute immediate word
 			STX	2,-Y			;xt -> PS
 			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
-			JOB	CF_COMPILE_COMMA	;compile word
+			JOB	CF_COMPILE_COMMA_1	;compile word
 CF_QUIT_RT_4		JOBSR	CF_TO_INT 		;convert to integer
 			LDD	2,Y+			;check result
 			BEQ	CF_QUIT_RT_10		;syntax error
@@ -693,7 +752,7 @@ CF_QUIT_RT_9		JOBSR	CF_TO_INT		;convert to integer
 			BNE	CF_QUIT_RT_2		;parse loop
 			;Syntax (c-addr u)
 CF_QUIT_RT_10		MOVW	#CF_ABORT_RT, 2,-SP	;push return address (CF_ABORT_RT)
-			JOB	CF_SYNERR_DOT		;print error message
+			JOB	CF_DOT_SYNERR		;print error message
 
 ;Word: SKIP&PARSE ( char "ccc<char>" -- c-addr u )
 ;Skip over any sequence of char at >IN and execute PARSE.
@@ -774,37 +833,69 @@ CF_WORDS		EQU	*
 
 			JOB	CF_WORDS_CDICT
 
-;Word: $. ( c-addr u  -- ) Print a string
+;Word: .$ ( c-addr u  -- ) Print a string
 ;Ptint a string given by the start address c-addr and the character count u.
-IF_STRING_DOT		REGULAR
-CF_STRING_DOT		EQU	*
+IF_DOT_STRING		REGULAR
+CF_DOT_STRING		EQU	*
 			;Print string
 			LDD	2,Y 			;c-addr -> D
 			LDX	0,Y			;u      -> X
 			LEAX	D,X			;end of string -> X
 			STX	2,+Y			;end of string -> PS
 			TFR	D, X			;c-addr -> X			
-CF_STRING_DOT_1		LDAB	1,X+			;char          -> B
+CF_DOT_STRING_1		LDAB	1,X+			;char          -> B
 			ANDB	#~FOUTER_TERM		;remove any termination
 			JOBSR	FOUTER_TX_CHAR		;print char
 			CPX	0,Y			;check for end of string
-			BNE	CF_STRING_DOT_1		;loop
+			BNE	CF_DOT_STRING_1		;loop
 			RTS				;done
 	
-;Word: SYNERR. ( c-addr u -- ) Print a syntax error message
+;Word: .SYNERR ( c-addr u -- ) Print a syntax error message
 ;Print a syntax error message, referencing the word given by the start address
 ;c-addr and the character count u. Then throw an abort exception.
-IF_SYNERR_DOT		REGULAR
-CF_SYNERR_DOT		EQU	*
+IF_DOT_SYNERR		REGULAR
+CF_DOT_SYNERR		EQU	*
 			;Print left string 
 			LDX	#FOUTER_STR_SYNERR_LEFT ;left side message -> X
 			JOBSR	FOUTER_TX_STRING	;print substring
 			;Print word
-			JOBSR	CF_STRING_DOT 		;print string
+			JOBSR	CF_DOT_STRING 		;print string
 			;Print right string 
 			LDX	#FOUTER_STR_SYNERR_RIGHT;right side message -> X 
 			JOB	FOUTER_TX_STRING	;print substring
 
+;Word: >IN ( -- a-addr )
+;a-addr is the address of a cell containing the offset in characters from the
+;start of the input buffer to the start of the parse area.
+IF_TO_IN		INLINE	CF_TO_IN
+CF_TO_IN		EQU	*
+			MOVW	#TO_IN, 2,-Y 	;>IN -> PS
+CF_TO_IN_EOI		RTS
+
+;Word: BASE ( -- a-addr )
+;a-addr is the address of a cell containing the current number-conversion radix
+;{{2...36}}.
+IF_BASE			INLINE	CF_BASE
+CF_BASE			EQU	*
+			MOVW	#BASE, 2,-Y 	;BASE -> PS
+CF_BASE_EOI		RTS
+
+;Word: STATE ( -- a-addr )
+;a-addr is the address of a cell containing the compilation-state flag. STATE is
+;true when in compilation state, false otherwise. The true value in STATE is
+;non-zero, but is otherwise implementation-defined. Only the following standard
+;words alter the value in STATE: : (colon), ; (semicolon), ABORT, QUIT, :NONAME,
+;[ (left-bracket), and ] (right-bracket).
+;Note: A program shall not directly alter the contents of STATE.
+IF_STATE		INLINE	CF_STATE
+CF_STATE		EQU	*
+			MOVW	#STATE, 2,-Y 	;STATE -> PS
+CF_STATE_EOI		RTS
+
+
+
+
+	
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@
 	

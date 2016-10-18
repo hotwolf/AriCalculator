@@ -303,6 +303,16 @@ CF_QUERY_18		STX	NUMBER_TIB 		;update #TIB
 			LEAS	2,SP			;stack space
 			RTS				;done
 
+;#TIB ( -- a-addr )
+;a-addr is the address of a cell containing the number of characters in the
+;terminal input buffer.
+;Note: This word is obsolescent and is included as a concession to existing
+;      implementations.
+IF_NUMBER_TIB		INLINE	CF_NUMBER_TIB
+CF_NUMBER_TIB		EQU	*
+			MOVW	#NUMBER_TIB, 2,-Y 	;NUMBER_TIB -> PS
+CF_NUMBER_TIB_EOI	RTS
+	
 FTIB_CODE_END		EQU	*
 FTIB_CODE_END_LIN	EQU	@
 

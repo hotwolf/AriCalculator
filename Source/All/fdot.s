@@ -182,6 +182,16 @@ FDOT_TX_STRING		EQU	STRING_PRINT_BL
 ;# Words #
 ;#########
 
+;Word: SPACES ( n -- )
+;If n is greater than zero, display n spaces.
+;IF_SPACES		REGULAR
+CF_SPACES		EQU	*
+			LDX	2,Y+ 			;pick up argument
+			BEQ	CF_SPACES_2		;skip on zero
+CF_SPACES_1		JOBSR	CF_SPACE		;print SPACE
+			DBNE	X, CF_SPACES_1		;loop
+CF_SPACES_2		RTS				;done
+	
 
 
 ;
@@ -777,7 +787,13 @@ FDOT_TABS_END_LIN	EQU	@
 ;			ORG 	FDOT_WORDS_START
 ;FDOT_WORDS_START_LIN	EQU	@
 ;#endif	
-;			ALIGN	1, $FF
+				;
+
+
+
+
+
+	ALIGN	1, $FF
 ;;#ANSForth Words:
 ;;================
 ;;Word: EKEY ( u --  )

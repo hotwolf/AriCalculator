@@ -29,7 +29,7 @@
 ;#    Program termination options:                                             #
 ;#        ABORT:   Parameter stack is cleared                                  #
 ;#        QUIT:    Parameter stack is untouched                                #
-;#        SUSPEND: Parameter stack is untouched                                #
+;#                                                                             #
 ;#    The following notation is used to describe the stack layout in the word  #
 ;#    definitions:                                                             #
 ;#                                                                             #
@@ -165,65 +165,49 @@ FPS_CODE_START_LIN	EQU	@
 
 ;#IO
 ;===
-;#Transmit one char
-; args:   B: data to be send
-; SSTACK: 8 bytes
-;         X, Y, and D are preserved
-FPS_TX_CHAR		EQU	SCI_TX_BL
+;#Prints a MSB terminated string
+; args:   X:      start of the string
+; result: X;      points to the byte after the string
+; SSTACK: 10 bytes
+;         Y and D are preserved
+FPS_TX_STRING		EQU	STRING_PRINT_BL
 
-;#Revert cell
-; args:   X: cell pointer
-; result: D: number of digits
-;         SP+0: MSB   
-;         SP+1:  |    
-;         SP+2:  |reverse  
-;         SP+3:  |number  
-;         SP+4:  |    
-;         SP+5: LSB   
+;#Print cell value
+; args:   D: cell value
+; result: none
 ; SSTACK: 26 bytes
-;         X and Y are preserved
-FPS_REVERT_CELL		EQU	SCI_TX_BL
-			;Save registers (cell pointer in X) 
-			PSHX					;save X
-			PSHY					;save Y
-			MOVW	#$0000, 2,-SP			;allocate space for char count
-			;check sign (cell pointer in X) 
-			LDD	0,X				;cell -> D	
-			BPL	FPS_REVERT_CELL_1		;positive
-			MOVB	#$01, 1,SP			;increment char count
-			COMA					;1's complement -> D
-			COMB					;
-			ADDD	#1				;2's complement -> D
-			;Revert cell (absolute cell value in D)  
-FPS_REVERT_CELL_1	TFR	D, X 				;absolute cell value - > X
-			JOBSR	FOUTER_GET_BASE			;BASE -> B
-			SEI					;start of atomic sequence
-			JOBSR	NUM_REVERSE			;(SSTACK: 18 bytes)
-			LDY	8,SP				;restore Y
-			CLI					;end of atomic sequence
-			TAB					;char count -> D
-			CLRA					;
-			ADDD	6,SP 				;add sign length
-			LDX	10,SP				;restore X
-			;Adjust stack (digit count in D) 
-			;SP+ 0: MSB   	                   
-			;SP+ 2:  |rev.num.    	        
-			;SP+ 4: LSB   	      	           
-			;SP+ 6: char count    	      SP+ 0: return addr.    
-			;SP+ 8: Y  	      ==>     SP+ 2: MSB   	    	      
-			;SP+10: X   	      	      SP+ 4:  |rev.num.      	      
-			;SP+12: return addr.   	      SP+ 8: LSB   	   
-			MOVW	12,SP,	6,SP			;move return address
-			MOVW	2,SP+,	6,SP 			;move RHV
-			MOVW	2,SP+,	6,SP 			;move RMV
-			MOVW	2,SP+,	6,SP 			;move RLV
-			RTS
+;         X, Y and D are preserved
+FPS_TX_CELL		EQU	FOUTER_TX_CELL
 
+;#Count the digits (incl. sign) of cell value
+; args:   D: cell value
+; result: D: digits (char count)
+; SSTACK: 26 bytes
+;         X, Y and D are preserved
+FPS_CELL_DIGITS		EQU	FOUTER_CELL_DIGITS
+	
+;#Print a list separator (SPACE or line break)
+; args:   D:      char count of next word
+;         0,SP:   line counter 
+; result: 0,SP;   updated line counter
+; SSTACK: 10 bytes
+;         Y is preserved
+FPS_LIST_SEP		EQU	FOUTER_LIST_SEP
 	
 ;#########
 ;# Words #
 ;#########
 
+;Word: ?DUP ( x -- 0 | x x )
+;Duplicate x if it is non-zero.
+IF_QUESTION_DUP		INLINE	CF_QUESTION_DUP	
+CF_QUESTION_DUP		EQU	*
+			LDD	0,Y 				;x -> D
+			BEQ	CF_QUESTION_DUP_1		;x == 0
+			STD	2,-Y				;duplicate x
+CF_QUESTION_DUP_1	RTS
+CF_QUESTION_DUP_EOI	EQU	CF_QUESTION_DUP_1
+	
 ;Word: DUP ( x -- x x )
 ;Duplicate x.
 IF_DUP			INLINE	CF_DUP	
@@ -317,57 +301,40 @@ CF_2ROT_EOI		RTS					;done
 ;Word: .S ( -- ) Copy and display the values currently on the data stack.
 IF_DOT_S		REGULAR
 CF_DOT_S		EQU	*
-			;Store iterator 
-			PSHY					;store PSP
-			LEAS	2,SP				;allicate column counter
-			LDX	#PS_EMPTY			;first PS entry -> X
-			CPX	2,SP				;check if PS is empty
-			BHI	CF_DOT_S_3			;PS is empty
-			;Print first cell (cell pointer in X) 
-			JOBSR	FPS_REVERT_CELL 		;calculate reverse cell number
-			STD	6,SP				;update column counter
-CF_DOT_S_1		BRCLR	2,X-,#$80,CF_DOT_S_2		;don't print minus sign
-			LDAB	#"-"				;print minus sign
-			JOBSR	FPS_TX_CHAR			;
-CF_DOT_S_2		JOBSR	FOUTER_GET_BASE			;BASE -> B
-			JOBSR	NUM_REVPRINT_BL			;print cell
-			;Print consecutive cells (cell pointer in X) 
-			CPX	2,SP				;check if PS is empty
-			BHI	CF_DOT_S_3			;all cells printed			
-			JOBSR	FPS_REVERT_CELL 		;calculate reverse cell number
-			MOVW	6,SP, 2,-SP			;douplicate column counter
-			JOBSR	FOUTER_LIST_SEP			;print separator
-			MOVW	2,SP+, 6,SP			;update loulumn counter
-			JOB	CF_DOT_S_1			;repeat
-			;Done
+			;Start on new line 
+			JOBSR	CF_CR 				;line break
+			;RS layout:
+			; +--------+--------+
+			; |  Line counter   | SP+0
+			; +--------+--------+
+			; |    Iterator     | SP+2
+			; +--------+--------+
+			;Allocate iterator 
+			MOVW	#(PS_EMPTY-2), 2,-SP 		;first PS entry -> iterator
+			CPY	0,SP				;check for empty PS
+			BLO	CF_DOT_S_2			;PS is empty
+			LDD	[0,SP]				;first cell -> D
+			JOBSR	FPS_CELL_DIGITS			;char count  -> D
+			PSHD					;set up line counter
+			;Print loop 
+			LDX	2,SP	    			;iterator -> X
+CF_DOT_S_1		LDD	-2,X 				;cell -> D
+			STX	2,SP				;advance iterator
+			JOBSR	FPS_TX_CELL			;print sell
+			CPY	2,SP				;check for further PS entries
+			BLO	CF_DOT_S_3			;no further entries
+			LDD	0,X				;next cell -> D
+			JOBSR	FPS_CELL_DIGITS			;char count  -> D
+			JOBSR	FPS_LIST_SEP			;print separator
+			JOB	CF_DOT_S_1			;print next cell
+			;Print "empty" message
+CF_DOT_S_2		LEAS	2,SP				;free stack space
+			LDX	#FPS_STR_EMPTY			;string pointer -> X
+			JOB	FPS_TX_STRING			;print "empty" string
+			;Done		
 CF_DOT_S_3		LEAS	4,SP 				;free stack space
 			RTS					;done
-	
-;;Code fields:
-;;============
-;;2CONSTANT run-time semantics ( -- d )
-;;Push the contents of the first cell after the CFA onto the parameter stack
-;;
-;;S12CForth implementation details:
-;;Throws:	FEXCPT_EC_PSOF
-;CF_TWO_CONSTANT_RT	PS_CHECK_OF	2			;overflow check	=> 9 cycles
-;			MOVW		4,X, 2,Y		;[CFA+6] -> PS	=> 5 cycles
-;			JOB		CF_TWO_CONSTANT_RT_1
-;CF_TWO_CONSTANT_RT_1	EQU		CF_CONSTANT_RT_1
-;
-;;CONSTANT run-time semantics ( -- x )
-;;Push the contents of the first cell after the CFA onto the parameter stack
-;;
-;;S12CForth implementation details:
-;;Throws:	FEXCPT_EC_PSOF
-;CF_CONSTANT_RT		PS_CHECK_OF	1			;overflow check	=> 9 cycles
-;CF_CONSTANT_RT_1	MOVW		2,X, 0,Y		;[CFA+2] -> PS	=> 5 cycles
-;CF_CONSTANT_RT_2	STY		PSP			;		=> 3 cycles
-;			NEXT					;NEXT		=>15 cycles
-;								; 		  ---------
-;								;		  32 cycles
-;
-	
+
 FPS_CODE_END		EQU	*
 FPS_CODE_END_LIN	EQU	@
 
@@ -381,6 +348,9 @@ FPS_CODE_END_LIN	EQU	@
 FPS_TABS_START_LIN	EQU	@
 #endif	
 
+;PS empty message
+FPS_STR_EMPTY		FCS	"empty"
+	
 FPS_TABS_END		EQU	*
 FPS_TABS_END_LIN	EQU	@
 #endif	
