@@ -200,21 +200,24 @@ FEXCPT_DEFAULT_HANDLER		EQU	$0000 	;initial exception handler
 ;#String termination 
 FEXCPT_TERM			EQU	STRING_TERM
 
+;#ASCII code 
+FEXCPT_SYM_BEEP			EQU	STRING_SYM_BEEP		;acoustic signal
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 #ifdef FEXCPT_VARS_START_LIN
-			ORG 	FEXCPT_VARS_START, FEXCPT_VARS_START_LIN
-#else
-			ORG 	FEXCPT_VARS_START
-FEXCPT_VARS_START_LIN	EQU	@
-#endif	
-	
-HANDLER			DS	2 		;pointer tho the most recent exception handler 
-ABORT_QUOTE_MSG		DS	2		;pointer to latest ABORT" message
-	
-FEXCPT_VARS_END		EQU	*
-FEXCPT_VARS_END_LIN	EQU	@
+				ORG 	FEXCPT_VARS_START, FEXCPT_VARS_START_LIN
+#else				
+				ORG 	FEXCPT_VARS_START
+FEXCPT_VARS_START_LIN		EQU	@
+#endif				
+				
+HANDLER				DS	2 		;pointer tho the most recent exception handler 
+ABORT_QUOTE_MSG			DS	2		;pointer to latest ABORT" message
+				
+FEXCPT_VARS_END			EQU	*
+FEXCPT_VARS_END_LIN		EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -222,7 +225,7 @@ FEXCPT_VARS_END_LIN	EQU	@
 ;#Initialization (executed along with ABORT action)
 ;===============
 #macro	FEXCPT_INIT, 0
-			MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER	;reset exception handler
+				MOVW	#FEXCPT_DEFAULT_HANDLER, HANDLER;reset exception handler
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
@@ -241,8 +244,8 @@ FEXCPT_VARS_END_LIN	EQU	@
 ; args: 1: error code
 ; 	2: message string
 #macro	FEXCPT_MSG, 2
-			DW	\1		 		;error code
-			FCS	\2		 		;error message
+				DW	\1		 ;error code
+				FCS	\2		 ;error message
 #emac
 
 ;Monitor
@@ -520,7 +523,8 @@ FEXCPT_TABS_START_LIN	EQU	@
 #endif
 
 ;Error messages 
-FEXCPT_STR_RTERR_LEFT	STRING_NL_NONTERM
+FEXCPT_STR_RTERR_LEFT	DB	FEXCPT_SYM_BEEP
+			STRING_NL_NONTERM
 			FCS	"!!! Runtime Error: "
 FEXCPT_STR_RTERR_RIGHT	STRING_NL_TERM
 ;

@@ -138,6 +138,7 @@ FTIB_VARS_END_LIN	EQU	@
 ;#Initialization (executed along with ABORT action)
 ;===============
 #macro	FTIB_INIT, 0
+			MOVW	#$0000, NUMBER_TIB	;empty TIB
 #emac
 
 ;#Abort action (executed along with QUIT action)
@@ -148,7 +149,6 @@ FTIB_VARS_END_LIN	EQU	@
 ;#Quit action
 ;============
 #macro	FTIB_QUIT, 0
-			MOVW	#$0000, NUMBER_TIB	;empty TIB
 			MOVW	#$0000, TO_IN		;reset parser
 #emac
 

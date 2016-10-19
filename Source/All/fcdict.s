@@ -297,7 +297,8 @@ CF_WORDS_CDICT_11	ADDA	#2 					;switch to higher tree level
 			BLE	CF_WORDS_CDICT_4 			;advance next higher level 
 			;Done
 			LEAS	((2*FCDICT_TREE_DEPTH)+2),SP		;free stack space
-			JOB	CF_CR 					;line break
+			;JOB	CF_CR 					;line break
+			RTS						;done
 			;Count chars 
 CF_WORDS_CDICT_12	LDD	#((2*FCDICT_TREE_DEPTH)<<8) 		;stack offset -> A, 0 -> B
 CF_WORDS_CDICT_13	LDX	A,SP 					;substring -> X

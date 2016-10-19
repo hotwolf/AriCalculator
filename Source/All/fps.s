@@ -312,7 +312,7 @@ CF_DOT_S		EQU	*
 			;Allocate iterator 
 			MOVW	#(PS_EMPTY-2), 2,-SP 		;first PS entry -> iterator
 			CPY	0,SP				;check for empty PS
-			BLO	CF_DOT_S_2			;PS is empty
+			BHI	CF_DOT_S_2			;PS is empty
 			LDD	[0,SP]				;first cell -> D
 			JOBSR	FPS_CELL_DIGITS			;char count  -> D
 			PSHD					;set up line counter
@@ -320,9 +320,9 @@ CF_DOT_S		EQU	*
 			LDX	2,SP	    			;iterator -> X
 CF_DOT_S_1		LDD	-2,X 				;cell -> D
 			STX	2,SP				;advance iterator
-			JOBSR	FPS_TX_CELL			;print sell
+			JOBSR	FPS_TX_CELL			;print cell
 			CPY	2,SP				;check for further PS entries
-			BLO	CF_DOT_S_3			;no further entries
+			BHI	CF_DOT_S_3			;no further entries
 			LDD	0,X				;next cell -> D
 			JOBSR	FPS_CELL_DIGITS			;char count  -> D
 			JOBSR	FPS_LIST_SEP			;print separator

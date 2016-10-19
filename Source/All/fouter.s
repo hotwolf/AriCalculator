@@ -152,6 +152,9 @@ FOUTER_BASE_DEFAULT	EQU	NUM_BASE_DEFAULT	;default base (decimal)
 ;#String termination 
 FOUTER_TERM		EQU	STRING_TERM
 
+;#ASCII code 
+FOUTER_SYM_BEEP		EQU	STRING_SYM_BEEP		;acoustic signal
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -913,10 +916,11 @@ FOUTER_TABS_START_LIN	EQU	@
 FOUTER_STR_NL		EQU	STRING_STR_NL
 
 ;System prompts
-FOUTER_STR_OK		FCS	"  ok"
+FOUTER_STR_OK		FCS	" ok"
 
 ;Error messages 
-FOUTER_STR_SYNERR_LEFT	STRING_NL_NONTERM
+FOUTER_STR_SYNERR_LEFT	DB	FOUTER_SYM_BEEP
+			STRING_NL_NONTERM
 			FCC	"!!! Syntax Error: "
 FOUTER_STR_SYNERR_RIGHT	DB	$A2 				;quote (terminated)
 
