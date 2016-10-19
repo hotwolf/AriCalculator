@@ -600,7 +600,7 @@ CF_TO_INT		EQU	*
 			;Allocate pointers
 			LDX	2,Y 			;c-addr -> X
 			LDD	0,Y			;u1     -> D
-			BEQ	CF_TO_INT_6		;empty string
+			BEQ	CF_TO_INT_7		;empty string
 			LEAX	D,X			;end of string -> X
 			PSHX				;store end of string
 			LDX	2,Y 			;c-addr -> X
@@ -613,22 +613,22 @@ CF_TO_INT		EQU	*
 			;Process digit (string pointer in X, base in B)
 CF_TO_INT_1		LDAA	1,X+ 			;char -> A
 			JOBSR	FOUTER_CONV_DIGIT	;digit -> A
-			BCC	CF_TO_INT_A		;inconvertible character
+			BCC	CF_TO_INT_5		;inconvertible character
 			PSHX				;save X
 			LEAX	2,SP			;integer space -> X
 			JOBSR	FOUTER_SHIFT_AND_ADD	;add digit to intager
-			BNE	CF_TO_INT_6		;overflow
+			BNE	CF_TO_INT_7		;overflow
 			PULX				;restore X
 CF_TO_INT_2		CPX	6,SP			;check for remaining chars
 			BNE	CF_TO_INT_1		;process next digit
 			;Single cell integer
 			LDD	0,SP 			;check for overflow
-			BNE	CF_TO_INT_6		;overflow
+			BNE	CF_TO_INT_7		;overflow
 			LDD	2,SP			;LSW -> D
 			TST	4,SP			;check sign
 			BEQ	CF_TO_INT_3		;positive number
 			TSTA				;check range
-			BMI	CF_TO_INT_6		;overflow
+			BMI	CF_TO_INT_7		;overflow
 			COMA				;invert LSW
 			COMB				;
 			ADDD	#$0001			;negate LSW
@@ -637,25 +637,25 @@ CF_TO_INT_3		STD	2,Y			;return u2
 CF_TO_INT_4		LEAS	8,SP			;free stack space
 			RTS				;done
 			;Inconvertible (string pointer in X, char in A, base in B)
-CF_TO_INT_A		CMPA	#"_"			;check for filler
+CF_TO_INT_5		CMPA	#"_"			;check for filler
 			BEQ	CF_TO_INT_2		;skip char
 			CMPA	#"."			;check double indicator
-			BNE	CF_TO_INT_6		;failure
+			BNE	CF_TO_INT_7		;failure
 			CPX	6,SP			;check if period is the last char
-			BNE	CF_TO_INT_6		;failure
+			BNE	CF_TO_INT_7		;failure
 			;Double cell integer
 			TSX				;integer space -> X
 			TST	4,SP			;check sign
-			BEQ	CF_TO_INT_5		;positive number
+			BEQ	CF_TO_INT_6		;positive number
 			TST	0,SP			;check range
-			BMI	CF_TO_INT_6		;overflow
+			BMI	CF_TO_INT_7		;overflow
 			JOBSR	FOUTER_NEGATE		;negate double integer
-CF_TO_INT_5		MOVW	2,SP, 2,Y		;return LSW
+CF_TO_INT_6		MOVW	2,SP, 2,Y		;return LSW
 			MOVW	0,SP, 0,Y		;return MSW
 			MOVW	#$0002, 2,-Y		;return 2
 			JOB	CF_TO_INT_4		;clean up and done
 			;Failure 
-CF_TO_INT_6		MOVW	#$0000, 2,-Y		;return 0
+CF_TO_INT_7		MOVW	#$0000, 2,-Y		;return 0
 			JOB	CF_TO_INT_4		;clean up and done
 	
 ;Word: SPACE ( -- ) Print whitespace
