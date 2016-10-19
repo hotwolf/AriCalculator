@@ -2821,6 +2821,7 @@ CF_HEX_EOI			RTS
 ;c-addr is the address of the terminal input buffer.
 ;Note: This word is obsolescent and is included as a concession to existing
 ;implementations.
+;==> FTIB 
 
 ;TO
 ;Interpretation: ( x "<spaces>name" -- )
@@ -2976,15 +2977,16 @@ CF_U_GREATER_THAN_EOI		RTS
 ;Compilation: Perform the execution semantics given below.
 ;Execution: ( "ccc<eol>"-- )
 ;Parse and discard the remainder of the parse area. \ is an immediate word.
-;CF_BACKSLASH			MOVW	NUMBER_TIB, TO_IN ;set >IN do the last character 
-;				NEXT
+;==> FOUTER
 
 ;#Non-standard S12CForth extensions
 ; =================================
-;BINARY ( -- )
+;Word: BINARY ( -- )
 ;Set the numeric conversion radix to two (binary).
-;CF_BINARY			MOVW	#2, BASE
-;				NEXT
+IF_BINARY			INLINE	CF_BINARY
+CF_BINARY			EQU	*
+				MOVW	#2, BASE
+CF_BINARY_EOI			RTS
 	
 ;;CP ( -- addr)
 ;;Compile pointer (points to the next free byte after the user dictionary)

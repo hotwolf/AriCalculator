@@ -318,7 +318,7 @@ CF_DOT_S		EQU	*
 			PSHD					;set up line counter
 			;Print loop 
 			LDX	2,SP	    			;iterator -> X
-CF_DOT_S_1		LDD	-2,X 				;cell -> D
+CF_DOT_S_1		LDD	2,X- 				;cell -> D
 			STX	2,SP				;advance iterator
 			JOBSR	FPS_TX_CELL			;print cell
 			CPY	2,SP				;check for further PS entries

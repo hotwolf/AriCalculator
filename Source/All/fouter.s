@@ -398,7 +398,7 @@ FOUTER_PREFIX		EQU	*
 			BEQ	FOUTER_PREFIX_5		;last char (revert parsing)
 			CMPA	#"-"			;check for sign
 			BNE	FOUTER_PREFIX_1		;no sign change
-			MOVW	#$FF, 0,SP		;set negative sign
+			MOVB	#$FF, 0,SP		;set negative sign
 			LDAA	1,X+ 			;next char -> A
 			CPX	2,SP			;check for more chars
 			BEQ	FOUTER_PREFIX_5		;last char (revert parsing)
@@ -421,9 +421,9 @@ FOUTER_PREFIX_2		CMPA	2,X+			;check table entry
 FOUTER_PREFIX_3		LDAA	1,X+ 			;first char -> A
 			CPX	2,SP			;check for more chars
 			BEQ	FOUTER_PREFIX_5		;last char (revert parsing)
-FOUTER_PREFIX_4		CMPA	"_"			;check for underscore
+FOUTER_PREFIX_4		CMPA	#"_"			;check for underscore
 			BEQ	FOUTER_PREFIX_3		;skip underscore
-			CMPA	"0"			;check for zero
+			CMPA	#"0"			;check for zero
 			BEQ	FOUTER_PREFIX_3		;skip zero
 			;Return results (string pointer in X)
 FOUTER_PREFIX_5		LEAX	-1,X  			;revert parser to current char
@@ -439,20 +439,20 @@ FOUTER_PREFIX_8		CMPA	2,X+			;check table entry
 			PULX				;restore string pointer
 			JOB	FOUTER_PREFIX_5		;prefix parsed
 			;C-style prefix found (table pointer in X)
-FOUTER_PREFIX_9		MOVB	-1,X, 1,SP 		;update base
+FOUTER_PREFIX_9		MOVB	-1,X, 3,SP 		;update base
 			PULX				;restore string pointer
 			JOB	FOUTER_PREFIX_3		;skip zeros and underscores
 			;ASM-style prefix found (table pointer in X)
-FOUTER_PREFIX_10	MOVB	-1,X, 1,SP 		;update base
+FOUTER_PREFIX_10	MOVB	-1,X, 3,SP 		;update base
 			PULX				;restore string pointer
 			LDAA	1,X+ 			;first char -> A
 			CPX	2,SP			;check for more chars
 			BEQ	FOUTER_PREFIX_5		;last char (revert parsing)
-			CMPA	"-"			;check second sign position
+			CMPA	#"-"			;check second sign position
 			BNE	FOUTER_PREFIX_4		;check for zero
 			TST	0,SP			;check if result is already negative
 			BNE	FOUTER_PREFIX_5		;result is already negative
-			MOVW	#$FF, 0,SP		;set negative sign
+			MOVB	#$FF, 0,SP		;set negative sign
 			JOB	FOUTER_PREFIX_3		;skip zeros and underscores
 
 ;#Multiply double integer by base and add new digit
@@ -545,10 +545,10 @@ FOUTER_CONV_DIGIT	EQU	*
 			BLO	FOUTER_CONV_DIGIT_1	;check number range
 			CMPA	#"Z"			;check upper case range
 			BHI	FOUTER_CONV_DIGIT_3	;check lower case range
-			SUBA	#"A"			;subtract offset
+			SUBA	#("A"-10)		;subtract offset
 			CBA				;check base 
 			BLS	FOUTER_CONV_DIGIT_2	;success
-			ADDA	#"A"			;restore char
+			ADDA	#("A"-10)		;restore char
 			JOB	FOUTER_CONV_DIGIT_4	;failure
 			;Check number range (char in A, base in B)
 FOUTER_CONV_DIGIT_1	CMPA	#"0" 			;check upper case range
@@ -568,10 +568,10 @@ FOUTER_CONV_DIGIT_3	CMPA	#"a" 			;check upper case range
 			BLO	FOUTER_CONV_DIGIT_4	;invalid char
 			CMPA	#"z"			;check upper case range
 			BHI	FOUTER_CONV_DIGIT_4	;invalid char
-			SUBA	#"z"			;subtract offset
+			SUBA	#("a"-10)		;subtract offset
 			CBA				;check base 
 			BLS	FOUTER_CONV_DIGIT_2	;success
-			ADDA	#"z"			;restore char
+			ADDA	#("a"-10)		;restore char
 			;Failure
 FOUTER_CONV_DIGIT_4	CLC				;flag failure
 			RTS				;done
@@ -613,7 +613,7 @@ CF_TO_INT		EQU	*
 			;Process digit (string pointer in X, base in B)
 CF_TO_INT_1		LDAA	1,X+ 			;char -> A
 			JOBSR	FOUTER_CONV_DIGIT	;digit -> A
-			BCC	CF_TO_INT_6		;inconvertible character
+			BCC	CF_TO_INT_A		;inconvertible character
 			PSHX				;save X
 			LEAX	2,SP			;integer space -> X
 			JOBSR	FOUTER_SHIFT_AND_ADD	;add digit to intager
@@ -637,12 +637,12 @@ CF_TO_INT_3		STD	2,Y			;return u2
 CF_TO_INT_4		LEAS	8,SP			;free stack space
 			RTS				;done
 			;Inconvertible (string pointer in X, char in A, base in B)
-			CMPA	"_"			;check for filler
+CF_TO_INT_A		CMPA	#"_"			;check for filler
 			BEQ	CF_TO_INT_2		;skip char
-			CMPA	"."			;check double indicator
+			CMPA	#"."			;check double indicator
 			BNE	CF_TO_INT_6		;failure
 			CPX	6,SP			;check if period is the last char
-			BNE	CF_TO_INT_1		;failure
+			BNE	CF_TO_INT_6		;failure
 			;Double cell integer
 			TSX				;integer space -> X
 			TST	4,SP			;check sign
@@ -853,6 +853,15 @@ CF_DOT_STRING_1		LDAB	1,X+			;char          -> B
 			BNE	CF_DOT_STRING_1		;loop
 			RTS				;done
 	
+;Word: \ 
+;Compilation: Perform the execution semantics given below.
+;Execution: ( "ccc<eol>"-- )
+;Parse and discard the remainder of the parse area. \ is an immediate word.
+IF_BACKSLASH			IMMEDIATE
+CF_BACKSLASH			EQU	*
+				MOVW	NUMBER_TIB, TO_IN ;set >IN do the last character 
+				RTS
+
 ;Word: .SYNERR ( c-addr u -- ) Print a syntax error message
 ;Print a syntax error message, referencing the word given by the start address
 ;c-addr and the character count u. Then throw an abort exception.
@@ -894,10 +903,6 @@ IF_STATE		INLINE	CF_STATE
 CF_STATE		EQU	*
 			MOVW	#STATE, 2,-Y 	;STATE -> PS
 CF_STATE_EOI		RTS
-
-
-
-
 	
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@
