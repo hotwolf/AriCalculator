@@ -422,7 +422,9 @@ sub condense_tree {
     my $tree           = shift @_;    
     my @strings = sort keys %$tree;
 
-    while (my $string = shift @strings) {
+    #while (my $string = shift @strings) {
+    while ($#strings >= 0) {
+	my $string = shift @strings;
 	if ($string ne "\n") {
 	    #No end of string
 	    my $child_tree    = $tree->{$string};
@@ -490,7 +492,9 @@ sub get_tree_layout_width {
     my @strings = sort keys %$tree;
     my $max_string_width = 4;
     my $max_child_width  = 0;
-    while (my $string = shift @strings) {
+    #while (my $string = shift @strings) {
+    while ($#strings >= 0) {
+	my $string = shift @strings;
 	chomp($string);
 	if ((length($string)+4) > $max_string_width) {
 	    $max_string_width = (length($string)+4);
@@ -527,7 +531,9 @@ sub print_tree_layout {
     #Print strings
     my $new_pre_string;
     my $is_first_line = 1;
-    while (my $string = shift @strings) {
+    #while (my $string = shift @strings) {
+    while ($#strings >= 0) {
+	my $string = shift @strings;
 	#Update pre-string
 	if ($#strings >= 0) {
 	    $new_pre_string  = $pre_string . sprintf(sprintf("%%-%ds", $max_string_length), "|");

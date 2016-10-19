@@ -2242,7 +2242,7 @@ CF_XOR_EOI			RTS
 ;CF_DOT_R_2			LDAA	#$FF
 ;				JOB	CF_DOT_R_1
 
-;0<> ( x -- flag )
+;Word: 0<> ( x -- flag )
 ;flag is true if and only if x is not equal to zero.
 IF_ZERO_NOT_EQUALS		INLINE	CF_ZERO_NOT_EQUALS
 CF_ZERO_NOT_EQUALS		CLRA					;FALSE -> A
@@ -2253,7 +2253,7 @@ CF_ZERO_NOT_EQUALS_1		TAB					;flag  -> D
 				STD	0,Y				;D-> PS
 CF_ZERO_NOT_EQUALS_EOI		RTS
 
-;0> ( n -- flag )
+;Word: 0> ( n -- flag )
 ;flag is true if and only if n is greater than zero.
 IF_ZERO_GREATER			INLINE	CF_ZERO_GREATER
 CF_ZERO_GREATER			EQU	*
