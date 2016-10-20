@@ -24,134 +24,139 @@
 ;#    This file contains a search tree for S12CForth CORE dictionary.          #
 ;#                                                                             #
 ;###############################################################################
-;# Generated on Wed, Oct 19 2016                                               #
+;# Generated on Thu, Oct 20 2016                                               #
 ;###############################################################################
 
 ;###############################################################################
 ;# Dictionary Tree Structure                                                   #
 ;###############################################################################
 ;
-; -> ! -------------------------------> CF_STORE
-;    $, ------------------------------> CF_STRING_COMMA
-;    ( -------------------------------> CF_PAREN
-;    + ------> -----------------------> CF_PLUS
-;    |         ! ---------------------> CF_PLUS_STORE
+; -> ! ----------------------------------> CF_STORE
+;    $, ---------------------------------> CF_STRING_COMMA
+;    ( ----------------------------------> CF_PAREN
+;    + ------> --------------------------> CF_PLUS
+;    |         ! ------------------------> CF_PLUS_STORE
 ;    |         
-;    - -------------------------------> CF_MINUS
-;    . ------> $ ---------------------> CF_DOT_STRING
-;    |         RTERR -----------------> CF_DOT_RTERR
-;    |         S -----> --------------> CF_DOT_S
-;    |                  YNERR --------> CF_DOT_SYNERR
+;    - ----------------------------------> CF_MINUS
+;    . ------> $ ------------------------> CF_DOT_STRING
+;    |         RTERR --------------------> CF_DOT_RTERR
+;    |         S -----> -----------------> CF_DOT_S
+;    |                  YNERR -----------> CF_DOT_SYNERR
 ;    |         
-;    0 ------> < -> ------------------> CF_ZERO_LESS
-;    |         |    > ----------------> CF_ZERO_NOT_EQUALS
+;    0 ------> < -> ---------------------> CF_ZERO_LESS
+;    |         |    > -------------------> CF_ZERO_NOT_EQUALS
 ;    |         |    
-;    |         = ---------------------> CF_ZERO_EQUALS
-;    |         > ---------------------> CF_ZERO_GREATER
+;    |         = ------------------------> CF_ZERO_EQUALS
+;    |         > ------------------------> CF_ZERO_GREATER
 ;    |         
-;    1 ------> + ---------------------> CF_ONE_PLUS
-;    |         - ---------------------> CF_ONE_MINUS
+;    1 ------> + ------------------------> CF_ONE_PLUS
+;    |         - ------------------------> CF_ONE_MINUS
 ;    |         
-;    2 ------> ! ---------------------> CF_TWO_STORE
-;    |         * ---------------------> CF_TWO_STAR
-;    |         / ---------------------> CF_TWO_SLASH
-;    |         @ ---------------------> CF_TWO_FETCH
-;    |         D ----> ROP -----------> CF_TWO_DROP
-;    |         |       UP ------------> CF_TWO_DUP
+;    2 ------> ! ------------------------> CF_TWO_STORE
+;    |         * ------------------------> CF_TWO_STAR
+;    |         / ------------------------> CF_TWO_SLASH
+;    |         @ ------------------------> CF_TWO_FETCH
+;    |         D ----> ROP --------------> CF_TWO_DROP
+;    |         |       UP ---------------> CF_TWO_DUP
 ;    |         |       
-;    |         OVER ------------------> CF_TWO_OVER
-;    |         ROT -------------------> CF_2ROT
-;    |         SWAP ------------------> CF_TWO_SWAP
+;    |         OVER ---------------------> CF_TWO_OVER
+;    |         ROT ----------------------> CF_2ROT
+;    |         SWAP ---------------------> CF_TWO_SWAP
 ;    |         
-;    < -------------------------------> CF_LESS_THAN
-;    = -------------------------------> CF_EQUALS
-;    > ------> -----------------------> CF_GREATER_THAN
-;    |         IN -> -----------------> CF_TO_IN
-;    |         |     T ---------------> CF_TO_INT
+;    < ----------------------------------> CF_LESS_THAN
+;    = ----------------------------------> CF_EQUALS
+;    > ------> --------------------------> CF_GREATER_THAN
+;    |         IN -> --------------------> CF_TO_IN
+;    |         |     T ------------------> CF_TO_INT
 ;    |         |     
-;    |         R ---------------------> CF_TO_R
+;    |         R ------------------------> CF_TO_R
 ;    |         
-;    ?DUP ----------------------------> CF_QUESTION_DUP
-;    @ -------------------------------> CF_FETCH
-;    A ------> B ------> ORT -> ------> CF_ABORT
-;    |         |         |      " ----> CF_ABORT_QUOTE
+;    ?DUP -------------------------------> CF_QUESTION_DUP
+;    @ ----------------------------------> CF_FETCH
+;    A ------> B ------> ORT -> ---------> CF_ABORT
+;    |         |         |      " -------> CF_ABORT_QUOTE
 ;    |         |         |      
-;    |         |         S -----------> CF_ABS
+;    |         |         S --------------> CF_ABS
 ;    |         |         
-;    |         LIGNED ----------------> CF_ALIGNED
-;    |         ND --------------------> CF_AND
+;    |         LIGNED -------------------> CF_ALIGNED
+;    |         ND -----------------------> CF_AND
 ;    |         
-;    B ------> ASE -------------------> CF_BASE
-;    |         INARY -----------------> CF_BINARY
-;    |         L ---------------------> CF_BL
+;    B ------> ASE ----------------------> CF_BASE
+;    |         INARY --------------------> CF_BINARY
+;    |         L ------------------------> CF_BL
 ;    |         
-;    C ------> ! ---------------------> CF_C_STORE
-;    |         @ ---------------------> CF_C_FETCH
-;    |         ATCH ------------------> CF_CATCH
-;    |         ELL --> + -------------> CF_CELL_PLUS
-;    |         |       S -------------> CF_CELLS
+;    C ------> ! ------------------------> CF_C_STORE
+;    |         @ ------------------------> CF_C_FETCH
+;    |         ATCH ---------------------> CF_CATCH
+;    |         ELL --> + ----------------> CF_CELL_PLUS
+;    |         |       S ----------------> CF_CELLS
 ;    |         |       
-;    |         HAR --> + -------------> CF_CHAR_PLUS
-;    |         |       S -------------> CF_CHARS
+;    |         HAR --> + ----------------> CF_CHAR_PLUS
+;    |         |       S ----------------> CF_CHARS
 ;    |         |       
-;    |         LS --------------------> CF_CLS
-;    |         O ----> MPILE, --------> CF_COMPILE_COMMA
-;    |         |       UNT -----------> CF_COUNT
+;    |         LS -----------------------> CF_CLS
+;    |         O ----> MPILE, -----------> CF_COMPILE_COMMA
+;    |         |       UNT --------------> CF_COUNT
 ;    |         |       
-;    |         R ---------------------> CF_CR
+;    |         R ------------------------> CF_CR
 ;    |         
-;    D ------> E ---> CIMAL ----------> CF_DECIMAL
-;    |         |      PTH ------------> CF_DEPTH
+;    D ------> E ---> CIMAL -------------> CF_DECIMAL
+;    |         |      PTH ---------------> CF_DEPTH
 ;    |         |      
-;    |         ROP -------------------> CF_DROP
-;    |         UP --------------------> CF_DUP
+;    |         ROP ----------------------> CF_DROP
+;    |         UP -----------------------> CF_DUP
 ;    |         
-;    E ------> MIT -------------------> CF_EMIT
-;    |         XECUTE ----------------> CF_EXECUTE
+;    E ------> MIT ----------------------> CF_EMIT
+;    |         XECUTE -------------------> CF_EXECUTE
 ;    |         
-;    FALSE ---------------------------> CF_FALSE
-;    HEX -----------------------------> CF_HEX
-;    INVERT --------------------------> CF_INVERT
-;    L ------> ITERAL ----------------> CF_LITERAL
-;    |         SHIFT -----------------> CF_L_SHIFT
-;    |         U ------> -------------> CF_LU
-;    |                   -CDICT ------> CF_LU_CDICT
+;    FALSE ------------------------------> CF_FALSE
+;    HEX --------------------------------> CF_HEX
+;    INVERT -----------------------------> CF_INVERT
+;    L ------> ITERAL -------------------> CF_LITERAL
+;    |         SHIFT --------------------> CF_L_SHIFT
+;    |         U ------> ----------------> CF_LU
+;    |                   - -> CDICT -----> CF_LU_CDICT
+;    |                        NVDICT ----> CF_LU_NVDICT
+;    |                        UDICT -----> CF_LU_UDICT
 ;    |         
-;    M ------> AX --------------------> CF_MAX
-;    |         IN --------------------> CF_MIN
+;    M ------> AX -----------------------> CF_MAX
+;    |         IN -----------------------> CF_MIN
+;    |         ONITOR -------------------> CF_MONITOR
 ;    |         
-;    N ------> EGATE -----------------> CF_NEGATE
-;    |         OP --------------------> CF_NOP
+;    N ------> EGATE --------------------> CF_NEGATE
+;    |         OP -----------------------> CF_NOP
 ;    |         
-;    O ------> R ---------------------> CF_OR
-;    |         VER -------------------> CF_OVER
+;    O ------> R ------------------------> CF_OR
+;    |         VER ----------------------> CF_OVER
 ;    |         
-;    P ------> ARSE ------------------> CF_PARSE
-;    |         ROMPT -----------------> CF_PROMPT
+;    P ------> ARSE ---------------------> CF_PARSE
+;    |         ROMPT --------------------> CF_PROMPT
 ;    |         
-;    QU -----> ERY -------------------> CF_QUERY
-;    |         IT --------------------> CF_QUIT
+;    QU -----> ERY ----------------------> CF_QUERY
+;    |         IT -----------------------> CF_QUIT
 ;    |         
-;    R ------> OT --------------------> CF_ROT
-;    |         SHIFT -----------------> CF_R_SHIFT
+;    R ------> OT -----------------------> CF_ROT
+;    |         SHIFT --------------------> CF_R_SHIFT
 ;    |         
-;    S ------> >D --------------------> CF_S_TO_D
-;    |         KIP&PARSE -------------> CF_SKIP_AND_PARSE
-;    |         PACE ------------------> CF_SPACE
-;    |         TATE ------------------> CF_STATE
-;    |         WAP -------------------> CF_SWAP
+;    S ------> >D -----------------------> CF_S_TO_D
+;    |         KIP&PARSE ----------------> CF_SKIP_AND_PARSE
+;    |         PACE ---------------------> CF_SPACE
+;    |         TATE ---------------------> CF_STATE
+;    |         WAP ----------------------> CF_SWAP
 ;    |         
-;    T ------> HROW ------------------> CF_THROW
-;    |         RUE -------------------> CF_TRUE
+;    T ------> HROW ---------------------> CF_THROW
+;    |         RUE ----------------------> CF_TRUE
 ;    |         
-;    U ------> < ---------------------> CF_U_LESS_THAN
-;    |         > ---------------------> CF_U_GREATER_THAN
+;    U ------> < ------------------------> CF_U_LESS_THAN
+;    |         > ------------------------> CF_U_GREATER_THAN
 ;    |         
-;    WORDS --> -----------------------> CF_WORDS
-;    |         -CDICT ----------------> CF_WORDS_CDICT
+;    WORDS --> --------------------------> CF_WORDS
+;    |         - -> CDICT ---------------> CF_WORDS_CDICT
+;    |              NVDICT --------------> CF_WORDS_NVDICT
+;    |              UDICT ---------------> CF_WORDS_UDICT
 ;    |         
-;    XOR -----------------------------> CF_XOR
-;    \ -------------------------------> CF_BACKSLASH
+;    XOR --------------------------------> CF_XOR
+;    \ ----------------------------------> CF_BACKSLASH
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -459,46 +464,57 @@ FCDICT_TREE_22          FCS     "ITERAL"
 ;Subtree 22->2 =>       "LU"    -> FCDICT_TREE+1B8
 FCDICT_TREE_22_2        DB      EMPTY_STRING
                         DW      CF_LU                           ;-> LU
-                        FCS     "-CDICT"
-                        DW      CF_LU_CDICT                     ;-> LU-CDICT
+                        FCS     "-"
+                        DB      BRANCH
+                        DW      FCDICT_TREE_22_2_1              ;LU-...
                         DB      END_OF_BRANCH
-;Subtree 23 =>          "M"     -> FCDICT_TREE+1C4
+;Subtree 22->2->1 =>    "LU-"   -> FCDICT_TREE+1C0
+FCDICT_TREE_22_2_1      FCS     "CDICT"
+                        DW      CF_LU_CDICT                     ;-> LU-CDICT
+                        FCS     "NVDICT"
+                        DW      CF_LU_NVDICT                    ;-> LU-NVDICT
+                        FCS     "UDICT"
+                        DW      CF_LU_UDICT                     ;-> LU-UDICT
+                        DB      END_OF_BRANCH
+;Subtree 23 =>          "M"     -> FCDICT_TREE+1D7
 FCDICT_TREE_23          FCS     "AX"
                         DW      CF_MAX                          ;-> MAX
                         FCS     "IN"
                         DW      CF_MIN                          ;-> MIN
+                        FCS     "ONITOR"
+                        DW      CF_MONITOR                      ;-> MONITOR
                         DB      END_OF_BRANCH
-;Subtree 24 =>          "N"     -> FCDICT_TREE+1CD
+;Subtree 24 =>          "N"     -> FCDICT_TREE+1E8
 FCDICT_TREE_24          FCS     "EGATE"
                         DW      CF_NEGATE                       ;-> NEGATE
                         FCS     "OP"
                         DW      CF_NOP                          ;-> NOP
                         DB      END_OF_BRANCH
-;Subtree 25 =>          "O"     -> FCDICT_TREE+1D9
+;Subtree 25 =>          "O"     -> FCDICT_TREE+1F4
 FCDICT_TREE_25          FCS     "R"
                         DW      CF_OR                           ;-> OR
                         FCS     "VER"
                         DW      CF_OVER                         ;-> OVER
                         DB      END_OF_BRANCH
-;Subtree 26 =>          "P"     -> FCDICT_TREE+1E2
+;Subtree 26 =>          "P"     -> FCDICT_TREE+1FD
 FCDICT_TREE_26          FCS     "ARSE"
                         DW      CF_PARSE                        ;-> PARSE
                         FCS     "ROMPT"
                         DW      CF_PROMPT                       ;-> PROMPT
                         DB      END_OF_BRANCH
-;Subtree 27 =>          "QU"    -> FCDICT_TREE+1F0
+;Subtree 27 =>          "QU"    -> FCDICT_TREE+20B
 FCDICT_TREE_27          FCS     "ERY"
                         DW      CF_QUERY                        ;-> QUERY
                         FCS     "IT"
                         DW      CF_QUIT                         ;-> QUIT
                         DB      END_OF_BRANCH
-;Subtree 28 =>          "R"     -> FCDICT_TREE+1FA
+;Subtree 28 =>          "R"     -> FCDICT_TREE+215
 FCDICT_TREE_28          FCS     "OT"
                         DW      CF_ROT                          ;-> ROT
                         FCS     "SHIFT"
                         DW      CF_R_SHIFT                      ;-> RSHIFT
                         DB      END_OF_BRANCH
-;Subtree 29 =>          "S"     -> FCDICT_TREE+206
+;Subtree 29 =>          "S"     -> FCDICT_TREE+221
 FCDICT_TREE_29          FCS     ">D"
                         DW      CF_S_TO_D                       ;-> S>D
                         FCS     "KIP&PARSE"
@@ -510,23 +526,32 @@ FCDICT_TREE_29          FCS     ">D"
                         FCS     "WAP"
                         DW      CF_SWAP                         ;-> SWAP
                         DB      END_OF_BRANCH
-;Subtree 30 =>          "T"     -> FCDICT_TREE+227
+;Subtree 30 =>          "T"     -> FCDICT_TREE+242
 FCDICT_TREE_30          FCS     "HROW"
                         DW      CF_THROW                        ;-> THROW
                         FCS     "RUE"
                         DW      CF_TRUE                         ;-> TRUE
                         DB      END_OF_BRANCH
-;Subtree 31 =>          "U"     -> FCDICT_TREE+233
+;Subtree 31 =>          "U"     -> FCDICT_TREE+24E
 FCDICT_TREE_31          FCS     "<"
                         DW      CF_U_LESS_THAN                  ;-> U<
                         FCS     ">"
                         DW      CF_U_GREATER_THAN               ;-> U>
                         DB      END_OF_BRANCH
-;Subtree 32 =>          "WORDS" -> FCDICT_TREE+23A
+;Subtree 32 =>          "WORDS" -> FCDICT_TREE+255
 FCDICT_TREE_32          DB      EMPTY_STRING
                         DW      CF_WORDS                        ;-> WORDS
-                        FCS     "-CDICT"
+                        FCS     "-"
+                        DB      BRANCH
+                        DW      FCDICT_TREE_32_1                ;WORDS-...
+                        DB      END_OF_BRANCH
+;Subtree 32->1 =>       "WORDS-"-> FCDICT_TREE+25D
+FCDICT_TREE_32_1        FCS     "CDICT"
                         DW      CF_WORDS_CDICT                  ;-> WORDS-CDICT
+                        FCS     "NVDICT"
+                        DW      CF_WORDS_NVDICT                 ;-> WORDS-NVDICT
+                        FCS     "UDICT"
+                        DW      CF_WORDS_UDICT                  ;-> WORDS-UDICT
                         DB      END_OF_BRANCH
 #emac
 

@@ -87,14 +87,6 @@ STRING_ENABLE_UPPER	EQU	1
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Max. line length
-FCDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
-
-;NULL pointer
-#ifndef NULL
-NULL			EQU	$0000
-#endif
-
 ;#String termination 
 FCDICT_STR_TERM		EQU	STRING_TERM
 
@@ -129,6 +121,11 @@ FCDICT_VARS_END_LIN	EQU	@
 #macro	FCDICT_QUIT, 0
 #emac
 	
+;#System integrity monitor
+;=========================
+#macro	FCDICT_MON, 0
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################

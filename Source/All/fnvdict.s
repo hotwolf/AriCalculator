@@ -50,10 +50,6 @@
 ;#    space. Then the compilation of a code sequence is finished, the compile  #
 ;#    buffer is copied into the flash as a string.                             #
 ;#                                                                             #
-;#    Program termination options:                                             #
-;#        ABORT:                                                               #
-;#        QUIT:                                                                #
-;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 23, 2009                                                           #
@@ -175,9 +171,6 @@ FNVDICT_PHRASE_SIZE	EQU	8
 ;NVC_VOLATILE		EQU	FALSE
 ;NVC_NON_VOLATILE	EQU	TRUE
 	
-;Max. line length
-FNVDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
-	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -216,27 +209,10 @@ FNVDICT_VARS_END_LIN	EQU	@
 #macro	FNVDICT_QUIT, 0
 #emac
 
-;;Dictionary operations:
-;;======================	
-;;#Look-up word in user dictionary 
-;; args:   X: string pointer (terminated string)
-;;	  Y: start of dictionary (last NFA)
-;; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
-;; SSTACK: 8 bytes
-;;         X and Y are preserved
-;#macro	FNVDICT_FIND, 0
-;			LDD	#$0000
-;#emac
-;
-;;#Reverse lookup a CFA and print the corresponding word
-;; args:   D: CFA
-;; result: C-flag: set if successful
-;;	  Y: start of dictionary (last NFA)
-;; SSTACK: 18 bytes
-;;         X and D are preserved
-;;#macro	FNVDICT_REVPRINT_BL, 0
-;;			CLC
-;;#emac
+;#System integrity monitor
+;=========================
+#macro	FNVDICT_MON, 0
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -247,6 +223,28 @@ FNVDICT_VARS_END_LIN	EQU	@
 			ORG 	FNVDICT_CODE_START
 FNVDICT_CODE_START_LIN	EQU	@
 #endif
+
+;#########
+;# Words #
+;#########
+
+;Word: LU-NVDICT ( c-addr u -- xt | c-addr u false )
+;Look up a name in the NVDICT dictionary. The name is referenced by the start
+;address c-addr and the character count u. If successful the resulting execution
+;token xt is returned. Otherwise the name reference remains on the parameter
+;stack along with a false flag.
+IF_LU_NVDICT		REGULAR
+CF_LU_NVDICT		EQU	*
+			MOVW	#$0000, 2,-Y
+			RTS
+
+;Word: WORDS-NVDICT ( -- )
+;List the definition names in the core dictionary in alphabetical order.
+;When the NVDICT dictionary is used as a buffer for compilation to non-volatile
+;memory, no word list is printed 
+IF_WORDS_NVDICT		REGULAR
+CF_WORDS_NVDICT		EQU	*
+			RTS
 	
 FNVDICT_CODE_END		EQU	*
 FNVDICT_CODE_END_LIN	EQU	@
@@ -263,40 +261,4 @@ FNVDICT_TABS_START_LIN	EQU	@
 
 FNVDICT_TABS_END		EQU	*
 FNVDICT_TABS_END_LIN	EQU	@
-
-;;###############################################################################
-;;# Words                                                                       #
-;;###############################################################################
-;#ifdef FNVDICT_WORDS_START_LIN
-;			ORG 	FNVDICT_WORDS_START, FNVDICT_WORDS_START_LIN
-;#else
-;			ORG 	FNVDICT_WORDS_START
-;FNVDICT_WORDS_START_LIN	EQU	@
-;#endif	
-;
-;;#ANSForth Words:
-;;================
-;
-;;S12CForth Words:
-;;================
-;;Word: NVC ( -- a-addr ) 
-;;a-addr is the address of a cell containing the non-volatile compile flag. NVC
-;;is true when non-volatile compilation is selected, false otherwise. The true 
-;;value in STATE is non-zero. Only the following standard words alter the value
-;;in NVC:
-;; NV{ and }NV:
-;;  Note:  A program shall not directly alter the contents of NV. 
-;;
-;;Throws:
-;;"Parameter stack overflow"
-;CFA_NVC			DW	CF_CONSTANT_RT
-;#ifdef NVDICT_ON
-;			DW	NVC
-;#else
-;			DW	*+2
-;			DW	$0000
-;#endif
-;
-;FNVDICT_WORDS_END	EQU	*
-;FNVDICT_WORDS_END_LIN	EQU	@
 #endif

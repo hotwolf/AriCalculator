@@ -207,7 +207,10 @@ FUDICT_VARS_START_LIN	EQU	@
 			ALIGN	1	
 CP			DS	2 	;compile pointer (next free space in the dictionary space) 
 CP_SAVE			DS	2 	;previous compile pointer
+CFLGS			DS	2	;compile flags
 
+
+	
 ;HLD			DS	2 	;start of PAD space 
 ;PAD			DS	2 	;end of PAD space 
 	
@@ -239,7 +242,10 @@ FUDICT_VARS_END_LIN	EQU	@
 			MOVW	CP_SAVE, CP 		;restore cp
 #emac
 
-
+;#System integrity monitor
+;=========================
+#macro	FUDICT_MON, 0
+#emac
 
 ;#State restrictions
 ;===================
@@ -493,6 +499,28 @@ FUDICT_THROW_COMPONLY	EQU	*
 ;#########
 ;# Words #
 ;#########
+
+;Word: LU-UDICT ( c-addr u -- xt | c-addr u false )
+;Look up a name in the UDICT dictionary. The name is referenced by the start
+;address c-addr and the character count u. If successful the resulting execution
+;token xt is returned. Otherwise the name reference remains on the parameter
+;stack along with a false flag.
+;When the UDICT dictionary is used as a buffer for compilation to non-volatile
+;memory, xt will reference the code field in the target memory. Therefore it  
+;must not be executed before the buffered compilation is flushed into the non-
+;volatile memory
+IF_LU_UDICT		REGULAR
+CF_LU_UDICT		EQU	*
+			MOVW	#$0000, 2,-Y
+			RTS
+
+;Word: WORDS-UDICT ( -- )
+;List the definition names in the core dictionary in alphabetical order.
+;When the UDICT dictionary is used as a buffer for compilation to non-volatile
+;memory, no word list is printed 
+IF_WORDS_UDICT		REGULAR
+CF_WORDS_UDICT		EQU	*
+			RTS
 
 ;;Word: : ( C: "<spaces>name" -- colon-sys )
 ;;Skip leading space delimiters. Parse name delimited by a space. Create a

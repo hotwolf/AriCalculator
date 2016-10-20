@@ -155,6 +155,10 @@ FOUTER_TERM		EQU	STRING_TERM
 ;#ASCII code 
 FOUTER_SYM_BEEP		EQU	STRING_SYM_BEEP		;acoustic signal
 
+;Boolean sumbols 
+TRUE			EQU	$FFFF
+FALSE			EQU	$0000	
+	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -189,6 +193,11 @@ FOUTER_VARS_END_LIN	EQU	@
 ;#Quit action
 ;============
 #macro	FOUTER_QUIT, 0
+#emac
+
+;#System integrity monitor
+;=========================
+#macro	FOUTER_MON, 0
 #emac
 
 ;#Word types
@@ -692,7 +701,7 @@ CF_PROMPT		EQU	*
 CF_PROMPT_1		JOB	FOUTER_TX_CHAR		;print RAM compile prompt
 			LDAB	#FOUTER_NVCOMPILE_PROMPT;NV compile prompt -> B 
 			JOB	FOUTER_TX_CHAR		;print NV compile prompt
-			
+	
 ;ABORT run-time ( i*x -- ) ( R: j*x -- )
 ;Empty the data stack and perform the function of QUIT, which includes emptying
 ;the return stack, without displaying a message.
@@ -725,36 +734,33 @@ CF_QUIT_RT_2		MOVW	#FOUTER_SYM_SPACE, 2,-Y ;use SPACE as word seperator
 			JOB	FOUTER_TX_STRING	;print string
 			;Check for compile state (c-addr u)
 CF_QUIT_RT_3		LDD	STATE 			;check STATE
-			BEQ	CF_QUIT_RT_7		;interpret
+			BEQ	CF_QUIT_RT_6		;interpret
 			;Compile (c-addr u)
 			JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
 			BEQ	CF_QUIT_RT_4		;unknown word
-			BRSET	-1,X, #$FF, CF_QUIT_RT_8;execute immediate word
+			BRSET	-1,X, #$FF, CF_QUIT_RT_7;execute immediate word
 			STX	2,-Y			;xt -> PS
 			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
 			JOB	CF_COMPILE_COMMA_1	;compile word
 CF_QUIT_RT_4		JOBSR	CF_TO_INT 		;convert to integer
 			LDD	2,Y+			;check result
-			BEQ	CF_QUIT_RT_10		;syntax error
+			BEQ	CF_QUIT_RT_9		;syntax error
 			DBEQ	D, CF_QUIT_RT_5		;compile single cell
 			JOBSR	CF_LITERAL		;compile literal
 CF_QUIT_RT_5		JOBSR	CF_LITERAL		;compile literal
-CF_QUIT_RT_6		;LDX	#FOUTER_STR_OK		;command line acknowledge string
-			;MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
-			;JOB	FOUTER_TX_STRING	;print string
 			;Interpret (c-addr u)
-CF_QUIT_RT_7		JOBSR	CF_LU 			;look up word
+CF_QUIT_RT_6		JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
-			BEQ	CF_QUIT_RT_9		;unknown word
-CF_QUIT_RT_8		MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
-			;MOVW	#CF_MONITOR, 2,-SP	;push return address (CF_MONITOR)
+			BEQ	CF_QUIT_RT_8		;unknown word
+CF_QUIT_RT_7		MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
+			MOVW	#CF_MONITOR, 2,-SP	;push return address (CF_MONITOR)
 			JMP	0,X 			;execute
-CF_QUIT_RT_9		JOBSR	CF_TO_INT		;convert to integer
+CF_QUIT_RT_8		JOBSR	CF_TO_INT		;convert to integer
 			LDD	2,Y+			;check result
 			BNE	CF_QUIT_RT_2		;parse loop
 			;Syntax (c-addr u)
-CF_QUIT_RT_10		MOVW	#CF_ABORT_RT, 2,-SP	;push return address (CF_ABORT_RT)
+CF_QUIT_RT_9		MOVW	#CF_ABORT_RT, 2,-SP	;push return address (CF_ABORT_RT)
 			JOB	CF_DOT_SYNERR		;print error message
 
 ;Word: SKIP&PARSE ( char "ccc<char>" -- c-addr u )
@@ -814,18 +820,17 @@ CF_PARSE_6		MOVW	#$0000, 0,Y 		;null string
 ;UDICT -> NVDICT -> CDICT  
 IF_LU			REGULAR
 CF_LU			EQU	*
-			;;Search UDICT 
-			;JOBSR	LU-UDICT 		;search UDICT
-			;LDD	0,Y			;check result
-			;BNE	CF_LU_			;successful
-			;;Search NVDICT
-			;LEAY	2,Y 			;remove fail flag
-			;JOBSR	LU-NVDICT		;search NVDICT
-			;LDD	0,Y			;check result
-			;BNE	CF_LU_			;successful
-			;;Search CDICT
-			;LEAY	2,Y
- 			;remove fail flag			
+			;Search UDICT 
+			JOBSR	CF_LU_UDICT 		;search UDICT
+			LDD	0,Y			;check result
+			BNE	CF_LU_1			;successful
+			;Search NVDICT
+			LEAY	2,Y 			;remove fail flag
+			JOBSR	CF_LU_NVDICT		;search NVDICT
+			LDD	0,Y			;check result
+			BNE	CF_LU_1			;successful
+			;Search CDICT
+			LEAY	2,Y			;remove fail flag			
 			JOB	CF_LU_CDICT		;search CDICT
 CF_LU_1			RTS				;done
 
@@ -833,7 +838,8 @@ CF_LU_1			RTS				;done
 ;List the definition names in all available dictionaries in compile order.
 IF_WORDS		REGULAR
 CF_WORDS		EQU	*
-
+			JOBSR	CF_WORDS_UDICT
+			JOBSR	CF_WORDS_NVDICT
 			JOB	CF_WORDS_CDICT
 
 ;Word: .$ ( c-addr u  -- ) Print a string

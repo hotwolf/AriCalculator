@@ -26,10 +26,6 @@
 ;#            PSP = Parameter Stack Pointer.				       #
 ;#	            Points to the top of the parameter stack                   #
 ;#                                                                             #
-;#    Program termination options:                                             #
-;#        ABORT:   Parameter stack is cleared                                  #
-;#        QUIT:    Parameter stack is untouched                                #
-;#                                                                             #
 ;#    The following notation is used to describe the stack layout in the word  #
 ;#    definitions:                                                             #
 ;#                                                                             #
@@ -153,6 +149,11 @@ FPS_VARS_END_LIN	EQU	@
 #macro	FPS_QUIT, 0
 #emac
 	
+;#System integrity monitor
+;=========================
+#macro	FPS_MON, 0
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################

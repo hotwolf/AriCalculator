@@ -238,6 +238,11 @@ FEXCPT_VARS_END_LIN		EQU	@
 #macro	FEXCPT_QUIT, 0
 #emac
 
+;#System integrity monitor
+;=========================
+#macro	FEXCPT_MON, 0
+#emac
+
 ;Error message table
 ;===================
 ;#Error message table entry
