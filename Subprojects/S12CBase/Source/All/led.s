@@ -304,7 +304,7 @@ LED_LOAD_SEQ_1		LDX	#LED_SEQ_TAB_L0NG_PULSE 	;sequence table pointer -> X
 			BCLR	LED_\1_REQ,#$40			;clear non-recurring long pulse request
 			JOB	LED_LOAD_SEQ_3			;update sqeuence
 			;Other patterns (accumulated requests in A, shifted requests in B)
-LED_LOAD_SEQ_2		LEAX	1,X				;advance table pointer
+LED_LOAD_SEQ_2		INX					;advance table pointer
 			LSLB					;shift towards MSB
 			BPL	LED_LOAD_SEQ_2			;check next sequence
 LED_LOAD_SEQ_3		LDAB	0,X				;sequence pattern -> B

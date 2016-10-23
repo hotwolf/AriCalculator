@@ -304,7 +304,7 @@ KEYS_ISR_KWU_1		MOVB	#KEYS_ROW_MASK, KEYS_ROW_PORT 		;drive speed-up pulse
 			ORAB	KEYS_COL_PORT
 			COMB
 			BNE	KEYS_ISR_KWU_4  			;keystroke column detected
-			LEAX	1,X 					;switch to next keycode
+			INX	 					;switch to next keycode
 			LSRA		      				;switch to next column
 			BCC	KEYS_ISR_KWU_1 				;check next column (shortcut for KEYS_ROW_LSB==0)
 			;ANDA	#KEYS_ROW_MASK 				;check next column (generic)
