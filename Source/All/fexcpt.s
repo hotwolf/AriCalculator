@@ -523,7 +523,7 @@ FEXCPT_STR_RTERR_LEFT	DB	FEXCPT_SYM_BEEP
 FEXCPT_STR_RTERR_RIGHT	STRING_NL_TERM
 ;
 ;Message table for standard errors
-FEXCPT_MSGTAB		EQU	*
+FEXCPT_MSGTAB		EQU	*	
 			FEXCPT_MSG	FEXCPT_TC_PSOF,		"Parameter stack overflow"
 			FEXCPT_MSG	FEXCPT_TC_PSUF,		"Parameter stack underflow" 
 			FEXCPT_MSG	FEXCPT_TC_RSOF,		"Return stack overflow"
@@ -535,12 +535,12 @@ FEXCPT_MSGTAB		EQU	*
 			;FEXCPT_MSG	FEXCPT_TC_RESOR,	"Result out of range"
 			;FEXCPT_MSG	FEXCPT_TC_UDEFWORD,	"Undefined word"
 			FEXCPT_MSG	FEXCPT_TC_COMPONLY,	"Compile-only word"
-			;FEXCPT_MSG	FEXCPT_TC_NONAME,	"Missing name argument"
-			FEXCPT_MSG	FEXCPT_TC_PADOF,	"PAD overflow"
+			FEXCPT_MSG	FEXCPT_TC_NONAME,	"Missing name argument"
+			;FEXCPT_MSG	FEXCPT_TC_PADOF,	"PAD overflow"
 			;FEXCPT_MSG	FEXCPT_TC_STROF,	"String too long"
 			;FEXCPT_MSG	FEXCPT_TC_CTRLSTRUC,	"Control structure mismatch"
 			;FEXCPT_MSG	FFEXCPT_TC_INVALNUM,	"Invalid numeric argument"
-			;FEXCPT_MSG	FEXCPT_TC_COMPNEST,	"Nested compilation"
+			FEXCPT_MSG	FEXCPT_TC_COMPNEST,	"Nested compilation"
 			;FEXCPT_MSG	FEXCPT_TC_NONCREATE,	"Illegal operation on non-CREATEd definition"
 			;FEXCPT_MSG	FEXCPT_TC_INVALNAME,	"Invalid name argument"
 			FEXCPT_MSG	FEXCPT_TC_INVALBASE,	"Invalid BASE"

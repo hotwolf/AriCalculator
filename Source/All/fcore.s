@@ -524,7 +524,7 @@ CF_ZERO_EQUALS_EOI		RTS
 IF_ONE_PLUS			INLINE	CF_ONE_PLUS
 CF_ONE_PLUS			EQU	*
 				LDX	0,Y
-				LEAX	1,X
+				INX
 				STX	0,Y
 CF_ONE_PLUS_EOI			RTS
 	
@@ -533,7 +533,7 @@ CF_ONE_PLUS_EOI			RTS
 IF_ONE_MINUS			INLINE	CF_ONE_MINUS
 CF_ONE_MINUS			EQU	*
 				LDX	0,Y
-				LEAX	-1,X
+				DEX
 				STX	0,Y
 CF_ONE_MINUS_EOI		RTS
 
@@ -987,7 +987,7 @@ CF_CELLS_EOI			RTS
 IF_CHAR_PLUS			INLINE	CF_CHAR_PLUS
 CF_CHAR_PLUS			EQU	*
 				LDX	0,Y
-				LEAX	1,X
+				INX
 				STX	0,Y
 CF_CHAR_PLUS_EOI		RTS
 
@@ -1347,7 +1347,7 @@ CF_EXECUTE			EQU	*
 ;				BPL	CF_F_M_SLASH_MOD_1	;positive result
 ;				TBEQ	D, CF_F_M_SLASH_MOD_1	;remainder is zero
 ;				;Negative result, adust quotient and remainder (quotient in Y, remainder in D)
-;				LEAY	-1,Y 			;decrement quotient
+;				DEY	 			;decrement quotient
 ;				ADDD	[PSP]
 ;				;Return result	
 ;CF_F_M_SLASH_MOD_1		LDX	PSP			;PSP -> X
@@ -2919,7 +2919,7 @@ CF_U_GREATER_THAN_EOI		RTS
 ;				STY	PSP
 ;				NEXT
 			
-;VALUE ( x "<spaces>name" -- )
+;Word: VALUE ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below, with an initial
 ;value equal to x.
@@ -2928,10 +2928,10 @@ CF_U_GREATER_THAN_EOI		RTS
 ;Place x on the stack. The value of x is that given when name was created, until
 ;the phrase x TO name is executed, causing a new value of x to be associated
 ;with name.
-;
-;S12CForth implementation details:
-;Same semantics as CONSTANT
-
+;S12CForth implementation details: same semantics as CONSTANT
+IF_VALUE			EQU	IF_CONSTANT
+CF_VALUE			EQU	CF_CONSTANT
+	
 ;WITHIN ( n1|u1 n2|u2 n3|u3 -- flag )
 ;Perform a comparison of a test value n1|u1 with a lower limit n2|u2 and an
 ;upper limit n3|u3, returning true if either

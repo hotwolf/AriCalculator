@@ -125,26 +125,30 @@
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;#Information fielda
+REGULAR			EQU	$00
+IMMEDIATE		EQU	$FF
+
 ;#ASCII code 
 FOUTER_SYM_SPACE	EQU	STRING_SYM_SPACE	;space (first printable ASCII character)
 
-;STATE variable 
+;#STATE variable 
 STATE_INTERPRET		EQU	 0
 STATE_COMPILE		EQU	-1
 STATE_NVCOMPILE		EQU	 1
 
-;Text input buffer 
+;#Text input buffer 
 TIB_START		EQU	RS_TIB_START
 
-;System prompts
+;#ystem prompts
 FOUTER_INTERACT_PROMPT	EQU	">"
 FOUTER_COMPILE_PROMPT	EQU	"+"
 FOUTER_NVCOMPILE_PROMPT	EQU	"@"
 
-;Max. line width
+;#ax. line width
 FOUTER_LINE_WIDTH	EQU	79
 	
-;Valid number base
+;#alid number base
 FOUTER_BASE_MIN		EQU	NUM_BASE_MIN		;binary
 FOUTER_BASE_MAX		EQU	NUM_BASE_MAX		;36
 FOUTER_BASE_DEFAULT	EQU	NUM_BASE_DEFAULT	;default base (decimal)
@@ -155,9 +159,14 @@ FOUTER_TERM		EQU	STRING_TERM
 ;#ASCII code 
 FOUTER_SYM_BEEP		EQU	STRING_SYM_BEEP		;acoustic signal
 
-;Boolean sumbols 
+;#Boolean symbols 
 TRUE			EQU	$FFFF
 FALSE			EQU	$0000	
+
+;#Compile states 
+INTERPRET		EQU	$0000
+COMPILE_NV		EQU	$0001
+COMPILE_RAM		EQU	$FFFF	
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -205,13 +214,13 @@ FOUTER_VARS_END_LIN	EQU	@
 ;REGULAR:
 ;Execute in interactive state, compile reference in compile state
 #macro	REGULAR, 0
-			DB	$00
+			DB	REGULAR
 #emac
 
 ;IMMEDIATE:
 ;Execute in interactive and in compile state
 #macro	IMMEDIATE, 0
-			DB	$FF
+			DB	IMMEDIATE
 #emac
 
 ;INLINE:
@@ -435,7 +444,7 @@ FOUTER_PREFIX_4		CMPA	#"_"			;check for underscore
 			CMPA	#"0"			;check for zero
 			BEQ	FOUTER_PREFIX_3		;skip zero
 			;Return results (string pointer in X)
-FOUTER_PREFIX_5		LEAX	-1,X  			;revert parser to current char
+FOUTER_PREFIX_5		DEX	  			;revert parser to current char
 			LDD	4,SP+			;sign:base -> A:B
 FOUTER_PREFIX_6		RTS				;done
 			;ASM-style prefix (string pointer in X, char in A)
@@ -747,8 +756,8 @@ CF_QUIT_RT_4		JOBSR	CF_TO_INT 		;convert to integer
 			LDD	2,Y+			;check result
 			BEQ	CF_QUIT_RT_9		;syntax error
 			DBEQ	D, CF_QUIT_RT_5		;compile single cell
-			JOBSR	CF_LITERAL		;compile literal
-CF_QUIT_RT_5		JOBSR	CF_LITERAL		;compile literal
+			JOB	CF_2LITERAL		;compile literal
+CF_QUIT_RT_5		JOB	CF_LITERAL		;compile literal
 			;Interpret (c-addr u)
 CF_QUIT_RT_6		JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X

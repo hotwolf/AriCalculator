@@ -163,8 +163,7 @@ FNVDICT_END		EQU	$C000		;end of the dictionary
 ;NVM phrase size 
 #ifdef	FNVM_PHRASE_SIZE
 FNVDICT_PHRASE_SIZE	EQU	NVM_PHRASE_SIZE
-#else
-FNVDICT_PHRASE_SIZE	EQU	8	
+#elseFNVDICT_PHRASE_SIZE	EQU	8	
 #endif	
 
 ;;NVC variable 
@@ -182,9 +181,11 @@ FNVDICT_VARS_START_LIN	EQU	@
 #endif	
 #ifdef NVDICT_ON	
 	
-DP			DS	2 		;data pointer (next free space in the data space) 
-NVC			DS	2 		;non-volatile compile flag 
+DP			DS	2 	;compile pointer (next free space in the data space) 
+DP_SAVE			DS	2 	;compile pointer to revert to in case of an error
 
+NVDICT_LAST_NFA		DS	2 	;pointer to the most recent NFA of the NVDICT
+	
 #endif	
 FNVDICT_VARS_END	EQU	*
 FNVDICT_VARS_END_LIN	EQU	@
@@ -195,8 +196,9 @@ FNVDICT_VARS_END_LIN	EQU	@
 ;#Initialization (executed along with ABORT action)
 ;===============
 #macro	FNVDICT_INIT, 0
-			MOVW	#$0000, DP
-			MOVW	#$0000, NVC
+			LDD	#UDICT_PS_START 	;allocate data space 
+			STD	CP_SAVE
+			STD	CP
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
@@ -207,6 +209,7 @@ FNVDICT_VARS_END_LIN	EQU	@
 ;#Quit action
 ;============
 #macro	FNVDICT_QUIT, 0
+			MOVW	DP_SAVE, DP 		;restore cp
 #emac
 
 ;#System integrity monitor

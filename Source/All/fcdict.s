@@ -194,7 +194,7 @@ CF_LU_CDICT_2		TST	1,X+ 					;find end of string
 			BPL	CF_LU_CDICT_2 				;skip past the termination
 			TST	2,X+ 					;check for BRANCH symbol
 			BNE	CF_LU_CDICT_1 				;no BRANCH, check sibling
-			LEAX	1,X 					;first char of sibling -> A
+			INX	 					;first char of sibling -> A
              		JOB	CF_LU_CDICT_1 				;check sibling
 			;Search failed 
 CF_LU_CDICT_3		LEAS	4,SP					;clean up return stack
@@ -275,7 +275,7 @@ CF_WORDS_CDICT_5	TST	1,X+ 					;skip to sibling
 			BPL	CF_WORDS_CDICT_5 			;no termination
 CF_WORDS_CDICT_6	TST	2,X+ 					;skip over address
 			BNE	CF_WORDS_CDICT_7			;no BRANCH symbol
-			LEAX	1,X					;skip over BRANCH symbll
+			INX						;skip over BRANCH symbll
 CF_WORDS_CDICT_7	TST	0,X 					;check for next sibling
 			BEQ	CF_WORDS_CDICT_10 			;no sibling
 			STX	A,SP 					;update iterator
