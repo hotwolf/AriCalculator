@@ -363,7 +363,7 @@ DISP_STREAM_NB_2	PULB							;pull accu B from the SSTACK
 			;Done
 			RTS
 			;TX buffer is full (new start pointer+1 in X, new byte count in Y)
-DISP_STREAM_NB_3	LEAX	-1,X 						;restore pointer
+DISP_STREAM_NB_3	DEX	 						;restore pointer
 			;Unsucessful transmission (new start pointer in X, new byte count in Y)			
 			SSTACK_PREPULL	3
 			CLC							;signal success

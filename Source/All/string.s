@@ -258,13 +258,13 @@ LOOP			ADDD	#1
 ;        X and Y are preserved 
 #macro	STRING_RESIZE, 0
 			;Set new termination (sting pointer in X, char count in D) 
-			LEAX	-1,X 			;adjust string pointer
+			DEX	 			;adjust string pointer
 			BSET	D,X, #STRING_TERM	;terminate string
 			JOB	END_OF_LOOP		;next char
 			;Remove terminations within the string (sting pointer in X, string index in D)
 LOOP_START		BCLR	D,X, #STRING_TERM	;remove termination
 END_OF_LOOP		DBNE	D, LOOP_START		;next char
-			LEAX	1,X 			;adjust string pointer
+			INX	 			;adjust string pointer
 #emac
 	
 ;#Terminated line break

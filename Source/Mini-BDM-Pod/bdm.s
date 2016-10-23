@@ -479,7 +479,7 @@ BDM_END_RM		EQU	*
 			;Decrement reset monitor count
 			LDX	BDM_RMCNT
 			BEQ	BDM_END_RM_2 			;mismatching monitors
-			LEAX	-1,X
+			DEX
 			STX	BDM_RMCNT
 			BRSET	TFLG1, #C6F, BDM_END_RM_3	;reset has been detected
 			LDX	#$0000	
@@ -736,7 +736,7 @@ BDM_DELAY_STEP_2	EQU	*
 			TFR	SP, Y
 			LDX	BDM_DELAY_TO_MSW,Y 		;check timeout MSW value
 			BEQ	BDM_DELAY_STEP_2_1
-			LEAX	-1,X 				;decrement timeout MSW value
+			DEX	 				;decrement timeout MSW value
 			STX	BDM_DELAY_TO_MSW,Y
 			MOVW	TC7, TC7 			;Clear TC7 flag
 			ISTACK_RTI
@@ -898,7 +898,7 @@ BDM_RX_STEP_5		EQU	*
 			;full timer period. Otherwise go to ACK timeout handler
 			LDX	0,SP 				;check timeout MSW value
 			BEQ	BDM_RX_ACK_TO			
-			LEAX	-1,X 				;decrement timeout MSW value
+			DEX	 				;decrement timeout MSW value
 			STX	0,SP
 			MOVW	TC7, TC7 			;Clear TC7 flag
 			ISTACK_RTI
@@ -1237,7 +1237,7 @@ BDM_TX_STEP_4		EQU	*
 			;full timer period. Otherwise go to ACK timeout handler
 			LDX	0,SP 				;check timeout MSW value
 			BEQ	BDM_TX_ACK_TO			
-			LEAX	-1,X 				;decrement timeout MSW value
+			DEX	 				;decrement timeout MSW value
 			STX	0,SP
 			MOVW	TC7, TC7 			;Clear TC7 flag
 			ISTACK_RTI
