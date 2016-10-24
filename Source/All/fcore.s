@@ -2705,21 +2705,7 @@ CF_HEX_EOI			RTS
 ;PICK ( xu ... x1 x0 u -- xu ... x1 x0 xu )
 ;Remove u. Copy the xu to the top of the stack. An ambiguous condition exists if
 ;there are less than u+2 items on the stack before PICK is executed.
-;CF_PICK			PS_CHECK_UF 1			;check for underflow  (PSP -> Y)
-;				;Check if u+1 items are on the PS (PSP in Y)
-;				TFR	Y, D
-;				ADDD	0,Y
-;				ADDD	0,Y
-;				CPD	#PS_EMPTY-4
-;				BHI	CF_PICK_PSUF
-;				;Move xu to TOS (PSP in Y)
-;				LDD	0,Y			;u -> D
-;				TFR	Y, X 			;PSP+2*u -> X
-;				LEAX	D,X
-;				LEAX	D,X
-;				MOVW	2,X, 0,Y 		;xu -> TOS
-;				;Done 
-;				NEXT
+;==> FPS
 
 ;QUERY ( -- )
 ;Make the user input device the input source. Receive input into the terminal
@@ -2759,31 +2745,7 @@ CF_HEX_EOI			RTS
 ;ROLL ( xu xu-1 ... x0 u -- xu-1 ... x0 xu )
 ;Remove u. Rotate u+1 items on the top of the stack. An ambiguous condition
 ;exists if there are less than u+2 items on the stack before ROLL is executed.
-;CF_ROLL			PS_CHECK_UF 1			;check for underflow  (PSP -> Y)
-;				;Check if u+1 items are on the PS (PSP in Y)
-;				TFR	Y, D
-;				ADDD	0,Y
-;				ADDD	0,Y
-;				CPD	#PS_EMPTY-4
-;				BHI	CF_ROLL_PSUF
-;				;Move xu to TOS (PSP in Y)
-;				LDD	0,Y			;u -> D
-;				BEQ	CF_ROLL_3
-;				TFR	Y, X 			;PSP+2*u -> X
-;				LEAX	D,X
-;				LEAX	D,X
-;				MOVW	2,X, 0,Y 		;xu -> TOS
-;				;Shift stack items (u in D, PSP+2*u in X)
-;				LEAY	2,X			;PSP+2*u+2 -> Y
-;				ADDD	#1			;u+1 -> D
-;CF_ROLL_1			MOVW	2,X-, 2,Y- 
-;				DBNE	D, CF_ROLL_1
-;				STY	PSP 			;update PSP
-;CF_ROLL_2			NEXT
-;				;Nothing to do (PSP in Y)
-;CF_ROLL_3			LEAY	2,Y			;Remove TOS
-;				STY	PSP
-;				JOB	CF_ROLL_2
+;==> FPS
 
 ;SAVE-INPUT ( -- xn ... x1 n )
 ;x1 through xn describe the current state of the input source specification for
@@ -2847,14 +2809,7 @@ CF_TRUE_EOI			RTS
 
 ;TUCK ( x1 x2 -- x2 x1 x2 )
 ;Copy the first (top) stack item below the second stack item.
-;CF_TUCK			PS_CHECK_UFOF	2, 1	;(PSP-new cells -> Y)
-;				;Tuck 
-;				LDD	2,Y 		;x2 -> D
-;				MOVW	4,Y, 2,Y	;tuck
-;				STD	4,Y
-;				STD	0,Y
-;				STY	PSP 		;update PSP
-;				NEXT
+;==> FPS
 
 ;U.R ( u n -- )
 ;Display u right aligned in a field n characters wide. If the number of

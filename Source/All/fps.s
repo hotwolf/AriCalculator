@@ -299,6 +299,40 @@ CF_2ROT			EQU	*
 			STD	0,Y				;store x2
 CF_2ROT_EOI		RTS					;done
 
+;Word: TUCK ( x1 x2 -- x2 x1 x2 )
+;Copy the first (top) stack item below the second stack item.
+IF_TUCK			INLINE	CF_TUCK
+CF_TUCK			EQU	*
+			MOVW	0,Y, 2,-Y 			;duplicate x2
+			MOVW	4,Y, 2,Y			;move x1
+			MOVW	0,Y, 4,Y			;tuck x2
+CF_TUCK_EOI		RTS					;done
+	
+;Word: PICK ( xu ... x1 x0 u -- xu ... x1 x0 xu )
+;Remove u. Copy the xu to the top of the stack. An ambiguous condition exists if
+;there are less than u+2 items on the stack before PICK is executed.
+IF_PICK			INLINE	CF_PICK
+CF_PICK			EQU	*
+			LDD	2,Y+ 				;u   -> D
+			LSLD					;2*D -> D
+			MOVW	D,Y, 2,-Y			;pick xu
+CF_PICK_EOI		RTS					;done
+
+;Word: ROLL ( xu xu-1 ... x0 u -- xu-1 ... x0 xu )
+;Remove u. Rotate u+1 items on the top of the stack. An ambiguous condition
+;exists if there are less than u+2 items on the stack before ROLL is executed.
+IF_ROLL			INLINE	CF_ROLL
+CF_ROLL			EQU	*
+			LDD	2,Y+ 				;u -> D
+			LEAX	D,Y				;X points
+			LEAX	D,X				; to xu
+			MOVW	D,Y, 2,-Y			;pick xu
+			DBEQ	D, CF_ROLL_2			;u == 0
+CF_ROLL_1		MOVW	-2,X, 2,X+			;replace xn by xn-1
+			DBNE	D, CF_ROLL_1			;loop
+CF_ROLL_2		MOVW	2,Y+, 0,Y			;replace x1 by x0
+CF_ROLL_EOI		RTS					;done
+	
 ;Word: .S ( -- ) Copy and display the values currently on the data stack.
 IF_DOT_S		REGULAR
 CF_DOT_S		EQU	*
