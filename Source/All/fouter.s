@@ -207,6 +207,9 @@ FOUTER_VARS_END_LIN	EQU	@
 ;#System integrity monitor
 ;=========================
 #macro	FOUTER_MON, 0
+
+			NOP
+
 #emac
 
 ;#Word types
@@ -732,6 +735,7 @@ CF_QUIT_RT		EQU	*
 			;Query loop 
 CF_QUIT_RT_1		JOBSR	CF_PROMPT 		;print prompt
 			JOBSR	CF_QUERY		;query command line 
+			JOBSR	CF_SPACE		;print one space 
 			;Parse loop 
 CF_QUIT_RT_2		MOVW	#FOUTER_SYM_SPACE, 2,-Y ;use SPACE as word seperator
 			JOBSR	CF_SKIP_AND_PARSE 	;parse next word
@@ -770,7 +774,7 @@ CF_QUIT_RT_8		JOBSR	CF_TO_INT		;convert to integer
 			BNE	CF_QUIT_RT_2		;parse loop
 			;Syntax (c-addr u)
 CF_QUIT_RT_9		MOVW	#CF_ABORT_RT, 2,-SP	;push return address (CF_ABORT_RT)
-			JOB	CF_DOT_SYNERR		;print error message
+			JOB	CF_SYNERR_DOT		;print error message
 
 ;Word: SKIP&PARSE ( char "ccc<char>" -- c-addr u )
 ;Skip over any sequence of char at >IN and execute PARSE.
@@ -851,21 +855,21 @@ CF_WORDS		EQU	*
 			JOBSR	CF_WORDS_NVDICT
 			JOB	CF_WORDS_CDICT
 
-;Word: .$ ( c-addr u  -- ) Print a string
+;Word: S. ( c-addr u  -- ) Print a string
 ;Ptint a string given by the start address c-addr and the character count u.
-IF_DOT_STRING		REGULAR
-CF_DOT_STRING		EQU	*
+IF_STRING_DOT		REGULAR
+CF_STRING_DOT		EQU	*
 			;Print string
 			LDD	2,Y 			;c-addr -> D
 			LDX	0,Y			;u      -> X
 			LEAX	D,X			;end of string -> X
 			STX	2,+Y			;end of string -> PS
 			TFR	D, X			;c-addr -> X			
-CF_DOT_STRING_1		LDAB	1,X+			;char          -> B
+CF_STRING_DOT_1		LDAB	1,X+			;char          -> B
 			ANDB	#~FOUTER_TERM		;remove any termination
 			JOBSR	FOUTER_TX_CHAR		;print char
 			CPX	0,Y			;check for end of string
-			BNE	CF_DOT_STRING_1		;loop
+			BNE	CF_STRING_DOT_1		;loop
 			RTS				;done
 	
 ;Word: \ 
@@ -877,16 +881,16 @@ CF_BACKSLASH			EQU	*
 				MOVW	NUMBER_TIB, TO_IN ;set >IN do the last character 
 				RTS
 
-;Word: .SYNERR ( c-addr u -- ) Print a syntax error message
+;Word: SYNERR. ( c-addr u -- ) Print a syntax error message
 ;Print a syntax error message, referencing the word given by the start address
 ;c-addr and the character count u. Then throw an abort exception.
-IF_DOT_SYNERR		REGULAR
-CF_DOT_SYNERR		EQU	*
+IF_SYNERR_DOT		REGULAR
+CF_SYNERR_DOT		EQU	*
 			;Print left string 
 			LDX	#FOUTER_STR_SYNERR_LEFT ;left side message -> X
 			JOBSR	FOUTER_TX_STRING	;print substring
 			;Print word
-			JOBSR	CF_DOT_STRING 		;print string
+			JOBSR	CF_STRING_DOT 		;print string
 			;Print right string 
 			LDX	#FOUTER_STR_SYNERR_RIGHT;right side message -> X 
 			JOB	FOUTER_TX_STRING	;print substring

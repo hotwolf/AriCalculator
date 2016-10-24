@@ -422,11 +422,7 @@ CF_MINUS_EOI			RTS
 	
 ;. ( n -- )
 ;Display n in free field format.
-;CF_DOT				PS_PULL_X			;pull cell from PS
-;				BASE_CHECK	CF_DOT_INVALBASE;check BASE value
-;				PRINT_SPC			;print a space character
-;				PRINT_SINT			;print cell as signed integer
-;				NEXT
+;==> FDOT
 
 ;."
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1974,11 +1970,7 @@ CF_S_TO_D_EOI			RTS
 	
 ;U. ( u -- )
 ;Display u in free field format.
-;CF_U_DOT			PS_PULL_X				;pull cell from PS
-;				BASE_CHECK				;check BASE value
-;				PRINT_SPC				;print a space character
-;				PRINT_UINT				;print cell as signed integer
-;				NEXT
+;==> FDOT
 
 ;Word: U< ( u1 u2 -- flag )
 ;flag is true if and only if u1 is less than u2.
@@ -2232,20 +2224,7 @@ CF_XOR_EOI			RTS
 ;Display n1 right aligned in a field n2 characters wide. If the number of
 ;characters required to display n1 is greater than n2, all digits are displayed
 ;with no leading spaces in a field as wide as necessary.
-;CF_DOT_R			PS_CHECK_UF 2			;check for underflow  (PSP -> Y)
-;				BASE_CHECK			;check BASE value (BASE -> D)
-;				;Saturate n at $FF
-;				TST	2,Y+ 			;n2 -> A
-;				BNE	CF_DOT_R_2
-;				LDAA	-1,Y
-;				;Read u
-;CF_DOT_R_1			LDX	2,Y+ 			;u -> X
-;				STY	PSP			;update PSP
-;				PRINT_RSINT			;print number
-;				NEXT
-;				;set n to $FF (saturate) 
-;CF_DOT_R_2			LDAA	#$FF
-;				JOB	CF_DOT_R_1
+;==> FDOT
 
 ;Word: 0<> ( x -- flag )
 ;flag is true if and only if x is not equal to zero.
@@ -2881,20 +2860,7 @@ CF_TRUE_EOI			RTS
 ;Display u right aligned in a field n characters wide. If the number of
 ;characters required to display u is greater than n, all digits are displayed
 ;with no leading spaces in a field as wide as necessary.
-;CF_U_DOT_R			PS_CHECK_UF 2			;check for underflow  (PSP -> Y)
-;				BASE_CHECK			;check BASE value (BASE -> D)
-;				;Saturate n at $FF
-;				TST	2,Y+ 			;n -> A
-;				BNE	CF_U_DOT_R_2
-;				LDAA	-1,Y
-;				;Read u
-;CF_U_DOT_R_1			LDX	2,Y+ 			;u -> X
-;				STY	PSP			;update PSP
-;				PRINT_RUINT			;print number
-;				NEXT
-;				;set n to $FF (saturate) 
-;CF_U_DOT_R_2			LDAA	#$FF
-;				JOB	CF_U_DOT_R_1
+;==> FDOT
 
 ;Word: U> ( u1 u2 -- flag )
 ;flag is true if and only if u1 is greater than u2.

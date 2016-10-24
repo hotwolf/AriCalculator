@@ -382,7 +382,7 @@ CF_ABORT_QUOTE_1	LDD	4,Y 				;check X1
 			LEAY	6,Y				;clean up PS
 			RTS					;done
 CF_ABORT_QUOTE_2	JOBSR	CF_CR				;line break
-			JOBSR	CF_DOT_STRING			;print ABORT" message
+			JOBSR	CF_STRING_DOT			;print ABORT" message
 			JOB	CF_ABORT_RT			;uncatchable!!! (for simplicity)
 
 ;ABORT" run-time semantics
@@ -466,40 +466,40 @@ CF_THROW_3		CPD	#FEXCPT_TC_QUIT			;check for QUIT
 			;Print ABORTQ message
 			LDD	ABORT_QUOTE_MSG 		;string pointer -> X
 			BEQ	CF_THROW_2			;print nothing
-CF_THROW_4		MOVW	#CF_DOT_RTERR_2, 2,-SP		;push return address (CF_DOT_RTERR_2)
+CF_THROW_4		MOVW	#CF_RTERR_DOT_2, 2,-SP		;push return address (CF_RTERR_DOT_2)
 			JOB	CF_CR				;line break
 			;Handle standard errors  (THROW code in D)
-CF_THROW_5		EQU	CF_DOT_RTERR_1			;print error message
+CF_THROW_5		EQU	CF_RTERR_DOT_1			;print error message
 	
-;Word: .RTERR ( n -- ) Print a runtime error message
+;Word: RTERR. ( n -- ) Print a runtime error message
 ;Print the runtime error message associated with the THROW code n.
-IF_DOT_RTERR		REGULAR
-CF_DOT_RTERR		EQU	*
+IF_RTERR_DOT		REGULAR
+CF_RTERR_DOT		EQU	*
 			;Get THROW code ( n )
 			LDD	2,Y+				;THROW code -> D
 			;Print left string (THROW code in D)
-CF_DOT_RTERR_1		LDX	#FEXCPT_STR_RTERR_LEFT 		;left side message -> X
+CF_RTERR_DOT_1		LDX	#FEXCPT_STR_RTERR_LEFT 		;left side message -> X
 			JOBSR	FEXCPT_TX_STRING		;print substring
 			;Check THROW code (THROW code in D)
-CF_DOT_RTERR_2		CPD	#FEXCPT_SYSTC_MAX		;check for system THROW code
-			BLS	CF_DOT_RTERR_5			;user THROW code
+CF_RTERR_DOT_2		CPD	#FEXCPT_SYSTC_MAX		;check for system THROW code
+			BLS	CF_RTERR_DOT_5			;user THROW code
 			;System THROW code (THROW code in D)
 			LDX	#FEXCPT_MSGTAB 			;MESSAGE TABLE -> X
-CF_DOT_RTERR_3		TST	1,X				;check for end of table
-			BNE	CF_DOT_RTERR_4			;not yet
+CF_RTERR_DOT_3		TST	1,X				;check for end of table
+			BNE	CF_RTERR_DOT_4			;not yet
 			TST	0,X				;check for end of table
-			BEQ	CF_DOT_RTERR_7			;no matching entry found
-CF_DOT_RTERR_4		CPD	2,X+				;check if entry matches THROW code
-			BEQ	CF_DOT_RTERR_6			;matching entry found
+			BEQ	CF_RTERR_DOT_7			;no matching entry found
+CF_RTERR_DOT_4		CPD	2,X+				;check if entry matches THROW code
+			BEQ	CF_RTERR_DOT_6			;matching entry found
 			BRCLR	1,X+,#FEXCPT_TERM,*		;skip to next table entry
-			JOB	CF_DOT_RTERR_3			;check next table entry
+			JOB	CF_RTERR_DOT_3			;check next table entry
 			;User defined THROW code (THROW code in D)
-CF_DOT_RTERR_5		TFR	D, X 				;error message -> X
-CF_DOT_RTERR_6		JOBSR	FEXCPT_CHECK_ERRMSG		;validate error message
-			BCC	CF_DOT_RTERR_7			;print throw code
+CF_RTERR_DOT_5		TFR	D, X 				;error message -> X
+CF_RTERR_DOT_6		JOBSR	FEXCPT_CHECK_ERRMSG		;validate error message
+			BCC	CF_RTERR_DOT_7			;print throw code
 			JOB	FEXCPT_TX_STRING		;print error message
 			;Print THROW code  (THROW code in D)
-CF_DOT_RTERR_7		EQU	FEXCPT_TX_TC			;print THROW code
+CF_RTERR_DOT_7		EQU	FEXCPT_TX_TC			;print THROW code
 
 FEXCPT_CODE_END		EQU	*
 FEXCPT_CODE_END_LIN	EQU	@
