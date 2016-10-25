@@ -748,7 +748,8 @@ CF_QUIT_RT_2		MOVW	#FOUTER_SYM_SPACE, 2,-Y ;use SPACE as word seperator
 			;Check for compile state (c-addr u)
 CF_QUIT_RT_3		LDD	STATE 			;check STATE
 			BEQ	CF_QUIT_RT_6		;interpret
-			;Compile (c-addr u)
+			BPL	CF_QUIT_RT_X		;non-volatile compile
+			;Volatile compile (c-addr u)
 			JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
 			BEQ	CF_QUIT_RT_4		;unknown word
@@ -762,7 +763,15 @@ CF_QUIT_RT_4		JOBSR	CF_TO_INT 		;convert to integer
 			DBEQ	D, CF_QUIT_RT_5		;compile single cell
 			JOB	CF_2LITERAL		;compile literal
 CF_QUIT_RT_5		JOB	CF_LITERAL		;compile literal
-			;Interpret (c-addr u)
+			;Non-volatile compile (c-addr u)
+CF_QUIT_RT_X		JOB	CF_QUIT_RT_9 		;TBD
+
+
+
+
+
+	
+			;Interpretation (c-addr u)
 CF_QUIT_RT_6		JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
 			BEQ	CF_QUIT_RT_8		;unknown word
@@ -945,7 +954,7 @@ FOUTER_STR_OK		FCS	" ok"
 ;Error messages 
 FOUTER_STR_SYNERR_LEFT	DB	FOUTER_SYM_BEEP
 			STRING_NL_NONTERM
-			FCC	"!!! Syntax Error: "
+			FCC	"!!! Interpretation Error: "
 FOUTER_STR_SYNERR_RIGHT	DB	$A2 				;quote (terminated)
 
 ;Prefix tables 

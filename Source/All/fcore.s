@@ -293,59 +293,63 @@ CF_PAREN			EQU	*
 				LEAY	4,Y			;clean up PS
 				RTS
 	
-;* ( n1|u1 n2|u2 -- n3|u3 )
+;Word: * ( n1|u1 n2|u2 -- n3|u3 )
 ;Multiply n1|u1 by n2|u2 giving the product n3|u3.
-;CF_STAR			PS_CHECK_UF	2	;check for underflow  (PSP -> Y)
-;				TFR	Y, X
-;				LDY	2,X		;n1    -> Y
-;				LDD	0,X		;n2    -> D
-;				EMUL	   		;n1*n2 -> Y:D
-;				STD	2,+X
-;				STX	PSP
-;				NEXT
+IF_STAR				REGULAR
+CF_STAR				EQU	*
+				LDD	2,Y+ 			;n2    -> D	
+				TFR	Y, X 			;save PSP
+				SEI 				;start of atomic sequence
+				LDY	0,Y			;n1    -> Y
+				EMULS	   			;Y * D -> Y:D
+				EXG	Y, X			;restore PSP
+				CLI				;end of atomic sequence
+				STD	0,Y			;n3 -> PS
+				TBEQ	X, CF_STAR_1		;result accepted
+				IBEQ	X, CF_STAR_1		;result accepted
+				THROW	FEXCPT_TC_RESOR		;overflow
+CF_STAR_1			RTS				;done
 	
-;*/ ( n1 n2 n3 -- n4 )
+;Word: */ ( n1 n2 n3 -- n4 )
 ;Multiply n1 by n2 producing the intermediate double-cell result d. Divide d by
 ;n3 giving the single-cell quotient n4. An ambiguous condition exists if n3 is
 ;zero or if the quotient n4 lies outside the range of a signed number. If d and
 ;n3 differ in sign, the implementation-defined result returned will be the same
 ;as that returned by either the phrase >R M* R> FM/MOD SWAP DROP or the phrase
 ;>R M* R> SM/REM SWAP DROP 
-;CF_STAR_SLASH			PS_CHECK_UF	3		;check for underflow (PSP -> Y)
-;				TFR	Y, X
-;				LDY	4,X			;n1    -> Y
-;				LDD	2,X			;n2    -> D
-;				EMULS				;n1*n2 -> Y:D
-;				LDX	0,X			;n3    -> X 
-;				EDIVS				;Y:D/X -> Y
-;				BCS	CF_STAR_SLASH_0DIV	;division by zero
-;				BVS	CF_STAR_SLASH_RESOR	;quotient out of range
-;				LDX	PSP
-;				STY	4,+X
-;				STX	PSP
-;				NEXT
-
-;*/MOD ( n1 n2 n3 -- n4 n5 )
+IF_STAR_SLASH			REGULAR
+CF_STAR_SLASH			EQU	*
+				JOBSR	CF_STAR_SLASH_MOD 	;*/MOD
+				MOVW	2,Y+, 0,Y		;remove n4
+				RTS				;done
+	
+;Word: */MOD ( n1 n2 n3 -- n4 n5 )
 ;Multiply n1 by n2 producing the intermediate double-cell result d. Divide d by
 ;n3 producing the single-cell remainder n4 and the single-cell quotient n5. An
 ;ambiguous condition exists if n3 is zero, or if the quotient n5 lies outside
 ;the range of a single-cell signed integer. If d and n3 differ in sign, the
 ;implementation-defined result returned will be the same as that returned by
 ;either the phrase >R M* R> FM/MOD or the phrase >R M* R> SM/REM .
-;CF_STAR_SLASH_MOD		PS_CHECK_UF	3		;check for underflow  (PSP -> Y)
-;				TFR	Y, X
-;				LDY	4,X			;n1    -> Y
-;				LDD	2,X			;n2    -> D
-;				EMULS				;n1*n2 -> Y:D
-;				LDX	0,X			;n3    -> X 
-;				EDIVS				;Y:D/X -> Y, remainer -> D
-;				BCS	CF_STAR_SLASH_MOD_0DIV	;division by zero
-;				BVS	CF_STAR_SLASH_MOD_RESOR	;quotient out of range
-;				LDX	PSP
-;				STY	2,+X
-;				STD	2,X
-;				STX	PSP
-;				NEXT
+IF_STAR_SLASH_MOD		REGULAR
+CF_STAR_SLASH_MOD		EQU	*
+				LDX	2,Y+ 			;n3 -> X
+				;BEQ	CF_STAR_SLASH_MOD_1	;division by zero
+				LDD	0,Y 			;n2 -> D
+				PSHY				;save PSP
+				SEI 				;start of atomic sequence
+				LDY	2,Y			;n1    -> Y
+				EMULS	   			;Y * D -> Y:D
+				EDIVS	   			;Y:D / X -> Y remainder -> D
+				TFR	Y, X			;n5 -> X
+				PULY				;restore PSP
+				CLI				;end of atomic sequence
+				BCS	CF_STAR_SLASH_MOD_1	;division by zero
+				BVS	CF_STAR_SLASH_MOD_2	;result out of range
+				STD	2,Y			;n4 -> PS
+				STX	0,Y			;n5 -> PS
+				RTS				;done
+CF_STAR_SLASH_MOD_1		THROW	FEXCPT_TC_0DIV		;division by zero
+CF_STAR_SLASH_MOD_2		THROW	FEXCPT_TC_RESOR		;result out of range
 
 ;Word: + ( n1|u1 n2|u2 -- n3|u3 )
 ;Add n2|u2 to n1|u1, giving the sum n3|u3.
@@ -465,55 +469,56 @@ CF_MINUS_EOI			RTS
 ;				STX	IP
 ;				NEXT
 
-;/ ( n1 n2 -- n3 )
+;Word: / ( n1 n2 -- n3 )
 ;Divide n1 by n2, giving the single-cell quotient n3. An ambiguous condition
 ;exists if n2 is zero. If n1 and n2 differ in sign, the implementation-defined
 ;result returned will be the same as that returned by either the phrase
 ;>R S>D R> FM/MOD SWAP DROP or the phrase >R S>D R> SM/REM SWAP DROP .
-;CF_SLASH			PS_CHECK_UF	2		;check for underflow (PSP -> Y)
-;				LDD	2,Y			;n1   -> D
-;				LDX	2,Y+			;n2   -> X
-;				BEQ	CF_SLASH_0DIV		;divide by zero
-;				IDIVS				;D/X  -> X
-;				STX	0,Y
-;				STY	PSP
-;				NEXT
-
-;/MOD ( n1 n2 -- n3 n4 )
+IF_SLASH			REGULAR
+CF_SLASH			EQU	*
+				JOBSR	CF_SLASH_MOD 		;\MOD
+				MOVW	2,Y+, 0,Y		;remove n3
+				RTS				;done
+;Word: /MOD ( n1 n2 -- n3 n4 )
 ;Divide n1 by n2, giving the single-cell remainder n3 and the single-cell
 ;quotient n4. An ambiguous condition exists if n2 is zero. If n1 and n2 differ
 ;in sign, the implementation-defined result returned will be the same as that
 ;returned by either the phrase >R S>D R> FM/MOD or the phrase >R S>D R> SM/REM . 
-;CF_SLASH_MOD			PS_CHECK_UF	2			;check for underflow  (PSP -> Y)
-;				LDD	2,Y				;n1   -> D
-;				LDX	0,Y				;n2   -> X
-;				BEQ	CF_SLASH_0DIV		 	;divide by zero
-;				IDIVS				 	;D/X  -> X, remainder -> D
-;				STD	0,Y
-;				STX	2,Y
-;				NEXT
+IF_SLASH_MOD			REGULAR
+CF_SLASH_MOD			EQU	*
+				LDX	0,Y 			;n2 -> X
+				;BEQ	CF_SLASH_MOD_1		;division by zero
+				LDD	2,Y			;n1 -> D
+				IDIVS 				;D / X -> remainder -> D
+				BCS	CF_SLASH_MOD_1		;division by zero
+				BVS	CF_SLASH_MOD_2		;result out of range
+				STD	2,Y 			;n3 -> PS
+				STX	0,Y 			;n4 -> PS
+				RTS 				;done
+CF_SLASH_MOD_1			THROW	FEXCPT_TC_0DIV		;division by zero
+CF_SLASH_MOD_2			THROW	FEXCPT_TC_RESOR		;result out of range
 
 ;Word: 0< ( n -- flag )
 ;flag is true if and only if n is less than zero.
-IF_ZERO_LESS			INLINE	CF_ZERO_LESS
+IF_ZERO_LESS			REGULAR
 CF_ZERO_LESS			EQU	*
 				CLRA					;FALSE -> A
 				BRCLR	0,Y,#$80,CF_ZERO_LESS_1		;n is positive
 				COMA					;TRUE  -> A
 CF_ZERO_LESS_1			TAB					;flag  -> D
 				STD	0,Y				;D-> PS
-CF_ZERO_LESS_EOI		RTS
+				RTS
 	
 ;Word: 0= ( x -- flag )
 ;flag is true if and only if x is equal to zero.
-IF_ZERO_EQUALS			INLINE	CF_ZERO_EQUALS
+IF_ZERO_EQUALS			REGULAR
 CF_ZERO_EQUALS			CLRA					;FALSE -> A
 				LDX	0,Y				;check x
 				BNE	CF_ZERO_EQUALS_1		;x != 0
 				COMA					;TRUE  -> A
 CF_ZERO_EQUALS_1		TAB					;flag  -> D
 				STD	0,Y				;D-> PS
-CF_ZERO_EQUALS_EOI		RTS
+				RTS
 
 ;Word: 1+ ( n1|u1 -- n2|u2 )
 ;Add one (1) to n1|u1 giving the sum n2|u2.
@@ -669,7 +674,7 @@ CF_TWO_FETCH_EOI		RTS
 
 ;Word: < ( n1 n2 -- flag )
 ;flag is true if and only if n1 is less than n2.
-IF_LESS_THAN			INLINE	CF_LESS_THAN
+IF_LESS_THAN			REGULAR
 CF_LESS_THAN			EQU	*
 				CLRA					;FALSE -> A
 				LDX	2,Y+ 				;n2 -> X
@@ -678,7 +683,7 @@ CF_LESS_THAN			EQU	*
 				COMA					;TRUE  -> A
 CF_LESS_THAN_1			TAB					;flag  -> D
    				STD	0,Y				;D-> PS
-CF_LESS_THAN_EOI		RTS
+				RTS
 	
 ;<# ( -- )
 ;Initialize the pictured numeric output conversion process.
@@ -688,7 +693,7 @@ CF_LESS_THAN_EOI		RTS
 ;Word: = ( x1 x2 -- flag )
 ;flag is true if and only if x1 is bit-for-bit the same as x2.
 ;S12CForth implementation details:
-IF_EQUALS			INLINE	CF_EQUALS
+IF_EQUALS			REGULAR
 CF_EQUALS			EQU	*
 				CLRA					;FALSE -> A
 				LDX	2,Y+ 				;x2 -> X
@@ -697,11 +702,11 @@ CF_EQUALS			EQU	*
 				COMA					;TRUE  -> A
 CF_EQUALS_1			TAB					;flag  -> D
    				STD	0,Y				;D-> PS
-CF_EQUALS_EOI			RTS
+				RTS
 
 ;Word: > ( n1 n2 -- flag )
 ;flag is true if and only if n1 is greater than n2.
-IF_GREATER_THAN			INLINE	CF_GREATER_THAN
+IF_GREATER_THAN			REGULAR
 CF_GREATER_THAN			EQU	*
 				CLRA					;FALSE -> A
 				LDX	2,Y+ 				;n2 -> X
@@ -710,7 +715,7 @@ CF_GREATER_THAN			EQU	*
 				COMA					;TRUE  -> A
 CF_GREATER_THAN_1		TAB					;flag  -> D
    				STD	0,Y				;D-> PS
-CF_GREATER_THAN_EOI		RTS
+				RTS
 
 ;>BODY ( xt -- a-addr )
 ;a-addr is the data-field address corresponding to xt. An ambiguous condition
@@ -795,7 +800,7 @@ CF_FETCH_EOI			RTS
 			
 ;Word: ABS ( n -- u )
 ;u is the absolute value of n.
-IF_ABS				INLINE	CF_ABS
+IF_ABS				REGULAR
 CF_ABS				EQU	*
 				LDD	0,Y 		;n -> D
 				BPL	CF_ABS_1	;n == u
@@ -804,7 +809,7 @@ CF_ABS				EQU	*
 				ADDD	#1		;
 				STD	0,Y 		;u -> PS
 CF_ABS_1			RTS			;done
-CF_ABS_EOI			EQU	CF_ABS_1
+				EQU	CF_ABS_1
 	
 ;ACCEPT ( c-addr +n1 -- +n2 ) CHECK!
 ;Receive a string of at most +n1 characters. An ambiguous condition exists if
@@ -1040,14 +1045,14 @@ CF_CLS_EOI			RTS
 ;c-addr1. c-addr2 is the address of the first character after c-addr1. u is the
 ;contents of the character at c-addr1, which is the length in characters of the
 ;string at c-addr2.
-IF_COUNT			INLINE	CF_COUNT
+IF_COUNT			REGULAR
 CF_COUNT			EQU	*
 				LDX	0,Y 				;c-addr1 -> X
 				BRCLR	1,X+,#FCORE_TERM,* 		;skip to termination
 				TFR	X, D 				;end of string -> D
 				SUBD	0,Y 				;char count -> D
 				STD	2,-Y 				;u -> PS
-CF_COUNT_EOI			RTS 					;done
+				RTS 					;done
 	
 ;CR ( -- )
 ;Cause subsequent output to appear at the beginning of the next line.
@@ -1568,7 +1573,7 @@ CF_INVERT_EOI			RTS
 ;Perform a logical left shift of u bit-places on x1, giving x2. Put zeroes into
 ;the least significant bits vacated by the shift. An ambiguous condition exists
 ;if u is greater than or equal to the number of bits in a cell.
-IF_L_SHIFT			INLINE	CF_L_SHIFT
+IF_L_SHIFT			REGULAR
 CF_L_SHIFT			EQU	*
 				LDX	2,Y+ 				;u -> X
 				BEQ	CF_L_SHIFT_2 			;done
@@ -1577,7 +1582,6 @@ CF_L_SHIFT_1			LSLD 					;D << 1 -> D
 				DBNE	X, CF_L_SHIFT_1			;repeat u times
 				STD	0,Y 				;x2 -> PS
 CF_L_SHIFT_2			RTS 					;done
-CF_L_SHIFT_EOI			EQU	CF_L_SHIFT_2
 	
 ;M* ( n1 n2 -- d )
 ;d is the signed product of n1 times n2.
@@ -1592,59 +1596,54 @@ CF_L_SHIFT_EOI			EQU	CF_L_SHIFT_2
 
 ;Word: MAX ( n1 n2 -- n3 )
 ;n3 is the greater of n1 and n2.
-IF_MAX				INLINE	CF_MAX	
+IF_MAX				REGULAR	
 CF_MAX				EQU	*
 				LDD	2,Y+ 				;n2 -> D
 				CPD	0,Y 				;compare
 				BLE	CF_MAX_1 			;n2 <= n1
 				STD	0,Y 				;n2 -> n3
 CF_MAX_1			RTS
-CF_MAX_EOI			EQU	CF_MAX_1
 	
 ;Word: MIN ( n1 n2 -- n3 )
 ;n3 is the lesser of n1 and n2.
-IF_MIN				INLINE	CF_MIN	
+IF_MIN				REGULAR	
 CF_MIN				EQU	*
 				LDD	2,Y+ 				;n2 -> D
 				CPD	0,Y 				;compare
 				BGE	CF_MIN_1 			;n2 >= n1
 				STD	0,Y 				;n2 -> n3
 CF_MIN_1			RTS
-CF_MIN_EOI			EQU	CF_MIN_1
 	
-;MOD ( n1 n2 -- n3 )
+;Word: MOD ( n1 n2 -- n3 )
 ;Divide n1 by n2, giving the single-cell remainder n3. An ambiguous condition
 ;exists if n2 is zero. If n1 and n2 differ in sign, the implementation-defined
 ;result returned will be the same as that returned by either the phrase
 ;>R S>D R> FM/MOD DROP or the phrase >R S>D R> SM/REM DROP.
-;CF_MOD				PS_CHECK_UF	2, CF_MOD_PSUF ;check for underflow  (PSP -> Y)
-;				LDX	2,Y+
-;				BEQ	CF_MOD_0DIV
-;				LDD	0,Y
-;				IDIVS	;D/X=>X, D%X=>D
-;				STD	0,Y
-;				STY	PSP
-;				NEXT
+IF_MOD				REGULAR
+CF_MOD				EQU	*
+				JOBSR	CF_SLASH_MOD 			;/MOD
+				LEAY	2,Y 				;remove n4
+				RTS 					;done
 
-;MOVE ( addr1 addr2 u -- )
+;Word: MOVE ( addr1 addr2 u -- )
 ;If u is grater than zero, copy the contents of u consecutive address units at
 ;addr1 to the u consecutive address units at addr2. After MOVE completes, the u
 ;consecutive address units at addr2 contain exactly what the u consecutive
 ;address units at addr1 contained before the move.
-;CF_MOVE			PS_CHECK_UF	3, CF_MOVE_PSUF ;check for underflow  (PSP -> Y)
-;				LDD	2,Y+			;load parameters
-;				BEQ	CF_MOVE_3		;u is zero
-;				LDX	4,Y+
-;				STY	PSP
-;				LDY	-2,Y
-;				;Copy loop
-;CF_MOVE_1			MOVW	2,Y+, 2,X+
-;				DBNE	D, CF_MOVE_1
-;CF_MOVE_2			NEXT
-;				;u is zero 
-;CF_MOVE_3			LEAY	4,Y			
-;				STY	PSP
-;				JOB	CF_MOVE_2
+IF_MOVE				REGULAR	
+CF_MOVE				EQU	*
+				LDD	0,Y 				;u             -> D
+				BEQ	CF_MOVE_2 			;done
+				ADDD	2,Y				;addr2 + u     -> D
+				STD	0,Y				;addr2 + u     -> PS
+				LDD	4,Y 				;addr1         -> D
+				SUBD	2,Y 				;addr1 - addr2 -> D
+				LDX	2,Y 				;addr2         -> X
+CF_MOVE_1			MOVB	D,X, 1,X+ 			;copy byte
+				CPX	0,Y 				;check range	
+				BLO	CF_MOVE_1 			;loop
+CF_MOVE_2			LEAY	6,Y				;clean up stack	
+				RTS 					;done
 
 ;Word: NEGATE ( n1 -- n2 )
 ;Negate n1, giving its arithmetic inverse n2.
@@ -1779,7 +1778,7 @@ CF_OR_EOI			RTS
 ;Perform a logical right shift of u bit-places on x1, giving x2. Put zeroes into
 ;the most significant bits vacated by the shift. An ambiguous condition exists
 ;if u is greater than or equal to the number of bits in a cell.
-IF_R_SHIFT			INLINE	CF_R_SHIFT
+IF_R_SHIFT			REGULAR
 CF_R_SHIFT			EQU	*
 				LDX	2,Y+ 				;u -> X
 				BEQ	CF_R_SHIFT_2 			;done
@@ -1788,7 +1787,7 @@ CF_R_SHIFT_1			LSRD 					;D >> 1 -> D
 				DBNE	X, CF_R_SHIFT_1			;repeat u times
 				STD	0,Y 				;x2 -> PS
 CF_R_SHIFT_2			RTS 					;done
-CF_R_SHIFT_EOI			EQU	CF_R_SHIFT_2
+				EQU	CF_R_SHIFT_2
 
 ;S"
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1866,7 +1865,7 @@ CF_S_TO_D_EOI			RTS
 ;CF_SIGN_1			STY	PSP
 ;				NEXT
 	
-;SM/REM ( d1 n1 -- n2 n3 )
+;Word: SM/REM ( d1 n1 -- n2 n3 )
 ;Divide d1 by n1, giving the symmetric quotient n3 and the remainder n2. Input
 ;and output stack arguments are signed. An ambiguous condition exists if n1 is
 ;zero or if the quotient lies outside the range of a single-cell signed integer.
@@ -1876,19 +1875,25 @@ CF_S_TO_D_EOI			RTS
 ;  -10       7       -3        -1
 ;   10      -7        3        -1
 ;  -10      -7       -3         1
-;CF_S_M_SLASH_REM		PS_CHECK_UF	2		;check for underflow  (PSP -> Y)
-;				LDX	0,Y			;get divisor
-;				BEQ	FCORE_THROW_0DIV	;diviide by zero
-;				LDD	4,Y			;get dividend
-;				LDY	2,Y
-;				EDIVS				;Y:D/X=>Y; remainder=>D
-;				BVS	FCORE_THROW_RESOR 	;result out of range
-;				LDX	PSP			;PSP -> X
-;				STY	2,+X			;return quotient
-;				STD	2,X			;return remainder
-;				STX	PSP			;update PSP
-;				;Done 
-;				NEXT
+IF_S_M_SLASH_REM		REGULAR
+CF_S_M_SLASH_REM		EQU	*
+				LDX	2,Y+			;n1      -> X
+				;BEQ	CF_S_M_SLASH_REM_1	;diviide by zero
+				LDD	2,Y 			;d1(LSW) -> D
+				PSHY				;save PSP
+				SEI 				;start of atomic sequence
+				LDY	0,Y			;d1(MSW) -> Y
+				EDIVS	   			;Y:D / X -> Y remainder -> D
+				TFR	Y, X			;n5 -> X
+				PULY				;restore PSP
+				CLI				;end of atomic sequence
+				BCS	CF_S_M_SLASH_REM_1	;division by zero
+				BVS	CF_S_M_SLASH_REM_2	;result out of range
+				STD	2,Y			;n2 -> PS
+				STX	0,Y			;n3 -> PS
+				RTS				;done
+CF_S_M_SLASH_REM_1		THROW	FEXCPT_TC_0DIV		;division by zero
+CF_S_M_SLASH_REM_2		THROW	FEXCPT_TC_RESOR		;result out of range
 
 ;SOURCE ( -- c-addr u )
 ;c-addr is the address of, and u is the number of characters in, the input
@@ -1974,47 +1979,56 @@ CF_S_TO_D_EOI			RTS
 
 ;Word: U< ( u1 u2 -- flag )
 ;flag is true if and only if u1 is less than u2.
-IF_U_LESS_THAN			INLINE	CF_U_LESS_THAN
+IF_U_LESS_THAN			REGULAR
 CF_U_LESS_THAN			EQU	*
 				CLRA					;FALSE -> A
 				LDX	2,Y+ 				;u2 -> X
 				CPX	0,Y 				;compare
-				BLs	CF_U_LESS_THAN_1 			;u2 <= u1
+				BLS	CF_U_LESS_THAN_1 			;u2 <= u1
 				COMA					;TRUE  -> A
 CF_U_LESS_THAN_1		TAB					;flag  -> D
    				STD	0,Y				;D-> PS
-CF_U_LESS_THAN_EOI		RTS
+				RTS
 
-;UM* ( u1 u2 -- ud )
+;Word: UM* ( u1 u2 -- ud )
 ;Multiply u1 by u2, giving the unsigned double-cell product ud. All values and
 ;arithmetic are unsigned.
-;CF_U_M_STAR			PS_CHECK_UF 2			;(PSP -> Y)
-;				TFR	Y, X			;PSP -> X
-;				LDY	0,X
-;				LDD	2,X
-;				EMUL				;Y * D => Y:D
-;				STD	2,X
-;				STY	0,X
-;				;Done 
-;				NEXT
+IF_U_M_STAR			REGULAR
+CF_U_M_STAR			EQU	*
+				LDD	0,Y 			;u2    -> D	
+				TFR	Y, X 			;save PSP
+				SEI 				;start of atomic sequence
+				LDY	2,Y			;u1    -> Y
+				EMULS	   			;Y * D -> Y:D
+				EXG	Y, X			;restore PSP
+				CLI				;end of atomic sequence
+				STD	2,Y			;ud -> PS
+				STX	0,Y			;
+				RTS
 
-;UM/MOD ( ud u1 -- u2 u3 )
+;Word: UM/MOD ( ud u1 -- u2 u3 )
 ;Divide ud by u1, giving the quotient u3 and the remainder u2. All values and
 ;arithmetic are unsigned. An ambiguous condition exists if u1 is zero or if the
 ;quotient lies outside the range of a single-cell unsigned integer.
-;CF_U_M_SLASH_MOD		PS_CHECK_UF	3		;check for underflow  (PSP -> Y)
-;				LDX	0,Y			;get divisor
-;				BEQ	FCORE_THROW_0DIV	;diviide by zero
-;				LDD	4,Y			;get dividend
-;				LDY	2,Y
-;				EDIV				;Y:D/X=>Y; remainder=>D
-;				BVS	FCORE_THROW_RESOR 	;result out of range
-;				LDX	PSP			;PSP -> X
-;				STY	2,+X			;return quotient
-;				STD	2,X			;return remainder
-;				STX	PSP			;update PSP
-;				;Done 
-;				NEXT
+IF_U_M_SLASH_MOD		REGULAR
+CF_U_M_SLASH_MOD		EQU	*
+				LDX	2,Y+ 			;u1      -> X
+				;BEQ	CF_U_M_SLASH_MOD_1	;division by zero
+				LDD	2,Y			;ud(LSW) -> D
+				PSHY				;save PSP
+				SEI 				;start of atomic sequence
+				LDY	0,Y			;ud(MAS) -> Y
+				EDIV	   			;Y:D / X -> Y remainder -> D
+				TFR	Y, X			;n5 -> X
+				PULY				;restore PSP
+				CLI				;end of atomic sequence
+				BCS	CF_U_M_SLASH_MOD_1	;division by zero
+				BVS	CF_U_M_SLASH_MOD_2	;result out of range
+				STD	2,Y			;n4 -> PS
+				STX	0,Y			;n5 -> PS
+				RTS				;done
+CF_U_M_SLASH_MOD_1		THROW	FEXCPT_TC_0DIV		;division by zero
+CF_U_M_SLASH_MOD_2		THROW	FEXCPT_TC_RESOR		;result out of range
 
 ;UNLOOP
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2228,25 +2242,25 @@ CF_XOR_EOI			RTS
 
 ;Word: 0<> ( x -- flag )
 ;flag is true if and only if x is not equal to zero.
-IF_ZERO_NOT_EQUALS		INLINE	CF_ZERO_NOT_EQUALS
+IF_ZERO_NOT_EQUALS		REGULAR
 CF_ZERO_NOT_EQUALS		CLRA					;FALSE -> A
 				LDX	0,Y				;check x
 				BEQ	CF_ZERO_NOT_EQUALS_1		;x == 0
 				COMA					;TRUE  -> A
 CF_ZERO_NOT_EQUALS_1		TAB					;flag  -> D
 				STD	0,Y				;D-> PS
-CF_ZERO_NOT_EQUALS_EOI		RTS
+				RTS
 
 ;Word: 0> ( n -- flag )
 ;flag is true if and only if n is greater than zero.
-IF_ZERO_GREATER			INLINE	CF_ZERO_GREATER
+IF_ZERO_GREATER			REGULAR
 CF_ZERO_GREATER			EQU	*
 				CLRA					;FALSE -> A
 				BRSET	0,Y,#$80,CF_ZERO_GREATER_1	;n is negative
 				COMA					;TRUE  -> A
 CF_ZERO_GREATER_1		TAB					;flag  -> D
 				STD	0,Y				;D-> PS
-CF_ZERO_GREATER_EOI		RTS
+				RTS
 
 ;2>R
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2323,7 +2337,7 @@ CF_ZERO_GREATER_EOI		RTS
 
 ;<> ( x1 x2 -- flag )
 ;flag is true if and only if x1 is not bit-for-bit the same as x2.
-IF_NOT_EQUALS			INLINE	CF_NOT_EQUALS
+IF_NOT_EQUALS			REGULAR
 CF_NOT_EQUALS			EQU	*
 				CLRA					;FALSE -> A
 				LDX	2,Y+ 				;x2 -> X
@@ -2332,7 +2346,7 @@ CF_NOT_EQUALS			EQU	*
 				COMA					;TRUE  -> A
 CF_NOT_EQUALS_1			TAB					;flag  -> D
    				STD	0,Y				;D-> PS
-CF_NOT_EQUALS_EOI		RTS
+				RTS
 
 ;?DO
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2819,7 +2833,7 @@ CF_TRUE_EOI			RTS
 
 ;Word: U> ( u1 u2 -- flag )
 ;flag is true if and only if u1 is greater than u2.
-IF_U_GREATER_THAN		INLINE	CF_U_GREATER_THAN
+IF_U_GREATER_THAN		REGULAR
 CF_U_GREATER_THAN		EQU	*
 				CLRA					;FALSE -> A
 				LDX	2,Y+ 				;u2 -> X
@@ -2828,7 +2842,7 @@ CF_U_GREATER_THAN		EQU	*
 				COMA					;TRUE  -> A
 CF_U_GREATER_THAN_1		TAB					;flag  -> D
    				STD	0,Y				;D-> PS
-CF_U_GREATER_THAN_EOI		RTS
+				RTS
 	
 ;UNUSED ( -- u )
 ;u is the amount of space remaining in the region addressed by HERE, in address

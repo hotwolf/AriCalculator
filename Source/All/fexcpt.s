@@ -519,7 +519,7 @@ FEXCPT_TABS_START_LIN	EQU	@
 ;Error messages 
 FEXCPT_STR_RTERR_LEFT	DB	FEXCPT_SYM_BEEP
 			STRING_NL_NONTERM
-			FCS	"!!! Runtime Error: "
+			FCS	"!!! Execution Error: "
 FEXCPT_STR_RTERR_RIGHT	STRING_NL_TERM
 ;
 ;Message table for standard errors
@@ -531,8 +531,8 @@ FEXCPT_MSGTAB		EQU	*
 			;FEXCPT_MSG	FEXCPT_TC_DOOF,		"DO-loop nested too deeply"	
 			;FEXCPT_MSG	FEXCPT_TC_DICTOF,	"Dictionary overflow"
 			;FEXCPT_MSG	FEXCPT_TC_INVALID,	"Invalid memory address"
-			;FEXCPT_MSG	FEXCPT_TC_0DIV,		"Division by zero"
-			;FEXCPT_MSG	FEXCPT_TC_RESOR,	"Result out of range"
+			FEXCPT_MSG	FEXCPT_TC_0DIV,		"Division by zero"
+			FEXCPT_MSG	FEXCPT_TC_RESOR,	"Result out of range"
 			;FEXCPT_MSG	FEXCPT_TC_UDEFWORD,	"Undefined word"
 			FEXCPT_MSG	FEXCPT_TC_COMPONLY,	"Compile-only word"
 			FEXCPT_MSG	FEXCPT_TC_NONAME,	"Missing name argument"

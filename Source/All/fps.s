@@ -264,7 +264,7 @@ CF_SWAP_EOI		RTS					;done
 
 ;Word: 2SWAP ( x1 x2 x3 x4 -- x3 x4 x1 x2 )
 ;Exchange the top two cell pairs.
-IF_TWO_SWAP		INLINE	CF_TWO_SWAP
+IF_TWO_SWAP		REGULAR
 CF_TWO_SWAP		EQU	*
 			LDD	0,Y 				;save x4
 			MOVW	4,Y, 0,Y			;move x2
@@ -272,7 +272,7 @@ CF_TWO_SWAP		EQU	*
 			LDD	2,Y				;save x3
 			MOVW	6,Y, 2,Y			;move x1
 			STD	6,y				;store x3
-CF_TWO_SWAP_EOI		RTS					;done
+			RTS					;done
 	
 ;Word: ROT ( x1 x2 x3 -- x2 x3 x1 )
 ;Rotate the top three stack entries.
@@ -287,7 +287,7 @@ CF_ROT_EOI		RTS					;done
 ;Word: 2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 )
 ;Rotate the top three cell pairs on the stack bringing cell pair x1 x2 to the
 ;top of the stack.
-IF_2ROT			INLINE	CF_2ROT
+IF_2ROT			REGULAR
 CF_2ROT			EQU	*
 			LDD	10,Y 				;save x1
 			MOVW	6,Y, 10,Y			;move x3
@@ -297,7 +297,7 @@ CF_2ROT			EQU	*
 			MOVW	4,Y, 8,Y			;move x4
 			MOVW	0,Y, 4,Y			;move x6
 			STD	0,Y				;store x2
-CF_2ROT_EOI		RTS					;done
+			RTS					;done
 
 ;Word: TUCK ( x1 x2 -- x2 x1 x2 )
 ;Copy the first (top) stack item below the second stack item.
@@ -321,7 +321,7 @@ CF_PICK_EOI		RTS					;done
 ;Word: ROLL ( xu xu-1 ... x0 u -- xu-1 ... x0 xu )
 ;Remove u. Rotate u+1 items on the top of the stack. An ambiguous condition
 ;exists if there are less than u+2 items on the stack before ROLL is executed.
-IF_ROLL			INLINE	CF_ROLL
+IF_ROLL			REGULAR
 CF_ROLL			EQU	*
 			LDD	2,Y+ 				;u -> D
 			LEAX	D,Y				;X points
@@ -331,7 +331,7 @@ CF_ROLL			EQU	*
 CF_ROLL_1		MOVW	-2,X, 2,X+			;replace xn by xn-1
 			DBNE	D, CF_ROLL_1			;loop
 CF_ROLL_2		MOVW	2,Y+, 0,Y			;replace x1 by x0
-CF_ROLL_EOI		RTS					;done
+			RTS					;done
 	
 ;Word: .S ( -- ) Copy and display the values currently on the data stack.
 IF_DOT_S		REGULAR

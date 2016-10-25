@@ -153,41 +153,6 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;;Boundaries
-;;UDICT_PS_START		EQU	0
-;;UDICT_PS_END		EQU	0
-;
-;;Debug option for dictionary overflows
-;;FUDICT_DEBUG		EQU	1 
-;	
-;;Disable dictionary range checks
-;;FUDICT_NO_CHECK	EQU	1 
-;
-;;Safety distance between the user dictionary and the PAD
-;#ifndef UDICT_PADDING
-;UDICT_PADDING		EQU	4 	;default is 4 bytes
-;#endif
-;
-;;PAD SIZE
-;#ifndef PAD_SIZE
-;PAD_SIZE		EQU	84 	;default is 84 bytes
-;#endif
-;#ifndef PAD_MINSIZE
-;PAD_MINSIZE		EQU	4 	;default is 4 bytes
-;#endif
-;	
-;;Safety distance between the PAD and the parameter stack
-;#ifndef PS_PADDING
-;PS_PADDING		EQU	16 	;default is 16 bytes
-;#endif
-;
-;;Max. line length
-;FUDICT_LINE_WIDTH	EQU	DEFAULT_LINE_WIDTH
-;
-;;NULL pointer
-;#ifndef NULL
-;NULL			EQU	$0000
-;#endif
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -196,7 +161,13 @@
 FUDICT_TERM		EQU	STRING_TERM
 
 ;#Compile flags
-FUDICT_NVC		EQU	$80 ;1=NV compile, 0=RAM compile
+FUDICT_FLG_NVC		EQU	$80 ;1=NV compile, 0=RAM compile
+	
+;#Compile types
+FUDICT_CTYPE_NONE	EQU	$00
+FUDICT_CTYPE_INLINE	EQU	$01
+FUDICT_CTYPE_BSR	EQU	$02
+FUDICT_CTYPE_JSR	EQU	$03
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -318,7 +289,7 @@ CF_COLON_2		LDD	FUDICT_LAST_NFA		;prev. NFA -> D
 			MOVW	0,SP, 2,-SP 		;TUCK colon sys
 			MOVW	CP, 2,SP 		;
 			;Set compile state 
-			BRSET	FUDICT_FLGS,#FUDICT_NVC,CF_COLON_3;NV compile
+			BRSET	FUDICT_FLGS,#FUDICT_FLG_NVC,CF_COLON_3;NV compile
 			MOVW	#COMPILE_RAM, STATE	;set STATE
 			RTS				;done
 CF_COLON_3		MOVW	#COMPILE_NV, STATE	;set STATE
@@ -389,6 +360,7 @@ CF_CELL_COMMA_2		LDX	CP 			;CP -> X
 			STX	CP			;update CP
 			;Compile execution semntics (x in D)
 			STD	 -2,X			;compile top of PS
+			MOVB	#FUDICT_CTYPE_NONE, FUDICT_LAST_CTYPE;set optimizer info
 			RTS
 
 ;Word: CHAR, 
@@ -405,6 +377,7 @@ CF_CHAR_COMMA_2		LDX	CP 			;CP -> X
 			STX	CP			;update CP
 			;Compile execution semntics (x in D)
 			STAB	 -1,X			;compile top of PS
+			MOVB	#FUDICT_CTYPE_NONE, FUDICT_LAST_CTYPE;set optimizer info
 			RTS
 
 ;Word: COMPILE, 
@@ -414,13 +387,64 @@ CF_CHAR_COMMA_2		LDX	CP 			;CP -> X
 ;execution semantics of the current definition.
 IF_COMPILE_COMMA	IMMEDIATE
 CF_COMPILE_COMMA	COMPILE_ONLY
-CF_COMPILE_COMMA_1	
+			;Get xt ( xt )
+CF_COMPILE_COMMA_1	LDX	0,Y 			;xt -> X
+			CLRA				;0  -> D
+			CLRB				;
+			JOB	CF_XT_COMMA_2		;same as XT,
+
+;Word: XT, 
+;Interpretation: throws "compilation only" error
+;Execution: ( xt n -- )
+;Append the execution semantics of xt to the current definition.
+;The execution semantics are physically located at address xt+n.
+IF_XT_COMMA		IMMEDIATE
+CF_XT_COMMA		COMPILE_ONLY
+			;Check IF ( xt n ) 
+CF_XT_COMMA_1		LDD	2,Y+			;n              -> D
+			LDX	0,Y 			;xt             -> X
+			LEAX	D,X			;phys. xt       -> X
+			TFR	X, D 			;phys. xt       -> D		
+			SUBD	CP			;compile offset -> D
+CF_XT_COMMA_2		BRCLR	-1,X,#$FF,CF_XT_COMMA_4	;regular word
+			BRSET	-1,X,#$FF,CF_XT_COMMA_4	;immediate word
+			;Inline word (phys. xt in X, comp. offset in D) 
+			STD	0,Y			;compile offset -> PS
+			CLRA				;inline length  -> D
+			LDAB	-1,X			;
+			ADDD	CP			;new CP         -> D
+			STD	CP			;update CP
+			LDD	0,Y			;copy offset    -> D
+CF_XT_COMMA_3		MOVB	D,X, 1,X+		;copy byte
+			CPX	CP			;check inline range
+			BLO	CF_XT_COMMA_3		;loop
+			MOVB	#FUDICT_CTYPE_INLINE, FUDICT_LAST_CTYPE;set optimizer info
+			INY				;clean up PS
+			RTS				;done
+			;Regular compile (phys. xt in X, comp. offset in D)
+CF_XT_COMMA_4		CMPA	#$FF	     		;check negative branch range
+			BEQ	CF_XT_COMMA_5		;compile BSR
+			TSTA				;check negative branch range
+			BEQ	CF_XT_COMMA_5		;compile BSR
+			;Compile JSR (phys. xt in X, comp. offset in D) 
+			LDX	CP 			;CP -> X
+			LEAX	3,X			;allocate compile space
+			STY	CP			;update CP
+			MOVB	#$16, -3,X		;JSR-opcode
+			MOVW	0,SP, -2,X		;XT address
+			MOVB	#FUDICT_CTYPE_JSR, FUDICT_LAST_CTYPE;set optimizer info
+			INY				;clean up PS
+			RTS				;done
+			;Compile BSR (phys. xt in X, comp. offset in D) 
+CF_XT_COMMA_5		LDX	CP 			;CP -> X
+			LEAX	2,X			;allocate compile space
+			STY	CP			;update CP
+			MOVB	#$07, -1,X		;JSR-opcode
+			STAB	0,X			;relative XT address
+			MOVB	#FUDICT_CTYPE_BSR, FUDICT_LAST_CTYPE;set optimizer info
+			INY				;clean up PS
+			RTS				;done
 	
-			RTS
-
-
-
-
 ;Word: CONSTANT ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below.
@@ -466,7 +490,9 @@ CF_LITERAL_1		LDX	CP 			;CP -> X
 			MOVW	#$1800, -5,X		;"MOVW $xxxx, 2,-SP"
 			MOVB	#$6E,   -3,X		; => 18006Exxxx
 			MOVW	2,Y+,   -2,X		;compile top of PS
-			RTS
+			;Set optimizer information 
+			MOVB	#FUDICT_CTYPE_INLINE, FUDICT_LAST_CTYPE;inline code
+			RTS				;done
 
 ;Word: 2LITERAL 
 ;Interpretation: Interpretation semantics for this word are undefined.
