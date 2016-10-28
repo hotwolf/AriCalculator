@@ -34,10 +34,10 @@
 ;#    S12CForth system variables:                                              #
 ;#           BASE = Default radix (2<=BASE<=36)                                #
 ;#          STATE = State of the outer interpreter:                            #
-;#  		        0: Interpretation State				       #
-;#  		       -1: RAM Compile State				       #
-;#  		       +1: NV Compile State				       #
-;#     NUMBER_TIB = Number of chars in the TIB                                 #
+;#  		        0: Interpretation state				       #
+;#  		       -1: Volatile compile state			       #
+;#  		       +1: Non-volatile Compile state		               #
+;#     number_TIB = Number of chars in the TIB                                 #
 ;#          TO_IN = In-pointer of the TIB (>IN)	       			       #
 ;#       	    (TIB_START+TO_IN) points to the next character	       #
 ;#  									       #
@@ -140,15 +140,15 @@ STATE_NVCOMPILE		EQU	 1
 ;#Text input buffer 
 TIB_START		EQU	RS_TIB_START
 
-;#ystem prompts
+;#System prompts
 FOUTER_INTERACT_PROMPT	EQU	">"
 FOUTER_COMPILE_PROMPT	EQU	"+"
 FOUTER_NVCOMPILE_PROMPT	EQU	"@"
 
-;#ax. line width
+;M#ax. line width
 FOUTER_LINE_WIDTH	EQU	79
 	
-;#alid number base
+;#Valid number base
 FOUTER_BASE_MIN		EQU	NUM_BASE_MIN		;binary
 FOUTER_BASE_MAX		EQU	NUM_BASE_MAX		;36
 FOUTER_BASE_DEFAULT	EQU	NUM_BASE_DEFAULT	;default base (decimal)
@@ -164,9 +164,9 @@ TRUE			EQU	$FFFF
 FALSE			EQU	$0000	
 
 ;#Compile states 
-INTERPRET		EQU	$0000
-COMPILE_NV		EQU	$0001
-COMPILE_RAM		EQU	$FFFF	
+INTERPRET		EQU	$0000 		;interpretation state
+NV_COMPILE		EQU	$0001 		;non-volentile compile
+COMPILE			EQU	$FFFF 		;volentile compile
 	
 ;###############################################################################
 ;# Variables                                                                   #

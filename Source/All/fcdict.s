@@ -63,13 +63,13 @@
 ; CDICT iterator structure:
 ;
 ;                           +--------+--------+     
-;                       +-> |   Node pointer  | <- start of path
+;                       +-> |   Node Pointer  | <- start of path
 ;                       |   +--------+--------+   |p
-;                       |   |   Node pointer  |   |a   
+;                       |   |   Node Pointer  |   |a   
 ;                       |   +--------+--------+   |t 
 ;                       |   :                 :   |h
 ;          2+           |   +--------+--------+   V
-; (2*FCDICT_TREE_DEPTH) |   |   Node pointer  | <- end of path
+; (2*FCDICT_TREE_DEPTH) |   |   Node Pointer  | <- end of path
 ;                       |   +--------+--------+ 
 ;                       |   |      NULL       | 
 ;                       |   +--------+--------+ 
@@ -243,7 +243,7 @@ IF_WORDS_CDICT		REGULAR
 CF_WORDS_CDICT		EQU	*
 			;RS layout:
 			; +--------+--------+
-			; |  Line counter   | SP+0
+			; |  Line Counter   | SP+0
 			; +--------+--------+
 			; |                 | SP+2
 			; +                 +

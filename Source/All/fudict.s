@@ -34,11 +34,23 @@
 ;#    S12CForth system variables:                                              #
 ;#             CP = Compile pointer                                            #
 ;#                  Points to the next free space after the dictionary         #
-;#       CP_SAVED = Previous compile pointer                                   #
+;#        CP_SAVE = Previous compile pointer                                   #
+;#       STRATEGY = Current compile interpreter:                               #
+;#  		        0: Compilation inhibited			       #
+;#  		       -1: Volatile compile strategy			       #
+;#  		       +1: Non-volatile compile strategy (use UDICT as buffer) #
 ;#  									       #
-;#    Program termination options:                                             #
-;#        ABORT:                                                               #
-;#        QUIT:                                                                #
+;#    Non-Volatile compile strategy:                                           #
+;#    The non-volatile dictionary space is allocated after scanning the flash  #
+;#    memory. When the NVDICT is selected as compile target, the UDICT is      #
+;#    cleared and used as a buffer for compilation. During this buffered       #
+;#    compilation, the data pointer is tracked in the variable DP. The compile #
+;#    pointer is tracked in the variable CP. Dictionary entries in the compile #
+;#    in interpretation state. Look-ups in compile state will return address   #
+;#    translated CFAs pointing to the intended location within the flash       #
+;#    space. Then the compilation of a code sequence is finished, the compile  #
+;#    buffer is copied into the flash as a string.                             #
+;#                                                                             #
 ;#    The following notation is used to describe the stack layout in the word  #
 ;#    definitions:                                                             #
 ;#                                                                             #
@@ -149,6 +161,27 @@
 ;                           |   for RAM    | 
 ;                           | Compilation  | 
 ;                           +--------------+   
+;	
+;	
+; Non-volatile compilation:	
+;  	                         DP               CP
+;  	 Reserved data space      |                |
+;  	------------------------->V                V
+;       +-----------------------------------------+------	
+;	| NVDICT image in RAM ------------------> |
+;	+-----------------------------------------+------
+;	^
+;	 \
+;         \	
+;	   \FUDICT_OFFSET
+;	    \(source-target)
+;            \	
+;	      \
+;	       \
+;       +------+-----------------------------------------	
+;	|NVDICT| Target location of NVDICT image
+;	+------+-----------------------------------------
+;	
 	
 ;###############################################################################
 ;# Configuration                                                               #
@@ -160,15 +193,19 @@
 ;#String termination 
 FUDICT_TERM		EQU	STRING_TERM
 
-;#Compile flags
-FUDICT_FLG_NVC		EQU	$80 ;1=NV compile, 0=RAM compile
+;#Compile strategies 
+NO_COMLILE		EQU	$0000 		;interpretation state
+;NV_COMPILE		EQU	$0001 		;non-volentile compile
+;COMPILE		EQU	$FFFF 		;volentile compile
 	
-;#Compile types
-FUDICT_CTYPE_NONE	EQU	$00
-FUDICT_CTYPE_INLINE	EQU	$01
-FUDICT_CTYPE_BSR	EQU	$02
-FUDICT_CTYPE_JSR	EQU	$03
+;#Compile optimizations
+FUDICT_OPT_NONE		EQU	$0000
+FUDICT_OPT_BSR		EQU	$0001
+FUDICT_OPT_JSR		EQU	$0002
 	
+;#INLINE optimization
+FUDICT_MAX_INLINE	EQU	8 		;max. CF size for INLINE optimization
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -182,10 +219,10 @@ FUDICT_VARS_START_LIN	EQU	@
 			ALIGN	1	
 CP			DS	2 	;compile pointer (next free space in the dictionary space) 
 CP_SAVE			DS	2 	;compile pointer to revert to in case of an error
+STRATEGY		DS	2	;
+
 FUDICT_LAST_NFA		DS	2 	;pointer to the most recent NFA of the UDICT
 FUDICT_OFFSET		DS	2 	;offset = source - target
-FUDICT_FLGS		DS	1	;compile flags
-FUDICT_LAST_CTYPE	DS	1	;type of last compilation
 	
 FUDICT_VARS_END		EQU	*
 FUDICT_VARS_END_LIN	EQU	@
@@ -196,13 +233,10 @@ FUDICT_VARS_END_LIN	EQU	@
 ;#Initialization (executed along with ABORT action)
 ;===============
 #macro	FUDICT_INIT, 0
-			LDD	DP 			;allocate UDICT 
-			STD	CP_SAVE
-			STD	CP
-			CLRA
-			CLRB
-			STD	FUDICT_OFFSET
-			STD	FUDICT_FLGS
+			MOVW	DP, CP
+			MOVW	#COMPILE, STRATEGY
+			MOVW	#$0000, FUDICT_LAST_NFA
+			MOVW	#$0000, FUDICT_OFFSET
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
@@ -245,6 +279,32 @@ FUDICT_VARS_END_LIN	EQU	@
 FUDICT_CODE_START_LIN	EQU	@
 #endif
 
+;#IO
+;===
+;#Print a list separator (SPACE or line break)
+; args:   D:      char count of next word
+;         0,SP:   line counter 
+; result: 0,SP;   updated line counter
+; SSTACK: 10 bytes
+;         Y is preserved
+FUDICT_LIST_SEP		EQU	FOUTER_LIST_SEP
+	
+;#String operations
+;==================
+;#Convert a lower case character to upper case
+; args:   B: ASCII character (w/ or w/out termination)
+; result: B: upper case ASCII character 
+; SSTACK: 2 bytes
+;         X, Y, and A are preserved 
+FUDICT_UPPER		EQU	STRING_UPPER
+
+;#Prints a MSB terminated string
+; args:   X:      start of the string
+; result: X;      points to the byte after the string
+; SSTACK: 10 bytes
+;         Y and D are preserved
+FUDICT_TX_STRING	EQU	STRING_PRINT_BL
+
 ;#Functions
 ;==========
 ;#Throw "interpreting a compile-only word" exception
@@ -260,15 +320,100 @@ FUDICT_THROW_COMPNEST	EQU	*
 ;#########
 ;# Words #
 ;#########
+	
+;Word: LU-UDICT ( c-addr u -- xt | c-addr u false )
+;Look up a name in the UDICT dictionary. The name is referenced by the start
+;address c-addr and the character count u. If successful the resulting execution
+;token xt is returned. Otherwise the name reference remains on the parameter
+;stack along with a false flag.
+;When the UDICT dictionary is used as a buffer for compilation to non-volatile
+;memory, xt will reference the code field in the target memory. Therefore it  
+;must not be executed before the buffered compilation is flushed into the non-
+;volatile memory
+IF_LU_UDICT		REGULAR
+CF_LU_UDICT		EQU	*
+			;RS layout:
+			; +--------+--------+
+			; |       EOS       | SP+0
+			; +--------+--------+
+			; |    Iterator     | SP+2
+			; +--------+--------+
+;			;Check compile strategy
+;			BRCLR	STRATEGY,#$80, CF_LU_UDICT_
+;			;Initialize interator structure 
+;			MOVW	#FUDICT_LAST_NFA, 2,-SP ;last NFA -> iterator
+;			LDD	2,Y			;c-addr -> D
+;			ADDD	0,Y			;EOS    -> D
+;			STD	2,-SP			;store EOS
+;			;Check name 
+;			LDD	2,SP 			;NFA    -> D
+;			ADDD	#2			;SOS    -> D
+;			SUBD	2,Y			;offset -> D
+			
 
-;;Word: : ( C: "<spaces>name" -- colon-sys )
-;;Skip leading space delimiters. Parse name delimited by a space. Create a
-;;definition for name, called a colon definition. Enter compilation state and
-;;start the current definition, producing colon-sys. Append the initiation
-;;semantics given below to the current definition.
-;;The execution semantics of name will be determined by the words compiled into
-;;the body of the definition. The current definition shall not be findable in the
-;;dictionary until it is ended (or until the execution of DOES> in some systems).
+	
+	
+;Word: WORDS-UDICT ( -- )
+;List the definition names in the core dictionary in alphabetical order.
+;When the UDICT dictionary is used as a buffer for compilation to non-volatile
+;memory, no word list is printed 
+IF_WORDS_UDICT		REGULAR
+CF_WORDS_UDICT		EQU	*
+			;RS layout:
+			; +--------+--------+
+			; |  Line Counter   | SP+0
+			; +--------+--------+
+			; |    Iterator     | SP+2
+			; +--------+--------+
+			;Check compile strategy
+			BRCLR	STRATEGY,#$80, CF_WORDS_UDICT_3
+			;Initialize interator structure 
+			LDX	FUDICT_LAST_NFA		;last NFA -> X
+			BEQ	CF_WORDS_UDICT_2	;empty dictionary
+			PSHX				;iterator -> RS
+			INX				;NF pointer -> X
+			BRCLR	1,+X,#FUDICT_TERM,*	;skip to last char
+			DEX				;adjust NF pointer
+			TFR	X, D			;NF pointer -> D
+			SUBD	0,SP			;calculate name length
+			PSHD				;char count -> line counter
+			;Start new line
+			JOBSR	CF_CR 			;line break
+			;Print word
+CF_WORDS_UDICT_1	LDX	2,SP 			;iterator -> X
+			MOVW	2,X+, 2,SP		;advance iterator
+			JOBSR	FUDICT_TX_STRING	;print name
+			LDX	2,SP 			;iterator -> X
+			BEQ	CF_WORDS_UDICT_2	;done
+			INX				;NF pointer -> X
+			BRCLR	1,+X,#FUDICT_TERM,*	;skip to last char
+			DEX				;adjust NF pointer
+			TFR	X, D			;NF pointer -> D
+			SUBD	0,SP			;calculate name length
+			MOVW	#CF_WORDS_UDICT_1, 2,-SP;push return address (CF_WORDS_UDICT_1)
+			JOB	FUDICT_LIST_SEP		;print separator
+			;Clean up
+CF_WORDS_UDICT_2	LEAS	4,SP 			;clean up stack
+CF_WORDS_UDICT_3	RTS				;done
+	
+	
+;Word: : ( C: "<spaces>name" -- colon-sys )
+;Skip leading space delimiters. Parse name delimited by a space. Create a
+;definition for name, called a colon definition. Enter compilation state and
+;start the current definition, producing colon-sys. Append the initiation
+;semantics given below to the current definition.
+;The execution semantics of name will be determined by the words compiled into
+;the body of the definition. The current definition shall not be findable in the
+;dictionary until it is ended (or until the execution of DOES> in some systems).
+;colon-sys:
+;      	    +--------------+--------------+	     
+;           |      Optimization Info      | +0	     
+;      	    +--------------+--------------+	     
+;           |  Information Field Address  | +2	     
+;      	    +--------------+--------------+	     
+;           |      Name Field Address     | +4	     
+;      	    +--------------+--------------+	     
+;
 IF_COLON		IMMEDIATE			
 CF_COLON		INTERPRET_ONLY			;catch nested compilation
 			;Parse name 
@@ -276,25 +421,112 @@ CF_COLON_1		LDD	#" " 			;set delimeter
 			JOBSR	CF_SKIP_AND_PARSE	;parse name
 			LDD	0,Y			;check name
 			BNE	CF_COLON_2		;name found
-			THROW	FEXCPT_TC_NONAME	;throw "missing nsame" exception
-			;Compile previous NFA (c-addr u)
-CF_COLON_2		LDD	FUDICT_LAST_NFA		;prev. NFA -> D
-			JOBSR	CF_CELL_COMMA_2		;compile NFA
-			;Compile name (c-addr u) 
-			JOBSR	CF_STRING_COMMA_1 	;compile name
-			;Compile IF
-			LDAB	#REGULAR 		;set IF to regular
-			JOBSR	CF_CHAR_COMMA_2		;compile IF
-			;Set colon-sys 
-			MOVW	0,SP, 2,-SP 		;TUCK colon sys
-			MOVW	CP, 2,SP 		;
-			;Set compile state 
-			BRSET	FUDICT_FLGS,#FUDICT_FLG_NVC,CF_COLON_3;NV compile
-			MOVW	#COMPILE_RAM, STATE	;set STATE
-			RTS				;done
-CF_COLON_3		MOVW	#COMPILE_NV, STATE	;set STATE
+			THROW	FEXCPT_TC_NONAME	;throw "missing name" exception
+			;Set STATE ( c-addr u )
+			LDD	STRATEGY 		;STRATEGY -> D
+			BEQ	CF_COLON_1		;done
+			STD	STATE			;STRATEGY -> STATE
+			;Push colon-sys ( c-addr u )
+			MOVW	0,SP,  6,-SP 		;move return address
+			MOVW	#FUDICT_OPT_NONE, 2,SP	;optimization info -> colon-sys
+			LDX	CP			;CP -> X
+			STX	6,SP		  	;NFA -> colon_sys
+			;Allocate compile space ( c-addr u ) (CP in X)
+			TFR	X, D			;CP -> D
+			ADDD	0,Y			;CP+name -> D
+			ADDD	#$0003			;CP+nane+NFA+IF -> D
+			STD	CP			;update CP
+			SUBD	#1			;IFA -> D
+			STD	4,SP			;IFA -> colon-sys
+			;Compile last NFA ( c-addr u ) (compile pointer in X)
+			MOVW	FUDICT_LAST_NFA, 2,X+ 	;compile last NFA
+			;Compile name ( c-addr u ) (compile pointer in X)
+			MOVW	2,Y, 2,-Y 		;( c-addr u   c-addr )
+			STX	2,-Y			;( c-addr u   c-addr SOS )
+			MOVW	4,Y, 2,-Y 		;( c-addr u   c-addr SOS u )
+			TFR	X, D			;X -> D
+			ADDD	8,Y			;EOS -> D
+			STD	8,Y			;(    EOS u   c-addr SOS u )
+			STX	6,Y			;(    EOS SOS c-addr SOS u )
+			JOBSR	CF_MOVE			;copy name ( EOS SOS )
+			LDX	2,Y+			;SOS -> X ( EOS)
+CF_COLON_2		LDAB	0,X			;char -> B
+			JOBSR	FUDICT_UPPER		;make upper case
+			STAB	1,X+			;update char
+			CPX	0,SP			;check for EOS
+			BLO	CF_COLON_2		;LOOP
+			BSET	-1,X,#FUDICT_TERM	;terminate name string
+			;Compile IF (compile pointer in X)
+			CLR	0,X 			;REGULAR
 			RTS				;done
 
+;Word: MOVE ( addr1 addr2 u -- )
+;If u is grater than zero, copy the contents of u consecutive address units at
+;addr1 to the u consecutive address units at addr2. After MOVE completes, the u
+;consecutive address units at addr2 contain exactly what the u consecutive
+;address units at addr1 contained before the move.
+IF_MOVE			REGULAR	
+CF_MOVE			EQU	*
+			LDD	0,Y 			;u             -> D
+			BEQ	CF_MOVE_2 		;done
+			ADDD	2,Y			;addr2 + u     -> D
+			STD	0,Y			;addr2 + u     -> PS
+			LDD	4,Y 			;addr1         -> D
+			SUBD	2,Y 			;addr1 - addr2 -> D
+			LDX	2,Y 			;addr2         -> X
+CF_MOVE_1		MOVB	D,X, 1,X+ 		;copy byte
+			CPX	0,Y 			;check range	
+			BLO	CF_MOVE_1 		;loop
+CF_MOVE_2		LEAY	6,Y			;clean up stack	
+
+;Word: COMPILE, 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( xt -- )
+;Append the execution semantics of the definition represented by xt to the
+;execution semantics of the current definition.
+IF_COMPILE_COMMA	IMMEDIATE
+CF_COMPILE_COMMA	COMPILE_ONLY
+			;Get xt ( xt )
+CF_COMPILE_COMMA_1	LDX	0,Y 			;xt -> X
+			LDAB	-1,X			;IF -> B
+			BNE	CF_COMPILE_COMMA_4	;not REGULAR
+			;REGULAR word ( xt ) 
+CF_COMPILE_COMMA_2	LDX	CP 			;CP   -> X		
+			TFR	X,D 			;CP   -> D
+			SUBD	FUDICT_OFFSET		;CP-offs -> D
+			SUBD	0,Y			;CP-offs-xt -> D
+			BCC	CF_COMPILE_COMMA_3	;compile BSR
+			CPD	#128			
+			BLS	CF_COMPILE_COMMA_3	;compile BSR
+			;Compile JSR ( xt ) (CP in X)
+			LEAX	3,X 			;allocate compile space
+			STX	CP			;update CP
+			MOVB	#$16, -3,X		;compile "JSR" opcode
+			MOVW	2,Y+, -2,X		;compile xt
+			MOVB	#FUDICT_OPT_JSR, 3,SP	;set optimization info
+			RTS				;done
+			;Compile BSR ( xt ) (CP in X, negated rel. addr in B)
+CF_COMPILE_COMMA_3	LEAX	2,X 			;allocate compile space
+			STX	CP			;update CP
+			MOVB	#$07, -2,X		;compile "BSR" opcode
+			NEGB				;rel. addr -> B
+			STAB	-1,X			;compile rel. addr
+			MOVB	#FUDICT_OPT_BSR, 3,SP	;set optimization info
+			RTS				;done
+			;Word not REGULAR ( xt ) (xt in X, IF in B)
+CF_COMPILE_COMMA_4	CMPB	#IMMEDIATE 		;check for IMMEDIATE word
+			BEQ	CF_COMPILE_COMMA_2	;compile as REGULAR word
+			LDX	CP			;CP -> X
+			STX	2,-Y			;( xt CP )
+			CLRA				;u  -> D
+			STD	2,-Y			;( xt CP u )
+			LEAX	B,X			;allocate compile space
+			STX	CP			;update CP
+			JOBSR	CF_MOVE			;copy INLINE code
+			CLR	3,SP			;set optimization info
+			RTS				;done
+
+	
 ;Word ; 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: colon-sys -- )
@@ -306,17 +538,90 @@ CF_COLON_3		MOVW	#COMPILE_NV, STATE	;set STATE
 ;Return to the calling definition specified by nest-sys.
 IF_SEMICOLON		IMMEDIATE			
 CF_SEMICOLON		COMPILE_ONLY			;catch nested compilation
-			;Finish compilation 
-CF_SEMICOLON_1		LDAB	#$3D 			;"RTS"
-			JOBSR	CF_CHAR_COMMA_2		;compile "RTS"
-			;Append word to dictionary 
-			LDD	2,SP 			;NIP colon-sys
-			MOVW	2,SP+, 0,SP		;
-			SUBD	#FUDICT_OFFSET		;adjust for NV compilation
-			STD	FUDICT_LAST_NFA		;add word to dictionary
-			;Revert to interpretation state
-			MOVW	#INTERPRET, STATE 	;revert to interpretation state
+			;Check for optimized word ending
+			LDX	CP 			;CP -> X
+			LDAB	3,SP 			;colon-sys(opt. info)
+			BNE	CF_SEMICOLON_4		;check for optimization
+			;Consider INLINE optimization (CP in X) 
+CF_SEMICOLON_1		TFR	X, D 			;CP           -> D
+			SUBD	4,Y			;CF length +1 -> D
+			BCS	CF_SEMICOLON_2		;no INLINE optimization
+			CPD	#(FUDICT_MAX_INLINE+1)	;chech CF length
+			BHI	CF_SEMICOLON_2		;no INLINE optimization
+			STAB	[4,Y]			;set IF to INLINE
+			;No optimized word ending (CP in X)
+CF_SEMICOLON_2		INX				;increment CP
+			STX	CP			;updated CP
+			MOVB	#$3D, -1,X		;compile "RTS"
+CF_SEMICOLON_3		STX	CP_SAVE 		;secure compiled space
+			;Embed word into dictionary 
+			MOVW	6,SP, FUDICT_LAST_NFA 	;link word
+			JMP	8,SP+			;done
+			;Check for optimization (opt. info in B, CP in X)
+CF_SEMICOLON_4		DBEQ	B, CF_SEMICOLON_5 	;BSR optimization
+			DBNE	B, CF_SEMICOLON_1	;no optimization
+			;JSR optimization (CP in X)
+			LDAA	#$16			;check for JSR ext
+			CMPA	-3,X			;compare opcode
+			BNE	CF_SEMICOLON_1		;no optimization
+			MOVB	#$06, -3,X		;replace JSR by JMP
+			JOB	CF_SEMICOLON_3		;finish up
+			;BSR optimization 	
+CF_SEMICOLON_5		LDAA	#$07			;check for BSR ext
+			CMPA	-2,X			;compare opcode
+			BNE	CF_SEMICOLON_1		;no optimization
+			MOVB	#$20, -2,X		;replace BSR by BRA
+			JOB	CF_SEMICOLON_3		;finish up
+	
+;Word: CONSTANT ( x "<spaces>name" -- )
+;Skip leading space delimiters. Parse name delimited by a space. Create a
+;definition for name with the execution semantics defined below.
+;name is referred to as a constant.
+;name Execution: ( -- x )
+;Place x on the stack.
+IF_CONSTANT		REGULAR
+CF_CONSTANT		EQU	*
+			;Compile header 
+			JOBSR	CF_COLON 		;use standard ":" 
+			;Compile body 
+			JOBSR	CF_LITERAL_1 		;LITERAL
+			;Conclude compilation		
+			JOB	CF_SEMICOLON_1 		;";"
+
+;Word: LITERAL 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( x -- )
+;Append the run-time semantics given below to the current definition.
+;Run-time: ( -- x )
+;Place x on the stack.
+IF_LITERAL		IMMEDIATE
+CF_LITERAL		COMPILE_ONLY
+			;Allocate compile space 
+CF_LITERAL_1		LDX	CP 			;CP -> X
+			LEAX	5,SP			;allocate 5 bytes
+			STX	CP			;update CP
+			;Compile execution semantics 
+			MOVW	#$1800, -5,X		;"MOVW $xxxx, 2,-SP"
+			MOVB	#$6E,   -3,X		; => 18006Exxxx
+			MOVW	2,Y+,   -2,X		;compile top of PS
+			;Set optimizer information 
+			CLR	3,SP			;no optimization
 			RTS				;done
+
+;Word: 2LITERAL 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( x1 x2 -- )
+;Append the run-time semantics below to the current definition.
+;Run-time: ( -- x1 x2 )
+;Place cell pair x1 x2 on the stack.
+IF_2LITERAL		IMMEDIATE
+CF_2LITERAL		EQU	*	
+			JOBSR	CF_SWAP			;(x1 x2 -- x2 x1)
+			JOBSR	CF_LITERAL		;compile x1
+			JOB	CF_LITERAL_1		;compile x2
+
+
+	
 ;Word: S, 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( c-addr u  -- )
@@ -346,595 +651,93 @@ CF_STRING_COMMA_2	MOVB	0,X, D,X		;copy char
 			DEX				;go back to last char
 			BSET	D,X,FUDICT_TERM		;terminate string
 	
-;Word: CELL, 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( x -- )
-;Append cell value x the to the current definition.
-IF_CELL_COMMA		IMMEDIATE
-CF_CELL_COMMA		COMPILE_ONLY
-			;Pull argument from PS 
-CF_CELL_COMMA_1		LDD	2,Y+ 			;x -> D
-			;Allocate compile space (x ion D)
-CF_CELL_COMMA_2		LDX	CP 			;CP -> X
-			LEAX	2,X			;allocate 5 bytes
-			STX	CP			;update CP
-			;Compile execution semntics (x in D)
-			STD	 -2,X			;compile top of PS
-			MOVB	#FUDICT_CTYPE_NONE, FUDICT_LAST_CTYPE;set optimizer info
-			RTS
-
-;Word: CHAR, 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( char -- )
-;Append the char value to the current definition.
-IF_CHAR_COMMA		IMMEDIATE
-CF_CHAR_COMMA		COMPILE_ONLY
-			;Pull argument from PS 
-CF_CHAR_COMMA_1		LDD	2,Y+ 			;x -> D
-			;Allocate compile space (x ion D)
-CF_CHAR_COMMA_2		LDX	CP 			;CP -> X
-			INX				;allocate 5 bytes
-			STX	CP			;update CP
-			;Compile execution semntics (x in D)
-			STAB	 -1,X			;compile top of PS
-			MOVB	#FUDICT_CTYPE_NONE, FUDICT_LAST_CTYPE;set optimizer info
-			RTS
-
-;Word: COMPILE, 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( xt -- )
-;Append the execution semantics of the definition represented by xt to the
-;execution semantics of the current definition.
-IF_COMPILE_COMMA	IMMEDIATE
-CF_COMPILE_COMMA	COMPILE_ONLY
-			;Get xt ( xt )
-CF_COMPILE_COMMA_1	LDX	0,Y 			;xt -> X
-			CLRA				;0  -> D
-			CLRB				;
-			JOB	CF_XT_COMMA_2		;same as XT,
-
-;Word: XT, 
-;Interpretation: throws "compilation only" error
-;Execution: ( xt n -- )
-;Append the execution semantics of xt to the current definition.
-;The execution semantics are physically located at address xt+n.
-IF_XT_COMMA		IMMEDIATE
-CF_XT_COMMA		COMPILE_ONLY
-			;Check IF ( xt n ) 
-CF_XT_COMMA_1		LDD	2,Y+			;n              -> D
-			LDX	0,Y 			;xt             -> X
-			LEAX	D,X			;phys. xt       -> X
-			TFR	X, D 			;phys. xt       -> D		
-			SUBD	CP			;compile offset -> D
-CF_XT_COMMA_2		BRCLR	-1,X,#$FF,CF_XT_COMMA_4	;regular word
-			BRSET	-1,X,#$FF,CF_XT_COMMA_4	;immediate word
-			;Inline word (phys. xt in X, comp. offset in D) 
-			STD	0,Y			;compile offset -> PS
-			CLRA				;inline length  -> D
-			LDAB	-1,X			;
-			ADDD	CP			;new CP         -> D
-			STD	CP			;update CP
-			LDD	0,Y			;copy offset    -> D
-CF_XT_COMMA_3		MOVB	D,X, 1,X+		;copy byte
-			CPX	CP			;check inline range
-			BLO	CF_XT_COMMA_3		;loop
-			MOVB	#FUDICT_CTYPE_INLINE, FUDICT_LAST_CTYPE;set optimizer info
-			INY				;clean up PS
-			RTS				;done
-			;Regular compile (phys. xt in X, comp. offset in D)
-CF_XT_COMMA_4		CMPA	#$FF	     		;check negative branch range
-			BEQ	CF_XT_COMMA_5		;compile BSR
-			TSTA				;check negative branch range
-			BEQ	CF_XT_COMMA_5		;compile BSR
-			;Compile JSR (phys. xt in X, comp. offset in D) 
-			LDX	CP 			;CP -> X
-			LEAX	3,X			;allocate compile space
-			STY	CP			;update CP
-			MOVB	#$16, -3,X		;JSR-opcode
-			MOVW	0,SP, -2,X		;XT address
-			MOVB	#FUDICT_CTYPE_JSR, FUDICT_LAST_CTYPE;set optimizer info
-			INY				;clean up PS
-			RTS				;done
-			;Compile BSR (phys. xt in X, comp. offset in D) 
-CF_XT_COMMA_5		LDX	CP 			;CP -> X
-			LEAX	2,X			;allocate compile space
-			STY	CP			;update CP
-			MOVB	#$07, -1,X		;JSR-opcode
-			STAB	0,X			;relative XT address
-			MOVB	#FUDICT_CTYPE_BSR, FUDICT_LAST_CTYPE;set optimizer info
-			INY				;clean up PS
-			RTS				;done
-	
-;Word: CONSTANT ( x "<spaces>name" -- )
-;Skip leading space delimiters. Parse name delimited by a space. Create a
-;definition for name with the execution semantics defined below.
-;name is referred to as a constant.
-;name Execution: ( -- x )
-;Place x on the stack.
-IF_CONSTANT		REGULAR
-CF_CONSTANT		EQU	*
-			;Compile header 
-			JOBSR	CF_COLON 		;use standard ":" 
-			;Compile body 
-			JOBSR	CF_LITERAL_1 		;LITERAL
-			;Conclude compilation		
-			JOB	CF_SEMICOLON_1 		;";"
-
-;Word: VARIABLE ( "<spaces>name" -- )
-;Skip leading space delimiters. Parse name delimited by a space. Create a
-;definition for name with the execution semantics defined below. Reserve one
-;cell of data space at an aligned address.
-;name is referred to as a variable.
-;name Execution: ( -- a-addr )
-;a-addr is the address of the reserved cell. A program is responsible for
-;initializing the contents of the reserved cell.
-IF_VARIABLE		REGULAR	
-CF_VARIABLE		EQU	*
-
-			RTS
-	
-
-;Word: LITERAL 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( x -- )
-;Append the run-time semantics given below to the current definition.
-;Run-time: ( -- x )
-;Place x on the stack.
-IF_LITERAL		IMMEDIATE
-CF_LITERAL		COMPILE_ONLY
-			;Allocate compile space 
-CF_LITERAL_1		LDX	CP 			;CP -> X
-			LEAX	5,SP			;allocate 5 bytes
-			STX	CP			;update CP
-			;Compile execution semantics 
-			MOVW	#$1800, -5,X		;"MOVW $xxxx, 2,-SP"
-			MOVB	#$6E,   -3,X		; => 18006Exxxx
-			MOVW	2,Y+,   -2,X		;compile top of PS
-			;Set optimizer information 
-			MOVB	#FUDICT_CTYPE_INLINE, FUDICT_LAST_CTYPE;inline code
-			RTS				;done
-
-;Word: 2LITERAL 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Compilation: ( x1 x2 -- )
-;Append the run-time semantics below to the current definition.
-;Run-time: ( -- x1 x2 )
-;Place cell pair x1 x2 on the stack.
-IF_2LITERAL		IMMEDIATE
-CF_2LITERAL		EQU	*	
-			JOBSR	CF_SWAP			;(x1 x2 -- x2 x1)
-			JOBSR	CF_LITERAL		;compile x1
-			JOB	CF_LITERAL_1		;compile x2
-	
-;Word: LU-UDICT ( c-addr u -- xt | c-addr u false )
-;Look up a name in the UDICT dictionary. The name is referenced by the start
-;address c-addr and the character count u. If successful the resulting execution
-;token xt is returned. Otherwise the name reference remains on the parameter
-;stack along with a false flag.
-;When the UDICT dictionary is used as a buffer for compilation to non-volatile
-;memory, xt will reference the code field in the target memory. Therefore it  
-;must not be executed before the buffered compilation is flushed into the non-
-;volatile memory
-IF_LU_UDICT		REGULAR
-CF_LU_UDICT		EQU	*
-			MOVW	#$0000, 2,-Y
-			RTS
-
-;Word: WORDS-UDICT ( -- )
-;List the definition names in the core dictionary in alphabetical order.
-;When the UDICT dictionary is used as a buffer for compilation to non-volatile
-;memory, no word list is printed 
-IF_WORDS_UDICT		REGULAR
-CF_WORDS_UDICT		EQU	*
-			RTS
-
-	
-;;#User dictionary (UDICT)
-;;========================
-;;Complile operations:
-;;====================	
-;
-;
-;
-;;Dictionary operations:
-;;======================	
-;;#Look-up word in user dictionary 
-;; args:   X: string pointer (terminated string)
-;; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
-;; SSTACK: 12 bytes
-;;         X and Y are preserved
-;FUDICT_FIND		EQU	*
-;			;Save registers (string pointer in X)
-;			PSHY						;start of dictionary
-;#ifdef	NVDICT_ON
-;			;Check NVC (string pointer in X)
-;			LDY	NVC 					;check NVC
-;			BNE	FUDICT_FIND_1 				;no UDICT if NVC is set
-;#endif
-;			;Search UDICT (string pointer in X)
-;			LDY	UDICT_LAST_NFA 				;start of UDICT -> Y
-;			FUDICT_GENFIND					;(SSTACK: 8 bytes)
-;			;Done (result in D)
-;FUDICT_FIND_1		SSTACK_PREPULL	4 				;check stack
-;			PULY						;restore Y
-;			RTS
-;
-;;#Look-up word in any user defined dictionary 
-;; args:   X: string pointer (terminated string)
-;;	  Y: start of dictionary (last NFA)
-;; result: D: {IMMEDIATE, CFA>>1} of new word, zero if word not found
-;; SSTACK: 8 bytes
-;;         X and Y are preserved
-;FUDICT_GENFIND	EQU	*
-;			;Save registers (string pointer in X, start of dictionary in Y)
-;			PSHX						;string pointer
-;			PSHY						;start of dictionary
-;			PSHY						;ITERATOR -> 0,SP
-;			;Compare strings (string pointer in X)
-;			LDY	0,SP					;current NFA -> Y
-;FUDICT_GENFIND_1	LEAY	2,Y					;start of dict string -> Y
-;FUDICT_GENFIND_2	LDAB	1,X+					;string char -> A
-;			FIO_UPPER		 			;make upper case
-;			CMPB	1,Y+ 					;compare chars
-;			BNE	FUDICT_GENFIND_4 			;mismatch
-;			BRCLR	-1,X, #FIO_TERM, FUDICT_GENFIND_2 	;check next char
-;			;Match (pointer to code field or padding in Y)
-;			FUDICT_WORD_ALIGN Y 				;word align Y
-;			TFR	Y, D 					;CFA    -> D
-;			LSRD						;CFA>>1 -> D
-;			BRCLR	0,SP, #$80, FUDICT_GENFIND_3	 	;check if word is IMMEDIATE
-;			ORAB	#$80 					;make result IMMEDIATE	
-;			;Done (result in D)
-;FUDICT_GENFIND_3	SSTACK_PREPULL	8 				;check stack
-;			LEAS	2,SP 					;clean up temporary variables
-;			PULY						;restore Y
-;			PULX						;restore X
-;			RTS
-;			;Mismatch
-;FUDICT_GENFIND_4	FUDICT_ITERATOR_NEXT	(0,SP) 			;advance iterator
-;			TFR	D, Y 					;new NFA -> Y
-;			BNE	FUDICT_GENFIND_1 			;compare strings
-;			;Search unsuccessful (string pointer in X)
-;			CLRA						;set result
-;			CLRB						; -> not found
-;			JOB	FUDICT_GENFIND_3 			;done
-;
-;;#Reverse lookup a CFA and print the corresponding word
-;; args:   D: CFA
-;; result: C-flag: set if successful
-;; SSTACK: 22 bytes
-;;         All registers are preserved
-;FUDICT_REVPRINT_BL	EQU	*
-;			;Save registers (CFA in D, start of dictionary in X)
-;			PSHY						;save Y
-;#ifdef NVC
-;			;Check NVC (string pointer in X)
-;			LDY	NVC 					;check NVC
-;			BNE	FUDICT_REVPRINT_1 			;no UDICT if NVC is set
-;#endif
-;			;Reverse look-up CFA
-;			LDY	UDICT_LAST_NFA				;start of UDICT -> Y
-;			FUDICT_GENREVPRINT_BL 				;(SSTACK: 18 bytes)
-;			BCC	FUDICT_REVPRINT_1 			;no success
-;			;Success
-;			SSTACK_PREPULL	4 				;check stack
-;			PULY						;restore Y
-;			SEC						;flag success	
-;			RTS
-;			;Failure
-;FUDICT_REVPRINT_1	SSTACK_PREPULL	4 				;check stack
-;			PULY						;restore Y
-;			CLC						;flag failure	
-;			RTS
-;
-;;#Generic reverse lookup a CFA and print the corresponding word
-;; args:   D: CFA
-;;	  Y: start of dictionary (last NFA)
-;; result: C-flag: set if successful
-;; SSTACK: 18 bytes
-;;         All registers are preserved
-;FUDICT_GENREVPRINT_BL	EQU	*
-;			;Save registers (CFA in D, start of dictionary in X)
-;			PSHX						;string pointer
-;			PSHD						;CFA
-;			;Allocate iterator (CFA in D, start of dictionary in X)
-;			;FUDICT_ITERATOR_FIRST	(2,-SP)			;ITERATOR -> 0,SP
-;			PSHY						;ITERATOR -> 0,SP
-;			;Check CFA
-;FUDICT_GENREVPRINT_BL_1	FUDICT_ITERATOR_CFA	(0,SP)			;{IMMEDIATE, CFA>>1} -> D
-;			LSLD						;remove IMMEDIATE flag
-;			CPD	2,SP 					;compare CFAs
-;			BEQ	FUDICT_GENREVPRINT_BL_2 		;match
-;			;Mismatch		
-;			FUDICT_ITERATOR_NEXT 	(0,SP)			;advance iterator
-;			BNE	FUDICT_GENREVPRINT_BL_1 		;check next CFA
-;			;Search unsucessful					
-;			SSTACK_PREPULL	8 				;check stack
-;			CLC						;flag failure
-;			JOB	FUDICT_GENREVPRINT_BL_3 		;done
-;			;Search unsucessful		
-;FUDICT_GENREVPRINT_BL_2	FUDICT_ITERATOR_PRINT 	(0,SP)			;print word (SSTACK: 10 bytes)
-;			SSTACK_PREPULL	8 				;check stack
-;			SEC						;flag success
-;			;Done		
-;FUDICT_GENREVPRINT_BL_3	LEAS	2,SP 					;remove iterator
-;			PULD						;restore D
-;			PULX						;restore X
-;			RTS
-;
-;;#Pictured numeric output buffer (PAD)
-;;=====================================
-;	
-;;PAD_ALLOC: allocate the PAD buffer (PAD_SIZE bytes if possible) (PAD -> D)
-;; args:   none
-;; result: D: PAD (= HLD), $0000 if no space is available
-;; SSTACK: 2
-;;        X and Y are preserved 
-;FUDICT_PAD_ALLOC	EQU	*
-;			;Calculate available space
-;			LDD	PSP
-;			SUBD	CP
-;			;BLS	FUDICT_PAD_ALLOC_4 	;no space available at all
-;			;Check if requested space is available
-;			CPD	#(PAD_SIZE+PS_PADDING)
-;			BLO	FUDICT_PAD_ALLOC_3	;reduce size
-;			LDD	CP
-;			ADDD	#PAD_SIZE
-;			;Allocate PAD
-;FUDICT_PAD_ALLOC_1	STD	PAD
-;			STD	HLD
-;			;Done 
-;FUDICT_PAD_ALLOC_2	SSTACK_PREPULL	2
-;			RTS
-;			;Reduce PAD size 
-;FUDICT_PAD_ALLOC_3	CPD	#(PAD_MINSIZE+PS_PADDING)
-;			BLO	FUDICT_PAD_ALLOC_4		;not enough space available
-;			LDD	PSP
-;			SUBD	#PS_PADDING
-;			JOB	FUDICT_PAD_ALLOC_1 		;allocate PAD
-;			;Not enough space available
-;FUDICT_PAD_ALLOC_4	LDD 	$0000 				;signal failure
-;			JOB	FUDICT_PAD_ALLOC_2		;done
-;
-;;Code fields:
-;;============
-;;: ( C: "<spac2es>name" -- colon-sys )
-;;Skip leading space delimiters. Parse name delimited by a space. Create a
-;;definition for name, called a colon definition. Enter compilation state and
-;;start the current definition, producing colon-sys. Append the initiation
-;;semantics given below to the current definition.
-;;The execution semantics of name will be determined by the words compiled into
-;;the body of the definition. The current definition shall not be findable in the
-;;dictionary until it is ended (or until the execution of DOES> in some systems).
-;;Initiation: ( i*x -- i*x )  ( R:  -- nest-sys )
-;;Save implementation-dependent information nest-sys about the calling
-;;definition. The stack effects i*x represent arguments to name.
-;;name Execution: ( i*x -- j*x )
-;;Execute the definition name. The stack effects i*x and j*x represent arguments
-;;to and results from name, respectively.
-;;
-;;S12CForth implementation details:
-;;colon-sys is the NFA if the new definition. $0000 is used for :NONAME
-;;definitions. 
-;;Throws:
-;;"Parameter stack overflow"
-;;"Missing name argument"
-;;"Dictionary overflow"
-;;"Compiler nesting"
-;CF_COLON		EQU	*			
-;			;Ensure interpretation state  
-;			INTERPRET_ONLY				;check for nested definition
-;			;Push colon-sys (new NFA)onto PS 
-;			PS_PUSH	CP 				;push pointer to new NFA
-;			;Parse name
-;			CLRA					;whitespace delimeters
-;			FOUTER_PARSE				;parse TIM
-;			TBEQ	D, CF_COLON_2			;missing name argument
-;			;Allocate header (char count in D, string pointer in X)
-;			ADDD	#5 				;add padding, NFA, and CFA			
-;			ANDB	#$FE				;word align char count
-;			UDICT_CHECK_OF	D			;new_compile count in Y
-;			MOVB	#$FF, -3,Y			;flash friendly padding
-;			MOVW	#CF_INNER, -2,Y			;execution semantics (inner interpreter)
-;			LDD	CP				;start of header -> D
-;			STY	CP				;update CP
-;			TFR	D, Y				;start of header -> Y
-;			LDD	UDICT_LAST_NFA			;last NFA -> D
-;			LSRD					;shift pointer
-;			STD	2,Y+				;link in new header
-;			;Copy name into header (start of name in Y, string pointer in X)	
-;CF_COLON_1		LDAB	1,X+ 				;char -> B
-;			FIO_UPPER				;make upper case (SSTACK: 2 bytes)
-;			STAB	1,Y+				;append char to name
-;			BPL	CF_COLON_1			;loop untill termination is found
-;			;Set compile state 	
-;			MOVW	#STATE_COMPILE, STATE 		;switch to compile state
-;			NEXT
-;			;Missing name argument
-;CF_COLON_2		FEXCPT_THROW	FEXCPT_EC_NONAME,	;Error -16! "Missing name argument"
-;
-;:NONAME ( C:  -- colon-sys )  ( S:  -- xt )
-;;Create an execution token xt, enter compilation state and start the current
-;;definition, producing colon-sys. Append the initiation semantics given below
-;;to the current definition.
-;;The execution semantics of xt will be determined by the words compiled into the
-;;body of the definition. This definition can be executed later by using
-;;xt EXECUTE.
-;;If the control-flow stack is implemented using the data stack, colon-sys shall
-;;be the topmost item on the data stack.
-;;Initiation: ( i*x -- i*x ) ( R:  -- nest-sys )
-;;Save implementation-dependent information nest-sys about the calling
-;;definition. The stack effects i*x represent arguments to xt.
-;;xt Execution: ( i*x -- j*x )
-;;Execute the definition specified by xt. The stack effects i*x and j*x represent
-;;arguments to and results from xt, respectively.
-;;
-;;S12CForth implementation details:
-;;colon-sys is the NFA if the new definition. $0000 is used for :NONAME
-;;definitions. 
-;;Throws:
-;;"Parameter stack overflow"
-;;"Compiler nesting"
-;;"Dictionary overflow"
-;CF_COLON_NONAME		EQU	*			
-;			;Ensure interpretation state  
-;			INTERPRET_ONLY				;check for nested definition
-;			;Push xt and colon-sys (zero) onto the PS 
-;			PS_CHECK_OF 2 				;new PS -> Y
-;			MOVW	CP, 2,Y				;push xt
-;			MOVW	#$0000, 0,Y			;push colon-sys
-;			STY	PSP				;update PSP			
-;			;Allocate header
-;			UDICT_CHECK_OF	2			;new_compile count in Y
-;			MOVW	#CF_INNER, -2,Y			;execution semantics (inner interpreter)
-;			STY	CP				;update CP
-;			;Set compile state 	
-;			MOVW	#STATE_COMPILE, STATE 		;switch to compile state
-;			NEXT
-;
-;;; 
+;;Word: CELL, 
 ;;Interpretation: Interpretation semantics for this word are undefined.
-;;Compilation: ( C: colon-sys -- )
-;;Append the run-time semantics below to the current definition. End the current
-;;definition, allow it to be found in the dictionary and enter interpretation
-;;state, consuming colon-sys. If the data-space pointer is not aligned, reserve
-;;enough data space to align it.
-;;Run-time: ( -- ) ( R: nest-sys -- )
-;;Return to the calling definition specified by nest-sys.
-;;
-;;S12CForth implementation details:
-;;colon-sys is the NFA if the new definition. $0000 is used for :NONAME
-;;definitions. 
-;;Throws:
-;;"Parameter stack underflow"
-;;"Dictionary overflow"
-;;"Compile-only word"
+;;Execution: ( x -- )
+;;Append cell value x the to the current definition.
+;IF_CELL_COMMA		IMMEDIATE
+;CF_CELL_COMMA		COMPILE_ONLY
+;			;Pull argument from PS 
+;CF_CELL_COMMA_1		LDD	2,Y+ 			;x -> D
+;			;Allocate compile space (x ion D)
+;CF_CELL_COMMA_2		LDX	CP 			;CP -> X
+;			LEAX	2,X			;allocate 5 bytes
+;			STX	CP			;update CP
+;			;Compile execution semntics (x in D)
+;			STD	 -2,X			;compile top of PS
+;			MOVB	#FUDICT_CTYPE_NONE, FUDICT_LAST_CTYPE;set optimizer info
+;			RTS
 ;
-;CF_SEMICOLON		EQU	*			
-;			;Ensure interpretation state  
-;			COMPILE_ONLY			 	;ensure that compile mode is on
-;			;Terminate compilation
-;			UDICT_CHECK_OF	2			;new_compile count in Y
-;			MOVW	#CFA_EOW, -2,Y			;execution semantics (end of woed)
-;			STY	CP				;update CP
-;			;Pull colon-sys
-;			PS_PULL_D 				;colon-sys -> D
-;			BEQ	CF_SEMICOLON_1			;don't update UDICT_LAST_NFA
-;			STD	UDICT_LAST_NFA			;update UDICT_LAST_NFA
-;			;Save CP 	
-;CF_SEMICOLON_1		MOVW	CP, CP_SAVED
-;			;Set interpretation state 	
-;			MOVW	#STATE_INTERPRET, STATE 	;switch to interpretation state
-;			NEXT
-;
-;;IMMEDIATE ( -- )
-;;Make the most recent definition an immediate word. An ambiguous condition
-;;exists if the most recent definition does not have a name.
-;;
-;;S12CForth implementation details:
-;;Modifies most recent named definition.
-;			;Modify most recent header
-;CF_IMMEDIATE		LDX	UDICT_LAST_NFA  		;find most recent named definition
-;			BEQ	CF_IMMEDIATE_1			;UDICT is empty
-;			BSET	0,X, #$80 			;set immediate bit
-;			;Done 
-;CF_IMMEDIATE_1		NEXT
+;;Word: CHAR, 
+;;Interpretation: Interpretation semantics for this word are undefined.
+;;Execution: ( char -- )
+;;Append the char value to the current definition.
+;IF_CHAR_COMMA		IMMEDIATE
+;CF_CHAR_COMMA		COMPILE_ONLY
+;			;Pull argument from PS 
+;CF_CHAR_COMMA_1		LDD	2,Y+ 			;x -> D
+;			;Allocate compile space (x ion D)
+;CF_CHAR_COMMA_2		LDX	CP 			;CP -> X
+;			INX				;allocate 5 bytes
+;			STX	CP			;update CP
+;			;Compile execution semntics (x in D)
+;			STAB	 -1,X			;compile top of PS
+;			MOVB	#FUDICT_CTYPE_NONE, FUDICT_LAST_CTYPE;set optimizer info
+;			RTS
+
+;;Word: NVCBUF, 
+;;Interpretation: throws "compilation only" error
+;;Execution: ( xt n -- )
+;;Append the execution semanticsFUDICT_OFFSET of xt to the current definition.
+;;xt is the target address of a word in the non-volatile compile buffer.
+;IF_XT_COMMA		IMMEDIATE
+;CF_XT_COMMA		COMPILE_ONLY
+;			;Check IF ( xt n ) 
+;CF_XT_COMMA_1		LDD	0,Y			;tgt xt -> D
+;			ADDD	FUDICT_OFFSET		;src xt -> D
+;			TFR	D, X			;src xt -> X
+;CF_XT_COMMA_2		BRCLR	-1,X,#$FF,CF_XT_COMMA_4	;regular word
+;			BRSET	-1,X,#$FF,CF_XT_COMMA_4	;immediate word
+;			;Inline word (src. xt in X and D) 
+;			SUBD	CP 			;copy offset -> D
+;			MOVB	-1,X, 1,-SP		;copy count  -> RS
+;			LDX	CP			;CP          -> D
+;CF_XT_COMMA_3		MOVB	D,X, 1,X+		;copy byte
+;			DEC	0,SP			;decrement counter
+;			BNE	CF_XT_COMMA_3		;loop
+;			INS				;clean up RS
+;			MOVB	#FUDICT_CTYPE_INLINE, FUDICT_LAST_CTYPE;set optimizer info
+;			INY				;clean up PS
+;			RTS				;done
+;			;Regular compile 
+;CF_XT_COMMA_4		LDD	CP 			;src addr -> D
+;			ADDD	FUDICT_OFFSET		;tgt addr -> D	
+;			SUBD	0,Y			
 ;	
-;;FIND-UDICT ( c-addr -- c-addr 0 |  xt 1 | xt -1 )  
-;;Find the definition named in the terminated string at c-addr. If the definition is
-;;not found, return c-addr and zero.  If the definition is found, return its
-;;execution token xt.  If the definition is immediate, also return one (1),
-;;otherwise also return minus-one (-1).  For a given string, the values returned
-;;by FIND-UDICT while compiling may differ from those returned while not compiling. 
-;; args:   PSP+0: terminated string to match dictionary entry
-;; result: PSP+0: 1 if match is immediate, -1 if match is not immediate, 0 in
-;;         	 case of a mismatch
-;;  	  PSP+2: execution token on match, input string on mismatch
-;; SSTACK: 8 bytes
-;; PS:     1 cell
-;; RS:     1 cell
-;; throws: FEXCPT_EC_PSOF
-;;         FEXCPT_EC_PSUF
-;CF_FIND_UDICT		EQU	*
-;			;Check PS
-;			PS_CHECK_UFOF	1, 1 		;new PSP -> Y
-;			;Search core directory (PSP in Y)
-;			LDX	2,Y
-;			FUDICT_FIND 			;(SSTACK: 8 bytes)
-;			FOUTER_FIND_FORMAT		;(SSTACK: 2 bytes)
-;			STD	0,Y
-;			STX	2,Y
-;			;Done
-;			NEXT
-;	
-;;WORDS-UDICT ( -- )
-;;List the definition names in the core dictionary in alphabetical order.
-;; args:   none
-;; result: none
-;; SSTACK: 8 bytes
-;; PS:     ? cells
-;; RS:     2 cells
-;; throws:  FEXCPT_EC_PSOF
-;CF_WORDS_UDICT		EQU	*
-;			; PS layout:
-;			; +--------+--------+
-;			; |    Iterator     | PSP+0
-;			; +--------+--------+
-;			; | Column counter  | PSP+2
-;			; +--------+--------+
-;#ifdef NVDICT_ON
-;			;Check NVC 
-;			LDD	NVC			;check NVC
-;			BNE	CF_WORDS_UDICT_4	;no UDICT if NVC is set
-;#endif
-;			;Check if dictionary is empty 
-;			LDD	UDICT_LAST_NFA 		;check if any NFA exists
-;			BEQ	CF_WORDS_UDICT_4	;no NFA
-;			;Print header
-;			PS_PUSH	#FUDICT_WORDS_HEADER
-;			EXEC_CF	CF_STRING_DOT
-;			;Allocate stack space
-;			PS_CHECK_OF	2		;new PSP -> Y
-;			STY	PSP
-;			;Initialize iterator and column counter (PSP in Y)
-;			FUDICT_ITERATOR_FIRST	(0,Y)	;initialize iterator
-;			MOVW #FUDICT_LINE_WIDTH, 2,Y	;initialize column count
-;			;Check column width (PSP in Y)
-;CF_WORDS_UDICT_1	LDD	2,Y 			;column count -> D
-;			FUDICT_ITERATOR_WC (0,Y)
-;			CPD	#(FUDICT_LINE_WIDTH+1)	;check line width
-;			BLS	CF_WORDS_UDICT_2 	;insert white space
-;			;Insert line break (PSP in Y)			
-;			MOVW	#$0000, 2,Y		;reset column counter
-;			EXEC_CF	CF_CR 			;print line break
-;			JOB	CF_WORDS_UDICT_3	;print word
-;			;Insert white space (PSP in Y, new column count in D)
-;CF_WORDS_UDICT_2	ADDD	#1			;count space char
-;			STD	CF_WORDS_CDICT_COLCNT,Y	;update column counter
-;			EXEC_CF	CF_SPACE		;print whitespace
-;			;Print word						
-;CF_WORDS_UDICT_3	LDY	PSP				;PSP -> Y
-;			LDX	0,Y			;word entry -> X
-;			LEAX	2,X			;start of string -> X
-;			PS_PUSH_X			;print string
-;			EXEC_CF	CF_STRING_DOT		;
-;			;Skip to next word						
-;			LDY	PSP			;PSP -> Y
-;			FUDICT_ITERATOR_NEXT	(0,Y)	;advance iterator
-;			BNE	CF_WORDS_UDICT_1	;print next word					
-;			;Clean up (PSP in Y)						
-;			PS_CHECK_UF	2 		;PSP -> Y
-;			LEAY	2,Y
-;			STY	PSP
-;CF_WORDS_UDICT_4	NEXT
 ;
-;;Exceptions:
-;;===========
-;;Standard exceptions
-;#ifndef FUDICT_NO_CHECK
-;FUDICT_THROW_DICTOF	FEXCPT_THROW	FEXCPT_EC_DICTOF	;parameter stack overflow
-;FUDICT_THROW_PADOF	FEXCPT_THROW	FEXCPT_EC_PADOF		;PAD overflow
-;#endif
+;			CMPA	#$FF	     		;check negative branch range
+;			BEQ	CF_XT_COMMA_5		;compile BSR
+;			TSTA				;check negative branch range
+;			BEQ	CF_XT_COMMA_5		;compile BSR
+;			;Compile JSR (phys. xt in X, comp. offset in D) 
+;			LDX	CP 			;CP -> X
+;			LEAX	3,X			;allocate compile space
+;			STY	CP			;update CP
+;			MOVB	#$16, -3,X		;JSR-opcode
+;			MOVW	0,SP, -2,X		;XT address
+;			MOVB	#FUDICT_CTYPE_JSR, FUDICT_LAST_CTYPE;set optimizer info
+;			INY				;clean up PS
+;			RTS				;done
+;			;Compile BSR (phys. xt in X, comp. offset in D) 
+;CF_XT_COMMA_5		LDX	CP 			;CP -> X
+;			LEAX	2,X			;allocate compile space
+;			STY	CP			;update CP
+;			MOVB	#$07, -1,X		;JSR-opcode
+;			STAB	0,X			;relative XT address
+;			MOVB	#FUDICT_CTYPE_BSR, FUDICT_LAST_CTYPE;set optimizer info
+;			INY				;clean up PS
+;			RTS				;done
+	
 
 FUDICT_CODE_END		EQU	*
 FUDICT_CODE_END_LIN	EQU	@
@@ -952,89 +755,5 @@ FUDICT_TABS_START_LIN	EQU	@
 ;#New line string
 FUDICT_STR_NL		EQU	STRING_STR_NL
 
-;#Header line for WORDS output 
-FUDICT_WORDS_HEADER	STRING_NL_NONTERM
-			FCS	"User Dictionary:"
-			;FCS	"UDICT:"
-
 FUDICT_TABS_END		EQU	*
 FUDICT_TABS_END_LIN	EQU	@
-
-;;###############################################################################
-;;# Words                                                                       #
-;;###############################################################################
-;#ifdef FUDICT_WORDS_START_LIN
-;			ORG 	FUDICT_WORDS_START, FUDICT_WORDS_START_LIN
-;#else
-;			ORG 	FUDICT_WORDS_START
-;FUDICT_WORDS_START_LIN	EQU	@
-;#endif	
-;
-;;#ANSForth Words:
-;;================
-;;Word: : ( C: "<spac2es>name" -- colon-sys ) 				IMMEDIATE
-;;Skip leading space delimiters. Parse name delimited by a space. Create a
-;;definition for name, called a colon definition. Enter compilation state and
-;;start the current definition, producing colon-sys. Append the initiation
-;;semantics given below to the current definition.
-;;The execution semantics of name will be determined by the words compiled into
-;;the body of the definition. The current definition shall not be findable in the
-;;dictionary until it is ended (or until the execution of DOES> in some systems).
-;;Initiation: ( i*x -- i*x )  ( R:  -- nest-sys )
-;;Save implementation-dependent information nest-sys about the calling
-;;definition. The stack effects i*x represent arguments to name.
-;;name Execution: ( i*x -- j*x )
-;;Execute the definition name. The stack effects i*x and j*x represent arguments
-;;to and results from name, respectively.
-;CFA_COLON		DW	CF_COLON
-;
-;;Word: :NONAME ( C:  -- colon-sys )  ( S:  -- xt ) IMMEDIATE
-;;Create an execution token xt, enter compilation state and start the current
-;;definition, producing colon-sys. Append the initiation semantics given below
-;;to the current definition.
-;;The execution semantics of xt will be determined by the words compiled into the
-;;body of the definition. This definition can be executed later by using
-;;xt EXECUTE.
-;;If the control-flow stack is implemented using the data stack, colon-sys shall
-;;be the topmost item on the data stack.
-;;Initiation: ( i*x -- i*x ) ( R:  -- nest-sys )
-;;Save implementation-dependent information nest-sys about the calling
-;;definition. The stack effects i*x represent arguments to xt.
-;;xt Execution: ( i*x -- j*x )
-;;Execute the definition specified by xt. The stack effects i*x and j*x represent
-;;arguments to and results from xt, respectively.
-;CFA_COLON_NONAME	DW	CF_COLON_NONAME
-;
-;;Word: ;								IMMEDIATE 
-;;Interpretation: Interpretation semantics for this word are undefined.
-;;Compilation: ( C: colon-sys -- )
-;;Append the run-time semantics below to the current definition. End the current
-;;definition, allow it to be found in the dictionary and enter interpretation
-;;state, consuming colon-sys. If the data-space pointer is not aligned, reserve
-;;enough data space to align it.
-;;Run-time: ( -- ) ( R: nest-sys -- )
-;;Return to the calling definition specified by nest-sys.
-;CFA_SEMICOLON		DW	CF_SEMICOLON
-;
-;;Word: IMMEDIATE ( -- )
-;;Make the most recent definition an immediate word. An ambiguous condition
-;;exists if the most recent definition does not have a name.
-;CFA_IMMEDIATE		DW	CF_IMMEDIATE
-;	
-;;#S12CForth Words:
-;;=================
-;;Word: FIND-UDICT ( c-addr -- c-addr 0 |  xt 1 | xt -1 )  
-;;Find the definition named in the terminated string at c-addr. If the definition is
-;;not found, return c-addr and zero.  If the definition is found, return its
-;;execution token xt.  If the definition is immediate, also return one (1),
-;;otherwise also return minus-one (-1).  For a given string, the values returned
-;;by FIND-UDICT while compiling may differ from those returned while not compiling. 
-;CFA_FIND_UDICT		DW	CF_FIND_UDICT
-;
-;;Word: WORDS-UDICT ( -- )
-;;List the definition names in the core dictionary in alphabetical order.
-;CFA_WORDS_UDICT		DW	CF_WORDS_UDICT
-;		
-;FUDICT_WORDS_END	EQU	*
-;FUDICT_WORDS_END_LIN	EQU	@
-;#endif

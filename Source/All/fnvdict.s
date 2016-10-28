@@ -36,10 +36,9 @@
 ;#             DP = Data pointer                                               #
 ;#                  Points to the next free location in the user variable      #
 ;#                  space                                                      #
-;#            NVC = 0 -> Volatile compilation (UDICT)  		               #
-;#                 -1 -> Non-volatile compilation (UNVICT)                     #
+;#        DP_SAVE = Previous data pointer                                      #
 ;#                                                                             #
-;#    Compile strategy:                                                        #
+;#    Non-Volatile compile strategy:                                           #
 ;#    The non-volatile dictionary space is allocated after scanning the flash  #
 ;#    memory. When the NVDICT is selected as compile target, the UDICT is      #
 ;#    cleared and used as a buffer for compilation. During this buffered       #
@@ -50,6 +49,44 @@
 ;#    space. Then the compilation of a code sequence is finished, the compile  #
 ;#    buffer is copied into the flash as a string.                             #
 ;#                                                                             #
+;#    The following notation is used to describe the stack layout in the word  #
+;#    definitions:                                                             #
+;#                                                                             #
+;#    Symbol          Data type                       Size on stack	       #
+;#    ------          ---------                       -------------	       #
+;#    flag            flag                            1 cell		       #
+;#    true            true flag                       1 cell		       #
+;#    false           false flag                      1 cell		       #
+;#    char            character                       1 cell		       #
+;#    n               signed number                   1 cell		       #
+;#    +n              non-negative number             1 cell		       #
+;#    u               unsigned number                 1 cell		       #
+;#    n|u 1           number                          1 cell		       #
+;#    x               unspecified cell                1 cell		       #
+;#    xt              execution token                 1 cell		       #
+;#    addr            address                         1 cell		       #
+;#    a-addr          aligned address                 1 cell		       #
+;#    c-addr          character-aligned address       1 cell		       #
+;#    d-addr          double address                  2 cells (non-standard)   #
+;#    d               double-cell signed number       2 cells		       #
+;#    +d              double-cell non-negative number 2 cells		       #
+;#    ud              double-cell unsigned number     2 cells		       #
+;#    d|ud 2          double-cell number              2 cells		       #
+;#    xd              unspecified cell pair           2 cells		       #
+;#    colon-sys       definition compilation          implementation dependent #
+;#    do-sys          do-loop structures              implementation dependent #
+;#    case-sys        CASE structures                 implementation dependent #
+;#    of-sys          OF structures                   implementation dependent #
+;#    orig            control-flow origins            implementation dependent #
+;#    dest            control-flow destinations       implementation dependent #
+;#    loop-sys        loop-control parameters         implementation dependent #
+;#    nest-sys        definition calls                implementation dependent #
+;#    i*x, j*x, k*x 3 any data type                   0 or more cells	       #
+;#  									       #
+;#    Counted strings are implemented as terminated strings. String            #
+;#    termination is done by setting bit 7 in the last character of the        #   
+;#    string. Pointers to empty strings have the value $0000.		       #
+;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 23, 2009                                                           #
@@ -231,6 +268,38 @@ FNVDICT_CODE_START_LIN	EQU	@
 ;# Words #
 ;#########
 
+;Word: NV{ ( -- )
+;Remove the UDICT and switch to the non-volatile compile strategy.
+IF_NV_OPEN		IMMEDIATE
+CF_NV_OPEN		COMPILE_ONLY
+			RTS
+
+;Word: }NV ( -- )
+;Flush the NV compile buffer into the NVDICT  and switch to the volatile compile
+;strategy.
+IF_NV_CLOSE		IMMEDIATE
+CF_NV_CLOSE		COMPILE_ONLY
+			RTS
+;Word: NVCOMPILE, 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( xt -- )
+;Append the buffered execution semantics of the definition represented by xt to
+;the execution semantics of the current definition.
+IF_NVCOMPILE_COMMA	IMMEDIATE
+CF_NVCOMPILE_COMMA	COMPILE_ONLY
+			LEAY	2,Y
+			RTS
+	
+;Word: LU-NVCBUF ( c-addr u -- xt | c-addr u false )
+;Look up a name in the non-volentile compile buffer. The name is referenced by
+;the start address c-addr and the character count u. If successful the resulting
+;execution token xt is returned. Otherwise the name reference remains on the
+;parameter stack along with a false flag.
+IF_LU_NVCBUF		REGULAR
+CF_LU_NVCBUF		EQU	*
+			MOVW	#$0000, 2,-Y
+			RTS
+
 ;Word: LU-NVDICT ( c-addr u -- xt | c-addr u false )
 ;Look up a name in the NVDICT dictionary. The name is referenced by the start
 ;address c-addr and the character count u. If successful the resulting execution
@@ -241,13 +310,36 @@ CF_LU_NVDICT		EQU	*
 			MOVW	#$0000, 2,-Y
 			RTS
 
+;Word: WORDS-NVCVUF ( -- )
+;List the definition names in the NV compile buffer.
+IF_WORDS_NVCBUF		REGULAR
+CF_WORDS_NVCBUF		EQU	*
+			RTS
+	
 ;Word: WORDS-NVDICT ( -- )
-;List the definition names in the core dictionary in alphabetical order.
-;When the NVDICT dictionary is used as a buffer for compilation to non-volatile
-;memory, no word list is printed 
+;List the definition names in the NVDICT dictionary.
 IF_WORDS_NVDICT		REGULAR
 CF_WORDS_NVDICT		EQU	*
 			RTS
+;Word: VARIABLE ( "<spaces>name" -- )
+;Skip leading space delimiters. Parse name delimited by a space. Create a
+;definition for name with the execution semantics defined below. Reserve one
+;cell of data space at an aligned address.
+;name is referred to as a variable.
+;name Execution: ( -- a-addr )
+;a-addr is the address of the reserved cell. A program is responsible for
+;initializing the contents of the reserved cell.
+IF_VARIABLE		REGULAR	
+CF_VARIABLE		EQU	*
+
+			RTS
+	
+
+
+
+
+
+
 	
 FNVDICT_CODE_END		EQU	*
 FNVDICT_CODE_END_LIN	EQU	@

@@ -185,28 +185,8 @@ CF_STORE_EOI			RTS
 ;the resulting character to the beginning of the pictured numeric output string.
 ;An ambiguous condition exists if # executes outside of a <# #> delimited number
 ;conversion.
-;CF_NUMBER_SIGN			EQU	*
-;				BASE_CHECK	CF_NUMBER_SIGN_INVALBASE;check BASE value (BASE -> D)
-;				;Perform division (PSP in Y, BASE in D)
-;				TFR	D,X				;prepare 1st division
-;				LDD	0,Y				; (ud1>>16)/BASE
-;				IDIV					;D/X=>X; remainder=D
-;				STX	0,Y				;return upper word of the result
-;				LDX	BASE				;prepare 2nd division
-;				LDY	2,Y
-;				EXG	D,Y
-;				EDIV					;Y:D/X=>Y; remainder=>D
-;				LDX	PSP				;PSP -> X
-;				STY	2,X
-;				;Lookup ASCII representation of the remainder (remainder -> D)
-;				TFR	D,X
-;				LDAB	FCORE_SYMTAB,X
-;				;Add ASCII character to the PAD buffer
-;				PAD_CHECK_OF	CF_NUMBER_SIGN_PADOF	;check for PAD overvlow (HLD -> X)
-;				STAB	1,-X
-;				STX	HLD
-;				NEXT
-
+;==> FPAD
+	
 ;#> ( xd -- c-addr u )
 ;Drop xd. Make the pictured numeric output string available as a character
 ;string. c-addr and u specify the resulting character string. A program may
@@ -1630,21 +1610,8 @@ CF_MOD				EQU	*
 ;addr1 to the u consecutive address units at addr2. After MOVE completes, the u
 ;consecutive address units at addr2 contain exactly what the u consecutive
 ;address units at addr1 contained before the move.
-IF_MOVE				REGULAR	
-CF_MOVE				EQU	*
-				LDD	0,Y 				;u             -> D
-				BEQ	CF_MOVE_2 			;done
-				ADDD	2,Y				;addr2 + u     -> D
-				STD	0,Y				;addr2 + u     -> PS
-				LDD	4,Y 				;addr1         -> D
-				SUBD	2,Y 				;addr1 - addr2 -> D
-				LDX	2,Y 				;addr2         -> X
-CF_MOVE_1			MOVB	D,X, 1,X+ 			;copy byte
-				CPX	0,Y 				;check range	
-				BLO	CF_MOVE_1 			;loop
-CF_MOVE_2			LEAY	6,Y				;clean up stack	
-				RTS 					;done
-
+;==>FUDICT
+	
 ;Word: NEGATE ( n1 -- n2 )
 ;Negate n1, giving its arithmetic inverse n2.
 IF_NEGATE			INLINE	CF_NEGATE
