@@ -760,9 +760,10 @@ CF_QUIT_RT_3		LDD	STATE 			;check STATE
 CF_QUIT_RT_4		JOBSR	CF_TO_INT 		;convert to integer
 			LDD	2,Y+			;check result
 			BEQ	CF_QUIT_RT_9		;syntax error
+			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
 			DBEQ	D, CF_QUIT_RT_5		;compile single cell
-			JOB	CF_2LITERAL		;compile literal
-CF_QUIT_RT_5		JOB	CF_LITERAL		;compile literal
+			JOB	CF_2LITERAL_1		;compile literal
+CF_QUIT_RT_5		JOB	CF_LITERAL_1		;compile literal
 			;Non-volatile compile (c-addr u)
 CF_QUIT_RT_X		JOB	CF_QUIT_RT_9 		;TBD
 
@@ -775,9 +776,9 @@ CF_QUIT_RT_X		JOB	CF_QUIT_RT_9 		;TBD
 CF_QUIT_RT_6		JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
 			BEQ	CF_QUIT_RT_8		;unknown word
-CF_QUIT_RT_7		MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
-			MOVW	#CF_MONITOR, 2,-SP	;push return address (CF_MONITOR)
-			JMP	0,X 			;execute
+CF_QUIT_RT_7		JSR	0,X 			;execute
+			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
+			JOB	CF_MONITOR		;check system integrity
 CF_QUIT_RT_8		JOBSR	CF_TO_INT		;convert to integer
 			LDD	2,Y+			;check result
 			BNE	CF_QUIT_RT_2		;parse loop

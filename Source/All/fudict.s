@@ -350,8 +350,8 @@ CF_LU_UDICT		EQU	*
 ;			ADDD	#2			;SOS    -> D
 ;			SUBD	2,Y			;offset -> D
 			
-
-	
+			MOVW	#FALSE, 2,-Y
+			RTS
 	
 ;Word: WORDS-UDICT ( -- )
 ;List the definition names in the core dictionary in alphabetical order.
@@ -369,7 +369,7 @@ CF_WORDS_UDICT		EQU	*
 			BRCLR	STRATEGY,#$80, CF_WORDS_UDICT_3
 			;Initialize interator structure 
 			LDX	FUDICT_LAST_NFA		;last NFA -> X
-			BEQ	CF_WORDS_UDICT_2	;empty dictionary
+			BEQ	CF_WORDS_UDICT_3	;empty dictionary
 			PSHX				;iterator -> RS
 			INX				;NF pointer -> X
 			BRCLR	1,+X,#FUDICT_TERM,*	;skip to last char
@@ -417,48 +417,48 @@ CF_WORDS_UDICT_3	RTS				;done
 IF_COLON		IMMEDIATE			
 CF_COLON		INTERPRET_ONLY			;catch nested compilation
 			;Parse name 
-CF_COLON_1		LDD	#" " 			;set delimeter
+CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			JOBSR	CF_SKIP_AND_PARSE	;parse name
 			LDD	0,Y			;check name
 			BNE	CF_COLON_2		;name found
 			THROW	FEXCPT_TC_NONAME	;throw "missing name" exception
 			;Set STATE ( c-addr u )
-			LDD	STRATEGY 		;STRATEGY -> D
-			BEQ	CF_COLON_1		;done
+CF_COLON_2		LDD	STRATEGY 		;STRATEGY -> D
+			BEQ	CF_COLON_4		;done
 			STD	STATE			;STRATEGY -> STATE
 			;Push colon-sys ( c-addr u )
-			MOVW	0,SP,  6,-SP 		;move return address
-			MOVW	#FUDICT_OPT_NONE, 2,SP	;optimization info -> colon-sys
+			MOVW	0,SP,  6,-SP 		;(RS: ret ??  ??  ret)
+			MOVW	#FUDICT_OPT_NONE, 2,SP	;(RS: ret ??  opt ret)
 			LDX	CP			;CP -> X
-			STX	6,SP		  	;NFA -> colon_sys
+			STX	6,SP		  	;(RS: NFA ?? opt ret)
 			;Allocate compile space ( c-addr u ) (CP in X)
 			TFR	X, D			;CP -> D
 			ADDD	0,Y			;CP+name -> D
 			ADDD	#$0003			;CP+nane+NFA+IF -> D
 			STD	CP			;update CP
 			SUBD	#1			;IFA -> D
-			STD	4,SP			;IFA -> colon-sys
+			STD	4,SP			;(RS: NFA IFA opt ret)
 			;Compile last NFA ( c-addr u ) (compile pointer in X)
 			MOVW	FUDICT_LAST_NFA, 2,X+ 	;compile last NFA
 			;Compile name ( c-addr u ) (compile pointer in X)
-			MOVW	2,Y, 2,-Y 		;( c-addr u   c-addr )
-			STX	2,-Y			;( c-addr u   c-addr SOS )
-			MOVW	4,Y, 2,-Y 		;( c-addr u   c-addr SOS u )
-			TFR	X, D			;X -> D
-			ADDD	8,Y			;EOS -> D
-			STD	8,Y			;(    EOS u   c-addr SOS u )
-			STX	6,Y			;(    EOS SOS c-addr SOS u )
-			JOBSR	CF_MOVE			;copy name ( EOS SOS )
-			LDX	2,Y+			;SOS -> X ( EOS)
-CF_COLON_2		LDAB	0,X			;char -> B
+			MOVW	0,Y, 2,-Y 		;( c-addr u   u )
+			STX	2,Y			;( c-addr SOS u )
+			STX	4,-SP			;( c-addr SOS u ) (RS: NFA IFA opt ret ?? SOS)
+			LDD	0,Y			;u   -> D
+			LEAX	D,X			;EOS -> X
+			STX	2,SP			;( c-addr SOS u ) (RS: NFA IFA opt ret EOS SOS)
+			JOBSR	CF_MOVE			;copy name (RS: NFA IFA opt ret EOS SOS)
+			PULX				;SOS -> X (RS: NFA IFA opt ret EOS)
+CF_COLON_3		LDAB	0,X			;char -> B
 			JOBSR	FUDICT_UPPER		;make upper case
 			STAB	1,X+			;update char
 			CPX	0,SP			;check for EOS
-			BLO	CF_COLON_2		;LOOP
+			BLO	CF_COLON_3		;LOOP
+			PULX				;(RS: NFA IFA opt ret)
 			BSET	-1,X,#FUDICT_TERM	;terminate name string
 			;Compile IF (compile pointer in X)
 			CLR	0,X 			;REGULAR
-			RTS				;done
+CF_COLON_4		RTS				;done
 
 ;Word: MOVE ( addr1 addr2 u -- )
 ;If u is grater than zero, copy the contents of u consecutive address units at
@@ -478,7 +478,8 @@ CF_MOVE_1		MOVB	D,X, 1,X+ 		;copy byte
 			CPX	0,Y 			;check range	
 			BLO	CF_MOVE_1 		;loop
 CF_MOVE_2		LEAY	6,Y			;clean up stack	
-
+			RTS
+	
 ;Word: COMPILE, 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( xt -- )
@@ -527,7 +528,7 @@ CF_COMPILE_COMMA_4	CMPB	#IMMEDIATE 		;check for IMMEDIATE word
 			RTS				;done
 
 	
-;Word ; 
+;Word: ; 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: colon-sys -- )
 ;Append the run-time semantics below to the current definition. End the current
@@ -544,11 +545,12 @@ CF_SEMICOLON		COMPILE_ONLY			;catch nested compilation
 			BNE	CF_SEMICOLON_4		;check for optimization
 			;Consider INLINE optimization (CP in X) 
 CF_SEMICOLON_1		TFR	X, D 			;CP           -> D
-			SUBD	4,Y			;CF length +1 -> D
+			SUBD	4,SP			;CF length +1 -> D
 			BCS	CF_SEMICOLON_2		;no INLINE optimization
 			CPD	#(FUDICT_MAX_INLINE+1)	;chech CF length
 			BHI	CF_SEMICOLON_2		;no INLINE optimization
-			STAB	[4,Y]			;set IF to INLINE
+			DECB				;adjust INLINE size
+			STAB	[4,SP]			;set IF to INLINE
 			;No optimized word ending (CP in X)
 CF_SEMICOLON_2		INX				;increment CP
 			STX	CP			;updated CP
@@ -556,7 +558,9 @@ CF_SEMICOLON_2		INX				;increment CP
 CF_SEMICOLON_3		STX	CP_SAVE 		;secure compiled space
 			;Embed word into dictionary 
 			MOVW	6,SP, FUDICT_LAST_NFA 	;link word
-			JMP	8,SP+			;done
+			MOVW	#INTERPRET, STATE	;leve compile state
+			LDX	8,SP+			;clean up colon-sys
+			JMP	0,X			;done
 			;Check for optimization (opt. info in B, CP in X)
 CF_SEMICOLON_4		DBEQ	B, CF_SEMICOLON_5 	;BSR optimization
 			DBNE	B, CF_SEMICOLON_1	;no optimization
@@ -598,7 +602,7 @@ IF_LITERAL		IMMEDIATE
 CF_LITERAL		COMPILE_ONLY
 			;Allocate compile space 
 CF_LITERAL_1		LDX	CP 			;CP -> X
-			LEAX	5,SP			;allocate 5 bytes
+			LEAX	5,X			;allocate 5 bytes
 			STX	CP			;update CP
 			;Compile execution semantics 
 			MOVW	#$1800, -5,X		;"MOVW $xxxx, 2,-SP"
@@ -615,12 +619,10 @@ CF_LITERAL_1		LDX	CP 			;CP -> X
 ;Run-time: ( -- x1 x2 )
 ;Place cell pair x1 x2 on the stack.
 IF_2LITERAL		IMMEDIATE
-CF_2LITERAL		EQU	*	
-			JOBSR	CF_SWAP			;(x1 x2 -- x2 x1)
-			JOBSR	CF_LITERAL		;compile x1
+CF_2LITERAL		COMPILE_ONLY	
+CF_2LITERAL_1		JOBSR	CF_SWAP			;(x1 x2 -- x2 x1)
+			JOBSR	CF_LITERAL_1		;compile x1
 			JOB	CF_LITERAL_1		;compile x2
-
-
 	
 ;Word: S, 
 ;Interpretation: Interpretation semantics for this word are undefined.
