@@ -173,6 +173,9 @@ FCDICT_TX_STRING	EQU	STRING_PRINT_BL
 ;stack along with a false flag.
 IF_LU_CDICT		REGULAR
 CF_LU_CDICT		EQU	*
+			;Check u
+			LDD 	0,SP 					;check if u is zero
+			BEQ	CF_LU_CDICT_4 				;search failed
 			;Prepare search
 			LDD	2,Y 					;c-addr -> D
 			PSHD						;string pointer -> 2,SP
@@ -188,7 +191,7 @@ CF_LU_CDICT_1		LDAA	0,X 					;first char -> A
 			ANDA	#~FCDICT_STR_TERM 			;remove termination
 			CBA						;compare chars (A-B)
 			BHI	CF_LU_CDICT_3 				;past alphabetical order -> search failed
-			BEQ	CF_LU_CDICT_4 				;match
+			BEQ	CF_LU_CDICT_5 				;match
 			;Switch to next sibling (tree pointer in X, current char in B)
 CF_LU_CDICT_2		TST	1,X+ 					;find end of string
 			BPL	CF_LU_CDICT_2 				;skip past the termination
@@ -198,25 +201,25 @@ CF_LU_CDICT_2		TST	1,X+ 					;find end of string
              		JOB	CF_LU_CDICT_1 				;check sibling
 			;Search failed 
 CF_LU_CDICT_3		LEAS	4,SP					;clean up return stack
-			MOVW	#FALSE, 2,-Y 				;push fail flag onto PS
+CF_LU_CDICT_4		MOVW	#FALSE, 2,-Y 				;push fail flag onto PS
 			RTS						;done
 			;First char matches (tree pointer in X)   
-CF_LU_CDICT_4		LDD	2,SP 					;string pointer -> D
+CF_LU_CDICT_5		LDD	2,SP 					;string pointer -> D
 			ADDD	#1 					;advance string pointer
 			CPD	0,SP 					;check for EOS
-			BEQ	CF_LU_CDICT_6 				;search string EOS
+			BEQ	CF_LU_CDICT_7 				;search string EOS
 			STD	2,SP 					;update string pointer
 			LDAB	[2,SP] 					;next char -> B
 			JOBSR	FCDICT_UPPER 				;make char upper case	
 			TST	1,X+ 					;check branch for EOS
-			BMI	CF_LU_CDICT_5 				;branch EOS
+			BMI	CF_LU_CDICT_6 				;branch EOS
 			LDAA	0,X 					;next char -> A
 			ANDA	#~FCDICT_STR_TERM 			;remove termination
 			CBA						;compare chars
-			BEQ	CF_LU_CDICT_4 				;match
+			BEQ	CF_LU_CDICT_5 				;match
 			JOB	CF_LU_CDICT_3 				;mismatch -> search failed
 			;Branch EOS  (tree pointer in X)
-CF_LU_CDICT_5		TST	1,X+ 					;check for BRANCH
+CF_LU_CDICT_6		TST	1,X+ 					;check for BRANCH
 			BNE	CF_LU_CDICT_3 				;no BRANCH -> search failed
 			LDX	0,X 					;switch to branch
 			TST	0,X 					;check for empty branch
@@ -224,15 +227,15 @@ CF_LU_CDICT_5		TST	1,X+ 					;check for BRANCH
 			LEAX	3,X 					;skip over empty branch
 			JOB	CF_LU_CDICT_1 				;check suntree
 			;End of search tree (tree pointer in X)
-CF_LU_CDICT_6		TST	1,X+ 					;check branch for EOS
+CF_LU_CDICT_7		TST	1,X+ 					;check branch for EOS
 			BPL	CF_LU_CDICT_3 				;no EOS -> search failed
 			TST	0,X 					;check for branch
-			BNE	CF_LU_CDICT_7 				;no branch
+			BNE	CF_LU_CDICT_8 				;no branch
 			LDX	1,X 					;switch to branch
 			TST	1,X+ 					;check for empty branch
 			BNE	CF_LU_CDICT_3 				;no empty branch -> search failed
 			;Search successful (X points to xt)
-CF_LU_CDICT_7		LEAS	4,SP 					;clean up RS
+CF_LU_CDICT_8		LEAS	4,SP 					;clean up RS
 			MOVW	0,X, 2,+Y 				;store result
 			RTS						;done
 	

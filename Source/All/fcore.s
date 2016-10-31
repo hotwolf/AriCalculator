@@ -415,40 +415,8 @@ CF_MINUS_EOI			RTS
 ;below to the current definition.
 ;Run-time: ( -- )
 ;Display ccc.
-;CF_DOT_QUOTE			;Parse quote
-;				LDAA	#$22 				;double quote
-;CF_DOT_QUOTE_1			SSTACK_JOBSR	FCORE_PARSE		;string pointer -> X, character count -> A
-;				TBEQ	X, CF_DOT_QUOTE_2 		;empty quote		
-;				;Check state (string pointer in X, character count in A)
-;				LDY	STATE		 		;ensure that compile mode is on
-;				BEQ	CF_DOT_QUOTE_3			;interpetation mode
-;				;Check remaining space in dictionary (string pointer in X, character count in A)
-;				IBEQ	A, CF_DOT_QUOTE_STROF		;add CFA to count
-;				TAB
-;				CLRA
-;				ADDD	#1
-;				TFR	X, Y
-;				DICT_CHECK_OF_D	CF_DOT_QUOTE_DICTOF 	;check for dictionary overflow
-;				;Append run-time CFA (string pointer in Y)
-;				LDX	CP
-;				MOVW	#CFA_DOT_QUOTE_RT, 2,X+
-;				;Append quote (CP in X, string pointer in Y)
-;				CPSTR_Y_TO_X
-;				STX	CP
-;				;Done
-;CF_DOT_QUOTE_2			NEXT
-;				;Print quote in interpretaion state (string pointer in X)
-;CF_DOT_QUOTE_3			PRINT_STR	
-;				JOB	CF_DOT_QUOTE_2	
-;	
-;." run-time semantics
-;CF_DOT_QUOTE_RT		LDX	IP			;print string at IP
-;				PRINT_STR
-;				PRINT_STRCNT 			;advance IP
-;				LEAX	A,X
-;				STX	IP
-;				NEXT
-
+;==>FUDICT
+	
 ;Word: / ( n1 n2 -- n3 )
 ;Divide n1 by n2, giving the single-cell quotient n3. An ambiguous condition
 ;exists if n2 is zero. If n1 and n2 differ in sign, the implementation-defined

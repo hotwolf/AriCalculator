@@ -199,9 +199,12 @@ NO_COMLILE		EQU	$0000 		;interpretation state
 ;COMPILE		EQU	$FFFF 		;volentile compile
 	
 ;#Compile optimizations
-FUDICT_OPT_NONE		EQU	$0000
-FUDICT_OPT_BSR		EQU	$0001
-FUDICT_OPT_JSR		EQU	$0002
+;High byte
+FUDICT_OPT_NO_INLINE	EQU	$80
+;Low byte
+FUDICT_OPT_NONE		EQU	$00
+FUDICT_OPT_BSR		EQU	$01
+FUDICT_OPT_JSR		EQU	$02
 	
 ;#INLINE optimization
 FUDICT_MAX_INLINE	EQU	8 		;max. CF size for INLINE optimization
@@ -334,25 +337,82 @@ IF_LU_UDICT		REGULAR
 CF_LU_UDICT		EQU	*
 			;RS layout:
 			; +--------+--------+
-			; |       EOS       | SP+0
+			; |    Iterator     | SP+0
 			; +--------+--------+
-			; |    Iterator     | SP+2
+			; | Compile Offset  | SP+2
 			; +--------+--------+
-;			;Check compile strategy
-;			BRCLR	STRATEGY,#$80, CF_LU_UDICT_
-;			;Initialize interator structure 
-;			MOVW	#FUDICT_LAST_NFA, 2,-SP ;last NFA -> iterator
-;			LDD	2,Y			;c-addr -> D
-;			ADDD	0,Y			;EOS    -> D
-;			STD	2,-SP			;store EOS
-;			;Check name 
-;			LDD	2,SP 			;NFA    -> D
-;			ADDD	#2			;SOS    -> D
-;			SUBD	2,Y			;offset -> D
-			
-			MOVW	#FALSE, 2,-Y
+			;Check compile strategy ( c-addr u )
+			BRCLR	STRATEGY,#$80, CF_LU_UDICT_6
+			;Check u ( c-addr u )
+			LDD	0,Y			;check if u is zero
+			BEQ	CF_LU_UDICT_6 		;empty seaech string (search failed)
+			;Initialize interator structure ( c-addr u )
+			LDD	FUDICT_LAST_NFA 	;last NFA -> D
+			BEQ	CF_LU_UDICT_6 		;empty dictionary (search failed)
+			MOVW	#0000, 2,-SP 		;0 -> compile offset
+			PSHD				 ;last NFA -> iterator
+			;Compare first letter ( c-addr u )
+CF_LU_UDICT_1		LDAB	[2,Y] 			;LU char -> B
+			JOBSR	FUDICT_UPPER		;make upper case
+			LDX	0,SP	 		;UDICT entry -> X
+			LDAA	2,+X			;UDICT char -> A, UDICT string -> X
+			ANDA	#~FUDICT_TERM		;remove termination
+			CBA				;compare chars
+			BNE	CF_LU_UDICT_3		;skip to next UDICT entry
+			;Compare string lengths ( c-addr u ) (UDICT string -> X) 
+			BRCLR	1,X+,#FUDICT_TERM,* 	;skip to end of UDICT string 
+			TFR	X, D			;end of UDICT string -> D
+			SUBD	0,SP			;subtract UDICT entry offset
+			SUBD	#2			;subtract name offsetr
+			CPD	0,Y			;compare string lengths
+			BNE	CF_LU_UDICT_3		;skip to next UDICT entry
+			;Compare strings ( c-addr u ) (UDICT EOS -> X) 
+			; +--------+--------+
+			; |    LU pointer   | SP+0
+			; +--------+--------+
+			; |  UDICT pointer  | SP+2
+			; +--------+--------+
+			; |    Iterator     | SP+4
+			; +--------+--------+
+			; | Compile Offset  | SP+6
+			; +--------+--------+
+			PSHX				;UDICT pointer -> 2,PS
+			LDD	2,Y 			;c-addr        -> D
+			ADDD	0,Y			;c-addr+u      -> D
+			PSHD				;LU pointer    -> 0,PS
+CF_LU_UDICT_2		LDX	0,SP			;LU pointer -> X
+			LDAB	1,-X			;LU char -> B
+			CPX	2,Y			;check LU pointer
+			BEQ	CF_LU_UDICT_4		;search successful
+			STX	0,SP			;update LU pointer
+			LDX	2,SP			;UDICT pointer -> X
+			LDAA	1,-X			;UDICT char -> A
+			STX	2,SP			;update UDICT pointer
+			JOBSR	FUDICT_UPPER		;make LU char upper case
+			ANDA	#~FUDICT_TERM		;remove UDICT char termination
+			CBA				;compare chars
+			BEQ	CF_LU_UDICT_2		;check next char
+			LEAS	4,SP			;remove LU and UDICT pointer from RS
+			;Skip next entry ( c-addr u )
+CF_LU_UDICT_3		LDX	0,SP			;iterator -> X
+			LDD	0,X			;previous entry -> D
+			BEQ	CF_LU_UDICT_5		;Search failed
+			ADDD	2,SP			;add compile offset
+			STD	0,SP			;advance iterator
+			JOB	CF_LU_UDICT_1		;check next UDICT entry
+			;Search successful ( c-addr u )
+CF_LU_UDICT_4		LEAS	4,SP	 		;remove LU and UDICT pointer from RS
+			LDX	4,SP+	 		;remove iterator from RS
+			LEAX	2,X			;skip to start of UDICT string
+			BRCLR	1,X+,#FUDICT_TERM,* 	;skip to end of UDICT string 
+			INX				;skip over
+			STX	2,+Y			;return xy
 			RTS
-	
+			;Search failed ( c-addr u )
+CF_LU_UDICT_5		LEAS	4,SP	 		;clean up RS
+CF_LU_UDICT_6		MOVW	#FALSE	2,-Y		;return FALSE flag
+			RTS				;done
+
 ;Word: WORDS-UDICT ( -- )
 ;List the definition names in the core dictionary in alphabetical order.
 ;When the UDICT dictionary is used as a buffer for compilation to non-volatile
@@ -389,7 +449,7 @@ CF_WORDS_UDICT_1	LDX	2,SP 			;iterator -> X
 			BRCLR	1,+X,#FUDICT_TERM,*	;skip to last char
 			DEX				;adjust NF pointer
 			TFR	X, D			;NF pointer -> D
-			SUBD	0,SP			;calculate name length
+			SUBD	2,SP			;calculate name length
 			MOVW	#CF_WORDS_UDICT_1, 2,-SP;push return address (CF_WORDS_UDICT_1)
 			JOB	FUDICT_LIST_SEP		;print separator
 			;Clean up
@@ -427,10 +487,10 @@ CF_COLON_2		LDD	STRATEGY 		;STRATEGY -> D
 			BEQ	CF_COLON_4		;done
 			STD	STATE			;STRATEGY -> STATE
 			;Push colon-sys ( c-addr u )
-			MOVW	0,SP,  6,-SP 		;(RS: ret ??  ??  ret)
-			MOVW	#FUDICT_OPT_NONE, 2,SP	;(RS: ret ??  opt ret)
+			MOVW	0,SP,  6,-SP 		;(RS: ret xx  xx  ret)
+			MOVW	#FUDICT_OPT_NONE, 2,SP	;(RS: ret xx  opt ret)
 			LDX	CP			;CP -> X
-			STX	6,SP		  	;(RS: NFA ?? opt ret)
+			STX	6,SP		  	;(RS: NFA xx opt ret)
 			;Allocate compile space ( c-addr u ) (CP in X)
 			TFR	X, D			;CP -> D
 			ADDD	0,Y			;CP+name -> D
@@ -443,7 +503,7 @@ CF_COLON_2		LDD	STRATEGY 		;STRATEGY -> D
 			;Compile name ( c-addr u ) (compile pointer in X)
 			MOVW	0,Y, 2,-Y 		;( c-addr u   u )
 			STX	2,Y			;( c-addr SOS u )
-			STX	4,-SP			;( c-addr SOS u ) (RS: NFA IFA opt ret ?? SOS)
+			STX	4,-SP			;( c-addr SOS u ) (RS: NFA IFA opt ret xx SOS)
 			LDD	0,Y			;u   -> D
 			LEAX	D,X			;EOS -> X
 			STX	2,SP			;( c-addr SOS u ) (RS: NFA IFA opt ret EOS SOS)
@@ -513,6 +573,7 @@ CF_COMPILE_COMMA_3	LEAX	2,X 			;allocate compile space
 			NEGB				;rel. addr -> B
 			STAB	-1,X			;compile rel. addr
 			MOVB	#FUDICT_OPT_BSR, 3,SP	;set optimization info
+			BSET	2,SP,#FUDICT_OPT_NO_INLINE;forbid INLINE compilation
 			RTS				;done
 			;Word not REGULAR ( xt ) (xt in X, IF in B)
 CF_COMPILE_COMMA_4	CMPB	#IMMEDIATE 		;check for IMMEDIATE word
@@ -526,7 +587,6 @@ CF_COMPILE_COMMA_4	CMPB	#IMMEDIATE 		;check for IMMEDIATE word
 			JOBSR	CF_MOVE			;copy INLINE code
 			CLR	3,SP			;set optimization info
 			RTS				;done
-
 	
 ;Word: ; 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -540,42 +600,43 @@ CF_COMPILE_COMMA_4	CMPB	#IMMEDIATE 		;check for IMMEDIATE word
 IF_SEMICOLON		IMMEDIATE			
 CF_SEMICOLON		COMPILE_ONLY			;catch nested compilation
 			;Check for optimized word ending
-			LDX	CP 			;CP -> X
+CF_SEMICOLON_1		LDX	CP 			;CP -> X
 			LDAB	3,SP 			;colon-sys(opt. info)
-			BNE	CF_SEMICOLON_4		;check for optimization
+			BNE	CF_SEMICOLON_5		;check for optimization
 			;Consider INLINE optimization (CP in X) 
-CF_SEMICOLON_1		TFR	X, D 			;CP           -> D
+CF_SEMICOLON_2		BRSET	2,SP,#FUDICT_OPT_NO_INLINE,CF_SEMICOLON_3;INLINE blocked
+			TFR	X, D 			;CP           -> D
 			SUBD	4,SP			;CF length +1 -> D
-			BCS	CF_SEMICOLON_2		;no INLINE optimization
+			BCS	CF_SEMICOLON_3		;no INLINE optimization
 			CPD	#(FUDICT_MAX_INLINE+1)	;chech CF length
-			BHI	CF_SEMICOLON_2		;no INLINE optimization
+			BHI	CF_SEMICOLON_3		;no INLINE optimization
 			DECB				;adjust INLINE size
 			STAB	[4,SP]			;set IF to INLINE
 			;No optimized word ending (CP in X)
-CF_SEMICOLON_2		INX				;increment CP
+CF_SEMICOLON_3		INX				;increment CP
 			STX	CP			;updated CP
 			MOVB	#$3D, -1,X		;compile "RTS"
-CF_SEMICOLON_3		STX	CP_SAVE 		;secure compiled space
+CF_SEMICOLON_4		STX	CP_SAVE 		;secure compiled space
 			;Embed word into dictionary 
 			MOVW	6,SP, FUDICT_LAST_NFA 	;link word
 			MOVW	#INTERPRET, STATE	;leve compile state
 			LDX	8,SP+			;clean up colon-sys
 			JMP	0,X			;done
 			;Check for optimization (opt. info in B, CP in X)
-CF_SEMICOLON_4		DBEQ	B, CF_SEMICOLON_5 	;BSR optimization
-			DBNE	B, CF_SEMICOLON_1	;no optimization
+CF_SEMICOLON_5		DBEQ	B, CF_SEMICOLON_6 	;BSR optimization
+			DBNE	B, CF_SEMICOLON_2	;no optimization
 			;JSR optimization (CP in X)
 			LDAA	#$16			;check for JSR ext
 			CMPA	-3,X			;compare opcode
-			BNE	CF_SEMICOLON_1		;no optimization
+			BNE	CF_SEMICOLON_2		;no optimization
 			MOVB	#$06, -3,X		;replace JSR by JMP
-			JOB	CF_SEMICOLON_3		;finish up
+			JOB	CF_SEMICOLON_4		;finish up
 			;BSR optimization 	
-CF_SEMICOLON_5		LDAA	#$07			;check for BSR ext
+CF_SEMICOLON_6		LDAA	#$07			;check for BSR ext
 			CMPA	-2,X			;compare opcode
-			BNE	CF_SEMICOLON_1		;no optimization
+			BNE	CF_SEMICOLON_2		;no optimization
 			MOVB	#$20, -2,X		;replace BSR by BRA
-			JOB	CF_SEMICOLON_3		;finish up
+			JOB	CF_SEMICOLON_4		;finish up
 	
 ;Word: CONSTANT ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -585,13 +646,23 @@ CF_SEMICOLON_5		LDAA	#$07			;check for BSR ext
 ;Place x on the stack.
 IF_CONSTANT		REGULAR
 CF_CONSTANT		EQU	*
+			;Swap return address <-> optimization info
+			PULD
+			PULX
+			PSHD
+			PSHX
 			;Compile header 
 			JOBSR	CF_COLON 		;use standard ":" 
 			;Compile body 
 			JOBSR	CF_LITERAL_1 		;LITERAL
 			;Conclude compilation		
-			JOB	CF_SEMICOLON_1 		;";"
-
+			JOBSR	CF_SEMICOLON_1 		;";"
+			;Swap return address <-> optimization info
+			PULD
+			PULX
+			PSHD
+			JMP	0,X
+	
 ;Word: LITERAL 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( x -- )
@@ -623,7 +694,7 @@ CF_2LITERAL		COMPILE_ONLY
 CF_2LITERAL_1		JOBSR	CF_SWAP			;(x1 x2 -- x2 x1)
 			JOBSR	CF_LITERAL_1		;compile x1
 			JOB	CF_LITERAL_1		;compile x2
-	
+
 ;Word: S, 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( c-addr u  -- )
@@ -644,7 +715,7 @@ CF_STRING_COMMA_1	LDD	0,Y 			;u      -> D
 			TFR	X, D			;new CP -> D
 			SUBD	0,Y			;offset -> D
 			;Copy loop (memory offset in D)
-			LDX	2,Y 			;string -> X				;
+			LDX	2,Y 			;string -> X
 CF_STRING_COMMA_2	MOVB	0,X, D,X		;copy char
 			BCLR	D,X,FUDICT_TERM		;remove termination
 			INX				;advance 
@@ -652,95 +723,52 @@ CF_STRING_COMMA_2	MOVB	0,X, D,X		;copy char
 			BNE	CF_STRING_COMMA_2	;loop
 			DEX				;go back to last char
 			BSET	D,X,FUDICT_TERM		;terminate string
+			;Set optimization info 
+			CLR	3,SP 			;disable optimization
+			RTS				;done
 	
-;;Word: CELL, 
-;;Interpretation: Interpretation semantics for this word are undefined.
-;;Execution: ( x -- )
-;;Append cell value x the to the current definition.
-;IF_CELL_COMMA		IMMEDIATE
-;CF_CELL_COMMA		COMPILE_ONLY
-;			;Pull argument from PS 
-;CF_CELL_COMMA_1		LDD	2,Y+ 			;x -> D
-;			;Allocate compile space (x ion D)
-;CF_CELL_COMMA_2		LDX	CP 			;CP -> X
-;			LEAX	2,X			;allocate 5 bytes
-;			STX	CP			;update CP
-;			;Compile execution semntics (x in D)
-;			STD	 -2,X			;compile top of PS
-;			MOVB	#FUDICT_CTYPE_NONE, FUDICT_LAST_CTYPE;set optimizer info
-;			RTS
-;
-;;Word: CHAR, 
-;;Interpretation: Interpretation semantics for this word are undefined.
-;;Execution: ( char -- )
-;;Append the char value to the current definition.
-;IF_CHAR_COMMA		IMMEDIATE
-;CF_CHAR_COMMA		COMPILE_ONLY
-;			;Pull argument from PS 
-;CF_CHAR_COMMA_1		LDD	2,Y+ 			;x -> D
-;			;Allocate compile space (x ion D)
-;CF_CHAR_COMMA_2		LDX	CP 			;CP -> X
-;			INX				;allocate 5 bytes
-;			STX	CP			;update CP
-;			;Compile execution semntics (x in D)
-;			STAB	 -1,X			;compile top of PS
-;			MOVB	#FUDICT_CTYPE_NONE, FUDICT_LAST_CTYPE;set optimizer info
-;			RTS
-
-;;Word: NVCBUF, 
-;;Interpretation: throws "compilation only" error
-;;Execution: ( xt n -- )
-;;Append the execution semanticsFUDICT_OFFSET of xt to the current definition.
-;;xt is the target address of a word in the non-volatile compile buffer.
-;IF_XT_COMMA		IMMEDIATE
-;CF_XT_COMMA		COMPILE_ONLY
-;			;Check IF ( xt n ) 
-;CF_XT_COMMA_1		LDD	0,Y			;tgt xt -> D
-;			ADDD	FUDICT_OFFSET		;src xt -> D
-;			TFR	D, X			;src xt -> X
-;CF_XT_COMMA_2		BRCLR	-1,X,#$FF,CF_XT_COMMA_4	;regular word
-;			BRSET	-1,X,#$FF,CF_XT_COMMA_4	;immediate word
-;			;Inline word (src. xt in X and D) 
-;			SUBD	CP 			;copy offset -> D
-;			MOVB	-1,X, 1,-SP		;copy count  -> RS
-;			LDX	CP			;CP          -> D
-;CF_XT_COMMA_3		MOVB	D,X, 1,X+		;copy byte
-;			DEC	0,SP			;decrement counter
-;			BNE	CF_XT_COMMA_3		;loop
-;			INS				;clean up RS
-;			MOVB	#FUDICT_CTYPE_INLINE, FUDICT_LAST_CTYPE;set optimizer info
-;			INY				;clean up PS
-;			RTS				;done
-;			;Regular compile 
-;CF_XT_COMMA_4		LDD	CP 			;src addr -> D
-;			ADDD	FUDICT_OFFSET		;tgt addr -> D	
-;			SUBD	0,Y			
-;	
-;
-;			CMPA	#$FF	     		;check negative branch range
-;			BEQ	CF_XT_COMMA_5		;compile BSR
-;			TSTA				;check negative branch range
-;			BEQ	CF_XT_COMMA_5		;compile BSR
-;			;Compile JSR (phys. xt in X, comp. offset in D) 
-;			LDX	CP 			;CP -> X
-;			LEAX	3,X			;allocate compile space
-;			STY	CP			;update CP
-;			MOVB	#$16, -3,X		;JSR-opcode
-;			MOVW	0,SP, -2,X		;XT address
-;			MOVB	#FUDICT_CTYPE_JSR, FUDICT_LAST_CTYPE;set optimizer info
-;			INY				;clean up PS
-;			RTS				;done
-;			;Compile BSR (phys. xt in X, comp. offset in D) 
-;CF_XT_COMMA_5		LDX	CP 			;CP -> X
-;			LEAX	2,X			;allocate compile space
-;			STY	CP			;update CP
-;			MOVB	#$07, -1,X		;JSR-opcode
-;			STAB	0,X			;relative XT address
-;			MOVB	#FUDICT_CTYPE_BSR, FUDICT_LAST_CTYPE;set optimizer info
-;			INY				;clean up PS
-;			RTS				;done
+;Word: ."
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( "ccc<quote>" -- )
+;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
+;below to the current definition.
+IF_DOT_QUOTE		IMMEDIATE
+CF_DOT_QUOTE		EQU	*
+			;Parse "ccc<quote>"
+			MOVW	#$22, 2,-Y 		;"-delimiter -> PS
+			JOBSR	CF_PARSE		;parse "ccc<quote>"
+			LDD	0,Y			;check u
+			BEQ	CF_DOT_QUOTE_2		;empty string
+			;Check state ( c-addr u )
+			LDD	STATE 			;STATE -> D
+			BNE	CF_DOT_QUOTE_3		;compilation semantics
+			;Interpretation semantics ( c-addr u )
+CF_DOT_QUOTE_1		JOB	CF_STRING_DOT		;print message
+			;Empty string ( c-addr u )
+CF_DOT_QUOTE_2		LEAY	4,Y 			;clean up stack
+			RTS				
+			;Compilation semantics ( c-addr u )
+CF_DOT_QUOTE_3		PULX				;return addr -> X
+			PULD				;optimization info -> D
+			PSHX				;return addr -> 2,SP
+			PSHD				;optimization info -> 0,SP
+			MOVW	#CF_DOT_QUOTE_RT, 2,-Y 	;runtime semantics -> PS
+			JOBSR	CF_COMPILE_COMMA_1	;compile word
+			JOBSR	CF_STRING_COMMA_1	;compile string
+			PULD				;optimization info -> D
+			;CLRB				;no optimization
+			PULX				;return addr -> X
+			PSHD				;optimization info -> 0,SP
+			JMP	0,X			;done
+;Run-time: ( -- )
+;Display ccc.
+IF_DOT_QUOTE_RT		REGULAR
+CF_DOT_QUOTE_RT		EQU	*
+			;Print string 
+			PULX				;string pointer -> X
+			JOBSR	FUDICT_TX_STRING	;print string
+			JMP	0,X			;continue after string
 	
-
 FUDICT_CODE_END		EQU	*
 FUDICT_CODE_END_LIN	EQU	@
 

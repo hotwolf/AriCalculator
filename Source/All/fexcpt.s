@@ -352,9 +352,7 @@ CF_CATCH		EQU	*
 			JSR	2,Y+				;execute xt
 			MOVW	#$0000, 2,-Y			;0 -> PS
 			JMP	4,+SP				;remove frame and resume
-
-
-
+	
 ;Word: ABORT" 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "ccc<quote>" -- )
@@ -370,33 +368,69 @@ CF_ABORT_QUOTE		EQU	*
 			JOBSR	CF_PARSE			;parse "ccc<quote>"
 			;Check state 
 			LDD	STATE 				;STATE -> D
-			BEQ	CF_ABORT_QUOTE_1		;interpretatiom semantics
-			;Compilation semantics ( c-addr u )
-			MOVW	#CF_ABORT_QUOTE_RT, 2,-Y 	;runtime semantics -> PS
-			JOBSR	CF_COMPILE_COMMA		;compile word
-			JOBSR	CF_STRING_COMMA			;compile string
-			RTS					;done
+			BNE	CF_ABORT_QUOTE_3		;compilation semantics
 			;Interpretation semantics ( x1 c-addr u )
-CF_ABORT_QUOTE_1	LDD	4,Y 				;check X1
-			BNE	CF_ABORT_QUOTE_2		;x1 != 0
-			LEAY	6,Y				;clean up PS
-			RTS					;done
-CF_ABORT_QUOTE_2	JOBSR	CF_CR				;line break
+			LDD	4,Y 				;check x1
+			BEQ	CF_ABORT_QUOTE_2		;do nothing
+			LDD	0,Y 				;check u
+			BEQ	CF_ABORT_QUOTE_1		;empty message
+			;Print message and abort
+			JOBSR	CF_CR				;line break
 			JOBSR	CF_STRING_DOT			;print ABORT" message
-			JOB	CF_ABORT_RT			;uncatchable!!! (for simplicity)
+CF_ABORT_QUOTE_1	JOB	CF_ABORT_RT			;uncatchable!!! (for simplicity)
+			;Do nothing 
+CF_ABORT_QUOTE_2	LEAY	6,Y 				;clean up parameter stack
+			RTS					;done
+			;Compilation semantics ( c-addr u )
+CF_ABORT_QUOTE_3	PULX					;return addr -> X
+			PULD					;optimization info -> D
+			PSHX					;return addr -> 2,SP
+			PSHD					;optimization info -> 0,SP
+			LDD	0,Y 				;u -> D
+			BEQ	CF_ABORT_QUOTE_4		;empty message			
+			;Non-empty message ( c-addr u )
+			MOVW	#CF_ABORT_QUOTE_RT, 2,-Y 	;runtime semantics -> PS
+			JOBSR	CF_COMPILE_COMMA_1		;compile word
+			JOBSR	CF_STRING_COMMA_1		;compile string
+			JOB	CF_ABORT_QUOTE_5	
+			;Empty message ( c-addr u )
+			MOVW	#CF_ABORT_NOQUOTE_RT, 2,+Y 	;runtime semantics -> PS
+CF_ABORT_QUOTE_4	JOBSR	CF_COMPILE_COMMA_1		;compile word
+CF_ABORT_QUOTE_5	PULD					;optimization info -> D
+			;CLRB					;no optimization
+			PULX					;return addr -> X
+			PSHD					;optimization info -> 0,SP
+			JMP	0,X				;done
 
-;ABORT" run-time semantics
+;Run-time: ( i*x x1 --  | i*x ) ( R: j*x --  | j*x )
+;Remove x1 from the stack. If any bit of x1 is not zero, display ccc and perform
+;an implementation-defined abort sequence that includes the function of ABORT.
+IF_ABORT_QUOTE_RT	REGULAR
 CF_ABORT_QUOTE_RT	EQU	*
-			;Check flag ( i*x x1 )
-			LDD	2,Y+ 				;x1 -> X
-			BEQ	CF_ABORT_QUOTE_RT_1		;skip over string
-			MOVW	2,SP+, ABORT_QUOTE_MSG		;store ABORT" message
+			;Check x1 
+			LDD	2,Y+ 				;x1 -> D
+			BEQ	CF_ABORT_QUOTE_RT_1		;do nothing
+			;Throw exception 
+			PULX					;string pointer -> X
+			STX	ABORT_QUOTE_MSG			;set message
 			THROW	FEXCPT_TC_ABORTQ		;throw exception
-			;Skip over terminated string  
-CF_ABORT_QUOTE_RT_1	LDX	2,SP+ 				;string pointer -> X
-			BRCLR	1,X+,#FEXCPT_TERM,*		;skip over terminated string
-			JMP	0,X				;resume after string
-	
+			;Do nothing
+CF_ABORT_QUOTE_RT_1	PULX					;string pointer -> X
+			BRCLR	1,X+,#FEXCPT_TERM,*		;skip over string
+			JMP	0,X				;continue after string
+
+;Run-time for empty messages
+IF_ABORT_NOQUOTE_RT	REGULAR
+CF_ABORT_NOQUOTE_RT	EQU	*
+			;Check x1 
+			LDD	2,Y+ 				;x1 -> D
+			BEQ	CF_ABORT_NOQUOTE_RT_1		;do nothing
+			;Throw exception 
+			MOVW	#$0000,	ABORT_QUOTE_MSG		;set message
+			THROW	FEXCPT_TC_ABORTQ		;throw exception
+			;Do nothing
+CF_ABORT_NOQUOTE_RT_1	RTS					;done
+
 ;Word: ABORT ( i*x -- ) ( R: j*x -- )
 ;Empty the data stack and perform the function of QUIT, which includes emptying
 ;the return stack, without displaying a message.

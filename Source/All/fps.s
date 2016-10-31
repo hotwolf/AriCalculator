@@ -114,8 +114,12 @@
 ;# Constants                                                                   #
 ;###############################################################################
 ;Bottom of parameter stack
-PS_EMPTY		EQU	UDICT_PS_END
+PS_EMPTY		EQU	UDICT_PS_END-4
 
+;Canary 
+FPS_CANARY_MSW		EQU	"Bi"
+FPS_CANARY_LSW		EQU	"rd"
+	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -142,6 +146,8 @@ FPS_VARS_END_LIN	EQU	@
 ;=============
 #macro	FPS_ABORT, 0
 			LDY	#PS_EMPTY 		;reset return stack
+			MOVW	#FPS_CANARY_MSW, 0,Y	;insert canary code
+			MOVW	#FPS_CANARY_LSW, 2,Y	;
 #emac
 	
 ;#Quit action
@@ -203,11 +209,11 @@ FPS_LIST_SEP		EQU	FOUTER_LIST_SEP
 ;Duplicate x if it is non-zero.
 IF_QUESTION_DUP		INLINE	CF_QUESTION_DUP	
 CF_QUESTION_DUP		EQU	*
-			LDD	0,Y 				;x -> D
+			PULD
 			BEQ	CF_QUESTION_DUP_1		;x == 0
-			STD	2,-Y				;duplicate x
-CF_QUESTION_DUP_1	RTS
-CF_QUESTION_DUP_EOI	EQU	CF_QUESTION_DUP_1
+			PSHD
+CF_QUESTION_DUP_1	PSHD
+CF_QUESTION_DUP_EOI	RTS
 	
 ;Word: DUP ( x -- x x )
 ;Duplicate x.
@@ -220,7 +226,7 @@ CF_DUP_EOI 		RTS					;done
 ;Remove x from the stack.
 IF_DROP			INLINE	CF_DROP
 CF_DROP			EQU	*
-			LEAY	2,Y				;remove x 
+			PULD					;remove x 
 CF_DROP_EOI		RTS					;done
 
 ;Word: OVER ( x1 x2 -- x1 x2 x1 )
@@ -257,9 +263,10 @@ CF_TWO_OVER_EOI		RTS					;done
 ;Exchange the top two stack items.
 IF_SWAP			INLINE	CF_SWAP
 CF_SWAP			EQU	*
-			LDD	0,Y 				;save x2
-			MOVW	2,Y, 0,Y			;move x1
-			STD	2,Y				;store x2
+			PULD
+			PULX
+			PSHX
+			PSHD
 CF_SWAP_EOI		RTS					;done
 
 ;Word: 2SWAP ( x1 x2 x3 x4 -- x3 x4 x1 x2 )
@@ -278,10 +285,10 @@ CF_TWO_SWAP		EQU	*
 ;Rotate the top three stack entries.
 IF_ROT			INLINE	CF_ROT
 CF_ROT			EQU	*
-			LDD	4,Y 				;save x1
+			PULD					;save x3
+			MOVW	2,Y, 2,-Y			;move x1
 			MOVW	2,Y, 4,Y			;move x2
-			MOVW	0,Y, 2,Y			;move x3
-			STD	0,Y				;store x1
+			STD	2,Y				;store x3
 CF_ROT_EOI		RTS					;done
 
 ;Word: 2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 )
@@ -303,9 +310,11 @@ CF_2ROT			EQU	*
 ;Copy the first (top) stack item below the second stack item.
 IF_TUCK			INLINE	CF_TUCK
 CF_TUCK			EQU	*
-			MOVW	0,Y, 2,-Y 			;duplicate x2
-			MOVW	4,Y, 2,Y			;move x1
-			MOVW	0,Y, 4,Y			;tuck x2
+			PULD
+			PULX
+			PSHD
+			PSHX
+			PSHD
 CF_TUCK_EOI		RTS					;done
 	
 ;Word: PICK ( xu ... x1 x0 u -- xu ... x1 x0 xu )

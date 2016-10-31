@@ -828,7 +828,8 @@ CF_PARSE_3		CMPB	TIB_START,X		;check for delimeter
 			BNE	CF_PARSE_2		;no delimeter
 			;Done (char count in A, >IN in X)
 CF_PARSE_4		STAA	1,Y			;update char count
-CF_PARSE_5		STX	TO_IN			;update >IN
+CF_PARSE_5		INX				;skip over delimeter
+			STX	TO_IN			;update >IN
 			RTS				;done
 			;Parse unsuccessful  (char count in A, >IN in X) 
 CF_PARSE_6		MOVW	#$0000, 0,Y 		;null string
