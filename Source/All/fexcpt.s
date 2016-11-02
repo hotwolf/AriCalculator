@@ -553,7 +553,7 @@ FEXCPT_TABS_START_LIN	EQU	@
 ;Error messages 
 FEXCPT_STR_RTERR_LEFT	DB	FEXCPT_SYM_BEEP
 			STRING_NL_NONTERM
-			FCS	"!!! Execution Error: "
+			FCS	"!!! Error: "
 FEXCPT_STR_RTERR_RIGHT	STRING_NL_TERM
 ;
 ;Message table for standard errors
@@ -572,7 +572,7 @@ FEXCPT_MSGTAB		EQU	*
 			FEXCPT_MSG	FEXCPT_TC_NONAME,	"Missing name argument"
 			;FEXCPT_MSG	FEXCPT_TC_PADOF,	"PAD overflow"
 			;FEXCPT_MSG	FEXCPT_TC_STROF,	"String too long"
-			;FEXCPT_MSG	FEXCPT_TC_CTRLSTRUC,	"Control structure mismatch"
+			FEXCPT_MSG	FEXCPT_TC_CTRLSTRUC,	"Control structure mismatch"
 			;FEXCPT_MSG	FFEXCPT_TC_INVALNUM,	"Invalid numeric argument"
 			FEXCPT_MSG	FEXCPT_TC_COMPNEST,	"Nested compilation"
 			;FEXCPT_MSG	FEXCPT_TC_NONCREATE,	"Illegal operation on non-CREATEd definition"

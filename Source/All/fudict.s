@@ -20,8 +20,7 @@
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module implements the volatile user dictionary, user variables, and #
-;#    the PAD.                                                                 #
+;#    This module implements the volatile user dictionary.                     #
 ;#                                                                             #
 ;#    S12CForth register assignments:                                          #
 ;#      IP  (instruction pounter)     = PC (subroutine theaded)                #
@@ -198,13 +197,18 @@ NO_COMLILE		EQU	$0000 		;interpretation state
 ;NV_COMPILE		EQU	$0001 		;non-volentile compile
 ;COMPILE		EQU	$FFFF 		;volentile compile
 	
-;#Compile optimizations
+;#Compile optimization info
 ;High byte
-FUDICT_OPT_NO_INLINE	EQU	$80
+FUDICT_CI_NOINL		EQU	$80 		;no inline
 ;Low byte
-FUDICT_OPT_NONE		EQU	$00
-FUDICT_OPT_BSR		EQU	$01
-FUDICT_OPT_JSR		EQU	$02
+FUDICT_CI_NONE		EQU	$00
+FUDICT_CI_BSR		EQU	$01
+FUDICT_CI_JSR		EQU	$02
+FUDICT_CI_IF		EQU	$FF
+FUDICT_CI_ELSE		EQU	$FE
+FUDICT_CI_DO		EQU	$FD
+FUDICT_CI_BEGIN		EQU	$FC
+FUDICT_CI_WHILE		EQU	$FB
 	
 ;#INLINE optimization
 FUDICT_MAX_INLINE	EQU	8 		;max. CF size for INLINE optimization
@@ -323,6 +327,24 @@ FUDICT_THROW_COMPNEST	EQU	*
 ;#########
 ;# Words #
 ;#########
+
+
+;Word: [
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: Perform the execution semantics given below.
+;Execution: ( -- )
+;Enter interpretation state. [ is an immediate word.
+IF_LEFT_BRACKET			IMMEDIATE
+CF_LEFT_BRACKET			EQU	*
+				MOVW	#$0000, STATE
+				RTS
+
+;Word: ] ( -- )
+;Enter compilation state.
+IF_RIGHT_BRACKET		IMMEDIATE
+CF_RIGHT_BRACKET		EQU	*
+				MOVW	STRATEGY, STATE
+				RTS
 	
 ;Word: LU-UDICT ( c-addr u -- xt | c-addr u false )
 ;Look up a name in the UDICT dictionary. The name is referenced by the start
@@ -467,7 +489,7 @@ CF_WORDS_UDICT_3	RTS				;done
 ;dictionary until it is ended (or until the execution of DOES> in some systems).
 ;colon-sys:
 ;      	    +--------------+--------------+	     
-;           |      Optimization Info      | +0	     
+;           |       Compile Info          | +0	     
 ;      	    +--------------+--------------+	     
 ;           |  Information Field Address  | +2	     
 ;      	    +--------------+--------------+	     
@@ -488,7 +510,7 @@ CF_COLON_2		LDD	STRATEGY 		;STRATEGY -> D
 			STD	STATE			;STRATEGY -> STATE
 			;Push colon-sys ( c-addr u )
 			MOVW	0,SP,  6,-SP 		;(RS: ret xx  xx  ret)
-			MOVW	#FUDICT_OPT_NONE, 2,SP	;(RS: ret xx  opt ret)
+			MOVW	#FUDICT_CI_NONE, 2,SP	;(RS: ret xx  opt ret)
 			LDX	CP			;CP -> X
 			STX	6,SP		  	;(RS: NFA xx opt ret)
 			;Allocate compile space ( c-addr u ) (CP in X)
@@ -550,33 +572,35 @@ CF_COMPILE_COMMA	COMPILE_ONLY
 			;Get xt ( xt )
 CF_COMPILE_COMMA_1	LDX	0,Y 			;xt -> X
 			LDAB	-1,X			;IF -> B
-			BNE	CF_COMPILE_COMMA_4	;not REGULAR
+			BNE	CF_COMPILE_COMMA_6	;not REGULAR
 			;REGULAR word ( xt ) 
 CF_COMPILE_COMMA_2	LDX	CP 			;CP   -> X		
 			TFR	X,D 			;CP   -> D
 			SUBD	FUDICT_OFFSET		;CP-offs -> D
 			SUBD	0,Y			;CP-offs-xt -> D
-			BCC	CF_COMPILE_COMMA_3	;compile BSR
+			BCC	CF_COMPILE_COMMA_4	;compile BSR
 			CPD	#128			
-			BLS	CF_COMPILE_COMMA_3	;compile BSR
+			BLS	CF_COMPILE_COMMA_4	;compile BSR
 			;Compile JSR ( xt ) (CP in X)
 			LEAX	3,X 			;allocate compile space
 			STX	CP			;update CP
 			MOVB	#$16, -3,X		;compile "JSR" opcode
-			MOVW	2,Y+, -2,X		;compile xt
-			MOVB	#FUDICT_OPT_JSR, 3,SP	;set optimization info
-			RTS				;done
+			MOVW	2,Y+, -2,X		;compile xt	
+			BRSET	3,SP,#80,CF_COMPILE_COMMA_3;unfinished control flow
+			MOVB	#FUDICT_CI_JSR, 3,SP	;set compile info
+CF_COMPILE_COMMA_3	RTS				;done
 			;Compile BSR ( xt ) (CP in X, negated rel. addr in B)
-CF_COMPILE_COMMA_3	LEAX	2,X 			;allocate compile space
+CF_COMPILE_COMMA_4	LEAX	2,X 			;allocate compile space
 			STX	CP			;update CP
 			MOVB	#$07, -2,X		;compile "BSR" opcode
 			NEGB				;rel. addr -> B
 			STAB	-1,X			;compile rel. addr
-			MOVB	#FUDICT_OPT_BSR, 3,SP	;set optimization info
-			BSET	2,SP,#FUDICT_OPT_NO_INLINE;forbid INLINE compilation
+			BRSET	3,SP,#80,CF_COMPILE_COMMA_5;unfinished control flow
+			MOVB	#FUDICT_CI_BSR, 3,SP	;set compile info
+CF_COMPILE_COMMA_5	BSET	2,SP,#FUDICT_CI_NOINL;forbid INLINE compilation
 			RTS				;done
 			;Word not REGULAR ( xt ) (xt in X, IF in B)
-CF_COMPILE_COMMA_4	CMPB	#IMMEDIATE 		;check for IMMEDIATE word
+CF_COMPILE_COMMA_6	CMPB	#IMMEDIATE 		;check for IMMEDIATE word
 			BEQ	CF_COMPILE_COMMA_2	;compile as REGULAR word
 			LDX	CP			;CP -> X
 			STX	2,-Y			;( xt CP )
@@ -585,8 +609,9 @@ CF_COMPILE_COMMA_4	CMPB	#IMMEDIATE 		;check for IMMEDIATE word
 			LEAX	B,X			;allocate compile space
 			STX	CP			;update CP
 			JOBSR	CF_MOVE			;copy INLINE code
-			CLR	3,SP			;set optimization info
-			RTS				;done
+			BRSET	3,SP,#80,CF_COMPILE_COMMA_7;unfinished control flow
+			CLR	3,SP			;set compile info
+CF_COMPILE_COMMA_7	RTS				;done
 	
 ;Word: ; 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -602,9 +627,10 @@ CF_SEMICOLON		COMPILE_ONLY			;catch nested compilation
 			;Check for optimized word ending
 CF_SEMICOLON_1		LDX	CP 			;CP -> X
 			LDAB	3,SP 			;colon-sys(opt. info)
-			BNE	CF_SEMICOLON_5		;check for optimization
+			BMI	CF_SEMICOLON_5		;control structure mismatch
+			BNE	CF_SEMICOLON_6		;check for optimization
 			;Consider INLINE optimization (CP in X) 
-CF_SEMICOLON_2		BRSET	2,SP,#FUDICT_OPT_NO_INLINE,CF_SEMICOLON_3;INLINE blocked
+CF_SEMICOLON_2		BRSET	2,SP,#FUDICT_CI_NOINL,CF_SEMICOLON_3;INLINE blocked
 			TFR	X, D 			;CP           -> D
 			SUBD	4,SP			;CF length +1 -> D
 			BCS	CF_SEMICOLON_3		;no INLINE optimization
@@ -622,8 +648,10 @@ CF_SEMICOLON_4		STX	CP_SAVE 		;secure compiled space
 			MOVW	#INTERPRET, STATE	;leve compile state
 			LDX	8,SP+			;clean up colon-sys
 			JMP	0,X			;done
+			;Control structure misatch
+CF_SEMICOLON_5		THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatch"
 			;Check for optimization (opt. info in B, CP in X)
-CF_SEMICOLON_5		DBEQ	B, CF_SEMICOLON_6 	;BSR optimization
+CF_SEMICOLON_6		DBEQ	B, CF_SEMICOLON_7 	;BSR optimization
 			DBNE	B, CF_SEMICOLON_2	;no optimization
 			;JSR optimization (CP in X)
 			LDAA	#$16			;check for JSR ext
@@ -632,7 +660,7 @@ CF_SEMICOLON_5		DBEQ	B, CF_SEMICOLON_6 	;BSR optimization
 			MOVB	#$06, -3,X		;replace JSR by JMP
 			JOB	CF_SEMICOLON_4		;finish up
 			;BSR optimization 	
-CF_SEMICOLON_6		LDAA	#$07			;check for BSR ext
+CF_SEMICOLON_7		LDAA	#$07			;check for BSR ext
 			CMPA	-2,X			;compare opcode
 			BNE	CF_SEMICOLON_2		;no optimization
 			MOVB	#$20, -2,X		;replace BSR by BRA
@@ -646,7 +674,7 @@ CF_SEMICOLON_6		LDAA	#$07			;check for BSR ext
 ;Place x on the stack.
 IF_CONSTANT		REGULAR
 CF_CONSTANT		EQU	*
-			;Swap return address <-> optimization info
+			;Swap return address <-> compile info
 			PULD
 			PULX
 			PSHD
@@ -657,7 +685,7 @@ CF_CONSTANT		EQU	*
 			JOBSR	CF_LITERAL_1 		;LITERAL
 			;Conclude compilation		
 			JOBSR	CF_SEMICOLON_1 		;";"
-			;Swap return address <-> optimization info
+			;Swap return address <-> compile info
 			PULD
 			PULX
 			PSHD
@@ -679,9 +707,10 @@ CF_LITERAL_1		LDX	CP 			;CP -> X
 			MOVW	#$1800, -5,X		;"MOVW $xxxx, 2,-SP"
 			MOVB	#$6E,   -3,X		; => 18006Exxxx
 			MOVW	2,Y+,   -2,X		;compile top of PS
-			;Set optimizer information 
+			;Set compile info 
+			BRSET	3,SP,#80,CF_LITERAL_2	;unfinished control flow
 			CLR	3,SP			;no optimization
-			RTS				;done
+CF_LITERAL_2		RTS				;done
 
 ;Word: 2LITERAL 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -723,42 +752,56 @@ CF_STRING_COMMA_2	MOVB	0,X, D,X		;copy char
 			BNE	CF_STRING_COMMA_2	;loop
 			DEX				;go back to last char
 			BSET	D,X,FUDICT_TERM		;terminate string
-			;Set optimization info 
+			LEAY	4,Y			;clean up PS
+			;Set compile info 
+			BRSET	3,SP,#80,CF_STRING_COMMA_3;unfinished control flow
 			CLR	3,SP 			;disable optimization
-			RTS				;done
+CF_STRING_COMMA_3	RTS				;done
+
+
+;Word: .(
+;Compilation: Perform the execution semantics given below.
+;Execution: ( "ccc<paren>" -- )
+;Parse and display ccc delimited by ) (right parenthesis). .( is an immediate
+;word.
+IF_DOT_PAREN		IMMEDIATE
+CF_DOT_PAREN		EQU	*
+			;Parse "ccc<quote>"
+			MOVW	#")", 2,-Y 		;"-delimiter -> PS
+			JOB	CF_DOT_QUOTE_1
 	
 ;Word: ."
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( "ccc<quote>" -- )
-;Parse ccc delimited by " (double-quote). Append the run-time semantics given ;"
+;Parse ccc delimited by " (double-quote). Append the run-time semantics given
 ;below to the current definition.
 IF_DOT_QUOTE		IMMEDIATE
 CF_DOT_QUOTE		EQU	*
 			;Parse "ccc<quote>"
 			MOVW	#$22, 2,-Y 		;"-delimiter -> PS
-			JOBSR	CF_PARSE		;parse "ccc<quote>"
+CF_DOT_QUOTE_1		JOBSR	CF_PARSE		;parse "ccc<quote>"
 			LDD	0,Y			;check u
 			BEQ	CF_DOT_QUOTE_2		;empty string
 			;Check state ( c-addr u )
 			LDD	STATE 			;STATE -> D
 			BNE	CF_DOT_QUOTE_3		;compilation semantics
 			;Interpretation semantics ( c-addr u )
-CF_DOT_QUOTE_1		JOB	CF_STRING_DOT		;print message
+			JOB	CF_STRING_DOT		;print message
 			;Empty string ( c-addr u )
 CF_DOT_QUOTE_2		LEAY	4,Y 			;clean up stack
 			RTS				
 			;Compilation semantics ( c-addr u )
 CF_DOT_QUOTE_3		PULX				;return addr -> X
-			PULD				;optimization info -> D
+			PULD				;compile info -> D
 			PSHX				;return addr -> 2,SP
-			PSHD				;optimization info -> 0,SP
+			PSHD				;compile info -> 0,SP
 			MOVW	#CF_DOT_QUOTE_RT, 2,-Y 	;runtime semantics -> PS
 			JOBSR	CF_COMPILE_COMMA_1	;compile word
 			JOBSR	CF_STRING_COMMA_1	;compile string
-			PULD				;optimization info -> D
+			PULD				;compile info -> D
 			;CLRB				;no optimization
 			PULX				;return addr -> X
-			PSHD				;optimization info -> 0,SP
+			PSHD				;compile info -> 0,SP
 			JMP	0,X			;done
 ;Run-time: ( -- )
 ;Display ccc.
@@ -768,6 +811,559 @@ CF_DOT_QUOTE_RT		EQU	*
 			PULX				;string pointer -> X
 			JOBSR	FUDICT_TX_STRING	;print string
 			JMP	0,X			;continue after string
+
+;Word: IF 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- orig )
+;Put the location of a new unresolved forward reference orig onto the control
+;flow stack. Append the run-time semantics given below to the current
+;definition. The semantics are incomplete until orig is resolved, e.g., by THEN
+;or ELSE.
+;Run-time: ( x -- )
+;If all bits of x are zero, continue execution at the location specified by the
+;resolution of orig.
+IF_IF			IMMEDIATE
+CF_IF			COMPILE_ONLY
+			;Allocate 6 bytes of compile space 
+			LDX	CP 			;CP -> X
+			LEAX	6,X			;alloate space
+			STX	CP			;update CP
+			;Compile inline code (CP in X) 
+			MOVW	#$EC71, -6,X 		;"LDD 2,Y+"
+			;MOVW	#$1827, -4,X		;"LBEQ"
+			;MOVW	#$0000, -2,X		;"qq rr"
+			LEAX	-4,X 			;orig -> X
+			;Put orig onto the control flow stack 
+			;                              +--------+--------+              
+			;                              |  Return Address | ...     
+			;                              +--------+--------+	       
+			;                              |  New Comp. Info | SP+0     
+			; +--------+--------+	   ==> +--------+--------+	       
+			; |  Return Address | SP+0     |      orig       | SP+2     
+			; +--------+--------+	       +--------+--------+	       
+			; | Old Comp. Info  | SP+2     | Old Comp. Info  | SP+4     
+			; +--------+--------+          +--------+--------+           
+			PULD				;return address -> D
+			PSHX				;orig           -> 2,SP
+			TFR	D, X			;return address -> X
+			LDAA	2,SP			;inherit high byte of compile info
+			LDAB	#FUDICT_CI_IF		;set control flow
+			PSHD				;new compilation info -> 0,SP
+			JMP	0,X			;done
+
+;Word: ELSE 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: orig1 -- orig2 )
+;Put the location of a new unresolved forward reference orig2 onto the control
+;flow stack. Append the run-time semantics given below to the current
+;definition. The semantics will be incomplete until orig2 is resolved
+;(e.g., by THEN). Resolve the forward reference orig1 using the location
+;following the appended run-time semantics.
+;Run-time: ( -- )
+;Continue execution at the location given by the resolution of orig2.
+IF_ELSE			IMMEDIATE
+CF_ELSE			COMPILE_ONLY
+			;Check compile info 
+			LDAB	3,SP 			;compile info -> B
+			CMPB	#FUDICT_CI_IF		;check for matching "IF"
+			BNE	CF_ELSE_4		;control structure mismatch
+			;Update compile info 
+			; +--------+--------+              
+			; |  Return Address | SP+0    
+			; +--------+--------+	       
+			; |  New Comp. Info | SP+2     
+			; +--------+--------+	       
+			; |   orig1/orig2   | SP+4     
+			; +--------+--------+	       
+			MOVB	#FUDICT_CI_ELSE, 3,SP 	;update compile info
+			LDD	4,SP			;orig1 -> D
+			LDX	CP			;orig2 -> X
+			STX	4,SP			;set orig2
+			;Allocate compile space (orig1 in D, CP in X) 
+			LEAX	3,X			;alloate space
+			STX	CP			;update CP
+			;Calculate branch distance (orig1 in D, CP in X)
+CF_ELSE_1		COMA				;invert D
+			COMB				;-orig1-1 -> D
+			LEAX	D,X			;CP-orig1-1 -> X
+			DEX				;qq rr -> X
+			COMA				;invert D
+			COMB				;orig1 -> D
+			EXG	X, D			;X <-> D
+			;Compile IF forward reference (orig1 in X, qq rr in D)
+			TBEQ	A, CF_ELSE_2 		;compile BEQ
+			;Compile LBEQ (orig1 in X, qq rr in D)		
+			MOVW	#$1827, 2,X+		;compile "LBEQ"
+			STD	0,X			;compile "qq rr"
+			JOB	CF_ELSE_3 		;set compile info
+			;Compile BEQ (orig1 in X, qq rr in D)
+CF_ELSE_2		MOVB	#$27, 1,X+		;compile "BEQ"
+			STAB	1,X+			;compile "rr"
+			MOVW	#$A7A7, 0,X		;compile "NOP NOP"
+CF_ELSE_3		RTS				;done
+			;Control structure misatch
+CF_ELSE_4		THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatch"
+	
+;Word: THEN 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: orig -- )
+;Append the run-time semantics given below to the current definition. Resolve
+;the forward reference orig using the location of the appended run-time
+;semantics.
+;Run-time: ( -- )
+;Continue execution.
+IF_THEN			IMMEDIATE
+CF_THEN			COMPILE_ONLY
+			;Check compile info 
+			LDAB	3,SP 			;compile info -> B
+			CMPB	#FUDICT_CI_ELSE		;check for matching "ELSE"
+			BEQ	CF_THEN_1		;conclude "ELSE"
+			CMPB	#FUDICT_CI_IF		;check for matching "IF"
+			BNE	CF_THEN_2		;conrol structure mismatch
+			;Conclude "IF"
+			; +--------+--------+                                           
+			; |  Return Address | SP+0                                  
+			; +--------+--------+	                                    
+			; |  New Comp. Info | SP+2                                  
+			; +--------+--------+	   ==>  +--------+--------+	         
+			; |      orig       | SP+4      |  Return Address | SP+0    
+			; +--------+--------+	        +--------+--------+	         
+			; | Old Comp. Info  | SP+6      | Old Comp. Info  | SP+2    
+			; +--------+--------+           +--------+--------+          
+			LDAA	2,SP	 		;maintain high byte of compile info
+			LDAB	#FUDICT_CI_NONE		;no optimization
+			STD	6,SP			;update compilation info
+			MOVB	2,SP, 6,SP 		;maintain high byte of compile info
+			MOVB	#FUDICT_CI_NONE, 7,SP	;no optimization
+			LDD	4,SP			;orig -> D
+			MOVW	0,SP, 4,+SP		;move return address
+			LDX	CP			;CP -> X
+			JOB	CF_ELSE_1		;conclude "IF"
+			;Conclude "ELSE"
+CF_THEN_1		LDAA	2,SP	 		;maintain high byte of compile info
+			ORAA	#FUDICT_CI_NOINL	;forbid INLINE compiling
+			LDAB	#FUDICT_CI_NONE		;no optimization
+			STD	6,SP			;update compilation info
+			LDX	4,SP			;orig -> X
+			MOVW	0,SP, 4,+SP		;move return address
+			LDD	CP			;CP -> D
+			SUBD	FUDICT_OFFSET		;CP-offset -> D
+			MOVB	#$06, 1,X+		;compile "JMP"
+			STD	0,X			;compile "hh ll"
+			RTS				;done
+			;Control structure misatch
+CF_THEN_2		EQU	CF_ELSE_4
+	
+;Word: CASE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- case-sys )
+;Mark the start of the CASE ... OF ... ENDOF ... ENDCASE structure. Append the
+;run-time semantics given below to the current definition.
+;Run-time: ( -- )
+;Continue execution.
+IF_CASE			IMMEDIATE
+CF_CASE			COMPILE_ONLY
+
+;CF_CASE			COMPILE_ONLY			;ensure that compile mode is on
+;				PS_CHECK_OF	1		;(PSP-2 -> Y)
+;				;Push initial case-sys ($0000) onto the PS
+;				MOVW	#$0000, 0,Y
+;				STY	PSP
+;				NEXT
+
+;Word: OF
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- of-sys )
+;Put of-sys onto the control flow stack. Append the run-time semantics given
+;below to the current definition. The semantics are incomplete until resolved by
+;a consumer of of-sys such as ENDOF.
+;Run-time: ( x1 x2 --   | x1 )
+;If the two values on the stack are not equal, discard the top value and
+;continue execution at the location specified by the consumer of of-sys, e.g.,
+;following the next ENDOF. Otherwise, discard both values and continue execution
+;in line.
+IF_OF			IMMEDIATE
+CF_OF			COMPILE_ONLY
+
+;CF_OF				EQU	CF_IF		
+;
+;OF run-time semantics
+;CF_OF_RT			PS_CHECK_UF	2		;check for underflow (PSP -> Y)
+;				;Check stacked values 
+;				LDD	2,Y+
+;				CPD	0,Y
+;				BEQ	CF_OF_RT_1 		;values are equal
+;				;Values are not equal
+;				STY	PSP 			;update PSP
+;				JUMP_NEXT			;go to the next ckeck
+;				;Values are equal
+;CF_OF_RT_1			LEAY	2,Y			;update PSP
+;				STY	PSP
+;				SKIP_NEXT 			;execute conditional code
+
+
+;Word: ENDOF
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: case-sys1 of-sys -- case-sys2 )
+;Mark the end of the OF ... ENDOF part of the CASE structure. The next location
+;for a transfer of control resolves the reference given by of-sys. Append the
+;run-time semantics given below to the current definition. Replace case-sys1
+;with case-sys2 on the control-flow stack, to be resolved by ENDCASE.
+;Run-time: ( -- )
+;Continue execution at the location specified by the consumer of case-sys2.
+IF_ENDOF		IMMEDIATE
+CF_ENDOF		COMPILE_ONLY
+
+;				;ENDOF compile semantics (run-time CFA in [X+2])
+;CF_ENDOF			COMPILE_ONLY				;ensure that compile mode is on
+;				PS_CHECK_UF	2			;(PSP -> Y)
+;				LDD	2,X	
+;				DICT_CHECK_OF	4			;(CP+4 -> X)
+;				;Add run-time CFA to compilation (CP+4 in X, PSP in Y, run-time CFA in D)
+;				STD	-4,X
+;				MOVW	2,Y, 2,-X 	;temporarily put case-sys1 in CFA address
+;				STX	2,Y		;replace case-sys1 by pointer to CFA address
+;				LEAX	2,X			
+;				STX	CP
+;				;Append current CP to last OF
+;				LDX	2,Y+
+;				MOVW	CP, 0,X
+;				STY	PSP
+;				;Done
+;				NEXT
+
+
+;Word: ENDCASE
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: case-sys -- )
+;Mark the end of the CASE ... OF ... ENDOF ... ENDCASE structure. Use case-sys
+;to resolve the entire structure. Append the run-time semantics given below to
+;the current definition.
+;Run-time: ( x -- )
+;Discard the case selector x and continue execution.
+IF_ENDCASE		IMMEDIATE
+CF_ENDCASE		COMPILE_ONLY
+
+;				;ENDCASE compile semantics (run-time CFA in [X+2])
+;CF_ENDCASE			COMPILE_ONLY				;ensure that compile mode is on
+;				PS_CHECK_UF	1			;(PSP -> Y)
+;				LDD	2,X	
+;				DICT_CHECK_OF	2			;(CP+2 -> X)
+;				;Add run-time CFA to compilation (CP+2 in X, PSP in Y, run-time CFA in D)
+;				STD	-2,X
+;				STX	CP
+;				;Read case-sys (PSP in Y)
+;				LDX	2,Y+ 				;get case-sys
+;				STY	PSP				;update PSP
+;				TBEQ	X, CF_ENDCASE_2			;done
+;				;Loop through all ENDOFs 
+;CF_ENDCASE_1			LDY	0,X 				;get pointer to next ENDOF
+;				MOVW	CP, 0,X				;append the correct address
+;				TFR	Y, X
+;				TBNE	X, CF_ENDCASE_1	
+;				;Done 
+;CF_ENDCASE_2			NEXT
+;				
+;CFA_ENDCASE_RT			EQU	CFA_DROP
+
+
+;Word: ?DO
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- do-sys )
+;Put do-sys onto the control-flow stack. Append the run-time semantics given
+;below to the current definition. The semantics are incomplete until resolved by
+;a consumer of do-sys such as LOOP.
+;Run-time: ( n1|u1 n2|u2 -- ) ( R: --  | loop-sys )
+;If n1|u1 is equal to n2|u2, continue execution at the location given by the
+;consumer of do-sys. Otherwise set up loop control parameters with index n2|u2
+;and limit n1|u1 and continue executing immediately following ?DO. Anything
+;already on the return stack becomes unavailable until the loop control
+;parameters are discarded. An ambiguous condition exists if n1|u1 and n2|u2 are
+;not both of the same type.
+IF_QUESTION_DO		IMMEDIATE
+CF_QUESTION_DO		COMPILE_ONLY
+	
+;				;?DO compile semantics (run-time CFA in [X+2])
+;CF_QUESTION_DO			COMPILE_ONLY					;ensure that compile mode is on
+;				PS_CHECK_OF	2				;(PSP-4 -> Y)
+;				LDD		2,X	
+;				DICT_CHECK_OF	4				;(CP+4 -> X)
+;				;Add run-time CFA to compilation (CP+4 in X, PSP-4 in Y)
+;				STD	-4,X
+;				MOVW	#$0000, 2,-X
+;				;Stack do-sys onto PS (CP+2 in X, PSP-4 in Y)
+;				STX	0,Y
+;				LEAX	2,X
+;				STX	2,Y
+;				STY	PSP
+;				STX	CP
+;				;Done
+;				NEXT
+;
+;;?DO run-time semantics
+;CF_QUESTION_DO_RT		PS_CHECK_UF	2		;(PSP -> Y)
+;				RS_CHECK_OF	2		;
+;				;Compare args on PS
+;				LDD	2,Y+
+;				CPD	2,Y+
+;				BEQ	CF_QUESTION_DO_RT_1
+;				;Move loop-sys from PS to RS
+;				STY	PSP
+;				LDX	RSP	
+;				MOVW	-4,Y, 4,-X 		;copy index
+;				MOVW	-2,Y, 2,X 		;copy limit
+;				STX	RSP
+;				SKIP_NEXT
+;				;Done
+;CF_QUESTION_DO_RT_1		STY	PSP
+;				JUMP_NEXT
+
+
+;Word: DO
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- do-sys )
+;Place do-sys onto the control-flow stack. Append the run-time semantics given
+;below to the current definition. The semantics are incomplete until resolved
+;by a consumer of do-sys such as LOOP.
+;;Run-time: ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
+;Set up loop control parameters with index n2|u2 and limit n1|u1. An ambiguous
+;condition exists if n1|u1 and n2|u2 are not both the same type. Anything
+;already on the return stack becomes unavailable until the loop-control
+;parameters are discarded.
+IF_DO			IMMEDIATE
+CF_DO			COMPILE_ONLY
+
+
+;CF_DO				COMPILE_ONLY	CF_DO_COMPONLY 	;ensure that compile mode is on
+;				PS_CHECK_OF	2		;(PSP-4 -> Y)
+;				LDD		2,X	
+;				DICT_CHECK_OF	2, CF_DO_DICTOF	;(CP+2 -> X)
+;				;Add run-time CFA to compilation (CP+2 in X, PSP-4 in Y)
+;				STD	-2,X
+;				;Stack do-sys onto PS (CP+2 in X, PSP-4 in Y)
+;				STX	2,Y
+;				MOVW	#$0000, 0,Y
+;				STY	PSP
+;				STX	CP
+;				;Done
+;				NEXT
+;
+;CF_DO_DICTOF			JOB	FCORE_THROW_DICTOF
+;CF_DO_COMPONLY			JOB	FCORE_THROW_COMPONLY	
+;				
+;DO run-time semantics		
+;CF_DO_RT			PS_CHECK_UF	2		;(PSP -> Y)
+;				RS_CHECK_OF	2		;
+;				;Move loop-sys from PS to RS
+;				LDX	RSP	
+;				MOVW	2,Y+, 4,-X 		;copy index
+;				MOVW	2,Y+, 2,X 		;copy limit
+;				STX	RSP
+;				STY	PSP
+;				;Done
+;				NEXT
+
+;Word: +LOOP
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: do-sys -- )
+;Append the run-time semantics given below to the current definition. Resolve
+;the destination of all unresolved occurrences of LEAVE between the location
+;given by do-sys and the next location for a transfer of control, to execute the
+;words following +LOOP.
+;Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
+;An ambiguous condition exists if the loop control parameters are unavailable.
+;Add n to the loop index. If the loop index did not cross the boundary between
+;the loop limit minus one and the loop limit, continue execution at the beginning
+;of the loop. Otherwise, discard the current loop control parameters and continue
+;execution immediately following the loop.
+IF_PLUS_LOOP		IMMEDIATE
+CF_PLUS_LOOP		COMPILE_ONLY
+
+;CF_PLUS_LOOP			EQU	CF_LOOP
+;
+;LOOP run-time semantics
+;CF_PLUS_LOOP_RT		PS_CHECK_UF	1	;(PSP -> Y)
+;				RS_CHECK_UF	2	;(RSP -> X)
+;				;Increment and check index (RSP in X, PSP in Y)
+;				LDD	0,X
+;				ADDD	2,Y-
+;				STY	PSP
+;				CPD	2,X
+;				BEQ	CF_LOOP_RT_1
+;				;Limit not reached (RSP in X)
+;				STD	0,X
+;				JUMP_NEXT
+;				;Limit reached (RSP in X)
+;CF_PLUS_LOOP_RT_1		LEAX	4,X
+;				STX	RSP
+;				SKIP_NEXT
+
+;Word: LOOP
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: do-sys -- )
+;Append the run-time semantics given below to the current definition. Resolve
+;the destination of all unresolved occurrences of LEAVE between the location
+;given by do-sys and the next location for a transfer of control, to execute the
+;words following the LOOP.
+;Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
+;An ambiguous condition exists if the loop control parameters are unavailable.
+;Add one to the loop index. If the loop index is then equal to the loop limit,
+;discard the loop parameters and continue execution immediately following the
+;loop. Otherwise continue execution at the beginning of the loop.
+IF_LOOP			IMMEDIATE
+CF_LOOP			COMPILE_ONLY
+
+;				ALIGN	1
+;NFA_LOOP			FHEADER, "LOOP", NFA_LITERAL, IMMEDIATE
+;CFA_LOOP			DW	CF_LOOP
+;				DW	CFA_LOOP_RT
+;				;LEAVE compile semantics (run-time CFA in [X+2])
+;CF_LOOP				COMPILE_ONLY	CF_LOOP_COMPONLY 	;ensure that compile mode is on
+;				PS_CHECK_UF	2, CF_LOOP_PSUF	;(PSP -> Y)
+;				LDD		2,X	
+;				DICT_CHECK_OF	4, CF_LOOP_DICTOF	;(CP+4 -> X)
+;				;Add run-time CFA to compilation (CP+4 in X, PSP in Y)
+;				STD	-4,X
+;				MOVW	2,Y, -2,X
+;				STX	CP
+;				;Read do-sys (PSP+4 in Y)
+;				LDX	4,Y+ 				;get case-sys
+;				STY	PSP				;update PSP
+;				TBEQ	X, CF_LOOP_2			;done
+;				;Loop through all LEAVESs 
+;CF_LOOP_1			LDY	0,X 				;get pointer to next LEAVE or DO
+;				MOVW	CP, 0,X				;append the correct address
+;				TFR	Y, X
+;				TBNE	X, CF_LOOP_1	
+;				;Done 
+;CF_LOOP_2			NEXT
+;
+;LOOP run-time semantics
+;CFA_LOOP_RT			DW	CF_LOOP_RT
+;CF_LOOP_RT			RS_CHECK_UF	2, CF_LOOP_RSUF	;(RSP -> X)
+;				;Increment and check index (RSP in X)
+;				LDD	0,X
+;				ADDD	#1
+;				CPD	2,X
+;				BEQ	CF_LOOP_RT_1
+;				;Limit not reached (RSP in X)
+;				STD	0,X
+;				JUMP_NEXT
+;				;Limit reached (RSP in X)
+;CF_LOOP_RT_1			LEAX	4,X
+;				STX	RSP
+;				SKIP_NEXT
+
+;Word: BEGIN 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- dest )
+;Put the next location for a transfer of control, dest, onto the control flow
+;stack. Append the run-time semantics given below to the current definition.
+;Run-time: ( -- )
+;Continue execution.
+IF_BEGIN		IMMEDIATE
+CF_BEGIN		COMPILE_ONLY
+
+;NFA_BEGIN			FHEADER, "BEGIN", NFA_BASE, IMMEDIATE
+;CFA_BEGIN			DW	CF_BEGIN
+;CF_BEGIN			COMPILE_ONLY	CF_BEGIN_COMPONLY 	;ensure that compile mode is on
+;				PS_CHECK_OF	1			;overflow check	=> 9 cycles
+;				MOVW	CP, 0,Y
+;				STY	PSP
+;				NEXT
+	
+;Word: UNTIL 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: dest -- )
+;Append the run-time semantics given below to the current definition, resolving
+;the backward reference dest.
+;Run-time: ( x -- )
+;If all bits of x are zero, continue execution at the location specified by
+;dest.
+IF_UNTIL		IMMEDIATE
+CF_UNTIL		COMPILE_ONLY
+
+;CF_UNTIL			EQU	CF_LITERAL
+;	
+;;UNTIL run-time semantics 
+;CF_UNTIL_RT			PS_PULL_X
+;				CPX	#$0000		;check is cell equals 0
+;				BEQ	CF_UNTIL_RT_1	;cell is zero 
+;				SKIP_NEXT		;increment IP and do NEXT
+;CF_UNTIL_RT_1			JUMP_NEXT
+
+;Word: AGAIN 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: dest -- )
+;Append the run-time semantics given below to the current definition, resolving
+;the backward reference dest.
+;Run-time: ( -- )
+;Continue execution at the location specified by dest. If no other control flow
+;words are used, any program code after AGAIN will not be executed.
+IF_AGAIN		IMMEDIATE
+CF_AGAIN		COMPILE_ONLY
+
+;CF_AGAIN			EQU	CF_LITERAL
+;	
+;;AGAIN run-time semantics
+;CF_AGAIN_RT			JUMP_NEXT
+
+;Word: WHILE 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: dest -- orig dest )
+;Put the location of a new unresolved forward reference orig onto the control
+;flow stack, under the existing dest. Append the run-time semantics given below
+;to the current definition. The semantics are incomplete until orig and dest are
+;resolved (e.g., by REPEAT).
+;Run-time: ( x -- )
+;If all bits of x are zero, continue execution at the location specified by the
+;resolution of orig.
+IF_WHILE		IMMEDIATE
+CF_WHILE		COMPILE_ONLY
+
+;CF_WHILE			COMPILE_ONLY				;ensure that compile mode is on
+;				PS_CHECK_UFOF	1, 1			;check for under and overflow (PSP-2 -> Y)	
+;				LDD	2,X	
+;				DICT_CHECK_OF	4			;(CP+4-> X)
+;				;Add run-time CFA to compilation (CP+4 in X, PSP-2 in Y)
+;				STD	 -4,X
+;				STX	-2,X
+;				STX	CP
+;				;Move dest to TOS
+;				MOVW	2,Y, 0,Y
+;				LEAX	-2,X
+;				STX	2,Y
+;				STY	PSP
+;				;Done
+;				NEXT
+
+;Word: REPEAT 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: orig dest -- )
+;Append the run-time semantics given below to the current definition, resolving
+;the backward reference dest. Resolve the forward reference orig using the
+;location following the appended run-time semantics.
+;Run-time: ( -- )
+;Continue execution at the location given by dest.
+IF_REPEAT		IMMEDIATE
+CF_REPEAT		COMPILE_ONLY
+
+;CF_REPEAT		;REPEAT compile semantics (run-time CFA in [X+2])
+;			COMPILE_ONLY				;ensure that compile mode is on
+;			PS_CHECK_UF	1			;(PSP -> Y)
+;			LDD	2,X	
+;			DICT_CHECK_OF	4			;(CP+4-> X)
+;			;Add run-time CFA to compilation (CP+4 in X, PSP in Y)
+;			STD	-4,X
+;			MOVW	2,Y+, -2,X
+;			STX	CP
+;			;Add address to CFA_WHILE_RT
+;			LDX	2,Y+
+;			STY	PSP
+;			MOVW	CP, 0,X
+;			;Done 
+;			NEXT
+
 	
 FUDICT_CODE_END		EQU	*
 FUDICT_CODE_END_LIN	EQU	@

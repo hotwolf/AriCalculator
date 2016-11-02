@@ -363,24 +363,7 @@ CF_PLUS_STORE_EOI		RTS
 ;the loop limit minus one and the loop limit, continue execution at the beginning
 ;of the loop. Otherwise, discard the current loop control parameters and continue
 ;execution immediately following the loop.
-;CF_PLUS_LOOP			EQU	CF_LOOP
-;
-;LOOP run-time semantics
-;CF_PLUS_LOOP_RT		PS_CHECK_UF	1	;(PSP -> Y)
-;				RS_CHECK_UF	2	;(RSP -> X)
-;				;Increment and check index (RSP in X, PSP in Y)
-;				LDD	0,X
-;				ADDD	2,Y-
-;				STY	PSP
-;				CPD	2,X
-;				BEQ	CF_LOOP_RT_1
-;				;Limit not reached (RSP in X)
-;				STD	0,X
-;				JUMP_NEXT
-;				;Limit reached (RSP in X)
-;CF_PLUS_LOOP_RT_1		LEAX	4,X
-;				STX	RSP
-;				SKIP_NEXT
+;==> FUDICT
 	
 ;, ( x -- )
 ;Reserve one cell of data space and store x in the cell. If the data-space
@@ -556,26 +539,7 @@ CF_TWO_FETCH_EOI		RTS
 ;name Execution: ( i*x -- j*x )
 ;Execute the definition name. The stack effects i*x and j*x represent arguments
 ;to and results from name, respectively.
-;CF_COLON			INTERPRET_ONLY	CF_COLON_COMPNEST	;check for nested definition
-;				PS_CHECK_OF	1			;check for PS overflow (PSP-2 -> Y)	
-;				;Build header (PSP-2 -> Y)
-;				SSTACK_JOBSR	FCORE_HEADER 		;NFA -> D, error handler -> X(SSTACK: 10  bytes)
-;				TBNE	X, CF_COLON_ERROR
-;				;Push NFA onto PS (PSP-2 -> Y) 
-;				STD	0,Y
-;				STY	PSP
-;				;Append CFA 
-;				LDX	CP
-;				MOVW	#CF_INNER, 2,X+
-;				STX	CP
-;				;Enter compile state 
-;				MOVW	#$0001, STATE
-;				;Done 
-;				NEXT
-;				;Error handler for FCORE_HEADER 
-;CF_COLON_ERROR			JMP	0,X
-;				
-;CF_COLON_COMPNEST		JOB	FCORE_THROW_COMPNEST
+;==> FUDICT
 
 ;; 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -586,39 +550,7 @@ CF_TWO_FETCH_EOI		RTS
 ;enough data space to align it.
 ;Run-time: ( -- ) ( R: nest-sys -- )
 ;Return to the calling definition specified by nest-sys.
-;CF_SEMICOLON			COMPILE_ONLY	CF_SEMICOLON_COMPONLY 	;ensure that compile mode is on
-;				PS_CHECK_UF	1			;(PSP -> Y)
-;				DICT_CHECK_OF	2, CF_SEMICOLON_DICTOF	;(CP+2 -> X)
-;				;Check colon-sys (PSP in Y, CP+2 in X)
-;				LDX	0,Y
-;				BEQ	CF_SEMICOLON_2 			;:NONAME definition	
-;				;Verify NFA (NFA in X, PSP in Y)
-;				LDAA	2,+X
-;				BMI	CF_SEMICOLON_CTRLSTRUC		;NFA is not valid: word is immediate
-;				INCA					;check if CFA points to CF_INNER
-;				LDD	A,X
-;				CPD	#CF_INNER
-;				BNE	CF_SEMICOLON_CTRLSTRUC		;NFA is not valid: wrong CFA
-;				;Set previous NFA (PSP in Y)
-;				MOVW	2,Y+, LAST_NFA
-;CF_SEMICOLON_1			STY	PSP
-;				;Add "EXIT" to the compilation
-;				LDX	CP
-;				MOVW	#CFA_EXIT_RT, 2,X+
-;				STX	CP
-;				;Update CP_SAVED
-;				MOVW	CP, CP_SAVED
-;				;Leave compile state 
-;				MOVW	#$0000, STATE
-;				;Done 
-;				NEXT
-;				;:NONAME definition
-;CF_SEMICOLON_2			PS_CHECK_UF	2, CF_SEMICOLON_CTRLSTRUC;(PSP -> Y)
-;				LDX	2,+Y				;Check if the correct CFA was stored
-;				LDD	0,X
-;				CPD	#CF_INNER
-;				BEQ	CF_SEMICOLON_1			;CFA is not valid:
-;				;JOB	CF_SEMICOLON_CTRLSTRUC
+;==> FUDICT
 
 ;Word: < ( n1 n2 -- flag )
 ;flag is true if and only if n1 is less than n2.
@@ -759,7 +691,7 @@ CF_ABS				EQU	*
 CF_ABS_1			RTS			;done
 				EQU	CF_ABS_1
 	
-;ACCEPT ( c-addr +n1 -- +n2 ) CHECK!
+;ACCEPT ( c-addr +n1 -- +n2 )
 ;Receive a string of at most +n1 characters. An ambiguous condition exists if
 ;+n1 is zero or greater than 32,767. Display graphic characters as they are
 ;received. A program that depends on the presence or absence of non-graphic
@@ -786,7 +718,7 @@ CF_ABS_1			RTS			;done
 ;ALIGN ( -- )
 ;If the data-space pointer is not aligned, reserve enough space to align it.
 ;CF_ALIGN		EQU	CF_NOP
-;==> move to FUDICT
+;TBD
 	
 ;Word: ALIGNED ( addr -- a-addr )
 IF_ALIGNED			INLINE	CF_ALIGNED
@@ -848,13 +780,7 @@ CF_AND_EOI			RTS				;done
 ;stack. Append the run-time semantics given below to the current definition.
 ;Run-time: ( -- )
 ;Continue execution.
-;NFA_BEGIN			FHEADER, "BEGIN", NFA_BASE, IMMEDIATE
-;CFA_BEGIN			DW	CF_BEGIN
-;CF_BEGIN			COMPILE_ONLY	CF_BEGIN_COMPONLY 	;ensure that compile mode is on
-;				PS_CHECK_OF	1			;overflow check	=> 9 cycles
-;				MOVW	CP, 0,Y
-;				STY	PSP
-;				NEXT
+;==> FUDICT
 	
 ;Word: BL ( -- char )
 ;char is the character value for a space.
@@ -959,34 +885,7 @@ CF_CLS_EOI			RTS
 ;name is referred to as a constant.
 ;name Execution: ( -- x )
 ;Place x on the stack.
-;CF_CONSTANT			PS_CHECK_UF 1			;(PSP -> Y)
-;				;Build header (PSP in Y)
-;				SSTACK_JOBSR	FCORE_HEADER ;NFA -> D, error handler -> X(SSTACK: 10  bytes)
-;				TBNE	X, CF_CONSTANT_ERROR
-;				;Update LAST_NFA (PSP in Y)
-;				STD	LAST_NFA
-;				;Append CFA (PSP in Y)
-;				LDX	CP
-;				MOVW	#CF_CONSTANT_RT, 2,X+
-;				;Append constant value (PSP in Y, CP in X)
-;				MOVW	2,Y+, 2,X+
-;				STX	CP
-;				STY	PSP
-;				;Update CP saved (CP in X)
-;				STX	 CP_SAVED
-;				;Done 
-;				NEXT
-;				;Error handler for FCORE_HEADER 
-;CF_CONSTANT_ERROR		JMP	0,X
-;
-;;CONSTANT run-time semantics
-;;Push the contents of the first cell after the CFA onto the parameter stack
-;CF_CONSTANT_RT			PS_CHECK_OF	1			;overflow check	=> 9 cycles
-;				MOVW		2,X, 0,Y		;[CFA+2] -> PS	=> 5 cycles
-;				STY		PSP			;		=> 3 cycles
-;				NEXT					;NEXT		=>15 cycles
-;									; 		  ---------
-;									;		  32 cycles
+;==> FUDICT
                                                 
 ;Word: COUNT ( c-addr1 -- c-addr2 u )
 ;Return the character string specification for the counted string stored at
@@ -1077,34 +976,7 @@ CF_DEPTH_EOI			RTS 					;done
 ;condition exists if n1|u1 and n2|u2 are not both the same type. Anything
 ;already on the return stack becomes unavailable until the loop-control
 ;parameters are discarded.
-;CF_DO				COMPILE_ONLY	CF_DO_COMPONLY 	;ensure that compile mode is on
-;				PS_CHECK_OF	2		;(PSP-4 -> Y)
-;				LDD		2,X	
-;				DICT_CHECK_OF	2, CF_DO_DICTOF	;(CP+2 -> X)
-;				;Add run-time CFA to compilation (CP+2 in X, PSP-4 in Y)
-;				STD	-2,X
-;				;Stack do-sys onto PS (CP+2 in X, PSP-4 in Y)
-;				STX	2,Y
-;				MOVW	#$0000, 0,Y
-;				STY	PSP
-;				STX	CP
-;				;Done
-;				NEXT
-;
-;CF_DO_DICTOF			JOB	FCORE_THROW_DICTOF
-;CF_DO_COMPONLY			JOB	FCORE_THROW_COMPONLY	
-;				
-;DO run-time semantics		
-;CF_DO_RT			PS_CHECK_UF	2		;(PSP -> Y)
-;				RS_CHECK_OF	2		;
-;				;Move loop-sys from PS to RS
-;				LDX	RSP	
-;				MOVW	2,Y+, 4,-X 		;copy index
-;				MOVW	2,Y+, 2,X 		;copy limit
-;				STX	RSP
-;				STY	PSP
-;				;Done
-;				NEXT
+;==> FUDICT
 
 ;DOES>
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1166,21 +1038,7 @@ CF_DEPTH_EOI			RTS 					;done
 ;following the appended run-time semantics.
 ;Run-time: ( -- )
 ;Continue execution at the location given by the resolution of orig2.
-;CF_ELSE			COMPILE_ONLY	CF_ELSE_COMPONLY 	;ensure that compile mode is on
-;				PS_CHECK_UF	1			;(PSP -> Y)
-;				LDD	2,X	
-;				DICT_CHECK_OF	4, CF_ELSE_DICTOF	;(CP+4 -> X)
-;				;Add run-time CFA to compilation (CP+4 in X, PSP in Y, run-time CFA in D)
-;				STD     -4,X
-;				MOVW	#$0000, -2,X
-;				STX	CP
-;				;Append current CP to last IF or ELSE
-;				STX	[0,Y]
-;				;Stack orig2 onto the PS
-;				LEAX	-2,X
-;				STX	0,Y
-;				;Done 
-;				NEXT
+;==> FUDICT
 
 ;Word: EMIT ( x -- )
 ;If x is a graphic character in the implementation-defined character set,
@@ -1244,21 +1102,18 @@ CF_EXECUTE			EQU	*
 ;								;                         ---------
 ;								;                         24 cycles			
 	
-;FILL ( c-addr u char -- )
+;Word: FILL ( c-addr u char -- )
 ;If u is greater than zero, store char in each of u consecutive characters of
 ;memory beginning at c-addr.
-;CF_FILL			PS_CHECK_UF	3		;check for underflow (PSP -> Y)
-;				;Pull args fron stack
-;				LDD	6,Y+ 			;char -> X	
-;				STY	PSP
-;				LDX	-2,Y 			;c-addr -> D
-;				LDY	-4,Y			;u -> Y
-;				BEQ	CF_FILL_2		;done
-;				;Fill memory (c-addr in X, u in Y, char in D)
-;CF_FILL_1			STAB	1,X+
-;				DBNE	Y, CF_FILL_1
-;				;Done
-;CF_FILL_2			NEXT	
+IF_FILL				REGULAR
+CF_FILL				EQU	*
+				LDD	2,Y 			;u -> D
+				BEQ	CF_FILL_2		;u is zero
+				LDX	4,Y			;c-addre -> X
+CF_FILL_1			MOVB	1,Y, 1,X+		;fill byte
+				DBNE	D, CF_FILL_1		;loop
+CF_FILL_2			LEAY	6,Y			;clean up PS
+				RTS				;dome
 
 ;FIND ( c-addr -- c-addr 0  |  xt 1  |  xt -1 )
 ;Find the definition named in the counted string at c-addr. If the definition is
@@ -1346,35 +1201,8 @@ CF_EXECUTE			EQU	*
 ;Run-time: ( x -- )
 ;If all bits of x are zero, continue execution at the location specified by the
 ;resolution of orig.
-;				;IF compile semantics (run-time CFA in [X+2])
-;CF_IF				COMPILE_ONLY	CF_IF_COMPONLY 	;ensure that compile mode is on
-;				PS_CHECK_OF	1, CF_IF_PSOF	;(PSP-2 -> Y)
-;				LDD	2,X	
-;				DICT_CHECK_OF	4, CF_IF_DICTOF	;(CP+4 -> X)
-;				;Add run-time CFA to compilation (CP+4 in X, PSP-2 in Y, run-time CFA in D)
-;				STD	 -4,X
-;				MOVW	#$0000,	-2,X
-;				STX	CP
-;				;Stack orig onto the PS (CP+4 in X, PSP-2 in Y)
-;				LEAX	-2,X
-;				STX	0,Y 			;default false action = true action
-;				STY	PSP
-;				;Done 
-;				NEXT
+;==>FUDICT
 	
-;IF run-time semantics
-;Jump to the a address at IP if the valoue at the PS TOS is false
-;CF_IF_RT			PS_CHECK_UF	1, CF_IF_PSUF ;check for underflow (PSP -> Y)
-;				;Check flag (PSP -> Y)
-;				LDD	2,Y+
-;				BEQ	CF_IF_RT_1 ;flag is false
-;				;Flag is true (PSP -> Y)
-;				STY	PSP
-;				SKIP_NEXT
-;				;Flag is false
-;CF_IF_RT_1			STY	PSP
-;				JUMP_NEXT
-			
 ;IMMEDIATE ( -- )
 ;Make the most recent definition an immediate word. An ambiguous condition
 ;exists if the most recent definition does not have a name.
@@ -1476,46 +1304,7 @@ CF_INVERT_EOI			RTS
 ;Add one to the loop index. If the loop index is then equal to the loop limit,
 ;discard the loop parameters and continue execution immediately following the
 ;loop. Otherwise continue execution at the beginning of the loop.
-;				ALIGN	1
-;NFA_LOOP			FHEADER, "LOOP", NFA_LITERAL, IMMEDIATE
-;CFA_LOOP			DW	CF_LOOP
-;				DW	CFA_LOOP_RT
-;				;LEAVE compile semantics (run-time CFA in [X+2])
-;CF_LOOP				COMPILE_ONLY	CF_LOOP_COMPONLY 	;ensure that compile mode is on
-;				PS_CHECK_UF	2, CF_LOOP_PSUF	;(PSP -> Y)
-;				LDD		2,X	
-;				DICT_CHECK_OF	4, CF_LOOP_DICTOF	;(CP+4 -> X)
-;				;Add run-time CFA to compilation (CP+4 in X, PSP in Y)
-;				STD	-4,X
-;				MOVW	2,Y, -2,X
-;				STX	CP
-;				;Read do-sys (PSP+4 in Y)
-;				LDX	4,Y+ 				;get case-sys
-;				STY	PSP				;update PSP
-;				TBEQ	X, CF_LOOP_2			;done
-;				;Loop through all LEAVESs 
-;CF_LOOP_1			LDY	0,X 				;get pointer to next LEAVE or DO
-;				MOVW	CP, 0,X				;append the correct address
-;				TFR	Y, X
-;				TBNE	X, CF_LOOP_1	
-;				;Done 
-;CF_LOOP_2			NEXT
-;
-;LOOP run-time semantics
-;CFA_LOOP_RT			DW	CF_LOOP_RT
-;CF_LOOP_RT			RS_CHECK_UF	2, CF_LOOP_RSUF	;(RSP -> X)
-;				;Increment and check index (RSP in X)
-;				LDD	0,X
-;				ADDD	#1
-;				CPD	2,X
-;				BEQ	CF_LOOP_RT_1
-;				;Limit not reached (RSP in X)
-;				STD	0,X
-;				JUMP_NEXT
-;				;Limit reached (RSP in X)
-;CF_LOOP_RT_1			LEAX	4,X
-;				STX	RSP
-;				SKIP_NEXT
+;==> FUDICT
 	
 ;Word: LSHIFT ( x1 u -- x2 )
 ;Perform a logical left shift of u bit-places on x1, giving x2. Put zeroes into
@@ -1689,21 +1478,7 @@ CF_OR_EOI			RTS
 ;location following the appended run-time semantics.
 ;Run-time: ( -- )
 ;Continue execution at the location given by dest.
-;CF_REPEAT		;REPEAT compile semantics (run-time CFA in [X+2])
-;			COMPILE_ONLY				;ensure that compile mode is on
-;			PS_CHECK_UF	1			;(PSP -> Y)
-;			LDD	2,X	
-;			DICT_CHECK_OF	4			;(CP+4-> X)
-;			;Add run-time CFA to compilation (CP+4 in X, PSP in Y)
-;			STD	-4,X
-;			MOVW	2,Y+, -2,X
-;			STX	CP
-;			;Add address to CFA_WHILE_RT
-;			LDX	2,Y+
-;			STY	PSP
-;			MOVW	CP, 0,X
-;			;Done 
-;			NEXT
+;==> FUDICT
 
 ;ROT ( x1 x2 x3 -- x2 x3 x1 )
 ;Rotate the top three stack entries.
@@ -1871,14 +1646,7 @@ CF_S_M_SLASH_REM_2		THROW	FEXCPT_TC_RESOR		;result out of range
 ;semantics.
 ;Run-time: ( -- )
 ;Continue execution.
-;CF_THEN			COMPILE_ONLY				;ensure that compile mode is on
-;				PS_CHECK_UF	1			;check for underflow (PSP -> Y)
-;				;Append current CP to last IF or ELSE
-;				LDX	2,Y+
-;				MOVW	CP, 0,X
-;				STY	PSP
-;				;Done
-;				NEXT
+;==> FUDICT
 
 ;TYPE ( c-addr u -- )
 ;If u is greater than zero, display the character string specified by c-addr and
@@ -1986,14 +1754,7 @@ CF_U_M_SLASH_MOD_2		THROW	FEXCPT_TC_RESOR		;result out of range
 ;Run-time: ( x -- )
 ;If all bits of x are zero, continue execution at the location specified by
 ;dest.
-;CF_UNTIL			EQU	CF_LITERAL
-;	
-;;UNTIL run-time semantics 
-;CF_UNTIL_RT			PS_PULL_X
-;				CPX	#$0000		;check is cell equals 0
-;				BEQ	CF_UNTIL_RT_1	;cell is zero 
-;				SKIP_NEXT		;increment IP and do NEXT
-;CF_UNTIL_RT_1			JUMP_NEXT
+;==> FUDICT
 			
 ;VARIABLE ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -2041,21 +1802,7 @@ CF_U_M_SLASH_MOD_2		THROW	FEXCPT_TC_RESOR		;result out of range
 ;Run-time: ( x -- )
 ;If all bits of x are zero, continue execution at the location specified by the
 ;resolution of orig.
-;CF_WHILE			COMPILE_ONLY				;ensure that compile mode is on
-;				PS_CHECK_UFOF	1, 1			;check for under and overflow (PSP-2 -> Y)	
-;				LDD	2,X	
-;				DICT_CHECK_OF	4			;(CP+4-> X)
-;				;Add run-time CFA to compilation (CP+4 in X, PSP-2 in Y)
-;				STD	 -4,X
-;				STX	-2,X
-;				STX	CP
-;				;Move dest to TOS
-;				MOVW	2,Y, 0,Y
-;				LEAX	-2,X
-;				STX	2,Y
-;				STY	PSP
-;				;Done
-;				NEXT
+;==> FUDICT
 	
 ;WORD ( char "<chars>ccc<char>" -- c-addr )
 ;Skip leading delimiters. Parse characters ccc delimited by char. An ambiguous
@@ -2096,9 +1843,7 @@ CF_XOR_EOI			RTS
 ;Compilation: Perform the execution semantics given below.
 ;Execution: ( -- )
 ;Enter interpretation state. [ is an immediate word.
-;CF_LEFT_BRACKET		MOVW	#$0000, STATE
-;				;Done 
-;				NEXT
+;==> FUDICT
 
 ;[']
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2140,9 +1885,7 @@ CF_XOR_EOI			RTS
 	
 ;] ( -- )
 ;Enter compilation state.
-;CF_RIGHT_BRACKET		MOVW	#$0001, STATE
-;		 		;Done 
-;		 		NEXT
+;==> FUDICT
 
 ;#Core extension words (CORE EXT)
 ; ===============================
@@ -2159,15 +1902,7 @@ CF_XOR_EOI			RTS
 ;Execution: ( "ccc<paren>" -- )
 ;Parse and display ccc delimited by ) (right parenthesis). .( is an immediate
 ;word.
-;CF_DOT_PAREN			;Parse quote
-;				LDAA	#")" 				;right parenthesis
-;				;JOB	CF_DOT_QUOTE_1
-;				SSTACK_JOBSR	FCORE_PARSE		;string pointer -> X, character count -> A
-;				TBEQ	X, CF_DOT_PAREN_1
-;				;Print quote (string pointer in X)
-;				PRINT_STR	
-;				;Done
-;CF_DOT_PAREN_1			NEXT
+;==> FUDICT
 	
 ;.R ( n1 n2 -- )
 ;Display n1 right aligned in a field n2 characters wide. If the number of
@@ -2296,40 +2031,7 @@ CF_NOT_EQUALS_1			TAB					;flag  -> D
 ;already on the return stack becomes unavailable until the loop control
 ;parameters are discarded. An ambiguous condition exists if n1|u1 and n2|u2 are
 ;not both of the same type.
-;				;?DO compile semantics (run-time CFA in [X+2])
-;CF_QUESTION_DO			COMPILE_ONLY					;ensure that compile mode is on
-;				PS_CHECK_OF	2				;(PSP-4 -> Y)
-;				LDD		2,X	
-;				DICT_CHECK_OF	4				;(CP+4 -> X)
-;				;Add run-time CFA to compilation (CP+4 in X, PSP-4 in Y)
-;				STD	-4,X
-;				MOVW	#$0000, 2,-X
-;				;Stack do-sys onto PS (CP+2 in X, PSP-4 in Y)
-;				STX	0,Y
-;				LEAX	2,X
-;				STX	2,Y
-;				STY	PSP
-;				STX	CP
-;				;Done
-;				NEXT
-;
-;;?DO run-time semantics
-;CF_QUESTION_DO_RT		PS_CHECK_UF	2		;(PSP -> Y)
-;				RS_CHECK_OF	2		;
-;				;Compare args on PS
-;				LDD	2,Y+
-;				CPD	2,Y+
-;				BEQ	CF_QUESTION_DO_RT_1
-;				;Move loop-sys from PS to RS
-;				STY	PSP
-;				LDX	RSP	
-;				MOVW	-4,Y, 4,-X 		;copy index
-;				MOVW	-2,Y, 2,X 		;copy limit
-;				STX	RSP
-;				SKIP_NEXT
-;				;Done
-;CF_QUESTION_DO_RT_1		STY	PSP
-;				JUMP_NEXT
+;==> FUDICT
 
 ;AGAIN 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2339,10 +2041,7 @@ CF_NOT_EQUALS_1			TAB					;flag  -> D
 ;Run-time: ( -- )
 ;Continue execution at the location specified by dest. If no other control flow
 ;words are used, any program code after AGAIN will not be executed.
-;CF_AGAIN			EQU	CF_LITERAL
-;	
-;;AGAIN run-time semantics
-;CF_AGAIN_RT			JUMP_NEXT
+;==> FUDICT
 
 ;C"
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2402,12 +2101,7 @@ CF_NOT_EQUALS_1			TAB					;flag  -> D
 ;run-time semantics given below to the current definition.
 ;Run-time: ( -- )
 ;Continue execution.
-;CF_CASE			COMPILE_ONLY			;ensure that compile mode is on
-;				PS_CHECK_OF	1		;(PSP-2 -> Y)
-;				;Push initial case-sys ($0000) onto the PS
-;				MOVW	#$0000, 0,Y
-;				STY	PSP
-;				NEXT
+;==> FUDICT
 
 ;COMPILE, 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2452,27 +2146,7 @@ CF_NOT_EQUALS_1			TAB					;flag  -> D
 ;the current definition.
 ;Run-time: ( x -- )
 ;Discard the case selector x and continue execution.
-;				;ENDCASE compile semantics (run-time CFA in [X+2])
-;CF_ENDCASE			COMPILE_ONLY				;ensure that compile mode is on
-;				PS_CHECK_UF	1			;(PSP -> Y)
-;				LDD	2,X	
-;				DICT_CHECK_OF	2			;(CP+2 -> X)
-;				;Add run-time CFA to compilation (CP+2 in X, PSP in Y, run-time CFA in D)
-;				STD	-2,X
-;				STX	CP
-;				;Read case-sys (PSP in Y)
-;				LDX	2,Y+ 				;get case-sys
-;				STY	PSP				;update PSP
-;				TBEQ	X, CF_ENDCASE_2			;done
-;				;Loop through all ENDOFs 
-;CF_ENDCASE_1			LDY	0,X 				;get pointer to next ENDOF
-;				MOVW	CP, 0,X				;append the correct address
-;				TFR	Y, X
-;				TBNE	X, CF_ENDCASE_1	
-;				;Done 
-;CF_ENDCASE_2			NEXT
-;				
-;CFA_ENDCASE_RT			EQU	CFA_DROP
+;==> FUDICT
 
 ;ENDOF
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2483,38 +2157,19 @@ CF_NOT_EQUALS_1			TAB					;flag  -> D
 ;with case-sys2 on the control-flow stack, to be resolved by ENDCASE.
 ;Run-time: ( -- )
 ;Continue execution at the location specified by the consumer of case-sys2.
-;				;ENDOF compile semantics (run-time CFA in [X+2])
-;CF_ENDOF			COMPILE_ONLY				;ensure that compile mode is on
-;				PS_CHECK_UF	2			;(PSP -> Y)
-;				LDD	2,X	
-;				DICT_CHECK_OF	4			;(CP+4 -> X)
-;				;Add run-time CFA to compilation (CP+4 in X, PSP in Y, run-time CFA in D)
-;				STD	-4,X
-;				MOVW	2,Y, 2,-X 	;temporarily put case-sys1 in CFA address
-;				STX	2,Y		;replace case-sys1 by pointer to CFA address
-;				LEAX	2,X			
-;				STX	CP
-;				;Append current CP to last OF
-;				LDX	2,Y+
-;				MOVW	CP, 0,X
-;				STY	PSP
-;				;Done
-;				NEXT
+;==> FUDICT
 
-;ERASE ( addr u -- )
+;Word: ERASE ( addr u -- )
 ;If u is greater than zero, clear all bits in each of u consecutive address
 ;units of memory beginning at addr .
-;CF_ERASE			PS_CHECK_UF	2			;(PSP -> Y)
-;				;Get args
-;				LDD	4,Y+
-;				BEQ	CF_ERASE_2 			;nothing to do
-;				LDX	-2,Y
-;				;Erase loop
-;CF_ERASE_1			CLR	1,X+
-;				DBNE	D, CF_ERASE_1
-;				;Done
-;CF_ERASE_2			STY	PSP
-;				NEXT
+IF_ERASE			REGULAR
+CF_ERASE			EQU	*
+				LDX	2,Y 				;c-addr -> X
+				LDD	4,Y+ 				;u      -> D
+				BEQ	CF_ERASE_1 			;u is zero
+CF_ERASE_1			CLR	1,X+ 				;clear one byte
+				DBNE	D, CF_ERASE_1 			;loop
+CF_ERASE_2			RTS
 
 ;EXPECT ( c-addr +n -- )
 ;Receive a string of at most +n characters. Display graphic characters as they
@@ -2595,13 +2250,7 @@ CF_HEX_EOI			RTS
 
 ;NIP ( x1 x2 -- x2 )
 ;Drop the first item below the top of stack.
-;CF_NIP				PS_CHECK_UF 2				;check for underflow  (PSP -> Y)
-;				;NIP 
-;				LDD	2,Y+
-;				STD	0,Y
-;				STY	PSP
-;				;Done 
-;				NEXT
+;==> FPS
 
 ;OF
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2614,21 +2263,7 @@ CF_HEX_EOI			RTS
 ;continue execution at the location specified by the consumer of of-sys, e.g.,
 ;following the next ENDOF. Otherwise, discard both values and continue execution
 ;in line.
-;CF_OF				EQU	CF_IF		
-;
-;OF run-time semantics
-;CF_OF_RT			PS_CHECK_UF	2		;check for underflow (PSP -> Y)
-;				;Check stacked values 
-;				LDD	2,Y+
-;				CPD	0,Y
-;				BEQ	CF_OF_RT_1 		;values are equal
-;				;Values are not equal
-;				STY	PSP 			;update PSP
-;				JUMP_NEXT			;go to the next ckeck
-;				;Values are equal
-;CF_OF_RT_1			LEAY	2,Y			;update PSP
-;				STY	PSP
-;				SKIP_NEXT 			;execute conditional code
+;==> FUDICT
 
 ;PAD ( -- c-addr )
 ;c-addr is the address of a transient region that can be used to hold data for

@@ -209,11 +209,11 @@ FPS_LIST_SEP		EQU	FOUTER_LIST_SEP
 ;Duplicate x if it is non-zero.
 IF_QUESTION_DUP		INLINE	CF_QUESTION_DUP	
 CF_QUESTION_DUP		EQU	*
-			PULD
-			BEQ	CF_QUESTION_DUP_1		;x == 0
-			PSHD
-CF_QUESTION_DUP_1	PSHD
-CF_QUESTION_DUP_EOI	RTS
+			LDD	0,Y
+			BEQ	CF_QUESTION_DUP_1
+			STD	2,-Y
+CF_QUESTION_DUP_1	RTS	
+CF_QUESTION_DUP_EOI	EQU	CF_QUESTION_DUP_1
 	
 ;Word: DUP ( x -- x x )
 ;Duplicate x.
@@ -226,7 +226,7 @@ CF_DUP_EOI 		RTS					;done
 ;Remove x from the stack.
 IF_DROP			INLINE	CF_DROP
 CF_DROP			EQU	*
-			PULD					;remove x 
+			LEAY	2,Y				;remove x 
 CF_DROP_EOI		RTS					;done
 
 ;Word: OVER ( x1 x2 -- x1 x2 x1 )
@@ -263,10 +263,9 @@ CF_TWO_OVER_EOI		RTS					;done
 ;Exchange the top two stack items.
 IF_SWAP			INLINE	CF_SWAP
 CF_SWAP			EQU	*
-			PULD
-			PULX
-			PSHX
-			PSHD
+			LDD	0,Y
+			MOVW	2,Y, 0,Y
+			STD	2,Y
 CF_SWAP_EOI		RTS					;done
 
 ;Word: 2SWAP ( x1 x2 x3 x4 -- x3 x4 x1 x2 )
@@ -285,8 +284,8 @@ CF_TWO_SWAP		EQU	*
 ;Rotate the top three stack entries.
 IF_ROT			INLINE	CF_ROT
 CF_ROT			EQU	*
-			PULD					;save x3
-			MOVW	2,Y, 2,-Y			;move x1
+			LDD	0,Y				;save x3
+			MOVW	4,Y, 0,Y			;move x1
 			MOVW	2,Y, 4,Y			;move x2
 			STD	2,Y				;store x3
 CF_ROT_EOI		RTS					;done
@@ -306,15 +305,22 @@ CF_2ROT			EQU	*
 			STD	0,Y				;store x2
 			RTS					;done
 
+
+;Word: NIP ( x1 x2 -- x2 )
+;Drop the first item below the top of stack.
+IF_NIP			INLINE	CF_NIP
+CF_NIP			EQU	*
+			MOVW	0,Y, 2,+Y
+CF_NIP_EOI		RTS					;done
+	
 ;Word: TUCK ( x1 x2 -- x2 x1 x2 )
 ;Copy the first (top) stack item below the second stack item.
 IF_TUCK			INLINE	CF_TUCK
 CF_TUCK			EQU	*
-			PULD
-			PULX
-			PSHD
-			PSHX
-			PSHD
+			LDD	0,Y
+			MOVW	2,Y, 0,Y
+			STD	2,Y
+			STD	2,-Y
 CF_TUCK_EOI		RTS					;done
 	
 ;Word: PICK ( xu ... x1 x0 u -- xu ... x1 x0 xu )

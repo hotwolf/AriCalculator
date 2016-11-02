@@ -695,9 +695,10 @@ CF_CR			EQU	*
 
 ;Word: NOP ( -- ) No operation 
 ;Do nothing.
-IF_NOP			REGULAR
+IF_NOP			INLINE	CF_NOP
 CF_NOP			EQU	*
-			RTS				;done
+			NOP
+CF_NOP_EOI		RTS				;done
 
 ;Word: PROMPT ( -- ) Print shell prompt
 ;Prints a STATE specific command line prompt.
@@ -881,6 +882,7 @@ CF_STRING_DOT_1		LDAB	1,X+			;char          -> B
 			JOBSR	FOUTER_TX_CHAR		;print char
 			CPX	0,Y			;check for end of string
 			BNE	CF_STRING_DOT_1		;loop
+			LEAY	2,Y			;clean up PS
 			RTS				;done
 	
 ;Word: \ 
@@ -956,7 +958,7 @@ FOUTER_STR_OK		FCS	" ok"
 ;Error messages 
 FOUTER_STR_SYNERR_LEFT	DB	FOUTER_SYM_BEEP
 			STRING_NL_NONTERM
-			FCC	"!!! Interpretation Error: "
+			FCC	"!!! Parse Error: "
 FOUTER_STR_SYNERR_RIGHT	DB	$A2 				;quote (terminated)
 
 ;Prefix tables 
