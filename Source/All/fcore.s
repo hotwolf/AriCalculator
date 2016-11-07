@@ -245,22 +245,24 @@ CF_STORE_EOI			RTS
 ;CF_NUMBER_SIGN_S_PADOF		JOB	FCORE_THROW_PADOF
 ;CF_NUMBER_SIGN_S_INVALBASE	JOB	FCORE_THROW_INVALBASE
 	
-;' ( "<spaces>name" -- xt ) 	;'
+;Word: ' ( "<spaces>name" -- xt )
 ;Skip leading space delimiters. Parse name delimited by a space. Find name and
 ;return xt, the execution token for name. An ambiguous condition exists if name
 ;is not found.
-;CF_TICK			PS_CHECK_OF	1			;check for PS overflow (PSP-2 -> Y)	
-;				;Parse name (PSP-2 in Y) 
-;				SSTACK_JOBSR	FCORE_NAME 		;string pointer -> X
-;				TBEQ	X, CF_TICK_NONAME			
-;				;Search dictionary (string pointer in X, PSP-2 in Y)
-;				SSTACK_JOBSR	FCORE_FIND 		;CFA -> X, status -> D
-;				TBEQ	D, CF_TICK_UDEFWORD
-;				STX	0,Y
-;				STY	PSP
-;				;Done
-;				NEXT
-	
+IF_TICK				REGULAR
+CF_TICK				EQU	*
+				MOVW	#FOUTER_SYM_SPACE, 2,-Y ;use SPACE as word seperator
+				JOBSR	CF_SKIP_AND_PARSE 	;parse next word
+				LDD	0,Y			;check result
+				BEQ	CF_TICK_1		;no name
+				JOBSR	CF_LU 			;look up word
+				LDD	0,Y			;check result
+				BEQ	CF_TICK_2		;search failed
+				RTS				;done
+				;Missing name argument
+CF_TICK_1			THROW	FEXCPT_TC_NONAME,	;"Missing name argument"	
+				;Unknown word 
+CF_TICK_2			THROW	FEXCPT_TC_UDEFWORD	;"Undefined word"	
 	
 ;Word: ( 
 ;Compilation: Perform the execution semantics given below.
@@ -614,7 +616,7 @@ CF_GREATER_THAN_1		TAB					;flag  -> D
 ;start of the input buffer to the start of the parse area.
 ;==> FOUTER 
 
-;>NUMBER ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 ) CHECK!
+;>NUMBER ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 )
 ;ud2 is the unsigned result of converting the characters within the string
 ;specified by c-addr1 u1 into digits, using the number in BASE, and adding each
 ;into ud1 after multiplying ud1 by the number in BASE. Conversion continues
@@ -1182,14 +1184,7 @@ CF_FILL_2			LEAY	6,Y			;clean up PS
 ;Execution: ( -- n|u ) ( R:  loop-sys -- loop-sys )
 ;n|u is a copy of the current (innermost) loop index. An ambiguous condition
 ;exists if the loop control parameters are unavailable.
-;NFA_I				FHEADER, "I", NFA_HOLD, COMPILE
-;CFA_I				DW	CF_I
-;CF_I				RS_CHECK_UF	2, CF_I_RSUF	;(RSP -> X)
-;				PS_CHECK_OF	1, CF_I_PSOF	;(PSP-2 -> Y)
-;				;Copy index onto PS
-;				MOVW	0,X, 0,Y
-;				STY	PSP
-;				;Done 
+;==> FUDICT
 	
 ;IF 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1226,13 +1221,7 @@ CF_INVERT_EOI			RTS
 ;Execution: ( -- n|u ) ( R: loop-sys1 loop-sys2 -- loop-sys1 loop-sys2 )
 ;n|u is a copy of the next-outer loop index. An ambiguous condition exists if
 ;the loop control parameters of the next-outer loop, loop-sys1, are unavailable.
-;CF_J				RS_CHECK_UF	4, CF_J_RSUF	;(RSP -> X)
-;				PS_CHECK_OF	1, CF_J_PSOF	;(PSP-2 -> Y)
-;				;Copy index onto PS
-;				MOVW	4,X, 0,Y
-;				STY	PSP
-;				;Done 
-;				NEXT
+;==> FUDICT
 
 ;KEY ( -- char )
 ;Receive one character char, a member of the implementation-defined character
@@ -1263,26 +1252,7 @@ CF_INVERT_EOI			RTS
 ;Discard the current loop control parameters. An ambiguous condition exists if
 ;they are unavailable. Continue execution immediately following the innermost
 ;syntactically enclosing DO ... LOOP or DO ... +LOOP.
-;CF_LEAVE			COMPILE_ONLY	CF_LEAVE_COMPONLY 	;ensure that compile mode is on
-;				PS_CHECK_UF	2, CF_LEAVE_PSUF	;(PSP -> Y)
-;				LDD		2,X	
-;				DICT_CHECK_OF	4, CF_LEAVE_DICTOF	;(CP+4 -> X)
-;				;Add run-time CFA to compilation (CP+4 in X, PSP in Y)
-;				STD	-4,X
-;				MOVW	0,Y, 2,-X 			;swap orig in do-ysy
-;				STX	0,Y 				
-;				LEAX	2,X
-;				STX	CP
-;				;Done
-;				NEXT
-;			
-;;LEAVE run-time semantics
-;CF_LEAVE_RT			RS_CHECK_UF	2, CF_LEAVE_RSUF	;(RSP -> X)
-;				;Clean up RS (RSP in X)
-;				LEAX	4,X
-;				STX	RSP
-;				;Leave loop
-;				JUMP_NEXT
+;==> FUDICT
 	
 ;LITERAL 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1320,16 +1290,20 @@ CF_L_SHIFT_1			LSLD 					;D << 1 -> D
 				STD	0,Y 				;x2 -> PS
 CF_L_SHIFT_2			RTS 					;done
 	
-;M* ( n1 n2 -- d )
+;Word: M* ( n1 n2 -- d )
 ;d is the signed product of n1 times n2.
-;CF_M_STAR			PS_CHECK_UF	2, CF_M_STAR_PSUF ;check for underflow  (PSP -> Y)
-;				TFR	Y, X
-;				LDD	2,X
-;				LDY	0,X
-;				EMULS		;D * Y => Y:D
-;				STD	2,X
-;				STY	0,X
-;				NEXT
+IF_M_STAR			REGULAR
+CF_M_STAR			EQU	*
+				LDD	0,Y 			;n2    -> D	
+				TFR	Y, X 			;save PSP
+				SEI 				;start of atomic sequence
+				LDY	2,Y			;n1    -> Y
+				EMULS	   			;Y * D -> Y:D
+				EXG	Y, X			;restore PSP
+				CLI				;end of atomic sequence
+				STD	2,Y			;D -> PS
+				STX	0,Y			;
+				RTS				;done
 
 ;Word: MAX ( n1 n2 -- n3 )
 ;n3 is the greater of n1 and n2.
@@ -1739,12 +1713,7 @@ CF_U_M_SLASH_MOD_2		THROW	FEXCPT_TC_RESOR		;result out of range
 ;Discard the loop-control parameters for the current nesting level. An UNLOOP is
 ;required for each nesting level before the definition may be EXITed. An
 ;ambiguous condition exists if the loop-control parameters are unavailable.
-;CF_UNLOOP			RS_CHECK_UF	2	;(RSP -> X)
-;				;Discard loop-sys
-;				LEAX	4,X
-;				STX	RSP
-;				;Done
-;				NEXT
+;==> FUDICT
 
 ;UNTIL 
 ;Interpretation: Interpretation semantics for this word are undefined.

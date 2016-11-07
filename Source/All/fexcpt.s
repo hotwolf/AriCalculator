@@ -567,7 +567,7 @@ FEXCPT_MSGTAB		EQU	*
 			;FEXCPT_MSG	FEXCPT_TC_INVALID,	"Invalid memory address"
 			FEXCPT_MSG	FEXCPT_TC_0DIV,		"Division by zero"
 			FEXCPT_MSG	FEXCPT_TC_RESOR,	"Result out of range"
-			;FEXCPT_MSG	FEXCPT_TC_UDEFWORD,	"Undefined word"
+			FEXCPT_MSG	FEXCPT_TC_UDEFWORD,	"Undefined word"
 			FEXCPT_MSG	FEXCPT_TC_COMPONLY,	"Compile-only word"
 			FEXCPT_MSG	FEXCPT_TC_NONAME,	"Missing name argument"
 			;FEXCPT_MSG	FEXCPT_TC_PADOF,	"PAD overflow"
