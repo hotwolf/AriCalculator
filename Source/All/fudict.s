@@ -1385,7 +1385,9 @@ CF_AGAIN_4		LEAX	3,X			;advance CP
 			BSET	2,SP,#FUDICT_CI_NOINL	;forbid inline compilation
 			;06 hh ll      JMP  start of LOOP body
 			MOVB	#$06, -3,X 		;compile "JMP"
-			MOVW	6,SP, -2,X		;compile "hh ll"
+			LDD	4,SP			;dest -> D
+			SUBD	FUDICT_OFFSET		;dest-offet -D
+			STD	-2,X			;compile "hh ll"
 			JOB	CF_AGAIN_3		;update compile info
 			;Control structure misatch
 CF_AGAIN_5		THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatch"
@@ -1666,9 +1668,12 @@ CF_ENDCASE		COMPILE_ONLY
 			;Resolve ENDCASE list (CP in X) 
 			LDX	6,SP	     		;case-sys -> X
 			BEQ	CF_ENDCASE_B 		;nothing to resolve
-CF_ENDCASE_C		LDD	0,X			;next ENDOF -> D
+CF_ENDCASE_C		BSET	2,SP,#FUDICT_CI_NOINL	;forbid inline compilation
+			LDD	0,X			;next ENDOF -> D
 			MOVB	#$06, 1,X+		;compile "JMP"
-			MOVW	CP,   0,X		;compile "hhll"
+			LDD	CP			;CP -> D
+			SUBD	FUDICT_OFFSET		;CP-offset -> D
+			STX	0,X			;compile "hhll"
 			TFR	D, X			;next ENDOF -> X
 			TBNE	X, CF_ENDCASE_C		;resolve next LEAVE
 			;Update control flow stack 
