@@ -208,6 +208,8 @@ FUDICT_CI_DO_SYS	EQU	$FF		;control structure "do-sys"
 FUDICT_CI_COND_ORIG	EQU	$FE		;control structure "orig" with conditional branch
 FUDICT_CI_ORIG		EQU	$FD		;control structure "orig" without conditional branch
 FUDICT_CI_DEST		EQU	$FC		;control structure "dest"
+FUDICT_CI_CASE_SYS	EQU	$FB		;control structure "case-sys"
+FUDICT_CI_OF_SYS	EQU	$FA		;control structure "of-sys"
 	
 ;#INLINE optimization
 FUDICT_MAX_INLINE	EQU	8 		;max. CF size for INLINE optimization
@@ -1512,13 +1514,22 @@ CF_WHILE_1		THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatc
 ;Continue execution.
 IF_CASE			IMMEDIATE
 CF_CASE			COMPILE_ONLY
-
-;CF_CASE			COMPILE_ONLY			;ensure that compile mode is on
-;				PS_CHECK_OF	1		;(PSP-2 -> Y)
-;				;Push initial case-sys ($0000) onto the PS
-;				MOVW	#$0000, 0,Y
-;				STY	PSP
-;				NEXT
+			;Put dest onto the control flow stack (orig in X)
+			;                              +--------+--------+             
+			;                              |  Return Address | ...    
+			;                              +--------+--------+             
+			;                              |  New Comp. Info | SP+0   
+			; +--------+--------+          +--------+--------+             
+			; |  Return Address | SP+0 ==> |     case-sys    | SP+2    
+			; +--------+--------+	       +--------+--------+	      
+			; |  Old Comp. Info | SP+2     |  Old Comp. Info | SP+4    
+			; +--------+--------+          +--------+--------+           
+			PULX				;return address -> X
+			MOVW	#$0000, 2,-SP		;case-sys       -> 2,SP
+			LDAA	2,SP	 		;maintain high byte of compile info
+			LDAB	#FUDICT_CI_CASE_SYS	;no optimization
+			PSHD				;compilation info -> 0,SP
+			JMP	0,X			;done
 
 ;Word: OF
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1533,23 +1544,47 @@ CF_CASE			COMPILE_ONLY
 ;in line.
 IF_OF			IMMEDIATE
 CF_OF			COMPILE_ONLY
-
-;CF_OF				EQU	CF_IF		
-;
-;OF run-time semantics
-;CF_OF_RT			PS_CHECK_UF	2		;check for underflow (PSP -> Y)
-;				;Check stacked values 
-;				LDD	2,Y+
-;				CPD	0,Y
-;				BEQ	CF_OF_RT_1 		;values are equal
-;				;Values are not equal
-;				STY	PSP 			;update PSP
-;				JUMP_NEXT			;go to the next ckeck
-;				;Values are equal
-;CF_OF_RT_1			LEAY	2,Y			;update PSP
-;				STY	PSP
-;				SKIP_NEXT 			;execute conditional code
-
+			;Check compile info 
+			LDAB	3,SP 			;compile info -> B
+			CMPB	#FUDICT_CI_CASE_SYS	;check for matching "case-sys"
+			BNE	CF_OF_1			;control structure mismatch
+			;Allocate compile space 
+			LDX	CP 			;CP -> X
+			LEAX	10,X			;alloate space
+			STX	CP			;update CP
+			;Compile inline code (CP in X) 
+			;EC 71           LDD     2,Y+
+			;AC 40           CPD     0,Y
+			;18 26 FF EA     LBNE    IF_OF
+			;26 E8           BNE     IF_OF
+			;19 42           LEAY    2,Y
+			MOVW	#$EC71, -10,X 		;compile "LDD 2,Y+"
+			MOVW	#$AC40,  -8,X 		;compile "CPD 0,Y"
+			MOVW	#$1942,  -2,X 		;compile "LEAY 2,Y"
+			;Put of-sys onto the control flow stack (orig in X)
+			;                              +--------+--------+             
+			;                              |  Return Address | ...    
+			;                              +--------+--------+             
+			;                              | New Comp. Info  | SP+0    
+			; +--------+--------+          +--------+--------+             
+			; |  Return Address | SP+0 ==> |     of-sys      | SP+2    
+			; +--------+--------+	       +--------+--------+	      
+			; |   Comp. Info    | SP+2     |    Comp. Info   | SP+4    
+			; +--------+--------+          +--------+--------+           
+			; |    case-sys     | SP+4     |    case-sys     | SP+6    
+			; +--------+--------+          +--------+--------+           
+			; |   Comp. Info    | SP+6     |    Comp. Info   | SP+8    
+			; +--------+--------+          +--------+--------+           
+			LEAX	-6,X 			;of-sys -> X
+			PULD				;return address -> D
+			PSHX				;of-sys -> 2,SP
+			TFR	D, X			;return address -> X
+			LDAA	2,SP			;inherit high byte of compile info
+			LDAB	#FUDICT_CI_OF_SYS	;set control flow
+			PSHD				;new compilation info -> 0,SP
+			JMP	0,X			;done
+			;Control structure misatch
+CF_OF_1			THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatch"
 
 ;Word: ENDOF
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1562,25 +1597,50 @@ CF_OF			COMPILE_ONLY
 ;Continue execution at the location specified by the consumer of case-sys2.
 IF_ENDOF		IMMEDIATE
 CF_ENDOF		COMPILE_ONLY
-
-;				;ENDOF compile semantics (run-time CFA in [X+2])
-;CF_ENDOF			COMPILE_ONLY				;ensure that compile mode is on
-;				PS_CHECK_UF	2			;(PSP -> Y)
-;				LDD	2,X	
-;				DICT_CHECK_OF	4			;(CP+4 -> X)
-;				;Add run-time CFA to compilation (CP+4 in X, PSP in Y, run-time CFA in D)
-;				STD	-4,X
-;				MOVW	2,Y, 2,-X 	;temporarily put case-sys1 in CFA address
-;				STX	2,Y		;replace case-sys1 by pointer to CFA address
-;				LEAX	2,X			
-;				STX	CP
-;				;Append current CP to last OF
-;				LDX	2,Y+
-;				MOVW	CP, 0,X
-;				STY	PSP
-;				;Done
-;				NEXT
-
+			;Check compile info 
+			LDAB	3,SP 			;compile info -> B
+			CMPB	#FUDICT_CI_OF_SYS	;check for matching "of-sys"
+			BNE	CF_ENDOF_A		;control structure mismatch
+			;Allocate compile space
+			LDX	CP  			;CP -> X
+			LEAX	3,X			;alloate space
+			STX	CP			;update CP
+			;Calculate branch distance (CP in X)
+			TFR	X, D 			;CP -> D
+			SUBD	4,SP			;CP - of-sys -> D
+			LDX	4,SP			;of-sys -> X
+			;Compile OF forward reference (of-sys in X, qq rr in D)
+			TBEQ	A, CF_ENDOF_B 		;compile BNE
+			;Compile LBEQ (of-sys in X, qq rr in D)		
+			MOVW	#$1826, 2,X+		;compile "LBNE"
+			STD	0,X			;compile "qq rr"
+			JOB	CF_ENDOF_C 		;set compile info
+			;Compile BEQ (of-sys in X, qq rr in D)
+CF_ENDOF_B		MOVB	#$26, 1,X+		;compile "BNE"
+			STAB	1,X+			;compile "rr"
+			MOVW	#$A7A7, 0,X		;compile "NOP NOP"
+			;Update control flow stack 
+			; +--------+--------+             
+			; |  Return Address | SP+0    
+			; +--------+--------+             
+			; | New Comp. Info  | SP+2    
+			; +--------+--------+          +--------+--------+             
+			; |      of-sys     | SP+4 ==> |  Return Address | ...    
+			; +--------+--------+	       +--------+--------+	      
+			; |   Comp. Info    | SP+6     |    Comp. Info   | SP+2    
+			; +--------+--------+          +--------+--------+           
+			; |    case-sys1    | SP+8     |    case-sys2    | SP+4    
+			; +--------+--------+          +--------+--------+           
+			; |   Comp. Info    | SP+10    |    Comp. Info   | SP+6    
+			; +--------+--------+          +--------+--------+           
+CF_ENDOF_C		LDX	CP 			;CP -> X
+			MOVW	8,SP, 3,-X		;link in OF structure 
+			STX	8,SP			;case-sys2 -> 4,SP
+			MOVB	2,SP 6,SP		;maintain high byte of compile info
+			LDX	6,X+			;return address -> X
+			JMP	0,X			;done
+			;Control structure misatch
+CF_ENDOF_A		EQU	CF_OF_1			;exception -22 "control structure mismatch"
 
 ;Word: ENDCASE
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1592,31 +1652,44 @@ CF_ENDOF		COMPILE_ONLY
 ;Discard the case selector x and continue execution.
 IF_ENDCASE		IMMEDIATE
 CF_ENDCASE		COMPILE_ONLY
+			;Check compile info 
+			LDAB	3,SP 			;compile info -> B
+			CMPB	#FUDICT_CI_CASE_SYS	;check for matching "case-sys"
+			BNE	CF_ENDCASE_A		;control structure mismatch
+			;Allocate compile space 
+			LDX	CP 			;CP -> X
+			LEAX	2,X			;alloate space
+			STX	CP			;update CP
+			;Compile inline code (CP in X) 
+			;19 42           LEAY    2,Y
+			MOVW	#$1942,  -2,X 		;compile "LEAY 2,Y"
+			;Resolve ENDCASE list (CP in X) 
+			LDX	6,SP	     		;case-sys -> X
+			BEQ	CF_ENDCASE_B 		;nothing to resolve
+CF_ENDCASE_C		LDD	0,X			;next ENDOF -> D
+			MOVB	#$06, 1,X+		;compile "JMP"
+			MOVW	CP,   0,X		;compile "hhll"
+			TFR	D, X			;next ENDOF -> X
+			TBNE	X, CF_ENDCASE_C		;resolve next LEAVE
+			;Update control flow stack 
+			; +--------+--------+                 
+			; |  Return Address | SP+0   
+			; +--------+--------+	             
+			; |   Comp. Info    | SP+2        
+			; +--------+--------+      ==> +--------+--------+           
+			; |    case-sys     | SP+4     |  Return Address | ...    
+			; +--------+--------+          +--------+--------+           
+			; |   Comp. Info    | SP+6     |    Comp. Info   | SP+0    
+			; +--------+--------+          +--------+--------+           
+CF_ENDCASE_B		PULX				;return addr -> X
+			LDAA	0,SP	 		;maintain high byte of compile info
+			LDAB	#FUDICT_CI_NONE		;no optimization
+			STD	4,SP			;update compilation info
+			LDX	6,SP+			;return address -> X
+			JMP	0,X			;done			
+			;Control structure misatch
+CF_ENDCASE_A		EQU	CF_OF_1			;exception -22 "control structure mismatch"
 
-;				;ENDCASE compile semantics (run-time CFA in [X+2])
-;CF_ENDCASE			COMPILE_ONLY				;ensure that compile mode is on
-;				PS_CHECK_UF	1			;(PSP -> Y)
-;				LDD	2,X	
-;				DICT_CHECK_OF	2			;(CP+2 -> X)
-;				;Add run-time CFA to compilation (CP+2 in X, PSP in Y, run-time CFA in D)
-;				STD	-2,X
-;				STX	CP
-;				;Read case-sys (PSP in Y)
-;				LDX	2,Y+ 				;get case-sys
-;				STY	PSP				;update PSP
-;				TBEQ	X, CF_ENDCASE_2			;done
-;				;Loop through all ENDOFs 
-;CF_ENDCASE_1			LDY	0,X 				;get pointer to next ENDOF
-;				MOVW	CP, 0,X				;append the correct address
-;				TFR	Y, X
-;				TBNE	X, CF_ENDCASE_1	
-;				;Done 
-;CF_ENDCASE_2			NEXT
-;				
-;CFA_ENDCASE_RT			EQU	CFA_DROP
-
-
-	
 FUDICT_CODE_END		EQU	*
 FUDICT_CODE_END_LIN	EQU	@
 
