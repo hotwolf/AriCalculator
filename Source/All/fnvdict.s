@@ -107,65 +107,65 @@
 ;# Memory Layout                                                               #
 ;###############################################################################
 ;        
-;                           NVM usage:
+;                           FNVDICT_INFO field:
 ;      	                    +--------------+--------------+	     
-;                           |                             |		  
-;                           |           NVDICT            | NVDICT_FIRST_PAGE
-;    	                    |                             |		  
+;    	                    |   Next FNVDICT_INFO Field   | +0		  
 ;      	                    +--------------+--------------+	     
-;                           .                             .          
-;                           .                             .          
+;                           |             DP              | +2		  
 ;      	                    +--------------+--------------+	     
-;    	                    |                             |		  
-;                           | NVDICT_FD_EN: NVDICT        | $FD			  
-;                           |         else: Code Space    |	  
+;                           |       NVDICT_LAST_NFA       | +4
 ;      	                    +--------------+--------------+	     
-;                           |                             |		  
-;                           | NVDICT_FE_EN: NVDICT        | $FE			  
-;                           |         else: Code Space    |	  
-;      	                    +--------------+--------------+	     
-;                           |                             |		  
-;                           |        Code Space           | $FF		  
-;    	                    |                             |		  
-;                           +--------------+--------------+        
-;        
+;               
 ;                           NVDICT mapping:
 ;      	                    +--------------+--------------+	     
-;          NVDIDCT_START -> |              |              |
-;                = $8000    |           NVDICT            |	     
+;          NVDIDCT_START -> |     FNVDICT_INFO Field      |
+;                = $8000    +--------------+--------------+	     
+;                           |              |              |
+;                           |       NVDICT Section        |	     
 ;                           |              |              |	     
 ;                           |              v              |	     
-;                        -+-| --- --- --- --- --- --- --- |
-;                  padding| |                             |
-;                        -+-| --- --- --- --- --- --- --- |
-;                         | |          NVDICT_DP          |
-;               info field| | --- --- --- --- --- --- --- |
-;                         | |       NVDICT_LAST_NFA       | <- [NVDICT_INFO]
-;                        -+-| --- --- --- --- --- --- --- |
+;                           +--------------+--------------+	     
+;                           |       Phrase Alignment      |	     
+;                           +--------------+--------------+	     
+;                           |    FFNVDICT_INFO Field      |
+;                           +--------------+--------------+	     
+;                           |              |              |
+;                           |       NVDICT Section        |	     
+;                           |              |              |	     
+;                           |              v              |	     
+;                           +--------------+--------------+	     
+;                           |       Phrase Alignment      |	     
+;                           +--------------+--------------+	     
+;                           .	                          .
+;                           .	                          .
+;                        -+-+--------------+--------------+	     
 ;                         | |                             |	  
 ;     n*NVDICT_PHRASE_SIZE| |     Unprogrammed Flash      |
 ;                         | |                             |
 ;                        -+-+--------------+--------------+   
-;            NVDIDCT_END ->
-;                = $C000       
+;            NVDIDCT_END -> |    Page validation Phrase   |	     
+;                           +--------------+--------------+	     
+;                  $C000 ->      
 ;   		  	    
 ;                           Word format:
-;                           +-----------------------------+
-;                     NFA-> |  IMMEDIATE / Previous NFA   |	
-;                           +--------------+--------------+
-;                           |                             | 
-;                           |            Name             | 
-;                           |                             | 
-;                           |              +--------------+ 
-;                           |              |    Padding   | 
-;                           +--------------+--------------+
-;                     CFA-> |       Code Field Address    |	
-;                           +--------------+--------------+
-;                           |                             | 
-;                           |            Data             | 
-;                           |                             | 
-;                           +--------------+--------------+   
-;        
+;                           +--------------+
+;                     NFA-> |   Previous   |	
+;                           |     NFA      | 
+;                           |              | 
+;                           +--------------+
+;                   NFA+2-> |     Name     | 
+;                           |              | 
+;                           |     MSB-     | 
+;                           | terminated   | 
+;                           |    string    | 
+;                           |              | 
+;                           +--------------+
+;                      IF-> |  Info Field  |	
+;                           +--------------+
+;                      CF-> |              | 
+;                           |  Code Field  | 
+;                           |              | 
+;                           +--------------+   
 	
 ;###############################################################################
 ;# Configuration                                                               #
@@ -177,35 +177,20 @@ NVDICT_ON		EQU	1 		;NVDICT enabled by default
 #endif
 #endif
 
-;Flash pages reserved for the NVDICT 
-#ifdef	NVDICT_FIRST_PAGE
-NVDICT_FIRST_PAGE	EQU	$E0 		;default first page in 512k flash
-#endif	
-#ifdef	NVDICT_LAST_PAGE
-FNVDICT_LAST_PAGE	EQU	$FE		;default page $FE
-#endif	
-#ifndef	NVDICT_SKIP_PAGE_FD
-#ifndef	NVDICT_USE_PAGE_FD
-NVDICT_SKIP_PAGE_FD	EQU	1 		;default skip page $FD
-#endif
-#endif
-
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Memory boundaries
-FNVDICT_START		EQU	$8000		;start of the dictionary
-FNVDICT_END		EQU	$C000		;end of the dictionary
-
 ;NVM phrase size 
-#ifdef	FNVM_PHRASE_SIZE
-FNVDICT_PHRASE_SIZE	EQU	NVM_PHRASE_SIZE
-#elseFNVDICT_PHRASE_SIZE	EQU	8	
-#endif	
+NVDICT_PHRASE_SIZE	EQU	NVM_PHRASE_SIZE
 
+;Memory boundaries
+NVDICT_START		EQU	$8000			;start of the dictionary
+NVDICT_END		EQU	$C000-NVDICT_PHRASE_SIZE;end of the dictionary
+	
 ;;NVC variable 
 ;NVC_VOLATILE		EQU	FALSE
 ;NVC_NON_VOLATILE	EQU	TRUE
+
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -217,11 +202,9 @@ FNVDICT_PHRASE_SIZE	EQU	NVM_PHRASE_SIZE
 FNVDICT_VARS_START_LIN	EQU	@
 #endif	
 #ifdef NVDICT_ON	
-	
+			ALIGN	1		
 DP			DS	2 	;compile pointer (next free space in the data space) 
-DP_SAVE			DS	2 	;compile pointer to revert to in case of an error
-
-NVDICT_LAST_NFA		DS	2 	;pointer to the most recent NFA of the NVDICT
+FNVDICT_INFO		DS	2	;address of the current FNVDICT_INFO field
 	
 #endif	
 FNVDICT_VARS_END	EQU	*
@@ -233,9 +216,23 @@ FNVDICT_VARS_END_LIN	EQU	@
 ;#Initialization (executed along with ABORT action)
 ;===============
 #macro	FNVDICT_INIT, 0
-			LDD	#UDICT_PS_START 	;allocate data space 
-			STD	CP_SAVE
-			STD	CP
+#ifdef NVDICT_ON
+			LDD	NVDICT_START 		;first NVDICT word -> D
+			CPD	#$FFFF			;check if any info field exists
+			BEQ	DEFAULT			;no info field
+LOOP			TFR	D, X			;FNVDICT_INFO_NEXT -> X
+			LDD	0,X			;next info field -> D
+			CPD	#$FFFF			;check if next info field exists
+			BNE	LOOP			;iterate through all info fields
+			;Read FNVDICT_INFO field (info foeld in X) 
+			STX	FNVDICT_INFO 		;read last info field
+			MOVW	2,X, DP			;initialize DP
+			JOB	DONE			;done
+#end
+			;Default initialization
+DEFAULT			MOVW	#$0000, FNVDICT_INFO	;default initialization
+			MOVW	#UDICT_PS_START, DP	;initialize DP
+DONE			EQU	*			;done
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
@@ -246,7 +243,6 @@ FNVDICT_VARS_END_LIN	EQU	@
 ;#Quit action
 ;============
 #macro	FNVDICT_QUIT, 0
-			MOVW	DP_SAVE, DP 		;restore cp
 #emac
 
 ;#System integrity monitor
@@ -264,32 +260,131 @@ FNVDICT_VARS_END_LIN	EQU	@
 FNVDICT_CODE_START_LIN	EQU	@
 #endif
 
+;######
+;#IO
+;===
+;#Pause SCI communication (non-blocking)
+; args:   none
+; result: C-flag: set if pause entry is complete
+; SSTACK: 3 bytes
+;         X, Y, and D are preserved
+FNVDICT_PAUSE_IO_NB	EQU	SCI_PAUSE_NB
+
+;#Pause SCI communication (blocking)
+; args:   none
+; result: none
+; SSTACK: 5 bytes
+;         X, Y, and D are preserved
+FNVDICT_PAUSE_IO_BL	EQU	SCI_PAUSE_BL
+
+;#Resume SCI communication
+; args:   none
+; result: none
+; SSTACK: 2 bytes
+;         X, Y, and D are preserved
+FNVDICT_RESUME_IO	EQU	SCI_RESUME
+
+;#NVM
+;====
+;#Copy data to NVM
+; args:   X: source address in RAM
+;	  Y: destination address 
+;	  D: number of bytes to copy
+; result: C-flag: set if successful
+; SSTACK: 8 bytes
+;         All registers are preserved
+FNVDICT_PROGRAM_NVM	EQU	NVM_PROGRAM
+
+;#Erase NVM data
+; args:   none
+; result: C-flag: set if successful
+; SSTACK: 6 bytes
+;         All registers are preserved
+FNVDICT_ERASE_NVM	EQU	NVM_ERASE
+
 ;#########
 ;# Words #
 ;#########
 
 ;Word: NV{ ( -- )
 ;Remove the UDICT and switch to the non-volatile compile strategy.
-IF_NV_OPEN		IMMEDIATE
-CF_NV_OPEN		COMPILE_ONLY
-			RTS
+IF_NV_OPEN		REGULAR
+CF_NV_OPEN		EQU	*
+#ifdef NVDICT_ON
+			;Set strategy 
+			MOVW	#NV_COMPILE, STRATEGY 	;non-volatile compilation
+			;Set last NFA 
+			LDX	FNVDICT_INFO 		;current info field -> X
+			MOVW	4,X, FUDICT_LAST_NFA 	;set last NFA
+			;Reset UDICT 
+			LDD	DP 			;DP -> D
+			ADDD	#6			;skip past info field
+			STD	CP_SAVE			;DP -> CP_SAVE
+			STD	CP			;DP -> CP
+			;Set compile offset (CP in D) 
+			SUBD	[FNVDICT_INFO] 		;compile offset -> D
+			STD	FUDICT_OFFSET		;update compile offset
+#endif	
+			RTS				;done
 
 ;Word: }NV ( -- )
 ;Flush the NV compile buffer into the NVDICT  and switch to the volatile compile
 ;strategy.
-IF_NV_CLOSE		IMMEDIATE
-CF_NV_CLOSE		COMPILE_ONLY
+IF_NV_CLOSE		REGULAR
+CF_NV_CLOSE		EQU	*
+#ifdef NVDICT_ON
+			;Start to pausr communication 
+			JOBSR	FNVDICT_PAUSE_IO_NB 	;first atempt
+			;Calculate compile information
+			; +--------------+--------------+	     
+			; |  Byte Count of Compilation  | +0
+			; +--------------+--------------+	     
+			; |        Source  Address      | +2
+			; +--------------+--------------+	     
+			; |        Target Address       | +4
+			; +--------------+--------------+	     
+			; |             PSP             | +6
+			; +--------------+--------------+	     
+			LDX	FNVDICT_INFO 		;current info field -> X
+			PSHY				;PSP                -> 6,SP
+			LDD	0,X			;target address     -> D
+			PSHD				;target address     -> 4,SP
+			LDD	2,X			;source address     -> D
+			PSHD				;source address     -> 2,SP
+			LDD	CP			;CP                 -> D
+			SUBD	2,X			;byte count         -> D
+			PSHD				;byte count         -> 0,SP
+			ADDD	#(NVM_PHRASE_SIZE-1)	;align to phrase size
+			ANDB	#~(NVM_PHRASE_SIZE-1)	;
+			SUBD	FUDICT_OFFSET		;next info field    -> D
+			;Compose new info field (current info field in X, next info fiels in D))
+			; +--------------+--------------+	     
+			; |    Next FNVDICT_INFO Field  | +0		  
+			; +--------------+--------------+	     
+			; |             DP              | +2		  
+			; +--------------+--------------+	     
+			; |       NVDICT_LAST_NFA       | +4
+			; +--------------+--------------+	     
+			LDX	2,X 			;new info field -> X	
+			STD	0,X			;store next info field
+			MOVW	DP, 2,X			;store DP
+			MOVW	FUDICT_LAST_NFA, 4,X	;store last NFA
+			;Halt all communication to block interrupts 
+			JOBSR	FNVDICT_PAUSE_IO_BL 	;second atempt
+			;Copy code to NVM
+			PULD				;byte count -> D
+			PULX				;source address -> X
+			SEI				;start of atomic sequence
+			PULY				;target address -> Y
+			JOBSR	FNVDICT_PROGRAM_NVM	;copy code to NVM
+			PULY				;restore PSP
+			CLI				;end of atomic sequence
+			;Initialize NVDICT and UDICT 
+			FNVDICT_INIT 			;initialize NVDICT
+			FUDICT_INIT			;initialize UDICT
+#endif	
 			RTS
-;Word: NVCOMPILE, 
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( xt -- )
-;Append the buffered execution semantics of the definition represented by xt to
-;the execution semantics of the current definition.
-IF_NVCOMPILE_COMMA	IMMEDIATE
-CF_NVCOMPILE_COMMA	COMPILE_ONLY
-			LEAY	2,Y
-			RTS
-	
+
 ;Word: LU-NVCBUF ( c-addr u -- xt | c-addr u false )
 ;Look up a name in the non-volentile compile buffer. The name is referenced by
 ;the start address c-addr and the character count u. If successful the resulting
@@ -307,20 +402,34 @@ CF_LU_NVCBUF		EQU	*
 ;stack along with a false flag.
 IF_LU_NVDICT		REGULAR
 CF_LU_NVDICT		EQU	*
-			MOVW	#$0000, 2,-Y
-			RTS
+			;Check u ( c-addr u )
+			LDD	0,Y			;check if u is zero
+			BEQ	CF_LU_NVDICT_1 		;empty seaech string (search failed)
+			;Initialize interator structure ( c-addr u )
+			; +--------+--------+
+			; |    Iterator     | SP+0
+			; +--------+--------+
+			; | Compile Offset  | SP+2
+			; +--------+--------+
+			LDX	FNVDICT_INFO 		;current info field -> X
+			CPX	#$FFFF			;check for empty NVDICT
+			BEQ	CF_LU_NVDICT_1		;NVDICT is empty
+			LDX	4,X			;last NFA -> X
+			JMP	CF_LU_UDICT_1		;see CF_LU_UDICT
+CF_LU_NVDICT_1		MOVW	#FALSE	2,-Y		;return FALSE flag
+CF_LU_NVDICT_2		RTS				;done
 
-;Word: WORDS-NVCVUF ( -- )
-;List the definition names in the NV compile buffer.
-IF_WORDS_NVCBUF		REGULAR
-CF_WORDS_NVCBUF		EQU	*
-			RTS
-	
 ;Word: WORDS-NVDICT ( -- )
 ;List the definition names in the NVDICT dictionary.
 IF_WORDS_NVDICT		REGULAR
 CF_WORDS_NVDICT		EQU	*
-			RTS
+			LDX	FNVDICT_INFO 		;current info field -> X
+			CPX	#$FFFF			;check for empty NVDICT
+			BEQ	CF_WORDS_NVDICT_1	;NVDICT is empty
+			LDX	4,X			;last NFA -> X
+			JOB	CF_WORDS_UDICT_1		;see CF_WORDS_UDICT
+CF_WORDS_NVDICT_1	EQU	CF_LU_NVDICT_2		;done
+	
 ;Word: VARIABLE ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below. Reserve one
@@ -334,10 +443,6 @@ CF_VARIABLE		EQU	*
 
 			RTS
 	
-
-
-
-
 
 
 	

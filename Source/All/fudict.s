@@ -365,30 +365,30 @@ CF_LU_UDICT		EQU	*
 			; | Compile Offset  | SP+2
 			; +--------+--------+
 			;Check compile strategy ( c-addr u )
-			BRCLR	STRATEGY,#$80, CF_LU_UDICT_6
+			BRCLR	STRATEGY,#$80, CF_LU_UDICT_7
 			;Check u ( c-addr u )
 			LDD	0,Y			;check if u is zero
-			BEQ	CF_LU_UDICT_6 		;empty seaech string (search failed)
+			BEQ	CF_LU_UDICT_7 		;empty seaech string (search failed)
 			;Initialize interator structure ( c-addr u )
 			LDD	FUDICT_LAST_NFA 	;last NFA -> D
-			BEQ	CF_LU_UDICT_6 		;empty dictionary (search failed)
+CF_LU_UDICT_1		BEQ	CF_LU_UDICT_7 		;empty dictionary (search failed)
 			MOVW	#0000, 2,-SP 		;0 -> compile offset
 			PSHD				 ;last NFA -> iterator
 			;Compare first letter ( c-addr u )
-CF_LU_UDICT_1		LDAB	[2,Y] 			;LU char -> B
+CF_LU_UDICT_2		LDAB	[2,Y] 			;LU char -> B
 			JOBSR	FUDICT_UPPER		;make upper case
 			LDX	0,SP	 		;UDICT entry -> X
 			LDAA	2,+X			;UDICT char -> A, UDICT string -> X
 			ANDA	#~FUDICT_TERM		;remove termination
 			CBA				;compare chars
-			BNE	CF_LU_UDICT_3		;skip to next UDICT entry
+			BNE	CF_LU_UDICT_4		;skip to next UDICT entry
 			;Compare string lengths ( c-addr u ) (UDICT string -> X) 
 			BRCLR	1,X+,#FUDICT_TERM,* 	;skip to end of UDICT string 
 			TFR	X, D			;end of UDICT string -> D
 			SUBD	0,SP			;subtract UDICT entry offset
 			SUBD	#2			;subtract name offsetr
 			CPD	0,Y			;compare string lengths
-			BNE	CF_LU_UDICT_3		;skip to next UDICT entry
+			BNE	CF_LU_UDICT_4		;skip to next UDICT entry
 			;Compare strings ( c-addr u ) (UDICT EOS -> X) 
 			; +--------+--------+
 			; |    LU pointer   | SP+0
@@ -403,10 +403,10 @@ CF_LU_UDICT_1		LDAB	[2,Y] 			;LU char -> B
 			LDD	2,Y 			;c-addr        -> D
 			ADDD	0,Y			;c-addr+u      -> D
 			PSHD				;LU pointer    -> 0,PS
-CF_LU_UDICT_2		LDX	0,SP			;LU pointer -> X
+CF_LU_UDICT_3		LDX	0,SP			;LU pointer -> X
 			LDAB	1,-X			;LU char -> B
 			CPX	2,Y			;check LU pointer
-			BEQ	CF_LU_UDICT_4		;search successful
+			BEQ	CF_LU_UDICT_5		;search successful
 			STX	0,SP			;update LU pointer
 			LDX	2,SP			;UDICT pointer -> X
 			LDAA	1,-X			;UDICT char -> A
@@ -414,17 +414,17 @@ CF_LU_UDICT_2		LDX	0,SP			;LU pointer -> X
 			JOBSR	FUDICT_UPPER		;make LU char upper case
 			ANDA	#~FUDICT_TERM		;remove UDICT char termination
 			CBA				;compare chars
-			BEQ	CF_LU_UDICT_2		;check next char
+			BEQ	CF_LU_UDICT_3		;check next char
 			LEAS	4,SP			;remove LU and UDICT pointer from RS
 			;Skip next entry ( c-addr u )
-CF_LU_UDICT_3		LDX	0,SP			;iterator -> X
+CF_LU_UDICT_4		LDX	0,SP			;iterator -> X
 			LDD	0,X			;previous entry -> D
-			BEQ	CF_LU_UDICT_5		;Search failed
+			BEQ	CF_LU_UDICT_6		;Search failed
 			ADDD	2,SP			;add compile offset
 			STD	0,SP			;advance iterator
-			JOB	CF_LU_UDICT_1		;check next UDICT entry
+			JOB	CF_LU_UDICT_2		;check next UDICT entry
 			;Search successful ( c-addr u )
-CF_LU_UDICT_4		LEAS	4,SP	 		;remove LU and UDICT pointer from RS
+CF_LU_UDICT_5		LEAS	4,SP	 		;remove LU and UDICT pointer from RS
 			LDX	4,SP+	 		;remove iterator from RS
 			LEAX	2,X			;skip to start of UDICT string
 			BRCLR	1,X+,#FUDICT_TERM,* 	;skip to end of UDICT string 
@@ -432,8 +432,8 @@ CF_LU_UDICT_4		LEAS	4,SP	 		;remove LU and UDICT pointer from RS
 			STX	2,+Y			;return xy
 			RTS
 			;Search failed ( c-addr u )
-CF_LU_UDICT_5		LEAS	4,SP	 		;clean up RS
-CF_LU_UDICT_6		MOVW	#FALSE	2,-Y		;return FALSE flag
+CF_LU_UDICT_6		LEAS	4,SP	 		;clean up RS
+CF_LU_UDICT_7		MOVW	#FALSE	2,-Y		;return FALSE flag
 			RTS				;done
 
 ;Word: WORDS-UDICT ( -- )
@@ -449,10 +449,10 @@ CF_WORDS_UDICT		EQU	*
 			; |    Iterator     | SP+2
 			; +--------+--------+
 			;Check compile strategy
-			BRCLR	STRATEGY,#$80, CF_WORDS_UDICT_3
+			BRCLR	STRATEGY,#$80, CF_WORDS_UDICT_4
 			;Initialize interator structure 
 			LDX	FUDICT_LAST_NFA		;last NFA -> X
-			BEQ	CF_WORDS_UDICT_3	;empty dictionary
+CF_WORDS_UDICT_1	BEQ	CF_WORDS_UDICT_4	;empty dictionary
 			PSHX				;iterator -> RS
 			INX				;NF pointer -> X
 			BRCLR	1,+X,#FUDICT_TERM,*	;skip to last char
@@ -463,21 +463,21 @@ CF_WORDS_UDICT		EQU	*
 			;Start new line
 			JOBSR	CF_CR 			;line break
 			;Print word
-CF_WORDS_UDICT_1	LDX	2,SP 			;iterator -> X
+CF_WORDS_UDICT_2	LDX	2,SP 			;iterator -> X
 			MOVW	2,X+, 2,SP		;advance iterator
 			JOBSR	FUDICT_TX_STRING	;print name
 			LDX	2,SP 			;iterator -> X
-			BEQ	CF_WORDS_UDICT_2	;done
+			BEQ	CF_WORDS_UDICT_3	;done
 			INX				;NF pointer -> X
 			BRCLR	1,+X,#FUDICT_TERM,*	;skip to last char
 			DEX				;adjust NF pointer
 			TFR	X, D			;NF pointer -> D
 			SUBD	2,SP			;calculate name length
-			MOVW	#CF_WORDS_UDICT_1, 2,-SP;push return address (CF_WORDS_UDICT_1)
+			MOVW	#CF_WORDS_UDICT_2, 2,-SP;push return address (CF_WORDS_UDICT_2)
 			JOB	FUDICT_LIST_SEP		;print separator
 			;Clean up
-CF_WORDS_UDICT_2	LEAS	4,SP 			;clean up stack
-CF_WORDS_UDICT_3	RTS				;done
+CF_WORDS_UDICT_3	LEAS	4,SP 			;clean up stack
+CF_WORDS_UDICT_4	RTS				;done
 	
 	
 ;Word: : ( C: "<spaces>name" -- colon-sys )

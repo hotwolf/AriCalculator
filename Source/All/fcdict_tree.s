@@ -24,7 +24,7 @@
 ;#    This file contains a search tree for S12CForth CORE dictionary.          #
 ;#                                                                             #
 ;###############################################################################
-;# Generated on Mon, Nov 07 2016                                               #
+;# Generated on Tue, Nov 08 2016                                               #
 ;###############################################################################
 
 ;###############################################################################
@@ -167,8 +167,7 @@
 ;    |      
 ;    N ---> IP ------------------------------> CF_NIP
 ;    |      OP ------------------------------> CF_NOP
-;    |      V --> COMPILE, ------------------> CF_NVCOMPILE_COMMA
-;    |            { -------------------------> CF_NV_OPEN
+;    |      V{ ------------------------------> CF_NV_OPEN
 ;    |      
 ;    O ---> F -------------------------------> CF_OF
 ;    |      R -------------------------------> CF_OR
@@ -223,9 +222,7 @@
 ;    W ---> HILE ----------------------------> CF_WHILE
 ;    |      ORDS -> -------------------------> CF_WORDS
 ;    |              - -> CDICT --------------> CF_WORDS_CDICT
-;    |                   NV ----> CVUF ------> CF_WORDS_NVCBUF
-;    |                   |        DICT ------> CF_WORDS_NVDICT
-;    |                   |        
+;    |                   NVDICT -------------> CF_WORDS_NVDICT
 ;    |                   UDICT --------------> CF_WORDS_UDICT
 ;    |      
 ;    XOR ------------------------------------> CF_XOR
@@ -690,17 +687,10 @@ FCDICT_TREE_30          FCS     "IP"
                         DW      CF_NIP                          ;-> NIP
                         FCS     "OP"
                         DW      CF_NOP                          ;-> NOP
-                        FCS     "V"
-                        DB      BRANCH
-                        DW      FCDICT_TREE_30_2                ;NV...
-                        DB      END_OF_BRANCH
-;Subtree 30->2 =>       "NV"    -> FCDICT_TREE+2B4
-FCDICT_TREE_30_2        FCS     "COMPILE,"
-                        DW      CF_NVCOMPILE_COMMA              ;-> NVCOMPILE,
-                        FCS     "{"
+                        FCS     "V{"
                         DW      CF_NV_OPEN                      ;-> NV{
                         DB      END_OF_BRANCH
-;Subtree 31 =>          "O"     -> FCDICT_TREE+2C2
+;Subtree 31 =>          "O"     -> FCDICT_TREE+2B4
 FCDICT_TREE_31          FCS     "F"
                         DW      CF_OF                           ;-> OF
                         FCS     "R"
@@ -708,7 +698,7 @@ FCDICT_TREE_31          FCS     "F"
                         FCS     "VER"
                         DW      CF_OVER                         ;-> OVER
                         DB      END_OF_BRANCH
-;Subtree 32 =>          "P"     -> FCDICT_TREE+2CE
+;Subtree 32 =>          "P"     -> FCDICT_TREE+2C0
 FCDICT_TREE_32          FCS     "ARSE"
                         DW      CF_PARSE                        ;-> PARSE
                         FCS     "ICK"
@@ -716,13 +706,13 @@ FCDICT_TREE_32          FCS     "ARSE"
                         FCS     "ROMPT"
                         DW      CF_PROMPT                       ;-> PROMPT
                         DB      END_OF_BRANCH
-;Subtree 33 =>          "QU"    -> FCDICT_TREE+2E1
+;Subtree 33 =>          "QU"    -> FCDICT_TREE+2D3
 FCDICT_TREE_33          FCS     "ERY"
                         DW      CF_QUERY                        ;-> QUERY
                         FCS     "IT"
                         DW      CF_QUIT                         ;-> QUIT
                         DB      END_OF_BRANCH
-;Subtree 34 =>          "R"     -> FCDICT_TREE+2EB
+;Subtree 34 =>          "R"     -> FCDICT_TREE+2DD
 FCDICT_TREE_34          FCS     "EPEAT"
                         DW      CF_REPEAT                       ;-> REPEAT
                         FCS     "O"
@@ -733,13 +723,13 @@ FCDICT_TREE_34          FCS     "EPEAT"
                         FCS     "TERR."
                         DW      CF_RTERR_DOT                    ;-> RTERR.
                         DB      END_OF_BRANCH
-;Subtree 34->1 =>       "RO"    -> FCDICT_TREE+305
+;Subtree 34->1 =>       "RO"    -> FCDICT_TREE+2F7
 FCDICT_TREE_34_1        FCS     "LL"
                         DW      CF_ROLL                         ;-> ROLL
                         FCS     "T"
                         DW      CF_ROT                          ;-> ROT
                         DB      END_OF_BRANCH
-;Subtree 35 =>          "S"     -> FCDICT_TREE+30D
+;Subtree 35 =>          "S"     -> FCDICT_TREE+2FF
 FCDICT_TREE_35          FCS     ","
                         DW      CF_STRING_COMMA                 ;-> S,
                         FCS     "."
@@ -760,13 +750,13 @@ FCDICT_TREE_35          FCS     ","
                         FCS     "YNERR."
                         DW      CF_SYNERR_DOT                   ;-> SYNERR.
                         ;DB     END_OF_BRANCH
-;Subtree 35->5 =>       "SPACE" -> FCDICT_TREE+343
+;Subtree 35->5 =>       "SPACE" -> FCDICT_TREE+335
 FCDICT_TREE_35_5        DB      EMPTY_STRING
                         DW      CF_SPACE                        ;-> SPACE
                         FCS     "S"
                         DW      CF_SPACES                       ;-> SPACES
                         DB      END_OF_BRANCH
-;Subtree 36 =>          "T"     -> FCDICT_TREE+34A
+;Subtree 36 =>          "T"     -> FCDICT_TREE+33C
 FCDICT_TREE_36          FCS     "H"
                         DB      BRANCH
                         DW      FCDICT_TREE_36_0                ;TH...
@@ -775,13 +765,13 @@ FCDICT_TREE_36          FCS     "H"
                         FCS     "UCK"
                         DW      CF_TUCK                         ;-> TUCK
                         DB      END_OF_BRANCH
-;Subtree 36->0 =>       "TH"    -> FCDICT_TREE+359
+;Subtree 36->0 =>       "TH"    -> FCDICT_TREE+34B
 FCDICT_TREE_36_0        FCS     "EN"
                         DW      CF_THEN                         ;-> THEN
                         FCS     "ROW"
                         DW      CF_THROW                        ;-> THROW
                         DB      END_OF_BRANCH
-;Subtree 37 =>          "U"     -> FCDICT_TREE+363
+;Subtree 37 =>          "U"     -> FCDICT_TREE+355
 FCDICT_TREE_37          FCS     "."
                         DB      BRANCH
                         DW      FCDICT_TREE_37_0                ;U....
@@ -796,58 +786,51 @@ FCDICT_TREE_37          FCS     "."
                         DB      BRANCH
                         DW      FCDICT_TREE_37_4                ;UN...
                         ;DB     END_OF_BRANCH
-;Subtree 37->0 =>       "U."    -> FCDICT_TREE+375
+;Subtree 37->0 =>       "U."    -> FCDICT_TREE+367
 FCDICT_TREE_37_0        DB      EMPTY_STRING
                         DW      CF_U_DOT                        ;-> U.
                         FCS     "R"
                         DW      CF_U_DOT_R                      ;-> U.R
                         DB      END_OF_BRANCH
-;Subtree 37->3 =>       "UM"    -> FCDICT_TREE+37C
+;Subtree 37->3 =>       "UM"    -> FCDICT_TREE+36E
 FCDICT_TREE_37_3        FCS     "*"
                         DW      CF_U_M_STAR                     ;-> UM*
                         FCS     "/MOD"
                         DW      CF_U_M_SLASH_MOD                ;-> UM/MOD
                         DB      END_OF_BRANCH
-;Subtree 37->4 =>       "UN"    -> FCDICT_TREE+386
+;Subtree 37->4 =>       "UN"    -> FCDICT_TREE+378
 FCDICT_TREE_37_4        FCS     "LOOP"
                         DW      CF_UNLOOP                       ;-> UNLOOP
                         FCS     "TIL"
                         DW      CF_UNTIL                        ;-> UNTIL
                         DB      END_OF_BRANCH
-;Subtree 38 =>          "VA"    -> FCDICT_TREE+392
+;Subtree 38 =>          "VA"    -> FCDICT_TREE+384
 FCDICT_TREE_38          FCS     "LUE"
                         DW      CF_VALUE                        ;-> VALUE
                         FCS     "RIABLE"
                         DW      CF_VARIABLE                     ;-> VARIABLE
                         DB      END_OF_BRANCH
-;Subtree 39 =>          "W"     -> FCDICT_TREE+3A0
+;Subtree 39 =>          "W"     -> FCDICT_TREE+392
 FCDICT_TREE_39          FCS     "HILE"
                         DW      CF_WHILE                        ;-> WHILE
                         FCS     "ORDS"
                         DB      BRANCH
                         DW      FCDICT_TREE_39_1                ;WORDS...
                         ;DB     END_OF_BRANCH
-;Subtree 39->1 =>       "WORDS" -> FCDICT_TREE+3AD
+;Subtree 39->1 =>       "WORDS" -> FCDICT_TREE+39F
 FCDICT_TREE_39_1        DB      EMPTY_STRING
                         DW      CF_WORDS                        ;-> WORDS
                         FCS     "-"
                         DB      BRANCH
                         DW      FCDICT_TREE_39_1_1              ;WORDS-...
                         DB      END_OF_BRANCH
-;Subtree 39->1->1 =>    "WORDS-"-> FCDICT_TREE+3B5
+;Subtree 39->1->1 =>    "WORDS-"-> FCDICT_TREE+3A7
 FCDICT_TREE_39_1_1      FCS     "CDICT"
                         DW      CF_WORDS_CDICT                  ;-> WORDS-CDICT
-                        FCS     "NV"
-                        DB      BRANCH
-                        DW      FCDICT_TREE_39_1_1_1            ;WORDS-NV...
+                        FCS     "NVDICT"
+                        DW      CF_WORDS_NVDICT                 ;-> WORDS-NVDICT
                         FCS     "UDICT"
                         DW      CF_WORDS_UDICT                  ;-> WORDS-UDICT
-                        DB      END_OF_BRANCH
-;Subtree 39->1->1->1 => "WORDS-NV"-> FCDICT_TREE+3C9
-FCDICT_TREE_39_1_1_1    FCS     "CVUF"
-                        DW      CF_WORDS_NVCBUF                 ;-> WORDS-NVCVUF
-                        FCS     "DICT"
-                        DW      CF_WORDS_NVDICT                 ;-> WORDS-NVDICT
                         DB      END_OF_BRANCH
 #emac
 
