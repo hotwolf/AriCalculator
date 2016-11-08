@@ -217,6 +217,11 @@ FNVDICT_VARS_END_LIN	EQU	@
 ;===============
 #macro	FNVDICT_INIT, 0
 #ifdef NVDICT_ON
+
+
+
+
+
 			LDD	NVDICT_START 		;first NVDICT word -> D
 			CPD	#$FFFF			;check if any info field exists
 			BEQ	DEFAULT			;no info field
