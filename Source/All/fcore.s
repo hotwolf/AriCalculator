@@ -191,59 +191,13 @@ CF_STORE_EOI			RTS
 ;Drop xd. Make the pictured numeric output string available as a character
 ;string. c-addr and u specify the resulting character string. A program may
 ;replace characters within the string. 
-;CF_NUMBER_SIGN_GREATER		EQU	*	
-;				;Check PAD length (PSP in Y)
-;				LDD	PAD					;PAD-HLD -> u
-;				TFR	D, X
-;				SUBD	HLD
-;				STD	0,Y
-;				BEQ	CF_NUMBER_SIGN_GREATER_2 		;zero length string
-;				;Terminate string (PSP in Y, PAD in X)
-;				BSET	1,X, #$80 				;set termination bit in last characer
-;				;Return string pointer (PSP in Y, PAD in X)
-;				MOVW	HLD, 2,Y				;HLD -> c-addr
-;				;Done
-;CF_NUMBER_SIGN_GREATER_1	NEXT
-;				;Zero-length string (PSP in Y, PAD in X, 0 in D)
-;CF_NUMBER_SIGN_GREATER_2	STD	2,Y
-;				JOB	CF_NUMBER_SIGN_GREATER_1
+;==> FPAD
 	
 ;#S ( ud1 -- ud2 )
 ;Convert one digit of ud1 according to the rule for #. Continue conversion
 ;until the quotient is zero. ud2 is zero. An ambiguous condition exists if #S
 ;executes outside of a <# #> delimited number conversion.
-;CF_NUMBER_SIGN_S		PS_CHECK_UF	2					;check for underflow  (PSP -> Y)
-;				BASE_CHECK	CF_NUMBER_SIGN_S_INVALBASE		;check BASE value (BASE -> D)
-;				;Perform division (PSP in Y, BASE in D)
-;CF_NUMBER_SIGN_S_1		TFR	D,X						;prepare 1st division
-;				LDD	0,Y						; (ud1>>16)/BASE
-;				IDIV							;D/X=>X; remainder=D
-;				STX	0,Y						;return upper word of the result
-;				LDX	BASE						;prepare 2nd division
-;				LDY	2,Y
-;				EXG	D,Y
-;				EDIV							;Y:D/X=>Y; remainder=>D
-;				LDX	PSP						;PSP -> X
-;				STY	2,X
-;				;Lookup ASCII representation of the remainder (LSB of quotient in Y, remainder in D)
-;				TFR	D,X
-;				LDAB	FCORE_SYMTAB,X
-;				;Add ASCII character to the PAD buffer (LSB of quotient in Y)
-;				PAD_CHECK_OF	CF_NUMBER_SIGN_S_PADOF			;check for PAD overvlow (HLD -> X)
-;				STAB	1,-X
-;				STX	HLD
-;				;Check if quotient is zero
-;				LDD	BASE
-;				LDY	PSP
-;				LDX	2,Y
-;				BNE	CF_NUMBER_SIGN_S_1
-;				LDX	0,Y
-;				BNE	CF_NUMBER_SIGN_S_1
-;				;Quotient is zero
-;				NEXT
-;
-;CF_NUMBER_SIGN_S_PADOF		JOB	FCORE_THROW_PADOF
-;CF_NUMBER_SIGN_S_INVALBASE	JOB	FCORE_THROW_INVALBASE
+;==> FPAD
 	
 ;Word: ' ( "<spaces>name" -- xt )
 ;Skip leading space delimiters. Parse name delimited by a space. Find name and
@@ -372,13 +326,7 @@ CF_PLUS_STORE_EOI		RTS
 ;pointer is aligned when , begins execution, it will remain aligned when,
 ;finishes execution. An ambiguous condition exists if the data-space pointer is
 ;not aligned prior to execution of ,.
-;CF_COMMA			PS_CHECK_UF	1			;check for PS underflow   (PSP -> Y)
-;				DICT_CHECK_OF	2, CF_COMMA_DICTOF	;check for DICT overflow (CP+bytes -> X)
-;				MOVW	2,Y+, -2,X
-;				STY	PSP
-;				STX	CP
-;				STX	CP_SAVED
-;				NEXT
+;==> FNVDICT
 
 ;Word: - ( n1|u1 n2|u2 -- n3|u3 )
 ;Subtract n2|u2n from n1|u1, giving the difference n3|u3.
@@ -569,8 +517,7 @@ CF_LESS_THAN_1			TAB					;flag  -> D
 	
 ;<# ( -- )
 ;Initialize the pictured numeric output conversion process.
-;CF_LESS_NUMBER_SIGN	PAD_ALLOC
-;			NEXT
+;==> FPAD
 	
 ;Word: = ( x1 x2 -- flag )
 ;flag is true if and only if x1 is bit-for-bit the same as x2.
@@ -719,8 +666,7 @@ CF_ABS_1			RTS			;done
 
 ;ALIGN ( -- )
 ;If the data-space pointer is not aligned, reserve enough space to align it.
-;CF_ALIGN		EQU	CF_NOP
-;TBD
+;==> FNVDICT
 	
 ;Word: ALIGNED ( addr -- a-addr )
 IF_ALIGNED			INLINE	CF_ALIGNED
@@ -741,24 +687,7 @@ CF_ALIGNED_EOI			RTS
 ;If the data-space pointer is character aligned and n is a multiple of the size
 ;of a character when ALLOT begins execution, it will remain character aligned
 ;when ALLOT finishes execution.
-;CF_ALLOT			PS_CHECK_UF	1		;PSP -> Y
-;				;Get argument
-;				LDD	2,Y+
-;				BEQ	CF_ALLOT_2 		;done
-;				BMI	CF_ALLOT_3		;deallocate data space
-;				;Allocate data space (new PSP in Y)
-;				DICT_CHECK_OF_D	CF_ALLOT_DICTOF ;CP+bytes -> X
-;CF_ALLOT_1			STX	CP
-;				STX	CP_SAVED
-;				;Done (new PSP in Y)
-;CF_ALLOT_2			STY	PSP
-;				NEXT
-;				;Deallocate data space (new PSP in Y) 
-;CF_ALLOT_3			LDX	CP
-;				LEAX	D,X
-;				CPX	LAST_NFA
-;				BLS	CF_ALLOT_DICTPROT
-;				JOB	CF_ALLOT_1
+;==> FNVDICT
 	
 ;Word: AND ( x1 x2 -- x3 )
 ;x3 is the bit-by-bit logical and of x1 with x2.
@@ -806,14 +735,7 @@ CF_C_STORE_EOI			RTS
 ;will remain character aligned when C, finishes execution. An ambiguous
 ;condition exists if the data-space pointer is not character-aligned prior to
 ;execution of C,.
-;CF_C_COMMA			PS_CHECK_UF	1			;check for PS underflow   (PSP -> Y)
-;				DICT_CHECK_OF	1, CF_C_COMMA_DICTOF	;check for DICT overflow (CP+bytes -> X)
-;				LDD	2,Y+
-;				STAB	-1,X
-;				STY	PSP
-;				STX	CP
-;				STX	CP_SAVED
-;				NEXT
+;==> FNVDICT
 
 ;Word: C@ ( c-addr -- char )
 ;Fetch the character stored at c-addr. When the cell size is greater than
@@ -1165,19 +1087,13 @@ CF_FILL_2			LEAY	6,Y			;clean up PS
 
 ;HERE ( -- addr )
 ;addr is the data-space pointer. (points to the next free data space)
-
+;==> FNVDICT
+	
 ;HOLD ( char -- )
 ;Add char to the beginning of the pictured numeric output string. An ambiguous
 ;condition exists if HOLD executes outside of a <# #> delimited number
 ;conversion.
-;CF_HOLD			PS_CHECK_UF	1, CF_HOLD_PSUF ;check for underflow	(PSP -> Y)
-;				PAD_CHECK_OF	CF_HOLD_PADOF	;check for PAD overvlow (HLD -> X)
-;				;Add ASCII character to the PAD buffer (PSP -> Y, HLD -> X)
-;				LDD	2,Y+
-;				STAB	1,-X
-;				STX	HLD
-;				STY	PSP
-;				NEXT
+;==> FPAD
 				
 ;I
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2386,12 +2302,7 @@ CF_U_GREATER_THAN_1		TAB					;flag  -> D
 ;UNUSED ( -- u )
 ;u is the amount of space remaining in the region addressed by HERE, in address
 ;units.
-;CF_UNUSED			PS_CHECK_OF	1			;overflow check	(PSP-new cells -> Y)
-;				TFR	Y, D				;UNUSED = PSP-CP
-;				SUBD	CP
-;				STD	0,Y
-;				STY	PSP
-;				NEXT
+;==> FNVDICT
 			
 ;Word: VALUE ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a

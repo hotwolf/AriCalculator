@@ -217,11 +217,6 @@ FNVDICT_VARS_END_LIN	EQU	@
 ;===============
 #macro	FNVDICT_INIT, 0
 #ifdef NVDICT_ON
-
-
-
-
-
 			LDD	NVDICT_START 		;first NVDICT word -> D
 			CPD	#$FFFF			;check if any info field exists
 			BEQ	DEFAULT			;no info field
@@ -445,13 +440,150 @@ CF_WORDS_NVDICT_1	EQU	CF_LU_NVDICT_2		;done
 ;initializing the contents of the reserved cell.
 IF_VARIABLE		REGULAR	
 CF_VARIABLE		EQU	*
+			;Start compilation 
+			JOBSR	CF_COLON	      	;compile header
+			BSET	0,SP,#FUDICT_CI_NOINL	;forbid INLINE compilation
+			;Determine compilation strategy
+			BRCLR	STRATEGY,#$80,CF_VARIABLE_1;NV compile
+			;Volatile compile
+			LDX	CP 			;CP -> X
+			LEAX	6,X			;CP+offset -> X
+			STX	2,-Y			;CP+offset -> PS
+			JOB	CF_VARIABLE_2		;conclude compilation
+			;Non-volatile compile
+CF_VARIABLE_1		MOVW	DP, 2,-Y 		;DP -> PS
+			;Conclude compilation
+CF_VARIABLE_2		JOBSR	CF_LITERAL_1		;compile literal
+			JOBSR	CF_SEMICOLON_1 		;conclude compilation
+			MOVW	#2, 2,-Y		;1 cell ->PS
+			JOB	CF_ALLOT		;allocate 1 cell of data space
 
-			RTS
+;Word: ALLOT ( n -- )
+;If n is greater than zero, reserve n address units of data space. If n is less
+;than zero, release |n| address units of data space. If n is zero, leave the
+;data-space pointer unchanged.
+;If the data-space pointer is aligned and n is a multiple of the size of a cell
+;when ALLOT begins execution, it will remain aligned when ALLOT finishes
+;execution.
+;If the data-space pointer is character aligned and n is a multiple of the size
+;of a character when ALLOT begins execution, it will remain character aligned
+;when ALLOT finishes execution.
+IF_ALLOT		REGULAR	
+CF_ALLOT		EQU	*
+			;Pull n 
+			LDD	2,Y+ 			;n -> D
+			;Determine compilation strategy
+			BRCLR	STRATEGY,#$80,CF_ALLOT_1;NV compile
+			;Volatile compile
+			LDX	CP 			;CP -> X
+			LEAX	D,X			;CP+n -> X
+			STX	CP			;update CP
+			STX	CP_SAVE			;update CP_SAVE
+			RTS				;done
+			;Non-volatile compile
+CF_ALLOT_1		LDX	DP 			;DP -> X
+			LEAX	D,X			;DP+n -> X
+			STX	DP			;update DP
+			RTS				;done
+
+;Word: ALIGN ( -- )
+;If the data-space pointer is not aligned, reserve enough space to align it.
+IF_ALIGN		REGULAR	
+CF_ALIGN		EQU	*
+			;Determine compilation strategy
+			BRCLR	STRATEGY,#$80,CF_ALIGN_2;NV compile
+			;Volatile compile
+			BRCLR	CP+1,#$01,CF_ALIGN_1 	;check id CP is aligned
+			LDX	CP 			;CP -> X
+			INX				;align CP
+			STX	CP			;update CP
+			STX	CP_SAVE			;update CP_SAVE
+CF_ALIGN_1		RTS				;done
+			;Non-volatile compile
+CF_ALIGN_2		BRCLR	DP+1,#$01,CF_ALIGN_3 	;check id DP is aligned
+			LDX	DP 			;DP -> X
+			INX				;align DP
+			STX	DP			;update DP
+CF_ALIGN_3		RTS				;done
+
+;Word: , ( x -- )
+;Reserve one cell of data space and store x in the cell. If the data-space
+;pointer is aligned when , begins execution, it will remain aligned when,
+;finishes execution. An ambiguous condition exists if the data-space pointer is
+;not aligned prior to execution of ,.
+IF_COMMA		REGULAR	
+CF_COMMA		EQU	*
+			;Determine compilation strategy
+			BRCLR	STRATEGY,#$80,CF_COMMA_2;NV compile
+			;Volatile compile
+			LDX	CP 			;CP -> X
+			LEAX	2,X			;allocate one cell
+			STX	CP			;update CP
+			STX	CP_SAVE			;update CP_SAVE
+CF_COMMA_1		MOVW	2,Y+, -2,X		;store x in data space
+			RTS				;done
+			;Non-volatile compile
+CF_COMMA_2		LDX	DP 			;DP -> X
+			LEAX	2,X			;allocate one cell
+			STX	DP			;update DP
+			JOB	CF_COMMA_1		;store x in data space
 	
+;C, ( char -- )
+;Reserve space for one character in the data space and store char in the space.
+;If the data-space pointer is character aligned when C, begins execution, it
+;will remain character aligned when C, finishes execution. An ambiguous
+;condition exists if the data-space pointer is not character-aligned prior to
+;execution of C,.
+IF_C_COMMA		REGULAR	
+CF_C_COMMA		EQU	*
+			;Determine compilation strategy
+			BRCLR	STRATEGY,#$80,CF_C_COMMA_2;NV compile
+			;Volatile compile
+			LDX	CP 			;CP -> X
+			INX				;allocate one byte
+			STX	CP			;update CP
+			STX	CP_SAVE			;update CP_SAVE
+CF_C_COMMA_1		LDD	2,Y+			;char -> D
+			STAB	-2,X		;store char in data space
+			RTS				;done
+			;Non-volatile compile
+CF_C_COMMA_2		LDX	DP 			;DP -> X
+			INX				;allocate one byte
+			STX	DP			;update DP
+			JOB	CF_C_COMMA_1		;store char in data space
 
+;Word: HERE ( -- addr )
+;addr is the data-space pointer. (points to the next free data space)
+IF_HERE			REGULAR	
+CF_HERE			EQU	*
+			;Determine compilation strategy
+			BRCLR	STRATEGY,#$80,CF_HERE_1;NV compile
+			;Volatile compile
+			MOVW	CP, 2,-Y	       	;CP -> PS
+			RTS			       	;done
+			;Non-volatile compile
+CF_HERE_1		MOVW	DP, 2,-Y	     	;DP -> PS
+			RTS			       	;done
 
+;;Word: UNUSED ( -- u )
+;u is the amount of space remaining in the region addressed by HERE, in address
+;units.
+IF_UNUSED		REGULAR	
+CF_UNUSED		EQU	*
+			;Allocate PS space
+			LEAY	-2,Y
+			TFR	Y, D
+			;Determine compilation strategy (PSP in D)
+			BRCLR	STRATEGY,#$80,CF_UNUSED_2;NV compile
+			;Volatile compile (PSP in D)
+			SUBD	CP 			;free space -> D
+CF_UNUSED_1		STD	0,Y			;free space -> PS
+			RTS			       	;done
+			;Non-volatile compile
+CF_UNUSED_2		SUBD	DP			;free space -> D
+			JOB	CF_UNUSED_1		;free space -> PS
 	
-FNVDICT_CODE_END		EQU	*
+FNVDICT_CODE_END	EQU	*
 FNVDICT_CODE_END_LIN	EQU	@
 
 ;###############################################################################

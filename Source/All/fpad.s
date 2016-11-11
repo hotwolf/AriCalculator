@@ -208,6 +208,38 @@ FPAD_CODE_START_LIN	EQU	@
 ;# Words #
 ;#########
 
+;<# ( -- )
+;Initialize the pictured numeric output conversion process.
+;CF_LESS_NUMBER_SIGN	PAD_ALLOC
+;			NEXT
+
+
+
+;#> ( xd -- c-addr u )
+;Drop xd. Make the pictured numeric output string available as a character
+;string. c-addr and u specify the resulting character string. A program may
+;replace characters within the string. 
+;CF_NUMBER_SIGN_GREATER		EQU	*	
+;				;Check PAD length (PSP in Y)
+;				LDD	PAD					;PAD-HLD -> u
+;				TFR	D, X
+;				SUBD	HLD
+;				STD	0,Y
+;				BEQ	CF_NUMBER_SIGN_GREATER_2 		;zero length string
+;				;Terminate string (PSP in Y, PAD in X)
+;				BSET	1,X, #$80 				;set termination bit in last characer
+;				;Return string pointer (PSP in Y, PAD in X)
+;				MOVW	HLD, 2,Y				;HLD -> c-addr
+;				;Done
+;CF_NUMBER_SIGN_GREATER_1	NEXT
+;				;Zero-length string (PSP in Y, PAD in X, 0 in D)
+;CF_NUMBER_SIGN_GREATER_2	STD	2,Y
+;				JOB	CF_NUMBER_SIGN_GREATER_1
+
+
+
+
+
 ;Word: # ( ud1 -- ud2 )
 ;Divide ud1 by the number in BASE giving the quotient ud2 and the remainder n.
 ;(n is the least-significant digit of ud1.) Convert n to external form and add
@@ -253,78 +285,62 @@ CF_NUMBER_SIGN			EQU	*
 
 
 
+;#S ( ud1 -- ud2 )
+;Convert one digit of ud1 according to the rule for #. Continue conversion
+;until the quotient is zero. ud2 is zero. An ambiguous condition exists if #S
+;executes outside of a <# #> delimited number conversion.
+;CF_NUMBER_SIGN_S		PS_CHECK_UF	2					;check for underflow  (PSP -> Y)
+;				BASE_CHECK	CF_NUMBER_SIGN_S_INVALBASE		;check BASE value (BASE -> D)
+;				;Perform division (PSP in Y, BASE in D)
+;CF_NUMBER_SIGN_S_1		TFR	D,X						;prepare 1st division
+;				LDD	0,Y						; (ud1>>16)/BASE
+;				IDIV							;D/X=>X; remainder=D
+;				STX	0,Y						;return upper word of the result
+;				LDX	BASE						;prepare 2nd division
+;				LDY	2,Y
+;				EXG	D,Y
+;				EDIV							;Y:D/X=>Y; remainder=>D
+;				LDX	PSP						;PSP -> X
+;				STY	2,X
+;				;Lookup ASCII representation of the remainder (LSB of quotient in Y, remainder in D)
+;				TFR	D,X
+;				LDAB	FCORE_SYMTAB,X
+;				;Add ASCII character to the PAD buffer (LSB of quotient in Y)
+;				PAD_CHECK_OF	CF_NUMBER_SIGN_S_PADOF			;check for PAD overvlow (HLD -> X)
+;				STAB	1,-X
+;				STX	HLD
+;				;Check if quotient is zero
+;				LDD	BASE
+;				LDY	PSP
+;				LDX	2,Y
+;				BNE	CF_NUMBER_SIGN_S_1
+;				LDX	0,Y
+;				BNE	CF_NUMBER_SIGN_S_1
+;				;Quotient is zero
+;				NEXT
+;
+;CF_NUMBER_SIGN_S_PADOF		JOB	FCORE_THROW_PADOF
+;CF_NUMBER_SIGN_S_INVALBASE	JOB	FCORE_THROW_INVALBASE
 
 
+;HOLD ( char -- )
+;Add char to the beginning of the pictured numeric output string. An ambiguous
+;condition exists if HOLD executes outside of a <# #> delimited number
+;conversion.
+;CF_HOLD			PS_CHECK_UF	1, CF_HOLD_PSUF ;check for underflow	(PSP -> Y)
+;				PAD_CHECK_OF	CF_HOLD_PADOF	;check for PAD overvlow (HLD -> X)
+;				;Add ASCII character to the PAD buffer (PSP -> Y, HLD -> X)
+;				LDD	2,Y+
+;				STAB	1,-X
+;				STX	HLD
+;				STY	PSP
+;				NEXT
 
 
 
 	
 
 
-
-	
-;
-;;Search word in dictionary
-;; args:   X: string pointer
-;;         D: char count 
-;; result: C-flag: set if word is in the dictionary	
-;;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
-;; SSTACK: 16  bytes
-;;         X and Y are preserved 
-;FPAD_SEARCH		EQU	*
-;
-;
-;	;;TBD 
-;
-;
-;	
-;;PAD_ALLOC: allocate the PAD buffer (PAD_SIZE bytes if possible) (PAD -> D)
-;; args:   none
-;; result: D: PAD (= HLD), $0000 if no space is available
-;; SSTACK: 2
-;;        X and Y are preserved 
-;FPAD_PAD_ALLOC	EQU	*
-;			;Calculate available space
-;			LDD	PSP
-;			SUBD	CP
-;			;BLS	FPAD_PAD_ALLOC_4 	;no space available at all
-;			;Check if requested space is available
-;			CPD	#(PAD_SIZE+PS_PADDING)
-;			BLO	FPAD_PAD_ALLOC_3	;reduce size
-;			LDD	CP
-;			ADDD	#PAD_SIZE
-;			;Allocate PAD
-;FPAD_PAD_ALLOC_1	STD	PAD
-;			STD	HLD
-;			;Done 
-;FPAD_PAD_ALLOC_2	SSTACK_PREPULL	2
-;			RTS
-;			;Reduce PAD size 
-;FPAD_PAD_ALLOC_3	CPD	#(PAD_MINSIZE+PS_PADDING)
-;			BLO	FPAD_PAD_ALLOC_4		;not enough space available
-;			LDD	PSP
-;			SUBD	#PS_PADDING
-;			JOB	FPAD_PAD_ALLOC_1 		;allocate PAD
-;			;Not enough space available
-;FPAD_PAD_ALLOC_4	LDD 	$0000 				;signal failure
-;			JOB	FPAD_PAD_ALLOC_2		;done
-;
-;;Code fields:
-;;============
-;
-;;Exceptions:
-;;===========
-;;Standard exceptions
-;#ifndef FPAD_NO_CHECK
-;#ifdef FPAD_DEBUG
-;FIDICT_THROW_DICTOF	BGND					;parameter stack overflow
-;FIDICT_THROW_PADOF	BGND					;PAD overflow
-;#else
-;FPAD_THROW_DICTOF	THROW	FEXCPT_EC_DICTOF		;parameter stack overflow
-;FPAD_THROW_PADOF	THROW	FEXCPT_EC_PADOF			;PAD overflow
-;#endif
-;#endif
-;
 FPAD_CODE_END		EQU	*
 FPAD_CODE_END_LIN	EQU	@
 
