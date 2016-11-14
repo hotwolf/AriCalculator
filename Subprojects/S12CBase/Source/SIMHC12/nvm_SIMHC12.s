@@ -70,7 +70,10 @@ NVM_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	NVM_INIT, 0
+			LDD	NVM_SPACE_START
+			BNE	DONE
 			NVM_ERASE 				;erase nvm space
+DONE			EQU	*
 #emac	
 
 ;#User interface
