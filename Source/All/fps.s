@@ -398,9 +398,17 @@ FPS_CODE_END_LIN	EQU	@
 FPS_TABS_START_LIN	EQU	@
 #endif	
 
-;PS empty message
+;#PS empty message
+; ================
 FPS_STR_EMPTY		FCS	"empty"
 	
+;#Environment
+; ===========
+;Environment: STACK-CELLS ( -- n true)
+;Maximum size of the data stack, in cells
+ENV_STACK_CELLS		DW	FENV_SINGLE
+			DW	(UDICT_PS_END-UDICT_PS_START)/2
+
 FPS_TABS_END		EQU	*
 FPS_TABS_END_LIN	EQU	@
 #endif	

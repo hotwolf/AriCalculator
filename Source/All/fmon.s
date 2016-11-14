@@ -1,7 +1,7 @@
-#ifndef FRS_COMPILED
-#define FRS_COMPILED
+#ifndef FMON
+#define FMON
 ;###############################################################################
-;# S12CForth- FRS - Return Stack                                               #
+;# S12CForth - FMON - System Integrity Monitor                                 #
 ;###############################################################################
 ;#    Copyright 2009-2016 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for NXP's S12C MCU          #
@@ -20,159 +20,152 @@
 ;#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #
 ;###############################################################################
 ;# Description:                                                                #
-;#    This module is a container for all return stack related code.            #
+;#    This module implements the exception handling of the S12CForth virtual   #
+;#    machine. The following Forth variables belong to this module:            #
 ;#                                                                             #
 ;#    S12CForth register assignments:                                          #
 ;#      IP  (instruction pounter)     = PC (subroutine theaded)                #
-;#      PSP (parameter stack pointer) = Y                                      #
 ;#      RSP (return stack pointer)    = SP                                     #
+;#      PSP (parameter stack pointer) = Y                                      #
 ;#  									       #
-;#    Program termination options:                                             #
-;#      ABORT:                                                                 #
-;#      QUIT:                                                                  #
+;#    Interrupts must be disabled while Y is temporarily used for other        #
+;#    purposes.								       #
+;#  									       #
+;#    The following notation is used to describe the stack layout in the word  #
+;#    definitions:                                                             #
 ;#                                                                             #
+;#    Symbol          Data type                       Size on stack	       #
+;#    ------          ---------                       -------------	       #
+;#    flag            flag                            1 cell		       #
+;#    true            true flag                       1 cell		       #
+;#    false           false flag                      1 cell		       #
+;#    char            character                       1 cell		       #
+;#    n               signed number                   1 cell		       #
+;#    +n              non-negative number             1 cell		       #
+;#    u               unsigned number                 1 cell		       #
+;#    n|u 1           number                          1 cell		       #
+;#    x               unspecified cell                1 cell		       #
+;#    xt              execution token                 1 cell		       #
+;#    addr            address                         1 cell		       #
+;#    a-addr          aligned address                 1 cell		       #
+;#    c-addr          character-aligned address       1 cell		       #
+;#    d-addr          double address                  2 cells (non-standard)   #
+;#    d               double-cell signed number       2 cells		       #
+;#    +d              double-cell non-negative number 2 cells		       #
+;#    ud              double-cell unsigned number     2 cells		       #
+;#    d|ud 2          double-cell number              2 cells		       #
+;#    xd              unspecified cell pair           2 cells		       #
+;#    colon-sys       definition compilation          implementation dependent #
+;#    do-sys          do-loop structures              implementation dependent #
+;#    case-sys        CASE structures                 implementation dependent #
+;#    of-sys          OF structures                   implementation dependent #
+;#    orig            control-flow origins            implementation dependent #
+;#    dest            control-flow destinations       implementation dependent #
+;#    loop-sys        loop-control parameters         implementation dependent #
+;#    nest-sys        definition calls                implementation dependent #
+;#    i*x, j*x, k*x 3 any data type                   0 or more cells	       #
+;#  									       #
+;#    Counted strings are implemented as terminated strings. String            #
+;#    termination is done by setting bit 7 in the last character of the        #   
+;#    string. Pointers to empty strings have the value $0000.		       #
+;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    April 23, 2009                                                           #
+;#    October 20, 2016                                                         #
 ;#      - Initial release                                                      #
-;#    September 30, 2016                                                       #
-;#      - Started subroutine threaded implementation                           #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    BASE    - S12CBase framework                                             #
-;#    FTIB    - Forth text input buffer                                        #
+;#    BASE   - S12CBase framework                                              #
+;#    FPS    - Forth parameter stack                                           #
+;#    FRS    - Forth return stack                                              #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
 ;###############################################################################
 
 ;###############################################################################
-;# Memory Layout                                                               #
-;###############################################################################
-;         
-;                         +----------+----------+        
-;        RS_TIB_START, -> |          |          | |
-;           TIB_START     |  Text Input Buffer  | | [NUMBER_TIB]
-;                         |          |          | |	       
-;                         |          v          | <	       
-;                     -+- | --- --- --- --- --- | 	       
-;             TIB_PADDING .                     . <- TIB_START+[NUMBER_TIB] 
-;                     -+- .                     .            
-;                         | --- --- --- --- --- |            
-;                         |          ^          | <- [RSP]
-;                         |          |          |
-;                         |    Return Stack     |
-;                         |          |          |
-;                         +----------+----------+
-;             RS_EMPTY, ->                                 
-;           RS_TIB_END
-;
-	
-;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-	
+
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Bottom of return stack
-RS_EMPTY			EQU	RS_TIB_END
 
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef FRS_VARS_START_LIN
-				ORG 	FRS_VARS_START, FRS_VARS_START_LIN
+#ifdef FMON_VARS_START_LIN
+			ORG 	FMON_VARS_START, FMON_VARS_START_LIN
 #else				
-				ORG 	FRS_VARS_START
-FRS_VARS_START_LIN		EQU	@
+			ORG 	FMON_VARS_START
+FMON_VARS_START_LIN	EQU	@
 #endif				
 				
-FRS_VARS_END			EQU	*
-FRS_VARS_END_LIN		EQU	@
+FMON_VARS_END		EQU	*
+FMON_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization (executed along with ABORT action)
 ;===============
-#macro	FRS_INIT, 0
+#macro	FMON_INIT, 0
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
 ;=============
-#macro	FRS_ABORT, 0
+#macro	FMON_ABORT, 0
 #emac
 	
 ;#Quit action
 ;============
-#macro	FRS_QUIT, 0
-				LDS	#RS_EMPTY 		;reset return stack
+#macro	FMON_QUIT, 0
 #emac
 
 ;#System integrity monitor
 ;=========================
-#macro	FRS_MON, 0
+#macro	FMON_MON, 0
 #emac
 
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef FRS_CODE_START_LIN
-				ORG 	FRS_CODE_START, FRS_CODE_START_LIN
-#else				
-				ORG 	FRS_CODE_START
-FRS_CODE_START_LIN		EQU	@
+#ifdef FMON_CODE_START_LIN
+			ORG 	FMON_CODE_START, FMON_CODE_START_LIN
+#else
+			ORG 	FMON_CODE_START
+FMON_CODE_START_LIN	EQU	@
 #endif
-
+	
 ;#########
 ;# Words #
 ;#########
-
-;Word: >R
-;Interpretation: Interpretation semantics for this word are undefined.
-;Execution: ( x -- ) ( R:  -- x )
-;Move x to the return stack.
-IF_TO_R				IMMEDIATE
-CF_TO_R				EQU	*
-				;Check STATE 
-				LDD	STATE
-				BEQ	CF_TO_R_1 		;interpret
-				;Compile 
-				MOVW	#CF_TO_R_RT, 2,-Y 	;add CF_TO_R_RT
-				JOB	CF_COMPILE_COMMA_1	; to compilation
-				;Interpret
-CF_TO_R_1			LDX	0,SP 			;return address -> X
-				MOVW	2,Y+, 0,SP 		;x -> RS
-				JMP	0,SP 			;return
 	
-;>R run-time semantics
-IF_TO_R_RT			INLINE	CF_TO_R_RT				
-CF_TO_R_RT			EQU	*
-				MOVW	2,Y+, 2,-SP 		;x -> RS
-CF_TO_R_RT_EOI			EQU	*
+;Word: MONITOR ( -- )
+;Run system integrity checks. Throw exceptions if necessary.
+IF_MONITOR		REGULAR
+CF_MONITOR		EQU	*
+			FORTH_MON
+			RTS
 	
-FRS_CODE_END		EQU	*
-FRS_CODE_END_LIN	EQU	@
+FMON_CODE_END		EQU	*
+FMON_CODE_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef FRS_TABS_START_LIN
-				ORG 	FRS_TABS_START, FRS_TABS_START_LIN
-#else				
-				ORG 	FRS_TABS_START
-FRS_TABS_START_LIN		EQU	@
-#endif				
+;Tabes in unpaged address space
+;------------------------------ 
+#ifdef FMON_TABS_START_LIN
+			ORG 	FMON_TABS_START, FMON_TABS_START_LIN
+#else
+			ORG 	FMON_TABS_START
+FMON_TABS_START_LIN	EQU	@
+#endif
 
-;#Environment
-; ===========
-;Environment: RETURN-STACK-CELLS ( -- n true)
-;Maximum size of the return stack, in cells
-ENV_RETURN_STACK_CELLS		DW	FENV_SINGLE
-				DW	(RS_TIB_END-RS_TIB_START)/2
+FMON_TABS_END		EQU	*
+FMON_TABS_END_LIN	EQU	@
 
-FRS_TABS_END			EQU	*
-FRS_TABS_END_LIN		EQU	@
-#endif	
-
+#endif
+	
+	

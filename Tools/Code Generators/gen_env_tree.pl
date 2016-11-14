@@ -1,10 +1,9 @@
 #!/usr/bin/env perl
 ###############################################################################
-# S12CForth - Dictionary Tree Generator                                       #
+# S12CForth - Envirnment Tree Generator                                       #
 ###############################################################################
-#    Copyright 2013 Dirk Heisswolf                                            #
-#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
-#    family.                                                                  #
+#    Copyright 2013-2016 Dirk Heisswolf                                       #
+#    This file is part of the S12CForth framework for NXP's S12C MCU family.  #
 #                                                                             #
 #    S12CForth is free software: you can redistribute it and/or modify        #
 #    it under the terms of the GNU General Public License as published by     #
@@ -24,12 +23,8 @@
 #    parser) for the S12CForth CORE NFAs.                                     #
 ###############################################################################
 # Version History:                                                            #
-#    January 9, 2013                                                          #
+#    November 13, 2016                                                        #
 #      - Initial release                                                      #
-#    October 8, 2013                                                          #
-#      - Fixed output format                                                  #
-#     October 6, 2016                                                         #
-#       - Modified for subroutine threaded implementation                     #
 ###############################################################################
 
 #################
@@ -63,7 +58,7 @@ $code              = {};
 $comp_symbols      = {};
 $pag_addrspace     = {};
 
-%dict_tree         = ();
+%env_tree         = ();
 $max_name_length   = 0;
 $tree_layout_width = 0;
 @zero_terms        = ();
@@ -225,20 +220,20 @@ if ($code->{problems}) {
 	$code_sym_tabs = $code_entry->[12];
 	
 	#printf STDERR "Label: \"%s\"\n", $code_label;
-	#Word must begin with "IF_" label
-	if ($code_label =~ /^IF_/) {		
+	#Word must begin with "ENV_" label
+	if ($code_label =~ /^ENV_/) {		
 	    #printf STDERR "IF found: \"%s\"\n", $code_label;
 	    
-	    #Word must contain the comment line: ;Word: <name> ... HIDDEN"
+	    #Word must contain the comment line: ;Environment: <name> ... HIDDEN"
 	    my $name_string  = "";
 	    my $name_found   = 0;
 	    my $is_hidden    = 0;
 	    foreach my $code_comment (@{$code_comments}) {
 		#printf STDERR "Comment: \"%s\"\n", $code_comment;
-		if ($code_comment =~ /^;Word:\s+(\S+)/) {
+		if ($code_comment =~ /^;Environment:\s+(\S+)/) {
 		    $name_found   = 1;
 		    $name_string  =  uc($1);
-		    if ($code_comment =~ /^;Word:\s+\S+\s+.*HIDDEN\s*$/) {
+		    if ($code_comment =~ /^;Environment:\s+\S+\s+.*HIDDEN\s*$/) {
 			$is_hidden = 1;
 		    } else {
 			$is_hidden = 0;
@@ -261,8 +256,8 @@ if ($code->{problems}) {
 		    #Change code label
 		    $code_label =~ s/^IF_/CF_/;
    
-		    #Add word to dictionary tree
-		    add_to_tree(\%dict_tree, \@name_array, $code_label);
+		    #Add word to environment tree
+		    add_to_tree(\%env_tree, \@name_array, $code_label);
 		}
 	    }
 	}
@@ -271,26 +266,26 @@ if ($code->{problems}) {
     ###################################
     # condense tree (find substrings) #
     ###################################
-    condense_tree(\%dict_tree);
+    condense_tree(\%env_tree);
 
     ##########################################
     # find zero-length terminated substrings #
     ##########################################
-    #find_zero_term(\%dict_tree);
+    #find_zero_term(\%env_tree);
 
     #########################
     # write NFA search tree #
     #########################
-    $dict_tree_file_name = sprintf("%s/fcdict_tree.s", $output_path);
+    $env_tree_file_name = sprintf("%s/fenv_tree.s", $output_path);
 
-    if (open (FILEHANDLE, sprintf(">%s", $dict_tree_file_name))) {
+    if (open (FILEHANDLE, sprintf(">%s", $env_tree_file_name))) {
 
 	#Print header
 	#------------ 
-        printf FILEHANDLE "#ifndef FCDICT_TREE_COMPILED\n"; 
-        printf FILEHANDLE "#define FCDICT_TREE_COMPILED\n"; 
+        printf FILEHANDLE "#ifndef FENV_TREE_COMPILED\n"; 
+        printf FILEHANDLE "#define FENV_TREE_COMPILED\n"; 
         printf FILEHANDLE ";###############################################################################\n"; 
-        printf FILEHANDLE ";# S12CForth - Search Tree for the Core Dictionary                             #\n";
+        printf FILEHANDLE ";# S12CForth - Search Tree for the Core Environment                            #\n";
         printf FILEHANDLE ";###############################################################################\n";
         printf FILEHANDLE ";#    Copyright 2009-%4d Dirk Heisswolf                                       #\n", $year;
         printf FILEHANDLE ";#    This file is part of the S12CForth framework for NXP's S12(X) MCU        #\n";
@@ -310,21 +305,21 @@ if ($code->{problems}) {
         printf FILEHANDLE ";#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #\n";
         printf FILEHANDLE ";###############################################################################\n";
         printf FILEHANDLE ";# Description:                                                                #\n";
-        printf FILEHANDLE ";#    This file contains a search tree for S12CForth CORE dictionary.          #\n";
+        printf FILEHANDLE ";#    This file contains a search tree for S12CForth environment queries.      #\n";
         printf FILEHANDLE ";#                                                                             #\n";
         printf FILEHANDLE ";###############################################################################\n";
         printf FILEHANDLE ";# Generated on %3s, %3s %.2d %4d                                               #\n", $days[$wday], $months[$mon], $mday, $year;
         printf FILEHANDLE ";###############################################################################\n";
 
 	#Print tree layout
-	$tree_layout_width = get_tree_layout_width(\%dict_tree);
+	$tree_layout_width = get_tree_layout_width(\%env_tree);
         printf FILEHANDLE "\n";
         printf FILEHANDLE ";###############################################################################\n";
-        printf FILEHANDLE ";# Dictionary Tree Structure                                                   #\n";
+        printf FILEHANDLE ";# Environment Tree Structure                                                   #\n";
         printf FILEHANDLE ";###############################################################################\n";
         printf FILEHANDLE ";\n";
         printf FILEHANDLE "; -> ";
-	print_tree_layout(\%dict_tree, ";    ");
+	print_tree_layout(\%env_tree, ";    ");
 
 	#Constants label
         printf FILEHANDLE "\n";
@@ -340,14 +335,14 @@ if ($code->{problems}) {
         printf FILEHANDLE "#endif\n";
  	printf FILEHANDLE "\n";
         printf FILEHANDLE ";Tree depth\n";
-        printf FILEHANDLE "FCDICT_TREE_DEPTH       EQU     %d\n", get_tree_depth(\%dict_tree);
+        printf FILEHANDLE "FENV_TREE_DEPTH       EQU     %d\n", get_tree_depth(\%env_tree);
  	printf FILEHANDLE "\n";
         printf FILEHANDLE ";First CF\n";
-        printf FILEHANDLE "FCDICT_FIRST_CF         EQU     %s\n", $first_cf;
+        printf FILEHANDLE "FENV_FIRST_CF         EQU     %s\n", $first_cf;
  	printf FILEHANDLE "\n";
         printf FILEHANDLE ";Character count of the first word\n";
-        printf FILEHANDLE "FCDICT_FIRST_CC         EQU     %d                               ;\"%s\"\n", length(get_first_word(\%dict_tree)), 
-                                                                                                        get_first_word(\%dict_tree);
+        printf FILEHANDLE "FENV_FIRST_CC         EQU     %d                               ;\"%s\"\n", length(get_first_word(\%env_tree)), 
+                                                                                                        get_first_word(\%env_tree);
  
 	#Macro label
         printf FILEHANDLE "\n";
@@ -357,8 +352,8 @@ if ($code->{problems}) {
         printf FILEHANDLE "\n";
 
 	#Print tree
-        printf FILEHANDLE ";Dictionary tree\n";
-        printf FILEHANDLE "#macro       FCDICT_TREE, 0\n";
+        printf FILEHANDLE ";Environment tree\n";
+        printf FILEHANDLE "#macro       FENV_TREE, 0\n";
         printf FILEHANDLE ";Local constants\n";
         #printf FILEHANDLE "STRING_TERMINATION      EQU     \$00\n";
         printf FILEHANDLE "EMPTY_STRING            EQU     \$00\n";
@@ -366,22 +361,22 @@ if ($code->{problems}) {
         printf FILEHANDLE "END_OF_BRANCH           EQU     \$00\n";
         #printf FILEHANDLE "\n";
 	my $mem_offset = 0;
-	print_tree(\%dict_tree, "", [], \$mem_offset);
+	print_tree(\%env_tree, "", [], \$mem_offset);
         printf FILEHANDLE "#emac\n";
         printf FILEHANDLE "\n";
 
-	#Initialize tree pointer structure
-        printf FILEHANDLE ";#Set pointer structure to first CDICT entry\n";
-        printf FILEHANDLE "; args:   1: address of CDICT root\n";
-        printf FILEHANDLE ";         2: index register to address tree entry structure\n";
-        printf FILEHANDLE ";         3: offset of tree entry structure\n";
-        printf FILEHANDLE "; result: none\n";
-        printf FILEHANDLE "; SSTACK: none\n";
-        printf FILEHANDLE ";         All registers are preserved\n";
-        printf FILEHANDLE "#macro FCDICT_INIT_ITERATOR, 3\n";
- 	print_init_macro();
-        printf FILEHANDLE "#emac\n";
-        printf FILEHANDLE "\n";
+	##Initialize tree pointer structure
+        #printf FILEHANDLE ";#Set pointer structure to first tree entry\n";
+        #printf FILEHANDLE "; args:   1: address of root\n";
+        #printf FILEHANDLE ";         2: index register to address tree entry structure\n";
+        #printf FILEHANDLE ";         3: offset of tree entry structure\n";
+        #printf FILEHANDLE "; result: none\n";
+        #printf FILEHANDLE "; SSTACK: none\n";
+        #printf FILEHANDLE ";         All registers are preserved\n";
+        #printf FILEHANDLE "#macro FENV_INIT_ITERATOR, 3\n";
+ 	#print_init_macro();
+        #printf FILEHANDLE "#emac\n";
+        #printf FILEHANDLE "\n";
         printf FILEHANDLE "#endif\n";
 	close FILEHANDLE;
     } else {
@@ -623,8 +618,8 @@ sub print_tree {
     my @strings           = sort keys %$tree;
     my @subtree_order     = ();
     my $subtree_reordered = 0;
-    my $root_label        = "FCDICT_TREE";
-    my $label_format      = "FCDICT_TREE_%s";
+    my $root_label        = "FENV_TREE";
+    my $label_format      = "FENV_TREE_%s";
     my $instr_form_nc     = "%-23s %-7s %s\n";
     my $instr_form        = "%-23s %-7s %-31s ;%s\n";
 
@@ -785,7 +780,7 @@ sub print_tree {
 # Print init macro #
 ####################
 sub print_init_macro {
-    my $tree_depth   = get_tree_depth(\%dict_tree);
+    my $tree_depth   = get_tree_depth(\%env_tree);
     my @init_offsets = @first_entry;
     
     #foreach my $level (0...$tree_depth) {

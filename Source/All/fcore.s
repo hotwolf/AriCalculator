@@ -988,6 +988,7 @@ CF_EMIT				EQU	*
 ;system treats the attribute as unknown, the returned flag is false; otherwise,
 ;the flag is true and the i*x returned is of the type specified in the table for
 ;the attribute queried.
+;==> FENV
 
 ;EVALUATE ( i*x c-addr u -- j*x )
 ;Save the current input source specification. Store minus-one (-1) in SOURCE-ID
@@ -2406,7 +2407,77 @@ FCORE_CODE_END_LIN	EQU	@
 			ORG 	FCORE_TABS_START
 FCORE_TABS_START_LIN	EQU	@
 #endif	
-									
+
+
+;#Environment
+; ===========
+;Environment: /COUNTED-STRING ( -- n true)
+;Maximum size of a counted string, in characters
+ENV_COUNTED_STRING	DW	FENV_SINGLE
+			DW	32767
+	
+;Environment: /HOLD ( -- n true)
+;Size of the pictured numeric output string buffer, in characters
+ENV_HOLD		DW	FENV_SINGLE
+			DW	32767
+
+;Environment: /PAD ( -- n true)
+;Size of the scratch area pointed to by PAD, in characters
+ENV_PAD			DW	FENV_SINGLE
+			DW	0000
+
+;Environment: ADDRESS-UNIT-BITS ( -- n true)
+;Size of one address unit, in bits
+ENV_ADDRESS_UNIT_BITS	DW	FENV_SINGLE
+			DW	8
+
+;Environment: CORE ( -- true)
+;True if complete core word set present
+ENV_CORE		DW	FENV_TRUE
+
+;Environment: CORE-EXT ( -- true)
+;True if core extensions word set present
+ENV_CORE_EXT		EQU	ENV_CORE
+
+;Environment: FLOORED ( -- true)
+;True if floored division is the default
+ENV_FLOORED		EQU	ENV_CORE
+
+;Environment: MAX-CHAR ( -- u true)
+;Maximum value of any character in the implementation-defined character set
+ENV_MAX_CHAR		DW	FENV_SINGLE
+			DW	$00FF
+
+;Environment: MAX-D ( -- d true)
+;Largest usable signed double number
+ENV_MAX_D		DW	FENV_DOUBLE
+			DW	$FFFF
+			DW	$7FFF
+
+;Environment: MAX-N ( -- n true)
+;Largest usable signed integer
+ENV_MAX_N		DW	FENV_SINGLE
+			DW	$7FFF
+
+;Environment: MAX-U ( -- u true)
+;Largest usable unsigned integer
+ENV_MAX_U		DW	FENV_SINGLE
+			DW	$FFFF
+
+;Environment: MAX-UD ( -- ud true)
+;Largest usable unsigned double number
+ENV_MAX_UD		DW	FENV_DOUBLE
+			DW	$FFFF
+			DW	$FFFF
+
+;Environment: RETURN-STACK-CELLS ( -- n true)
+;Maximum size of the return stack, in cells
+;==> FRS 
+
+;Environment: STACK-CELLS ( -- n true)
+;Maximum size of the data stack, in cells
+;==> FPS 
+	
 FCORE_TABS_END		EQU	*
 FCORE_TABS_END_LIN	EQU	@
 #endif	

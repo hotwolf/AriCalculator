@@ -138,8 +138,8 @@
 FPAD_VARS_START_LIN	EQU	@
 #endif
 
-;HLD			DS	2	;pointer for pictured numeric output
-;PAD                     DS	2	;end of the PAD buffer
+HLD			DS	2	;pointer for pictured numeric output
+PAD                     DS	2	;end of the PAD buffer
 
 FPAD_VARS_END		EQU	*
 FPAD_VARS_END_LIN	EQU	@
