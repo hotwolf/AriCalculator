@@ -883,6 +883,9 @@ CF_DO			COMPILE_ONLY
 			MOVW	#$EC42,	-6,X 		;compile "LDD 2,Y"
 			MOVW	#$3BEC,	-4,X 		;compile "PSHD LDD"
 			MOVW	#$733B,	-2,X 		;compile "4,Y+ PSHD"
+			;Remove compile optimizations (orig in X)
+			BRSET	3,SP,#80,CF_DO_1	;unfinished control flow
+			CLR	3,SP			;set compile info	
 			;Put do-sys onto the control flow stack (LEAVE list in X)
 			;                              +--------+--------+              
 			;                              |  Return Address | ...     
@@ -895,7 +898,7 @@ CF_DO			COMPILE_ONLY
 			; +--------+--------+	       +--------+--------+	       
 			; | Old Comp. Info  | SP+2     | Old Comp. Info  | SP+6     
 			; +--------+--------+          +--------+--------+           
-			MOVW	#$0000, 2,-SP		;LEAVE list -> 2,SP
+CF_DO_1			MOVW	#$0000, 2,-SP		;LEAVE list -> 2,SP
 			LDAA	4,SP			;inherit high byte of compile info
 			LDAB	#FUDICT_CI_DO_SYS	;set control flow
 			PSHD				;new compilation info -> 0,SP
@@ -920,6 +923,7 @@ CF_LEAVE		COMPILE_ONLY
 			LDX	CP  			;CP -> X
 			LEAX	3,X			;alloate space
 			STX	CP			;update CP
+			BSET	2,SP,#FUDICT_CI_NOINL	;forbid inline compilation
 			;Update compile info (CP in X)
 			; +--------+--------+              
 			; |  Return Address | SP+0     
@@ -1001,9 +1005,7 @@ CF_LOOP_3		LDD	0,X			;next LEAVE source -> D
 			; +--------+--------+  	       +--------+--------+	       
 			; | Old Comp. Info  | SP+8     | Old Comp. Info  | SP+2  
 			; +--------+--------+          +--------+--------+        
-CF_LOOP_4		LDAA	2,SP	 		;maintain high byte of compile info
-			LDAB	#FUDICT_CI_NONE		;no optimization
-			STD	8,SP			;update compilation info
+CF_LOOP_4		MOVB	2,SP, 8,SP	 	;maintain high byte of compile info
 			LDX	8,SP+			;return address -> X
 			JMP	0,X			;done
 			;Control structure misatch
@@ -1165,6 +1167,9 @@ CF_IF			COMPILE_ONLY
 			;MOVW	#$1827, -4,X		;"LBEQ"
 			;MOVW	#$0000, -2,X		;"qq rr"
 			LEAX	-4,X 			;orig -> X
+			;Remove compile optimizations (orig in X)
+			BRSET	3,SP,#80,CF_IF_1	;unfinished control flow
+			CLR	3,SP			;set compile info	
 			;Put orig onto the control flow stack (orig in X)
 			;                              +--------+--------+              
 			;                              |  Return Address | ...     
@@ -1175,7 +1180,7 @@ CF_IF			COMPILE_ONLY
 			; +--------+--------+	       +--------+--------+	       
 			; | Old Comp. Info  | SP+2     | Old Comp. Info  | SP+4     
 			; +--------+--------+          +--------+--------+           
-			PULD				;return address -> D
+CF_IF_1			PULD				;return address -> D
 			PSHX				;orig           -> 2,SP
 			TFR	D, X			;return address -> X
 			LDAA	2,SP			;inherit high byte of compile info
@@ -1262,11 +1267,7 @@ CF_THEN_1		LDAB	3,SP 			;compile info -> B
 			; +--------+--------+	        +--------+--------+	         
 			; | Old Comp. Info  | SP+6      | Old Comp. Info  | SP+2    
 			; +--------+--------+           +--------+--------+          
-			LDAA	2,SP	 		;maintain high byte of compile info
-			LDAB	#FUDICT_CI_NONE		;no optimization
-			STD	6,SP			;update compilation info
 			MOVB	2,SP, 6,SP 		;maintain high byte of compile info
-			MOVB	#FUDICT_CI_NONE, 7,SP	;no optimization
 			LDD	4,SP			;orig -> D
 			MOVW	0,SP, 4,+SP		;move return address
 			LDX	CP			;CP -> X
@@ -1274,8 +1275,7 @@ CF_THEN_1		LDAB	3,SP 			;compile info -> B
 			;Conclude "ELSE"
 CF_THEN_2		LDAA	2,SP	 		;maintain high byte of compile info
 			ORAA	#FUDICT_CI_NOINL	;forbid INLINE compiling
-			LDAB	#FUDICT_CI_NONE		;no optimization
-			STD	6,SP			;update compilation info
+			STAA	6,SP			;update compilation info
 			LDX	4,SP			;orig -> X
 			MOVW	0,SP, 4,+SP		;move return address
 			LDD	CP			;CP -> D
@@ -1373,9 +1373,7 @@ CF_AGAIN_2		STAB		-1,X		;compile "rr"
 			; +--------+--------+  	       +--------+--------+	       
 			; | Old Comp. Info  | SP+6     | Old Comp. Info  | SP+2  
 			; +--------+--------+          +--------+--------+        	
-CF_AGAIN_3		LDAA	2,SP	 		;maintain high byte of compile info
-			LDAB	#FUDICT_CI_NONE		;no optimization
-			STD	6,SP			;update compilation info
+CF_AGAIN_3		MOVB	2,SP, 6,SP	 	;maintain high byte of compile info
 			LDX	6,SP+			;return address -> X
 			JMP	0,X			;done
 			;Reserve compile space for jump code  (CP in X)					
@@ -1441,6 +1439,9 @@ CF_UNTIL_1		LEAX	6,X			;advance CP
 ;Continue execution.
 IF_BEGIN		IMMEDIATE
 CF_BEGIN		COMPILE_ONLY
+			;Remove compile optimizations
+			BRSET	3,SP,#80,CF_BEGIN_1	;unfinished control flow
+			CLR	3,SP			;set compile info
 			;Put dest onto the control flow stack
 			;                              +--------+--------+              
 			;                              |  Return Address | ...     
@@ -1451,7 +1452,7 @@ CF_BEGIN		COMPILE_ONLY
 			; +--------+--------+	       +--------+--------+	       
 			; | Old Comp. Info  | SP+2     | Old Comp. Info  | SP+4     
 			; +--------+--------+          +--------+--------+           
-			PULX				;return address -> X
+CF_BEGIN_1		PULX				;return address -> X
 			MOVW	CP, 2,-SP		;dest -> 2,SP
 			LDAA	2,SP			;inherit high byte of compile in
 			LDAB	#FUDICT_CI_DEST		;set control flow
@@ -1516,7 +1517,10 @@ CF_WHILE_1		THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatc
 ;Continue execution.
 IF_CASE			IMMEDIATE
 CF_CASE			COMPILE_ONLY
-			;Put dest onto the control flow stack (orig in X)
+			;Remove compile optimizations
+			BRSET	3,SP,#80,CF_CASE_1	;unfinished control flow
+			CLR	3,SP			;set compile info	
+			;Put dest onto the control flow stack
 			;                              +--------+--------+             
 			;                              |  Return Address | ...    
 			;                              +--------+--------+             
@@ -1526,7 +1530,7 @@ CF_CASE			COMPILE_ONLY
 			; +--------+--------+	       +--------+--------+	      
 			; |  Old Comp. Info | SP+2     |  Old Comp. Info | SP+4    
 			; +--------+--------+          +--------+--------+           
-			PULX				;return address -> X
+CF_CASE_1		PULX				;return address -> X
 			MOVW	#$0000, 2,-SP		;case-sys       -> 2,SP
 			LDAA	2,SP	 		;maintain high byte of compile info
 			LDAB	#FUDICT_CI_CASE_SYS	;no optimization
@@ -1549,7 +1553,7 @@ CF_OF			COMPILE_ONLY
 			;Check compile info 
 			LDAB	3,SP 			;compile info -> B
 			CMPB	#FUDICT_CI_CASE_SYS	;check for matching "case-sys"
-			BNE	CF_OF_1			;control structure mismatch
+			BNE	CF_OF_2			;control structure mismatch
 			;Allocate compile space 
 			LDX	CP 			;CP -> X
 			LEAX	10,X			;alloate space
@@ -1563,6 +1567,9 @@ CF_OF			COMPILE_ONLY
 			MOVW	#$EC71, -10,X 		;compile "LDD 2,Y+"
 			MOVW	#$AC40,  -8,X 		;compile "CPD 0,Y"
 			MOVW	#$1942,  -2,X 		;compile "LEAY 2,Y"
+			;Remove compile optimizations (orig in X)
+			BRSET	3,SP,#80,CF_OF_1	;unfinished control flow
+			CLR	3,SP			;set compile info	
 			;Put of-sys onto the control flow stack (orig in X)
 			;                              +--------+--------+             
 			;                              |  Return Address | ...    
@@ -1577,7 +1584,7 @@ CF_OF			COMPILE_ONLY
 			; +--------+--------+          +--------+--------+           
 			; |   Comp. Info    | SP+6     |    Comp. Info   | SP+8    
 			; +--------+--------+          +--------+--------+           
-			LEAX	-6,X 			;of-sys -> X
+CF_OF_1			LEAX	-6,X 			;of-sys -> X
 			PULD				;return address -> D
 			PSHX				;of-sys -> 2,SP
 			TFR	D, X			;return address -> X
@@ -1586,7 +1593,7 @@ CF_OF			COMPILE_ONLY
 			PSHD				;new compilation info -> 0,SP
 			JMP	0,X			;done
 			;Control structure misatch
-CF_OF_1			THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatch"
+CF_OF_2			THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatch"
 
 ;Word: ENDOF
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1687,9 +1694,7 @@ CF_ENDCASE_C		BSET	2,SP,#FUDICT_CI_NOINL	;forbid inline compilation
 			; |   Comp. Info    | SP+6     |    Comp. Info   | SP+0    
 			; +--------+--------+          +--------+--------+           
 CF_ENDCASE_B		PULX				;return addr -> X
-			LDAA	0,SP	 		;maintain high byte of compile info
-			LDAB	#FUDICT_CI_NONE		;no optimization
-			STD	4,SP			;update compilation info
+			MOVB	0,SP, 4,SP	 	;maintain high byte of compile info
 			LDX	6,SP+			;return address -> X
 			JMP	0,X			;done			
 			;Control structure misatch

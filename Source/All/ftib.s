@@ -126,6 +126,7 @@ FTIB_FLG_CTRL		EQU	SCI_FLG_CTRL		;unescaped control char
 FTIB_VARS_START_LIN	
 #endif
 			ALIGN	1	
+SPAN			DS	2 		;char count of last EXPECT call
 NUMBER_TIB  		DS	2		;number of chars in the TIB
 TO_IN  			DS	2		;parse index (parse area empty if >IN = #TIB) 
 	
@@ -138,12 +139,14 @@ FTIB_VARS_END_LIN	EQU	@
 ;#Initialization (executed along with ABORT action)
 ;===============
 #macro	FTIB_INIT, 0
+			MOVW	#TIB_START, NUMBER_TIB	;TIB location
 			MOVW	#$0000, NUMBER_TIB	;empty TIB
 #emac
 
 ;#Abort action (executed along with QUIT action)
 ;=============
 #macro	FTIB_ABORT, 0
+			MOVW	#$0000, SPAN		;reset SPAN count
 #emac
 	
 ;#Quit action
@@ -186,7 +189,26 @@ FTIB_TX_CHAR		EQU	SCI_TX_BL
 ;#########
 ;# Words #
 ;#########
-	
+
+;Word: #TIB ( -- a-addr )
+;a-addr is the address of a cell containing the number of characters in the
+;terminal input buffer.
+;Note: This word is obsolescent and is included as a concession to existing
+;      implementations.
+IF_NUMBER_TIB		INLINE	CF_NUMBER_TIB
+CF_NUMBER_TIB		EQU	*
+			MOVW	#NUMBER_TIB, 2,-Y 	;#TIB -> PS
+CF_NUMBER_TIB_EOI	RTS				;done
+		
+;Word: TIB ( -- c-addr )
+;c-addr is the address of the terminal input buffer.
+;Note: This word is obsolescent and is included as a concession to existing
+;implementations.
+IF_TIB			INLINE	CF_SOURCE
+CF_TIB			EQU	*
+			MOVW	#TIB_START, 2,-Y 	;c-addr -> PS
+CF_TIB_EOI		RTS				;done
+
 ;Word: QUERY ( -- ) Query command line input
 ;Make the user input device the input source. Receive input into the terminal
 ;input buffer,mreplacing any previous contents. Make the result, whose address is
@@ -307,16 +329,148 @@ CF_QUERY_17		CMPB	#FTIB_SYM_CR
 CF_QUERY_18		STX	NUMBER_TIB 		;update #TIB
 			LEAS	2,SP			;stack space
 			RTS				;done
+	
+;ACCEPT ( c-addr +n1 -- +n2 )
+;Receive a string of at most +n1 characters. An ambiguous condition exists if
+;+n1 is zero or greater than 32,767. Display graphic characters as they are
+;received. A program that depends on the presence or absence of non-graphic
+;characters in the string has an environmental dependency. The editing
+;functions, if any, that the system performs in order to construct the string
+;are implementation-defined.
+;Input terminates when an implementation-defined line terminator is received.
+;When input terminates, nothing is appended to the string, and the display is
+;maintained in an implementation-defined way.
+;+n2 is the length of the string stored at c-addr.
+IF_ACCEPT		REGULAR
+CF_ACCEPT		EQU	*
+			;Determine buffer boundary
+			; +--------+--------+
+			; |  end of buffer  | SP+0
+			; +--------+--------+
+			LDD	0,Y 			;+n1 -> D
+			BLE	CF_ACCEPT_11		;zero size input buffer
+			ADDD	2,Y			;end of buffer -> D
+			PSHD				;end of buffer -> 0,SP
+			LDX	2,Y			;input pointer -> X
+ 			;Wait for input (pointer in X)
+CF_ACCEPT_1		JOBSR	FTIB_RX_CHAR 		;flags:char -> A:B
+			;Check for communication errors (flags:char in A:B, pointer in X)
+			BITA	#FTIB_FLG_ERR 		;check for error flags	
+			BEQ	CF_ACCEPT_4 		;no error
+			;BEEP 
+CF_ACCEPT_2		LDAB	#FTIB_SYM_BEEP		;beep symbol -> B
+			;Send char (char in B) 
+CF_ACCEPT_3		MOVW	#CF_ACCEPT_1, 2,-SP	;push return address onto stack
+			JOB	FTIB_TX_CHAR		;print char
+			;Check for printable ASCII code (flags:char in A:B)
+CF_ACCEPT_4		BITA	#FTIB_FLG_CTRL 		;check for control chars
+			BNE	CF_ACCEPT_5		;handle control chars
+			CMPB	#FTIB_SYM_SPACE		;check lower range of printable chars
+			BLO	CF_ACCEPT_2		;out of range (beep)
+			CMPB	#FTIB_SYM_DEL		;check upper range of printable chars
+			BEQ	CF_ACCEPT_2		;out of range (beep)
+			;Append char to TIB (char in B)
+			CPX	0,SP 			;check upper boundary
+			BHS	CF_ACCEPT_2		;input buffer overflow (beep)
+			STAB	1,X+			;store character
+			JOB	CF_ACCEPT_3		;echo char
+			;Handle DEL (char in B, pointer in X)
+CF_ACCEPT_5		CMPB	#FTIB_SYM_DEL		;check for DEL char
+			BNE	CF_ACCEPT_7		;no DEL char
+			CPX	2,Y			;check lower boundary
+			BLS	CF_ACCEPT_2		;input buffer underflow (beep)			
+			LDAB	#FTIB_SYM_BACKSPACE	;backspace char -> B
+CF_ACCEPT_6		JOBSR	FTIB_TX_CHAR		;send backspace to terminal
+			DEX				;revert input pointer
+			CPX	2,Y			;check lower boundary
+			BHI	CF_ACCEPT_6		;repeat until buffer is empty
+			JOB	CF_ACCEPT_1		;wait for next char	
+			;Handle BACKSPACE (char in B, pointer in X)
+CF_ACCEPT_7		CMPB	#FTIB_SYM_BACKSPACE 	;check for BACKSPACE char
+			BNE	CF_ACCEPT_8		;no BACKSPACE
+			CPX	2,Y			;check lower boundary
+			BLS	CF_ACCEPT_2		;input buffer underflow (beep)			
+			LDAB	#FTIB_SYM_BACKSPACE	;backspace char -> B
+			JOBSR	FTIB_TX_CHAR		;send backspace to terminal
+			DEX				;revert input pointer
+			JOB	CF_ACCEPT_1		;wait for next char	
+			;Handle TAB (char in B, pointer in X)
+CF_ACCEPT_8		CMPB	#FTIB_SYM_TAB	 	;check for TAB char
+			BNE	CF_ACCEPT_12		;no TAB			
+			PSHX				;save pointer
+			TFR	X, D                    ;pointer -> D
+			SUBD	2,Y 			;char count -> D
+			TFR	D, X			;char count -> X
+			LDD	#FTIB_TAB_WIDTH		;tab width -> D
+			IDIV				;X/D->X, X%D->D
+			TBNE	D, CF_ACCEPT_9		;full tab width required
+			LDD	#FTIB_TAB_WIDTH		;tab width -> D
+CF_ACCEPT_9		STX	0,SP			;pointer -> X
+			LEAX	D,X			;new pointer -> X
+			CPX	0,SP 			;check upper boundary
+			PULX				;old pointer -> X
+			BHS	CF_ACCEPT_2		;input buffer overflow (beep)
+			TBA				;space count -> A
+			LDAB	#FTIB_SYM_SPACE		;space char -> B
+CF_ACCEPT_10		STAB	1,X+			;store cpace char
+			JOBSR	FTIB_TX_CHAR		;print SPACE char
+			DBNE	A, CF_ACCEPT_10		;try to print next SPACE char
+			JOB	CF_ACCEPT_1		;wait new input
+			;Zero size input buffer
+CF_ACCEPT_11		CLRA				;0 -> D
+			CLRB				;
+			JOB	CF_ACCEPT_14		;return result
+			;Check for line breaks (char in B, pointer in X)			
+CF_ACCEPT_12		CMPB	#FTIB_SYM_CR
+#ifdef	FOUTER_NL_CR
+			BEQ	CF_ACCEPT_13		;command line complete		
+#else
+			BEQ	CF_ACCEPT_1		;ignore
+#endif
+			CMPB	#FTIB_SYM_LF	
+#ifdef	FOUTER_NL_LF
+			BEQ	CF_ACCEPT_13		;command line complete		
+#else
+			BEQ	CF_ACCEPT_1		;ignore
+#endif
+			JOB	CF_ACCEPT_2		;invalid char (beep)
+			;Command line complete (pointer in X)
+CF_ACCEPT_13		PULD				;clean up return stack
+			TFR	X, D			;pointer -> X
+			SUBD	2,Y			;+n2 -> D
+CF_ACCEPT_14		STD	2,+Y			;return result
+			RTS				;done
 
-;#TIB ( -- a-addr )
-;a-addr is the address of a cell containing the number of characters in the
-;terminal input buffer.
+;Word: EXPECT ( c-addr +n -- )
+;Receive a string of at most +n characters. Display graphic characters as they
+;are received. A program that depends on the presence or absence of non-graphic
+;characters in the string has an environmental dependency. The editing
+;functions, if any, that the system performs in order to construct the string of
+;characters are implementation-defined.
+;Input terminates when an implementation-defined line terminator is received or
+;when the string is +n characters long. When input terminates, nothing is
+;appended to the string and the display is maintained in an
+;implementation-defined way.
+;Store the string at c-addr and its length in SPAN.
 ;Note: This word is obsolescent and is included as a concession to existing
-;      implementations.
-IF_NUMBER_TIB		INLINE	CF_NUMBER_TIB
-CF_NUMBER_TIB		EQU	*
-			MOVW	#NUMBER_TIB, 2,-Y 	;NUMBER_TIB -> PS
-CF_NUMBER_TIB_EOI	RTS
+;implementations. Its function is superseded by 6.1.0695 ACCEPT.
+IF_EXPECT		INLINE	CF_EXPECT
+CF_EXPECT		EQU	*
+			;Call ACCEPT 
+			JOBSR	CF_ACCEPT 		;call ACCEPT
+			;Update SPAN 
+			MOVW	2,Y+, SPAN 		;update SPAN
+CF_EXPECT_EOI		RTS				;done
+
+;Word: SPAN ( -- a-addr )
+;a-addr is the address of a cell containing the count of characters stored by
+;the last execution of EXPECT.
+;Note: This word is obsolescent and is included as a concession to existing
+;implementations.
+IF_SPAN			INLINE	CF_SPAN
+CF_SPAN			EQU	*
+			MOVW	#SPAN, 2,-Y 		;NUMBER -> PS
+CF_SPAN_EOI		RTS				;done
 	
 FTIB_CODE_END		EQU	*
 FTIB_CODE_END_LIN	EQU	@

@@ -354,6 +354,22 @@ FPAD_CODE_END_LIN	EQU	@
 FPAD_TABS_START_LIN	EQU	@
 #endif	
 
+;Environment: /HOLD ( -- n true)
+;Size of the pictured numeric output string buffer, in characters
+ENV_HOLD		DW	FENV_SINGLE
+			DW	32767
+
+;Environment: /PAD ( -- n true)
+;Size of the scratch area pointed to by PAD, in characters
+ENV_PAD			DW	FENV_SINGLE
+			DW	0000
+
+
+
+
+
+
+	
 FPAD_TABS_END		EQU	*
 FPAD_TABS_END_LIN	EQU	@
 #endif

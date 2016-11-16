@@ -180,6 +180,8 @@ FOUTER_VARS_START_LIN	EQU	@
 			ALIGN	1	
 BASE			DS	2 		;default radix
 STATE			DS	2 		;interpreter state (0:iterpreter, -1:compile)
+PARSE_START		DS	2		;SOURCE-ID (0=TIB, -1=string)
+PARSE_LENGTH		DS	2
 	
 FOUTER_VARS_END		EQU	*
 FOUTER_VARS_END_LIN	EQU	@
@@ -935,6 +937,36 @@ IF_STATE		INLINE	CF_STATE
 CF_STATE		EQU	*
 			MOVW	#STATE, 2,-Y 	;STATE -> PS
 CF_STATE_EOI		RTS
+
+
+
+
+
+;Word: SOURCE ( -- c-addr u )
+;c-addr is the address of, and u is the number of characters in, the input
+;buffer.
+IF_SOURCE		INLINE	CF_SOURCE
+CF_SOURCE		EQU	*
+;			MOVW	TIB		2,-Y 	;c-addr -> PS
+;			MOVW	NUMBER_TIB	2,-Y 	;u	-> PS
+CF_SOURCE_EOI		RTS				;done
+	
+;Word: SOURCE-ID ( -- 0 | -1 )
+;Identifies the input source as follows:
+;SOURCE-ID       Input source
+;-1              String (via EVALUATE)
+; 0              User input device
+IF_SOURCE_ID		REGULAR
+CF_SOURCE_ID		EQU	*
+;			LDD	TIB 			;TIB	-> D
+;			SUBD	#TIB_START		;check for default TIB location
+;			BEQ	SKIP			;default TIB location
+;			LDD	#-1			;string (-1)
+;SKIP			STD	2,-Y			;result -> PS
+			RTS				;done
+	
+
+
 	
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@

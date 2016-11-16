@@ -74,10 +74,6 @@
 ;#    nest-sys        definition calls                implementation dependent #
 ;#    i*x, j*x, k*x 3 any data type                   0 or more cells	       #
 ;#  									       #
-;#    Counted strings are implemented as terminated strings. String            #
-;#    termination is done by setting bit 7 in the last character of the        #   
-;#    string. Pointers to empty strings have the value $0000.		       #
-;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 22, 2010                                                           #
@@ -819,10 +815,10 @@ CF_CLS_EOI			RTS
 IF_COUNT			REGULAR
 CF_COUNT			EQU	*
 				LDX	0,Y 				;c-addr1 -> X
-				BRCLR	1,X+,#FCORE_TERM,* 		;skip to termination
-				TFR	X, D 				;end of string -> D
-				SUBD	0,Y 				;char count -> D
-				STD	2,-Y 				;u -> PS
+				LDAB	1,X+ 				;u       -> B
+				CLRA 					;u       -> D
+				STX	0,Y 				;c-addr2 -> PS	
+				STD	2,-Y 				;u       -> PS
 				RTS 					;done
 	
 ;CR ( -- )
@@ -1499,14 +1495,7 @@ CF_S_M_SLASH_REM_2		THROW	FEXCPT_TC_RESOR		;result out of range
 ;SOURCE ( -- c-addr u )
 ;c-addr is the address of, and u is the number of characters in, the input
 ;buffer.
-;CF_SOURCE			PS_CHECK_OF	1			;check for PS overflow (PSP-new cells -> Y)
-;				;Return TIB start address 
-;				MOVW	#TIB_START, 2,Y
-;				;Return character count
-;				MOVW	NUMBER_TIB, 0,Y
-;				STY	PSP 				;update PSP
-;				;Done
-;				NEXT
+;==> FOUTER
 	
 ;SPACE ( -- )
 ;Display one space.
@@ -2070,19 +2059,7 @@ CF_ERASE_2			RTS
 ;Store the string at c-addr and its length in SPAN.
 ;Note: This word is obsolescent and is included as a concession to existing
 ;implementations. Its function is superseded by 6.1.0695 ACCEPT.
-;CF_EXPECT_INVALNUM		JOB	FCORE_THROW_INVALNUM
-;CF_EXPECT_COMERR		JMP	0,X
-;CF_EXPECT			PS_CHECK_UF	2			;PSP -> Y
-;				;Parse command line (PSP in Y)
-;				LDD	2,Y+
-;				BMI	CF_EXPECT_INVALNUM 		;+n is negative			
-;				LDX	0,Y
-;				SSTACK_JOBSR	FCORE_ACCEPT
-;				TBNE	X, CF_EXPECT_COMERR
-;				;Update PSP (new PSP in Y)
-;				STY	PSP
-;				;Done
-;				NEXT
+;==> FTIB
 
 ;Word: FALSE ( -- false )
 ;Return a false flag.
@@ -2186,7 +2163,8 @@ CF_HEX_EOI			RTS
 ;==> FOUTER
 
 ;REFILL ( -- flag )
-;Attempt to fill the input buffer from the input source, returning a true flag;if successful.
+;Attempt to fill the input buffer from the input source, returning a true flag
+;if successful.
 ;When the input source is the user input device, attempt to receive input into
 ;the terminal input buffer. If successful, make the result the input buffer, set
 ;>IN to zero, and return true. Receipt of a line containing no characters is
@@ -2226,12 +2204,14 @@ CF_HEX_EOI			RTS
 ;SOURCE-ID       Input source
 ;-1              String (via EVALUATE)
 ; 0              User input device
-
+;==> FOUTER
+	
 ;SPAN ( -- a-addr )
 ;a-addr is the address of a cell containing the count of characters stored by
 ;the last execution of EXPECT.
 ;Note: This word is obsolescent and is included as a concession to existing
 ;implementations.
+;==> FTIB 
 
 ;TIB ( -- c-addr )
 ;c-addr is the address of the terminal input buffer.
@@ -2414,17 +2394,15 @@ FCORE_TABS_START_LIN	EQU	@
 ;Environment: /COUNTED-STRING ( -- n true)
 ;Maximum size of a counted string, in characters
 ENV_COUNTED_STRING	DW	FENV_SINGLE
-			DW	32767
+			DW	$00FF
 	
 ;Environment: /HOLD ( -- n true)
 ;Size of the pictured numeric output string buffer, in characters
-ENV_HOLD		DW	FENV_SINGLE
-			DW	32767
+;==> FPAD 
 
 ;Environment: /PAD ( -- n true)
 ;Size of the scratch area pointed to by PAD, in characters
-ENV_PAD			DW	FENV_SINGLE
-			DW	0000
+;==> FPAD 
 
 ;Environment: ADDRESS-UNIT-BITS ( -- n true)
 ;Size of one address unit, in bits
@@ -2445,8 +2423,9 @@ ENV_FLOORED		EQU	ENV_CORE
 
 ;Environment: MAX-CHAR ( -- u true)
 ;Maximum value of any character in the implementation-defined character set
-ENV_MAX_CHAR		DW	FENV_SINGLE
-			DW	$00FF
+ENV_MAX_CHAR		EQU	ENV_COUNTED_STRING
+			;DW	FENV_SINGLE
+			;DW	$00FF
 
 ;Environment: MAX-D ( -- d true)
 ;Largest usable signed double number
