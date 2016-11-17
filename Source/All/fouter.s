@@ -739,69 +739,98 @@ CF_QUIT_RT		EQU	*
 CF_QUIT_RT_1		JOBSR	CF_PROMPT 		;print prompt
 			JOBSR	CF_QUERY		;query command line 
 			JOBSR	CF_SPACE		;print one space 
+			MOVW	#CF_QUIT_RT_1, 2,-SP	;push return address (querry loop)
+			JOB	CF_INTERPRET		;interpret command line
+
+;Word: INTERPRET ( -- )
+;Interpret the content of TIB, indexed by >IN, until exhausted
+IF_INTERPRET		REGULAR
+CF_INTERPRET		EQU	*
 			;Parse loop 
-CF_QUIT_RT_2		MOVW	#FOUTER_SYM_SPACE, 2,-Y ;use SPACE as word seperator
+CF_INTERPRET_1		MOVW	#FOUTER_SYM_SPACE, 2,-Y ;use SPACE as word seperator
 			JOBSR	CF_SKIP_AND_PARSE 	;parse next word
 			LDD	0,Y			;check result
-			BNE	CF_QUIT_RT_3		;word parsed
+			BNE	CF_INTERPRET_2		;word parsed
 			LEAY	4,Y			;clean up PS
 			LDX	#FOUTER_STR_OK		;ok string -> X
-			MOVW	#CF_QUIT_RT_1, 2,-SP	;push return address (querry loop)
 			JOB	FOUTER_TX_STRING	;print string
 			;Check for compile state (c-addr u)
-CF_QUIT_RT_3		LDD	STATE 			;check STATE
-			BEQ	CF_QUIT_RT_6		;interpret
-			BPL	CF_QUIT_RT_X		;non-volatile compile
+CF_INTERPRET_2		LDD	STATE 			;check STATE
+			BEQ	CF_INTERPRET_6		;interpret
+			BPL	CF_INTERPRET_X		;non-volatile compile
 			;Volatile compile (c-addr u)
 			JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
-			BEQ	CF_QUIT_RT_4		;unknown word
-			BRSET	-1,X, #$FF, CF_QUIT_RT_7;execute immediate word
+			BEQ	CF_INTERPRET_3		;unknown word
+			BRSET	-1,X, #$FF, CF_INTERPRET_7;execute immediate word
 			STX	2,-Y			;xt -> PS
-			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
+			MOVW	#CF_INTERPRET_1, 2,-SP	;push return address (parse loop)
 			JOB	CF_COMPILE_COMMA_1	;compile word
-CF_QUIT_RT_4		JOBSR	CF_TO_INT 		;convert to integer
+CF_INTERPRET_3		JOBSR	CF_TO_INT 		;convert to integer
 			LDD	2,Y+			;check result
-			BEQ	CF_QUIT_RT_9		;syntax error
-			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
-			DBEQ	D, CF_QUIT_RT_5		;compile single cell
+			BEQ	CF_INTERPRET_9		;syntax error
+			MOVW	#CF_INTERPRET_1, 2,-SP	;push return address (parse loop)
+			DBEQ	D, CF_INTERPRET_4	;compile single cell
 			JOB	CF_2LITERAL_1		;compile literal
-CF_QUIT_RT_5		JOB	CF_LITERAL_1		;compile literal
+CF_INTERPRET_4		JOB	CF_LITERAL_1		;compile literal
 			;Non-volatile compile (c-addr u)
-CF_QUIT_RT_X		JOB	CF_QUIT_RT_9 		;TBD
+CF_INTERPRET_X		JOB	CF_INTERPRET_9 		;TBD
 
 
-
+			;TBD 
 
 
 	
 			;Interpretation (c-addr u)
-CF_QUIT_RT_6		JOBSR	CF_LU 			;look up word
+CF_INTERPRET_6		JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
-			BEQ	CF_QUIT_RT_8		;unknown word
-CF_QUIT_RT_7		JSR	0,X 			;execute
-			MOVW	#CF_QUIT_RT_2, 2,-SP	;push return address (parse loop)
+			BEQ	CF_INTERPRET_8		;unknown word
+CF_INTERPRET_7		JSR	0,X 			;execute
+			MOVW	#CF_INTERPRET_1, 2,-SP	;push return address (parse loop)
 			JOB	CF_MONITOR		;check system integrity
-CF_QUIT_RT_8		JOBSR	CF_TO_INT		;convert to integer
+CF_INTERPRET_8		JOBSR	CF_TO_INT		;convert to integer
 			LDD	2,Y+			;check result
-			BNE	CF_QUIT_RT_2		;parse loop
+			BNE	CF_INTERPRET_1		;parse loop
 			;Syntax (c-addr u)
-CF_QUIT_RT_9		MOVW	#CF_ABORT_RT, 2,-SP	;push return address (CF_ABORT_RT)
+CF_INTERPRET_9		MOVW	#CF_ABORT_RT, 2,-SP	;push return address (CF_ABORT_RT)
 			JOB	CF_SYNERR_DOT		;print error message
-
+	
 ;Word: SKIP&PARSE ( char "ccc<char>" -- c-addr u )
 ;Skip over any sequence of char at >IN and execute PARSE.
 IF_SKIP_AND_PARSE	REGULAR
 CF_SKIP_AND_PARSE	EQU	*
-	 		;Skip delimeters
-			LDAB	1,Y			;delimeter -> A
-			LDX	TO_IN 			;>IN -> X
-CF_SKIP_AND_PARSE_1	CPX	NUMBER_TIB		;check if buffer is parsed
-			BHS	CF_PARSE_6		;nothing to parse
-			CMPB	TIB_START,X		;check for delimeter
-			BNE	CF_PARSE_1		;no delimeter
-			INX				;advance >IN
-			JOB	CF_SKIP_AND_PARSE_1	;check next character
+			;Store TIB boundary on PS 
+			; +--------+--------+
+			; |   end of TIB    | Y+0
+			; +--------+--------+
+			; |        |  char  | Y+2
+			; +--------+--------+
+			LDD	TIB 			;TIB        -> D
+			LDX	NUMBER_TIB		;#TIB       -> X
+			LEAX	D,X			;end of TIB -> X
+			STX	2,-Y			;end of TIB -> PS
+			;Calculate TIB pointer (TIB in D)
+			LDX	TO_IN 			;>IN	    -> D
+			LEAX	D,X			;pointer    -> X
+			;Skip delimeters (pointer in X)
+			LDAB	3,Y 			;delimeter -> B
+CF_SKIP_AND_PARSE_1	CPX	0,Y			;check if buffer is parsed
+			BHS	CF_PARSE_2		;end of buffer reached	
+			CMPB	1,X+			;check for delimeter
+			BEQ	CF_SKIP_AND_PARSE_1	;delimeter found
+			JOB	CF_PARSE_1		;parse buffer
+	
+;IF_SKIP_AND_PARSE	REGULAR
+;CF_SKIP_AND_PARSE	EQU	*
+;	 		;Skip delimeters
+;			LDAB	1,Y			;delimeter -> B
+;			LDX	TO_IN 			;>IN -> X
+;CF_SKIP_AND_PARSE_1	CPX	NUMBER_TIB		;check if buffer is parsed
+;			BHS	CF_PARSE_6		;nothing to parse
+;			CMPB	TIB_START,X		;check for delimeter
+;			BNE	CF_PARSE_1		;no delimeter
+;			INX				;advance >IN
+;			JOB	CF_SKIP_AND_PARSE_1	;check next character
 	
 ;Word: PARSE ( char "ccc<char>" -- c-addr u )
 ;Parse ccc delimited by the delimiter char. c-addr is the address (within the
@@ -809,35 +838,75 @@ CF_SKIP_AND_PARSE_1	CPX	NUMBER_TIB		;check if buffer is parsed
 ;empty, the resulting string has a zero length.
 IF_PARSE		REGULAR
 CF_PARSE		EQU	*
-	 		;Read deliniter and >IN
-			LDAB	1,Y			;delimeter -> A
-			LDX	TO_IN			;>IN       -> X
-			CMPB	TIB_START,X		;check for delimeter
-			BEQ	CF_PARSE_6		;empty string
-			;Store string address (delimeter in B, >IN in X) 
-CF_PARSE_1		LEAX	TIB_START,X 		;string address -> X
-			STX	0,Y			;push string address
-			LEAX	-TIB_START,X		;>IN -> X
-			MOVW	#$0000, 2,-Y		;push initial char count
-			LDAA	#$00			;char count -> A
-			;Count chars (delimeter in B, char count in A, >IN in X)
-CF_PARSE_2		INX				;advance >IN
-			CPX	NUMBER_TIB		;check if buffer is parsed
-			BHI	CF_PARSE_4		;done
-			ADDA	#$01			;increment char 
-			BCC	CF_PARSE_3		;no carry
-			INC	0,Y			;increment MSW
-CF_PARSE_3		CMPB	TIB_START,X		;check for delimeter
-			BNE	CF_PARSE_2		;no delimeter
-			;Done (char count in A, >IN in X)
-CF_PARSE_4		STAA	1,Y			;update char count
-CF_PARSE_5		INX				;skip over delimeter
-			STX	TO_IN			;update >IN
+			;Store TIB boundary on PS 
+			; +--------+--------+
+			; |   end of TIB    | Y+0
+			; +--------+--------+
+			; |        |  char  | Y+2
+			; +--------+--------+
+			LDD	TIB 			;TIB        -> D
+			LDX	NUMBER_TIB		;#TIB       -> X
+			LEAX	D,X			;end of TIB -> X
+			STX	2,-Y			;end of TIB -> PSP+0
+			;Calculate TIB pointer (TIB in D)
+			; +--------+--------+
+			; |   end of TIB    | Y+0
+			; +--------+--------+
+			; |     c-addr      | Y+2
+			; +--------+--------+
+			LDX	TO_IN 			;>IN	    -> D
+			LEAX	D,X			;pointer    -> X
+			LDAB	3,Y 			;delimeter  -> B
+			STX	2,Y			;c-addr     -> PSP+2
+			;Parse string (pointer in X, delimiter in B)
+CF_PARSE_1		CPX	0,Y			;check if buffer is parsed
+			BHS	CF_PARSE_2		;end of buffer reached	
+			CMPB	1,X+			;check for delimeter
+			BNE	CF_PARSE_1		;delimeter not yet found
+			TFR	X, D			;pointer -> D
+			SUBD	2,Y			;u       -> D
+			STD	0,Y			;u	 -> PSP+0
+			ADDD	#1			;skip over delimeter
+			STD	TO_IN			;update >IN
 			RTS				;done
-			;Parse unsuccessful  (char count in A, >IN in X) 
-CF_PARSE_6		MOVW	#$0000, 0,Y 		;null string
-			MOVW	#$0000, 2,-Y 		;null length
-			JOB	CF_PARSE_5		;done
+			;End of buffer reached (pointer in X) 
+CF_PARSE_2		TFR	X, D			;pointer -> D
+			SUBD	2,Y			;u       -> D
+			STD	0,Y			;u	 -> PSP+0
+			STD	TO_IN			;update >IN
+			RTS				;done
+
+;IF_PARSE		REGULAR
+;CF_PARSE		EQU	*
+;	 		;Read deliniter and >IN
+;			LDAB	1,Y			;delimeter -> A
+;			LDX	TO_IN			;>IN       -> X
+;			CMPB	TIB_START,X		;check for delimeter
+;			BEQ	CF_PARSE_6		;empty string
+;			;Store string address (delimeter in B, >IN in X) 
+;CF_PARSE_1		LEAX	TIB_START,X 		;string address -> X
+;			STX	0,Y			;push string address
+;			LEAX	-TIB_START,X		;>IN -> X
+;			MOVW	#$0000, 2,-Y		;push initial char count
+;			LDAA	#$00			;char count -> A
+;			;Count chars (delimeter in B, char count in A, >IN in X)
+;CF_PARSE_2		INX				;advance >IN
+;			CPX	NUMBER_TIB		;check if buffer is parsed
+;			BHI	CF_PARSE_4		;done
+;			ADDA	#$01			;increment char 
+;			BCC	CF_PARSE_3		;no carry
+;			INC	0,Y			;increment MSW
+;CF_PARSE_3		CMPB	TIB_START,X		;check for delimeter
+;			BNE	CF_PARSE_2		;no delimeter
+;			;Done (char count in A, >IN in X)
+;CF_PARSE_4		STAA	1,Y			;update char count
+;CF_PARSE_5		INX				;skip over delimeter
+;			STX	TO_IN			;update >IN
+;			RTS				;done
+;			;Parse unsuccessful  (char count in A, >IN in X) 
+;CF_PARSE_6		MOVW	#$0000, 0,Y 		;null string
+;			MOVW	#$0000, 2,-Y 		;null length
+;			JOB	CF_PARSE_5		;done
 
 ;Word: LU ( c-addr u -- xt | c-addr u false )
 ;Look up a name in any dictionary. The name is referenced by the start address
@@ -937,36 +1006,6 @@ IF_STATE		INLINE	CF_STATE
 CF_STATE		EQU	*
 			MOVW	#STATE, 2,-Y 	;STATE -> PS
 CF_STATE_EOI		RTS
-
-
-
-
-
-;Word: SOURCE ( -- c-addr u )
-;c-addr is the address of, and u is the number of characters in, the input
-;buffer.
-IF_SOURCE		INLINE	CF_SOURCE
-CF_SOURCE		EQU	*
-;			MOVW	TIB		2,-Y 	;c-addr -> PS
-;			MOVW	NUMBER_TIB	2,-Y 	;u	-> PS
-CF_SOURCE_EOI		RTS				;done
-	
-;Word: SOURCE-ID ( -- 0 | -1 )
-;Identifies the input source as follows:
-;SOURCE-ID       Input source
-;-1              String (via EVALUATE)
-; 0              User input device
-IF_SOURCE_ID		REGULAR
-CF_SOURCE_ID		EQU	*
-;			LDD	TIB 			;TIB	-> D
-;			SUBD	#TIB_START		;check for default TIB location
-;			BEQ	SKIP			;default TIB location
-;			LDD	#-1			;string (-1)
-;SKIP			STD	2,-Y			;result -> PS
-			RTS				;done
-	
-
-
 	
 FOUTER_CODE_END		EQU	*
 FOUTER_CODE_END_LIN	EQU	@

@@ -1495,7 +1495,7 @@ CF_S_M_SLASH_REM_2		THROW	FEXCPT_TC_RESOR		;result out of range
 ;SOURCE ( -- c-addr u )
 ;c-addr is the address of, and u is the number of characters in, the input
 ;buffer.
-;==> FOUTER
+;==> FTIB
 	
 ;SPACE ( -- )
 ;Display one space.
@@ -2204,7 +2204,7 @@ CF_HEX_EOI			RTS
 ;SOURCE-ID       Input source
 ;-1              String (via EVALUATE)
 ; 0              User input device
-;==> FOUTER
+;==> FTIB
 	
 ;SPAN ( -- a-addr )
 ;a-addr is the address of a cell containing the count of characters stored by
