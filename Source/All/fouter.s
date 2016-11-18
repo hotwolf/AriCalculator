@@ -811,13 +811,14 @@ CF_SKIP_AND_PARSE	EQU	*
 			STX	2,-Y			;end of TIB -> PS
 			;Calculate TIB pointer (TIB in D)
 			LDX	TO_IN 			;>IN	    -> D
-			LEAX	D,X			;pointer    -> X
+			LEAX	D,X			;pointer    -> X			
 			;Skip delimeters (pointer in X)
 			LDAB	3,Y 			;delimeter -> B
 CF_SKIP_AND_PARSE_1	CPX	0,Y			;check if buffer is parsed
-			BHS	CF_PARSE_2		;end of buffer reached	
+			BHS	CF_PARSE_3		;nothing to parse	
 			CMPB	1,X+			;check for delimeter
 			BEQ	CF_SKIP_AND_PARSE_1	;delimeter found
+			DEX				;start of word -> X
 			JOB	CF_PARSE_1		;parse buffer
 	
 ;IF_SKIP_AND_PARSE	REGULAR
@@ -856,23 +857,32 @@ CF_PARSE		EQU	*
 			; +--------+--------+
 			LDX	TO_IN 			;>IN	    -> D
 			LEAX	D,X			;pointer    -> X
+			CPX	0,Y			;check if buffer is parsed
+			BHS	CF_PARSE_3		;nothing to parse	
 			LDAB	3,Y 			;delimeter  -> B
-			STX	2,Y			;c-addr     -> PSP+2
+CF_PARSE_1		STX	2,Y			;c-addr     -> PSP+2
 			;Parse string (pointer in X, delimiter in B)
-CF_PARSE_1		CPX	0,Y			;check if buffer is parsed
-			BHS	CF_PARSE_2		;end of buffer reached	
+CF_PARSE_2		CPX	0,Y			;check if buffer is parsed
+			BHS	CF_PARSE_4		;end of buffer reached	
 			CMPB	1,X+			;check for delimeter
-			BNE	CF_PARSE_1		;delimeter not yet found
+			BNE	CF_PARSE_2		;delimeter not yet found
 			TFR	X, D			;pointer -> D
 			SUBD	2,Y			;u       -> D
-			STD	0,Y			;u	 -> PSP+0
-			ADDD	#1			;skip over delimeter
 			STD	TO_IN			;update >IN
+			SUBD	#1			;end of word -> D
+			STD	0,Y			;u	 -> PSP+0
+			RTS				;done			
+			;Nothing to parse 
+CF_PARSE_3		MOVW	0,Y, 2,Y 		;end of TIB -> c-addr
+			MOVW	#$0000, 0,Y		;0 -> u
+			MOVW	NUMBER_TIB, TO_IN	;mark buffer parsed
 			RTS				;done
 			;End of buffer reached (pointer in X) 
-CF_PARSE_2		TFR	X, D			;pointer -> D
+CF_PARSE_4		TFR	X, D			;pointer -> D
 			SUBD	2,Y			;u       -> D
 			STD	0,Y			;u	 -> PSP+0
+			TFR	X, D			;pointer -> D
+			SUBD	TIB			;>IN     -> D
 			STD	TO_IN			;update >IN
 			RTS				;done
 

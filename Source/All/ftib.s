@@ -400,11 +400,6 @@ CF_EXPECT		EQU	*
 			;Reset parser
 			MOVW	#$0000, TO_IN 		;0      -> TO-IN
 			RTS				;done
-
-;To do: 
-; - TAB broken
-; - Restore toggle broken
-; - ." execution broken 
 	
 ;ACCEPT ( c-addr +n1 -- +n2 )
 ;Receive a string of at most +n1 characters. An ambiguous condition exists if
@@ -467,7 +462,7 @@ CF_ACCEPT_7		STAB	1,X+			;store char
 			;Zero size input buffer
 CF_ACCEPT_8 		CLRA				;0 -> D
 			CLRB				;
-			JOB	CF_ACCEPT_20  		;return result	
+			JOB	CF_ACCEPT_21  		;return result	
 			;Handle BACKSPACE (char in B, pointer in X)
 CF_ACCEPT_9		CMPB	#FTIB_SYM_BACKSPACE 	;check for BACKSPACE char
 			BNE	CF_ACCEPT_10		;no BACKSPACE
@@ -479,75 +474,75 @@ CF_ACCEPT_9		CMPB	#FTIB_SYM_BACKSPACE 	;check for BACKSPACE char
 			JOB	CF_ACCEPT_3		;wait for next char	
 			;Handle DEL (char in B, pointer in X)
 CF_ACCEPT_10		CMPB	#FTIB_SYM_DEL		;check for DEL char
-			BNE	CF_ACCEPT_12		;no DEL char
-			CPX	2,Y			;check lower boundary
+			BNE	CF_ACCEPT_13		;no DEL char
+CF_ACCEPT_11		CPX	2,Y			;check lower boundary
 			BLS	CF_ACCEPT_4		;input buffer underflow (beep)			
 			LDAB	#FTIB_SYM_BACKSPACE	;backspace char -> B
-CF_ACCEPT_11		JOBSR	FTIB_TX_CHAR		;send backspace to terminal
+CF_ACCEPT_12		JOBSR	FTIB_TX_CHAR		;send backspace to terminal
 			DEX				;revert input pointer
 			CPX	2,Y			;check lower boundary
-			BHI	CF_ACCEPT_11		;repeat until buffer is empty
+			BHI	CF_ACCEPT_12		;repeat until buffer is empty
 			JOB	CF_ACCEPT_3		;wait for next char	
 			;Handle TAB (char in B, pointer in X)
-CF_ACCEPT_12		CMPB	#FTIB_SYM_TAB	 	;check for TAB char
-			BNE	CF_ACCEPT_15		;no TAB			
-			PSHX				;save pointer
-			TFR	X, D                    ;pointer -> D
-			SUBD	2,Y 			;char count -> D
-			TFR	D, X			;char count -> X
-			LDD	#FTIB_TAB_WIDTH		;tab width -> D
+CF_ACCEPT_13		CMPB	#FTIB_SYM_TAB	 	;check for TAB char
+			BNE	CF_ACCEPT_16		;no TAB			
+			CPX	0,SP 			;check if old TIB content is overwritten
+			BHS	CF_ACCEPT_14		;old TIB is still intact (char is only appended)
+			MOVW	#$0000,     0,SP 	;clear old #TIB	
+CF_ACCEPT_14		PSHX				;save new #TIB
+			TFR	X, D			;new #TIB -> D
+			LDX	#FTIB_TAB_WIDTH		;tab width -> X
 			IDIV				;X/D->X, X%D->D
-			TBNE	D, CF_ACCEPT_13		;full tab width required
-			LDD	#FTIB_TAB_WIDTH		;tab width -> D
-CF_ACCEPT_13		STX	0,SP			;pointer -> X
-			LEAX	D,X			;new pointer -> X
-			CPX	0,SP 			;check upper boundary
+			LDAA	#FTIB_TAB_WIDTH		;tab width -> A
+			SBA				;A - B -> A
+			LDX	0,SP			;pointer -> X
+			LEAX	A,X			;new pointer -> X
+			CPX	4,SP 			;check upper boundary
 			PULX				;old pointer -> X
 			BHS	CF_ACCEPT_4		;input buffer overflow (beep)
-			TBA				;space count -> A
 			LDAB	#FTIB_SYM_SPACE		;space char -> B
-CF_ACCEPT_14		STAB	1,X+			;store cpace char
+CF_ACCEPT_15		STAB	1,X+			;store cpace char
 			JOBSR	FTIB_TX_CHAR		;print SPACE char
-			DBNE	A, CF_ACCEPT_14		;try to print next SPACE char
+			DBNE	A, CF_ACCEPT_15		;try to print next SPACE char
 			JOB	CF_ACCEPT_3		;wait new input
 			;Handle restore (char in B, pointer in X)
-CF_ACCEPT_15		CMPB	#FTIB_SYM_EOT	 	;check for EOT char
-			BNE	CF_ACCEPT_18		;no resore			
+CF_ACCEPT_16		CMPB	#FTIB_SYM_EOT	 	;check for EOT char
+			BNE	CF_ACCEPT_19		;no resore			
 			LDD	0,SP			;check if old input is still valid
 			BEQ	CF_ACCEPT_4		;last input is invalid (beep)
 			CPX	0,SP			;check if old input is already restored
-			BEQ	CF_ACCEPT_10		;toggle last input
-			BLO	CF_ACCEPT_17		;restore missing chars
+			BEQ	CF_ACCEPT_11		;toggle last input
+			BLO	CF_ACCEPT_18		;restore missing chars
 			LDAB	#FTIB_SYM_BACKSPACE	;backspace char -> B
-CF_ACCEPT_16		JOBSR	FTIB_TX_CHAR		;send backspace to terminal
+CF_ACCEPT_17		JOBSR	FTIB_TX_CHAR		;send backspace to terminal
 			DEX				;revert input pointer
 			CPX	0,SP			;check old input boundary
-			BHI	CF_ACCEPT_16		;repeat until old input is restored
+			BHI	CF_ACCEPT_17		;repeat until old input is restored
 			JOB	CF_ACCEPT_3		;wait for new input	
-CF_ACCEPT_17		LDAB	1,X+			;char -> B
+CF_ACCEPT_18		LDAB	1,X+			;char -> B
 			JOBSR	FTIB_TX_CHAR		;print char
 			CPX	0,SP			;check old input boundary
-			BLO	CF_ACCEPT_17		;repeat until old input is restored
+			BLO	CF_ACCEPT_18		;repeat until old input is restored
 			JOB	CF_ACCEPT_3		;wait for new input		
 			;Check for line breaks (char in B, pointer in X)			
-CF_ACCEPT_18		CMPB	#FTIB_SYM_CR
+CF_ACCEPT_19		CMPB	#FTIB_SYM_CR
 #ifdef	FOUTER_NL_CR
-			BEQ	CF_ACCEPT_19		;command line complete		
+			BEQ	CF_ACCEPT_20		;command line complete		
 #else
 			BEQ	CF_ACCEPT_3		;ignore
 #endif
 			CMPB	#FTIB_SYM_LF	
 #ifdef	FOUTER_NL_LF
-			BEQ	CF_ACCEPT_19		;command line complete		
+			BEQ	CF_ACCEPT_20		;command line complete		
 #else
 			BEQ	CF_ACCEPT_3		;ignore
 #endif
 			JOB	CF_ACCEPT_4		;invalid char (beep)
 			;Command line complete (pointer in X)
-CF_ACCEPT_19		LEAS	4,SP			;clean up return stack
+CF_ACCEPT_20		LEAS	4,SP			;clean up return stack
 			TFR	X, D			;pointer -> X
 			SUBD	2,Y			;+n2 -> D
-CF_ACCEPT_20		STD	2,+Y			;return result
+CF_ACCEPT_21		STD	2,+Y			;return result
 			RTS				;done
 
 FTIB_CODE_END		EQU	*
