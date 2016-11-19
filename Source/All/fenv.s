@@ -179,7 +179,7 @@ FENV_DOUBLE_2		MOVW	#TRUE, 2,-Y 				;return TRUE
 ;# Words #
 ;#########
 
-;ENVIRONMENT? ( c-addr u -- false | i*x true )
+;Word: ENVIRONMENT? ( c-addr u -- false | i*x true )
 ;c-addr is the address of a character string and u is the string's character
 ;count. u may have a value in the range from zero to an implementation-defined
 ;maximum which shall not be less than 31. The character string should contain a

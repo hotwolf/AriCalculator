@@ -821,18 +821,6 @@ CF_SKIP_AND_PARSE_1	CPX	0,Y			;check if buffer is parsed
 			DEX				;start of word -> X
 			JOB	CF_PARSE_1		;parse buffer
 	
-;IF_SKIP_AND_PARSE	REGULAR
-;CF_SKIP_AND_PARSE	EQU	*
-;	 		;Skip delimeters
-;			LDAB	1,Y			;delimeter -> B
-;			LDX	TO_IN 			;>IN -> X
-;CF_SKIP_AND_PARSE_1	CPX	NUMBER_TIB		;check if buffer is parsed
-;			BHS	CF_PARSE_6		;nothing to parse
-;			CMPB	TIB_START,X		;check for delimeter
-;			BNE	CF_PARSE_1		;no delimeter
-;			INX				;advance >IN
-;			JOB	CF_SKIP_AND_PARSE_1	;check next character
-	
 ;Word: PARSE ( char "ccc<char>" -- c-addr u )
 ;Parse ccc delimited by the delimiter char. c-addr is the address (within the
 ;input buffer) and u is the length of the parsed string.  If the parse area was
@@ -867,9 +855,11 @@ CF_PARSE_2		CPX	0,Y			;check if buffer is parsed
 			CMPB	1,X+			;check for delimeter
 			BNE	CF_PARSE_2		;delimeter not yet found
 			TFR	X, D			;pointer -> D
-			SUBD	2,Y			;u       -> D
+			SUBD	TIB			;>IN     -> D
 			STD	TO_IN			;update >IN
-			SUBD	#1			;end of word -> D
+			DEX				;don't count delimiter
+CF_PARSE_2A		TFR	X, D			;pointer -> D				
+			SUBD	2,Y			;u	 -> PSP+0
 			STD	0,Y			;u	 -> PSP+0
 			RTS				;done			
 			;Nothing to parse 
@@ -879,44 +869,9 @@ CF_PARSE_3		MOVW	0,Y, 2,Y 		;end of TIB -> c-addr
 			RTS				;done
 			;End of buffer reached (pointer in X) 
 CF_PARSE_4		TFR	X, D			;pointer -> D
-			SUBD	2,Y			;u       -> D
-			STD	0,Y			;u	 -> PSP+0
-			TFR	X, D			;pointer -> D
 			SUBD	TIB			;>IN     -> D
 			STD	TO_IN			;update >IN
-			RTS				;done
-
-;IF_PARSE		REGULAR
-;CF_PARSE		EQU	*
-;	 		;Read deliniter and >IN
-;			LDAB	1,Y			;delimeter -> A
-;			LDX	TO_IN			;>IN       -> X
-;			CMPB	TIB_START,X		;check for delimeter
-;			BEQ	CF_PARSE_6		;empty string
-;			;Store string address (delimeter in B, >IN in X) 
-;CF_PARSE_1		LEAX	TIB_START,X 		;string address -> X
-;			STX	0,Y			;push string address
-;			LEAX	-TIB_START,X		;>IN -> X
-;			MOVW	#$0000, 2,-Y		;push initial char count
-;			LDAA	#$00			;char count -> A
-;			;Count chars (delimeter in B, char count in A, >IN in X)
-;CF_PARSE_2		INX				;advance >IN
-;			CPX	NUMBER_TIB		;check if buffer is parsed
-;			BHI	CF_PARSE_4		;done
-;			ADDA	#$01			;increment char 
-;			BCC	CF_PARSE_3		;no carry
-;			INC	0,Y			;increment MSW
-;CF_PARSE_3		CMPB	TIB_START,X		;check for delimeter
-;			BNE	CF_PARSE_2		;no delimeter
-;			;Done (char count in A, >IN in X)
-;CF_PARSE_4		STAA	1,Y			;update char count
-;CF_PARSE_5		INX				;skip over delimeter
-;			STX	TO_IN			;update >IN
-;			RTS				;done
-;			;Parse unsuccessful  (char count in A, >IN in X) 
-;CF_PARSE_6		MOVW	#$0000, 0,Y 		;null string
-;			MOVW	#$0000, 2,-Y 		;null length
-;			JOB	CF_PARSE_5		;done
+			JOB	CF_PARSE_2A
 
 ;Word: LU ( c-addr u -- xt | c-addr u false )
 ;Look up a name in any dictionary. The name is referenced by the start address

@@ -60,10 +60,6 @@
 ;#    nest-sys        definition calls                implementation dependent #
 ;#    i*x, j*x, k*x 3 any data type                   0 or more cells	       #
 ;#  									       #
-;#    Counted strings are implemented as terminated strings. String            #
-;#    termination is done by setting bit 7 in the last character of the        #   
-;#    string. Pointers to empty strings have the value $0000.		       #
-;#                                                                             #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 23, 2009                                                           #
@@ -98,10 +94,13 @@
 ;                           .                     .          
 ;                           .                     .          
 ;                           | --- --- --- --- --- |          
-;                           |          ^          | <- [PSP]	  
+;                           |          ^          | <- [PSP=Y]	  
 ;                           |          |          |		  
 ;                           |   Parameter stack   |		  
 ;    	                    |          |          |		  
+;                           +----------+----------+        
+;                           |          ^          | <- [CSP]	  
+;                           | Control-flow stack  |		  
 ;                           +----------+----------+        
 ;              PS_EMPTY, ->   
 ;          UDUCT_PS_END
@@ -130,6 +129,9 @@ FPS_CANARY_LSW		EQU	"rd"
 
 FPS_VARS_START_LIN	EQU	@
 #endif	
+			ALIGN	1
+CSP			DS	2 			;control-flow stack pointer
+
 	
 FPS_VARS_END		EQU	*
 FPS_VARS_END_LIN	EQU	@
@@ -148,6 +150,7 @@ FPS_VARS_END_LIN	EQU	@
 			LDY	#PS_EMPTY 		;reset return stack
 			MOVW	#FPS_CANARY_MSW, 0,Y	;insert canary code
 			MOVW	#FPS_CANARY_LSW, 2,Y	;
+			STY	CSP			;reset CSP
 #emac
 	
 ;#Quit action
@@ -201,6 +204,48 @@ FPS_CELL_DIGITS		EQU	FOUTER_CELL_DIGITS
 ;         Y is preserved
 FPS_LIST_SEP		EQU	FOUTER_LIST_SEP
 	
+;#Control-flow stack operations
+;==============================
+;#Allocate CS space
+; args:   A: space in bytes
+;         Y: PSP
+; result: Y: new PSP
+; SSTACK: 2 bytes
+;         No registers are preserved
+FPS_CS_ALLOC		EQU	*
+			TAB				;positive offset -> B
+			NEGA				;negative offset -> A
+			CPY	#PS_EMPTY		;check if PS is empty
+			LEAY	A,Y			;allocate PS space
+			BEQ	FPS_CS_ALLOC_2		;PS is empty
+			TFR	Y, X			;PSP -> X
+			MOVW	B,X, 2,X+		;move cell
+FPS_CS_ALLOC_1		CPX	CSP			;check for bottom of PS
+			BLO	FPS_CS_ALLOC_1		;more cells to copy
+FPS_CS_ALLOC_2		STX	CSP			;CSP	 -> X
+			LEAX	A,X			;new CSP -> X
+			STX	CSP			;update CSP
+			RTS				;done
+			
+;#Deallocate CS space
+; args:   A: space in bytes
+;         Y: PSP
+; result: Y: new PSP
+; SSTACK: 4 bytes
+;         No registers are preserved
+FPS_CS_DEALLOC	EQU	*
+			PSHY 				;PSP -> 0,SP
+			LDX	CSP			;CSP -> X
+FPS_CS_DEALLOC_1	MOVW	2,-X, A,X		;move cell
+			CPX	0,SP			;check for top of PS
+			BHI	FPS_CS_DEALLOC_1	;more cells to copy
+			PULY				;clean up RS
+			LEAY	A,Y			;deallocate PS space
+			LDX	CSP			;CSP -> X
+			LEAX	A,X			;new CSP -> X
+			STX	CSP			;update CSP
+			RTS				;done
+
 ;#########
 ;# Words #
 ;#########
@@ -360,7 +405,10 @@ CF_DOT_S		EQU	*
 			; |    Iterator     | SP+2
 			; +--------+--------+
 			;Allocate iterator 
-			MOVW	#(PS_EMPTY-2), 2,-SP 		;first PS entry -> iterator
+			;MOVW	#(PS_EMPTY-2), 2,-SP 		;first PS entry -> iterator
+			LDX	CSP 				;CSP -> X
+			LEAX	-2,X				;first PS entry -> X
+			PSHX					;first PS entry -> iterator
 			CPY	0,SP				;check for empty PS
 			BHI	CF_DOT_S_2			;PS is empty
 			LDD	[0,SP]				;first cell -> D

@@ -793,10 +793,11 @@ CF_CHARS			EQU	*
 CF_CHARS_EOI			RTS
 
 ;Word: CLS ( -- empty ) S12CForth extension!
-;Empty the parameter stack.
+;Empty the parameter and the control flow stack.
 IF_CLS				INLINE	CF_CLS
 CF_CLS				EQU	*
 				LDY	#PS_EMPTY
+				STY	CSP
 CF_CLS_EOI			RTS
 
 ;CONSTANT ( x "<spaces>name" -- )
