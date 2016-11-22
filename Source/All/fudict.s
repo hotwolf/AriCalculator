@@ -627,9 +627,11 @@ CF_WORDS_UDICT_4	RTS				;done
 ;
 ;colon-sys:
 ;      	+-------------------+-------------------+	     
-;       |   compile flags   |FUDICT_CS_NNAME_SYS| +0	     
+;       |   compile flags   |FUDICT_CS_COLON_SYS| +0	     
 ;      	+-------------------+-------------------+	     
-;       |             current CFA               | +2	     
+;       |             current NFA               | +2	     
+;      	+-------------------+-------------------+	     
+;       |             current CFA               | +4	     
 ;      	+-------------------+-------------------+	     
 ;	
 IF_COLON_NONAME		IMMEDIATE			
@@ -674,8 +676,39 @@ CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			THROW	FEXCPT_TC_NONAME	;throw "missing name" exception
 			;Set STATE ( c-addr u )
 CF_COLON_2		LDD	STRATEGY 		;STRATEGY -> D
-			BEQ	CF_COLON_4		;done
+			BEQ	CF_COLON_ 		;done
 			STD	STATE			;STRATEGY -> STATE
+			;Save new NFA ( c-addr u )
+			LDX	CP 			;CP -> X
+			PSHX				;CP -> RS
+			;Compile last NFA ( c-addr u ) (R: NFA )(CP in X)
+			MOVW	FUDICT_LAST_NFA, 2,X+ 	;compile last NFA
+			;Compile name ( c-addr u ) (R: NFA ) (CP in X) 
+			STX	CP			;update CP
+			JOBSR	CF_NAME_COMMA_1		;compile name
+			;Compile IF (R: NFA ) (CP in X) 
+CF_COLON_3		CLR	1,+X 			;
+			STX	CP			;update CP
+			
+
+
+			;Compile name ( c-addr u ) (CP in X)
+			MOVW	0,Y, 2,-Y 		;( c-addr u   u )
+			STX	2,Y			;( c-addr CP u )
+			PSHX				;save CP
+			JOBSR	CF_MOVE			;copy name
+			PULX				;restore CP
+CF_COLON_3		LDAB	0,X			;char -> B
+			JOBSR	FUDICT_UPPER		;make upper case
+			STAB	1,X+			;update char
+			CPX	0,SP			;check for EOS
+			BLO	CF_COLON_3		;LOOP
+			BSET	-1,X,#FUDICT_TERM	;terminate name string
+
+
+
+	
+
 			;Push colon-sys ( c-addr u )
 			LDAA	#6 			;allocate CS space
 			JOBSR	FPS_CS_ALLOC		;
@@ -706,6 +739,49 @@ CF_COLON_3		LDAB	0,X			;char -> B
 			CLR	0,X 			;REGULAR
 CF_COLON_4		RTS				;done
 
+
+
+
+;Word: NAME, 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( c-addr u  -- )
+;Append the the string given by start address c-addr and length u 
+;uppercase to the current definition.
+IF_NAME_COMMA		IMMEDIATE
+CF_NAME_COMMA		COMPILE_ONLY
+			;Save current CP ( c-addr u )
+CF_NAME_COMMA_1		MOVW	CP, 2,-SP 		;CP -> RS
+			JOBSR	CF_STRING_COMMA_1	;copy string
+			PULX				;old CP -> X
+			CPX	CP			;check fir empty string
+			BEQ	CF_NAME_COMMA_3		;empty string
+CF_NAME_COMMA_2		LDAB	1,X+			;chasr -> B
+			JOBSR	FUDICT_UPPER		;msake upper case
+			CPX	CP			;check for end of string
+			BLO	CF_NAME_COMMA_2		;handle next char
+CF_NAME_COMMA_3		RTS				;done
+
+;Word: STRING, 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Execution: ( c-addr u  -- )
+;Append the the string given by start address c-addr and length u to the current
+;definition.
+IF_STRING_COMMA		IMMEDIATE
+CF_STRING_COMMA		COMPILE_ONLY
+			;Prepare MOVE ( c-addr u )
+CF_STRING_COMMA_1		LDD	0,Y 			;u  -> D
+			LDX	CP			;CP -> X
+			STX	2,-Y			;CP 0> PS+2
+			STD	2,-Y			;u  -> PS+0
+			LEAX	D,X			;new CP -> X
+			STX	CP			;update CP
+			;MOVE string ( addr1 addr2 u )
+			JOBSR	CF_MOVE 		;copy string
+			;Terminate string 
+			LDX	CP			;CP -> X
+			BSET	-1,X,#FUDICT_TERM	;terminate string
+			RTS				;done
+	
 ;Word: MOVE ( addr1 addr2 u -- )
 ;If u is grater than zero, copy the contents of u consecutive address units at
 ;addr1 to the u consecutive address units at addr2. After MOVE completes, the u
@@ -734,7 +810,8 @@ CF_MOVE_2		LEAY	6,Y			;clean up stack
 IF_COMPILE_COMMA	IMMEDIATE
 CF_COMPILE_COMMA	COMPILE_ONLY
 			;Remove COF COF optimization flags
-			BCLR	[CSP],#FUDICT_CI_COF 	;clear compile flags
+			LDX	CSP		   	;CSP -> X
+			BCLR	0,X,#FUDICT_CI_COF 	;clear compile flags
 			;Get xt ( xt )
 CF_COMPILE_COMMA_1	LDX	0,Y 			;xt -> X
 			LDAB	-1,X			;IF -> B
@@ -746,32 +823,34 @@ CF_COMPILE_COMMA_2	LDX	CP 			;CP   -> X
 			SUBD	0,Y			;CP-offs-xt -> D
 			TBEQ	A,CF_COMPILE_COMMA_3	;compile BSR
 			;Compile JSR ( xt ) (CP in X)
-			BSET	[CSP],FUDICT_CI_JSR 	;optimize last JSR
 			LEAX	3,X 			;allocate compile space
 			STX	CP			;update CP
 			MOVB	#$16, -3,X		;compile "JSR" opcode
 			MOVW	2,Y+, -2,X		;compile xt	
+			LDX	CSP		  	;CSP -> X
+			BSET	0,X,FUDICT_CI_JSR 	;optimize last JSR
 			RTS				;done
 			;Compile BSR ( xt ) (CP in X, negated rel. addr in B)
-CF_COMPILE_COMMA_3	BSET	[CSP],#(FUDICT_CF_NOINL|FUDICT_CI_BSR);optimize last JSR
-			LEAX	2,X 			;allocate compile space
+CF_COMPILE_COMMA_3	LEAX	2,X 			;allocate compile space
 			STX	CP			;update CP
 			MOVB	#$07, -2,X		;compile "BSR" opcode
 			NEGB				;rel. addr -> B
 			STAB	-1,X			;compile rel. addr
+			LDX	CSP		  	;CSP -> X
+			BSET	0,X,#(FUDICT_CF_NOINL|FUDICT_CI_BSR);optimize last JSR
 			RTS				;done
 			;Word not REGULAR ( xt ) (xt in X, IF in B)
 CF_COMPILE_COMMA_4	CMPB	#IMMEDIATE 		;check for IMMEDIATE word
 			BEQ	CF_COMPILE_COMMA_2	;compile as REGULAR word
-			BRSET	[CSR],#FUDICT_CF_NOINL,CF_COMPILE_COMMA_2;inline compilation forbidden
+			LDX	CSP		  	;CSP -> X
+			BRSET	0,X,#FUDICT_CF_NOINL,CF_COMPILE_COMMA_2;inline compilation forbidden
 			LDX	CP			;CP -> X
 			STX	2,-Y			;( xt CP )
 			CLRA				;u  -> D
 			STD	2,-Y			;( xt CP u )
 			LEAX	B,X			;allocate compile space
 			STX	CP			;update CP
-			JOBSR	CF_MOVE			;copy INLINE code
-			RTS				;done
+			JOB	CF_MOVE			;copy INLINE code
 	
 ;Word: ; 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -787,9 +866,9 @@ CF_SEMICOLON		COMPILE_ONLY			;catch nested compilation
 			;Check colon-sys 
 			LDX	CSP 			;CSP -> D
 			LDD	1,X			;flags:colon-sys -> D
-			CPAB	#FUDICT_CS_COLON_SYS	;check for : definition
+			CMPB	#FUDICT_CS_COLON_SYS	;check for : definition
 			BEQ	CF_SEMICOLON_1 		;check for COF optimization
-			CPAB	#FUDICT_CS_NNAME_SYS	;check for :NONAME definition
+			CMPB	#FUDICT_CS_NNAME_SYS	;check for :NONAME definition
 			BNE	CF_SEMICOLON_2 		;control structure mismatch	
 			;Check for COF optimization
 CF_SEMICOLON_1		LDX	CP
@@ -816,9 +895,9 @@ CF_SEMICOLON_4		INX
 			STX	CP			;updated CP
 			MOVB	#$3D, -1,X		;compile "RTS"
 			;Consider INLINE optimization (CP in X)
-			BRSET	[CSP],#FUDICT_CI_NOINL,CF_SEMICOLON_5;INLINE blocked
 			TFR	X, D			;CP  -> D
 			LDX	CSP			;CSP -> X
+			BRSET	0,X,#FUDICT_CI_NOINL,CF_SEMICOLON_5;INLINE blocked
 			SUBD	4,X			;compile length -> D
 			CPD	#(FUDICT_MAX_INLINE+1)	;check CF length
 			BHI	CF_SEMICOLON_5		;no INLINE optimization
@@ -862,7 +941,8 @@ CF_CONSTANT		EQU	*
 IF_LITERAL		IMMEDIATE
 CF_LITERAL		COMPILE_ONLY
 			;Remove COF optimization flags
-			BCLR	[CSP],#FUDICT_CI_COF 	;clear compile flags
+			LDX	CSP  			;CSP -> X
+			BCLR	0,X,#FUDICT_CI_COF 	;clear compile flags
 			;Allocate compile space 
 CF_LITERAL_1		LDX	CP 			;CP -> X
 			LEAX	5,X			;allocate 5 bytes
@@ -888,44 +968,7 @@ CF_2LITERAL_1		JOBSR	CF_SWAP			;(x1 x2 -- x2 x1)
 
 
 
-	;; TBD
-
 	
-;;Word: S, 
-;;Interpretation: Interpretation semantics for this word are undefined.
-;;Execution: ( c-addr u  -- )
-;;Append the the string given by start address c-addr and length u to the
-;;execution semantics of the current definition.
-;IF_STRING_COMMA		IMMEDIATE
-;CF_STRING_COMMA		COMPILE_ONLY
-;			;Calculate EOS
-;CF_STRING_COMMA_1	LDD	0,Y 			;u      -> D
-;			LDX	2,Y			;c-addr -> X
-;			LEAX	D,X			;EOS    -> X
-;			STX	0,Y			;EOS	-> PS
-;			;Allocate compile space (u in D)
-;			LDX	CP 			;CP     -> X
-;			LEAX	D,X			;new CP -> X
-;			STX	CP			;update CP
-;			;Calculate memory offset (new CP in X) 
-;			TFR	X, D			;new CP -> D
-;			SUBD	0,Y			;offset -> D
-;			;Copy loop (memory offset in D)
-;			LDX	2,Y 			;string -> X
-;CF_STRING_COMMA_2	MOVB	0,X, D,X		;copy char
-;			BCLR	D,X,FUDICT_TERM		;remove termination
-;			INX				;advance 
-;			CPX	0,Y			;check for EOS
-;			BNE	CF_STRING_COMMA_2	;loop
-;			DEX				;go back to last char
-;			BSET	D,X,FUDICT_TERM		;terminate string
-;			LEAY	4,Y			;clean up PS
-;			;Set compile info 
-;			BRSET	3,SP,#80,CF_STRING_COMMA_3;unfinished control flow
-;			CLR	3,SP 			;disable optimization
-;CF_STRING_COMMA_3	RTS				;done
-;
-;
 ;;Word: .(
 ;;Compilation: Perform the execution semantics given below.
 ;;Execution: ( "ccc<paren>" -- )

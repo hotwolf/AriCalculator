@@ -1865,21 +1865,7 @@ CF_ZERO_GREATER_1		TAB					;flag  -> D
 ;xt Execution: ( i*x -- j*x )
 ;Execute the definition specified by xt. The stack effects i*x and j*x represent
 ;arguments to and results from xt, respectively.
-;CF_COLON_NONAME		INTERPRET_ONLY				;check for nested definition
-;				PS_CHECK_OF	2			;(PSP-4 -> Y)
-;				DICT_CHECK_OF	2			;(CP+2 -> X)
-;				;Push xt and $0000 onto the PS (PSP-4 in Y, CP+2 -> X)
-;				LDX	CP
-;				STX	2,Y
-;				MOVW	#$0000, 0,Y
-;				STY	PSP
-;				;Append CFA (CP in X)
-;				MOVW	#CF_INNER, 2,X+
-;				STX	CP
-;				;Enter compile state 
-;				MOVW	#$0001, STATE
-;				;Done 
-;				NEXT
+;==> FUDICT
 
 ;<> ( x1 x2 -- flag )
 ;flag is true if and only if x1 is not bit-for-bit the same as x2.
