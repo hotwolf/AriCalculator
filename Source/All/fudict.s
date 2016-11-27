@@ -395,24 +395,6 @@ FUDICT_VARS_END_LIN	EQU	@
 #ifdef FUDICT_CODE_START_LIN
 			ORG 	FUDICT_CODE_START, FUDICT_CODE_START_LIN
 #else			
-	
-
-	
-			STX	4,-SP			;( c-addr SOS u ) (RS: NFA IFA opt ret xx SOS)
-			LDD	0,Y			;u   -> D
-			LEAX	D,X			;EOS -> X
-			STX	2,SP			;( c-addr SOS u ) (RS: NFA IFA opt ret EOS SOS)
-			JOBSR	CF_MOVE			;copy name (RS: NFA IFA opt ret EOS SOS)
-			PULX				;SOS -> X (RS: NFA IFA opt ret EOS)
-CF_COLON_3		LDAB	0,X			;char -> B
-			JOBSR	FUDICT_UPPER		;make upper case
-			STAB	1,X+			;update char
-			CPX	0,SP			;check for EOS
-			BLO	CF_COLON_3		;LOOP
-			PULX				;(RS: NFA IFA opt ret)
-			BSET	-1,X,#FUDICT_TERM	;terminate name string
-
-			ORG 	FUDICT_CODE_START
 FUDICT_CODE_START_LIN	EQU	@
 #endif
 
@@ -633,12 +615,19 @@ CF_WORDS_UDICT_4	RTS				;done
 ;      	+-------------------+-------------------+	     
 ;       |             current CFA               | +4	     
 ;      	+-------------------+-------------------+	     
-;	
 IF_COLON_NONAME		IMMEDIATE			
 CF_COLON_NONAME		INTERPRET_ONLY			;catch nested compilation
-
-			RTS
-
+			;Set STATE ( c-addr u )
+			LDD	STRATEGY 		;STRATEGY -> D
+			BEQ	CF_COLON_NONAME_1 	;cimpile inhibited
+			STD	STATE			;STRATEGY -> STATE
+			;Compile IF ( ) (R: NFA ) (CP in X)
+			MOVW	#$0000, 2,-SP 		;0 -> RS
+			LDX	CP			;CP -> X
+			JOB	CF_COLON_2		;compile IF
+			;Compilation disabled
+CF_COLON_NONAME_1	MOVW	#FALSE, 2,-Y 		;FALSE -> PS
+			RTS				;done
 	
 ;Word: : ( C: "<spaces>name" -- colon-sys )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -665,7 +654,6 @@ CF_COLON_NONAME		INTERPRET_ONLY			;catch nested compilation
 ;      	+-------------------+-------------------+	     
 ;       |             current CFA               | +4	     
 ;      	+-------------------+-------------------+	     
- ;
 IF_COLON		IMMEDIATE			
 CF_COLON		INTERPRET_ONLY			;catch nested compilation
 			;Parse name 
@@ -676,7 +664,7 @@ CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			THROW	FEXCPT_TC_NONAME	;throw "missing name" exception
 			;Set STATE ( c-addr u )
 CF_COLON_2		LDD	STRATEGY 		;STRATEGY -> D
-			BEQ	CF_COLON_ 		;done
+			BEQ	CF_COLON_4 		;compile inhibited
 			STD	STATE			;STRATEGY -> STATE
 			;Save new NFA ( c-addr u )
 			LDX	CP 			;CP -> X
@@ -686,61 +674,19 @@ CF_COLON_2		LDD	STRATEGY 		;STRATEGY -> D
 			;Compile name ( c-addr u ) (R: NFA ) (CP in X) 
 			STX	CP			;update CP
 			JOBSR	CF_NAME_COMMA_1		;compile name
-			;Compile IF (R: NFA ) (CP in X) 
-CF_COLON_3		CLR	1,+X 			;
+			;Compile IF ( ) (R: NFA ) (CP in X)
+CF_COLON_3		CLR	1,+X 			;set default IF
 			STX	CP			;update CP
-			
-
-
-			;Compile name ( c-addr u ) (CP in X)
-			MOVW	0,Y, 2,-Y 		;( c-addr u   u )
-			STX	2,Y			;( c-addr CP u )
-			PSHX				;save CP
-			JOBSR	CF_MOVE			;copy name
-			PULX				;restore CP
-CF_COLON_3		LDAB	0,X			;char -> B
-			JOBSR	FUDICT_UPPER		;make upper case
-			STAB	1,X+			;update char
-			CPX	0,SP			;check for EOS
-			BLO	CF_COLON_3		;LOOP
-			BSET	-1,X,#FUDICT_TERM	;terminate name string
-
-
-
-	
-
-			;Push colon-sys ( c-addr u )
-			LDAA	#6 			;allocate CS space
-			JOBSR	FPS_CS_ALLOC		;
-			LDX	CSP			;CSP -> X
-			MOVW	#FUDICT_CS_COLON_SYS, 0,X;set colon-sys
-			LDD	CP			;CP -> D 
-			STD	2,X			;store NFA
-			ADDD	0,Y			;CP+name -> D
-			ADDD	#$0003			;CP+nane+NFA+IF -> D
-			STD	4,X			;store CFA
-			LDX	CP			;CP -> X
-			STD	CP			;allocate compile space
-			;Compile last NFA ( c-addr u ) (compile pointer in X)
-			MOVW	FUDICT_LAST_NFA, 2,X+ 	;compile last NFA
-			;Compile name ( c-addr u ) (CP in X)
-			MOVW	0,Y, 2,-Y 		;( c-addr u   u )
-			STX	2,Y			;( c-addr CP u )
-			PSHX				;save CP
-			JOBSR	CF_MOVE			;copy name
-			PULX				;restore CP
-CF_COLON_3		LDAB	0,X			;char -> B
-			JOBSR	FUDICT_UPPER		;make upper case
-			STAB	1,X+			;update char
-			CPX	0,SP			;check for EOS
-			BLO	CF_COLON_3		;LOOP
-			BSET	-1,X,#FUDICT_TERM	;terminate name string
-			;Compile IF (compile pointer in X)
-			CLR	0,X 			;REGULAR
-CF_COLON_4		RTS				;done
-
-
-
+			;Push colon-sys onto the control stack ( ) (R: NFA ) (CP in X)
+			LDAA	#6 			;alllocate 6 bytes
+			JOBSR	FPS_CS_ALLOC		; of CS space
+			MOVW	#FUDICT_CS_COLON_SYS, 0,X;set CS code
+			MOVW	2,Y+, 2,X		;set NFA
+			MOVW	CP,   4,X		;set CFA
+			RTS				;done
+			;Compilation disabled
+CF_COLON_4		LEAY	4,Y 			;drop c-addr and u
+			RTS				;done
 
 ;Word: NAME, 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -755,11 +701,19 @@ CF_NAME_COMMA_1		MOVW	CP, 2,-SP 		;CP -> RS
 			PULX				;old CP -> X
 			CPX	CP			;check fir empty string
 			BEQ	CF_NAME_COMMA_3		;empty string
-CF_NAME_COMMA_2		LDAB	1,X+			;chasr -> B
+CF_NAME_COMMA_2		LDAB	0,X			;char -> B
 			JOBSR	FUDICT_UPPER		;msake upper case
+			STAB	1,X+ 			;update string
+			ANDB	#~FUDICT_TERM		;remove termination
+			CMPB	#"!"			;check for lowest valid char
+			BLO	CF_NAME_COMMA_4		;invalid char
+			CMPB	#"~"			;check for lowest valid char
+			BHI	CF_NAME_COMMA_4		;invalid char	
 			CPX	CP			;check for end of string
 			BLO	CF_NAME_COMMA_2		;handle next char
 CF_NAME_COMMA_3		RTS				;done
+			;Invalid char
+CF_NAME_COMMA_4		THROW	FEXCPT_TC_INVALNAME 	;"invalid name argument"
 
 ;Word: STRING, 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -769,7 +723,7 @@ CF_NAME_COMMA_3		RTS				;done
 IF_STRING_COMMA		IMMEDIATE
 CF_STRING_COMMA		COMPILE_ONLY
 			;Prepare MOVE ( c-addr u )
-CF_STRING_COMMA_1		LDD	0,Y 			;u  -> D
+CF_STRING_COMMA_1	LDD	0,Y 			;u  -> D
 			LDX	CP			;CP -> X
 			STX	2,-Y			;CP 0> PS+2
 			STD	2,-Y			;u  -> PS+0
@@ -862,15 +816,13 @@ CF_COMPILE_COMMA_4	CMPB	#IMMEDIATE 		;check for IMMEDIATE word
 ;Run-time: ( -- ) ( R: nest-sys -- )
 ;Return to the calling definition specified by nest-sys.
 IF_SEMICOLON		IMMEDIATE			
-CF_SEMICOLON		COMPILE_ONLY			;catch nested compilation
+CF_SEMICOLON		COMPILE_ONLY			;compile-only word
 			;Check colon-sys 
-			LDX	CSP 			;CSP -> D
+			LDX	CSP 			;CSP -> X
 			LDD	1,X			;flags:colon-sys -> D
 			CMPB	#FUDICT_CS_COLON_SYS	;check for : definition
-			BEQ	CF_SEMICOLON_1 		;check for COF optimization
-			CMPB	#FUDICT_CS_NNAME_SYS	;check for :NONAME definition
 			BNE	CF_SEMICOLON_2 		;control structure mismatch	
-			;Check for COF optimization
+			;Check for COF optimization (flags:colon-sys -> D)
 CF_SEMICOLON_1		LDX	CP
 			BITA	#FUDICT_CI_BSR 		;check for BSR optimization
 			BEQ	CF_SEMICOLON_3		;optimize last BSR
@@ -914,8 +866,8 @@ CF_SEMICOLON_5		MOVW	CP, CP_SAVE   		;secure compilation
 			;Conclude :NONAME compilation (CSP in X)
 CF_SEMICOLON_6		MOVW	4,X, 2,-Y 		;xt -> PS
 			;Clean-up
-			LDAA	#6 			;deallocate CS space
-			JOB	FPS_CS_ALLOC		;
+			LDAA	#6 			;deallocate
+			JOB	FPS_CS_DEALLOC		; CS space
 
 ;Word: CONSTANT ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -964,155 +916,160 @@ CF_2LITERAL		COMPILE_ONLY
 CF_2LITERAL_1		JOBSR	CF_SWAP			;(x1 x2 -- x2 x1)
 			JOBSR	CF_LITERAL_1		;compile x1
 			JOB	CF_LITERAL_1		;compile x2
+	
+;Word: .(
+;Compilation: Perform the execution semantics given below.
+;Execution: ( "ccc<paren>" -- )
+;Parse and display ccc delimited by ) (right parenthesis). .( is an immediate
+;word.
+IF_DOT_PAREN		IMMEDIATE
+CF_DOT_PAREN		EQU	*
+			;Parse "ccc<quote>"
+			MOVW	#")", 2,-Y 		;"-delimiter -> PS
+			JOB	CF_DOT_QUOTE_1
+	
+;Word: ."
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( "ccc<quote>" -- )
+;Parse ccc delimited by " (double-quote). Append the run-time semantics given
+;below to the current definition.
+IF_DOT_QUOTE		IMMEDIATE
+CF_DOT_QUOTE		EQU	*
+			;Parse "ccc<quote>"
+			MOVW	#$22, 2,-Y 		;"-delimiter -> PS
+CF_DOT_QUOTE_1		JOBSR	CF_PARSE		;parse "ccc<quote>"
+			LDD	0,Y			;check u
+			BEQ	CF_DOT_QUOTE_2		;empty string
+			;Check state ( c-addr u )
+			LDD	STATE 			;STATE -> D
+			BNE	CF_DOT_QUOTE_3		;compilation semantics
+			;Interpretation semantics ( c-addr u )
+			JOB	CF_TYPE			;print message
+			;Empty string ( c-addr u )
+CF_DOT_QUOTE_2		LEAY	4,Y 			;clean up stack
+			RTS				
+			;Compilation semantics ( c-addr u )
+CF_DOT_QUOTE_3		LDX	CSP 			;CSP -> X
+			BCLR	0,X,#FUDICT_CI_COF 	;clear compile flags
+			MOVW	#CF_DOT_QUOTE_RT, 2,-Y 	;runtime semantics -> PS
+			JOBSR	CF_COMPILE_COMMA_1	;compile word
+			JOB	CF_STRING_COMMA_1	;compile string
+			
+;Run-time: ( -- )
+;Display ccc.
+IF_DOT_QUOTE_RT		REGULAR
+CF_DOT_QUOTE_RT		EQU	*
+			;Print string 
+			PULX				;string pointer -> X
+			JOBSR	FUDICT_TX_STRING	;print string
+			JMP	0,X			;continue after string
 
+;Word: ?DO
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- do-sys )
+;Put do-sys onto the control-flow stack. Append the run-time semantics given
+;below to the current definition. The semantics are incomplete until resolved by
+;a consumer of do-sys such as LOOP.
+;Run-time: ( n1|u1 n2|u2 -- ) ( R: --  | loop-sys )
+;If n1|u1 is equal to n2|u2, continue execution at the location given by the
+;consumer of do-sys. Otherwise set up loop control parameters with index n2|u2
+;and limit n1|u1 and continue executing immediately following ?DO. Anything
+;already on the return stack becomes unavailable until the loop control
+;parameters are discarded. An ambiguous condition exists if n1|u1 and n2|u2 are
+;not both of the same type.
+IF_QUESTION_DO		IMMEDIATE
+CF_QUESTION_DO		COMPILE_ONLY
+			;Allocate 13 bytes of compile space 
+			LDX	CP 			;CP -> X
+			LEAX	13,X			;alloate space
+			STX	CP			;update CP
+			LEAX	-13,X			;alloate space
+			;Compile inline code (old CP in X) 
+			MOVW	#$EC42,	2,X+ 		;compile "LDD 2,Y"
+			MOVW	#$3BEC,	2,X+ 		;compile "PSHD LDD"
+			MOVW	#$733B,	2,X+ 		;compile "4,Y+ PSHD"
+			MOVW	#$AC82,	2,X+ 		;compile "CPD 2,SP"
+			MOVW	#$2603,	2,X+ 		;compile "BNE *+5"
+			MOVW	#$0000, 0,X		;end of LEAVE list
+			TFR	X, D			;Leave list -> D
+			SUBD	FUDICT_OFFSET		;CP-offset -> D
+			JOB	CF_DO_1			;do-sys -> CS
 
-
+;Word: DO
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- do-sys )
+;Place do-sys onto the control-flow stack. Append the run-time semantics given
+;below to the current definition. The semantics are incomplete until resolved
+;by a consumer of do-sys such as LOOP.
+;;Run-time: ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
+;Set up loop control parameters with index n2|u2 and limit n1|u1. An ambiguous
+;condition exists if n1|u1 and n2|u2 are not both the same type. Anything
+;already on the return stack becomes unavailable until the loop-control
+;parameters are discarded.
+;
+;do-sys:	
+;      	+-------------------+-------------------+	     
+;       |   compile flags   | FUDICT_CS_DO_SYS  | +0	     
+;      	+-------------------+-------------------+	     
+;       |              LOOP address             | +2	     
+;      	+-------------------+-------------------+	     
+;       |               LEAVE list              | +4	     
+;      	+-------------------+-------------------+	     
+IF_DO			IMMEDIATE
+CF_DO			COMPILE_ONLY
+			;Allocate 6 bytes of compile space 
+			LDX	CP 			;CP -> X
+			LEAX	6,X			;alloate space
+			STX	CP			;update CP
+			;Compile inline code (old CP in X) 
+			MOVW	#$EC42,	-6,X 		;compile "LDD 2,Y"
+			MOVW	#$3BEC,	-4,X 		;compile "PSHD LDD"
+			MOVW	#$733B,	-2,X 		;compile "4,Y+ PSHD"
+			CLRA				;empty LEAVE list
+			CLRB				; -> D
+			;Put do-sys onto the control flow stack (LEAVE list in D)
+IF_DO_1			PSHD				;save LEAVE list
+			LDAA	#6 			;alllocate 6 bytes
+			JOBSR	FPS_CS_ALLOC		; of CS space
+			LDAA	6,X			;old compile flags ->A
+			ANDA	#~FUDICT_CI_COF		;clear copile flags
+			LDAB	#FUDICT_CS_DO_SYS	;set CS code
+			STD	0,X
 
 	
-;;Word: .(
-;;Compilation: Perform the execution semantics given below.
-;;Execution: ( "ccc<paren>" -- )
-;;Parse and display ccc delimited by ) (right parenthesis). .( is an immediate
-;;word.
-;IF_DOT_PAREN		IMMEDIATE
-;CF_DOT_PAREN		EQU	*
-;			;Parse "ccc<quote>"
-;			MOVW	#")", 2,-Y 		;"-delimiter -> PS
-;			JOB	CF_DOT_QUOTE_1
-;	
-;;Word: ."
-;;Interpretation: Interpretation semantics for this word are undefined.
-;;Compilation: ( "ccc<quote>" -- )
-;;Parse ccc delimited by " (double-quote). Append the run-time semantics given
-;;below to the current definition.
-;IF_DOT_QUOTE		IMMEDIATE
-;CF_DOT_QUOTE		EQU	*
-;			;Parse "ccc<quote>"
-;			MOVW	#$22, 2,-Y 		;"-delimiter -> PS
-;CF_DOT_QUOTE_1		JOBSR	CF_PARSE		;parse "ccc<quote>"
-;			LDD	0,Y			;check u
-;			BEQ	CF_DOT_QUOTE_2		;empty string
-;			;Check state ( c-addr u )
-;			LDD	STATE 			;STATE -> D
-;			BNE	CF_DOT_QUOTE_3		;compilation semantics
-;			;Interpretation semantics ( c-addr u )
-;			JOB	CF_STRING_DOT		;print message
-;			;Empty string ( c-addr u )
-;CF_DOT_QUOTE_2		LEAY	4,Y 			;clean up stack
-;			RTS				
-;			;Compilation semantics ( c-addr u )
-;CF_DOT_QUOTE_3		PULX				;return addr -> X
-;			PULD				;compile info -> D
-;			PSHX				;return addr -> 2,SP
-;			PSHD				;compile info -> 0,SP
-;			MOVW	#CF_DOT_QUOTE_RT, 2,-Y 	;runtime semantics -> PS
-;			JOBSR	CF_COMPILE_COMMA_1	;compile word
-;			JOBSR	CF_STRING_COMMA_1	;compile string
-;			PULD				;compile info -> D
-;			;CLRB				;no optimization
-;			PULX				;return addr -> X
-;			PSHD				;compile info -> 0,SP
-;			JMP	0,X			;done
-;;Run-time: ( -- )
-;;Display ccc.
-;IF_DOT_QUOTE_RT		REGULAR
-;CF_DOT_QUOTE_RT		EQU	*
-;			;Print string 
-;			PULX				;string pointer -> X
-;			JOBSR	FUDICT_TX_STRING	;print string
-;			JMP	0,X			;continue after string
-;
-;;Word: ?DO
-;;Interpretation: Interpretation semantics for this word are undefined.
-;;Compilation: ( C: -- do-sys )
-;;Put do-sys onto the control-flow stack. Append the run-time semantics given
-;;below to the current definition. The semantics are incomplete until resolved by
-;;a consumer of do-sys such as LOOP.
-;;Run-time: ( n1|u1 n2|u2 -- ) ( R: --  | loop-sys )
-;;If n1|u1 is equal to n2|u2, continue execution at the location given by the
-;;consumer of do-sys. Otherwise set up loop control parameters with index n2|u2
-;;and limit n1|u1 and continue executing immediately following ?DO. Anything
-;;already on the return stack becomes unavailable until the loop control
-;;parameters are discarded. An ambiguous condition exists if n1|u1 and n2|u2 are
-;;not both of the same type.
-;IF_QUESTION_DO		IMMEDIATE
-;CF_QUESTION_DO		COMPILE_ONLY
-;			;Allocate 13 bytes of compile space 
-;			LDX	CP 			;CP -> X
-;			LEAX	13,X			;alloate space
-;			STX	CP			;update CP
-;			LEAX	-13,X			;alloate space
-;			;Compile inline code (old CP in X) 
-;			MOVW	#$EC42,	2,X+ 		;compile "LDD 2,Y"
-;			MOVW	#$3BEC,	2,X+ 		;compile "PSHD LDD"
-;			MOVW	#$733B,	2,X+ 		;compile "4,Y+ PSHD"
-;			MOVW	#$AC82,	2,X+ 		;compile "CPD 2,SP"
-;			MOVW	#$2603,	2,X+ 		;compile "BNE *+5"
-;			MOVW	#$0000, 0,X		;end of LEAVE list
-;			;Put do-sys onto the control flow stack (LEAVE list in X)
-;			;                              +--------+--------+              
-;			;                              |  Return Address | ...     
-;			;                              +--------+--------+	       
-;			;                              |  New Comp. Info | SP+0     
-;			;                              +--------+--------+	       
-;			;                              |    LEAVE list   | SP+2     
-;			; +--------+--------+	   ==> +--------+--------+	       
-;			; |  Return Address | SP+0     |   LOOP address  | SP+4     
-;			; +--------+--------+	       +--------+--------+	       
-;			; | Old Comp. Info  | SP+2     | Old Comp. Info  | SP+6     
-;			; +--------+--------+          +--------+--------+           
-;			PSHX				;LEAVE list -> 2,SP
-;			LDAA	4,SP			;inherit high byte of compile info
-;			LDAB	#FUDICT_CI_DO_SYS	;set control flow
-;			PSHD				;new compilation info -> 0,SP
-;			LEAX	3,X			;LOOP address -> X
-;			LDD	4,SP			;Return address -> D
-;			EXG	X, D			;X <-> D
-;			STD	4,SP			;set LOOP address
-;			JMP	0,X			;done
-;
-;;Word: DO
-;;Interpretation: Interpretation semantics for this word are undefined.
-;;Compilation: ( C: -- do-sys )
-;;Place do-sys onto the control-flow stack. Append the run-time semantics given
-;;below to the current definition. The semantics are incomplete until resolved
-;;by a consumer of do-sys such as LOOP.
-;;;Run-time: ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
-;;Set up loop control parameters with index n2|u2 and limit n1|u1. An ambiguous
-;;condition exists if n1|u1 and n2|u2 are not both the same type. Anything
-;;already on the return stack becomes unavailable until the loop-control
-;;parameters are discarded.
-;IF_DO			IMMEDIATE
-;CF_DO			COMPILE_ONLY
-;			;Allocate 6 bytes of compile space 
-;			LDX	CP 			;CP -> X
-;			LEAX	6,X			;alloate space
-;			STX	CP			;update CP
-;			;Compile inline code (old CP in X) 
-;			MOVW	#$EC42,	-6,X 		;compile "LDD 2,Y"
-;			MOVW	#$3BEC,	-4,X 		;compile "PSHD LDD"
-;			MOVW	#$733B,	-2,X 		;compile "4,Y+ PSHD"
-;			;Put do-sys onto the control flow stack (LEAVE list in X)
-;			;                              +--------+--------+              
-;			;                              |  Return Address | ...     
-;			;                              +--------+--------+	       
-;			;                              |  New Comp. Info | SP+0     
-;			;                              +--------+--------+	       
-;			;                              |    LEAVE list   | SP+2     
-;			; +--------+--------+	   ==> +--------+--------+	       
-;			; |  Return Address | SP+0     |   LOOP address  | SP+4     
-;			; +--------+--------+	       +--------+--------+	       
-;			; | Old Comp. Info  | SP+2     | Old Comp. Info  | SP+6     
-;			; +--------+--------+          +--------+--------+           
-;			MOVW	#$0000, 2,-SP		;LEAVE list -> 2,SP
-;			LDAA	4,SP			;inherit high byte of compile info
-;			LDAB	#FUDICT_CI_DO_SYS	;set control flow
-;			PSHD				;new compilation info -> 0,SP
-;			LDD	4,SP			;Return address -> D
-;			EXG	X, D			;X <-> D
-;			STD	4,SP			;set LOOP address
-;			JMP	0,X			;done
-;
+		  LDX	CSP			;CSP -> X
+			MOVW	#FUDICT_CS_COLON_SYS, 0,X;set CS code
+			MOVW	2,Y+, 2,X		;set NFA
+			STD	4,X			;set CFA
+			RTS				;done
+	
+
+
+
+
+
+			;                              +--------+--------+              
+			;                              |  Return Address | ...     
+			;                              +--------+--------+	       
+			;                              |  New Comp. Info | SP+0     
+			;                              +--------+--------+	       
+			;                              |    LEAVE list   | SP+2     
+			; +--------+--------+	   ==> +--------+--------+	       
+			; |  Return Address | SP+0     |   LOOP address  | SP+4     
+			; +--------+--------+	       +--------+--------+	       
+			; | Old Comp. Info  | SP+2     | Old Comp. Info  | SP+6     
+			; +--------+--------+          +--------+--------+           
+			MOVW	#$0000, 2,-SP		;LEAVE list -> 2,SP
+			LDAA	4,SP			;inherit high byte of compile info
+			LDAB	#FUDICT_CI_DO_SYS	;set control flow
+			PSHD				;new compilation info -> 0,SP
+			LDD	4,SP			;Return address -> D
+			EXG	X, D			;X <-> D
+			STD	4,SP			;set LOOP address
+			JMP	0,X			;done
+
+
+
 ;;Word: LEAVE
 ;;Interpretation: Interpretation semantics for this word are undefined.
 ;;Execution: ( -- ) ( R: loop-sys -- )

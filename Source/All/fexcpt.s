@@ -576,7 +576,7 @@ FEXCPT_MSGTAB		EQU	*
 			;FEXCPT_MSG	FFEXCPT_TC_INVALNUM,	"Invalid numeric argument"
 			FEXCPT_MSG	FEXCPT_TC_COMPNEST,	"Nested compilation"
 			;FEXCPT_MSG	FEXCPT_TC_NONCREATE,	"Illegal operation on non-CREATEd definition"
-			;FEXCPT_MSG	FEXCPT_TC_INVALNAME,	"Invalid name argument"
+			FEXCPT_MSG	FEXCPT_TC_INVALNAME,	"Invalid name argument"
 			FEXCPT_MSG	FEXCPT_TC_INVALBASE,	"Invalid BASE"
 			;FEXCPT_MSG	FEXCPT_TC_EXCPTERR,	"Corrupt exception stack frame"
 			;FEXCPT_MSG	FEXCPT_TC_NOMSG,	"Empty message string"

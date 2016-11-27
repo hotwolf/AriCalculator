@@ -210,6 +210,7 @@ FPS_LIST_SEP		EQU	FOUTER_LIST_SEP
 ; args:   A: space in bytes
 ;         Y: PSP
 ; result: Y: new PSP
+;         X: new CSP 
 ; SSTACK: 2 bytes
 ;         No registers are preserved
 FPS_CS_ALLOC		EQU	*
@@ -222,7 +223,7 @@ FPS_CS_ALLOC		EQU	*
 			MOVW	B,X, 2,X+		;move cell
 FPS_CS_ALLOC_1		CPX	CSP			;check for bottom of PS
 			BLO	FPS_CS_ALLOC_1		;more cells to copy
-FPS_CS_ALLOC_2		STX	CSP			;CSP	 -> X
+FPS_CS_ALLOC_2		LDX	CSP			;CSP	 -> X
 			LEAX	A,X			;new CSP -> X
 			STX	CSP			;update CSP
 			RTS				;done
@@ -231,6 +232,7 @@ FPS_CS_ALLOC_2		STX	CSP			;CSP	 -> X
 ; args:   A: space in bytes
 ;         Y: PSP
 ; result: Y: new PSP
+;         X: new CSP 
 ; SSTACK: 4 bytes
 ;         No registers are preserved
 FPS_CS_DEALLOC	EQU	*

@@ -903,23 +903,24 @@ CF_WORDS		EQU	*
 			JOBSR	CF_WORDS_NVDICT
 			JOB	CF_WORDS_CDICT
 
-;Word: S. ( c-addr u  -- ) Print a string
+;Word: TYPE ( c-addr u  -- ) Print a string
 ;Ptint a string given by the start address c-addr and the character count u.
-IF_STRING_DOT		REGULAR
-CF_STRING_DOT		EQU	*
+IF_TYPE			REGULAR
+CF_TYPE			EQU	*
 			;Print string
 			LDD	2,Y 			;c-addr -> D
 			LDX	0,Y			;u      -> X
 			LEAX	D,X			;end of string -> X
 			STX	2,+Y			;end of string -> PS
 			TFR	D, X			;c-addr -> X			
-CF_STRING_DOT_1		LDAB	1,X+			;char          -> B
+CF_TYPE_1		LDAB	1,X+			;char          -> B
 			ANDB	#~FOUTER_TERM		;remove any termination
 			JOBSR	FOUTER_TX_CHAR		;print char
 			CPX	0,Y			;check for end of string
-			BNE	CF_STRING_DOT_1		;loop
+			BNE	CF_TYPE_1		;loop
 			LEAY	2,Y			;clean up PS
 			RTS				;done
+CF_STRING_DOT		EQU	CF_TYPE
 	
 ;Word: \ 
 ;Compilation: Perform the execution semantics given below.
@@ -939,7 +940,7 @@ CF_SYNERR_DOT		EQU	*
 			LDX	#FOUTER_STR_SYNERR_LEFT ;left side message -> X
 			JOBSR	FOUTER_TX_STRING	;print substring
 			;Print word
-			JOBSR	CF_STRING_DOT 		;print string
+			JOBSR	CF_TYPE 		;print string
 			;Print right string 
 			LDX	#FOUTER_STR_SYNERR_RIGHT;right side message -> X 
 			JOB	FOUTER_TX_STRING	;print substring

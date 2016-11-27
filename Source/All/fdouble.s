@@ -1,9 +1,10 @@
+#ifndef FDOUBLE_COMPILED
+#define FDOUBLE_COMPILED
 ;###############################################################################
-;# S12CForth - FDOUBLE - ANS Forth Double-Number Words                         #
+;# S12CForth - FDOUBLE - Forth Double-Number Words                             #
 ;###############################################################################
-;#    Copyright 2010 Dirk Heisswolf                                            #
-;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
-;#    family.                                                                  #
+;#    Copyright 2009-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CForth framework for NXP's S12C MCU          #
 ;#                                                                             #
 ;#    S12CForth is free software: you can redistribute it and/or modify        #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -21,10 +22,65 @@
 ;# Description:                                                                #
 ;#    This module defines the format of word entries in the Forth dictionary   #
 ;#    and it implements the basic vocabulary.                                  #
+;#                                                                             #
+;#    S12CForth register assignments:                                          #
+;#      IP  (instruction pounter)     = PC (subroutine theaded)                #
+;#      RSP (return stack pointer)    = SP                                     #
+;#      PSP (parameter stack pointer) = Y                                      #
+;#  									       #
+;#    Interrupts must be disabled while Y is temporarily used for other        #
+;#    purposes.								       #
+;#  									       #
+;#    S12CForth system variables:                                              #
+;#           BASE = Default radix (2<=BASE<=36)                                #
+;#          STATE = State of the outer interpreter:                            #
+;#  		        0: Interpretation State				       #
+;#  		       -1: RAM Compile State				       #
+;#  		       +1: NV Compile State				       #
+;#     NUMBER_TIB = Number of chars in the TIB                                 #
+;#          TO_IN = In-pointer of the TIB (>IN)	       			       #
+;#       	    (TIB_START+TO_IN) points to the next character	       #
+;#  									       #
+;#    The following notation is used to describe the stack layout in the word  #
+;#    definitions:                                                             #
+;#                                                                             #
+;#    Symbol          Data type                       Size on stack	       #
+;#    ------          ---------                       -------------	       #
+;#    flag            flag                            1 cell		       #
+;#    true            true flag                       1 cell		       #
+;#    false           false flag                      1 cell		       #
+;#    char            character                       1 cell		       #
+;#    n               signed number                   1 cell		       #
+;#    +n              non-negative number             1 cell		       #
+;#    u               unsigned number                 1 cell		       #
+;#    n|u 1           number                          1 cell		       #
+;#    x               unspecified cell                1 cell		       #
+;#    xt              execution token                 1 cell		       #
+;#    addr            address                         1 cell		       #
+;#    a-addr          aligned address                 1 cell		       #
+;#    c-addr          character-aligned address       1 cell		       #
+;#    d-addr          double address                  2 cells (non-standard)   #
+;#    d               double-cell signed number       2 cells		       #
+;#    +d              double-cell non-negative number 2 cells		       #
+;#    ud              double-cell unsigned number     2 cells		       #
+;#    d|ud 2          double-cell number              2 cells		       #
+;#    xd              unspecified cell pair           2 cells		       #
+;#    colon-sys       definition compilation          implementation dependent #
+;#    do-sys          do-loop structures              implementation dependent #
+;#    case-sys        CASE structures                 implementation dependent #
+;#    of-sys          OF structures                   implementation dependent #
+;#    orig            control-flow origins            implementation dependent #
+;#    dest            control-flow destinations       implementation dependent #
+;#    loop-sys        loop-control parameters         implementation dependent #
+;#    nest-sys        definition calls                implementation dependent #
+;#    i*x, j*x, k*x 3 any data type                   0 or more cells	       #
+;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 22, 20010                                                          #
 ;#      - Initial release                                                      #
+;#    November 12, 2016                                                         #
+;#      - Started subroutine threaded implementation                           #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    FCORE  - Forth Core Module                                               #
@@ -43,43 +99,53 @@
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-			ORG	FDOUBLE_VARS_START
-FDOUBLE_VARS_END		EQU	*
+#ifdef FDOUBLE_VARS_START_LIN
+				ORG 	FDOUBLE_VARS_START, FDOUBLE_VARS_START_LIN
+#else
+				ORG 	FDOUBLE_VARS_START
+FDOUBLEVARS_START_LIN		EQU	@
+#endif	
+	
+FDOUBLE_VARS_END			EQU	*
+FDOUBLE_VARS_END_LIN		EQU	@
 	
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Initialization
+;#Initialization (executed along with ABORT action)
+;===============
 #macro	FDOUBLE_INIT, 0
+#emac
+
+;#Abort action (to be executed in addition of QUIT action)
+;=============
+#macro	FDOUBLE_ABORT, 0
+#emac
+	
+;#Quit action
+;============
+#macro	FDOUBLE_QUIT, 0
+#emac
+	
+;#System integrity monitor
+;=========================
+#macro	FDOUBLE_MON, 0
 #emac
 	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-			ORG	FDOUBLE_CODE_START
-;Exceptions
-FDOUBLE_THROW_PSOF	EQU	FMEM_THROW_PSOF			;stack overflow
-FDOUBLE_THROW_PSUF	EQU	FMEM_THROW_PSUF			;stack underflow
-FDOUBLE_THROW_RESOR	EQU	FCORE_THROW_RESOR		;result out of range
-FDOUBLE_THROW_0DIV	EQU	FCORE_THROW_0DIV		;division by zero
-FDOUBLE_THROW_INVALBASE	EQU	FCORE_THROW_INVALBASE		;invalid BASE value
-FDOUBLE_THROW_INVALNUM	EQU	FCORE_THROW_INVALNUM		;invalid numeric argument
-
-FDOUBLE_CODE_END		EQU	*
+#ifdef FDOUBLE_CODE_START_LIN
+				ORG 	FDOUBLE_CODE_START, FDOUBLE_CODE_START_LIN
+#else
+				ORG 	FDOUBLE_CODE_START
+FDOUBLE_CODE_START_LIN		EQU	@
+#endif
 	
-;###############################################################################
-;# Tables                                                                      #
-;###############################################################################
-			ORG	FDOUBLE_TABS_START
-FDOUBLE_TABS_END		EQU	*
 
-;###############################################################################
-;# Forth words                                                                 #
-;###############################################################################
-			ORG	FDOUBLE_WORDS_START ;(previous NFA: FDOUBLE_PREV_NFA)
-
-;#Double-Number words (DOUBLE):
-; =============================
+;#########
+;# Words #
+;#########
 	
 ;2CONSTANT ( x1 x2 "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -98,7 +164,7 @@ NFA_TWO_CONSTANT	FHEADER, "2CONSTANT", FDOUBLE_PREV_NFA, COMPILE
 CFA_TWO_CONSTANT	DW	CF_TWO_CONSTANT
 CF_TWO_CONSTANT		PS_CHECK_UF 1, CF_TWO_CONSTANT_PSUF	;(PSP -> Y)
 			;Build header (PSP -> Y)
-			SSTACK_JOBSR	FCORE_HEADER ;NFA -> D, error handler -> X(SSTACK: 10  bytes)
+			SSTACK_JOBSR	FDOUBLE_HEADER ;NFA -> D, error handler -> X(SSTACK: 10  bytes)
 			TBNE	X, CF_TWO_CONSTANT_ERROR
 			DICT_CHECK_OF	6, CF_TWO_CONSTANT_DICTOF	;CP+6 -> X
 			;Update LAST_NFA (PSP in Y, CP+6 in X)
@@ -114,11 +180,11 @@ CF_TWO_CONSTANT		PS_CHECK_UF 1, CF_TWO_CONSTANT_PSUF	;(PSP -> Y)
 			STX	CP_SAVED
 			;Done 
 			NEXT
-			;Error handler for FCORE_HEADER 
+			;Error handler for FDOUBLE_HEADER 
 CF_TWO_CONSTANT_ERROR	JMP	0,X
 
-CF_TWO_CONSTANT_PSUF	JOB	FCORE_THROW_PSUF
-CF_TWO_CONSTANT_DICTOF	JOB	FCORE_THROW_DICTOF
+CF_TWO_CONSTANT_PSUF	JOB	FDOUBLE_THROW_PSUF
+CF_TWO_CONSTANT_DICTOF	JOB	FDOUBLE_THROW_DICTOF
 
 ;2CONSTANT run-time semantics
 ;Push the contents of the first cell after the CFA onto the parameter stack
@@ -134,7 +200,7 @@ CF_TWO_CONSTANT_RT	PS_CHECK_OF	2, CF_TWO_CONSTANT_PSOF	;overflow check	=> 9 cycl
 			NEXT					;NEXT		=>15 cycles
 								; 		  ---------
 								;		  37 cycles
-CF_TWO_CONSTANT_PSOF	JOB	FCORE_THROW_PSOF		;
+CF_TWO_CONSTANT_PSOF	JOB	FDOUBLE_THROW_PSOF		;
 	
 ;2LITERAL (actually part of the ANS Forth double number waid set)
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -167,10 +233,10 @@ CF_TWO_LITERAL		COMPILE_ONLY	CF_TWO_LITERAL_COMPONLY ;ensure that compile mode i
 			;Done 
 			NEXT
 
-CF_TWO_LITERAL_PSOF	JOB	FCORE_THROW_PSOF
-CF_TWO_LITERAL_PSUF	JOB	FCORE_THROW_PSUF
-CF_TWO_LITERAL_DICTOF	JOB	FCORE_THROW_DICTOF	
-CF_TWO_LITERAL_COMPONLY	JOB	FCORE_THROW_COMPONLY
+CF_TWO_LITERAL_PSOF	JOB	FDOUBLE_THROW_PSOF
+CF_TWO_LITERAL_PSUF	JOB	FDOUBLE_THROW_PSUF
+CF_TWO_LITERAL_DICTOF	JOB	FDOUBLE_THROW_DICTOF	
+CF_TWO_LITERAL_COMPONLY	JOB	FDOUBLE_THROW_COMPONLY
 	
 ;2LITERAL run-time semantics
 ;
@@ -205,7 +271,7 @@ CF_TWO_LITERAL_RT	PS_CHECK_OF	2, CF_TWO_LITERAL_PSOF 	;check for PS overflow (PS
 NFA_TWO_VARIABLE	FHEADER, "2VARIABLE", NFA_TWO_LITERAL, COMPILE
 CFA_TWO_VARIABLE	DW	CF_TWO_VARIABLE
 CF_TWO_VARIABLE		;Build header
-			SSTACK_JOBSR	FCORE_HEADER 			;NFA -> D, error handler -> X (SSTACK: 10  bytes)
+			SSTACK_JOBSR	FDOUBLE_HEADER 			;NFA -> D, error handler -> X (SSTACK: 10  bytes)
 			TBNE	X, CF_TWO_VARIABLE_ERROR
 			DICT_CHECK_OF	6, CF_TWO_VARIABLE_DICTOF	;CP+6 -> X
 			;Update LAST_NFA 
@@ -220,11 +286,11 @@ CF_TWO_VARIABLE		;Build header
 			STX	CP_SAVED
 			;Done 
 			NEXT
-			;Error handler for FCORE_HEADER 
+			;Error handler for FDOUBLE_HEADER 
 CF_TWO_VARIABLE_ERROR	JMP	0,X
 
-CF_TWO_VARIABLE_PSOF	JOB	FCORE_THROW_PSOF
-CF_TWO_VARIABLE_DICTOF	JOB	FCORE_THROW_DICTOF
+CF_TWO_VARIABLE_PSOF	JOB	FDOUBLE_THROW_PSOF
+CF_TWO_VARIABLE_DICTOF	JOB	FDOUBLE_THROW_DICTOF
 
 ;Run-time of VARIABLE
 ;Throws:
@@ -835,3 +901,26 @@ CF_D_U_LESS_PSUF	JOB	FDOUBLE_THROW_PSUF
 	
 FDOUBLE_WORDS_END	EQU	*
 FDOUBLE_LAST_NFA	EQU	NFA_D_U_LESS
+
+
+
+
+
+	
+FDOUBLE_CODE_END		EQU	*
+FDOUBLE_CODE_END_LIN	EQU	@
+			
+;###############################################################################
+;# Tables                                                                      #
+;###############################################################################
+#ifdef FDOUBLE_TABS_START_LIN
+			ORG 	FDOUBLE_TABS_START, FDOUBLE_TABS_START_LIN
+#else
+			ORG 	FDOUBLE_TABS_START
+FDOUBLE_TABS_START_LIN	EQU	@
+#endif	
+									
+FDOUBLE_TABS_END		EQU	*
+FDOUBLE_TABS_END_LIN	EQU	@
+#endif	
+#endif	
