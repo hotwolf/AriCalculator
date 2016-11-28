@@ -1103,6 +1103,7 @@ CF_LOOP			COMPILE_ONLY
 			LDD	[CSP] 			;compile info -> B
 			CMPB	#FUDICT_CI_DO_SYS	;check for matching "do-sys"
 			BNE	CF_LOOP_5		;control structure mismatch			
+
 			;Calculate branch distance 
 			LDX	CP 			;CP -> X
 			LDD	6,SP 			;LOOP address -> D
