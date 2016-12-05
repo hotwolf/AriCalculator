@@ -79,9 +79,13 @@
 ;###############################################################################
 ;        
 ;      	                    +----------+----------+	     
-;        UDICT_PS_START, -> |          |          | 	     
-;           UDICT_START     |   User Dictionary   |	     
-;                           |   User Variables    |	     
+;         UDICT_PS_START -> |   User Variables    |	     
+;      	                    +----------+----------+	     
+;    	                    |    User Variables   | <- [DP]		  
+;    	                    |    Pre-Allocation   |		  
+;                           +----------+----------+        
+;                           |          |          | <-[DP+allignment]
+;                           |  User Dictionary    |	     
 ;                           |          |          |	     
 ;                           |          v          |	     
 ;                       -+- | --- --- --- --- --- |
@@ -99,11 +103,14 @@
 ;                           |   Parameter stack   |		  
 ;    	                    |          |          |		  
 ;                           +----------+----------+        
+;    	                    |       Canary        |	 		  
+;                           +----------+----------+        
+;    	                    |  CS Pre-Allocation  | <- [END_OF_PS]		  
+;                           +----------+----------+        
 ;                           |          ^          | <- [CSP]	  
 ;                           | Control-flow stack  |		  
 ;                           +----------+----------+        
-;              PS_EMPTY, ->   
-;          UDUCT_PS_END
+;           UDICT_PS_END ->   
 	
 ;###############################################################################
 ;# Configuration                                                               #
@@ -113,11 +120,19 @@
 ;# Constants                                                                   #
 ;###############################################################################
 ;Bottom of parameter stack
-PS_EMPTY		EQU	UDICT_PS_END-4
+;PS_EMPTY		EQU	UDICT_PS_END-FPS_CANARY_SIZE
 
 ;Canary 
 FPS_CANARY_MSW		EQU	"Bi"
 FPS_CANARY_LSW		EQU	"rd"
+FPS_CANARY_SIZE		EQU	4
+
+;User variables allocation size
+FPS_UV_ALLOC_SIZE	EQU	16 	;number of bytes to be allocated at once (2^n)
+FPS_UV_ALLOC_MASK	EQU	FPS_UV_ALLOC_SIZE-1;address mask
+	
+;Control-flow stack allocation size
+FPS_CS_ALLOC_SIZE	EQU	16 	;number of bytes to be allocated at once
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -131,8 +146,8 @@ FPS_VARS_START_LIN	EQU	@
 #endif	
 			ALIGN	1
 CSP			DS	2 			;control-flow stack pointer
+END_OF_PS		DS	2 			;end of parameter stack
 
-	
 FPS_VARS_END		EQU	*
 FPS_VARS_END_LIN	EQU	@
 
@@ -147,10 +162,11 @@ FPS_VARS_END_LIN	EQU	@
 ;#Abort action (to be executed in addition of QUIT action)
 ;=============
 #macro	FPS_ABORT, 0
-			LDY	#PS_EMPTY 		;reset return stack
-			MOVW	#FPS_CANARY_MSW, 0,Y	;insert canary code
-			MOVW	#FPS_CANARY_LSW, 2,Y	;
-			STY	CSP			;reset CSP
+			LDY	#UDICT_PS_END			;UDUCT_PS_END -> Y
+			STY	END_OF_PS			;reset END_OF_PS
+			STY	CSP				;reset CS
+			MOVW	#FPS_CANARY_LSW, 2,-Y		;insert canary code
+			MOVW	#FPS_CANARY_MSW, 2,-Y		;
 #emac
 	
 ;#Quit action
@@ -161,6 +177,42 @@ FPS_VARS_END_LIN	EQU	@
 ;#System integrity monitor
 ;=========================
 #macro	FPS_MON, 0
+#emac
+
+;#Control-flow stack operations 
+;==============================
+;#Allocate CS space
+; args:   1: requested CS space (in bytes)
+;         Y: PSP
+; result: Y: new PSP
+;         X: new CSP 
+; SSTACK: 2 bytes
+;         No registers are preserved
+#macro	CS_ALLOC, 1
+		LDD	#-\1			;requested space -> D
+		JOBSR	FPS_CS_ALLOC		;allocation routine
+#emac
+
+;#Deallocate CS space
+; args:   1: CS space to release (in bytes)
+;         Y: PSP
+; result: Y: new PSP
+;         X: new CSP 
+; SSTACK: 0 bytes
+;         No registers are preserved
+#macro	CS_DEALLOC, 1
+		LDX	CSP 			;current CSP -> X 
+		LEAX	D,X			;new CSP -> X
+		STX	CSP 			;update cSP
+#emac
+
+;#Clear CS
+; args:   Y: PSP
+; result: Y: new PSP
+; SSTACK: 4 bytes
+;         No registers are preserved
+#macro	CS_CLEAR, 0
+		JOBSR	FPS_CS_CLEAR		;clear CS
 #emac
 
 ;###############################################################################
@@ -207,47 +259,62 @@ FPS_LIST_SEP		EQU	FOUTER_LIST_SEP
 ;#Control-flow stack operations
 ;==============================
 ;#Allocate CS space
-; args:   A: space in bytes
+; args:   D: requested CS space (in bytes, negative)
 ;         Y: PSP
 ; result: Y: new PSP
 ;         X: new CSP 
 ; SSTACK: 2 bytes
 ;         No registers are preserved
 FPS_CS_ALLOC		EQU	*
-			TAB				;positive offset -> B
-			NEGA				;negative offset -> A
-			CPY	#PS_EMPTY		;check if PS is empty
-			LEAY	A,Y			;allocate PS space
-			BEQ	FPS_CS_ALLOC_2		;PS is empty
-			TFR	Y, X			;PSP -> X
-			MOVW	B,X, 2,X+		;move cell
-FPS_CS_ALLOC_1		CPX	CSP			;check for bottom of PS
-			BLO	FPS_CS_ALLOC_1		;more cells to copy
-FPS_CS_ALLOC_2		LDX	CSP			;CSP	 -> X
-			LEAX	A,X			;new CSP -> X
-			STX	CSP			;update CSP
-			RTS				;done
-			
-;#Deallocate CS space
-; args:   A: space in bytes
-;         Y: PSP
-; result: Y: new PSP
-;         X: new CSP 
-; SSTACK: 4 bytes
-;         No registers are preserved
-FPS_CS_DEALLOC	EQU	*
-			PSHY 				;PSP -> 0,SP
-			LDX	CSP			;CSP -> X
-FPS_CS_DEALLOC_1	MOVW	2,-X, A,X		;move cell
-			CPX	0,SP			;check for top of PS
-			BHI	FPS_CS_DEALLOC_1	;more cells to copy
-			PULY				;clean up RS
-			LEAY	A,Y			;deallocate PS space
-			LDX	CSP			;CSP -> X
-			LEAX	A,X			;new CSP -> X
-			STX	CSP			;update CSP
+			;Check if PS must be moved
+			LDX	CSP 			;current CSP -> X 
+			LEAX	D,X			;new CSP -> X
+			CPX	END_OF_PS		;check if PS will be reached 
+			BHS	FPS_CS_ALLOC_2 		;no need to move PS
+			;Move PS (new CSP in X)
+			TFR	X, D			;save new CSP
+			TFR	Y, X 			;PSP -> X
+			LEAY	FPS_CS_ALLOC_SIZE,Y	;allocate PS space
+FPS_CS_ALLOC_1		MOVW	2,X, FPS_CS_ALLOC_SIZE-2,X;move cell
+			CPX	END_OF_PS		;check if end of PS has been reached
+			BLO	FPS_CS_ALLOC_1		;copy next cell
+			LDX	END_OF_PS		;end of PS -> X
+			LEAX	FPS_CS_ALLOC_SIZE,X	;move end of PS
+			STX	END_OF_PS		;updat eend of PS
+			PSHX				;save new CSP
+			TFR	D, X			;restore CSP
+			;Update CSP (new CSP in X)
+FPS_CS_ALLOC_2		STX	CSP 			;update CSP
 			RTS				;done
 
+;#Clear CS
+; args:   Y: PSP
+; result: Y: new PSP
+; SSTACK: 4 bytes
+;         No registers are preserved
+FPS_CS_CLEAR		EQU	*
+			;Reset CSP
+			LDD	#UDICT_PS_END 		;end of CS -> D
+			STD	CSP 			;clear CS
+			;Move canary (UDICT_PS_END -> D)
+			TFR	D, X			;UDICT_PS_END -> X
+			SUBD	END_OF_PS 		;move distance -> D
+			MOVW	D,X, 2,X-		;move canary
+			MOVW	D,X, 2,X-		;
+			MOVW	#UDICT_PS_END, END_OF_PS;updare end of stack
+			;Move remaining PS (cell pointer -> X, move distance -> D)			
+			PSHD				;move distance -> 0,SP
+			TFR	Y, D			;current PSP -> D
+			SUBD	0,SP			;new PSP -> D
+			STD	0,SP			;new PSP -> 0,SP
+FPS_CS_CLEAR_1		MOVW	D,X, 2,X-		;copy cell
+			MOVW	D,X, 2,X-		;copy cell
+			CPX	0,SP			;check if TOS hes been reached
+			BHI	FPS_CS_CLEAR_1		;keep copying
+			;Update PSP (new PSP in 0,SP)			
+			PULY				;new PSP -> Y
+			RTS				;done
+	
 ;#########
 ;# Words #
 ;#########

@@ -308,7 +308,7 @@ FNVDICT_ERASE_NVM	EQU	NVM_ERASE
 
 ;Word: NV{ ( -- )
 ;Remove the UDICT and switch to the non-volatile compile strategy.
-IF_NV_OPEN		REGULAR
+;IF_NV_OPEN		REGULAR
 CF_NV_OPEN		EQU	*
 #ifdef NVDICT_ON
 			;Set strategy 
@@ -330,7 +330,7 @@ CF_NV_OPEN		EQU	*
 ;Word: }NV ( -- )
 ;Flush the NV compile buffer into the NVDICT  and switch to the volatile compile
 ;strategy.
-IF_NV_CLOSE		REGULAR
+;IF_NV_CLOSE		REGULAR
 CF_NV_CLOSE		EQU	*
 #ifdef NVDICT_ON
 			;Start to pausr communication 

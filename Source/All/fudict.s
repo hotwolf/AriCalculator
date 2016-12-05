@@ -31,13 +31,10 @@
 ;#    purposes.								       #
 ;#  									       #
 ;#    S12CForth system variables:                                              #
+;#             DP = Data pointer    b                                          #
 ;#             CP = Compile pointer                                            #
 ;#                  Points to the next free space after the dictionary         #
 ;#        CP_SAVE = Previous compile pointer                                   #
-;#       STRATEGY = Current compile interpreter:                               #
-;#  		        0: Compilation inhibited			       #
-;#  		       -1: Volatile compile strategy			       #
-;#  		       +1: Non-volatile compile strategy (use UDICT as buffer) #
 ;#  									       #
 ;#    Non-Volatile compile strategy:                                           #
 ;#    The non-volatile dictionary space is allocated after scanning the flash  #
@@ -84,10 +81,6 @@
 ;#    nest-sys        definition calls                implementation dependent #
 ;#    i*x, j*x, k*x 3 any data type                   0 or more cells	       #
 ;#  									       #
-;#    Counted strings are implemented as terminated strings. String            #
-;#    termination is done by setting bit 7 in the last character of the        #   
-;#    string. Pointers to empty strings have the value $0000.		       #
-;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 23, 2009                                                           #
@@ -109,44 +102,46 @@
 ;###############################################################################
 ; Memory layout:
 ; ==============       
-;      	                    +--------------+--------------+	     
-;         UDICT_PS_START -> |                             | 	     
-;                           |     NVDICT Variables        |	     
-;                           |                             | <- [DP]	     
-;                           | --- --- --- --- --- --- --- |          
-;                           |              |              |	     
-;                           |       User Dictionary       |	     
-;                           |       User Variables        |	     
-;                           |              |              | <- [UDICT_LAST_NFA]	     
-;                           |              v              |	     
-;                       -+- | --- --- --- --- --- --- --- |
-;             UDICT_PADDING |                             | <- [CP]	     
-;                       -+- | --- --- --- --- --- --- --- |          
-;                           |              ^              | <- [HLD]	     
-;                           |             PAD             |	     
-;                       -+- | --- --- --- --- --- --- --- |          
-;             PS_PADDING |  |                             | <- [PAD]          
-;                       -+- .                             .          
-;                           .                             .          
-;                           | --- --- --- --- --- --- --- |          
-;                           |              ^              | <- [PSP=Y]	  
-;                           |              |              |		  
-;                           |       Parameter stack       |		  
-;    	                    |              |              |		  
-;                           +--------------+--------------+        
-;                           |              ^              | <- [CSP]	  
-;                           |     Control-flow stack      |		  
-;                           +--------------+--------------+        
-;              PS_EMPTY, ->   
-;          UDICT_PS_END
-;	
+;      	                    +----------+----------+	     
+;         UDICT_PS_START -> |   User Variables    |	     
+;      	                    +----------+----------+	     
+;    	                    |    User Variables   | <- [DP]		  
+;    	                    |    Pre-Allocation   |		  
+;                           +----------+----------+        
+;                           |          |          | <-[DP+allignment]
+;                           |  User Dictionary    |	     
+;                           |          |          |	     
+;                           |          v          |	     
+;                       -+- | --- --- --- --- --- |
+;             UDICT_PADDING |                     | <- [CP]	     
+;                       -+- | --- --- --- --- --- |          
+;                           |          ^          | <- [HLD]	     
+;                           |         PAD         |	     
+;                           | --- --- --- --- --- |          
+;                           |                     | <- [PAD]          
+;                           .                     .          
+;                           .                     .          
+;                           | --- --- --- --- --- |          
+;                           |          ^          | <- [PSP=Y]	  
+;                           |          |          |		  
+;                           |   Parameter stack   |		  
+;    	                    |          |          |		  
+;                           +----------+----------+        
+;    	                    |       Canary        |	 		  
+;                           +----------+----------+        
+;    	                    |  CS Pre-Allocation  | <- [END_OF_PS]		  
+;                           +----------+----------+        
+;                           |          ^          | <- [CSP]	  
+;                           | Control-flow stack  |		  
+;                           +----------+----------+        
+;           UDICT_PS_END ->   
 ;	
 ; Word format:
 ; ============       
 ;                           +--------------+
 ;                     NFA-> |   Previous   |	
 ;                           |     NFA      | 
-;                           |              | 
+;                           | (rel. addr.) | 
 ;                           +--------------+
 ;                   NFA+2-> |     Name     | 
 ;                           |              | 
@@ -166,28 +161,6 @@
 ;                           |   for RAM    | 
 ;                           | Compilation  | 
 ;                           +--------------+   
-;	
-;	
-; Non-volatile compilation:	
-; =========================       
-;  	                         DP               CP
-;  	 Reserved data space      |                |
-;  	------------------------->V                V
-;       +-----------------------------------------+------	
-;	| NVDICT image in RAM ------------------> |
-;	+-----------------------------------------+------
-;	^
-;	 \
-;         \	
-;	   \FUDICT_OFFSET
-;	    \(source-target)
-;            \	
-;	      \
-;	       \
-;       +------+-----------------------------------------	
-;	|NVDICT| Target location of NVDICT image
-;	+------+-----------------------------------------
-;	
 ;	
 ; Control structures for compilation:	
 ; ===================================       
@@ -304,11 +277,6 @@
 ;#String termination 
 FUDICT_TERM		EQU	STRING_TERM
 
-;#Compile strategies 
-NO_COMLILE		EQU	$0000 		;interpretation state
-;NV_COMPILE		EQU	$0001 		;non-volentile compile
-;COMPILE		EQU	$FFFF 		;volentile compile
-
 ;#Control structure codes 
 FUDICT_CS_COLON_SYS	EQU	$FF		;control structure "colon-sys"
 FUDICT_CS_DO_SYS	EQU	$FE		;control structure "do-sys"
@@ -337,12 +305,11 @@ FUDICT_VARS_START_LIN	EQU	@
 #endif
 
 			ALIGN	1	
-CP			DS	2 	;compile pointer (next free space in the dictionary space) 
+DP			DS	2	;data pointer (next free space)
+CP			DS	2 	;compile pointer (next free space) 
 CP_SAVE			DS	2 	;compile pointer to revert to in case of an error
-STRATEGY		DS	2	;
 
 FUDICT_LAST_NFA		DS	2 	;pointer to the most recent NFA of the UDICT
-FUDICT_OFFSET		DS	2 	;offset = source - target
 	
 FUDICT_VARS_END		EQU	*
 FUDICT_VARS_END_LIN	EQU	@
@@ -353,10 +320,11 @@ FUDICT_VARS_END_LIN	EQU	@
 ;#Initialization (executed along with ABORT action)
 ;===============
 #macro	FUDICT_INIT, 0
-			MOVW	DP, CP
-			MOVW	#COMPILE, STRATEGY
+			LDD	#UDICT_PS_START
+			STD	DP
+			STD	CP
+			STD	CP_SAVE
 			MOVW	#$0000, FUDICT_LAST_NFA
-			MOVW	#$0000, FUDICT_OFFSET
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
@@ -419,13 +387,83 @@ FUDICT_UPPER		EQU	STRING_UPPER
 
 ;#Prints a MSB terminated string
 ; args:   X:      start of the string
-; result: X;      points to the byte after the string
+; result: X:      points to the byte after the string
 ; SSTACK: 10 bytes
 ;         Y and D are preserved
 FUDICT_TX_STRING	EQU	STRING_PRINT_BL
 
-;#Functions
-;==========
+;#Dictionary operations
+;======================
+;#Check if a string matches a NF
+; args:   X:      NFA
+;         PSP+0:  u      (char count)
+;         PSP+2;  c-addr (string address)
+; result: C-flag: set on match
+;         X:      xt on success, unchanged (NFA) on failure
+;         PSP:    PSP+4 on success, unchanged on failure
+; SSTACK: 12 bytes
+;         All registers are preserved
+FUDICT_CHECK_NAME	EQU	*
+			;Save registers
+			PSHD				;save D
+			PSHX				;save X
+			;Check first char (NFA in X)
+			LDAB	[2,Y] 			;first char -> B
+			JOBSR	FUDICT_UPPER		;make upper case
+			LDAA	2,+X			;UDICT char -> A, UDICT string -> X
+			ANDA	#~FUDICT_TERM		;remove termination
+			CBA				;compare chars
+			BNE	FUDICT_CHECK_NAME_2	;no match		
+			;Compare string lengths (UDICT string -> X) 
+			PSHX			    	;start of string -> 0,SP
+			BRCLR	1,X+,#FUDICT_TERM,* 	;skip to end of UDICT string 
+			TFR	X, D			;end of UDICT string -> D
+			SUBD	2,SP+			;subtract UDICT entry offset
+			CPD	0,Y			;compare string lengths
+			BNE	FUDICT_CHECK_NAME_2	;no match		
+			;Compare strings (UDICT EOS -> X) 
+			; +--------+--------+
+			; |  string pointer | SP+0
+			; +--------+--------+
+			; |  UDICT pointer  | SP+2
+			; +--------+--------+
+			; |    UDICT EOS    | SP+4
+			; +--------+--------+
+			PSHX				;UDICT EOS     -> 4,PS
+			PSHX				;UDICT pointer -> 2,PS
+			LDD	2,Y 			;c-addr        -> D
+			ADDD	0,Y			;c-addr+u      -> D
+			PSHD				;LU pointer    -> 0,PS
+FUDICT_CHECK_NAME_1	LDX	0,SP			;LU pointer -> X
+			LDAB	1,-X			;LU char -> B
+			CPX	2,Y			;check LU pointer
+			BEQ	FUDICT_CHECK_NAME_4	;search successful
+			STX	0,SP			;update LU pointer
+			LDX	2,SP			;UDICT pointer -> X
+			LDAA	1,-X			;UDICT char -> A
+			STX	2,SP			;update UDICT pointer
+			JOBSR	FUDICT_UPPER		;make LU char upper case
+			ANDA	#~FUDICT_TERM		;remove UDICT char termination
+			CBA				;compare chars
+			BEQ	FUDICT_CHECK_NAME_1	;check next char
+			;No match 
+			LEAS	6,SP			;remove LU and UDICT pointer from RS
+FUDICT_CHECK_NAME_2	PULX				;restore X
+			PULD				;restore D
+			CLC				;flag failure
+			RTS				;done
+			;Match 
+FUDICT_CHECK_NAME_4	LEAY	4,Y 			;remove C-addr and u from PS
+			LEAS	4,SP			;remove LU and UDICT pointer from RS
+			PULX				;UDICT EOS -> X
+			INX				;skip over IF
+			LEAS	2,SP			;don't restore X
+			PULD				;restore D
+			SEC				;flag success		
+			RTS				;done
+	
+;#Exceptions
+;============
 ;#Throw "interpreting a compile-only word" exception
 ; args:   none
 FUDICT_THROW_COMPONLY	EQU	*
@@ -447,14 +485,14 @@ FUDICT_THROW_COMPNEST	EQU	*
 ;Enter interpretation state. [ is an immediate word.
 IF_LEFT_BRACKET			IMMEDIATE
 CF_LEFT_BRACKET			EQU	*
-				MOVW	#$0000, STATE
+				MOVW	#STATE_INTERPRET, STATE
 				RTS
 
 ;Word: ] ( -- )
 ;Enter compilation state.
 IF_RIGHT_BRACKET		IMMEDIATE
 CF_RIGHT_BRACKET		EQU	*
-				MOVW	STRATEGY, STATE
+				MOVW	#STATE_COMPILE, STATE
 				RTS
 	
 ;Word: LU-UDICT ( c-addr u -- xt | c-addr u false )
@@ -468,82 +506,23 @@ CF_RIGHT_BRACKET		EQU	*
 ;volatile memory
 IF_LU_UDICT		REGULAR
 CF_LU_UDICT		EQU	*
-			;RS layout:
-			; +--------+--------+
-			; |    Iterator     | SP+0
-			; +--------+--------+
-			; | Compile Offset  | SP+2
-			; +--------+--------+
-			;Check compile strategy ( c-addr u )
-			BRCLR	STRATEGY,#$80, CF_LU_UDICT_7
 			;Check u ( c-addr u )
 			LDD	0,Y			;check if u is zero
-			BEQ	CF_LU_UDICT_7 		;empty seaech string (search failed)
+			BEQ	CF_LU_UDICT_2 		;empty seaech string (search failed)
 			;Initialize interator structure ( c-addr u )
-			LDD	FUDICT_LAST_NFA 	;last NFA -> D
-CF_LU_UDICT_1		BEQ	CF_LU_UDICT_7 		;empty dictionary (search failed)
-			MOVW	#0000, 2,-SP 		;0 -> compile offset
-			PSHD				 ;last NFA -> iterator
-			;Compare first letter ( c-addr u )
-CF_LU_UDICT_2		LDAB	[2,Y] 			;LU char -> B
-			JOBSR	FUDICT_UPPER		;make upper case
-			LDX	0,SP	 		;UDICT entry -> X
-			LDAA	2,+X			;UDICT char -> A, UDICT string -> X
-			ANDA	#~FUDICT_TERM		;remove termination
-			CBA				;compare chars
-			BNE	CF_LU_UDICT_4		;skip to next UDICT entry
-			;Compare string lengths ( c-addr u ) (UDICT string -> X) 
-			BRCLR	1,X+,#FUDICT_TERM,* 	;skip to end of UDICT string 
-			TFR	X, D			;end of UDICT string -> D
-			SUBD	0,SP			;subtract UDICT entry offset
-			SUBD	#2			;subtract name offsetr
-			CPD	0,Y			;compare string lengths
-			BNE	CF_LU_UDICT_4		;skip to next UDICT entry
-			;Compare strings ( c-addr u ) (UDICT EOS -> X) 
-			; +--------+--------+
-			; |    LU pointer   | SP+0
-			; +--------+--------+
-			; |  UDICT pointer  | SP+2
-			; +--------+--------+
-			; |    Iterator     | SP+4
-			; +--------+--------+
-			; | Compile Offset  | SP+6
-			; +--------+--------+
-			PSHX				;UDICT pointer -> 2,PS
-			LDD	2,Y 			;c-addr        -> D
-			ADDD	0,Y			;c-addr+u      -> D
-			PSHD				;LU pointer    -> 0,PS
-CF_LU_UDICT_3		LDX	0,SP			;LU pointer -> X
-			LDAB	1,-X			;LU char -> B
-			CPX	2,Y			;check LU pointer
-			BEQ	CF_LU_UDICT_5		;search successful
-			STX	0,SP			;update LU pointer
-			LDX	2,SP			;UDICT pointer -> X
-			LDAA	1,-X			;UDICT char -> A
-			STX	2,SP			;update UDICT pointer
-			JOBSR	FUDICT_UPPER		;make LU char upper case
-			ANDA	#~FUDICT_TERM		;remove UDICT char termination
-			CBA				;compare chars
-			BEQ	CF_LU_UDICT_3		;check next char
-			LEAS	4,SP			;remove LU and UDICT pointer from RS
-			;Skip next entry ( c-addr u )
-CF_LU_UDICT_4		LDX	0,SP			;iterator -> X
-			LDD	0,X			;previous entry -> D
-			BEQ	CF_LU_UDICT_6		;Search failed
-			ADDD	2,SP			;add compile offset
-			STD	0,SP			;advance iterator
-			JOB	CF_LU_UDICT_2		;check next UDICT entry
-			;Search successful ( c-addr u )
-CF_LU_UDICT_5		LEAS	4,SP	 		;remove LU and UDICT pointer from RS
-			LDX	4,SP+	 		;remove iterator from RS
-			LEAX	2,X			;skip to start of UDICT string
-			BRCLR	1,X+,#FUDICT_TERM,* 	;skip to end of UDICT string 
-			INX				;skip over
-			STX	2,+Y			;return xy
-			RTS
+			LDX	FUDICT_LAST_NFA 	;last NFA -> X
+			BEQ	CF_LU_UDICT_2 		;empty dictionary (search failed)
+			;Check name ( c-addr u ) (NFA in X)
+CF_LU_UDICT_1		JOBSR	FUDICT_CHECK_NAME 	;check name
+			BCS	CF_LU_UDICT_3		;match			
+			LDD	0,X			;NFA offset-> D
+			LEAX	D,X			;next NFA -> X
+			BNE	CF_LU_UDICT_1		;next NFA exists
 			;Search failed ( c-addr u )
-CF_LU_UDICT_6		LEAS	4,SP	 		;clean up RS
-CF_LU_UDICT_7		MOVW	#FALSE	2,-Y		;return FALSE flag
+CF_LU_UDICT_2		MOWW	#FALSE, 2,-Y 		;return false flag
+			RTS				;done
+			;Search successful ( c-addr u )(xt in X)
+CF_LU_UDICT_3		STX	2,-Y			;return xt
 			RTS				;done
 
 ;Word: WORDS-UDICT ( -- )
@@ -558,8 +537,6 @@ CF_WORDS_UDICT		EQU	*
 			; +--------+--------+
 			; |    Iterator     | SP+2
 			; +--------+--------+
-			;Check compile strategy
-			BRCLR	STRATEGY,#$80, CF_WORDS_UDICT_4
 			;Initialize interator structure 
 			LDX	FUDICT_LAST_NFA		;last NFA -> X
 CF_WORDS_UDICT_1	BEQ	CF_WORDS_UDICT_4	;empty dictionary
@@ -573,8 +550,16 @@ CF_WORDS_UDICT_1	BEQ	CF_WORDS_UDICT_4	;empty dictionary
 			;Start new line
 			JOBSR	CF_CR 			;line break
 			;Print word
-CF_WORDS_UDICT_2	LDX	2,SP 			;iterator -> X
-			MOVW	2,X+, 2,SP		;advance iterator
+CF_WORDS_UDICT_2	LDD	[2,SP] 			;NFA offset -> D
+			BEQ	CF_WORDS_UDICT_2a	;
+			ADDD	2,SP			
+CF_WORDS_UDICT_2a	STD	2,SP
+			TFR	D, X
+
+
+
+
+
 			JOBSR	FUDICT_TX_STRING	;print name
 			LDX	2,SP 			;iterator -> X
 			BEQ	CF_WORDS_UDICT_3	;done
@@ -617,17 +602,11 @@ CF_WORDS_UDICT_4	RTS				;done
 ;      	+-------------------+-------------------+	     
 IF_COLON_NONAME		IMMEDIATE			
 CF_COLON_NONAME		INTERPRET_ONLY			;catch nested compilation
-			;Set STATE ( c-addr u )
-			LDD	STRATEGY 		;STRATEGY -> D
-			BEQ	CF_COLON_NONAME_1 	;cimpile inhibited
-			STD	STATE			;STRATEGY -> STATE
-			;Compile IF ( ) (R: NFA ) (CP in X)
-			MOVW	#$0000, 2,-SP 		;0 -> RS
+			;Prepare anonymous compilation 
 			LDX	CP			;CP -> X
+			INX				;xt -> X
+			MOVW	#$0000, 2,-SP 		;0 -> RS
 			JOB	CF_COLON_2		;compile IF
-			;Compilation disabled
-CF_COLON_NONAME_1	MOVW	#FALSE, 2,-Y 		;FALSE -> PS
-			RTS				;done
 	
 ;Word: : ( C: "<spaces>name" -- colon-sys )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -660,34 +639,37 @@ CF_COLON		INTERPRET_ONLY			;catch nested compilation
 CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			JOBSR	CF_SKIP_AND_PARSE	;parse name
 			LDD	0,Y			;check name
-			BNE	CF_COLON_2		;name found
-			THROW	FEXCPT_TC_NONAME	;throw "missing name" exception
-			;Set STATE ( c-addr u )
-CF_COLON_2		LDD	STRATEGY 		;STRATEGY -> D
-			BEQ	CF_COLON_4 		;compile inhibited
-			STD	STATE			;STRATEGY -> STATE
-			;Save new NFA ( c-addr u )
+			BEQ	CF_COLON_3		;missing name
+			;Check for recompilation of last name ( c-addr u )			
+			LDX	FUDICT_LAST_NFA		;last NFA -> X
+			PSHX				;last NFA -> 0,SP
+			JOBSR	FUDICT_CHECK_NAME 	;check name
+			BCS	CF_COLON_2		;match			
+			;Compile new NFA ( c-addr u ) (R: NFA )
 			LDX	CP 			;CP -> X
-			PSHX				;CP -> RS
-			;Compile last NFA ( c-addr u ) (R: NFA )(CP in X)
-			MOVW	FUDICT_LAST_NFA, 2,X+ 	;compile last NFA
+			STX	0,SP			;new NFA -> 0,SP
+			TFR	X, D			;CP -> D
+			SUBD	0,SP			;NFA offset -> D
+			STD 	2,X+ 			;compile new NFA
 			;Compile name ( c-addr u ) (R: NFA ) (CP in X) 
-			STX	CP			;update CP
 			JOBSR	CF_NAME_COMMA_1		;compile name
-			;Compile IF ( ) (R: NFA ) (CP in X)
-CF_COLON_3		CLR	1,+X 			;set default IF
-			STX	CP			;update CP
+			INX				;skip over IF
+			;Set STATE ( ) (R: NFA ) (xt in X) 
+CF_COLON_2		MOVW	#STATE_COMPILE, STATE 	set colpile state;
+			;Compile IF ( ) (R: NFA ) (xt in X)
+			CLR	-1,X 			;set default IF
+			STX	CP
 			;Push colon-sys onto the control stack ( ) (R: NFA ) (CP in X)
-			LDAA	#6 			;alllocate 6 bytes
-			JOBSR	FPS_CS_ALLOC		; of CS space
+			CS_ALLOC	6		;alllocate 6 bytes
 			MOVW	#FUDICT_CS_COLON_SYS, 0,X;set CS code
 			MOVW	2,Y+, 2,X		;set NFA
 			MOVW	CP,   4,X		;set CFA
 			RTS				;done
-			;Compilation disabled
-CF_COLON_4		LEAY	4,Y 			;drop c-addr and u
-			RTS				;done
+			;Missing name 
+			LEAY	4,Y 			;clean up PS
+			THROW	FEXCPT_TC_NONAME	;throw "Missing name argument" exception
 
+	
 ;Word: NAME, 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( c-addr u  -- )

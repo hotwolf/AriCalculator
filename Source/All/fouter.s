@@ -35,8 +35,7 @@
 ;#           BASE = Default radix (2<=BASE<=36)                                #
 ;#          STATE = State of the outer interpreter:                            #
 ;#  		        0: Interpretation state				       #
-;#  		       -1: Volatile compile state			       #
-;#  		       +1: Non-volatile Compile state		               #
+;#  		       >0: Compile state	    		               #
 ;#     number_TIB = Number of chars in the TIB                                 #
 ;#          TO_IN = In-pointer of the TIB (>IN)	       			       #
 ;#       	    (TIB_START+TO_IN) points to the next character	       #
@@ -135,7 +134,6 @@ FOUTER_SYM_SPACE	EQU	STRING_SYM_SPACE	;space (first printable ASCII character)
 ;#STATE variable 
 STATE_INTERPRET		EQU	 0
 STATE_COMPILE		EQU	-1
-STATE_NVCOMPILE		EQU	 1
 
 ;#Text input buffer 
 TIB_START		EQU	RS_TIB_START
@@ -143,7 +141,6 @@ TIB_START		EQU	RS_TIB_START
 ;#System prompts
 FOUTER_INTERACT_PROMPT	EQU	">"
 FOUTER_COMPILE_PROMPT	EQU	"+"
-FOUTER_NVCOMPILE_PROMPT	EQU	"@"
 
 ;M#ax. line width
 FOUTER_LINE_WIDTH	EQU	79
@@ -163,11 +160,6 @@ FOUTER_SYM_BEEP		EQU	STRING_SYM_BEEP		;acoustic signal
 TRUE			EQU	$FFFF
 FALSE			EQU	$0000	
 
-;#Compile states 
-INTERPRET		EQU	$0000 		;interpretation state
-NV_COMPILE		EQU	$0001 		;non-volentile compile
-COMPILE			EQU	$FFFF 		;volentile compile
-	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -710,12 +702,9 @@ CF_PROMPT		EQU	*
 			MOVW	#CF_SPACE, 2,-SP	;push return address	
 			LDAB	#FOUTER_INTERACT_PROMPT	;interactive prompt -> B
 			LDX	STATE			;check STATE
-			BEQ	FOUTER_TX_CHAR		;print interactive prompt
-			BPL	CF_PROMPT_1		;NV compile
+			BEQ	CF_PROMPT_1		;print interactive prompt
 			LDAB	#FOUTER_COMPILE_PROMPT	;RAM compile prompt -> B 
-CF_PROMPT_1		JOB	FOUTER_TX_CHAR		;print RAM compile prompt
-			LDAB	#FOUTER_NVCOMPILE_PROMPT;NV compile prompt -> B 
-			JOB	FOUTER_TX_CHAR		;print NV compile prompt
+CF_PROMPT_1		JOB	FOUTER_TX_CHAR		;print NV compile prompt
 	
 ;ABORT run-time ( i*x -- ) ( R: j*x -- )
 ;Empty the data stack and perform the function of QUIT, which includes emptying
@@ -756,43 +745,34 @@ CF_INTERPRET_1		MOVW	#FOUTER_SYM_SPACE, 2,-Y ;use SPACE as word seperator
 			JOB	FOUTER_TX_STRING	;print string
 			;Check for compile state (c-addr u)
 CF_INTERPRET_2		LDD	STATE 			;check STATE
-			BEQ	CF_INTERPRET_6		;interpret
-			BPL	CF_INTERPRET_X		;non-volatile compile
+			BEQ	CF_INTERPRET_5		;interpret
 			;Volatile compile (c-addr u)
 			JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
 			BEQ	CF_INTERPRET_3		;unknown word
-			BRSET	-1,X, #$FF, CF_INTERPRET_7;execute immediate word
+			BRSET	-1,X, #$FF, CF_INTERPRET_6;execute immediate word
 			STX	2,-Y			;xt -> PS
 			MOVW	#CF_INTERPRET_1, 2,-SP	;push return address (parse loop)
 			JOB	CF_COMPILE_COMMA_1	;compile word
 CF_INTERPRET_3		JOBSR	CF_TO_INT 		;convert to integer
 			LDD	2,Y+			;check result
-			BEQ	CF_INTERPRET_9		;syntax error
+			BEQ	CF_INTERPRET_8		;syntax error
 			MOVW	#CF_INTERPRET_1, 2,-SP	;push return address (parse loop)
 			DBEQ	D, CF_INTERPRET_4	;compile single cell
 			JOB	CF_2LITERAL_1		;compile literal
 CF_INTERPRET_4		JOB	CF_LITERAL_1		;compile literal
-			;Non-volatile compile (c-addr u)
-CF_INTERPRET_X		JOB	CF_INTERPRET_9 		;TBD
-
-
-			;TBD 
-
-
-	
 			;Interpretation (c-addr u)
-CF_INTERPRET_6		JOBSR	CF_LU 			;look up word
+CF_INTERPRET_5		JOBSR	CF_LU 			;look up word
 			LDX	2,Y+			;xt -> X
-			BEQ	CF_INTERPRET_8		;unknown word
-CF_INTERPRET_7		JSR	0,X 			;execute
+			BEQ	CF_INTERPRET_7		;unknown word
+CF_INTERPRET_6		JSR	0,X 			;execute
 			MOVW	#CF_INTERPRET_1, 2,-SP	;push return address (parse loop)
 			JOB	CF_MONITOR		;check system integrity
-CF_INTERPRET_8		JOBSR	CF_TO_INT		;convert to integer
+CF_INTERPRET_7		JOBSR	CF_TO_INT		;convert to integer
 			LDD	2,Y+			;check result
 			BNE	CF_INTERPRET_1		;parse loop
 			;Syntax (c-addr u)
-CF_INTERPRET_9		MOVW	#CF_ABORT_RT, 2,-SP	;push return address (CF_ABORT_RT)
+CF_INTERPRET_8		MOVW	#CF_ABORT_RT, 2,-SP	;push return address (CF_ABORT_RT)
 			JOB	CF_SYNERR_DOT		;print error message
 	
 ;Word: SKIP&PARSE ( char "ccc<char>" -- c-addr u )
