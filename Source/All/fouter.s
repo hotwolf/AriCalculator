@@ -866,10 +866,10 @@ CF_LU			EQU	*
 			LDD	0,Y			;check result
 			BNE	CF_LU_1			;successful
 			;Search NVDICT
-			LEAY	2,Y 			;remove fail flag
-			JOBSR	CF_LU_NVDICT		;search NVDICT
-			LDD	0,Y			;check result
-			BNE	CF_LU_1			;successful
+			;LEAY	2,Y 			;remove fail flag
+			;JOBSR	CF_LU_NVDICT		;search NVDICT
+			;LDD	0,Y			;check result
+			;BNE	CF_LU_1			;successful
 			;Search CDICT
 			LEAY	2,Y			;remove fail flag			
 			JOB	CF_LU_CDICT		;search CDICT
@@ -880,7 +880,7 @@ CF_LU_1			RTS				;done
 IF_WORDS		REGULAR
 CF_WORDS		EQU	*
 			JOBSR	CF_WORDS_UDICT
-			JOBSR	CF_WORDS_NVDICT
+			;JOBSR	CF_WORDS_NVDICT
 			JOB	CF_WORDS_CDICT
 
 ;Word: TYPE ( c-addr u  -- ) Print a string

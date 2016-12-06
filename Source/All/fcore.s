@@ -322,7 +322,7 @@ CF_PLUS_STORE_EOI		RTS
 ;pointer is aligned when , begins execution, it will remain aligned when,
 ;finishes execution. An ambiguous condition exists if the data-space pointer is
 ;not aligned prior to execution of ,.
-;==> FNVDICT
+;==> FUDICT
 
 ;Word: - ( n1|u1 n2|u2 -- n3|u3 )
 ;Subtract n2|u2n from n1|u1, giving the difference n3|u3.
@@ -662,7 +662,7 @@ CF_ABS_1			RTS			;done
 
 ;ALIGN ( -- )
 ;If the data-space pointer is not aligned, reserve enough space to align it.
-;==> FNVDICT
+;==> FUDICT
 	
 ;Word: ALIGNED ( addr -- a-addr )
 IF_ALIGNED			INLINE	CF_ALIGNED
@@ -683,7 +683,7 @@ CF_ALIGNED_EOI			RTS
 ;If the data-space pointer is character aligned and n is a multiple of the size
 ;of a character when ALLOT begins execution, it will remain character aligned
 ;when ALLOT finishes execution.
-;==> FNVDICT
+;==> FUDICT
 	
 ;Word: AND ( x1 x2 -- x3 )
 ;x3 is the bit-by-bit logical and of x1 with x2.
@@ -731,7 +731,7 @@ CF_C_STORE_EOI			RTS
 ;will remain character aligned when C, finishes execution. An ambiguous
 ;condition exists if the data-space pointer is not character-aligned prior to
 ;execution of C,.
-;==> FNVDICT
+;==> FUDICT
 
 ;Word: C@ ( c-addr -- char )
 ;Fetch the character stored at c-addr. When the cell size is greater than
@@ -794,11 +794,11 @@ CF_CHARS_EOI			RTS
 
 ;Word: CLS ( -- empty ) S12CForth extension!
 ;Empty the parameter and the control flow stack.
-IF_CLS				INLINE	CF_CLS
-CF_CLS				EQU	*
-				LDY	#PS_EMPTY
-				STY	CSP
-CF_CLS_EOI			RTS
+;IF_CLS				INLINE	CF_CLS
+;CF_CLS				EQU	*
+;				LDY	#PS_EMPTY
+;				STY	CSP
+;CF_CLS_EOI			RTS
 
 ;CONSTANT ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -880,11 +880,11 @@ CF_DECIMAL_EOI			RTS
 ;Word: DEPTH ( -- +n )
 ;+n is the number of single-cell values contained in the data stack before +n
 ;was placed on the stack.
-IF_DEPTH			INLINE	CF_DEPTH
-CF_DEPTH			EQU	*
-				LEAX	-PS_EMPTY,Y 			;+n -> X
-				STX	2,-Y 				;+n -> PS
-CF_DEPTH_EOI			RTS 					;done
+;IF_DEPTH			INLINE	CF_DEPTH
+;CF_DEPTH			EQU	*
+;				LEAX	-PS_EMPTY,Y 			;+n -> X
+;				STX	2,-Y 				;+n -> PS
+;CF_DEPTH_EOI			RTS 					;done
 
 ;DO
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1085,7 +1085,7 @@ CF_FILL_2			LEAY	6,Y			;clean up PS
 
 ;HERE ( -- addr )
 ;addr is the data-space pointer. (points to the next free data space)
-;==> FNVDICT
+;==> FUDICT
 	
 ;HOLD ( char -- )
 ;Add char to the beginning of the pictured numeric output string. An ambiguous
@@ -1640,33 +1640,7 @@ CF_U_M_SLASH_MOD_2		THROW	FEXCPT_TC_RESOR		;result out of range
 ;name Execution: ( -- a-addr )
 ;a-addr is the address of the reserved cell. A program is responsible for
 ;initializing the contents of the reserved cell.
-;CF_VARIABLE			;Build header
-;				SSTACK_JOBSR	FCORE_HEADER ;NFA -> D, error handler -> X (SSTACK: 10 bytes)
-;				TBNE	X, CF_VARIABLE_ERROR
-;				;Update LAST_NFA 
-;				STD	LAST_NFA
-;				;Append CFA 
-;				LDX	CP
-;				MOVW	#CF_VARIABLE_RT, 2,X+
-;				;Append variable space (CP in X)
-;				MOVW	#$0000, 2,X+
-;				STX	CP
-;				;Update CP saved (CP in X)
-;				STX	CP_SAVED
-;				;Done 
-;				NEXT
-;				;Error handler for FCORE_HEADER 
-;CF_VARIABLE_ERROR		JMP	0,X
-;
-;;VARIABLE run-time semantics
-;;Push the address of the first cell after the CFA onto the parameter stack
-;CF_VARIABLE_RT			PS_CHECK_OF	1		;overflow check	=> 9 cycles
-;				LEAX		2,X		;CFA+2 -> PS	=> 2 cycles
-;				STX		0,Y		;		=> 3 cycles
-;				STY		PSP		;		=> 3 cycles
-;				NEXT				;NEXT		=>15 cycles
-;								; 		  ---------
-;								;		  32 cycles
+;==> FUDICT
 	
 ;WHILE 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -2270,7 +2244,7 @@ CF_U_GREATER_THAN_1		TAB					;flag  -> D
 ;UNUSED ( -- u )
 ;u is the amount of space remaining in the region addressed by HERE, in address
 ;units.
-;==> FNVDICT
+;==> FUDICT
 			
 ;Word: VALUE ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
