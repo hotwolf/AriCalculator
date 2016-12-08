@@ -651,27 +651,27 @@ CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			BCS	CF_COLON_2		;match			
 			;Compile new NFA ( c-addr u ) (R: NFA )
 			LDX	CP 			;CP -> X
-			STX	0,SP			;new NFA -> 0,SP
 			TFR	X, D			;CP -> D
 			SUBD	0,SP			;NFA offset -> D
+			STX	0,SP			;new NFA -> 0,SP
 			STD 	2,X+ 			;compile new NFA
+			STX	CP			;update CP
 			;Compile name ( c-addr u ) (R: NFA ) (CP in X) 
 			JOBSR	CF_NAME_COMMA_1		;compile name
 			INX				;skip over IF
 			;Set STATE ( ) (R: NFA ) (xt in X) 
 CF_COLON_2		MOVW	#STATE_COMPILE, STATE 	;set compile state
-			;Compile IF ( ) (R: NFA ) (xt in X)
+			;Compile IF ( ) (xt in X)
 			CLR	-1,X 			;set default IF
 			STX	CP
 			;Push colon-sys onto the control stack ( ) (R: NFA ) (CP in X)
 			CS_ALLOC	6		;allocate 6 bytes
 			MOVW	#FUDICT_CS_COLON_SYS, 0,X;set CS code
-			MOVW	2,Y+, 2,X		;set NFA
+			MOVW	2,SP+, 2,X		;set NFA
 			MOVW	CP,   4,X		;set CFA
 			RTS				;done
 			;Missing name 
-CF_COLON_3		LEAY	4,Y 			;clean up PS
-			THROW	FEXCPT_TC_NONAME	;throw "Missing name argument" exception
+CF_COLON_3		THROW	FEXCPT_TC_NONAME	;throw "Missing name argument" exception
 
 ;Word: NAME, 
 ;Interpretation: Interpretation semantics for this word are undefined.
