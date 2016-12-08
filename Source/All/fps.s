@@ -475,8 +475,8 @@ CF_DOT_S		EQU	*
 			; +--------+--------+
 			;Allocate iterator 
 			;MOVW	#(PS_EMPTY-2), 2,-SP 		;first PS entry -> iterator
-			LDX	CSP 				;CSP -> X
-			LEAX	-2,X				;first PS entry -> X
+			LDX	END_OF_PS 			;END_OF_PS -> X
+			LEAX	-6,X				;first PS entry -> X
 			PSHX					;first PS entry -> iterator
 			CPY	0,SP				;check for empty PS
 			BHI	CF_DOT_S_2			;PS is empty

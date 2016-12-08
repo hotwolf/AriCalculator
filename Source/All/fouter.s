@@ -759,7 +759,7 @@ CF_INTERPRET_3		JOBSR	CF_TO_INT 		;convert to integer
 			BEQ	CF_INTERPRET_8		;syntax error
 			MOVW	#CF_INTERPRET_1, 2,-SP	;push return address (parse loop)
 			DBEQ	D, CF_INTERPRET_4	;compile single cell
-			JOB	CF_2LITERAL_1		;compile literal
+			JOB	CF_TWO_LITERAL_1	;compile literal
 CF_INTERPRET_4		JOB	CF_LITERAL_1		;compile literal
 			;Interpretation (c-addr u)
 CF_INTERPRET_5		JOBSR	CF_LU 			;look up word

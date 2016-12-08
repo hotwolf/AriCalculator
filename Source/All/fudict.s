@@ -287,9 +287,13 @@ FUDICT_CS_DEST		EQU	$FA  		;control structure "dest"
 
 ;#Compile flags 
 FUDICT_CF_NOINL		EQU	$80 		;no inline
-FUDICT_CF_BSR		EQU	$01		;last compile was "BSR"
-FUDICT_CF_JSR		EQU	$02		;last compile was "JSR"
 FUDICT_CF_COF		EQU	$03 		;clear all COF optimizations
+FUDICT_CF_COF_2		EQU	$01 		;2 byte COF instruction
+FUDICT_CF_COF_3		EQU	$02 		;3 byte COF instruction
+FUDICT_CF_COF_4		EQU	$03 		;4 byte COF instruction
+FUDICT_CF_COF_2_NOINL	EQU	$81 		;2 byte COF instruction (prohibit inline compilation)
+FUDICT_CF_COF_3_NOINL	EQU	$82 		;3 byte COF instruction (prohibit inline compilation)
+FUDICT_CF_COF_4_NOINL	EQU	$83 		;4 byte COF instruction (prohibit inline compilation)
 
 ;#INLINE optimization
 FUDICT_MAX_INLINE	EQU	8 		;max. CF size for INLINE optimization
@@ -655,12 +659,12 @@ CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			JOBSR	CF_NAME_COMMA_1		;compile name
 			INX				;skip over IF
 			;Set STATE ( ) (R: NFA ) (xt in X) 
-CF_COLON_2		MOVW	#STATE_COMPILE, STATE 	;set colpile state
+CF_COLON_2		MOVW	#STATE_COMPILE, STATE 	;set compile state
 			;Compile IF ( ) (R: NFA ) (xt in X)
 			CLR	-1,X 			;set default IF
 			STX	CP
 			;Push colon-sys onto the control stack ( ) (R: NFA ) (CP in X)
-			CS_ALLOC	6		;alllocate 6 bytes
+			CS_ALLOC	6		;allocate 6 bytes
 			MOVW	#FUDICT_CS_COLON_SYS, 0,X;set CS code
 			MOVW	2,Y+, 2,X		;set NFA
 			MOVW	CP,   4,X		;set CFA
@@ -669,7 +673,6 @@ CF_COLON_2		MOVW	#STATE_COMPILE, STATE 	;set colpile state
 CF_COLON_3		LEAY	4,Y 			;clean up PS
 			THROW	FEXCPT_TC_NONAME	;throw "Missing name argument" exception
 
-	
 ;Word: NAME, 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( c-addr u  -- )
@@ -745,49 +748,73 @@ CF_MOVE_2		LEAY	6,Y			;clean up stack
 ;execution semantics of the current definition.
 IF_COMPILE_COMMA	IMMEDIATE
 CF_COMPILE_COMMA	COMPILE_ONLY
-CF_COMPILE_COMMA_1	BGND	
-;			;Remove COF COF optimization flags
-;			LDX	CSP		   	;CSP -> X
-;			BCLR	0,X,#FUDICT_CF_COF 	;clear compile flags
-;			;Get xt ( xt )
-;CF_COMPILE_COMMA_1	LDX	0,Y 			;xt -> X
-;			LDAB	-1,X			;IF -> B
-;			BNE	CF_COMPILE_COMMA_4	;not REGULAR
-;			;REGULAR word ( xt ) 
-;CF_COMPILE_COMMA_2	LDX	CP 			;CP   -> X		
-;			TFR	X,D 			;CP   -> D
-;			SUBD	FUDICT_OFFSET		;CP-offs -> D
-;			SUBD	0,Y			;CP-offs-xt -> D
-;			TBEQ	A,CF_COMPILE_COMMA_3	;compile BSR
-;			;Compile JSR ( xt ) (CP in X)
-;			LEAX	3,X 			;allocate compile space
-;			STX	CP			;update CP
-;			MOVB	#$16, -3,X		;compile "JSR" opcode
-;			MOVW	2,Y+, -2,X		;compile xt	
-;			LDX	CSP		  	;CSP -> X
-;			BSET	0,X,FUDICT_CF_JSR 	;optimize last JSR
-;			RTS				;done
-;			;Compile BSR ( xt ) (CP in X, negated rel. addr in B)
-;CF_COMPILE_COMMA_3	LEAX	2,X 			;allocate compile space
-;			STX	CP			;update CP
-;			MOVB	#$07, -2,X		;compile "BSR" opcode
-;			NEGB				;rel. addr -> B
-;			STAB	-1,X			;compile rel. addr
-;			LDX	CSP		  	;CSP -> X
-;			BSET	0,X,#(FUDICT_CF_NOINL|FUDICT_CF_BSR);optimize last JSR
-;			RTS				;done
-;			;Word not REGULAR ( xt ) (xt in X, IF in B)
-;CF_COMPILE_COMMA_4	CMPB	#IMMEDIATE 		;check for IMMEDIATE word
-;			BEQ	CF_COMPILE_COMMA_2	;compile as REGULAR word
-;			LDX	CSP		  	;CSP -> X
-;			BRSET	0,X,#FUDICT_CF_NOINL,CF_COMPILE_COMMA_2;inline compilation forbidden
-;			LDX	CP			;CP -> X
-;			STX	2,-Y			;( xt CP )
-;			CLRA				;u  -> D
-;			STD	2,-Y			;( xt CP u )
-;			LEAX	B,X			;allocate compile space
-;			STX	CP			;update CP
-;			JOB	CF_MOVE			;copy INLINE code
+			;Remove old COF optimization flags
+CF_COMPILE_COMMA_1	LDX	CSP		   	;CSP -> X
+			BCLR	0,X,#FUDICT_CF_COF 	;clear compile flags
+			;Check for INLINE compilation
+			LDX	0,Y 			;xt -> X
+			LDAB	-1,X			;IF -> B
+			BEQ	CF_COMPILE_COMMA_2	;no INLINE compilation
+			COMB				;invert IF
+			BEQ	CF_COMPILE_COMMA_2	;no INLINE compilation
+			COMB				;restore IF
+			STX	2,Y- 			;addr1 -> PSP+4
+			LDX	CP			;CP -> X
+			STX	2,Y- 			;addr2 -> PSP+2
+			LEAX	B,X			;allocate compile space
+			STX 	CP			;update CP
+			CLRA				;IF -> D
+			STD	2,Y-			;u -> PSP+0
+			JOB	CF_MOVE			;copy inline code
+			;Check xt target
+CF_COMPILE_COMMA_2	LDX	CSP		   	;CSP -> X
+			LDD	2,Y+ 			;xt -> D
+			CPD	DP			;check lower range
+			BLO	CF_COMPILE_COMMA_3  	;compile absolute call
+			CPD	CP			;check upper range
+			BHI	CF_COMPILE_COMMA_3  	;compile absolute call
+			;Check relative call distance (CSP in X, xt in D)
+			SUBD	CP 			;call distance -> D
+			CPD	#(2-128)		;check for short branch
+			BLT	CF_COMPILE_COMMA_4	;medium or long branch distance
+			;Compile short distance call (CSP in X, call distance in D)
+			SUBB	#2			;rr -> B
+			BSET	0,X,#FUDICT_CF_COF_2_NOINL;set compile flags
+			LDX	CP			;CP -> X
+			LEAX	2,X			;allocate 2 bytes
+			STX 	CP			;update CP
+			LDAA	#$07			;"BSR" -> A
+			STD	-2,X			;compile "BSR rr"
+			RTS				;done
+			;Compile absolute  call (CSP in X, xt in D)
+CF_COMPILE_COMMA_3	BSET	0,X,#FUDICT_CF_COF_3	;set compile flags
+			LDX	CP			;CP -> X
+			LEAX	3,X			;allocate 3 bytes
+			STX 	CP			;update CP
+			MOVB	#$16, -3,X		;compile "JSR"
+			STD	-2,X			;compile "hh ll"
+			RTS				;done
+			;Check relative call distance (CSP in X, call distance in D)
+CF_COMPILE_COMMA_4	CPD	#(3-256)		;check for short branch
+			BLT	CF_COMPILE_COMMA_5	;long branch distance		
+			;Compile medium distance call (CSP in X, call distance in D)
+			SUBB	#3			;ff -> B
+			BSET	0,X,#FUDICT_CF_COF_3_NOINL;set compile flags
+			LDX	CP			;CP -> X
+			LEAX	3,X			;allocate 3 bytes
+			STX 	CP			;update CP
+			MOVW	#$15F9, -3,X		;compile "JSR xb" (IDX1)
+			STAB	-1,X			;compile "ff"
+			RTS				;done
+			;Compile long distance call (CSP in X, call distance in D)
+CF_COMPILE_COMMA_5	SUBD	#4			;ee ff -> D
+			BSET	0,X,#FUDICT_CF_COF_4_NOINL;set compile flags
+			LDX	CP			;CP -> X
+			LEAX	4,X			;allocate 4 bytes
+			STX 	CP			;update CP
+			MOVW	#$15FA, -4,X		;compile "JSR xb" (IDX2)
+			STD	-2,X			;compile "ee ff"
+			RTS				;done
 	
 ;Word: ; 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -798,59 +825,69 @@ CF_COMPILE_COMMA_1	BGND
 ;enough data space to align it.
 ;Run-time: ( -- ) ( R: nest-sys -- )
 ;Return to the calling definition specified by nest-sys.
+;
+;colon-sys:
+;      	+-------------------+-------------------+	     
+;       |   compile flags   |FUDICT_CS_COLON_SYS| +0	     
+;      	+-------------------+-------------------+	     
+;       |             current NFA               | +2	     
+;      	+-------------------+-------------------+	     
+;       |             current CFA               | +4	     
+;      	+-------------------+-------------------+	     
 IF_SEMICOLON		IMMEDIATE			
 CF_SEMICOLON		COMPILE_ONLY			;compile-only word
 			;Check colon-sys 
-			LDX	CSP 			;CSP -> X
-			LDD	1,X			;flags:colon-sys -> D
+CF_SEMICOLON_1		LDD	[CSP] 			;flags:ID -> D
 			CMPB	#FUDICT_CS_COLON_SYS	;check for : definition
-			BNE	CF_SEMICOLON_2 		;control structure mismatch	
+			BNE	CF_SEMICOLON_7 		;control structure mismatch	
 			;Check for COF optimization (flags:colon-sys -> D)
-CF_SEMICOLON_1		LDX	CP
-			BITA	#FUDICT_CF_BSR 		;check for BSR optimization
-			BEQ	CF_SEMICOLON_3		;optimize last BSR
-			BITA	#FUDICT_CF_JSR 		;check for JSR optimization
-			BNE	CF_SEMICOLON_4		;no optimization
-			;Optimize last JSR (CP in X)
-			LDAA	#$16			;check for JSR ext
-			CMPA	-3,X			;compare opcode
-			BNE	CF_SEMICOLON_4		;no optimization
-			MOVB	#$06, -3,X		;replace JSR by JMP
-			JOB	CF_SEMICOLON_5		;finish up
-			;Control structure misatch
-CF_SEMICOLON_2		THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatch"
-			;Optimize last BSR (CP in X)
-CF_SEMICOLON_3		LDAA	#$07			;check for BSR ext
-			CMPA	-2,X			;compare opcode
-			BNE	CF_SEMICOLON_4		;no optimization
-			MOVB	#$20, -2,X		;replace BSR by BRA
-			JOB	CF_SEMICOLON_5		;finish up
-			;No COF optimization (CP in X)
-CF_SEMICOLON_4		INX
-			STX	CP			;updated CP
-			MOVB	#$3D, -1,X		;compile "RTS"
-			;Consider INLINE optimization (CP in X)
-			TFR	X, D			;CP  -> D
-			LDX	CSP			;CSP -> X
-			BRSET	0,X,#FUDICT_CF_NOINL,CF_SEMICOLON_5;INLINE blocked
-			SUBD	4,X			;compile length -> D
-			CPD	#(FUDICT_MAX_INLINE+1)	;check CF length
-			BHI	CF_SEMICOLON_5		;no INLINE optimization
-			DECB				;adjust INLINE size
-			LDX	4,X			;xt -> X 
-			STAB	-1,X			;set INLINE compile
-			;Embed word into dictionary 
-CF_SEMICOLON_5		MOVW	CP, CP_SAVE   		;secure compilation
-			LDX	CSP 			;CSP -> X
+CF_SEMICOLON_2		LDX	CP 			;CP -> X
+			ANDA	#FUDICT_CF_COF		;check COP flags
+			BEQ	CF_SEMICOLON_9		;no COF optimization
+			COMA				;opcode offset -> A
+			LDAB	A,X			;opcode -> B
+			CMPA	#-2			;check for 2 byte opcode
+			BEQ	CF_SEMICOLON_8		;optimize "BSR" (relative)
+			CMPA	#-4			;check for 4 byte opcode
+			BEQ	CF_SEMICOLON_3		;optimize "JSR" (relative)
+			;Optimize JSR (CP in X, opcode offset in A, opcode in B)
+			CMPB	#$16 			;check for "JSR" (absolute)
+			BEQ	CF_SEMICOLON_4		;"JSR" -> "JMP"
+CF_SEMICOLON_3		CMPB	#$15 			;check for "JSR" (relative)
+			BNE	CF_SEMICOLON_7		;control structure mismatch
+CF_SEMICOLON_4		BCLR	A,X,#$10		;"JSR" -> "JMP"
+			;Add word to UDICT 
+CF_SEMICOLON_5		LDX	CSP 			;CSP -> X
 			LDD	2,X			;NFA -> D
 			BEQ	CF_SEMICOLON_6		;:NONAME compilation
-			STD	FUDICT_LAST_NFA		;update last NFA
-			JOB	CF_SEMICOLON_7		;clean up
-			;Conclude :NONAME compilation (CSP in X)
-CF_SEMICOLON_6		MOVW	4,X, 2,-Y 		;xt -> PS
-			;Clean-up
-CF_SEMICOLON_7		CS_DEALLOC    #6 		;deallocate CS space
+			STD	FUDICT_LAST_NFA 	;update last NFA
+			;Remove colon-sys 
+CF_SEMICOLON_6		CS_DEALLOC	6		;deallocate 6 bytes
+			MOVW	#STATE_INTERPRET, STATE ;set interpretation state
 			RTS				;done
+			;Control structure misatch
+CF_SEMICOLON_7		THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatch"
+			;Optimize BSR (CP in X, opcode offset in A, opcode in B)
+CF_SEMICOLON_8		CMPB	#$07 			;check for "BSR"
+			BNE	CF_SEMICOLON_7		;control structure mismatch
+			MOVB	#$20, A,X		;"BSR" -> "BRA"
+			JOB	CF_SEMICOLON_5		;add word to UDICT
+			;Set INLINE configuration (CP in X) 
+CF_SEMICOLON_9		LDD	CP 			;CP -> D
+			LDX	CSP 			;CSP -> X
+			BRSET	0,X,#FUDICT_CF_NOINL,CF_SEMICOLON_10;INLINE compilation prohibited
+			SUBD	4,X			;code length -> D
+			CPD	#FUDICT_MAX_INLINE	;check code length
+			BHI	CF_SEMICOLON_10		;code sequence too long
+			LDX	4,X			;CFA -> X
+			STAB	-1,X			;update IF
+			;No COF optimization
+CF_SEMICOLON_10		LDX	CP 			;CP -> X
+			INX				;allocate 1 byte
+			STX 	CP			;update CP
+			MOVB	#$3D, -1,X		;compile "RTS"
+			JOB	CF_SEMICOLON_5		;add word to UDICT
+
 
 ;Word: CONSTANT ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -863,10 +900,10 @@ CF_CONSTANT		EQU	*
 			;Compile header 
 			JOBSR	CF_COLON 		;use standard ":" 
 			;Compile body 
-			JOBSR	CF_LITERAL_1 		;LITERAL
+			JOBSR	CF_LITERAL_1 	;LITERAL
 			;Conclude compilation		
 			JOB	CF_SEMICOLON_1 		;";"
-	
+
 ;Word: LITERAL 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( x -- )
@@ -894,11 +931,26 @@ CF_LITERAL_2		RTS				;done
 ;Append the run-time semantics below to the current definition.
 ;Run-time: ( -- x1 x2 )
 ;Place cell pair x1 x2 on the stack.
-IF_2LITERAL		IMMEDIATE
-CF_2LITERAL		COMPILE_ONLY	
-CF_2LITERAL_1		JOBSR	CF_SWAP			;(x1 x2 -- x2 x1)
+IF_TWO_LITERAL		IMMEDIATE
+CF_TWO_LITERAL		COMPILE_ONLY	
+CF_TWO_LITERAL_1	JOBSR	CF_SWAP			;(x1 x2 -- x2 x1)
 			JOBSR	CF_LITERAL_1		;compile x1
 			JOB	CF_LITERAL_1		;compile x2
+
+;Word: 2CONSTANT ( x1 x2 "<spaces>name" -- )
+;Skip leading space delimiters. Parse name delimited by a space. Create a
+;definition for name with the execution semantics defined below.
+;name is referred to as a constant.
+;name Execution: ( -- x1 x2 )
+;Place x1 and x2 on the stack.
+IF_TWO_CONSTANT		REGULAR
+CF_TWO_CONSTANT		EQU	*
+			;Compile header 
+			JOBSR	CF_COLON 		;use standard ":" 
+			;Compile body 
+			JOBSR	CF_TWO_LITERAL_1 	;2LITERAL
+			;Conclude compilation		
+			JOB	CF_SEMICOLON_1 		;";"
 
 ;Word: VARIABLE ( "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
