@@ -262,30 +262,27 @@ FPS_LIST_SEP		EQU	FOUTER_LIST_SEP
 ; args:   D: requested CS space (in bytes, negative)
 ;         Y: PSP
 ; result: Y: new PSP
-;         X: new CSP 
+;         X: new END_OF_PS 
 ; SSTACK: 2 bytes
 ;         No registers are preserved
 FPS_CS_ALLOC		EQU	*
 			;Check if PS must be moved
 			LDX	CSP 			;current CSP -> X 
-			LEAX	D,X			;new CSP -> X
+			LEAX	D,X			;new CSP -> X			
+			STX	CSP 			;update CSP
 			CPX	END_OF_PS		;check if PS will be reached 
 			BHS	FPS_CS_ALLOC_2 		;no need to move PS
 			;Move PS (new CSP in X)
-			TFR	X, D			;save new CSP
 			TFR	Y, X 			;PSP -> X
-			LEAY	FPS_CS_ALLOC_SIZE,Y	;allocate PS space
-FPS_CS_ALLOC_1		MOVW	2,X, FPS_CS_ALLOC_SIZE-2,X;move cell
+			LEAY	-FPS_CS_ALLOC_SIZE,Y	;allocate PS space
+FPS_CS_ALLOC_1		LDD	2,X+			;load cell from source location
+			STD	-(FPS_CS_ALLOC_SIZE+2),X;store cell to target location 
 			CPX	END_OF_PS		;check if end of PS has been reached
 			BLO	FPS_CS_ALLOC_1		;copy next cell
 			LDX	END_OF_PS		;end of PS -> X
-			LEAX	FPS_CS_ALLOC_SIZE,X	;move end of PS
+			LEAX	-FPS_CS_ALLOC_SIZE,X	;move end of PS
 			STX	END_OF_PS		;updat eend of PS
-			PSHX				;save new CSP
-			TFR	D, X			;restore CSP
-			;Update CSP (new CSP in X)
-FPS_CS_ALLOC_2		STX	CSP 			;update CSP
-			RTS				;done
+FPS_CS_ALLOC_2		RTS				;done
 
 ;#Clear CS
 ; args:   Y: PSP

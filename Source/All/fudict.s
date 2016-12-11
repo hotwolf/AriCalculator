@@ -608,7 +608,6 @@ IF_COLON_NONAME		IMMEDIATE
 CF_COLON_NONAME		INTERPRET_ONLY			;catch nested compilation
 			;Prepare anonymous compilation 
 			LDX	CP			;CP -> X
-			INX				;xt -> X
 			MOVW	#$0000, 2,-SP 		;0 -> RS
 			JOB	CF_COLON_2		;compile IF
 	
@@ -658,14 +657,13 @@ CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			STX	CP			;update CP
 			;Compile name ( c-addr u ) (R: NFA ) (CP in X) 
 			JOBSR	CF_NAME_COMMA_1		;compile name
-			INX				;skip over IF
+CF_COLON_2		CLR	1,X+			;set default IF
+			STX	CP			;update CP
 			;Set STATE ( ) (R: NFA ) (xt in X) 
-CF_COLON_2		MOVW	#STATE_COMPILE, STATE 	;set compile state
-			;Compile IF ( ) (xt in X)
-			CLR	-1,X 			;set default IF
-			STX	CP
+			MOVW	#STATE_COMPILE, STATE 	;set compile state
 			;Push colon-sys onto the control stack ( ) (R: NFA ) (CP in X)
 			CS_ALLOC	6		;allocate 6 bytes
+			LDX	CSP			;CSP -> X
 			MOVW	#FUDICT_CS_COLON_SYS, 0,X;set CS code
 			MOVW	2,SP+, 2,X		;set NFA
 			MOVW	CP,   4,X		;set CFA
@@ -710,7 +708,7 @@ CF_STRING_COMMA		COMPILE_ONLY
 			;Prepare MOVE ( c-addr u )
 CF_STRING_COMMA_1	LDD	0,Y 			;u  -> D
 			LDX	CP			;CP -> X
-			STX	2,-Y			;CP 0> PS+2
+			STX	0,Y			;CP -> PS+2
 			STD	2,-Y			;u  -> PS+0
 			LEAX	D,X			;new CP -> X
 			STX	CP			;update CP
