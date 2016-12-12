@@ -142,7 +142,7 @@ TIB_START		EQU	RS_TIB_START
 FOUTER_INTERACT_PROMPT	EQU	">"
 FOUTER_COMPILE_PROMPT	EQU	"+"
 
-;M#ax. line width
+;Max. line width
 FOUTER_LINE_WIDTH	EQU	79
 	
 ;#Valid number base

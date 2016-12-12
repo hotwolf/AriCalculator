@@ -298,6 +298,9 @@ FUDICT_CF_COF_4_NOINL	EQU	$83 		;4 byte COF instruction (prohibit inline compila
 ;#INLINE optimization
 FUDICT_MAX_INLINE	EQU	8 		;max. CF size for INLINE optimization
 
+;Max. line width
+FUDICT_LINE_WIDTH	EQU	FOUTER_LINE_WIDTH
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -543,40 +546,31 @@ CF_WORDS_UDICT		EQU	*
 			; +--------+--------+
 			;Initialize interator structure 
 			LDX	FUDICT_LAST_NFA		;last NFA -> X
-CF_WORDS_UDICT_1	BEQ	CF_WORDS_UDICT_4	;empty dictionary
-			PSHX				;iterator -> RS
+CF_WORDS_UDICT_1	BEQ	CF_WORDS_UDICT_3			;empty dictionary
+			PSHX 				;iterator -> 2,SP
+			MOVW	#FUDICT_LINE_WIDTH, 2,-SP;line counter -> 0,SP
+			CLRA				;0 -> A
+			CLRB				;0 -> B
+			;Count chars of name (iterator in X, offset in D) 		
+CF_WORDS_UDICT_2	LEAX	D,X		    	;relative 0-> absolute address
 			INX				;NF pointer -> X
 			BRCLR	1,+X,#FUDICT_TERM,*	;skip to last char
 			DEX				;adjust NF pointer
 			TFR	X, D			;NF pointer -> D
 			SUBD	0,SP			;calculate name length
-			PSHD				;char count -> line counter
-			;Start new line
-			JOBSR	CF_CR 			;line break
+			;Print separator (char count in D) 
+			JOBSR	FUDICT_LIST_SEP		;print separator
 			;Print word
-CF_WORDS_UDICT_2	LDD	[2,SP] 			;NFA offset -> D
-			BEQ	CF_WORDS_UDICT_2a	;
-			ADDD	2,SP			
-CF_WORDS_UDICT_2a	STD	2,SP
-			TFR	D, X
-
-
-
-
-
-			JOBSR	FUDICT_TX_STRING	;print name
-			LDX	2,SP 			;iterator -> X
-			BEQ	CF_WORDS_UDICT_3	;done
+			LDX	0,SP 			;iterator -> X
 			INX				;NF pointer -> X
-			BRCLR	1,+X,#FUDICT_TERM,*	;skip to last char
-			DEX				;adjust NF pointer
-			TFR	X, D			;NF pointer -> D
-			SUBD	2,SP			;calculate name length
-			MOVW	#CF_WORDS_UDICT_2, 2,-SP;push return address (CF_WORDS_UDICT_2)
-			JOB	FUDICT_LIST_SEP		;print separator
+			JOBSR	FUDICT_TX_STRING	;print name
+			;Advance interator 
+			LDX	0,SP 			;iterator -> X
+			LDD	0,X			;offset -> D
+			BNE	CF_WORDS_UDICT_2	;next iteration
 			;Clean up
-CF_WORDS_UDICT_3	LEAS	4,SP 			;clean up stack
-CF_WORDS_UDICT_4	RTS				;done
+			LEAS	4,SP 			;clean up stack
+CF_WORDS_UDICT_3	RTS				;done
 
 ;Word :NONAME ( C:  -- colon-sys )  ( S:  -- xt )
 ;Create an execution token xt, enter compilation state and start the current
@@ -643,11 +637,11 @@ CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			JOBSR	CF_SKIP_AND_PARSE	;parse name
 			LDD	0,Y			;check name
 			BEQ	CF_COLON_3		;missing name
-			;Check for recompilation of last name ( c-addr u )			
+			;Check for recompilation of last name ( c-addr u )
 			LDX	FUDICT_LAST_NFA		;last NFA -> X
 			PSHX				;last NFA -> 0,SP
 			JOBSR	FUDICT_CHECK_NAME 	;check name
-			BCS	CF_COLON_2		;match			
+			BCS	CF_COLON_4		;match			
 			;Compile new NFA ( c-addr u ) (R: NFA )
 			LDX	CP 			;CP -> X
 			TFR	X, D			;CP -> D
@@ -657,10 +651,10 @@ CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			STX	CP			;update CP
 			;Compile name ( c-addr u ) (R: NFA ) (CP in X) 
 			JOBSR	CF_NAME_COMMA_1		;compile name
-CF_COLON_2		CLR	1,X+			;set default IF
+			CLR	1,X+			;set default IF
 			STX	CP			;update CP
-			;Set STATE ( ) (R: NFA ) (xt in X) 
-			MOVW	#STATE_COMPILE, STATE 	;set compile state
+			;Set STATE ( ) (R: NFA )
+CF_COLON_2		MOVW	#STATE_COMPILE, STATE 	;set compile state
 			;Push colon-sys onto the control stack ( ) (R: NFA ) (CP in X)
 			CS_ALLOC	6		;allocate 6 bytes
 			LDX	CSP			;CSP -> X
@@ -670,7 +664,13 @@ CF_COLON_2		CLR	1,X+			;set default IF
 			RTS				;done
 			;Missing name 
 CF_COLON_3		THROW	FEXCPT_TC_NONAME	;throw "Missing name argument" exception
-
+			;Remove last UDICT entry 
+CF_COLON_4		LDX	FUDICT_LAST_NFA		;last NFA -> X
+			LDD	0,X			;offset -> D
+			LEAX	D,X			;previous NFA -> X
+			STX	FUDICT_LAST_NFA		;remove nast UDICT entry
+			JOB	CF_COLON_2		;set compile state
+	
 ;Word: NAME, 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( c-addr u  -- )
