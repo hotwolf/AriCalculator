@@ -603,7 +603,7 @@ CF_COLON_NONAME		INTERPRET_ONLY			;catch nested compilation
 			;Prepare anonymous compilation 
 			LDX	CP			;CP -> X
 			MOVW	#$0000, 2,-SP 		;0 -> RS
-			JOB	CF_COLON_2		;compile IF
+			JOB	CF_COLON_3		;compile IF
 	
 ;Word: : ( C: "<spaces>name" -- colon-sys )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -636,17 +636,19 @@ CF_COLON		INTERPRET_ONLY			;catch nested compilation
 CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			JOBSR	CF_SKIP_AND_PARSE	;parse name
 			LDD	0,Y			;check name
-			BEQ	CF_COLON_3		;missing name
+			BEQ	CF_COLON_4		;missing name
 			;Check for recompilation of last name ( c-addr u )
 			LDX	FUDICT_LAST_NFA		;last NFA -> X
 			PSHX				;last NFA -> 0,SP
 			JOBSR	FUDICT_CHECK_NAME 	;check name
-			BCS	CF_COLON_4		;match			
+			BCS	CF_COLON_5		;match			
 			;Compile new NFA ( c-addr u ) (R: NFA )
 			LDX	CP 			;CP -> X
+			LDD	0,SP 			;last NFA -> D
+			BEQ	CF_COLON_2		;first UDICT entry
 			TFR	X, D			;CP -> D
 			SUBD	0,SP			;NFA offset -> D
-			STX	0,SP			;new NFA -> 0,SP
+CF_COLON_2		STX	0,SP			;new NFA -> 0,SP
 			STD 	2,X+ 			;compile new NFA
 			STX	CP			;update CP
 			;Compile name ( c-addr u ) (R: NFA ) (CP in X) 
@@ -654,7 +656,7 @@ CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			CLR	1,X+			;set default IF
 			STX	CP			;update CP
 			;Set STATE ( ) (R: NFA )
-CF_COLON_2		MOVW	#STATE_COMPILE, STATE 	;set compile state
+CF_COLON_3		MOVW	#STATE_COMPILE, STATE 	;set compile state
 			;Push colon-sys onto the control stack ( ) (R: NFA ) (CP in X)
 			CS_ALLOC	6		;allocate 6 bytes
 			LDX	CSP			;CSP -> X
@@ -663,13 +665,13 @@ CF_COLON_2		MOVW	#STATE_COMPILE, STATE 	;set compile state
 			MOVW	CP,   4,X		;set CFA
 			RTS				;done
 			;Missing name 
-CF_COLON_3		THROW	FEXCPT_TC_NONAME	;throw "Missing name argument" exception
+CF_COLON_4		THROW	FEXCPT_TC_NONAME	;throw "Missing name argument" exception
 			;Remove last UDICT entry 
-CF_COLON_4		LDX	FUDICT_LAST_NFA		;last NFA -> X
+CF_COLON_5		LDX	FUDICT_LAST_NFA		;last NFA -> X
 			LDD	0,X			;offset -> D
 			LEAX	D,X			;previous NFA -> X
 			STX	FUDICT_LAST_NFA		;remove nast UDICT entry
-			JOB	CF_COLON_2		;set compile state
+			JOB	CF_COLON_3		;set compile state
 	
 ;Word: NAME, 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -835,7 +837,7 @@ CF_COMPILE_COMMA_5	SUBD	#4			;ee ff -> D
 IF_SEMICOLON		IMMEDIATE			
 CF_SEMICOLON		COMPILE_ONLY			;compile-only word
 			;Check colon-sys 
-CF_SEMICOLON_1		LDD	[CSP] 			;flags:ID -> D
+CF_SEMICOLON_1		LDD	[CSP] 			;flags:ID -> D (broken in SIMHC12)
 			CMPB	#FUDICT_CS_COLON_SYS	;check for : definition
 			BNE	CF_SEMICOLON_7 		;control structure mismatch	
 			;Check for COF optimization (flags:colon-sys -> D)
@@ -843,17 +845,19 @@ CF_SEMICOLON_2		LDX	CP 			;CP -> X
 			ANDA	#FUDICT_CF_COF		;check COP flags
 			BEQ	CF_SEMICOLON_9		;no COF optimization
 			COMA				;opcode offset -> A
-			LDAB	A,X			;opcode -> B
-			CMPA	#-2			;check for 2 byte opcode
+			SEX	A, D			;A -> D
+			LDAA	D,X			;opcode -> B
+			CMPB	#-2			;check for 2 byte opcode
 			BEQ	CF_SEMICOLON_8		;optimize "BSR" (relative)
-			CMPA	#-4			;check for 4 byte opcode
+			CMPB	#-4			;check for 4 byte opcode
 			BEQ	CF_SEMICOLON_3		;optimize "JSR" (relative)
-			;Optimize JSR (CP in X, opcode offset in A, opcode in B)
-			CMPB	#$16 			;check for "JSR" (absolute)
+			;Optimize JSR (CP in X, opcode offset in B, opcode in A)
+			CMPA	#$16 			;check for "JSR" (absolute)
 			BEQ	CF_SEMICOLON_4		;"JSR" -> "JMP"
-CF_SEMICOLON_3		CMPB	#$15 			;check for "JSR" (relative)
+CF_SEMICOLON_3		CMPA	#$15 			;check for "JSR" (relative)
 			BNE	CF_SEMICOLON_7		;control structure mismatch
-CF_SEMICOLON_4		BCLR	A,X,#$10		;"JSR" -> "JMP"
+CF_SEMICOLON_4		SEX	B, D			;B -> D
+			BCLR	D,X,#$10		;"JSR" -> "JMP"
 			;Add word to UDICT 
 CF_SEMICOLON_5		LDX	CSP 			;CSP -> X
 			LDD	2,X			;NFA -> D
@@ -865,10 +869,11 @@ CF_SEMICOLON_6		CS_DEALLOC	6		;deallocate 6 bytes
 			RTS				;done
 			;Control structure misatch
 CF_SEMICOLON_7		THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatch"
-			;Optimize BSR (CP in X, opcode offset in A, opcode in B)
-CF_SEMICOLON_8		CMPB	#$07 			;check for "BSR"
+			;Optimize BSR (CP in X, opcode offset in B, opcode in A)
+CF_SEMICOLON_8		CMPA	#$07 			;check for "BSR"
 			BNE	CF_SEMICOLON_7		;control structure mismatch
-			MOVB	#$20, A,X		;"BSR" -> "BRA"
+			SEX	B, D			;B -> D
+			MOVB	#$20, D,X		;"BSR" -> "BRA"
 			JOB	CF_SEMICOLON_5		;add word to UDICT
 			;Set INLINE configuration (CP in X) 
 CF_SEMICOLON_9		LDD	CP 			;CP -> D
