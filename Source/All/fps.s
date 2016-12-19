@@ -202,7 +202,7 @@ FPS_VARS_END_LIN	EQU	@
 ;         No registers are preserved
 #macro	CS_DEALLOC, 1
 		LDX	CSP 			;current CSP -> X 
-		LEAX	D,X			;new CSP -> X
+		LEAX	\1,X			;new CSP -> X
 		STX	CSP 			;update cSP
 #emac
 

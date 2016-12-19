@@ -653,10 +653,10 @@ CF_COLON_2		STX	0,SP			;new NFA -> 0,SP
 			STX	CP			;update CP
 			;Compile name ( c-addr u ) (R: NFA ) (CP in X) 
 			JOBSR	CF_NAME_COMMA_1		;compile name
-			CLR	1,X+			;set default IF
+CF_COLON_3		CLR	1,X+			;set default IF
 			STX	CP			;update CP
 			;Set STATE ( ) (R: NFA )
-CF_COLON_3		MOVW	#STATE_COMPILE, STATE 	;set compile state
+			MOVW	#STATE_COMPILE, STATE 	;set compile state
 			;Push colon-sys onto the control stack ( ) (R: NFA ) (CP in X)
 			CS_ALLOC	6		;allocate 6 bytes
 			LDX	CSP			;CSP -> X
@@ -668,11 +668,19 @@ CF_COLON_3		MOVW	#STATE_COMPILE, STATE 	;set compile state
 CF_COLON_4		THROW	FEXCPT_TC_NONAME	;throw "Missing name argument" exception
 			;Remove last UDICT entry 
 CF_COLON_5		LDX	FUDICT_LAST_NFA		;last NFA -> X
+			LEAX	2,X			;start of name -> X
+			BRCLR	1,X+,#FUDICT_TERM,*	;skip to last char
+			STX	CP			;reset CP
+			LDX	FUDICT_LAST_NFA		;last NFA -> X
 			LDD	0,X			;offset -> D
+			BEQ	CF_COLON_7		;no prior NF
 			LEAX	D,X			;previous NFA -> X
 			STX	FUDICT_LAST_NFA		;remove nast UDICT entry
+CF_COLON_6		LDX	CP			;CP -> X
 			JOB	CF_COLON_3		;set compile state
-	
+CF_COLON_7		STD	FUDICT_LAST_NFA		;remove nast UDICT entry
+			JOB	CF_COLON_6		;set compile state
+
 ;Word: NAME, 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( c-addr u  -- )
