@@ -301,6 +301,9 @@ FUDICT_MAX_INLINE	EQU	8 		;max. CF size for INLINE optimization
 ;Max. line width
 FUDICT_LINE_WIDTH	EQU	FOUTER_LINE_WIDTH
 
+;Data space allocation size
+FUDICT_DS_ALLOC_SIZE	EQU	16 		;number of bytes to be allocated at once
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -364,6 +367,18 @@ FUDICT_VARS_END_LIN	EQU	@
 			BNE	FUDICT_THROW_COMPNEST	;throw exception
 #emac
 
+;#Data space operations 
+;==============================
+;#Allocate data space
+; args:   1: requested data space (in bytes)
+;         X: new CSP 
+; SSTACK: 2 bytes
+;         No registers are preserved
+#macro	DS_ALLOC, 1
+		LDD	#-\1			;requested space -> D
+		JOBSR	FUDUCT_DS_ALLOC		;allocation routine
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -399,6 +414,26 @@ FUDICT_UPPER		EQU	STRING_UPPER
 ;         Y and D are preserved
 FUDICT_TX_STRING	EQU	STRING_PRINT_BL
 
+;#Data space operations
+;======================
+;#Allocate data space
+; args:   D: requested data space (in bytes, negative)
+;         Y: PSP
+; result: Y: new PSP
+;         X: new END_OF_PS 
+; SSTACK: 2 bytes
+;         No registers are preserved
+FUDICT_DS_ALLOC		EQU	*
+			;Determine start of compile space (requested space in D)
+			TFR	D, X 			;requested space -> X
+			LDD	DP			;DP -> D
+			ADDD	#(FUDICT_DS_ALLOC_SIZE-1);determine start of
+			ANDB	#~(FUDICT_DS_ALLOC_SIZE-1);compile space
+			PSHD				;start of compile space -> 0,SP
+			CPX	0,SP
+	;; ---->TBD
+	
+	
 ;#Dictionary operations
 ;======================
 ;#Check if a string matches a NF
@@ -546,26 +581,27 @@ CF_WORDS_UDICT		EQU	*
 			; +--------+--------+
 			;Initialize interator structure 
 			LDX	FUDICT_LAST_NFA		;last NFA -> X
-CF_WORDS_UDICT_1	BEQ	CF_WORDS_UDICT_3			;empty dictionary
+CF_WORDS_UDICT_1	BEQ	CF_WORDS_UDICT_3	;empty dictionary
 			PSHX 				;iterator -> 2,SP
 			MOVW	#FUDICT_LINE_WIDTH, 2,-SP;line counter -> 0,SP
 			CLRA				;0 -> A
 			CLRB				;0 -> B
 			;Count chars of name (iterator in X, offset in D) 		
-CF_WORDS_UDICT_2	LEAX	D,X		    	;relative 0-> absolute address
+CF_WORDS_UDICT_2	LEAX	D,X		    	;relative 0-> absolute address			
+			STX	2,SP			;advance iterator
 			INX				;NF pointer -> X
 			BRCLR	1,+X,#FUDICT_TERM,*	;skip to last char
 			DEX				;adjust NF pointer
 			TFR	X, D			;NF pointer -> D
-			SUBD	0,SP			;calculate name length
+			SUBD	2,SP			;calculate name length
 			;Print separator (char count in D) 
 			JOBSR	FUDICT_LIST_SEP		;print separator
 			;Print word
-			LDX	0,SP 			;iterator -> X
-			INX				;NF pointer -> X
+			LDX	2,SP 			;iterator -> X
+			LEAX	2,X			;NF pointer -> X
 			JOBSR	FUDICT_TX_STRING	;print name
 			;Advance interator 
-			LDX	0,SP 			;iterator -> X
+			LDX	2,SP 			;iterator -> X
 			LDD	0,X			;offset -> D
 			BNE	CF_WORDS_UDICT_2	;next iteration
 			;Clean up
@@ -646,8 +682,7 @@ CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			LDX	CP 			;CP -> X
 			LDD	0,SP 			;last NFA -> D
 			BEQ	CF_COLON_2		;first UDICT entry
-			TFR	X, D			;CP -> D
-			SUBD	0,SP			;NFA offset -> D
+			SUBD	CP			;NFA offset -> D
 CF_COLON_2		STX	0,SP			;new NFA -> 0,SP
 			STD 	2,X+ 			;compile new NFA
 			STX	CP			;update CP
@@ -1154,10 +1189,10 @@ CF_DOT_QUOTE_1		JOBSR	CF_PARSE		;parse "ccc<quote>"
 CF_DOT_QUOTE_2		LEAY	4,Y 			;clean up stack
 			RTS				
 			;Compilation semantics ( c-addr u )
-CF_DOT_QUOTE_3		LDX	CSP 			;CSP -> X
-			BCLR	0,X,#FUDICT_CF_COF 	;clear compile flags
-			MOVW	#CF_DOT_QUOTE_RT, 2,-Y 	;runtime semantics -> PS
+CF_DOT_QUOTE_3		MOVW	#CF_DOT_QUOTE_RT, 2,-Y 	;runtime semantics -> PS
 			JOBSR	CF_COMPILE_COMMA_1	;compile word
+			LDX	CSP 			;CSP -> X
+			BCLR	0,X,#FUDICT_CF_COF 	;clear compile flags
 			JOB	CF_STRING_COMMA_1	;compile string
 			
 ;Run-time: ( -- )
