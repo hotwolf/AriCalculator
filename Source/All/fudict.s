@@ -417,22 +417,42 @@ FUDICT_TX_STRING	EQU	STRING_PRINT_BL
 ;#Data space operations
 ;======================
 ;#Allocate data space
-; args:   D: requested data space (in bytes, negative)
+; args:   D: requested data space (in bytes)
 ;         Y: PSP
 ; result: Y: new PSP
-;         X: new END_OF_PS 
 ; SSTACK: 2 bytes
 ;         No registers are preserved
 FUDICT_DS_ALLOC		EQU	*
 			;Determine start of compile space (requested space in D)
-			TFR	D, X 			;requested space -> X
+			TFR	D, X			;requested space -> X
 			LDD	DP			;DP -> D
-			ADDD	#(FUDICT_DS_ALLOC_SIZE-1);determine start of
-			ANDB	#~(FUDICT_DS_ALLOC_SIZE-1);compile space
-			PSHD				;start of compile space -> 0,SP
-			CPX	0,SP
-	;; ---->TBD
-	
+			LEAX	D,X			;new DP -> X
+			STX	DP			;update DP
+			ADDD	#(FUDICT_DS_ALLOC_SIZE-1);start of CS -> D
+			ANDB	#~(FUDICT_DS_ALLOC_SIZE-1);
+			EXG	D, X			;start of CS -> X, new DP -> D
+			ADDD	#(FUDICT_DS_ALLOC_SIZE-1);new start of CS -> D
+			ANDB	#~(FUDICT_DS_ALLOC_SIZE-1);
+			;Determine CS shift distance (old start of CS in X, new start of CS in D)
+			PSHX				;old start of CS -> 0,SP
+			SUBD	0,SP			;shift distance -> D
+			BEQ	FUDICT_DS_ALLOC_2	;no shift required
+			;Shift code space (shift distance in D, old start of CS in 0,SP)
+			LDX	CP 			;CP -> X
+			LEAX	2,X			;CP + offset -> X
+FUDICT_DS_ALLOC_1	MOVW	2,-X, D,X		;copy CS data
+			MOVW	2,-X, D,X		;copy CS data (FUDICT_DS_ALLOC_SIZE >= 4)
+			MOVW	2,-X, D,X		;copy CS data
+			MOVW	2,-X, D,X		;copy CS data (FUDICT_DS_ALLOC_SIZE >= 8)
+			MOVW	2,-X, D,X		;copy CS data
+			MOVW	2,-X, D,X		;copy CS data
+			MOVW	2,-X, D,X		;copy CS data
+			MOVW	2,-X, D,X		;copy CS data (FUDICT_DS_ALLOC_SIZE >= 16)
+			CPX	0,SP			;check for CS boundary 
+			BHI	FUDICT_DS_ALLOC_1	;loop
+			;Clean up
+FUDICT_DS_ALLOC_2	PULX				;clean up stack
+			RTS				;done
 	
 ;#Dictionary operations
 ;======================
