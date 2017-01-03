@@ -83,9 +83,9 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;MCU (S12VR64, S12Vxxxx)
-#ifndef	MMAP_S12VR64
-#ifndef	MMAP_S12Vxxxx
-MMAP_S12Vxxxx		EQU	1 	;default is S12Vxxxx
+#ifndef	S12VR64
+#ifndef	S12Vxxxx
+S12Vxxxx		EQU	1 	;default is S12Vxxxx
 #endif
 #endif
 
@@ -115,7 +115,7 @@ MMAP_FLASH		EQU	1 	;default is flash
 ;# Constants                                                                   #
 ;###############################################################################
 ;# Memory Sizes:
-#ifdef	MMAP_S12VR64			 	  
+#ifdef	S12VR64			 	  
 MMAP_REG_SIZE		EQU	 $0400 	;  1k
 MMAP_EEPROM_SIZE	EQU	 $0200 	; 512
 MMAP_RAM_SIZE		EQU	 $0800 	;  2k
@@ -128,21 +128,26 @@ MMAP_FLASH_SIZE		EQU	$10000 	; 64k
 #endif					  
 
 ;# Memory Locations
+;Register space
 MMAP_REG_START		EQU	$0000
 MMAP_REG_END		EQU	$0400
 
+;EEPROM
 MMAP_EEPROM_START	EQU	$0400
 MMAP_EEPROM_END		EQU	$0400+MMAP_EEPROM_SIZE
 
+;RAM
 MMAP_RAM_START		EQU	$4000-MMAP_RAM_SIZE
 MMAP_RAM_END		EQU	$4000
 
-#ifdef	MMAP_S12G32
-MMAP_FLASH_START	EQU	$8000
-#else
-MMAP_FLASH_START	EQU	$4000
-#endif
-MMAP_FLASH_END		EQU	$10000
+;FLASH
+MMAP_FLASHWIN_START	EQU	$8000
+MMAP_FLASHWIN_END	EQU	$C000
+
+MMAP_FLASH3F_START	EQU	$C000
+MMAP_FLASH3F_END	EQU	$10000
+MMAP_FLASH3F_START_LIN	EQU	$C000
+MMAP_FLASH3F_END_LIN	EQU	$10000
 	
 ;# Vector table
 #ifndef VECTAB_START

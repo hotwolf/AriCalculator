@@ -104,7 +104,7 @@ ISR_SPURIOUS		BGND				;vector base + $80
 ISR_PAD			BGND				;vector base + $82
 ISR_ADCCOMP		BGND				;vector base + $84
 ISR_HTI			BGND				;vector base + $86
-ISR_API			BGND				;vector base + $88
+ISR_API			EQU	CUBE_ISR		;vector base + $88
 ISR_LVI			BGND				;vector base + $8A
 ISR_PPOC		BGND				;vector base + $8C
 ISR_PORTP		BGND	           		;vector base + $8E
@@ -155,13 +155,14 @@ ISR_RESE6		BGND				;vector base + $E6
 #ifdef S12VR64
 ISR_TIM0_TC3		BGND				;vector base + $E8
 ISR_TIM0_TC2		BGND				;vector base + $EA
-ISR_TIM0_TC1		BGND				;vector base + $EC
-ISR_TIM0_TC0		EQU	SCI_ISR_OC		;vector base + $EE
+ISR_TIM0_TC1		EQU	SCI_ISR_OC		;vector base + $EC
+ISR_TIM0_TC0		EQU	DELAY_ISR		;vector base + $EE
 #else
-ISR_TIM1_TC1		EQU	SCI_ISR_IC		;vector base + $E8
+;ISR_TIM1_TC1		EQU	SCI_ISR_IC		;vector base + $E8
+ISR_TIM1_TC1		BGND				;vector base + $E8
 ISR_TIM1_TC0		EQU	SCI_ISR_OC		;vector base + $EA
 ISR_TIM0_TC1		BGND				;vector base + $EC
-ISR_TIM0_TC0		BGND				;vector base + $EE
+ISR_TIM0_TC0		EQU	DELAY_ISR		;vector base + $EE
 #endif	
 ISR_RTI			BGND				;vector base + $F0
 ISR_IRQ			BGND				;vector base + $F2
@@ -173,7 +174,7 @@ ISR_SPURIOUS		EQU	VECTAB_ISR_ILLIRQ	;vector base + $80
 ISR_PAD			EQU	VECTAB_ISR_ILLIRQ	;vector base + $82
 ISR_ADCCOMP		EQU	VECTAB_ISR_ILLIRQ	;vector base + $84
 ISR_HTI			EQU	VECTAB_ISR_ILLIRQ	;vector base + $86
-ISR_API			EQU	VECTAB_ISR_ILLIRQ	;vector base + $88
+ISR_API			EQU	CUBE_ISR		;vector base + $88
 ISR_LVI			EQU	VECTAB_ISR_ILLIRQ	;vector base + $8A
 ISR_PPOC		EQU	VECTAB_ISR_ILLIRQ	;vector base + $8C
 ISR_PORTP		EQU	VECTAB_ISR_ILLIRQ	;vector base + $8E
@@ -224,13 +225,14 @@ ISR_RESE6		EQU	VECTAB_ISR_ILLIRQ	;vector base + $E6
 #ifdef S12VR64
 ISR_TIM0_TC3		EQU	VECTAB_ISR_ILLIRQ	;vector base + $E8
 ISR_TIM0_TC2		EQU	VECTAB_ISR_ILLIRQ	;vector base + $EA
-ISR_TIM0_TC1		EQU	VECTAB_ISR_ILLIRQ	;vector base + $EC
-ISR_TIM0_TC0		EQU	SCI_ISR_OC		;vector base + $EE
+ISR_TIM0_TC1		EQU	SCI_ISR_OC		;vector base + $EC
+ISR_TIM0_TC0		EQU	DELAY_ISR		;vector base + $EE
 #else
-ISR_TIM1_TC1		EQU	SCI_ISR_IC		;vector base + $E8
+;ISR_TIM1_TC1		EQU	SCI_ISR_IC		;vector base + $E8
+ISR_TIM1_TC1		EQU	VECTAB_ISR_ILLIRQ	;vector base + $E8
 ISR_TIM1_TC0		EQU	SCI_ISR_OC		;vector base + $EA
 ISR_TIM0_TC1		EQU	VECTAB_ISR_ILLIRQ	;vector base + $EC
-ISR_TIM0_TC0		EQU	VECTAB_ISR_ILLIRQ	;vector base + $EE
+ISR_TIM0_TC0		EQU	DELAY_ISR		;vector base + $EE
 #endif	
 ISR_RTI			EQU	VECTAB_ISR_ILLIRQ	;vector base + $F0
 ISR_IRQ			EQU	VECTAB_ISR_ILLIRQ	;vector base + $F2
