@@ -282,22 +282,22 @@ WAIT			ISTACK_WAIT
 ; result: C-flag: set if successful
 ; SSTACK: 9/10 bytes
 ;         X, Y, and D are preserved
-#ifcpu	S12X		
-CUBE_DISP_NB_SSU	EQU	10 					;SSTACK usage
-#else
+;#ifcpu	S12X		
+;CUBE_DISP_NB_SSU	EQU	10 					;SSTACK usage
+;#else
 CUBE_DISP_NB_SSU	EQU	9 					;SSTACK usage
-#endif	
+;#endif	
 CUBE_DISP_NB		EQU	*
 			;Save registers (data pointer in X)
 			PSHY						;save Y
 			PSHX						;save X
 			PSHD						;save D
 			CLC						;default result: failure
-#ifcpu	S12X		
-			PSHCW						;save CCRW (incl. default result)
-#else
+;#ifcpu	S12X		
+;			PSHCW						;save CCRW (incl. default result)
+;#else
 			PSHC						;save CCRW (incl. default result)
-#endif	
+;#endif	
 			;Check if there is room for this entry (data pointer in X)
 			LDD	CUBE_BUF_IN 				;in:out -> D
 			ADDA	#CUBE_PAT_SIZE 				;increment index
@@ -314,228 +314,11 @@ CUBE_DISP_NB		EQU	*
 			MOVW	2,X+, 2,Y+ 				;copy data C15:C12
 			STAA	CUBE_BUF_IN 				;update in index
 			;Signal success
-#ifcpu	S12X		
-			BSET	1,SP, #1				;set C-flag
-#else
+;#ifcpu	S12X		
+;			BSET	1,SP, #1				;set C-flag
+;#else
 			BSET	0,SP, #1				;set C-flag
-#endif	
-			;Done
-CUBE_DISP_NB_1		SSTACK_PREPULL	 CUBE_DISP_NB_SSU		;check SSTACK
-			RTI						
-
-	
-;#Put a LED pattern into the display queue - blocking
-; args:   X: pointer to 64-bit LED pattern
-; result: none
-; SSTACK: 11/12 bytes
-;         X, Y, and D are preserved
-CUBE_DISP_BL_SSU	EQU	CUBE_DISP_NB_SSU+2 			;SSTACK usage
-CUBE_DISP_BL		EQU	*
-			CUBE_MAKE_BL	CUBE_DISP_NB, CUBE_DISP_NB_SSU
-
-;#Put a LED pattern multiple times into the display queue - non-blocking
-; args:   X: pointer to 64-bit LED pattern
-;         A: number of repetitions
-; result: A: numbrer of remaining repetitions (0 if successful)
-;         C-flag: set if successful
-; SSTACK: 11/12 bytes
-;         X, Y, and B are preserved
-CUBE_DISP_MULT_NB_SSU	EQU	CUBE_DISP_NB_SSU+2	
-CUBE_DISP_MULT_NB	EQU	*
-			;Queue LED pattern (remaining repetitions in A) 
-CUBE_DISP_MULT_NB_1	SSTACK_JOBSR	CUBE_DISP_NB, CUBE_DISP_NB_SSU
-			BCC	CUBE_DISP_MULT_NB_2 	;unsuccessful
-			DBNE	A, CUBE_DISP_MULT_NB_1	;decrement repetitions and repeat
-			;Signal sucess (0 in A)
-			SEC
-			;Done
-CUBE_DISP_MULT_NB_2	RTS
-
-;#Put a LED pattern multiple times into the display queue - blocking
-; args:   X: pointer to 64-bit LED pattern
-;         A: number of repetitions
-; result: A: 0
-; SSTACK: 13/14 bytes
-;         X, Y, and B are preserved
-CUBE_DISP_MULT_BL_SSU	EQU	CUBE_DISP_MULT_NB_SSU+2	
-CUBE_DISP_MULT_BL	EQU	*
-			CUBE_MAKE_BL	CUBE_DISP_MULT_NB, CUBE_DISP_MULT_NB_SSU
-
-;ISR
-;---
-;#API ISR
-;  Each interation starte with the following variable values:
-;		CUBE_COL_IDX:		column which has been updated in the previous iteration
-;		CUBE_COL_PAT:		column pattern to be driven in this iteration	
-;		CUBE_SUBFRAME_CNT:	remaining repetitions of the current pattern
-CUBE_ISR		EQU	*
-			;Drive pre-determined column pattern 
-			LDAA	#2 			;column index increment -> A
-			LDAB	CUBE_COL_IDX		;old column index -> B
-			ABA				;new column index -> A
-			ANDA	#CUBE_COL_IDX_MASK	;
-			LDX	CUBE_COL_PORT_TAB 	;port look-up table -> X
-			LDY	CUBE_COL_PIN_TAB	;pin look-up table -> Y
-			CLR	B,X			;disable old column
-			MOVB	CUBE_COL_PAT		DS	1 		;next column pattern
-CUBE_SUBFRAME_CNT	DS	1 		;subframe counter
-	
-;Buffer 
-CUBE_BUF		DS	CUBE_BUF_SIZE	;frame buffer
-CUBE_BUF_IN		DS	1		;points to the next free space
-CUBE_BUF_OUT		DS	1		;points to the oldest entry
-	
-CUBE_VARS_END		EQU	*
-CUBE_VARS_END_LIN	EQU	@
-	
-;###############################################################################
-;# Macros                                                                      #
-;###############################################################################
-;#Initialization
-;#--------------
-#macro	CUBE_INIT, 0
-			;Initialize frame sequence
-			MOVW	#(CUBE_SUBFRAMES<<8), CUBE_SUBFRAME_CNT
-			;Initialize buffer
-#ifdef CUBE_START_ALL_ON
-			MOVW	#$FFFF, CUBE_BUF+0	;start with all LEDs on
-			MOVW	#$FFFF, CUBE_BUF+2	;
-			MOVW	#$FFFF, CUBE_BUF+4	;
-			MOVW	#$FFFF, CUBE_BUF+6	;
-#else
-			MOVW	#$0000, CUBE_BUF+0	;start with all LEDs off
-			MOVW	#$0000, CUBE_BUF+2	;
-			MOVW	#$0000, CUBE_BUF+4	;
-			MOVW	#$0000, CUBE_BUF+6	;
-#endif
-			MOVW	#(CUBE_PAT_SIZE<<8), CUBE_BUF_IN
-			;Initialize API
-			MOVW	#CUBE_API_DIV, CPMUAPIRH;set clock divider
-#ifdef	CUBE_API_TRIM
-			MOVW	#(((APIFE|APIE|APIF)<<8)|CUBE_API_TRIM), CPMUAPICTL
-#endif
-			MOVB	#(APIFE|APIE|APIF), CPMUAPICTL
-#endif
-#emac
-
-;#User functions
-;#--------------
-;#Put a LED pattern into the display queue - non-blocking
-; args:   X: pointer to 64-bit LED pattern
-; result: C-flag: set if successful
-; SSTACK: 9/10 bytes
-;         X, Y, and D are preserved
-#macro	CUBE_DISP_NB, 0
-			SSTACK_JOBSR	CUBE_DISP_NB, CUBE_DISP_NB_SSU
-#emac
-
-;#Put a LED pattern into the display queue - blocking
-; args:   X: pointer to 64-bit LED pattern
-; result: none
-; SSTACK: 11/12 bytes
-;         X, Y, and D are preserved
-#macro	CUBE_DISP_BL, 0
-			SSTACK_JOBSR	CUBE_DISP_BL, CUBE_DISP_BL_SSU
-#emac
-
-;#Put a LED pattern multiple times into the display queue - non-blocking
-; args:   X: pointer to 64-bit LED pattern
-;         A: number of repetitions
-; result: A: numbrer of remaining repetitions (0 if successful)
-;         C-flag: set if successful
-; SSTACK: 11/12 bytes
-;         X, Y, and B are preserved
-#macro	CUBE_DISP_MULT_NB, 0
-			SSTACK_JOBSR	CUBE_DISP_MULT_NB, CUBE_DISP_MULT_NB_SSU
-#emac
-
-;#Put a LED pattern multiple times into the display queue - blocking
-; args:   X: pointer to 64-bit LED pattern
-;         A: number of repetitions
-; result: A: 0
-; SSTACK: 13/14 bytes
-;         X, Y, and B are preserved
-#macro	CUBE_DISP_MULT_BL, 0
-			SSTACK_JOBSR	CUBE_DISP_MULT_BL, CUBE_DISP_MULT_BL_SSU
-#emac
-
-;# Macros for internal use
-;#------------------------
-;#Turn a non-blocking subroutine into a blocking subroutine	
-; args:   1: non-blocking function
-;         2: subroutine stack usage of non-blocking function
-; SSTACK: stack usage of non-blocking function + 2
-;         rgister output of the non-blocking function is preserved
-#macro	CUBE_MAKE_BL, 2
-			;Disable interrupts
-LOOP			SEI
-			;Call non-blocking function
-			//SSTACK_PREPUSH	\2
-			JOBSR	\1
-			BCC	WAIT 		;function unsuccessful
-			;Enable interrupts
-			CLI
-			;Done
-			SSTACK_PREPULL	2
-			RTS
-			;Wait for next interrupt
-WAIT			ISTACK_WAIT
-			;Try again
-			SSTACK_PREPUSH	\2
-			JOB	LOOP	
-#emac
-	
-;###############################################################################
-;# Code                                                                        #
-;###############################################################################
-#ifdef CUBE_CODE_START_LIN
-			ORG 	CUBE_CODE_START, CUBE_CODE_START_LIN
-#else
-			ORG 	CUBE_CODE_START
-#endif
-	
-;#Put a LED pattern into the display queue - non-blocking
-; args:   X: pointer to 64-bit LED pattern
-; result: C-flag: set if successful
-; SSTACK: 9/10 bytes
-;         X, Y, and D are preserved
-#ifcpu	S12X		
-CUBE_DISP_NB_SSU	EQU	10 					;SSTACK usage
-#else
-CUBE_DISP_NB_SSU	EQU	9 					;SSTACK usage
-#endif	
-CUBE_DISP_NB		EQU	*
-			;Save registers (data pointer in X)
-			PSHY						;save Y
-			PSHX						;save X
-			PSHD						;save D
-			CLC						;default result: failure
-#ifcpu	S12X		
-			PSHCW						;save CCRW (incl. default result)
-#else
-			PSHC						;save CCRW (incl. default result)
-#endif	
-			;Check if there is room for this entry (data pointer in X)
-			LDD	CUBE_BUF_IN 				;in:out -> D
-			ADDA	#CUBE_PAT_SIZE 				;increment index
-			ANDA	#CUBE_BUF_MASK 				;roll-over index
-			CBA						;check if buffer is full
-			BEQ	CUBE_DISP_NB_1 				;buffer is full
-			;Copy LED pattern into buffer (data pointer in X, new in in A)
-			LDY	CUBE_BUF 				;buffer pointer -> Y
-			LDAB	CUBE_BUF_IN 				;old in -> B
-			LEAY	B,Y 					;add in offset
-			MOVW	2,X+, 2,Y+ 				;copy data C15:C12
-			MOVW	2,X+, 2,Y+ 				;copy data C15:C12
-			MOVW	2,X+, 2,Y+ 				;copy data C15:C12
-			MOVW	2,X+, 2,Y+ 				;copy data C15:C12
-			STAA	CUBE_BUF_IN 				;update in index
-			;Signal success
-#ifcpu	S12X		
-			BSET	1,SP, #1				;set C-flag
-#else
-			BSET	0,SP, #1				;set C-flag
-#endif	
+;#endif	
 			;Done
 CUBE_DISP_NB_1		SSTACK_PREPULL	 CUBE_DISP_NB_SSU		;check SSTACK
 			RTI						
@@ -587,13 +370,14 @@ CUBE_ISR		EQU	*
 			LDAB	CUBE_COL_IDX		;old column index -> B
 			ABA				;new column index -> A
 			ANDA	#CUBE_COL_IDX_MASK	;
+			STAA	CUBE_COL_IDX		;update colum index
 			LDX	CUBE_COL_PORT_TAB 	;port look-up table -> X
+			LEAX	B,X
 			LDY	CUBE_COL_PIN_TAB	;pin look-up table -> Y
-			CLR	[B,X]			;disable old column
-			MOVB	CUBE_COL_PAT, CUBE_COL_PAT_PORT;update column pattern
 			LDAB	A,Y			;new column pin -> B
-			STAB	[A,X]			;enable new column
-			STAA	CUBE_COL_IDX		;update column index
+			CLR	[0,X]			;disable old column
+			MOVB	CUBE_COL_PAT, CUBE_COL_PAT_PORT;update column pattern
+			STAB	[2,X]			;enable new column
 			;Update subframe count (new column index in A) 
 			CMPA	#CUBE_COL_IDX_MASK 	;check if pattern is complete
 			BNE	CUBE_ISR_1 		;pattern not complete
@@ -621,7 +405,7 @@ CUBE_ISR_1		LDX	CUBE_BUF 		;buffer pointer -> X
 			LSRA				;
 			LSRA				;
 			LSRA				;
-CUBE_ISR_2		ANDA	#0F			;mask column pattern
+CUBE_ISR_2		ANDA	#$0F			;mask column pattern
 			STAA	CUBE_COL_PAT		;update column pattern
 			;Done	
 			ISTACK_RTI

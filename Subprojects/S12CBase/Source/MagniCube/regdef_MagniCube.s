@@ -1133,7 +1133,7 @@ LSOCIF1		EQU	$02
 LSOCIF0		EQU	$01
 
 LS2DR		EQU	$0158
-LS2DR		EQU	$01
+LS2DR0		EQU	$01
 
 LS2CR		EQU	$0159
 LS2E		EQU	$01
@@ -1745,7 +1745,7 @@ PROT            EQU     $01
 
 ;$02FC to $03FD reserved
 
-CPMUOSC		EQU    	$02FE
+CPMUOSC2	EQU    	$02FE
 OMRE            EQU     $02
 OSCMOD          EQU     $01
 
