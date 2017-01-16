@@ -108,7 +108,7 @@
 ;    	                    |    User Variables   | <- [DP]		  
 ;    	                    |    Pre-Allocation   |		  
 ;                           +----------+----------+        
-;                           |          |          | <-[DP+allignment]
+;                           |          |          | <-[START_OF_CS]
 ;                           |  User Dictionary    |	     
 ;                           |          |          |	     
 ;                           |          v          |	     
@@ -129,9 +129,9 @@
 ;                           +----------+----------+        
 ;    	                    |       Canary        |	 		  
 ;                           +----------+----------+        
-;    	                    |  CS Pre-Allocation  | <- [END_OF_PS]		  
+;    	                    | CFS Pre-Allocation  | <- [END_OF_PS]		  
 ;                           +----------+----------+        
-;                           |          ^          | <- [CSP]	  
+;                           |          ^          | <- [CFSP]	  
 ;                           | Control-flow stack  |		  
 ;                           +----------+----------+        
 ;           UDICT_PS_END ->   
@@ -316,6 +316,7 @@ FUDICT_VARS_START_LIN	EQU	@
 
 			ALIGN	1	
 DP			DS	2	;data pointer (next free space)
+START_OF_CP		DS	2	;start of compile space
 CP			DS	2 	;compile pointer (next free space) 
 CP_SAVE			DS	2 	;compile pointer to revert to in case of an error
 
@@ -367,18 +368,6 @@ FUDICT_VARS_END_LIN	EQU	@
 			BNE	FUDICT_THROW_COMPNEST	;throw exception
 #emac
 
-;#Data space operations 
-;==============================
-;#Allocate data space
-; args:   1: requested data space (in bytes)
-;         X: new CSP 
-; SSTACK: 2 bytes
-;         No registers are preserved
-#macro	DS_ALLOC, 1
-		LDD	#-\1			;requested space -> D
-		JOBSR	FUDUCT_DS_ALLOC		;allocation routine
-#emac
-
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -414,45 +403,58 @@ FUDICT_UPPER		EQU	STRING_UPPER
 ;         Y and D are preserved
 FUDICT_TX_STRING	EQU	STRING_PRINT_BL
 
-;#Data space operations
-;======================
-;#Allocate data space
-; args:   D: requested data space (in bytes)
+;#Control-flow stack operations
+;==============================
+;#Allocate CFS space
+; args:   D: requested CFS space (in bytes, negative)
 ;         Y: PSP
 ; result: Y: new PSP
 ; SSTACK: 2 bytes
 ;         No registers are preserved
+FUDICT_CFS_ALLOC	EQU	FPS_CFS_ALLOC
+	
+;#Data space operations
+;======================
+;#Allocate data space
+; args:   D:  requested data space (in bytes)
+;         Y:  PSP
+; result: Y:  new PSP
+;         DS: new data space pointer
+; SSTACK: 2 bytes
+;         No registers are preserved
 FUDICT_DS_ALLOC		EQU	*
-			;Determine start of compile space (requested space in D)
-			TFR	D, X			;requested space -> X
-			LDD	DP			;DP -> D
-			LEAX	D,X			;new DP -> X
-			STX	DP			;update DP
-			ADDD	#(FUDICT_DS_ALLOC_SIZE-1);start of CS -> D
+			;Check if CS must be moved (requested data space in D)
+			LDX	DP 			;current DP -> X 
+			LEAX	D,X			;new DP -> X			
+			CPX	#UDICT_PS_START		;check for lower boundary
+			BHS	FUDICT_DS_ALLOC_1	;above lower boundary
+			LDX	#UDICT_PS_END 		;fix DP
+FUDICT_DS_ALLOC_1	STX	DP 			;update DP
+			CPX	START_OF_CS		;check if START_OF_CShas been reached 
+			BHS	FUDICT_DS_ALLOC_3 	;no need to move DS
+			;Determine new START_OF_CS (new DP in X)
+			TFR	X, D 			;DP -> D
+			SUBD	START_OF_CS		;required space -> D
+			ADDD	#(FUDICT_DS_ALLOC_SIZE-1);align to allocation size
 			ANDB	#~(FUDICT_DS_ALLOC_SIZE-1);
-			EXG	D, X			;start of CS -> X, new DP -> D
-			ADDD	#(FUDICT_DS_ALLOC_SIZE-1);new start of CS -> D
-			ANDB	#~(FUDICT_DS_ALLOC_SIZE-1);
-			;Determine CS shift distance (old start of CS in X, new start of CS in D)
-			PSHX				;old start of CS -> 0,SP
-			SUBD	0,SP			;shift distance -> D
-			BEQ	FUDICT_DS_ALLOC_2	;no shift required
-			;Shift code space (shift distance in D, old start of CS in 0,SP)
-			LDX	CP 			;CP -> X
-			LEAX	2,X			;CP + offset -> X
-FUDICT_DS_ALLOC_1	MOVW	2,-X, D,X		;copy CS data
-			MOVW	2,-X, D,X		;copy CS data (FUDICT_DS_ALLOC_SIZE >= 4)
-			MOVW	2,-X, D,X		;copy CS data
-			MOVW	2,-X, D,X		;copy CS data (FUDICT_DS_ALLOC_SIZE >= 8)
-			MOVW	2,-X, D,X		;copy CS data
-			MOVW	2,-X, D,X		;copy CS data
-			MOVW	2,-X, D,X		;copy CS data
-			MOVW	2,-X, D,X		;copy CS data (FUDICT_DS_ALLOC_SIZE >= 16)
-			CPX	0,SP			;check for CS boundary 
-			BHI	FUDICT_DS_ALLOC_1	;loop
-			;Clean up
-FUDICT_DS_ALLOC_2	PULX				;clean up stack
-			RTS				;done
+			LDX	PAD			;old PAD -> X
+			LEAX	D,X			;new PAD -> X
+			STX	PAD			;update PAD
+			LDX	HLD			;old HLD -> X
+			LEAX	D,X			;new HLD -> X
+			STX	HLD			;update HLD
+			LDX	START_OF_CS		;old START_OF_CS -> X
+			LEAX	D,X			;new START_OF_CS -> X
+			STX	END_OF_PS		;update START_OF_CS	
+			;Shift compile space (shift distance in D) 
+			ADDD	#2			;adjust shift offset
+FUDICT_DS_ALLOC_2	MOVW	2,X-, D,X		;copy word
+			MOVW	2,X-, D,X		;copy word (optional)
+			MOVW	2,X-, D,X		;copy word (optional)
+			MOVW	2,X-, D,X		;copy word (optional)
+			CPX	PAD			;check if shifting is comple
+			BLO	FUDICT_DS_ALLOC_2	;more to shift
+FUDICT_CFS_ALLOC_3	RTS				;done
 	
 ;#Dictionary operations
 ;======================
@@ -714,7 +716,7 @@ CF_COLON_3		CLR	1,X+			;set default IF
 			MOVW	#STATE_COMPILE, STATE 	;set compile state
 			;Push colon-sys onto the control stack ( ) (R: NFA ) (CP in X)
 			CS_ALLOC	6		;allocate 6 bytes
-			LDX	CSP			;CSP -> X
+			LDX	CFSP			;CFSP -> X
 			MOVW	#FUDICT_CS_COLON_SYS, 0,X;set CS code
 			MOVW	2,SP+, 2,X		;set NFA
 			MOVW	CP,   4,X		;set CFA
@@ -812,7 +814,7 @@ CF_MOVE_2		LEAY	6,Y			;clean up stack
 IF_COMPILE_COMMA	IMMEDIATE
 CF_COMPILE_COMMA	COMPILE_ONLY
 			;Remove old COF optimization flags
-CF_COMPILE_COMMA_1	LDX	CSP		   	;CSP -> X
+CF_COMPILE_COMMA_1	LDX	CFSP		   	;CFSP -> X
 			BCLR	0,X,#FUDICT_CF_COF 	;clear compile flags
 			;Check for INLINE compilation
 			LDX	0,Y 			;xt -> X
@@ -830,17 +832,17 @@ CF_COMPILE_COMMA_1	LDX	CSP		   	;CSP -> X
 			STD	2,Y-			;u -> PSP+0
 			JOB	CF_MOVE			;copy inline code
 			;Check xt target
-CF_COMPILE_COMMA_2	LDX	CSP		   	;CSP -> X
+CF_COMPILE_COMMA_2	LDX	CFSP		   	;CFSP -> X
 			LDD	2,Y+ 			;xt -> D
 			CPD	DP			;check lower range
 			BLO	CF_COMPILE_COMMA_3  	;compile absolute call
 			CPD	CP			;check upper range
 			BHI	CF_COMPILE_COMMA_3  	;compile absolute call
-			;Check relative call distance (CSP in X, xt in D)
+			;Check relative call distance (CFSP in X, xt in D)
 			SUBD	CP 			;call distance -> D
 			CPD	#(2-128)		;check for short branch
 			BLT	CF_COMPILE_COMMA_4	;medium or long branch distance
-			;Compile short distance call (CSP in X, call distance in D)
+			;Compile short distance call (CFSP in X, call distance in D)
 			SUBB	#2			;rr -> B
 			BSET	0,X,#FUDICT_CF_COF_2_NOINL;set compile flags
 			LDX	CP			;CP -> X
@@ -849,7 +851,7 @@ CF_COMPILE_COMMA_2	LDX	CSP		   	;CSP -> X
 			LDAA	#$07			;"BSR" -> A
 			STD	-2,X			;compile "BSR rr"
 			RTS				;done
-			;Compile absolute  call (CSP in X, xt in D)
+			;Compile absolute  call (CFSP in X, xt in D)
 CF_COMPILE_COMMA_3	BSET	0,X,#FUDICT_CF_COF_3	;set compile flags
 			LDX	CP			;CP -> X
 			LEAX	3,X			;allocate 3 bytes
@@ -857,10 +859,10 @@ CF_COMPILE_COMMA_3	BSET	0,X,#FUDICT_CF_COF_3	;set compile flags
 			MOVB	#$16, -3,X		;compile "JSR"
 			STD	-2,X			;compile "hh ll"
 			RTS				;done
-			;Check relative call distance (CSP in X, call distance in D)
+			;Check relative call distance (CFSP in X, call distance in D)
 CF_COMPILE_COMMA_4	CPD	#(3-256)		;check for short branch
 			BLT	CF_COMPILE_COMMA_5	;long branch distance		
-			;Compile medium distance call (CSP in X, call distance in D)
+			;Compile medium distance call (CFSP in X, call distance in D)
 			SUBB	#3			;ff -> B
 			BSET	0,X,#FUDICT_CF_COF_3_NOINL;set compile flags
 			LDX	CP			;CP -> X
@@ -869,7 +871,7 @@ CF_COMPILE_COMMA_4	CPD	#(3-256)		;check for short branch
 			MOVW	#$15F9, -3,X		;compile "JSR xb" (IDX1)
 			STAB	-1,X			;compile "ff"
 			RTS				;done
-			;Compile long distance call (CSP in X, call distance in D)
+			;Compile long distance call (CFSP in X, call distance in D)
 CF_COMPILE_COMMA_5	SUBD	#4			;ee ff -> D
 			BSET	0,X,#FUDICT_CF_COF_4_NOINL;set compile flags
 			LDX	CP			;CP -> X
@@ -900,7 +902,7 @@ CF_COMPILE_COMMA_5	SUBD	#4			;ee ff -> D
 IF_SEMICOLON		IMMEDIATE			
 CF_SEMICOLON		COMPILE_ONLY			;compile-only word
 			;Check colon-sys 
-CF_SEMICOLON_1		LDD	[CSP] 			;flags:ID -> D (broken in SIMHC12)
+CF_SEMICOLON_1		LDD	[CFSP] 			;flags:ID -> D (broken in SIMHC12)
 			CMPB	#FUDICT_CS_COLON_SYS	;check for : definition
 			BNE	CF_SEMICOLON_7 		;control structure mismatch	
 			;Check for COF optimization (flags:colon-sys -> D)
@@ -922,7 +924,7 @@ CF_SEMICOLON_3		CMPA	#$15 			;check for "JSR" (relative)
 CF_SEMICOLON_4		SEX	B, D			;B -> D
 			BCLR	D,X,#$10		;"JSR" -> "JMP"
 			;Add word to UDICT 
-CF_SEMICOLON_5		LDX	CSP 			;CSP -> X
+CF_SEMICOLON_5		LDX	CFSP 			;CFSP -> X
 			LDD	2,X			;NFA -> D
 			BEQ	CF_SEMICOLON_6		;:NONAME compilation
 			STD	FUDICT_LAST_NFA 	;update last NFA
@@ -940,7 +942,7 @@ CF_SEMICOLON_8		CMPA	#$07 			;check for "BSR"
 			JOB	CF_SEMICOLON_5		;add word to UDICT
 			;Set INLINE configuration (CP in X) 
 CF_SEMICOLON_9		LDD	CP 			;CP -> D
-			LDX	CSP 			;CSP -> X
+			LDX	CFSP 			;CFSP -> X
 			BRSET	0,X,#FUDICT_CF_NOINL,CF_SEMICOLON_10;INLINE compilation prohibited
 			SUBD	4,X			;code length -> D
 			CPD	#FUDICT_MAX_INLINE	;check code length
@@ -954,6 +956,21 @@ CF_SEMICOLON_10		LDX	CP 			;CP -> X
 			MOVB	#$3D, -1,X		;compile "RTS"
 			JOB	CF_SEMICOLON_5		;add word to UDICT
 
+;Word: VARIABLE ( "<spaces>name" -- )
+;Skip leading space delimiters. Parse name delimited by a space. Create a
+;definition for name with the execution semantics defined below. Reserve one
+;cell of data space at an aligned address.
+;name is referred to as a variable.
+;name Execution: ( -- a-addr )
+;a-addr is the address of the reserved cell. A program is responsible for
+;initializing the contents of the reserved cell.
+IF_VARIABLE		REGULAR	
+CF_VARIABLE		INTERPRET_ONLY			
+			;Allocate data space 
+			DS_ALLOC	2 		;allocate one cell
+			MOVW	DS, 2,-Y		;DS -> PS	
+			;Create definition
+			JOB	CF_CONSTANT
 
 ;Word: CONSTANT ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -966,7 +983,7 @@ CF_CONSTANT		EQU	*
 			;Compile header 
 			JOBSR	CF_COLON 		;use standard ":" 
 			;Compile body 
-			JOBSR	CF_LITERAL_1 	;LITERAL
+			JOBSR	CF_LITERAL_1 		;LITERAL
 			;Conclude compilation		
 			JOB	CF_SEMICOLON_1 		;";"
 
@@ -979,7 +996,7 @@ CF_CONSTANT		EQU	*
 IF_LITERAL		IMMEDIATE
 CF_LITERAL		COMPILE_ONLY
 			;Remove COF optimization flags
-			LDX	CSP  			;CSP -> X
+			LDX	CFSP  			;CFSP -> X
 			BCLR	0,X,#FUDICT_CF_COF 	;clear compile flags
 			;Allocate compile space 
 CF_LITERAL_1		LDX	CP 			;CP -> X
@@ -1017,34 +1034,6 @@ CF_TWO_CONSTANT		EQU	*
 			JOBSR	CF_TWO_LITERAL_1 	;2LITERAL
 			;Conclude compilation		
 			JOB	CF_SEMICOLON_1 		;";"
-
-;Word: VARIABLE ( "<spaces>name" -- )
-;Skip leading space delimiters. Parse name delimited by a space. Create a
-;definition for name with the execution semantics defined below. Reserve one
-;cell of data space at an aligned address.
-;name is referred to as a variable.
-;name Execution: ( -- a-addr )
-;a-addr is the address of the reserved cell. A program is responsible for
-;initializing the contents of the reserved cell.
-;IF_VARIABLE		REGULAR	
-;CF_VARIABLE		EQU	*
-;			;Start compilation 
-;			JOBSR	CF_COLON	      	;compile header
-;			BSET	0,SP,#FUDICT_CF_NOINL	;forbid INLINE compilation
-;			;Determine compilation strategy
-;			BRCLR	STRATEGY,#$80,CF_VARIABLE_1;NV compile
-;			;Volatile compile
-;			LDX	CP 			;CP -> X
-;			LEAX	6,X			;CP+offset -> X
-;			STX	2,-Y			;CP+offset -> PS
-;			JOB	CF_VARIABLE_2		;conclude compilation
-;			;Non-volatile compile
-;CF_VARIABLE_1		MOVW	DP, 2,-Y 		;DP -> PS
-;			;Conclude compilation
-;CF_VARIABLE_2		JOBSR	CF_LITERAL_1		;compile literal
-;			JOBSR	CF_SEMICOLON_1 		;conclude compilation
-;			MOVW	#2, 2,-Y		;1 cell ->PS
-;			JOB	CF_ALLOT		;allocate 1 cell of data space
 
 ;Word: ALLOT ( n -- )
 ;If n is greater than zero, reserve n address units of data space. If n is less
@@ -1211,7 +1200,7 @@ CF_DOT_QUOTE_2		LEAY	4,Y 			;clean up stack
 			;Compilation semantics ( c-addr u )
 CF_DOT_QUOTE_3		MOVW	#CF_DOT_QUOTE_RT, 2,-Y 	;runtime semantics -> PS
 			JOBSR	CF_COMPILE_COMMA_1	;compile word
-			LDX	CSP 			;CSP -> X
+			LDX	CFSP 			;CFSP -> X
 			BCLR	0,X,#FUDICT_CF_COF 	;clear compile flags
 			JOB	CF_STRING_COMMA_1	;compile string
 			
@@ -1318,16 +1307,16 @@ CF_DOT_QUOTE_RT		EQU	*
 ;IF_LEAVE		IMMEDIATE
 ;CF_LEAVE		COMPILE_ONLY
 ;			;Check compile info 
-;			LDX	CSP		  	;CSP -> X
+;			LDX	CFSP		  	;CFSP -> X
 ;			LDAB	1,X  			;compile info -> B
 ;			CMPB	#FUDICT_CF_DO_SYS	;check for matching "do-sys"
 ;			BNE	CF_LEAVE_1		;control structure mismatch			
-;			;Allocate compile space (CSP in X)
+;			;Allocate compile space (CFSP in X)
 ;			LDD	CP  			;CP -> D
 ;			PSHD				;CP -> RSP+0
 ;			ADDD	#3 			;alloate space
 ;			STD	CP			;update CP
-;			;Update compile info (CSP in X, old CP in RSP+0)
+;			;Update compile info (CFSP in X, old CP in RSP+0)
 ;			LDD	4,X 			;LEAVE list -> D
 ;			STD	[0,SP]			;store LEAVE list
 ;			PULD				;old CP -> D
@@ -1360,11 +1349,11 @@ CF_DOT_QUOTE_RT		EQU	*
 ;IF_LOOP			IMMEDIATE
 ;CF_LOOP			COMPILE_ONLY
 ;			;Check compile info 
-;			LDD	[CSP] 			;compile info -> B
+;			LDD	[CFSP] 			;compile info -> B
 ;			CMPB	#FUDICT_CF_DO_SYS	;check for matching "do-sys"
 ;			BNE	CF_LOOP_5		;control structure mismatch			
 ;			;Calculate branch distance 
-;			LDX	CSP 			;CSP -> X
+;			LDX	CFSP 			;CFSP -> X
 ;			LDD	2,X 			;LOOP address -> D
 ;			SUBD	CP			;LOOP address - CP -> D
 ;			SUBD	#7			;subtract INLINE code offset
@@ -1389,7 +1378,7 @@ CF_DOT_QUOTE_RT		EQU	*
 ;			;Resolve LEAVE list (CP in X) 
 ;			LEAX	-2,X 			;LEAVE target -> X
 ;			PSHX				;LEAVE target -> 0,SP
-;			LDX	CSP 			;CSP -> X
+;			LDX	CFSP 			;CFSP -> X
 ;			BEQ	CF_LOOP_4		;empty LEAVE list
 ;CF_LOOP_3		LDD	0,X			;next list element -> D
 ;			LDX	CP			;CP -> X
@@ -1399,7 +1388,7 @@ CF_DOT_QUOTE_RT		EQU	*
 ;			TBNE	X, CF_LOOP_3		;iterathe through LEAVE list
 ;CF_LOOP_4		PULD				;clean up RS
 ;			;Remove do-sys 
-;			LDX	CSP 			;CSP -> X
+;			LDX	CFSP 			;CFSP -> X
 ;			LDAA	0,X			;compile flags -> A
 ;			ANDA	#~FUDICT_CF_COF		;remove COF optimizations
 ;			STAA	6,X			;maintain remaining compile flags
@@ -1451,12 +1440,12 @@ CF_DOT_QUOTE_RT		EQU	*
 ;IF_PLUS_LOOP		IMMEDIATE
 ;CF_PLUS_LOOP		COMPILE_ONLY
 ;			;Check compile info 
-;			LDD	[CSP] 			;compile info -> B
+;			LDD	[CFSP] 			;compile info -> B
 ;			CMPB	#FUDICT_CF_DO_SYS	;check for matching "do-sys"
 ;			BNE	CF_LOOP_5		;control structure mismatch			
 ;			;Calculate branch distance 
 ;
-;			LDX	CSP 			;CSP -> X
+;			LDX	CFSP 			;CFSP -> X
 ;			LDD	2,X 			;LOOP address -> D
 ;			SUBD	CP			;LOOP address - CP -> D
 ;			SUBD	#7			;subtract INLINE code offset
@@ -1481,7 +1470,7 @@ CF_DOT_QUOTE_RT		EQU	*
 ;			;Resolve LEAVE list (CP in X) 
 ;			LEAX	-2,X 			;LEAVE target -> X
 ;			PSHX				;LEAVE target -> 0,SP
-;			LDX	CSP 			;CSP -> X
+;			LDX	CFSP 			;CFSP -> X
 ;			BEQ	CF_LOOP_4		;empty LEAVE list
 ;CF_LOOP_3		LDD	0,X			;next list element -> D
 ;			LDX	CP			;CP -> X
@@ -1491,7 +1480,7 @@ CF_DOT_QUOTE_RT		EQU	*
 ;			TBNE	X, CF_LOOP_3		;iterathe through LEAVE list
 ;CF_LOOP_4		PULD				;clean up RS
 ;			;Remove do-sys 
-;			LDX	CSP 			;CSP -> X
+;			LDX	CFSP 			;CFSP -> X
 ;			LDAA	0,X			;compile flags -> A
 ;			ANDA	#~FUDICT_CF_COF		;remove COF optimizations
 ;			STAA	6,X			;maintain remaining compile flags
@@ -1543,14 +1532,14 @@ CF_DOT_QUOTE_RT		EQU	*
 ;IF_PLUS_LOOP		IMMEDIATE
 ;CF_PLUS_LOOP		COMPILE_ONLY
 ;			;Check compile info 
-;			LDD	[CSP] 			;compile info -> B
+;			LDD	[CFSP] 			;compile info -> B
 ;			CMPB	#FUDICT_CF_DO_SYS	;check for matching "do-sys"
 ;			BNE	CF_LOOP_5		;control structure mismatch			
 ;			;Calculate branch distance 
 ;
 ;
 ;
-;			LDX	CSP 			;CSP -> X
+;			LDX	CFSP 			;CFSP -> X
 ;			LDD	2,X 			;LOOP address -> D
 ;			SUBD	CP			;LOOP address - CP -> D
 ;			SUBD	#7			;subtract INLINE code offset
@@ -1575,7 +1564,7 @@ CF_DOT_QUOTE_RT		EQU	*
 ;			;Resolve LEAVE list (CP in X) 
 ;			LEAX	-2,X 			;LEAVE target -> X
 ;			PSHX				;LEAVE target -> 0,SP
-;			LDX	CSP 			;CSP -> X
+;			LDX	CFSP 			;CFSP -> X
 ;			BEQ	CF_LOOP_4		;empty LEAVE list
 ;CF_LOOP_3		LDD	0,X			;next list element -> D
 ;			LDX	CP			;CP -> X
@@ -1585,7 +1574,7 @@ CF_DOT_QUOTE_RT		EQU	*
 ;			TBNE	X, CF_LOOP_3		;iterathe through LEAVE list
 ;CF_LOOP_4		PULD				;clean up RS
 ;			;Remove do-sys 
-;			LDX	CSP 			;CSP -> X
+;			LDX	CFSP 			;CFSP -> X
 ;			LDAA	0,X			;compile flags -> A
 ;			ANDA	#~FUDICT_CF_COF		;remove COF optimizations
 ;			STAA	6,X			;maintain remaining compile flags
@@ -1637,11 +1626,11 @@ CF_DOT_QUOTE_RT		EQU	*
 ;IF_PLUS_LOOP		IMMEDIATE
 ;CF_PLUS_LOOP		COMPILE_ONLY
 ;			;Check compile info 
-;			LDD	[CSP] 			;compile info -> B
+;			LDD	[CFSP] 			;compile info -> B
 ;			CMPB	#FUDICT_CF_DO_SYS	;check for matching "do-sys"
 ;			BNE	CF_LOOP_5		;control structure mismatch			
 ;			;Calculate branch distance 
-;			LDX	CSP 			;CSP -> X
+;			LDX	CFSP 			;CFSP -> X
 ;			LDD	2,X 			;LOOP address -> D
 ;			SUBD	CP			;LOOP address - CP -> D
 ;			SUBD	#7			;subtract INLINE code offset
@@ -1697,7 +1686,7 @@ CF_DOT_QUOTE_RT		EQU	*
 ;IF_UNLOOP		IMMEDIATE
 ;CF_UNLOOP		COMPILE_ONLY
 ;			;Check compile info 
-;			LDD 	[CSP]			;compile info -> B
+;			LDD 	[CFSP]			;compile info -> B
 ;			CMPB	#FUDICT_CF_DO_SYS	;check for matching "do-sys"
 ;			BNE	CF_UNLOOP_1		;control structure mismatch			
 ;			;Allocate 2 bytes of compile space 
@@ -1727,7 +1716,7 @@ CF_DOT_QUOTE_RT		EQU	*
 ;IF_I			IMMEDIATE
 ;CF_I			COMPILE_ONLY
 ;			;Check compile info 
-;			LDD	[CSP]			;compile info -> B
+;			LDD	[CFSP]			;compile info -> B
 ;			CMPB	#FUDICT_CF_DO_SYS	;check for matching "do-sys"
 ;			BNE	CF_UNLOOP_1		;control structure mismatch			
 ;			;Allocate 4 bytes of compile space 
@@ -1756,7 +1745,7 @@ CF_DOT_QUOTE_RT		EQU	*
 ;IF_J			IMMEDIATE
 ;CF_J			COMPILE_ONLY
 ;			;Check compile info 
-;			LDD	[CSP]			;compile info -> B
+;			LDD	[CFSP]			;compile info -> B
 ;			CMPB	#FUDICT_CF_DO_SYS	;check for matching "do-sys"
 ;			BNE	CF_UNLOOP_1		;control structure mismatch			
 ;			;Allocate 4 bytes of compile space 
