@@ -221,8 +221,7 @@ FPS_LIST_SEP		EQU	FOUTER_LIST_SEP
 ;==============================
 ;#Allocate CFS space
 ; args:   D: requested CFS space (in bytes, negative)
-;         Y: PSP
-; result: Y: new PSP
+; result: none
 ; SSTACK: 2 bytes
 ;         No registers are preserved
 FPS_CFS_ALLOC		EQU	*
@@ -242,7 +241,7 @@ FPS_CFS_ALLOC_1		STX	CFSP 			;update CFSP
 			;Determine new END_OF_PS (new CFSP in X)
 			LDD	END_OF_PS		;END_OF_PS -> D
 			TFR	D, X			;END_OF_PS -> X
-			SUBD	CFPS			;required space -> D
+			SUBD	CFSP			;required space -> D
 			ADDD	#(FPS_CFS_ALLOC_SIZE-1)	;align to allocation size
 			ANDB	#~(FPS_CFS_ALLOC_SIZE-1);
 			LEAX	D,X			;new END_OF_PS -> X
@@ -261,6 +260,15 @@ FPS_CFS_ALLOC_2		MOVW	2,X+, D,X		;copy word
 			CPX	END_OF_PS		;check if shifting is comple
 			BLO	FPS_CFS_ALLOC_2		;more to shift
 FPS_CFS_ALLOC_3		RTS				;done
+
+;#Data space operations
+;======================
+;#Allocate data space
+; args:   D:  requested data space (in bytes)
+; result: none
+; SSTACK: 2 bytes
+;         No registers are preserved
+FPS_DS_ALLOC		EQU	FUDICT_DS_ALLOC
 	
 ;#########
 ;# Words #

@@ -316,7 +316,7 @@ FUDICT_VARS_START_LIN	EQU	@
 
 			ALIGN	1	
 DP			DS	2	;data pointer (next free space)
-START_OF_CP		DS	2	;start of compile space
+START_OF_CS		DS	2	;start of compile space
 CP			DS	2 	;compile pointer (next free space) 
 CP_SAVE			DS	2 	;compile pointer to revert to in case of an error
 
@@ -407,8 +407,7 @@ FUDICT_TX_STRING	EQU	STRING_PRINT_BL
 ;==============================
 ;#Allocate CFS space
 ; args:   D: requested CFS space (in bytes, negative)
-;         Y: PSP
-; result: Y: new PSP
+; result: none
 ; SSTACK: 2 bytes
 ;         No registers are preserved
 FUDICT_CFS_ALLOC	EQU	FPS_CFS_ALLOC
@@ -417,9 +416,7 @@ FUDICT_CFS_ALLOC	EQU	FPS_CFS_ALLOC
 ;======================
 ;#Allocate data space
 ; args:   D:  requested data space (in bytes)
-;         Y:  PSP
-; result: Y:  new PSP
-;         DS: new data space pointer
+; result: none
 ; SSTACK: 2 bytes
 ;         No registers are preserved
 FUDICT_DS_ALLOC		EQU	*
@@ -454,7 +451,7 @@ FUDICT_DS_ALLOC_2	MOVW	2,X-, D,X		;copy word
 			MOVW	2,X-, D,X		;copy word (optional)
 			CPX	PAD			;check if shifting is comple
 			BLO	FUDICT_DS_ALLOC_2	;more to shift
-FUDICT_CFS_ALLOC_3	RTS				;done
+FUDICT_DS_ALLOC_3	RTS				;done
 	
 ;#Dictionary operations
 ;======================
@@ -715,7 +712,8 @@ CF_COLON_3		CLR	1,X+			;set default IF
 			;Set STATE ( ) (R: NFA )
 			MOVW	#STATE_COMPILE, STATE 	;set compile state
 			;Push colon-sys onto the control stack ( ) (R: NFA ) (CP in X)
-			CS_ALLOC	6		;allocate 6 bytes
+			LDD	#6			;allocate 6 bytes
+			JOBSR	FUDICT_CFS_ALLOC	;
 			LDX	CFSP			;CFSP -> X
 			MOVW	#FUDICT_CS_COLON_SYS, 0,X;set CS code
 			MOVW	2,SP+, 2,X		;set NFA
@@ -929,7 +927,8 @@ CF_SEMICOLON_5		LDX	CFSP 			;CFSP -> X
 			BEQ	CF_SEMICOLON_6		;:NONAME compilation
 			STD	FUDICT_LAST_NFA 	;update last NFA
 			;Remove colon-sys 
-CF_SEMICOLON_6		CS_DEALLOC	6		;deallocate 6 bytes
+CF_SEMICOLON_6		LDD	#-6			;deallocate 6 bytes
+			JOBSR	FUDICT_CFS_ALLOC	;
 			MOVW	#STATE_INTERPRET, STATE ;set interpretation state
 			RTS				;done
 			;Control structure misatch
@@ -965,12 +964,14 @@ CF_SEMICOLON_10		LDX	CP 			;CP -> X
 ;a-addr is the address of the reserved cell. A program is responsible for
 ;initializing the contents of the reserved cell.
 IF_VARIABLE		REGULAR	
-CF_VARIABLE		INTERPRET_ONLY			
-			;Allocate data space 
-			DS_ALLOC	2 		;allocate one cell
-			MOVW	DS, 2,-Y		;DS -> PS	
-			;Create definition
-			JOB	CF_CONSTANT
+CF_VARIABLE		EQU	*
+			;Push DP onro the PS
+			MOVW	DP, 2,-Y 		;DP -> 0,Y
+			;Constant definition
+			JOBSR	CF_CONSTANT 		;define CONSTANT
+			;Allocate one CELL of data space 
+			LDD	#2 			;allocate one CELL
+			JOB	FUDICT_DS_ALLOC		;
 
 ;Word: CONSTANT ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
@@ -1045,23 +1046,12 @@ CF_TWO_CONSTANT		EQU	*
 ;If the data-space pointer is character aligned and n is a multiple of the size
 ;of a character when ALLOT begins execution, it will remain character aligned
 ;when ALLOT finishes execution.
-;IF_ALLOT		REGULAR	
-;CF_ALLOT		EQU	*
-;			;Pull n 
-;			LDD	2,Y+ 			;n -> D
-;			;Determine compilation strategy
-;			BRCLR	STRATEGY,#$80,CF_ALLOT_1;NV compile
-;			;Volatile compile
-;			LDX	CP 			;CP -> X
-;			LEAX	D,X			;CP+n -> X
-;			STX	CP			;update CP
-;			STX	CP_SAVE			;update CP_SAVE
-;			RTS				;done
-;			;Non-volatile compile
-;CF_ALLOT_1		LDX	DP 			;DP -> X
-;			LEAX	D,X			;DP+n -> X
-;			STX	DP			;update DP
-;			RTS				;done
+IF_ALLOT		REGULAR	
+CF_ALLOT		EQU	*
+			;Pull n 
+			LDD	2,Y+ 			;n -> D
+			;Allocate data space 
+			JOB	FUDICT_DS_ALLOC
 
 ;Word: ALIGN ( -- )
 ;If the data-space pointer is not aligned, reserve enough space to align it.
