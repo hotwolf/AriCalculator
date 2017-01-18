@@ -1065,49 +1065,31 @@ CF_ALLOT		EQU	*
 			;Pull n 
 			LDD	2,Y+ 			;n -> D
 			;Allocate data space 
-			JOB	FUDICT_DS_ALLOC
+CF_ALLOT_1		JOB	FUDICT_DS_ALLOC
 
 ;Word: ALIGN ( -- )
 ;If the data-space pointer is not aligned, reserve enough space to align it.
-;IF_ALIGN		REGULAR	
-;CF_ALIGN		EQU	*
-;			;Determine compilation strategy
-;			BRCLR	STRATEGY,#$80,CF_ALIGN_2;NV compile
-;			;Volatile compile
-;			BRCLR	CP+1,#$01,CF_ALIGN_1 	;check id CP is aligned
-;			LDX	CP 			;CP -> X
-;			INX				;align CP
-;			STX	CP			;update CP
-;			STX	CP_SAVE			;update CP_SAVE
-;CF_ALIGN_1		RTS				;done
-;			;Non-volatile compile
-;CF_ALIGN_2		BRCLR	DP+1,#$01,CF_ALIGN_3 	;check id DP is aligned
-;			LDX	DP 			;DP -> X
-;			INX				;align DP
-;			STX	DP			;update DP
-;CF_ALIGN_3		RTS				;done
+IF_ALIGN		REGULAR	
+CF_ALIGN		EQU	*
+			;Align data space 
+			LDD	#1 			;1 -> D
+			BRSET	DP+1,#$01,CF_ALLOT_1	;allocate alignment byte
+			RTS				;no alignment required
 
 ;Word: , ( x -- )
 ;Reserve one cell of data space and store x in the cell. If the data-space
 ;pointer is aligned when , begins execution, it will remain aligned when,
 ;finishes execution. An ambiguous condition exists if the data-space pointer is
 ;not aligned prior to execution of ,.
-;IF_COMMA		REGULAR	
-;CF_COMMA		EQU	*
-;			;Determine compilation strategy
-;			BRCLR	STRATEGY,#$80,CF_COMMA_2;NV compile
-;			;Volatile compile
-;			LDX	CP 			;CP -> X
-;			LEAX	2,X			;allocate one cell
-;			STX	CP			;update CP
-;			STX	CP_SAVE			;update CP_SAVE
-;CF_COMMA_1		MOVW	2,Y+, -2,X		;store x in data space
-;			RTS				;done
-;			;Non-volatile compile
-;CF_COMMA_2		LDX	DP 			;DP -> X
-;			LEAX	2,X			;allocate one cell
-;			STX	DP			;update DP
-;			JOB	CF_COMMA_1		;store x in data space
+IF_COMMA		REGULAR	
+CF_COMMA		EQU	*
+			;Allocate one CELL of data space
+			LDD	#2 			;2 -> D
+			JOBSR	FUDICT_DS_ALLOC		;allocate data space
+			;Store x in allocated space  
+			LDX	DP 			;DP -> X
+			MOVW	2,Y+, -2,X		;copy x
+			RTS				;done
 	
 ;C, ( char -- )
 ;Reserve space for one character in the data space and store char in the space.
@@ -1115,61 +1097,42 @@ CF_ALLOT		EQU	*
 ;will remain character aligned when C, finishes execution. An ambiguous
 ;condition exists if the data-space pointer is not character-aligned prior to
 ;execution of C,.
-;IF_C_COMMA		REGULAR	
-;CF_C_COMMA		EQU	*
-;			;Determine compilation strategy
-;			BRCLR	STRATEGY,#$80,CF_C_COMMA_2;NV compile
-;			;Volatile compile
-;			LDX	CP 			;CP -> X
-;			INX				;allocate one byte
-;			STX	CP			;update CP
-;			STX	CP_SAVE			;update CP_SAVE
-;CF_C_COMMA_1		LDD	2,Y+			;char -> D
-;			STAB	-2,X		;store char in data space
-;			RTS				;done
-;			;Non-volatile compile
-;CF_C_COMMA_2		LDX	DP 			;DP -> X
-;			INX				;allocate one byte
-;			STX	DP			;update DP
-;			JOB	CF_C_COMMA_1		;store char in data space
+IF_C_COMMA		REGULAR	
+CF_C_COMMA		EQU	*
+			;Allocate one char of data space
+			LDD	#1 			;1 -> D
+			JOBSR	FUDICT_DS_ALLOC		;allocate data space
+			;Store char in allocated space  
+			LDX	DP 			;DP -> X
+			LDD	2,Y+			;char -> D
+			STAB	-1,X			;char -> DS
+			RTS				;done
 
 ;Word: HERE ( -- addr )
 ;addr is the data-space pointer. (points to the next free data space)
-;IF_HERE			REGULAR	
-;CF_HERE			EQU	*
-;			;Determine compilation strategy
-;			BRCLR	STRATEGY,#$80,CF_HERE_1;NV compile
-;			;Volatile compile
-;			MOVW	CP, 2,-Y	       	;CP -> PS
-;			RTS			       	;done
-;			;Non-volatile compile
-;CF_HERE_1		MOVW	DP, 2,-Y	     	;DP -> PS
-;			RTS			       	;done
+IF_HERE			REGULAR	
+CF_HERE			EQU	*
+			;Push DP onto trhe PS
+			MOVW	DP, 2,-Y	     	;DP -> PS
+			RTS			       	;done
 
 ;;Word: UNUSED ( -- u )
 ;u is the amount of space remaining in the region addressed by HERE, in address
 ;units.
-;IF_UNUSED		REGULAR	
-;CF_UNUSED		EQU	*
-;			;Allocate PS space
-;			LEAY	-2,Y
-;			TFR	Y, D
-;			;Determine compilation strategy (PSP in D)
-;			BRCLR	STRATEGY,#$80,CF_UNUSED_2;NV compile
-;			;Volatile compile (PSP in D)
-;			SUBD	CP 			;free space -> D
-;CF_UNUSED_1		STD	0,Y			;free space -> PS
-;			RTS			       	;done
-;			;Non-volatile compile
-;CF_UNUSED_2		SUBD	DP			;free space -> D
-;			JOB	CF_UNUSED_1		;free space -> PS
+IF_UNUSED		REGULAR	
+CF_UNUSED		EQU	*
+			;Calculate remaining space
+			TFR	Y, D 			;PSP -> D
+			LDX	PAD			;check if PAD is active
+			BNE	CF_UNUSED_2		;PAD is active
+			;PAD is inactive (PSP in D) 
+			SUBD	CP 			;calculate remaining space
+CF_UNUSED_1		STD	2,-Y			;push result onto PS
+			RTS				;done
+			;PAD is active (PSP in D) 
+CF_UNUSED_2		SUBD	PAD 			;calculate remaining space
+			JOB	CF_UNUSED_1		;push result onto PS
 
-
-
-
-
-
-	
 ;Word: .(
 ;Compilation: Perform the execution semantics given below.
 ;Execution: ( "ccc<paren>" -- )
