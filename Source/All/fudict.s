@@ -429,37 +429,40 @@ FUDICT_DS_ALLOC		EQU	*
 			LDX	#UDICT_PS_END 		;fix DP
 FUDICT_DS_ALLOC_1	STX	DP 			;update DP
 			CPX	START_OF_CS		;check if START_OF_CS has been reached 
-			BLO	FUDICT_DS_ALLOC_3 	;no need to move DS
-
-
-
-			;Determine new START_OF_CS (requested data space in , new DP in X)
-			TFR	X, D 			;DP -> D
-			SUBD	START_OF_CS		;required space -> D
+			BLO	FUDICT_DS_ALLOC_5 	;no need to move DS
+			;Update CP, START_OF_CS, HLD and PAD (requested space in D)
 			ADDD	#(FUDICT_DS_ALLOC_SIZE-1);align to allocation size
-			ANDB	#~(FUDICT_DS_ALLOC_SIZE-1);
-			LDX	PAD			;old PAD -> X
+			ANDB	#~(FUDICT_DS_ALLOC_SIZE-1);aligned requested space -> D
+			LDX	PAD			;current PAD -> X
+			BEQ	FUDICT_DS_ALLOC_2	;PAD not in use
 			LEAX	D,X			;new PAD -> X
 			STX	PAD			;update PAD
-			LDX	HLD			;old HLD -> X
+FUDICT_DS_ALLOC_2	LDX	HLD			;current HLD -> X
+			BEQ	FUDICT_DS_ALLOC_3	;HLD not in use
 			LEAX	D,X			;new HLD -> X
 			STX	HLD			;update HLD
-			LDX	START_OF_CS		;old START_OF_CS -> X
+FUDICT_DS_ALLOC_3	LDX	CP			;current CP -> X
+			LEAX	D,X			;new CP -> X
+			STX	CP			;update CP
+			LDX	START_OF_CS		;current START_OF_CS -> X
 			LEAX	D,X			;new START_OF_CS -> X
-			STX	END_OF_PS		;update START_OF_CS	
-			;Shift compile space (shift distance in D) 
-			ADDD	#2			;adjust shift offset
-FUDICT_DS_ALLOC_2	MOVW	2,X-, D,X		;copy word
-			MOVW	2,X-, D,X		;copy word (optional)
-			MOVW	2,X-, D,X		;copy word (optional)
-			MOVW	2,X-, D,X		;copy word (optional)
-			MOVW	2,X-, D,X		;copy word (optional)
-			MOVW	2,X-, D,X		;copy word (optional)
-			MOVW	2,X-, D,X		;copy word (optional)
-			MOVW	2,X-, D,X		;copy word (optional)
-			CPX	PAD			;check if shifting is comple
-			BLO	FUDICT_DS_ALLOC_2	;more to shift
-FUDICT_DS_ALLOC_3	RTS				;done
+			STX	START_OF_CS		;update START_OF_CS
+			;Shift content of CS (shift distance in D) 
+			COMA				;1's complement
+			COMB				;
+			ADDD	#1			;negative shift distance -> D
+			LDX	CP			;new CP -> X
+FUDICT_DS_ALLOC_4	MOVW	D,X, 2,X-		;move cell
+			MOVW	D,X, 2,X-		;move cell (optional)
+			MOVW	D,X, 2,X-		;move cell (optional)
+			MOVW	D,X, 2,X-		;move cell (optional)
+			MOVW	D,X, 2,X-		;move cell (optional)
+			MOVW	D,X, 2,X-		;move cell (optional)
+			MOVW	D,X, 2,X-		;move cell (optional)
+			MOVW	D,X, 2,X-		;move cell (optional)
+			CPX	START_OF_CS		;check for start of CS
+			BHI	FUDICT_DS_ALLOC_4	;more to shift
+FUDICT_DS_ALLOC_5	RTS				;done
 	
 ;#Dictionary operations
 ;======================
@@ -981,7 +984,9 @@ CF_VARIABLE		EQU	*
 			;Allocate one CELL of data space 
 			LDD	#2 			;allocate one CELL
 			JOB	FUDICT_DS_ALLOC		;
+			
 
+	
 ;Word: CONSTANT ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below.

@@ -150,6 +150,8 @@ FPAD_VARS_END_LIN	EQU	@
 ;#Initialization (executed along with ABORT action)
 ;===============
 #macro	FPAD_INIT, 0
+			MOVW	#$0000, HLD
+			MOVW	#$0000, PAD
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
