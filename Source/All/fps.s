@@ -225,39 +225,39 @@ FPS_LIST_SEP		EQU	FOUTER_LIST_SEP
 ; SSTACK: 2 bytes
 ;         No registers are preserved
 FPS_CFS_ALLOC		EQU	*
-			;Negate D (requested CFS space in D) 
+			;Negate D (requested space in D) 
 			COMA				;1's complement
 			COMB				;
-			ADDD	#1			;2's complement
-			;Check if PS must be moved (negated CFS space request in D)
-			LDX	CFSP 			;current CFSP -> X 
-			LEAX	D,X			;new CFSP -> X			
+			ADDD	#1			;negated requested space -> D
+			;Adjust CFSP (negated requested space in D) 
+			LDX	CFSP 			;current CFSP -> X
+			LEAX	D,X			;new CFSP -> X
 			CPX	#UDICT_PS_END		;check for upper boundary
 			BLS	FPS_CFS_ALLOC_1		;below upper boundary
 			LDX	#UDICT_PS_END 		;fix CFSP
 FPS_CFS_ALLOC_1		STX	CFSP 			;update CFSP
 			CPX	END_OF_PS		;check if END_OF_PS has been reached
 			BHS	FPS_CFS_ALLOC_3 	;no need to move PS
-			;Determine new END_OF_PS (new CFSP in X)
-			LDD	END_OF_PS		;END_OF_PS -> D
-			TFR	D, X			;END_OF_PS -> X
-			SUBD	CFSP			;required space -> D
-			ADDD	#(FPS_CFS_ALLOC_SIZE-1)	;align to allocation size
-			ANDB	#~(FPS_CFS_ALLOC_SIZE-1);
+			;Update PSP and END_OF_PS (negated requested space in D)
+			ANDB	#~(FPS_CFS_ALLOC_SIZE-1);aligned negated requested space -> D
+			LEAY	D,Y			;update PSP
+			LDX	END_OF_PS		;current END_OF_PS -> X
 			LEAX	D,X			;new END_OF_PS -> X
 			STX	END_OF_PS		;update END_OF_PS
-			;Shift parameter stack (shift distance in D) 
-			TFR	Y, X 			;PSP -> X 
-			COMA				;negate shift distance
-			COMB				;1's complement
-			ADDD	#1			;2's complement
-			LEAY	D,Y			;allocate stack space
-			SUBD	#2			;adjust shift offset
-FPS_CFS_ALLOC_2		MOVW	2,X+, D,X		;copy word
-			MOVW	2,X+, D,X		;copy word (optional)
-			MOVW	2,X+, D,X		;copy word (optional)
-			MOVW	2,X+, D,X		;copy word (optional)
-			CPX	END_OF_PS		;check if shifting is comple
+			;Shift content of PS (negated shift distance in D) 
+			COMA				;1's complement
+			COMB				;
+			ADDD	#1			;shift distance -> D
+			TFR	Y, X			;new top of PS -> X
+FPS_CFS_ALLOC_2		MOVW	D,X, 2,X+		;move cell
+			MOVW	D,X, 2,X+		;move cell (optional)
+			MOVW	D,X, 2,X+		;move cell (optional)
+			MOVW	D,X, 2,X+		;move cell (optional)
+			;MOVW	D,X, 2,X+		;move cell (optional)
+			;MOVW	D,X, 2,X+		;move cell (optional)
+			;MOVW	D,X, 2,X+		;move cell (optional)
+			;MOVW	D,X, 2,X+		;move cell (optional)
+			CPX	END_OF_PS		;check for bottom of PS
 			BLO	FPS_CFS_ALLOC_2		;more to shift
 FPS_CFS_ALLOC_3		RTS				;done
 

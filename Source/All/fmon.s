@@ -95,14 +95,14 @@
 ;# Variables                                                                   #
 ;###############################################################################
 #ifdef FMON_VARS_START_LIN
-			ORG 	FMON_VARS_START, FMON_VARS_START_LIN
-#else				
-			ORG 	FMON_VARS_START
-FMON_VARS_START_LIN	EQU	@
-#endif				
-				
-FMON_VARS_END		EQU	*
-FMON_VARS_END_LIN	EQU	@
+				ORG 	FMON_VARS_START, FMON_VARS_START_LIN
+#else					
+				ORG 	FMON_VARS_START
+FMON_VARS_START_LIN		EQU	@
+#endif					
+					
+FMON_VARS_END			EQU	*
+FMON_VARS_END_LIN		EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
@@ -127,14 +127,34 @@ FMON_VARS_END_LIN	EQU	@
 #macro	FMON_MON, 0
 #emac
 
+;#Monitor operations
+;===================
+;#Pause system integrity monitor
+; args:   none
+; result: none
+; SSTACK: 0 bytes
+;         X, Y, and D are preserved
+#macro	FMON_PAUSE, 0
+				SEI	;TBD
+#emac
+
+;#Resume system integrity monitor
+; args:   none
+; result: none
+; SSTACK: 0 bytes
+;         X, Y, and D are preserved
+#macro	FMON_RESUME, 0
+				CLI	;TBD
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
 #ifdef FMON_CODE_START_LIN
-			ORG 	FMON_CODE_START, FMON_CODE_START_LIN
-#else
-			ORG 	FMON_CODE_START
-FMON_CODE_START_LIN	EQU	@
+				ORG 	FMON_CODE_START, FMON_CODE_START_LIN
+#else				
+				ORG 	FMON_CODE_START
+FMON_CODE_START_LIN		EQU	@
 #endif
 	
 ;#########
@@ -143,13 +163,13 @@ FMON_CODE_START_LIN	EQU	@
 	
 ;Word: MONITOR ( -- )
 ;Run system integrity checks. Throw exceptions if necessary.
-IF_MONITOR		REGULAR
-CF_MONITOR		EQU	*
-			FORTH_MON
-			RTS
-	
-FMON_CODE_END		EQU	*
-FMON_CODE_END_LIN	EQU	@
+IF_MONITOR			REGULAR
+CF_MONITOR			EQU	*
+				FORTH_MON
+				RTS
+				
+FMON_CODE_END			EQU	*
+FMON_CODE_END_LIN		EQU	@
 
 ;###############################################################################
 ;# Tables                                                                      #
@@ -157,14 +177,14 @@ FMON_CODE_END_LIN	EQU	@
 ;Tabes in unpaged address space
 ;------------------------------ 
 #ifdef FMON_TABS_START_LIN
-			ORG 	FMON_TABS_START, FMON_TABS_START_LIN
-#else
-			ORG 	FMON_TABS_START
-FMON_TABS_START_LIN	EQU	@
-#endif
-
-FMON_TABS_END		EQU	*
-FMON_TABS_END_LIN	EQU	@
+				ORG 	FMON_TABS_START, FMON_TABS_START_LIN
+#else				
+				ORG 	FMON_TABS_START
+FMON_TABS_START_LIN		EQU	@
+#endif				
+				
+FMON_TABS_END			EQU	*
+FMON_TABS_END_LIN		EQU	@
 
 #endif
 	

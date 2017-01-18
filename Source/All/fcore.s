@@ -82,6 +82,7 @@
 ;#      - Started subroutine threaded implementation                           #
 ;###############################################################################
 ;# Required Modules:                                                           #
+;#    FMON    - Forth system integrity monitor                                 #
 ;#    FEXCPT  - Forth exception words                                          #
 ;#    FDOUBLE - Forth double-number words                                      #
 ;#                                                                             #
@@ -152,6 +153,7 @@ FCORE_CODE_START_LIN		EQU	@
 ;===
 ;#Transmit one char
 ; args:   B: data to be send
+; result: none
 ; SSTACK: 8 bytes
 ;         X, Y, and D are preserved
 FCORE_TX_CHAR			EQU	SCI_TX_BL
@@ -231,11 +233,11 @@ IF_STAR				REGULAR
 CF_STAR				EQU	*
 				LDD	2,Y+ 			;n2    -> D	
 				TFR	Y, X 			;save PSP
-				SEI 				;start of atomic sequence
+				FMON_PAUSE 			;pause system integrity checks
 				LDY	0,Y			;n1    -> Y
 				EMULS	   			;Y * D -> Y:D
 				EXG	Y, X			;restore PSP
-				CLI				;end of atomic sequence
+				FMON_RESUME			;resume system integrity checks
 				STD	0,Y			;n3 -> PS
 				TBEQ	X, CF_STAR_1		;result accepted
 				IBEQ	X, CF_STAR_1		;result accepted
@@ -268,13 +270,13 @@ CF_STAR_SLASH_MOD		EQU	*
 				;BEQ	CF_STAR_SLASH_MOD_1	;division by zero
 				LDD	0,Y 			;n2 -> D
 				PSHY				;save PSP
-				SEI 				;start of atomic sequence
+				FMON_PAUSE 			;pause system integrity checks
 				LDY	2,Y			;n1    -> Y
 				EMULS	   			;Y * D -> Y:D
 				EDIVS	   			;Y:D / X -> Y remainder -> D
 				TFR	Y, X			;n5 -> X
 				PULY				;restore PSP
-				CLI				;end of atomic sequence
+				FMON_RESUME			;resume system integrity checks
 				BCS	CF_STAR_SLASH_MOD_1	;division by zero
 				BVS	CF_STAR_SLASH_MOD_2	;result out of range
 				STD	2,Y			;n4 -> PS
@@ -1210,11 +1212,11 @@ IF_M_STAR			REGULAR
 CF_M_STAR			EQU	*
 				LDD	0,Y 			;n2    -> D	
 				TFR	Y, X 			;save PSP
-				SEI 				;start of atomic sequence
+				FMON_PAUSE 			;pause system integrity checks
 				LDY	2,Y			;n1    -> Y
 				EMULS	   			;Y * D -> Y:D
 				EXG	Y, X			;restore PSP
-				CLI				;end of atomic sequence
+				FMON_RESUME			;resume system integrity checks
 				STD	2,Y			;D -> PS
 				STX	0,Y			;
 				RTS				;done
@@ -1479,12 +1481,12 @@ CF_S_M_SLASH_REM		EQU	*
 				;BEQ	CF_S_M_SLASH_REM_1	;diviide by zero
 				LDD	2,Y 			;d1(LSW) -> D
 				PSHY				;save PSP
-				SEI 				;start of atomic sequence
+				FMON_PAUSE 			;pause system integrity checks
 				LDY	0,Y			;d1(MSW) -> Y
 				EDIVS	   			;Y:D / X -> Y remainder -> D
 				TFR	Y, X			;n5 -> X
 				PULY				;restore PSP
-				CLI				;end of atomic sequence
+				FMON_RESUME			;resume system integrity checks
 				BCS	CF_S_M_SLASH_REM_1	;division by zero
 				BVS	CF_S_M_SLASH_REM_2	;result out of range
 				STD	2,Y			;n2 -> PS
@@ -1581,11 +1583,11 @@ IF_U_M_STAR			REGULAR
 CF_U_M_STAR			EQU	*
 				LDD	0,Y 			;u2    -> D	
 				TFR	Y, X 			;save PSP
-				SEI 				;start of atomic sequence
+				FMON_PAUSE 			;pause system integrity checks
 				LDY	2,Y			;u1    -> Y
 				EMULS	   			;Y * D -> Y:D
 				EXG	Y, X			;restore PSP
-				CLI				;end of atomic sequence
+				FMON_RESUME			;resume system integrity checks
 				STD	2,Y			;ud -> PS
 				STX	0,Y			;
 				RTS
@@ -1600,12 +1602,12 @@ CF_U_M_SLASH_MOD		EQU	*
 				;BEQ	CF_U_M_SLASH_MOD_1	;division by zero
 				LDD	2,Y			;ud(LSW) -> D
 				PSHY				;save PSP
-				SEI 				;start of atomic sequence
+				FMON_PAUSE 			;pause system integrity checks
 				LDY	0,Y			;ud(MAS) -> Y
 				EDIV	   			;Y:D / X -> Y remainder -> D
 				TFR	Y, X			;n5 -> X
 				PULY				;restore PSP
-				CLI				;end of atomic sequence
+				FMON_RESUME			;resume system integrity checks
 				BCS	CF_U_M_SLASH_MOD_1	;division by zero
 				BVS	CF_U_M_SLASH_MOD_2	;result out of range
 				STD	2,Y			;n4 -> PS

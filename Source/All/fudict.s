@@ -333,6 +333,7 @@ FUDICT_VARS_END_LIN	EQU	@
 #macro	FUDICT_INIT, 0
 			LDD	#UDICT_PS_START
 			STD	DP
+			STD	START_OF_CS
 			STD	CP
 			STD	CP_SAVE
 			MOVW	#$0000, FUDICT_LAST_NFA
@@ -420,16 +421,19 @@ FUDICT_CFS_ALLOC	EQU	FPS_CFS_ALLOC
 ; SSTACK: 2 bytes
 ;         No registers are preserved
 FUDICT_DS_ALLOC		EQU	*
-			;Check if CS must be moved (requested data space in D)
+			;Adjust DP (requested data space in D)
 			LDX	DP 			;current DP -> X 
 			LEAX	D,X			;new DP -> X			
 			CPX	#UDICT_PS_START		;check for lower boundary
 			BHS	FUDICT_DS_ALLOC_1	;above lower boundary
 			LDX	#UDICT_PS_END 		;fix DP
 FUDICT_DS_ALLOC_1	STX	DP 			;update DP
-			CPX	START_OF_CS		;check if START_OF_CShas been reached 
-			BHS	FUDICT_DS_ALLOC_3 	;no need to move DS
-			;Determine new START_OF_CS (new DP in X)
+			CPX	START_OF_CS		;check if START_OF_CS has been reached 
+			BLO	FUDICT_DS_ALLOC_3 	;no need to move DS
+
+
+
+			;Determine new START_OF_CS (requested data space in , new DP in X)
 			TFR	X, D 			;DP -> D
 			SUBD	START_OF_CS		;required space -> D
 			ADDD	#(FUDICT_DS_ALLOC_SIZE-1);align to allocation size
@@ -446,6 +450,10 @@ FUDICT_DS_ALLOC_1	STX	DP 			;update DP
 			;Shift compile space (shift distance in D) 
 			ADDD	#2			;adjust shift offset
 FUDICT_DS_ALLOC_2	MOVW	2,X-, D,X		;copy word
+			MOVW	2,X-, D,X		;copy word (optional)
+			MOVW	2,X-, D,X		;copy word (optional)
+			MOVW	2,X-, D,X		;copy word (optional)
+			MOVW	2,X-, D,X		;copy word (optional)
 			MOVW	2,X-, D,X		;copy word (optional)
 			MOVW	2,X-, D,X		;copy word (optional)
 			MOVW	2,X-, D,X		;copy word (optional)
@@ -705,9 +713,10 @@ CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 CF_COLON_2		STX	0,SP			;new NFA -> 0,SP
 			STD 	2,X+ 			;compile new NFA
 			STX	CP			;update CP
-			;Compile name ( c-addr u ) (R: NFA ) (CP in X) 
+			;Compile name ( c-addr u ) (R: NFA ) 
 			JOBSR	CF_NAME_COMMA_1		;compile name
-CF_COLON_3		CLR	1,X+			;set default IF
+CF_COLON_3		LDX	CP			;CP -> X
+			CLR	1,X+			;set default IF
 			STX	CP			;update CP
 			;Set STATE ( ) (R: NFA )
 			MOVW	#STATE_COMPILE, STATE 	;set compile state
