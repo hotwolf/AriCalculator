@@ -447,6 +447,9 @@ FUDICT_DS_ALLOC_3	LDX	CP			;current CP -> X
 			LDX	START_OF_CS		;current START_OF_CS -> X
 			LEAX	D,X			;new START_OF_CS -> X
 			STX	START_OF_CS		;update START_OF_CS
+			LDX	FUDICT_LAST_NFA		;current FUDICT_LAST_NFA -> X
+			LEAX	D,X			;new FUDICT_LAST_NFA -> X
+			STX	FUDICT_LAST_NFA		;update FUDICT_LAST_NFA
 			;Shift content of CS (shift distance in D) 
 			COMA				;1's complement
 			COMB				;
