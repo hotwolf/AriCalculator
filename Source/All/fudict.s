@@ -82,6 +82,13 @@
 ;#    i*x, j*x, k*x 3 any data type                   0 or more cells	       #
 ;#  									       #
 ;###############################################################################
+;# Relative branch options: 						       #
+;#    BRA  20 rr        (PPP)  -> [-128..127]                                  #    									       #
+;#    JMP  05 xb 	(PPP)  -> [-16..15]	  xb=$C0 +offset	       #
+;#         05 xb ff	(PPP)  -> [-256..255]	  xb=$F8(pos)/$F9(neg)	       #
+;#  	   05 xb ee ff  (fPPP) -> [-32768..32767] xb=$FA		       #
+;#  									       #
+;###############################################################################
 ;# Version History:                                                            #
 ;#    April 23, 2009                                                           #
 ;#      - Initial release                                                      #
@@ -429,7 +436,7 @@ FUDICT_DS_ALLOC		EQU	*
 			LDX	#UDICT_PS_END 		;fix DP
 FUDICT_DS_ALLOC_1	STX	DP 			;update DP
 			CPX	START_OF_CS		;check if START_OF_CS has been reached 
-			BLO	FUDICT_DS_ALLOC_5 	;no need to move DS
+			BLO	FUDICT_DS_ALLOC_6 	;no need to move DS
 			;Update CP, START_OF_CS, HLD and PAD (requested space in D)
 			ADDD	#(FUDICT_DS_ALLOC_SIZE-1);align to allocation size
 			ANDB	#~(FUDICT_DS_ALLOC_SIZE-1);aligned requested space -> D
@@ -448,14 +455,15 @@ FUDICT_DS_ALLOC_3	LDX	CP			;current CP -> X
 			LEAX	D,X			;new START_OF_CS -> X
 			STX	START_OF_CS		;update START_OF_CS
 			LDX	FUDICT_LAST_NFA		;current FUDICT_LAST_NFA -> X
+			BEQ	FUDICT_DS_ALLOC_4	;user dictionary is empty
 			LEAX	D,X			;new FUDICT_LAST_NFA -> X
 			STX	FUDICT_LAST_NFA		;update FUDICT_LAST_NFA
 			;Shift content of CS (shift distance in D) 
-			COMA				;1's complement
+FUDICT_DS_ALLOC_4	COMA				;1's complement
 			COMB				;
 			ADDD	#1			;negative shift distance -> D
 			LDX	CP			;new CP -> X
-FUDICT_DS_ALLOC_4	MOVW	D,X, 2,X-		;move cell
+FUDICT_DS_ALLOC_5	MOVW	D,X, 2,X-		;move cell
 			MOVW	D,X, 2,X-		;move cell (optional)
 			MOVW	D,X, 2,X-		;move cell (optional)
 			MOVW	D,X, 2,X-		;move cell (optional)
@@ -464,8 +472,8 @@ FUDICT_DS_ALLOC_4	MOVW	D,X, 2,X-		;move cell
 			MOVW	D,X, 2,X-		;move cell (optional)
 			MOVW	D,X, 2,X-		;move cell (optional)
 			CPX	START_OF_CS		;check for start of CS
-			BHI	FUDICT_DS_ALLOC_4	;more to shift
-FUDICT_DS_ALLOC_5	RTS				;done
+			BHI	FUDICT_DS_ALLOC_5	;more to shift
+FUDICT_DS_ALLOC_6	RTS				;done
 	
 ;#Dictionary operations
 ;======================
@@ -1727,153 +1735,157 @@ CF_DOT_QUOTE_RT		EQU	*
 ;			MOVW	#$846E, -2,X		;compile "4,SP, 2,-Y"
 ;			RTS				;done
 ;	
-;;Word: IF 
-;;Interpretation: Interpretation semantics for this word are undefined.
-;;Compilation: ( C: -- orig )
-;;Put the location of a new unresolved forward reference orig onto the control
-;;flow stack. Append the run-time semantics given below to the current
-;;definition. The semantics are incomplete until orig is resolved, e.g., by THEN
-;;or ELSE.
-;;Run-time: ( x -- )
-;;If all bits of x are zero, continue execution at the location specified by the
-;;resolution of orig.
-;;	
-;; orig (conditional)	
-;;      	+-------------------+-------------------+	     
-;;       |   compile flags   |FUDICT_CS_ORIG_COND| +0	     
-;;      	+-------------------+-------------------+	     
-;;       |              IF address               | +2	     
-;;      	+-------------------+-------------------+	     
-;IF_IF			IMMEDIATE
-;CF_IF			COMPILE_ONLY
-;			;Allocate 6 bytes of compile space 
-;			LDX	CP			;CP -> X
-;			LEAX	6,X			;alloate space
-;			STX	CP			;update CP
-;			;Compile inline code (CP in X) 
-;			MOVW	#$EC71, -6,X		;"LDD 2,Y+"
-;			;MOVW	#$1827, -4,X		;"LBEQ"
-;			;MOVW	#$0000, -2,X		;"qq rr"
-;			LEAX	-4,X			;IF address -> X
-;			;Put orig onto the control flow stack (IF address in X)
-;			PSHX				;IF address -> 0,SP
-;			LDAA	#4 			;alllocate 4 bytes
-;			JOBSR	FPS_CS_ALLOC		; of CS space
-;			LDAB	#FUDICT_CS_ORIG_COND	;set CS code
-;CF_IF_1			LDAA	4,X			;old compile flags -> A
-;			ANDA	#~FUDICT_CF_COF		;clear copile flags
-;			STD	0,X			;store compile flags/CS code
-;			PULD				;IF address -> D
-;			STD	2,X			;store IF address
-;			RTS				;done
-;
-;;Word: AHEAD
-;;Interpretation: Interpretation semantics for this word are undefined.
-;;Compilation: ( C: -- orig )
-;;Put the location of a new unresolved forward reference orig onto the control
-;;flow stack. Append the run-time semantics given below to the current
-;;definition. The semantics are incomplete until orig is resolved (e.g., by THEN).
-;;Run-time: ( -- )
-;;Continue execution at the location specified by the resolution of orig.
-;;		
-;; orig (unconditional):	
-;;      	+-------------------+-------------------+	     
-;;       |   compile flags   |   FUDICT_CS_ORIG  | +0	     
-;;      	+-------------------+-------------------+	     
-;;       |             AHEAD address             | +2	     
-;;      	+-------------------+-------------------+	     
-;IF_AHEAD		IMMEDIATE
-;CF_AHEAD		COMPILE_ONLY
-;			;Allocate 6 bytes of compile space 
-;			LDX	CP			;CP -> X
-;			TFR	X, D			;AHEAD address -> D
-;			LEAX	6,X			;alloate space
-;			STX	CP			;update CP
-;			;Put orig onto the control flow stack (AHEAD address in D)
-;			PSHD				;AHEAD address -> 0,SP
-;			LDAA	#4 			;alllocate 4 bytes
-;			JOBSR	FPS_CS_ALLOC		; of CS space
-;			LDAB	#FUDICT_CS_ORIG		;set CS code
-;			JOB	CF_IF_1			;old compile flags -> A
+;Word: IF 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- orig )
+;Put the location of a new unresolved forward reference orig onto the control
+;flow stack. Append the run-time semantics given below to the current
+;definition. The semantics are incomplete until orig is resolved, e.g., by THEN
+;or ELSE.
+;Run-time: ( x -- )
+;If all bits of x are zero, continue execution at the location specified by the
+;resolution of orig.
 ;	
-;;Word: ELSE 
-;;Interpretation: Interpretation semantics for this word are undefined.
-;;Compilation: ( C: orig1 -- orig2 )
-;;Put the location of a new unresolved forward reference orig2 onto the control
-;;flow stack. Append the run-time semantics given below to the current
-;;definition. The semantics will be incomplete until orig2 is resolved
-;;(e.g., by THEN). Resolve the forward reference orig1 using the location
-;;following the appended run-time semantics.
-;;Run-time: ( -- )
-;;Continue execution at the location given by the resolution of orig2.
-;;		
-;; orig (unconditional):	
-;;      	+-------------------+-------------------+	     
-;;       |   compile flags   |   FUDICT_CS_ORIG  | +0	     
-;;      	+-------------------+-------------------+	     
-;;       |             AHEAD address             | +2	     
-;;      	+-------------------+-------------------+	     
-;IF_ELSE			IMMEDIATE
-;CF_ELSE			COMPILE_ONLY
-;			;Check compile info 
-;			LDAB	3,SP			;compile info -> B
-;			CMPB	#FUDICT_CF_COND_ORIG	;check for matching conditional "orig"
-;			BNE	CF_ELSE_4		;control structure mismatch
-;			;Update compile info 
-;			; +--------+--------+		   
-;			; |  Return Address | SP+0    
-;			; +--------+--------+	       
-;			; |  New Comp. Info | SP+2     
-;			; +--------+--------+	       
-;			; |   orig1/orig2   | SP+4     
-;			; +--------+--------+	       
-;			MOVB	#FUDICT_CF_ORIG, 3,SP	;update compile info
-;			LDD	4,SP			;orig1 -> D
-;			LDX	CP			;orig2 -> X
-;			STX	4,SP			;set orig2
-;			;Allocate compile space (orig1 in D, CP in X) 
-;			LEAX	3,X			;alloate space
-;			STX	CP			;update CP
-;			;Calculate branch distance (orig1 in D, CP in X)
-;CF_ELSE_1		COMA				;invert D
-;			COMB				;-orig1-1 -> D
-;			LEAX	D,X			;CP-orig1-1 -> X
-;			DEX				;qq rr -> X
-;			COMA				;invert D
-;			COMB				;orig1 -> D
-;			EXG	X, D			;X <-> D
-;			;Compile IF forward reference (orig1 in X, qq rr in D)
-;			TBEQ	A, CF_ELSE_2		;compile BEQ
-;			;Compile LBEQ (orig1 in X, qq rr in D)		
-;			MOVW	#$1827, 2,X+		;compile "LBEQ"
-;			STD	0,X			;compile "qq rr"
-;			JOB	CF_ELSE_3		;set compile info
-;			;Compile BEQ (orig1 in X, qq rr in D)
-;CF_ELSE_2		MOVB	#$27, 1,X+		;compile "BEQ"
-;			STAB	1,X+			;compile "rr"
-;			MOVW	#$A7A7, 0,X		;compile "NOP NOP"
-;CF_ELSE_3		RTS				;done
-;			;Control structure misatch
-;CF_ELSE_4		THROW	FEXCPT_TC_CTRLSTRUC	;exception -22 "control structure mismatch"
+; orig (conditional)	
+;      	+-------------------+-------------------+	     
+;       |   compile flags   |FUDICT_CS_COND_ORIG| +0	     
+;      	+-------------------+-------------------+	     
+;       |              IF address               | +2	     
+;      	+-------------------+-------------------+	     
+IF_IF			IMMEDIATE
+CF_IF			COMPILE_ONLY
+			;Put new control structure onto the contril flow stack 
+			LDD	#4 			;alllocate 4 bytes
+			JOBSR	FUDICT_CFS_ALLOC	; of CFS space
+			LDX	CFSP			;CFSP -> X
+			LDAA	4,X			;old compile flags -> A
+			ANDA	#~FUDICT_CF_COF		;clear COF optimizations
+			LDAB	#FUDICT_CS_COND_ORIG	;set CF code
+			STD	0,X			;store compile flags/CS code
+			;Allocate 6 bytes of compile space (CFSP in X)
+			LDD	CP 			;CP -> D
+			ADDD	#2			;IF address -> D
+			STD	2,X			;set IF address 
+			TFR	D,X			;CP+2 -> X
+			LEAX	4,X			;allocate 4 more bytes
+			STX	CP			;update CP
+			;Compile inline code (CP in X) 
+			MOVW	#$EC71, -6,X		;"LDD 2,Y+"
+			MOVW	#$1827, -4,X		;"LBEQ"
+			MOVW	#$0000, -2,X		;"qq rr"
+			RTS				;done
 
-
-;;;TO BE REWRITTEN 
+;Word: AHEAD
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: -- orig )
+;Put the location of a new unresolved forward reference orig onto the control
+;flow stack. Append the run-time semantics given below to the current
+;definition. The semantics are incomplete until orig is resolved (e.g., by THEN).
+;Run-time: ( -- )
+;Continue execution at the location specified by the resolution of orig.
+;		
+; orig (unconditional):	
+;      	+-------------------+-------------------+	     
+;       |   compile flags   |   FUDICT_CS_ORIG  | +0	     
+;      	+-------------------+-------------------+	     
+;       |             AHEAD address             | +2	     
+;      	+-------------------+-------------------+	     
+IF_AHEAD		IMMEDIATE
+CF_AHEAD		COMPILE_ONLY
+			;Put new control structure onto the contril flow stack 
+			LDD	#4 			;allocate 4 bytes
+			JOBSR	FUDICT_CFS_ALLOC	; of CFS space
+			LDX	CFSP			;CFSP -> X
+			LDAA	4,X			;old compile flags -> A
+			ANDA	#~FUDICT_CF_COF		;clear COF optimizations
+			LDAB	#FUDICT_CS_ORIG		;set CF code
+			STD	0,X			;store compile flags/CS code
+			;Allocate 4 bytes of compile space (CFSP in X)
+			JOB	CF_ELSE_1
+			;LDD	CP 			;CP -> D
+			;STD	2,X			;set AHEAD address 
+			;TFR	D,X			;CP -> X
+			;LEAX	4,X			;allocate 4 more bytes
+			;STX	CP			;update CP
+			;;Compile inline code (CP in X) 
+			;MOVW	#$05FA, -4,X		;"JMP 0,PC"
+			;MOVW	#$0000, -2,X		;
+			;RTS				;done
 	
-;;Word: THEN 
-;;Interpretation: Interpretation semantics for this word are undefined.
-;;Compilation: ( C: orig -- )
-;;Append the run-time semantics given below to the current definition. Resolve
-;;the forward reference orig using the location of the appended run-time
-;;semantics.
-;;Run-time: ( -- )
-;;Continue execution.
-;IF_THEN			IMMEDIATE
-;CF_THEN			COMPILE_ONLY
-;			;Check compile info 
+;Word: ELSE 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: orig1 -- orig2 )
+;Put the location of a new unresolved forward reference orig2 onto the control
+;flow stack. Append the run-time semantics given below to the current
+;definition. The semantics will be incomplete until orig2 is resolved
+;(e.g., by THEN). Resolve the forward reference orig1 using the location
+;following the appended run-time semantics.
+;Run-time: ( -- )
+;Continue execution at the location given by the resolution of orig2.
+;		
+; orig (unconditional):	
+;      	+-------------------+-------------------+	     
+;       |   compile flags   |   FUDICT_CS_ORIG  | +0	     
+;      	+-------------------+-------------------+	     
+;       |             AHEAD address             | +2	     
+;      	+-------------------+-------------------+	     
+IF_ELSE			IMMEDIATE
+CF_ELSE			COMPILE_ONLY
+			;Check compile structure
+			LDX	CFSP 			;CFSP -> X
+			LDAB	1,X			;control structure -> B
+			CMPB	#FUDICT_CS_COND_ORIG	;check for conditional orig
+			BNE	CF_ELSE_2		;control structure mismatch
+			;Update control structure (CFSP in X)
+			MOVB	#FUDICT_CS_ORIG, 1,X 	;unconditional orig -> control structure			
+			;Resolve IF branch (CFSP in X)
+			LDD	CP 			;CP -> D
+			SUBD	2,X			;distance -> D
+			CPD	(127-2)			;check for short IF branch
+			BHI	CF_ELSE_3		;long IF branch
+			;Short IF branch  (CFSP in X, distance-2 -> D)
+			ADDB	#2 			;distance -> D
+			LDAA	#$27			;"BEQ" -> A
+			STD	[2,X]			;resolve IF address
+			;Allocate 4 bytes of compile space (CFSP in X)
+CF_ELSE_1		LDD	CP 			;CP -> D
+			STD	2,X			;set AHEAD address 
+			TFR	D,X			;CP -> X
+			LEAX	4,X			;allocate 4 more bytes
+			STX	CP			;update CP
+			;Compile inline code (CP in X) 
+			MOVW	#$05FA, -4,X		;"JMP 0,PC"
+			MOVW	#$0000, -2,X		;
+			RTS				;done
+			;Control structure misatch
+CF_ELSE_2		THROW	FEXCPT_TC_CTRLSTRUC	;exception -22 "control structure mismatch"
+			;Long IF branch  (CFSP in X, distance -> D)
+CF_ELSE_3		LDX	2,X 			;IF address -> X
+			STD	2,X			;resolve IF address
+			LDX	CFSP			;CFSP -> X
+			JOB	CF_ELSE_1		;allocate CS
+	
+;Word: THEN 
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: orig -- )
+;Append the run-time semantics given below to the current definition. Resolve
+;the forward reference orig using the location of the appended run-time
+;semantics.
+;Run-time: ( -- )
+;Continue execution.
+IF_THEN			IMMEDIATE
+CF_THEN			COMPILE_ONLY
+			;Check compile info 
+			LDX	CFSP			;CFSP -> X
+			
+	;; Hier weiter!!!!!!!!!!!!!!!
+
+
+
 ;CF_THEN_1		LDAB	3,SP 			;compile info -> B
-;			CMPB	#FUDICT_CF_ORIG		;check for matching "orig"
+;			CMPB	#FUDICT_CS_ORIG		;check for matching "orig"
 ;			BEQ	CF_THEN_2		;conclude "ELSE"
-;			CMPB	#FUDICT_CF_COND_ORIG	;check for matching conditional "orig"
+;			CMPB	#FUDICT_CS_COND_ORIG	;check for matching conditional "orig"
 ;			BNE	CF_THEN_3		;conrol structure mismatch
 ;			;Conclude "IF"
 ;			; +--------+--------+                                           
@@ -1908,8 +1920,8 @@ CF_DOT_QUOTE_RT		EQU	*
 ;			RTS				;done
 ;			;Control structure misatch
 ;CF_THEN_3		EQU	CF_ELSE_4
-;	
-;
+	
+
 ;;Word: REPEAT 
 ;;Interpretation: Interpretation semantics for this word are undefined.
 ;;Compilation: ( C: orig dest -- )
