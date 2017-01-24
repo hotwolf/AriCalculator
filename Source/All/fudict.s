@@ -988,16 +988,30 @@ CF_SEMICOLON_10		LDX	CP 			;CP -> X
 ;initializing the contents of the reserved cell.
 IF_VARIABLE		REGULAR	
 CF_VARIABLE		EQU	*
-			;Push DP onro the PS
-			MOVW	DP, 2,-Y 		;DP -> 0,Y
-			;Constant definition
-			JOBSR	CF_CONSTANT 		;define CONSTANT
+			;Create word definition
+			JOBSR	CF_CREATE 		;Create word definition
 			;Allocate one CELL of data space 
 			LDD	#2 			;allocate one CELL
 			JOB	FUDICT_DS_ALLOC		;
-			
 
-	
+;Word: CREATE ( "<spaces>name" -- )
+;Skip leading space delimiters. Parse name delimited by a space. Create a
+;definition for name with the execution semantics defined below. If the
+;data-space pointer is not aligned, reserve enough data space to align it. The
+;new data-space pointer defines name's data field. CREATE does not allocate data
+;space in name's data field.
+;name Execution: ( -- a-addr )
+;a-addr is the address of name's data field. The execution semantics of name may
+;be extended by using DOES>.
+IF_CREATE		REGULAR	
+CF_CREATE		EQU	*
+			;Align DP
+			JOBSR	CF_ALIGN 		;align DP
+			;Push DP onro the PS
+			MOVW	DP, 2,-Y 		;DP -> 0,Y
+			;Constant definition
+			JOB	CF_CONSTANT 		;define CONSTANT
+
 ;Word: CONSTANT ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below.
@@ -1061,6 +1075,15 @@ CF_TWO_CONSTANT		EQU	*
 			;Conclude compilation		
 			JOB	CF_SEMICOLON_1 		;";"
 
+;Word: ALIGN ( -- )
+;If the data-space pointer is not aligned, reserve enough space to align it.
+IF_ALIGN		REGULAR	
+CF_ALIGN		EQU	*
+			;Align data space 
+			LDD	#1 			;1 -> D
+			BRSET	DP+1,#$01,CF_ALLOT_1	;allocate alignment byte
+			RTS				;no alignment required
+
 ;Word: ALLOT ( n -- )
 ;If n is greater than zero, reserve n address units of data space. If n is less
 ;than zero, release |n| address units of data space. If n is zero, leave the
@@ -1077,15 +1100,6 @@ CF_ALLOT		EQU	*
 			LDD	2,Y+ 			;n -> D
 			;Allocate data space 
 CF_ALLOT_1		JOB	FUDICT_DS_ALLOC
-
-;Word: ALIGN ( -- )
-;If the data-space pointer is not aligned, reserve enough space to align it.
-IF_ALIGN		REGULAR	
-CF_ALIGN		EQU	*
-			;Align data space 
-			LDD	#1 			;1 -> D
-			BRSET	DP+1,#$01,CF_ALLOT_1	;allocate alignment byte
-			RTS				;no alignment required
 
 ;Word: , ( x -- )
 ;Reserve one cell of data space and store x in the cell. If the data-space
@@ -1117,6 +1131,31 @@ CF_C_COMMA		EQU	*
 			LDX	DP 			;DP -> X
 			LDD	2,Y+			;char -> D
 			STAB	-1,X			;char -> DS
+			RTS				;done
+
+;Word: DOES>
+;Interpretation: Interpretation semantics for this word are undefined.
+;Compilation: ( C: colon-sys1 -- colon-sys2 )
+;Append the run-time semantics below to the current definition. Whether or not
+;the current definition is rendered findable in the dictionary by the
+;compilation of DOES> is implementation defined. Consume colon-sys1 and produce
+;colon-sys2. Append the initiation semantics given below to the current
+;definition.
+;Run-time: ( -- ) ( R: nest-sys1 -- )
+;Replace the execution semantics of the most recent definition, referred to as
+;name, with the name execution semantics given below. Return control to the
+;calling definition specified by nest-sys1. An ambiguous condition exists if
+;name was not defined with CREATE or a user-defined word that calls CREATE.
+;Initiation: ( i*x -- i*x a-addr ) ( R:  -- nest-sys2 )
+;Save implementation-dependent information nest-sys2 about the calling
+;definition. Place name's data field address on the stack. The stack effects i*x
+;represent arguments to name.
+;name Execution: ( i*x -- j*x )
+;Execute the portion of the definition that begins with the initiation semantics
+;appended by the DOES> which modified name. The stack effects i*x and j*x
+;represent arguments to and results from name, respectively.
+IF_DOES			REGULAR	
+CF_DOES			COMPILE_ONLY
 			RTS				;done
 
 ;Word: HERE ( -- addr )
@@ -1755,7 +1794,7 @@ CF_DOT_QUOTE_RT		EQU	*
 IF_IF			IMMEDIATE
 CF_IF			COMPILE_ONLY
 			;Put new control structure onto the contril flow stack 
-			LDD	#4 			;alllocate 4 bytes
+			LDD	#4 			;allocate 4 bytes
 			JOBSR	FUDICT_CFS_ALLOC	; of CFS space
 			LDX	CFSP			;CFSP -> X
 			LDAA	4,X			;old compile flags -> A
@@ -1876,52 +1915,43 @@ CF_ELSE_3		LDX	2,X 			;IF address -> X
 IF_THEN			IMMEDIATE
 CF_THEN			COMPILE_ONLY
 			;Check compile info 
-			LDX	CFSP			;CFSP -> X
-			
-	;; Hier weiter!!!!!!!!!!!!!!!
-
-
-
-;CF_THEN_1		LDAB	3,SP 			;compile info -> B
-;			CMPB	#FUDICT_CS_ORIG		;check for matching "orig"
-;			BEQ	CF_THEN_2		;conclude "ELSE"
-;			CMPB	#FUDICT_CS_COND_ORIG	;check for matching conditional "orig"
-;			BNE	CF_THEN_3		;conrol structure mismatch
-;			;Conclude "IF"
-;			; +--------+--------+                                           
-;			; |  Return Address | SP+0                                  
-;			; +--------+--------+	                                    
-;			; |  New Comp. Info | SP+2                                  
-;			; +--------+--------+	   ==>  +--------+--------+	         
-;			; |      orig       | SP+4      |  Return Address | SP+0    
-;			; +--------+--------+	        +--------+--------+	         
-;			; | Old Comp. Info  | SP+6      | Old Comp. Info  | SP+2    
-;			; +--------+--------+           +--------+--------+          
-;			LDAA	2,SP	 		;maintain high byte of compile info
-;			LDAB	#FUDICT_CF_NONE		;no optimization
-;			STD	6,SP			;update compilation info
-;			MOVB	2,SP, 6,SP 		;maintain high byte of compile info
-;			MOVB	#FUDICT_CF_NONE, 7,SP	;no optimization
-;			LDD	4,SP			;orig -> D
-;			MOVW	0,SP, 4,+SP		;move return address
-;			LDX	CP			;CP -> X
-;			JOB	CF_ELSE_1		;conclude "IF"
-;			;Conclude "ELSE"
-;CF_THEN_2		LDAA	2,SP	 		;maintain high byte of compile info
-;			ORAA	#FUDICT_CF_NOINL	;forbid INLINE compiling
-;			LDAB	#FUDICT_CF_NONE		;no optimization
-;			STD	6,SP			;update compilation info
-;			LDX	4,SP			;orig -> X
-;			MOVW	0,SP, 4,+SP		;move return address
-;			LDD	CP			;CP -> D
-;			SUBD	FUDICT_OFFSET		;CP-offset -> D
-;			MOVB	#$06, 1,X+		;compile "JMP"
-;			STD	0,X			;compile "hh ll"
-;			RTS				;done
-;			;Control structure misatch
-;CF_THEN_3		EQU	CF_ELSE_4
+CF_THEN_1		LDX	CFSP			;CFSP -> X
+			LDAB	1,X			;compile info -> B
+			CMPB	#FUDICT_CS_ORIG		;check for matching "orig"
+			BEQ	CF_THEN_5		;conclude "AHEAD"
+			CMPB	#FUDICT_CS_COND_ORIG	;check for matching conditional "orig"
+			BNE	CF_THEN_3		;conrol structure mismatch
+			;Resolve IF branch (CFSP in X)
+			LDD	CP 			;CP -> D
+			SUBD	2,X			;distance -> D
+			CPD	(127-2)			;check for short IF branch
+			BHI	CF_THEN_4		;long IF branch
+			;Short IF branch  (CFSP in X, distance-2 -> D)
+			ADDB	#2 			;distance -> D
+			LDAA	#$27			;"BEQ" -> A
+			STD	[2,X]			;resolve IF address
+			;Clean up control flow stack 
+CF_THEN_2		LDD	#-4			;allocate 4 bytes
+			JOB	FUDICT_CFS_ALLOC	; of CFS space
+			;Control structure misatch
+CF_THEN_3		EQU	CF_ELSE_2 		;exception -22 "control structure mismatch"
+			;THROW	FEXCPT_TC_CTRLSTRUC	;exception -22 "control structure mismatch"
+			;Long IF/AHEAD branch  (CFSP in X, distance -> D)
+CF_THEN_4		LDX	2,X 			;IF address -> X
+			STD	2,X			;resolve IF address
+			JOB	CF_THEN_2
+			;Resolve AHEAD branch (CFSP in X)
+CF_THEN_5		LDD	CP 			;CP -> D
+			SUBD	2,X			;distance -> D
+			CPD	(255-1)			;check for short AHEAD branch
+			BHI	CF_THEN_4		;long IF branch
+			;Short AHEAD branch  (CFSP in X, distance-2 -> D)
+			ADDB	#1 			;distance -> D
+			LDAA	#$F8			;xb -> A
+			LDX	2,X			;AHEAD address -> X
+			STD	1,X			;resolve IF address
+			JOB	CF_THEN_2
 	
-
 ;;Word: REPEAT 
 ;;Interpretation: Interpretation semantics for this word are undefined.
 ;;Compilation: ( C: orig dest -- )

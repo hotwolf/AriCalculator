@@ -837,40 +837,7 @@ CF_COUNT			EQU	*
 ;name Execution: ( -- a-addr )
 ;a-addr is the address of name's data field. The execution semantics of name may
 ;be extended by using DOES>.
-;CF_CREATE			;Build header
-;				SSTACK_JOBSR	FCORE_HEADER ;NFA -> D, error handler -> X (SSTACK: 10  bytes)
-;				TBNE	X, CF_CREATE_ERROR
-;				;Update LAST_NFA 
-;				STD	LAST_NFA
-;				;Append CFA 
-;				LDX	CP
-;				MOVW	#CF_CREATE_RT, 2,X+
-;				;Append default (no) init pointer
-;				MOVW	#$0000, 2,X+
-;				STX	CP
-;				;Update CP saved (CP in X)
-;				STX	CP_SAVED
-;				;Done 
-;				NEXT
-;				;Error handler for FCORE_HEADER 
-;CF_CREATE_ERROR		JMP	0,X
-;
-;CREATE run-time semantics
-;Push the address of the second cell after the CFA onto the parameter stack
-;CF_CREATE_RT			PS_CHECK_OF	1			;overflow check	=> 9 cycles
-;				LEAX		4,X			;CFA+4 -> PS	=> 2 cycles
-;				STX		0,Y			;		=> 3 cycles
-;				STY		PSP			;		=> 3 cycles
-;				LDX		-2,X			;new CFA -> X	=> 3 cycles
-;				BEQ		CF_CREATE_RT_1		;no init code	=> 1 cycles/3 cycle
-;				RS_PUSH_KEEP_X	IP			;IP -> RS	=>20 cycles
-;				LEAY		2,X			;IP+2 -> IP	=> 2 cycles
-;				STY		IP			;		=> 3 cycles
-;				LDX		0,X			;JUMP [new CFA]	=> 3 cycles
-;				JMP		[0,X]			;               => 6 cycles
-;									;                 ---------
-;									;                 52 cycles
-;CF_CREATE_RT_1			NEXT					;NEXT
+;==> FUDICT
 	
 ;Word: DECIMAL ( -- )
 ;Set the numeric conversion radix to ten (decimal).
@@ -922,26 +889,7 @@ CF_DECIMAL_EOI			RTS
 ;Execute the portion of the definition that begins with the initiation semantics
 ;appended by the DOES> which modified name. The stack effects i*x and j*x
 ;represent arguments to and results from name, respectively.
-;CF_DOES			COMPILE_ONLY	CF_DOES_COMPONLY 	;ensure that compile mode is on
-;				DICT_CHECK_OF	2, CF_DOES_DICTOF	;(CP+2 -> X)
-;				MOVW	#CFA_DOES_RT, -2,X
-;				STX	CP
-;				NEXT
-;				
-;CF_DOES_COMPONLY		JOB	FCORE_THROW_COMPONLY
-;CF_DOES_DICTOF			JOB	FCORE_THROW_DICTOF
-;CF_DOES_NONCREATE		JOB	FCORE_THROW_NONCREATE
-;
-;;DOES> run-time semantics
-;CF_DOES_RT			LDY	LAST_NFA
-;				LDAA	2,Y
-;				LEAY	A,Y
-;				LEAY	3,Y
-;				LDD	2,Y+
-;				CPD	CFA_CREATE_RT
-;				BNE	CF_DOES_NONCREATE	;last word was not defined by CREATE
-;				MOVW	IP, 0,Y			;add initialization code to CREATEd word
-;				JOB	CF_EXIT_RT
+;==> FUDICT
 
 ;DROP ( x -- )
 ;Remove x from the stack.
