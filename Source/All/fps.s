@@ -221,7 +221,7 @@ FPS_LIST_SEP		EQU	FOUTER_LIST_SEP
 ;==============================
 ;#Allocate CFS space
 ; args:   D: requested CFS space (in bytes, negative)
-; result: none
+; result: X: new CFSP
 ; SSTACK: 2 bytes
 ;         No registers are preserved
 FPS_CFS_ALLOC		EQU	*
@@ -259,13 +259,14 @@ FPS_CFS_ALLOC_2		MOVW	D,X, 2,X+		;move cell
 			;MOVW	D,X, 2,X+		;move cell (optional)
 			CPX	END_OF_PS		;check for bottom of PS
 			BLO	FPS_CFS_ALLOC_2		;more to shift
-FPS_CFS_ALLOC_3		RTS				;done
+FPS_CFS_ALLOC_3		LDX	CFSP			;CFSP -> X
+			RTS				;done
 
 ;#Data space operations
 ;======================
 ;#Allocate data space
 ; args:   D:  requested data space (in bytes)
-; result: none
+; result: X: new DP
 ; SSTACK: 2 bytes
 ;         No registers are preserved
 FPS_DS_ALLOC		EQU	FUDICT_DS_ALLOC
