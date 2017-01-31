@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - NVM - NVM Driver (Mini-BDM_Pod)                                  #
 ;###############################################################################
-;#    Copyright 2010-2013 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
-;#    families.                                                                #
+;#    Copyright 2010-2017 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12 MCU family.    #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -30,7 +29,7 @@
 ;#    - none                                                                   #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    May 27, 2013                                                             #
+;#    January 30, 2017                                                         #
 ;#      - Initial release                                                      #
 ;#    October 27, 2015                                                         #
 ;#      - New user interface                                                   #
@@ -42,7 +41,7 @@
 ;Prescaler value
 ;--------------- 
 #ifndef NVM_FDIV_VAL
-NVM_FDIV_VAL		EQU	(CLOCK_BUS_FREQ/1000000)-1 ;FTMRG clock divider
+NVM_FDIV_VAL		EQU	((95*CLOCK_BUS_FREQ)/100000000) ;FTMRG clock divider
 #endif
 
 ;NVM pages
@@ -113,7 +112,7 @@ NVM_VARS_END_LIN	EQU	@
 			MOVB	#NVM_FDIV_VAL, FCLKDIV	;set clock divider
 			MOVB	#DFDIE,FERCNFG		;detect ECC double faults
 			;Select valid ppage 
-			NVM_SET_PPAGE 			;find last PPAGE
+			;NVM_SET_PPAGE 			;find last PPAGE
 #emac	
 
 ;#User interface

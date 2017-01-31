@@ -300,7 +300,8 @@ MMAP_VARS_END_LIN	EQU	@
 #macro	MMAP_INIT, 0
 			;Setup 30K linear RAM space
 			CLR	DIRECT 			;lock DIRECT page register
-			BSET	MMCCTL1, #(RAMHM|ROMHM)	;MAP RAM 
+			BSET	MMCCTL1, #(RAMHM|ROMHM)	;map RAM 
+			MOVB	#$F9, RPAGE		;map RPAGE $F9 
 			;Setup MPU
 			;Descriptor 0: Register space                 	-> read and write
 			CLR	MPUSEL
