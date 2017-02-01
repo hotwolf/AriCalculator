@@ -33,8 +33,8 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;#Serial Number:				 123456789ABCDE
-			SERIAL_NUMBER		"Dirk's BDM Pod"
-			;SERIAL_NUMBER		"29-Jan-2017"
+			;SERIAL_NUMBER		"Dirk's BDM Pod"
+			SERIAL_NUMBER		"29-Jan-2017"
 	
 ;#Memory map:
 MMAP_S12XEP100		EQU	1 		;S12XEP100
@@ -107,19 +107,12 @@ DEMO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Welcome message
-#macro	WELCOME_MESSAGE, 0
-			RESET_BR_ERR	DONE		;severe error detected 
-			LDX	#WELCOME_MESSAGE	;print welcome message
-			STRING_PRINT_BL
-DONE			EQU	*
-#emac
 
 #macro	SERIAL_NUMBER, 1
 			ORG	RO_CONTENT, RO_CONTENT_LIN
 			FILL	$FF, 16
 			ORG	RO_CONTENT, RO_CONTENT_LIN
-			FCZ	/1
+			FCZ	\1
 #emac
 	
 ;###############################################################################
@@ -129,7 +122,6 @@ DONE			EQU	*
 
 ;Initialization
 			BASE_INIT
-			WELCOME_MESSAGE
 	
 ;;Setup trace buffer
 ;			;Configure DBG module
@@ -154,15 +146,15 @@ DONE			EQU	*
 			CLR	FCCOBIX
 			MOVW	#$0700, FCCOB
 			INC	FCCOBIX
-			MOVW	#$0001, FCCOB
+			MOVW	#$0000, FCCOB
 			INC	FCCOBIX
-			MOVW	#(RO_CONTENT+0), FCCOB
+			MOVW	(RO_CONTENT+0), FCCOB
 			INC	FCCOBIX
-			MOVW	#(RO_CONTENT+2), FCCOB
+			MOVW	(RO_CONTENT+2), FCCOB
 			INC	FCCOBIX
-			MOVW	#(RO_CONTENT+4), FCCOB
+			MOVW	(RO_CONTENT+4), FCCOB
 			INC	FCCOBIX
-			MOVW	#(RO_CONTENT+6), FCCOB
+			MOVW	(RO_CONTENT+6), FCCOB
 			MOVB	#$80, FSTAT
 			BRCLR	FSTAT,#$80,*
 	
@@ -172,15 +164,16 @@ DONE			EQU	*
 			INC	FCCOBIX
 			MOVW	#$0001, FCCOB
 			INC	FCCOBIX
-			MOVW	#(RO_CONTENT+8), FCCOB
+			MOVW	(RO_CONTENT+8), FCCOB
 			INC	FCCOBIX
-			MOVW	#(RO_CONTENT+10), FCCOB
+			MOVW	(RO_CONTENT+10), FCCOB
 			INC	FCCOBIX
-			MOVW	#(RO_CONTENT+12), FCCOB
+			MOVW	(RO_CONTENT+12), FCCOB
 			INC	FCCOBIX
-			MOVW	#(RO_CONTENT+14), FCCOB
+			MOVW	(RO_CONTENT+14), FCCOB
 			MOVB	#$80, FSTAT
 			BRCLR	FSTAT,#$80,*
+
 			BRA	*
 	
 DEMO_CODE_END		EQU	*	
