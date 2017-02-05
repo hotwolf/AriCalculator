@@ -21,7 +21,7 @@ rLatch   = 1;                 //radius of thre latch
 hLatch   = printHoles(8);     //height of ther patch
 dLatch   = 4;                 //depth of the latch
 gapLatch = 0.2;               //gap between latch parts
-dEngrave = 0.4;               //engrave depth
+dEngrave = 0.6;               //engrave depth
 text     = "AriCalculator";   //logo
 segments = 48;
 
@@ -65,6 +65,30 @@ module engravings(x=0,y=0,z=0) {
         difference() {  
             calcFootprint(s=0.65);
             calcFootprint(s=0.63);
+        }
+        difference() {  
+            calcFootprint(s=0.55);
+            calcFootprint(s=0.53);
+        }
+        difference() {  
+            calcFootprint(s=0.45);
+            calcFootprint(s=0.43);
+        }
+        difference() {  
+            calcFootprint(s=0.35);
+            calcFootprint(s=0.33);
+        }
+        difference() {  
+            calcFootprint(s=0.25);
+            calcFootprint(s=0.23);
+        }
+        difference() {  
+            calcFootprint(s=0.15);
+            calcFootprint(s=0.13);
+        }
+        difference() {  
+            calcFootprint(s=0.05);
+            calcFootprint(s=0.03);
         }
     }
 }
@@ -203,7 +227,7 @@ module shell(x=0,y=0,z=0, frontSide=false) {
                 screwMolds(z=-dScrew+0.001);
                 if(frontSide) keyMolds(z=-dKey+0.001);
                 engravings(z=-wRim);
-                logo(z=-wRim);               
+                //logo(z=-wRim);               
             }
         }        
     }
