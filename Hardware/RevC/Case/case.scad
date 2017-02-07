@@ -12,16 +12,16 @@ wRim     = 4;                 //width of the RIM
 dRim     = 2;                 //depth of the RIM
 slope    = 1.6;               //slope of top, bottom, and right side
 dScrew   = 2.4;               //depth of a screw head
-rScrew   = 4;                 //radius of the screw head
-dKey     = 2.4;               //depth of a key
-rKey     = 2;                 //radius of the screw head
+rScrew   = 5;                 //radius of the screw head
+dKey     = 1.8;                 //depth of a key
+rKey     = 4;                 //radius of the screw head
 hHinge   = 10;                //height of each hinge element
 gapHinge = 0.4;               //gap between hinge parts
 rLatch   = 1;                 //radius of thre latch
 hLatch   = printHoles(8);     //height of ther patch
 dLatch   = 4;                 //depth of the latch
 gapLatch = 0.2;               //gap between latch parts
-dEngrave = 0.6;               //engrave depth
+dEngrave = 0.2;               //engrave depth
 text     = "AriCalculator";   //logo
 segments = 48;
 
@@ -52,43 +52,43 @@ module engravings(x=0,y=0,z=0) {
     translate([(x+printHoles(15)),y,z]) {
         difference() {  
             calcFootprint(s=0.95);
-            calcFootprint(s=0.93);
+            calcFootprint(s=0.94);
         }
         difference() {  
             calcFootprint(s=0.85);
-            calcFootprint(s=0.83);
+            calcFootprint(s=0.84);
         }
         difference() {  
             calcFootprint(s=0.75);
-            calcFootprint(s=0.73);
+            calcFootprint(s=0.74);
         }
         difference() {  
             calcFootprint(s=0.65);
-            calcFootprint(s=0.63);
+            calcFootprint(s=0.64);
         }
         difference() {  
             calcFootprint(s=0.55);
-            calcFootprint(s=0.53);
+            calcFootprint(s=0.54);
         }
         difference() {  
             calcFootprint(s=0.45);
-            calcFootprint(s=0.43);
+            calcFootprint(s=0.44);
         }
         difference() {  
             calcFootprint(s=0.35);
-            calcFootprint(s=0.33);
+            calcFootprint(s=0.34);
         }
         difference() {  
             calcFootprint(s=0.25);
-            calcFootprint(s=0.23);
+            calcFootprint(s=0.24);
         }
         difference() {  
             calcFootprint(s=0.15);
-            calcFootprint(s=0.13);
+            calcFootprint(s=0.14);
         }
         difference() {  
             calcFootprint(s=0.05);
-            calcFootprint(s=0.03);
+            calcFootprint(s=0.04);
         }
     }
 }
@@ -119,10 +119,15 @@ module screwMolds(x=0,y=0,z=0) {
 module keyMolds(x=0,y=0,z=0) {
     translate([x,y,z]) {
         hull() {
-            translate([printHoles( 5),printHoles(  2),0]) cylinder(r=rKey, h=dKey, $fn=segments);
-            translate([printHoles(25),printHoles(  2),0]) cylinder(r=rKey, h=dKey, $fn=segments);
-            translate([printHoles( 5),printHoles(-22),0]) cylinder(r=rKey, h=dKey, $fn=segments);
-            translate([printHoles(25),printHoles(-22),0]) cylinder(r=rKey, h=dKey, $fn=segments);
+            translate([printHoles( 5),printHoles(-2),0]) cylinder(r=rKey, h=dKey, $fn=segments);
+            translate([printHoles(25),printHoles(-2),0]) cylinder(r=rKey, h=dKey, $fn=segments);
+            translate([printHoles( 5),printHoles(22),0]) cylinder(r=rKey, h=dKey, $fn=segments);
+            translate([printHoles(25),printHoles(22),0]) cylinder(r=rKey, h=dKey, $fn=segments);
+        }
+
+        hull() {
+            translate([printHoles( 2),printHoles(  0),0]) cylinder(r=rScrew, h=dKey, $fn=segments);
+            translate([printHoles(28),printHoles(  0),0]) cylinder(r=rScrew, h=dKey, $fn=segments);
         }
     }
 }
