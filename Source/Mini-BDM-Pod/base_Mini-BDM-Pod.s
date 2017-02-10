@@ -93,8 +93,8 @@ LED_D_PIN		EQU	PP4 		;PP4
 	
 ;#SCI
 SCI_V5			EQU	1   		;V5
-;SCI_BAUD_AUTO		EQU	1 		;automatic baud rate detection
 SCI_BAUD_9600		EQU	1 		;fixed baud rate
+;SCI_BAUD_DETECT_ON	EQU	1		;enable baud rate detection
 SCI_IC_TIM		EQU	ECT 		;ECT
 SCI_IC			EQU	0 		;IC0
 SCI_OC_TIM		EQU	ECT 		;ECT

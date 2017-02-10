@@ -273,8 +273,7 @@ RESET_CM_ENTRY		MOVW	#RESET_MSG_COP, RESET_MSG_REQ 		;set default request (COP)
 			MOVW	#RESET_MSG_CLKFAIL, RESET_MSG_PTR 	;set clock failure message
 			JOB	START_OF_CODE
 ;COP and user reset
-RESET_COP_ENTRY		EQU	START_OF_CODE
-			MOVW	RESET_MSG_REQ, RESET_MSG_PTR 		;preserve error message
+RESET_COP_ENTRY		MOVW	RESET_MSG_REQ, RESET_MSG_PTR 		;preserve error message
 			MOVW	#RESET_MSG_COP, RESET_MSG_REQ 		;set default request (COP)
 			JOB	START_OF_CODE
 				

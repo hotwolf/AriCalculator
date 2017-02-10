@@ -49,6 +49,15 @@ STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
 STRING_ENABLE_FILL_BL	EQU	1 		;enable STRING_FILL_BL
 STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 
+;#ISTACK
+ISTACK_NO_WAI		EQU	1 		;don't use WAI instruction
+;ISTACK_CHECK_ON	EQU	1		;check ISTACK
+;ISTACK_DEBUG_ON	EQU	1 		;enable debug code
+	
+;#SSTACK
+SSTACK_CHECK_ON		EQU	1		;check SSTACK
+;SSTACK_DEBUG_ON		EQU	1 		;enable debug code
+
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
@@ -120,15 +129,15 @@ DONE			EQU	*
 ;Break handler
 #macro	SCI_BREAK_ACTION, 0
 			LDAA	#$80
-			EORA	PORTT
-			STAA	PORTT
+			EORA	PTT
+			STAA	PTT
 #emac
 	
 ;Suspend handler
 #macro	SCI_SUSPEND_ACTION, 0
 			LDAA	#$40
-			EORA	PORTT
-			STAA	PORTT
+			EORA	PTT
+			STAA	PTT
 #emac
 
 ;###############################################################################
@@ -138,6 +147,10 @@ DONE			EQU	*
 
 ;Initialization
 			BASE_INIT
+			MOVB	#1, LINE_COUNT
+
+			SCI_BAUD_DETECT_BL
+
 			WELCOME_MESSAGE
 	
 ;;Setup trace buffer
@@ -170,7 +183,7 @@ DEMO_GET_CHAR		SCI_RX_BL
 			;Ignore RX errors (char in B)
 			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
 			BNE	DEMO_GET_CHAR
-
+	
 			;Print ASCII character (char in B)
 			TFR	D, X
 			LDAA	#4
@@ -192,7 +205,6 @@ DEMO_GET_CHAR		SCI_RX_BL
 			STRING_FILL_BL
 			LDAB	#16
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print decimal value (char in X)
 			LDY	#$0000
@@ -205,7 +217,6 @@ DEMO_GET_CHAR		SCI_RX_BL
 			STRING_FILL_BL
 			LDAB	#10
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print octal value (char in X)
 			LDY	#$0000
@@ -218,7 +229,6 @@ DEMO_GET_CHAR		SCI_RX_BL
 			STRING_FILL_BL
 			LDAB	#8
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print binary value (char in X)
 			LDAA	#2
@@ -234,7 +244,6 @@ DEMO_GET_CHAR		SCI_RX_BL
 			STRING_fill_BL
 			LDAB	#2
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print new line
 			LDX	#STRING_STR_NL

@@ -180,7 +180,7 @@ SSTACK_VARS_END_LIN	EQU	@
 ; SSTACK: none
 ;         X, Y, and D are preserved
 #macro	SSTACK_BRUF, 2
-			CPS	#SSTACK_BOTTOM+\1 	;=> 2 cycles	 3 bytes
+			CPS	#SSTACK_BOTTOM-\1 	;=> 2 cycles	 3 bytes
 			BHI	\2	      		;=> 3 cycles	 4 bytes
 					      		;  ---------	--------
 					      		;   5 cycles	 7 bytes
