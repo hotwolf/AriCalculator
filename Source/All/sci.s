@@ -460,21 +460,19 @@ SCI_BAUD		EQU	153600
 ;                 76800 -> $145
 ;                115200 -> $0D9
 ;                153600 -> $0A2
-#ifndef	SCI_BAUD_DETECT_ON	
 #ifdef	SCI_V6
 SCI_BDIV		EQU	(CLOCK_BUS_FREQ/SCI_BAUD)+(((2*CLOCK_BUS_FREQ)/SCI_BAUD)&1)			
 #else
 SCI_BDIV		EQU	(CLOCK_BUS_FREQ/(16*SCI_BAUD))+(((2*CLOCK_BUS_FREQ)/(16*SCI_BAUD))&1)
 #endif
-#endif
 
 ;#Pulse range for faud rate detection
 ;max. baud rate:  153600 baud +10% = 168960 baud
-;min. baud rate:  20*TIM_FREQ/$FFFF   ~   7626 baud (TIM_FREQ=25MHz)
+;min. baud rate:  TIM_FREQ/$FFFF   ~   381 baud (TIM_FREQ=25MHz)
 SCI_BD_MAX_BAUD		EQU	168960 				;highest baud rate
 SCI_BD_MIN_BAUD		EQU	TIM_FREQ/$FFFF			;lowest baud rate
-SCI_BD_MIN_PULSE	EQU	20*TIM_FREQ/SCI_BD_MAX_BAUD	;shortest bit pulse
-SCI_BD_MAX_PULSE	EQU	TIM_FREQ/SCI_BD_MIN_BAUD	;longest bit pulse
+SCI_BD_MIN_PULSE	EQU	TIM_FREQ/SCI_BD_MAX_BAUD	;shortest bit pulse
+SCI_BD_MAX_PULSE	EQU	$FFFF				;longest bit pulse
 	
 ;#Frame format
 SCI_8N1			EQU	  ILT		;8N1
@@ -1296,11 +1294,12 @@ SCI_RESUME_1		SSTACK_PREPULL	2 				;check SSTACK
 ;         X, Y, and D are preserved
 SCI_BAUD_DETECT_NB  	EQU	*
 			;Check for ongoing baud rate detection
-			TIM_BRDIS SCI_IC_TIM,SCI_IC,SCI_BAUD_DETECT_NB_1;baud rate detected
+			TIM_BREN SCI_IC_TIM,SCI_IC,SCI_BAUD_DETECT_NB_1	;baud rate detection already running
 			;Start baud rate detection 
 			MOVW	#$FFFF, SCI_BD_PULSE			;start with max. pulse length
 			BCLR	SCI_FLGS,#SCI_FLG_TC_VALID		;no valid IC edge, yet
 			SCI_BDSIG_START					;signal baud rate detection
+			TIM_DIS	SCI_OC_TIM, SCI_OC 			;stop OC interrupts
 			TIM_EN	SCI_IC_TIM, SCI_IC 			;start baud rate detection	
 			;Done
 SCI_BAUD_DETECT_NB_1	SSTACK_PREPULL	2 				;check SSTACK
@@ -1350,7 +1349,7 @@ SCI_ISR_IC		EQU	*
 			TFR	D, X 				;save current TC
 			BRCLR	SCI_FLGS,#SCI_FLG_TC_VALID,SCI_ISR_IC_1;previous TC is invalid	
 			SUBD	SCI_BD_LAST_TC			;pulse width -> D
-			LDY	SCI_BD_PULSE			;shortest pulse storage -> Y 
+			LDY	#SCI_BD_PULSE			;shortest pulse storage -> Y 
 			EMINM	0,Y				;keep shortest 	
 SCI_ISR_IC_1		STX	SCI_BD_LAST_TC			;update previous TC
 			BSET	SCI_FLGS,#SCI_FLG_TC_VALID	;flag TC valid	
@@ -1401,7 +1400,7 @@ SCI_ISR_OC_BD_1		TIM_DIS	SCI_OC_TIM, SCI_OC		;disable SCI_OC
 			ISTACK_RTI				;done
 			;Check captured pulse is too long (pulse length in D)
 SCI_ISR_OC_BD_2		CPD	#SCI_BD_MAX_PULSE		;check if pulse is too long
-			BHS	SCI_ISR_OC_BC_1			;pulse is still too long	
+			BHI	SCI_ISR_OC_BD_1			;pulse is still too long	
 			;Calculate baud rate divider (pulse length in D)
 			SCI_SET_BDIV	       			;determine baud rate divider
 			SCI_BDSIG_STOP				;stop signaling baud rate detection	
@@ -1591,7 +1590,8 @@ SCI_ISR_RXTX		EQU	*
 SCI_ISR_RX		LDAB	SCIDRL					;load receive data into accu B (clears flags)
 #ifdef	SCI_BAUD_DETECT_ON
 			;Drop data during baud rate detection (status flags in A, RX data in B)
-			TIM_BREN SCI_IC_TIM, SCI_IC, SCI_ISR_RX_7	;drop data
+			;TIM_BREN SCI_IC_TIM, SCI_IC, SCI_ISR_RX_7	;drop data
+			TIM_BREN SCI_IC_TIM, SCI_IC, SCI_ISR_TX_5	;drop data
 #endif
 			;Transfer SWOR flag to current error flags (status flags in A, RX data in B)
 			ANDA	#(OR|NF|FE|PF)				;only maintain relevant error flags

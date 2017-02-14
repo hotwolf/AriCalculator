@@ -55,7 +55,7 @@ ISTACK_NO_WAI		EQU	1 		;don't use WAI instruction
 ;ISTACK_DEBUG_ON	EQU	1 		;enable debug code
 	
 ;#SSTACK
-SSTACK_CHECK_ON		EQU	1		;check SSTACK
+;SSTACK_CHECK_ON		EQU	1		;check SSTACK
 ;SSTACK_DEBUG_ON		EQU	1 		;enable debug code
 
 ;###############################################################################
@@ -148,10 +148,13 @@ DONE			EQU	*
 ;Initialization
 			BASE_INIT
 			MOVB	#1, LINE_COUNT
-
+	
 			SCI_BAUD_DETECT_BL
 
-			WELCOME_MESSAGE
+			;WELCOME_MESSAGE
+
+
+			BRA	*
 	
 ;;Setup trace buffer
 ;			;Configure DBG module

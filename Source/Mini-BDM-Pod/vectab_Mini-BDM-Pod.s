@@ -4,8 +4,7 @@
 ;# S12CBase - VECTAB - Vector Table (Mini-BDM-Pod)                             #
 ;###############################################################################
 ;#    Copyright 2010-2017 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    This file is part of the S12CBase framework for NXP's S12 MCU family.    #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -26,11 +25,10 @@
 ;#    handler.                                                                 #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    ERROR  - Error handler                                                   #
-;#    BDM    - BDM driver                                                      #
 ;#    CLOCK  - Clock handler                                                   #
 ;#    SCI    - UART driver                                                     #
 ;#    LED    - LED driver                                                      #
+;#    DELAY  - Delay driver                                                    #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -240,13 +238,13 @@ ISR_ECT_TC7		BGND				;vector base + $E0
 ISR_ECT_TC6		BGND				;vector base + $E2
 ISR_ECT_TC5		BGND				;vector base + $E4
 ISR_ECT_TC4		BGND				;vector base + $E6
-#ifdef	SCI_ISR_DELAY					;vector base + $E8
-ISR_ECT_TC3		EQU	SCI_ISR_DELAY
+#ifdef	LED_ISR						;vector base + $E8
+ISR_ECT_TC3		EQU	LED_ISR
 #else
 ISR_ECT_TC3		BGND
 #endif
-#ifdef	SCI_ISR_LED					;vector base + $EA
-ISR_ECT_TC2		EQU	SCI_ISR_LED
+#ifdef	DELAY_ISR					;vector base + $EA
+ISR_ECT_TC2		EQU	DELAY_ISR
 #else
 ISR_ECT_TC2		BGND
 #endif
@@ -390,13 +388,13 @@ ISR_ECT_TC7		EQU	RESET_ISR_FATAL		;vector base + $E0
 ISR_ECT_TC6		EQU	RESET_ISR_FATAL		;vector base + $E2
 ISR_ECT_TC5		EQU	RESET_ISR_FATAL		;vector base + $E4
 ISR_ECT_TC4		EQU	RESET_ISR_FATAL		;vector base + $E6
-#ifdef	SCI_ISR_DELAY					;vector base + $E8
-ISR_ECT_TC3		EQU	SCI_ISR_DELAY
+#ifdef	LED_ISR						;vector base + $E8
+ISR_ECT_TC3		EQU	LED_ISR
 #else
 ISR_ECT_TC3		EQU	RESET_ISR_FATAL
 #endif
-#ifdef	SCI_ISR_LED					;vector base + $EA
-ISR_ECT_TC2		EQU	SCI_ISR_LED
+#ifdef	DELAY_ISR					;vector base + $EA
+ISR_ECT_TC2		EQU	DELAY_ISR
 #else
 ISR_ECT_TC2		EQU	RESET_ISR_FATAL
 #endif
