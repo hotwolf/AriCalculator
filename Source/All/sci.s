@@ -918,12 +918,15 @@ DONE			CLI
 #endif
 			;Store BDIV value (BDIV in D) 
 			STD	SCIBDH 				;set baud rate divider
+			STD	SCI_SAVED_BDIV			;save baud rate
 			;Store checksum (BDIV in D) 
 			ABA					;calculate checksum 
 			COMA					;
 			STAA	SCI_SAVED_BDIV_CS		;store checksum		
 #else
 			;Calculate BDIV value 
+			;LSRD					;half
+			;LSRD					;half
 			LSRD					;half
 #ifndef TIM_DIV_8
 			LSRD					;half
@@ -935,10 +938,11 @@ DONE			CLI
 #endif
 #endif
 			;Store BDIV value (BDIV in D) 
-			STAA	SCIBDH 				;set baud rate divider
+			STAB	SCIBDL 				;set baud rate divider
+			STAB	SCI_SAVED_BDIV			;save baud rate
 			;Store checksum (BDIV in D) 
-			COMA					;
-			STAA	SCI_SAVED_BDIV_CS		;store checksum		
+			COMB					;
+			STAB	SCI_SAVED_BDIV_CS		;store checksum		
 #endif
 #emac
 
@@ -1300,6 +1304,7 @@ SCI_BAUD_DETECT_NB  	EQU	*
 			BCLR	SCI_FLGS,#SCI_FLG_TC_VALID		;no valid IC edge, yet
 			SCI_BDSIG_START					;signal baud rate detection
 			TIM_DIS	SCI_OC_TIM, SCI_OC 			;stop OC interrupts
+			BCLR	SCICR2,#RE 				;disable SCI receiver
 			TIM_EN	SCI_IC_TIM, SCI_IC 			;start baud rate detection	
 			;Done
 SCI_BAUD_DETECT_NB_1	SSTACK_PREPULL	2 				;check SSTACK
@@ -1405,6 +1410,7 @@ SCI_ISR_OC_BD_2		CPD	#SCI_BD_MAX_PULSE		;check if pulse is too long
 			SCI_SET_BDIV	       			;determine baud rate divider
 			SCI_BDSIG_STOP				;stop signaling baud rate detection	
 			TIM_DIS	SCI_IC_TIM, SCI_IC		;stop IC
+			BSET	SCICR2,#RE 			;enable SCI receiver
 			JOB	SCI_ISR_OC_RX			;continue
 			;Next
 SCI_ISR_OC_BD_3		EQU	*	
@@ -1456,13 +1462,14 @@ SCI_ISR_OC_RX		EQU	*
 			DEC	SCI_OC_CNT 			;decrement counter
 			BNE	SCI_ISR_OC_RX_1			;reminder not yet required
 			SCI_TX_XONXOFF				;request XON/XOFF reminder
-SCI_ISR_OC_RX_1		ISTACK_RTI				;done	
+SCI_ISR_OC_RX_1		EQU	*				;done	
 #else
+#ifndef	SCI_IRQBUG_ON
 			TIM_DIS	SCI_OC_TIM, SCI_OC		;disable OC
+#endif
 #endif
 
 #ifdef	SCI_IRQBUG_ON
-#ifdef V2
 ;#TIM ISR for the MUCts00510 workaround
 ;--------------------------------------
 ;  Periodically execute S12_ISR_RXTX every 1 1/2 frame times 
@@ -1475,7 +1482,8 @@ SCI_ISR_IRQBUG		EQU	*
 			TIM_CLRIF SCI_IRQBUG_TIM, SCI_IRQBUG_OC		;clear interrupt flag
 			;Execute SCI_ISR_RXTX 
 			JOB	SCI_ISR_RXTX
-#endif
+#else
+			ISTACK_RTI				;done	
 #endif
 	
 ;#SCI TX ISR (status flags in A)
