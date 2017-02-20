@@ -499,7 +499,8 @@ SCI_C0_BREAK		EQU	$03 		;ctrl-c (terminate program execution)
 SCI_C0_DLE		EQU	$10		;data link escape (treat next byte as data)
 SCI_C0_XON		EQU	$11 		;unblock transmission
 SCI_C0_XOFF		EQU	$13		;block transmission
-SCI_C0_SUSPEND		EQU	$1A 		;ctrl-z (suspend program execution)
+;SCI_C0_SUSPEND		EQU	$1A 		;ctrl-z (suspend program execution)
+SCI_C0_SUSPEND		EQU	$18 		;ctrl-x (suspend program execution)
 SCI_C0_US		EQU	$1A 		;last C0 character (unit separator)
 SCI_C0_DEL		EQU	$7F 		;DELETE
 	
@@ -637,11 +638,7 @@ SCI_BD_PULSE		EQU	SCI_RXBUF+2 	;shortest pulse (share RX buffer)
 
 #ifdef	SCI_BAUD_DETECT_ON
 ;#Baud rate -> checksum (~(SCI_SAVED_BDIV[15:8]+SCI_SAVED_BDIV[7:0])
-#ifdef	SCI_V6
 SCI_SAVED_BDIV		DS	2		;value of the SCIBD register
-#else
-SCI_SAVED_BDIV		DS	1		;value of the SCIBDL register
-#endif
 SCI_AUTO_LOC2		DS	((~SCI_AUTO_LOC1)&1);2nd auto-place location
 SCI_SAVED_BDIV_CS	EQU	((SCI_AUTO_LOC1&1)*SCI_AUTO_LOC1)+(((~SCI_AUTO_LOC1)&1)*SCI_AUTO_LOC2)
 #endif
@@ -656,58 +653,50 @@ SCI_VARS_END_LIN	EQU	@
 ;#--------------
 #macro	SCI_INIT, 0
 			;Setup SCI communication
-			MOVB	#SCI_FORMAT, SCICR1		;set frame format
-#ifdef	SCI_FORMAT_8N2						
-			MOVB	#T8, SCIDRH			;prepare 9-bit frame
-#endif								
-#ifdef	SCI_RXTX_ACTHI						
-			MOVB	#(TXPOL|RXPOL), SCISR2		;invert RXD/TXD polarity
-#endif                                                         
-			;Initialize buffers			
-			MOVW	#$0000,SCI_TXBUF_IN 		;set TX buffer indexes
-			MOVW	#$0000,SCI_RXBUF_IN 		;set RX buffer indexes
-			;Set baud rate divider 
-#ifdef	SCI_BAUD_DETECT_ON
-#ifdef	CLOCK_FLGS
-			LDAB	CLOCK_FLGS 			;check if RAM content can be trusted
-			BITA	#(PORF|LVRF)			;check for POR or LVR
-			BNE	SCI_INIT_1			;set default baud rate
-#endif
-#ifdef	SCI_V6
-			LDD	SCI_SAVED_BDIV 			;read last baud rate divider
-			TFR	D, X				;save last baud rate divider
-			ABA					;calculate checksum
-			EORA	SCI_SAVED_BDIV_CS		;compare checksum
-			IBNE	A, SCI_INIT_1			;set default baud rate
-			STX	SCIBDH				;restore last baud rate
-			JOB	SCI_INIT_2			;activate SCI
-#else
-			LDAB	SCI_SAVED_BDIV 			;read last baud rate divider
-			LDAA	SCI_SAVED_BDIV_CS		;read checksum
-			ABA					;compare checksum
-			BCS	SCI_INIT_1			;set default baud rate
-			IBNE	A, SCI_INIT_1			;set default baud rate
-			CLRA					;restore last baud rate
-			STX	SCIBDH				;restore last baud rate
-			JOB	SCI_INIT_2			;activate SCI
-#endif
-#endif
-SCI_INIT_1		MOVW	#SCI_BDIV, SCIBDH 		;set fixed baud rate				
-			;Activate SCI 
-SCI_INIT_2		CLR	SCI_OC_CNT 			;reset OC delay
-#ifdef	SCI_XONXOFF
-			MOVB 	#SCI_FLG_TX_XONXOFF, SCI_FLGS	;request transmission of XON/XOFF
-			MOVB	#(TXIE|RIE|TE|RE), SCICR2 	;start SCI	
-#else
-			CLR     SCI_FLGS			;clear flags
-			MOVB	#(RIE|TE|RE), SCICR2 		;start SCI	
-#endif
-#ifdef	SCI_IRQBUG_ON
-			;Start MUCts00510 workaround		
-			SCI_LDD_FRAME_DELAY	1		;determine delay
-			ADDD	SCI_IRQBUG_TCNT			;add to current time
-			STD	SCI_IRQBUG_TC 			;set OC
-			TIM_EN	SCI_IRQBUG_TIM, SCI_IRQBUG_OC 	;enable timer
+			MOVB	#SCI_FORMAT, SCICR1			;set frame format
+#ifdef	SCI_FORMAT_8N2							
+			MOVB	#T8, SCIDRH				;prepare 9-bit frame
+#endif									
+#ifdef	SCI_RXTX_ACTHI							
+			MOVB	#(TXPOL|RXPOL), SCISR2			;invert RXD/TXD polarity
+#endif                                                         		
+			;Initialize buffers				
+			MOVW	#$0000,SCI_TXBUF_IN 			;set TX buffer indexes
+			MOVW	#$0000,SCI_RXBUF_IN 			;set RX buffer indexes
+			;Set baud rate divider 				
+#ifdef	SCI_BAUD_DETECT_ON						
+#ifdef	CLOCK_FLGS							
+			LDAB	CLOCK_FLGS 				;check if RAM content can be trusted
+			BITA	#(PORF|LVRF)				;check for POR or LVR
+			BNE	SCI_INIT_1				;set default baud rate
+#endif									
+			LDD	SCI_SAVED_BDIV 				;read last baud rate divider
+#ifdef	SCI_V5								
+			ANDA	#$1F 					;don't touch IR configuration bits
+#endif									
+			TFR	D, X					;save last baud rate divider
+			ABA						;calculate checksum
+			EORA	SCI_SAVED_BDIV_CS			;compare checksum
+			IBNE	A, SCI_INIT_1				;set default baud rate
+			STX	SCIBDH					;restore last baud rate
+			JOB	SCI_INIT_2				;activate SCI
+#endif									
+SCI_INIT_1		MOVW	#SCI_BDIV, SCIBDH 			;set fixed baud rate				
+			;Activate SCI 					
+SCI_INIT_2		CLR	SCI_OC_CNT 				;reset OC delay
+#ifdef	SCI_XONXOFF							
+			MOVB 	#SCI_FLG_TX_XONXOFF, SCI_FLGS		;request transmission of XON/XOFF
+			MOVB	#(TXIE|RIE|TE|RE), SCICR2 		;start SCI	
+#else									
+			CLR     SCI_FLGS				;clear flags
+			MOVB	#(RIE|TE|RE), SCICR2 			;start SCI	
+#endif									
+#ifdef	SCI_IRQBUG_ON							
+			;Start MUCts00510 workaround			
+			SCI_LDD_FRAME_DELAY	1			;determine delay
+			ADDD	SCI_IRQBUG_TCNT				;add to current time
+			STD	SCI_IRQBUG_TC 				;set OC
+			TIM_EN	SCI_IRQBUG_TIM, SCI_IRQBUG_OC 		;enable timer
 #endif
 #emac
 
@@ -853,6 +842,26 @@ SCI_INIT_2		CLR	SCI_OC_CNT 			;reset OC delay
 			SSTACK_JOBSR	SCI_BAUD_DETECT_BL, 4
 #endif
 #emac
+
+#ifdef	SCI_BAUD_DETECT_ON
+;#Branch if baud rate has been successfully restored
+; args:   1: branch address
+; result: none
+; SSTACK: 2 bytes
+;         X and  Y  are preserved
+#macro	SCI_BAUD_RESTORED, 1
+#ifdef	SCI_BAUD_DETECT_ON
+			;Check stored baud rate value 
+			LDD	SCI_SAVED_BDIV 				;read last baud rate divider
+#ifdef	SCI_V5								
+			ANDA	#$1F 					;don't touch IR configuration bits
+#endif									
+			ABA						;calculate checksum
+			EORA	SCI_SAVED_BDIV_CS			;compare checksum
+			IBEQ	A, \1					;set default baud rate
+
+#endif
+#emac
 	
 ;#Helper functions
 ;#----------------
@@ -916,13 +925,6 @@ DONE			CLI
 #endif
 #endif
 #endif
-			;Store BDIV value (BDIV in D) 
-			STD	SCIBDH 				;set baud rate divider
-			STD	SCI_SAVED_BDIV			;save baud rate
-			;Store checksum (BDIV in D) 
-			ABA					;calculate checksum 
-			COMA					;
-			STAA	SCI_SAVED_BDIV_CS		;store checksum		
 #else
 			;Calculate BDIV value 
 			;LSRD					;half
@@ -937,13 +939,14 @@ DONE			CLI
 #endif
 #endif
 #endif
-			;Store BDIV value (BDIV in D) 
-			STAB	SCIBDL 				;set baud rate divider
-			STAB	SCI_SAVED_BDIV			;save baud rate
-			;Store checksum (BDIV in D) 
-			COMB					;
-			STAB	SCI_SAVED_BDIV_CS		;store checksum		
 #endif
+			;Store BDIV value (BDIV in D) 
+			STD	SCIBDH 				;set baud rate divider
+			STD	SCI_SAVED_BDIV			;save baud rate
+			;Store checksum (BDIV in D) 
+			ABA					;calculate checksum 
+			COMA					;
+			STAA	SCI_SAVED_BDIV_CS		;store checksum		
 #emac
 
 ;#Load TCs for the length a given number of SCI frames into accu D
@@ -1289,7 +1292,7 @@ SCI_RESUME		EQU	*
 			;Done
 SCI_RESUME_1		SSTACK_PREPULL	2 				;check SSTACK
 			RTS
-
+	
 #ifdef	SCI_BAUD_DETECT_ON
 ;#Perform baud rate detection (non-blocking)
 ; args:   none
@@ -1326,7 +1329,8 @@ SCI_BAUD_DETECT_BL_1 	SEI						;disable interrupts
 			ISTACK_WAIT 					;wait for any event
 			JOB	SCI_BAUD_DETECT_BL_1 			;check again
 			;Done
-SCI_BAUD_DETECT_BL_2	SSTACK_PREPULL	2 				;check SSTACK
+SCI_BAUD_DETECT_BL_2	CLI		  				;enable interrupts
+			SSTACK_PREPULL	2 				;check SSTACK
 			RTS
 #endif	
 

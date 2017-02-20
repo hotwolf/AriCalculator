@@ -128,16 +128,12 @@ DONE			EQU	*
 
 ;Break handler
 #macro	SCI_BREAK_ACTION, 0
-			LDAA	#$80
-			EORA	PTT
-			STAA	PTT
+			LED_SET	D, LED_SEQ_FAST_BLINK;start fast blink on busy LED
 #emac
 	
 ;Suspend handler
 #macro	SCI_SUSPEND_ACTION, 0
-			LDAA	#$40
-			EORA	PTT
-			STAA	PTT
+			LED_CLR	D, LED_SEQ_FAST_BLINK;stop fast blink on busy LED
 #emac
 
 ;###############################################################################
@@ -148,13 +144,10 @@ DONE			EQU	*
 ;Initialization
 			BASE_INIT
 			MOVB	#1, LINE_COUNT
-	
+
+			SCI_BAUD_RESTORED	DEMO_SKIP_BD	
 			SCI_BAUD_DETECT_BL
-
-			;WELCOME_MESSAGE
-
-
-			BRA	*
+DEMO_SKIP_BD		WELCOME_MESSAGE
 	
 ;;Setup trace buffer
 ;			;Configure DBG module

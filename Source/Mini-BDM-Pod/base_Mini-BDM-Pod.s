@@ -102,17 +102,17 @@ SCI_OC			EQU	1 		;OC1
 SCI_XONXOFF		EQU	1		;XON/XOFF flow control
 #macro SCI_BDSIG_START, 0
 			;LED_SET	C, LED_SEQ_SINGLE_GAP;start single gap on red LED
-			LED_SET	C, LED_SEQ_HEART_BEAT;start single gap on red LED
+			LED_SET	C, LED_SEQ_HEART_BEAT;start single gap on error LED
 #emac
 #macro SCI_BDSIG_STOP, 0
 			;LED_CLR	C, LED_SEQ_SINGLE_GAP;stop single gap on red LED
-			LED_CLR	C, LED_SEQ_HEART_BEAT;stop single gap on red LED
+			LED_CLR	C, LED_SEQ_HEART_BEAT;stop single gap on error LED
 #emac
 #macro SCI_ERRSIG_START, 0
-			LED_SET	C, LED_SEQ_FAST_BLINK;start fast blink on red LED
+			LED_SET	C, LED_SEQ_FAST_BLINK;start fast blink on error LED
 #emac
 #macro SCI_ERRSIG_STOP, 0
-			LED_CLR	C, LED_SEQ_FAST_BLINK;stop fast blink on red LED
+			LED_CLR	C, LED_SEQ_FAST_BLINK;stop fast blink on error LED
 #emac
 
 ;#TVMON
