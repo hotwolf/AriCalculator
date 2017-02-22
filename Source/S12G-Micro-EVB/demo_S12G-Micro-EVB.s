@@ -90,12 +90,20 @@ SSTACK_BOTTOM		EQU	VECTAB_START
 SSTACK_BOTTOM_LIN	EQU	VECTAB_START_LIN
 
 ;###############################################################################
+;# Constants                                                                   #
+;###############################################################################
+
+HEADER_REPEAT		EQU	20
+	
+;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 			ORG 	DEMO_VARS_START, DEMO_VARS_START_LIN
 
 DEMO_VARS_END		EQU	*
 	
+LINE_COUNT		DS	1	
+
 DEMO_VARS_END_LIN	EQU	@
 
 ;###############################################################################
@@ -126,20 +134,26 @@ DONE			EQU	*
 
 ;Initialization
 			BASE_INIT
-			WELCOME_MESSAGE
+			MOVB	#1, LINE_COUNT
+
+			SCI_BR_BAUD_RESTORED	DEMO_SKIP_BD	
+			SCI_BAUD_DETECT_BL
+DEMO_SKIP_BD		WELCOME_MESSAGE
 	
 ;Application code
-			;Print header string
+			;Print header
+DEMO_LOOP		DEC	LINE_COUNT
+			BNE	DEMO_GET_CHAR
+			MOVB	#HEADER_REPEAT, LINE_COUNT
 			LDX	#DEMO_HEADER
 			STRING_PRINT_BL
 
-			;Loop
-DEMO_LOOP		SCI_RX_BL
-			;Ignore RX errors 
+			;Wait for input
+DEMO_GET_CHAR		SCI_RX_BL
+			;Ignore RX errors (char in B)
 			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
-			BNE	DEMO_LOOP
-			;TBNE	A, DEMO_LOOP
-
+			BNE	DEMO_GET_CHAR
+	
 			;Print ASCII character (char in B)
 			TFR	D, X
 			LDAA	#4
@@ -161,7 +175,6 @@ DEMO_LOOP		SCI_RX_BL
 			STRING_FILL_BL
 			LDAB	#16
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print decimal value (char in X)
 			LDY	#$0000
@@ -174,7 +187,6 @@ DEMO_LOOP		SCI_RX_BL
 			STRING_FILL_BL
 			LDAB	#10
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print octal value (char in X)
 			LDY	#$0000
@@ -187,7 +199,6 @@ DEMO_LOOP		SCI_RX_BL
 			STRING_FILL_BL
 			LDAB	#8
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print binary value (char in X)
 			LDAA	#2
@@ -200,10 +211,9 @@ DEMO_LOOP		SCI_RX_BL
 			NEGA
 			ADDA	#8
 			LDAB	#"0"
-			STRING_FILL_BL
+			STRING_fill_BL
 			LDAB	#2
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print new line
 			LDX	#STRING_STR_NL

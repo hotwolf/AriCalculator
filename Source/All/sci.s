@@ -849,7 +849,7 @@ SCI_INIT_2		CLR	SCI_OC_CNT 				;reset OC delay
 ; result: none
 ; SSTACK: 2 bytes
 ;         X and  Y  are preserved
-#macro	SCI_BAUD_RESTORED, 1
+#macro	SCI_BR_BAUD_RESTORED, 1
 #ifdef	SCI_BAUD_DETECT_ON
 			;Check stored baud rate value 
 			LDD	SCI_SAVED_BDIV 				;read last baud rate divider
