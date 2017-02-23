@@ -1,6 +1,6 @@
 (export (version D)
   (design
-    (source C:/cygwin64/home/R49322/Projects/AriCalculator/Hardware/RevC/KiCad/AriCalculator-RevC.sch)
+    (source AriCalculator-RevC.sch)
     (date "1/4/2015 5:30:15 PM")
     (tool "eeschema (2013-07-07 BZR 4022)-stable"))
   (components
@@ -860,7 +860,7 @@
     (library (logical AriCalculator)
       (uri AriCalculator.lib))
     (library (logical AriCalculator-RevC-cache)
-      (uri C:\cygwin64\home\R49322\Projects\AriCalculator\Hardware\RevC\KiCad\AriCalculator-RevC-cache.lib)))
+      (uri AriCalculator-RevC-cache.lib)))
   (nets
     (net (code 1) (name /MCU/UART_CTS)
       (node (ref IC3) (pin 11))
