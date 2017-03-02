@@ -21,11 +21,12 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#    This module defines the static vector table of the OpenBDC firmware.     #
-;#    Unexpected inerrupts are cought and trigger a fatal error in the reset   #
+;#    Unexpected interrupts are cought and trigger a fatal error in the reset  #
 ;#    handler.                                                                 #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    CLOCK  - Clock handler                                                   #
+;#    RESET  - Reset driver                                                    #
 ;#    SCI    - UART driver                                                     #
 ;#    LED    - LED driver                                                      #
 ;#    DELAY  - Delay driver                                                    #
@@ -75,13 +76,13 @@ VECTAB_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	VECTAB_INIT, 0
-#ifdef	MMAP_RAM
+#ifdef MMAP_RAM
 			;Set vector base address
 			MOVB	#(VECTAB_START>>8), IVBR
 #endif
 			;Disable XGATE interrupts
 			CLR	XGPRIO
-#ifdef	SCI_ISR_IC
+#ifdef SCI_ISR_IC
 			;Give TC0 high priority
 			MOVB	#(VEC_ECT_TC0&$F0), CFADDR
 			MOVB	#$07, (CFDATA0+((VEC_ECT_TC0&$000E)>>1))
@@ -137,7 +138,7 @@ ISR_RES36		BGND				;vector base + $36
 ISR_RES38		BGND				;vector base + $38
 ISR_RES3A		BGND				;vector base + $3A
 ISR_ATD1COMP  		BGND				;vector base + $3C
-#ifdef	TVMON_ISR					;vector base + $3E
+#ifdef TVMON_ISR					;vector base + $3E
 ISR_ATD0COMP		EQU	TVMON_ISR
 #else
 ISR_ATD0COMP		BGND
@@ -203,7 +204,7 @@ ISR_CAN0RX    		BGND				;vector base + $B2
 ISR_CAN0ERR   		BGND				;vector base + $B4
 ISR_CAN0WUP   		BGND				;vector base + $B6
 ISR_FLASH     		BGND				;vector base + $B8
-#ifdef	NVM_ISR_ECCERR					;vector base + $BA
+#ifdef NVM_ISR_ECCERR					;vector base + $BA
 ISR_FLASHFLT  		EQU	NVM_ISR_ECCERR
 #else
 ISR_FLASHFLT  		BGND
@@ -213,7 +214,7 @@ ISR_SPI1      		BGND				;vector base + $BE
 ISR_IIC0      		BGND				;vector base + $C0
 ISR_SCI6      		BGND				;vector base + $C2
 ISR_SCM			BGND				;vector base + $C4
-#ifdef	CLOCK_ISR					;vector base + $C6
+#ifdef CLOCK_ISR					;vector base + $C6
 ISR_PLLLOCK		EQU	CLOCK_ISR
 #else
 ISR_PLLLOCK		BGND
@@ -225,7 +226,7 @@ ISR_PORTJ		BGND				;vector base + $CC
 ISR_ATD1		BGND				;vector base + $D0
 ISR_ATD0		BGND				;vector base + $D2
 ISR_SCI1		BGND				;vector base + $D4
-#ifdef	SCI_ISR_RXTX					;vector base + $D6
+#ifdef SCI_ISR_RXTX					;vector base + $D6
 ISR_SCI0		EQU	SCI_ISR_RXTX
 #else
 ISR_SCI0		BGND
@@ -238,22 +239,22 @@ ISR_ECT_TC7		BGND				;vector base + $E0
 ISR_ECT_TC6		BGND				;vector base + $E2
 ISR_ECT_TC5		BGND				;vector base + $E4
 ISR_ECT_TC4		BGND				;vector base + $E6
-#ifdef	LED_ISR						;vector base + $E8
+#ifdef LED_ISR						;vector base + $E8
 ISR_ECT_TC3		EQU	LED_ISR
 #else
 ISR_ECT_TC3		BGND
 #endif
-#ifdef	DELAY_ISR					;vector base + $EA
+#ifdef DELAY_ISR					;vector base + $EA
 ISR_ECT_TC2		EQU	DELAY_ISR
 #else
 ISR_ECT_TC2		BGND
 #endif
-#ifdef	SCI_ISR_OC					;vector base + $EC
+#ifdef SCI_ISR_OC					;vector base + $EC
 ISR_ECT_TC1		EQU	SCI_ISR_OC
 #else
 ISR_ECT_TC1		BGND
 #endif
-#ifdef	SCI_ISR_IC					;vector base + $EE
+#ifdef SCI_ISR_IC					;vector base + $EE
 ISR_ECT_TC0		EQU	SCI_ISR_IC
 #else
 ISR_ECT_TC0		BGND
@@ -287,7 +288,7 @@ ISR_RES36		EQU	RESET_ISR_FATAL		;vector base + $36
 ISR_RES38		EQU	RESET_ISR_FATAL		;vector base + $38
 ISR_RES3A		EQU	RESET_ISR_FATAL		;vector base + $3A
 ISR_ATD1COMP  		EQU	RESET_ISR_FATAL		;vector base + $3C
-#ifdef	TVMON_ISR					;vector base + $3E
+#ifdef TVMON_ISR					;vector base + $3E
 ISR_ATD0COMP		EQU	TVMON_ISR
 #else
 ISR_ATD0COMP		EQU	RESET_ISR_FATAL
@@ -353,7 +354,7 @@ ISR_CAN0RX    		EQU	RESET_ISR_FATAL		;vector base + $B2
 ISR_CAN0ERR   		EQU	RESET_ISR_FATAL		;vector base + $B4
 ISR_CAN0WUP   		EQU	RESET_ISR_FATAL		;vector base + $B6
 ISR_FLASH     		EQU	RESET_ISR_FATAL		;vector base + $B8
-#ifdef	NVM_ISR_ECCERR					;vector base + $BA
+#ifdef NVM_ISR_ECCERR					;vector base + $BA
 ISR_FLASHFLT  		EQU	NVM_ISR_ECCERR
 #else
 ISR_FLASHFLT  		EQU	RESET_ISR_FATAL
@@ -363,7 +364,7 @@ ISR_SPI1      		EQU	RESET_ISR_FATAL		;vector base + $BE
 ISR_IIC0      		EQU	RESET_ISR_FATAL		;vector base + $C0
 ISR_SCI6      		EQU	RESET_ISR_FATAL		;vector base + $C2
 ISR_SCM			EQU	RESET_ISR_FATAL		;vector base + $C4
-#ifdef	CLOCK_ISR					;vector base + $C6
+#ifdef CLOCK_ISR					;vector base + $C6
 ISR_PLLLOCK		EQU	CLOCK_ISR
 #else
 ISR_PLLLOCK		EQU	RESET_ISR_FATAL
@@ -375,7 +376,7 @@ ISR_PORTJ		EQU	RESET_ISR_FATAL		;vector base + $CE
 ISR_ATD1		EQU	RESET_ISR_FATAL		;vector base + $D0
 ISR_ATD0		EQU	RESET_ISR_FATAL		;vector base + $D2
 ISR_SCI1		EQU	RESET_ISR_FATAL		;vector base + $D4
-#ifdef	SCI_ISR_RXTX					;vector base + $D6
+#ifdef SCI_ISR_RXTX					;vector base + $D6
 ISR_SCI0		EQU	SCI_ISR_RXTX
 #else
 ISR_SCI0		EQU	RESET_ISR_FATAL
@@ -388,22 +389,22 @@ ISR_ECT_TC7		EQU	RESET_ISR_FATAL		;vector base + $E0
 ISR_ECT_TC6		EQU	RESET_ISR_FATAL		;vector base + $E2
 ISR_ECT_TC5		EQU	RESET_ISR_FATAL		;vector base + $E4
 ISR_ECT_TC4		EQU	RESET_ISR_FATAL		;vector base + $E6
-#ifdef	LED_ISR						;vector base + $E8
+#ifdef LED_ISR						;vector base + $E8
 ISR_ECT_TC3		EQU	LED_ISR
 #else
 ISR_ECT_TC3		EQU	RESET_ISR_FATAL
 #endif
-#ifdef	DELAY_ISR					;vector base + $EA
+#ifdef DELAY_ISR					;vector base + $EA
 ISR_ECT_TC2		EQU	DELAY_ISR
 #else
 ISR_ECT_TC2		EQU	RESET_ISR_FATAL
 #endif
-#ifdef	SCI_ISR_OC					;vector base + $EC
+#ifdef SCI_ISR_OC					;vector base + $EC
 ISR_ECT_TC1		EQU	SCI_ISR_OC
 #else
 ISR_ECT_TC1		EQU	RESET_ISR_FATAL
 #endif
-#ifdef	SCI_ISR_IC					;vector base + $EE
+#ifdef SCI_ISR_IC					;vector base + $EE
 ISR_ECT_TC0		EQU	SCI_ISR_IC
 #else
 ISR_ECT_TC0		EQU	RESET_ISR_FATAL
@@ -417,17 +418,17 @@ ISR_TRAP		EQU	RESET_ISR_FATAL		;vector base + $F8
 	
 ;#Code entry points
 ;#-----------------
-#ifdef	ERROR_RESET_COP					;vector base + $FA
+#ifdef ERROR_RESET_COP					;vector base + $FA
 RES_COP			EQU	RESET_COP_EXT
 #else
 RES_COP			EQU	RES_EXT
 #endif
-#ifdef	ERROR_RESET_CM					;vector base + $FC
+#ifdef ERROR_RESET_CM					;vector base + $FC
 RES_CM			EQU	RESET_CM_EXT
 #else
 RES_CM			EQU	RES_EXT
 #endif
-#ifdef	ERROR_RESET_EXT					;vector base + $FE
+#ifdef ERROR_RESET_EXT					;vector base + $FE
 RES_EXT			EQU	RESET_COP_EXT
 #else
 RES_EXT			EQU	START_OF_CODE

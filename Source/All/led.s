@@ -152,7 +152,7 @@ LED_TIOS_INIT		EQU	0
 #endif
 	
 ;#Output compare register
-LED_OC_TC		EQU	TC0+(2*LED_OC)
+LED_OC_TC		EQU	LED_TIM+(TC0-TIOS)+(2*LED_OC)
 
 ;#Timer intervall
 ;LED_OC_CNT_RST		EQU	(TIM_FREQ/4)>>17 		;1/4 sec
