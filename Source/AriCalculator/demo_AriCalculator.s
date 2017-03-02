@@ -1,9 +1,8 @@
 ;###############################################################################
 ;# AriCalculator - Demo - Hardware                                             #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2017 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12 MCU family.    #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -48,21 +47,20 @@ MMAP_RAM		EQU	1 		;use RAM memory map
 MMAP_FLASH		EQU	1 		;use FLASH memory map
 #endif
 
+;#COP
+COP_DEBUG		EQU	1 		;disable COP
+
 ;# Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
-		
-;# COP debug
-COP_DEBUG		EQU     1		;disable COP	
 
-;# ISTACK debug
-#ifdef DEMO_LRE
-ISTACK_DEBUG		EQU     1		;don't execute WAI
-#endif
-
-;# String
-STRING_ENABLE_FILL_NB	EQU	1		;enable STRING_FILL_NB 
-STRING_ENABLE_FILL_BL	EQU	1		;enable STRING_FILL_BL 
+;# STRING
+STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
+STRING_ENABLE_FILL_BL	EQU	1 		;enable STRING_FILL_BL
+STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 	
+;#ISTACK
+ISTACK_NO_WAI		EQU	1 		;don't use WAI instruction
+
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
@@ -77,15 +75,26 @@ DEMO_CODE_START_LIN	EQU	@
 DEMO_TABS_START		EQU	*
 DEMO_TABS_START_LIN	EQU	@
 			ORG	DEMO_TABS_END, 	DEMO_TABS_END_LIN
-#endif
-	
+
 ;Variables
 DEMO_VARS_START		EQU	*
 DEMO_VARS_START_LIN	EQU	@
 			ORG	DEMO_VARS_END, 	DEMO_VARS_END_LIN
 
+;Stack 
+SSTACK_TOP		EQU	*
+SSTACK_TOP_LIN		EQU	@
+SSTACK_BOTTOM		EQU	VECTAB_START
+SSTACK_BOTTOM_LIN	EQU	VECTAB_START_LIN
+#endif
+	
 #ifndef DEMO_LRE
-			ORG	$E000, $3E000
+;Variables
+DEMO_VARS_START		EQU	*
+DEMO_VARS_START_LIN	EQU	@
+			ORG	DEMO_VARS_END, 	DEMO_VARS_END_LIN
+
+			ORG	MMAP_FLASH_F_START, MMAP_FLASH_F_START_LIN
 ;Code
 DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
@@ -95,6 +104,12 @@ DEMO_CODE_START_LIN	EQU	@
 DEMO_TABS_START		EQU	*
 DEMO_TABS_START_LIN	EQU	@
 			ORG	DEMO_TABS_END, 	DEMO_TABS_END_LIN
+
+;Stack 
+SSTACK_TOP		EQU	*
+SSTACK_TOP_LIN		EQU	@
+SSTACK_BOTTOM		EQU	VECTAB_START
+SSTACK_BOTTOM_LIN	EQU	VECTAB_START_LIN
 
 			ALIGN 	7, $FF ;align to D-Bug12XZ programming granularity
 #endif
@@ -135,20 +150,18 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;VBAT -> busy LED
 #macro	VMON_VBAT_LVACTION, 0
-			LED_ERR_ON
+			LED_SET	A, LED_SEQ_HEART_BEAT
 #emac
 #macro	VMON_VBAT_HVACTION, 0
-			LED_ERR_OFF LED_NOP, LED_NOP
+			LED_CLR	A, LED_SEQ_HEART_BEAT
 #emac
 
 ;VUSB -> error LED
 #macro	VMON_VUSB_LVACTION, 0
-			LED_BUSY_OFF
-			SCI_DISABLE
+			LED_SET	B, LED_SEQ_HEART_BEAT
 #emac
 #macro	VMON_VUSB_HVACTION, 0
-			LED_BUSY_ON
-			SCI_ENABLE
+			LED_CLR	B, LED_SEQ_HEART_BEAT
 #emac
 
 ;###############################################################################
@@ -161,17 +174,17 @@ DEMO_VARS_END_LIN	EQU	@
 #endif	
 
 ;Application code
-START_OF_CODE		EQU	*		;Start of code
+START_OF_CODE		EQU	*				;Start of code
 			;Initialization
 			BASE_INIT
 
 DEMO_KEY_STROKE_LOOP	EQU	*
 			;Wait for key stroke
-			KEYS_GET_BL 		;key code -> A
+			KEYS_GET_BL 				;key code -> A
 			STAA	DEMO_KEY_CODE
 			
 			;Optical beep
-			LED_ERRBEEP	SEI, CLI 		;blink error LED once
+			LED_SET	B, LED_SEQ_SHORT_PULSE		;blink error LED once
 	
 			;Print key code
 			LDX	#DEMO_KEY_HEADER 		;print header

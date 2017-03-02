@@ -663,12 +663,15 @@ SCI_VARS_END_LIN	EQU	@
 			;Initialize buffers				
 			MOVW	#$0000,SCI_TXBUF_IN 			;set TX buffer indexes
 			MOVW	#$0000,SCI_RXBUF_IN 			;set RX buffer indexes
+			;Initialize variables 
+			CLR	SCI_FLGS				;clear all flags
+			CLR	SCI_OC_CNT 				;reset OC delay
 			;Set baud rate divider 				
 #ifdef	SCI_BAUD_DETECT_ON						
 #ifdef	CLOCK_FLGS							
 			LDAB	CLOCK_FLGS 				;check if RAM content can be trusted
 			BITA	#(PORF|LVRF)				;check for POR or LVR
-			BNE	SCI_INIT_1				;set default baud rate
+			BNE	SCI_INIT_1				;start baud rate detection
 #endif									
 			LDD	SCI_SAVED_BDIV 				;read last baud rate divider
 #ifdef	SCI_V5								
@@ -677,13 +680,18 @@ SCI_VARS_END_LIN	EQU	@
 			TFR	D, X					;save last baud rate divider
 			ABA						;calculate checksum
 			EORA	SCI_SAVED_BDIV_CS			;compare checksum
-			IBNE	A, SCI_INIT_1				;set default baud rate
-			STX	SCIBDH					;restore last baud rate
-			JOB	SCI_INIT_2				;activate SCI
+			IBEQ	A, SCI_INIT_1				;activate SCI
+			;Start baud rate detection 
+			MOVW	#SCI_BDIV, SCIBDH 			;set default baud rate
+			MOVW	#$FFFF, SCI_BD_PULSE			;start with max. pulse length
+			SCI_BDSIG_START					;signal active baud rate detection
+			MOVB	#(TE), SCICR2 				;start SCI -> TX only	
+			TIM_EN	SCI_IC_TIM, SCI_IC 			;start baud rate detection	
+			JOB	SCI_INIT_2				;done
 #endif									
-SCI_INIT_1		MOVW	#SCI_BDIV, SCIBDH 			;set fixed baud rate				
 			;Activate SCI 					
-SCI_INIT_2		CLR	SCI_OC_CNT 				;reset OC delay
+			LDX	#SCI_BDIV				;default baud rate -> X
+SCI_INIT_1		STX	SCIBDH 					;set baud rate	
 #ifdef	SCI_XONXOFF							
 			MOVB 	#SCI_FLG_TX_XONXOFF, SCI_FLGS		;request transmission of XON/XOFF
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2 		;start SCI	
@@ -691,6 +699,8 @@ SCI_INIT_2		CLR	SCI_OC_CNT 				;reset OC delay
 			CLR     SCI_FLGS				;clear flags
 			MOVB	#(RIE|TE|RE), SCICR2 			;start SCI	
 #endif									
+			;Done 					
+SCI_INIT_2		EQU	* 					;done
 #ifdef	SCI_IRQBUG_ON							
 			;Start MUCts00510 workaround			
 			SCI_LDD_FRAME_DELAY	1			;determine delay
@@ -819,6 +829,30 @@ SCI_INIT_2		CLR	SCI_OC_CNT 				;reset OC delay
 ;         X, Y, and D are preserved
 #macro	SCI_RESUME, 0
 			SSTACK_JOBSR	SCI_RESUME, 2
+#emac
+
+;#Check for valid baud rate (non-blocking)
+; args:   none
+; result: C-flag: set if baud rate is valid
+; SSTACK: 2 bytes
+;         X, Y, and D are preserved
+#macro	SCI_CHECK_BAUD_NB, 0
+#ifdef	SCI_BAUD_DETECT_ON
+			SSTACK_JOBSR	SCI_CHECK_BAUD_NB, 2
+#else			
+			SEC
+#endif
+#emac	
+
+;#Check for valid baud rate (blocking)
+; args:   none
+; result: none
+; SSTACK: 4 bytes
+;         X, Y, and D are preserved
+#macro	SCI_CHECK_BAUD_BL, 0
+#ifdef	SCI_BAUD_DETECT_ON
+			SSTACK_JOBSR	SCI_CHECK_BAUD_BL, 4
+#endif
 #emac
 	
 ;#Perform baud rate detection (non-blocking)
@@ -1026,6 +1060,32 @@ DONE			EQU	* 					;done
 			MOVB	#(TXIE|RIE|TE|RE), SCICR2		;enable TX interrupts
 #emac	
 
+;#Enable SCI hardware
+; args:   none
+; result: none
+; SSTACK: none
+;         X, Y, and D are preserved
+#macro	SCI_ENABLE, 0
+			SCI_INIT 					;reinitialize the SCI
+#emac
+	
+;#Disable SCI hardware
+; args:   none
+; result: none
+; SSTACK: none
+;         X, Y, and D are preserved
+#macro	SCI_DISABLE, 0
+			CLR	SCICR2 					;disable SCI
+			TIM_DIS	SCI_OC_TIM, SCI_OC 			;stop OC
+			TIM_DIS	SCI_IC_TIM, SCI_IC 			;stop IC
+#ifmac	SCI_BDSIG_STOP			
+			SCI_BDSIG_STOP 					;stop BD indicator
+#endid	
+#ifmac	SCI_ERRSIG_STOP			
+			SCI_ERRSIG_STOP 				;stop error indicator
+#endid	
+#emac
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -1292,7 +1352,37 @@ SCI_RESUME		EQU	*
 			;Done
 SCI_RESUME_1		SSTACK_PREPULL	2 				;check SSTACK
 			RTS
-	
+
+#ifdef	SCI_BAUD_DETECT_ON
+;#Check for valid baud rate (non-blocking)
+; args:   none
+; result: C-flag: set if baud rate is valid
+; SSTACK: 2 bytes
+;         X, Y, and D are preserved
+SCI_CHECK_BAUD_NB  	EQU	*
+			;Set default result 
+			SEC						;declare baud rate valid by default
+			;Check if baud rate detection is running
+			TIM_BRDIS SCI_IC_TIM,SCI_IC,SCI_CHECK_BAUD_NB_1	;baud rate is valid
+			CLC						
+			;Done
+SCI_CHECK_BAUD_NB_1	SSTACK_PREPULL	2 				;check SSTACK
+			RTS
+#endif
+
+#ifdef	SCI_BAUD_DETECT_ON
+;#Check for valid baud rate (blocking)
+; args:   none
+; result: none
+; SSTACK: 4 bytes
+;         X, Y, and D are preserved
+SCI_CHECK_BAUD_BL  	EQU	*
+			SCI_MAKE_BL	SCI_CHECK_BAUD_NB, 2
+			;Done
+			SSTACK_PREPULL	2 				;check SSTACK
+			RTS
+#endif
+
 #ifdef	SCI_BAUD_DETECT_ON
 ;#Perform baud rate detection (non-blocking)
 ; args:   none

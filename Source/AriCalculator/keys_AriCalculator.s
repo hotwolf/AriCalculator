@@ -97,8 +97,11 @@ KEYS_ROW_LSB		EQU	0 		;default is PP0
 ;Debounce delay
 ;--------------
 ;Output compare channel  
+#ifndef	KEYS_TIM
+KEYS_TIM		EQU	TIOS 		;default is the TIM instance associated with TIOS
+#endif
 #ifndef	KEYS_OC
-KEYS_OC			EQU	$4		;default is OC4	(must be >5)		
+KEYS_OC			EQU	4 		;default is OC4
 #endif
 
 ;Debounce delay (TIM cycles)
@@ -135,7 +138,13 @@ KEYS_ROW_SIZE		EQU	1+KEYS_ROW_MSB-KEYS_ROW_LSB
 ;#Port masks
 KEYS_COL_MASK		EQU	($FF>>(7-KEYS_COL_MSB))&($FF<<KEYS_COL_LSB)
 KEYS_ROW_MASK		EQU	($FF>>(7-KEYS_ROW_MSB))&($FF<<KEYS_ROW_LSB)
-	
+
+;#Timer configuration
+; TIOS 
+KEYS_TIOS_INIT		EQU	1<<KEYS_OC
+;#Output compare register
+KEYS_OC_TC		EQU	KEYS_TIM+(TC0-TIOS)+(2*KEYS_OC)
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -167,12 +176,6 @@ KEYS_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	KEYS_INIT, 0
-			;Initialize timer
-			BSET	TIOS, #(1<<KEYS_OC)
-			;BCLR	TCTL2, #(3<<(2*(KEYS_OC-4)))
-			;BCLR	TIE, #(1<<KEYS_OC)
-			;Check for any key 
-			;MOVB	#KEY_PP_MASK, DDRP 	;drive all columns low
 			;Clear delay counter
 			CLR	KEYS_DELAY_COUNT
 			;Clear input buffer
@@ -337,13 +340,13 @@ KEYS_ISR_KWU_5		LEAX	KEYS_ROW_SIZE,X 			;switch column in keycode
 			;Setup debounce delay 
 			MOVB	#KEYS_DEBOUNCE_DELAY, KEYS_DELAY_COUNT	;set delay counter
 			MOVW	TCNT, (TC0+(2*KEYS_OC))			;set OC to max delay
-			TIM_EN	KEYS_OC					;enable timer
+			TIM_EN	KEYS_TIM, KEYS_OC			;enable timer
 			JOB	KEYS_ISR_KWU_3 				;disable KWU interrupts
 
 ;#Timer ISR for debounce delay
 KEYS_ISR_TIM		EQU	*
 			;Clear interrupt flag
-			TIM_CLRIF	KEYS_OC				;clear TIM interrupt flag
+			TIM_CLRIF KEYS_TIM, KEYS_OC			;clear TIM interrupt flag
 			;Decrement delay count 
 			DEC	KEYS_DELAY_COUNT
 			BEQ	KEYS_ISR_TIM_2 				;debounce delay is over
@@ -355,7 +358,7 @@ KEYS_ISR_TIM_2		MOVB	#KEYS_COL_MASK, KEYS_COL_IF 		;clear KWU interrupt flag
 			MOVB	#KEYS_DEBOUNCE_DELAY, KEYS_DELAY_COUNT	;restart delay counter
 			JOB	KEYS_ISR_TIM_1 				;done
 			;All keys have been released
-KEYS_ISR_TIM_3		TIM_DIS	KEYS_OC					;disable timer	
+KEYS_ISR_TIM_3		TIM_DIS	KEYS_TIM, KEYS_OC			;disable timer	
 			MOVB	#KEYS_COL_MASK, KEYS_COL_IE 		;enable KWU interrupt
 			JOB	KEYS_ISR_TIM_1 				;done
 			

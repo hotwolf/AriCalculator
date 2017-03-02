@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# S12CBase - Demo (S12G-Micro-EVB)                                            #
 ;###############################################################################
-;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    Copyright 2010-2017 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for NXP's S12 MCU family.    #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
@@ -51,6 +51,9 @@ STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
 STRING_ENABLE_FILL_BL	EQU	1 		;enable STRING_FILL_BL
 STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 	
+;#ISTACK
+ISTACK_NO_WAI		EQU	1 		;don't use WAI instruction
+
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
