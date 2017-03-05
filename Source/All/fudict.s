@@ -855,13 +855,13 @@ CF_COMPILE_COMMA_1	LDX	CFSP		   	;CFSP -> X
 			COMB				;invert IF
 			BEQ	CF_COMPILE_COMMA_2	;no INLINE compilation
 			COMB				;restore IF
-			STX	2,Y- 			;addr1 -> PSP+4
+			;STX	0,Y 			;addr1 -> PSP+4
 			LDX	CP			;CP -> X
-			STX	2,Y- 			;addr2 -> PSP+2
+			STX	2,-Y 			;addr2 -> PSP+2
 			LEAX	B,X			;allocate compile space
 			STX 	CP			;update CP
 			CLRA				;IF -> D
-			STD	2,Y-			;u -> PSP+0
+			STD	2,-Y			;u -> PSP+0
 			JOB	CF_MOVE			;copy inline code
 			;Check xt target
 CF_COMPILE_COMMA_2	LDX	CFSP		   	;CFSP -> X
@@ -1750,7 +1750,7 @@ CF_IF			COMPILE_ONLY
 			;Compile inline code (CP in X) 
 			MOVW	#$EC71, -6,X		;"LDD 2,Y+"
 			MOVW	#$1827, -4,X		;"LBEQ"
-			MOVW	#$0000, -2,X		;"qq rr"
+			MOVW	#$A7A7, -2,X		;"qq rr" (NOP NOP) 
 			RTS				;done
 
 ;Word: AHEAD
