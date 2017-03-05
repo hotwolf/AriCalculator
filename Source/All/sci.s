@@ -896,6 +896,7 @@ SCI_INIT_2		EQU	* 					;done
 
 #endif
 #emac
+#endif
 	
 ;#Helper functions
 ;#----------------
