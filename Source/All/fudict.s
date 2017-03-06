@@ -1421,7 +1421,7 @@ CF_DO			COMPILE_ONLY
 			CLRB				; -> D
 			;Put do-sys onto the control flow stack (LEAVE list in D)
 CF_DO_1			PSHD				;save LEAVE list
-			LDAA	#6 			;alllocate 6 bytes of CFS space
+			LDD	#6 			;alllocate 6 bytes of CFS space
 			JOBSR	FUDICT_CFS_ALLOC	;new CFSP -> X
 			LDAA	6,X			;old compile flags ->A
 			ANDA	#~FUDICT_CF_COF		;clear copile flags
@@ -1535,7 +1535,7 @@ CF_LOOP_4		PULD				;clean up RS
 			LDAA	0,X			;compile flags -> A
 			ANDA	#~FUDICT_CF_COF		;remove COF optimizations
 			STAA	6,X			;maintain remaining compile flags
-			LDAA	#-6			;do-sys length -> A
+			LDD	#-6			;do-sys length -> D
 			JOBSR	FUDICT_CFS_ALLOC	;deallocate do-sys
 			RTS				;done
 			;Control structure misatch
@@ -1818,8 +1818,9 @@ CF_ELSE			COMPILE_ONLY
 			;Resolve IF branch (CFSP in X)
 			LDD	CP 			;CP -> D
 			SUBD	2,X			;distance -> D
-			CPD	(127-2)			;check for short IF branch
+			CPD	#(127-2)		;check for short IF branch
 			BHI	CF_ELSE_3		;long IF branch
+			;BRA	CF_ELSE_3		;force long IF branch
 			;Short IF branch  (CFSP in X, distance-2 -> D)
 			ADDB	#2 			;distance -> D
 			LDAA	#$27			;"BEQ" -> A
@@ -1876,14 +1877,17 @@ CF_THEN_1		LDX	CFSP			;CFSP -> X
 			;Resolve IF branch (CFSP in X)
 			LDD	CP 			;CP -> D
 			SUBD	2,X			;distance -> D
-			CPD	(127-2)			;check for short IF branch
+			CPD	#(127+2)		;check for short IF branch
 			BHI	CF_THEN_4		;long IF branch
+			;BRA	CF_THEN_4		;force long IF branch
 			;Short IF branch  (CFSP in X, distance-2 -> D)
-			ADDB	#2 			;distance -> D
+			SUBB	#2 			;distance -> D
 			LDAA	#$27			;"BEQ" -> A
 			STD	[2,X]			;resolve IF address
 			;Clean up control flow stack (CFSP in X)
-CF_THEN_2		MOVB	0,X, 4,X 		;keep flags
+CF_THEN_2		LDAB	#FUDICT_CF_NOINL 	;preserve "no inline" flag
+			ANDB	0,X			;clear COF optimizations
+			STAB	4,X			;update previous flags
 			LDD	#-4			;allocate 4 bytes
 			JOB	FUDICT_CFS_ALLOC	; of CFS space
 			;Control structure misatch
@@ -1891,16 +1895,18 @@ CF_THEN_3		EQU	CF_ELSE_2 		;exception -22 "control structure mismatch"
 			;THROW	FEXCPT_TC_CTRLSTRUC	;exception -22 "control structure mismatch"
 			;Long IF/AHEAD branch  (CFSP in X, distance -> D)
 CF_THEN_4		LDX	2,X 			;IF address -> X
+			SUBD	#4			;subtract instruction length
 			STD	2,X			;resolve IF address
 CF_THEN_5		LDX	CFSP			;CFSP -> X			
 			JOB	CF_THEN_2		;clean up control flow stack
 			;Resolve AHEAD branch (CFSP in X)
 CF_THEN_6		LDD	CP 			;CP -> D
 			SUBD	2,X			;distance -> D
-			CPD	(255-1)			;check for short AHEAD branch
+			CPD	#(255+3)		;check for short AHEAD branch
 			BHI	CF_THEN_4		;long IF branch
+			;BRA	CF_THEN_4		;force long IF branch
 			;Short AHEAD branch  (CFSP in X, distance-2 -> D)
-			ADDB	#1 			;distance -> D
+			SUBB	#3 			;distance -> D
 			LDAA	#$F8			;xb -> A
 			LDX	2,X			;AHEAD address -> X
 			STD	1,X			;resolve IF address
