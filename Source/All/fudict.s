@@ -194,7 +194,8 @@
 ;      	+-------------------+-------------------+	     
 ;       |              LOOP address             | +2	     
 ;      	+-------------------+-------------------+	     
-;       |               LEAVE list              | +4	     
+;       |          previous LEAVE list          | +4	     
+;       |          previous LEAVE list          | +4	     
 ;      	+-------------------+-------------------+	     
 ;	
 ; case-sys (CASE structures)	
@@ -338,6 +339,7 @@ START_OF_CS		DS	2	;start of compile space
 CP			DS	2 	;compile pointer (next free space) 
 CP_SAVE			DS	2 	;compile pointer to revert to in case of an error
 
+FUDICT_LEAVE_LIST	DS	2 	;tracks the forward references during a DO...LOOP compilation 
 FUDICT_LAST_NFA		DS	2 	;pointer to the most recent NFA of the UDICT
 	
 FUDICT_VARS_END		EQU	*
@@ -354,6 +356,7 @@ FUDICT_VARS_END_LIN	EQU	@
 			STD	START_OF_CS
 			STD	CP
 			STD	CP_SAVE
+			MOVW	#$0000, FUDICT_LEAVE_LIST
 			MOVW	#$0000, FUDICT_LAST_NFA
 #emac
 
@@ -825,24 +828,56 @@ CF_STRING_COMMA_1	LDD	0,Y 			;u  -> D
 ;address units at addr1 contained before the move.
 IF_MOVE			REGULAR	
 CF_MOVE			EQU	*
+			;Check if u > 0
 			LDD	0,Y 			;u             -> D
-			BEQ	CF_MOVE_2 		;done
-			ADDD	2,Y			;addr2 + u     -> D
-			STD	0,Y			;addr2 + u     -> PS
+			BEQ	CF_MOVE_3 		;done
+			;Check if addr1 > addr2 (u in D)
+			LDX	2,Y 			;addr2         -> X
+			CPX	4,Y			;compare addresses
+			BHI	CF_MOVE_4		;addr1 < addr2
+			BEQ	CF_MOVE_3 		;addr1 = addr2 -> done
+			;addr1 > addr2 (u in D, addr2 in X)
+			;       +-------------------+	     
+			;  +----|addr1              |	     
+			;  V    +-------------------+	     
+			; +-------------------+	     
+			; |addr2              |	     
+			; +-------------------+	     
+			LEAX	D,X			;addr2 + u     -> D
+CF_MOVE_1		STX	0,Y			;addr2 + u     -> PS
 			LDD	4,Y 			;addr1         -> D
 			SUBD	2,Y 			;addr1 - addr2 -> D
 			LDX	2,Y 			;addr2         -> X
-CF_MOVE_1		MOVB	D,X, 1,X+ 		;copy byte
+CF_MOVE_2		MOVB	D,X, 1,X+ 		;copy byte
 			CPX	0,Y 			;check range	
-			BLO	CF_MOVE_1 		;loop
-CF_MOVE_2		LEAY	6,Y			;clean up stack	
+			BLO	CF_MOVE_2 		;loop
+CF_MOVE_3		LEAY	6,Y			;clean up stack	
 			RTS
+			;addr1 < addr2 (u in D, addr2 in X)
+			; +-------------------+	     
+			; |addr1              |----+	     
+			; +-------------------+	   V  
+			;       +-------------------+	     
+			;       |addr2              |	     
+			;       +-------------------+	     
+CF_MOVE_4		ADDD	4,X 			;addr1 + u     -> D
+			EXG	D, X			;addr1 + u     -> X, addr2 -> D
+			SUBD	4,X			;addr2 - addr1 -> D
+CF_MOVE_5		MOVB	D,X, 1,X-		;copy byte
+			CPX	6,Y			;check range
+			BHS	CF_MOVE_5		;loop
+			JOB	CF_MOVE_3		;done
 	
 ;Word: COMPILE, 
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( xt -- )
 ;Append the execution semantics of the definition represented by xt to the
 ;execution semantics of the current definition.
+
+;Top of control-flow stack 
+;      	+-------------------+-------------------+	     
+;       |   compile flags   |Ctrl. Struct. Code | +0	     
+;      	+-------------------+-------------------+	     
 IF_COMPILE_COMMA	IMMEDIATE
 CF_COMPILE_COMMA	COMPILE_ONLY
 			;Remove old COF optimization flags
@@ -972,16 +1007,12 @@ CF_SEMICOLON_3		LDD	#-6			;deallocate 6 bytes
 ;Append the run-time semantics below to the current definition.
 ;Run-time: ( -- ) ( R: nest-sys -- )
 ;Return to the calling definition specified by nest-sys.
-;
-;colon-sys:
+
+;Top of control-flow stack 
 ;      	+-------------------+-------------------+	     
-;       |   compile flags   |FUDICT_CS_COLON_SYS| +0	     
+;       |   compile flags   |Ctrl. Struct. Code | +0	     
 ;      	+-------------------+-------------------+	     
-;       |             current NFA               | +2	     
-;      	+-------------------+-------------------+	     
-;       |             current CFA               | +4	     
-;      	+-------------------+-------------------+	     
-IF_EXIT		IMMEDIATE			
+IF_EXIT			IMMEDIATE			
 CF_EXIT			COMPILE_ONLY			;compile-only word
 			;Check colon-sys 
 CF_EXIT_1		LDD	[CFSP] 			;flags:ID -> D (broken in SIMHC12)
@@ -1373,18 +1404,18 @@ IF_QUESTION_DO		IMMEDIATE
 CF_QUESTION_DO		COMPILE_ONLY
 			;Allocate 13 bytes of compile space 
 			LDX	CP 			;CP -> X
-			LEAX	13,X			;alloate space
+			LEAX	10,X			;alloate first 10 bytes
+			TFR	X, D			;LEAVE list -> D
+			LEAX	 4,X			;alloate 4 more bytes
 			STX	CP			;update CP
-			LEAX	-13,X			;alloate space
-			;Compile inline code (old CP in X) 
-			MOVW	#$EC42,	2,X+ 		;compile "LDD 2,Y"
-			MOVW	#$3BEC,	2,X+ 		;compile "PSHD LDD"
-			MOVW	#$733B,	2,X+ 		;compile "4,Y+ PSHD"
-			MOVW	#$AC82,	2,X+ 		;compile "CPD 2,SP"
-			MOVW	#$2603,	2,X+ 		;compile "BNE *+5"
-			MOVW	#$0000, 0,X		;end of LEAVE list
-			TFR	X, D			;Leave list -> D
-			;SUBD	FUDICT_OFFSET		;CP-offset -> D
+			;Compile inline code (new CP in X, LEAVE list in D) 
+			MOVW	#$EC42,	-14,X 		;compile "LDD 2,Y"
+			MOVW	#$3BEC,	-12,X 		;compile "PSHD LDD"
+			MOVW	#$733B,	-10,X 		;compile "4,Y+ PSHD"
+			MOVW	#$AC82,	 -8,X 		;compile "CPD 2,SP"
+			MOVW	#$2604,	 -6,X 		;compile "BNE *+5"
+			MOVW	#$05FA, -4,X		;"JMP 0,PC"
+			MOVW	#$0000, -2,X		;
 			JOB	CF_DO_1			;do-sys -> CS
 
 ;Word: DO
@@ -1405,7 +1436,7 @@ CF_QUESTION_DO		COMPILE_ONLY
 ;      	+-------------------+-------------------+	     
 ;       |              LOOP address             | +2	     
 ;      	+-------------------+-------------------+	     
-;       |               LEAVE list              | +4	     
+;       |          previous LEAVE list          | +4	     
 ;      	+-------------------+-------------------+	     
 IF_DO			IMMEDIATE
 CF_DO			COMPILE_ONLY
@@ -1428,7 +1459,9 @@ CF_DO_1			PSHD				;save LEAVE list
 			LDAB	#FUDICT_CS_DO_SYS	;set CS code
 			STD	0,X			;store compile flags/CS code
 			PULD				;LEAVE list -> D
-			STD	4,X			;store LEAVE list
+			MOVW	CP, 2,X			;store LOOP address
+			MOVW	FUDICT_LEAVE_LIST, 4,X	;store previous LEAVE list
+			STD	FUDICT_LEAVE_LIST	;store LEAVE list
 			MOVW	CP, 2,X			;store LOOP address
 			RTS				;done
 
@@ -1445,28 +1478,20 @@ CF_DO_1			PSHD				;save LEAVE list
 ;      	+-------------------+-------------------+	     
 ;       |              LOOP address             | +2	     
 ;      	+-------------------+-------------------+	     
-;       |               LEAVE list              | +4	     
+;       |          previous LEAVE list          | +4	     
 ;      	+-------------------+-------------------+	     
 IF_LEAVE		IMMEDIATE
 CF_LEAVE		COMPILE_ONLY
-			;Check compile info 
-			LDX	CFSP		  	;CFSP -> X
-			LDAB	1,X  			;compile info -> B
-			CMPB	#FUDICT_CS_DO_SYS	;check for matching "do-sys"
-			BNE	CF_LEAVE_1		;control structure mismatch			
-			;Allocate compile space (CFSP in X)
-			LDD	CP  			;CP -> D
-			PSHD				;CP -> RSP+0
-			ADDD	#3 			;alloate space
-			STD	CP			;update CP
-			;Update compile info (CFSP in X, old CP in RSP+0)
-			LDD	4,X 			;LEAVE list -> D
-			STD	[0,SP]			;store LEAVE list
-			PULD				;old CP -> D
-			STD	4,X			;update LEAVE list
+			;Allocate compile space
+			LDX	CP  			;CP -> X
+			TFR	X, D			;CP -> D
+			LEAX	4,X			;alloate space
+			STX	CP			;update CP
+			;Update LEAVE list (old CP in D, new CP in X)
+			MOVW	#$05FA, -4,X		;"JMP 0,PC"		
+			MOVW	FUDICT_LEAVE_LIST, -2,X	;store LEAVE list
+			STD	FUDICT_LEAVE_LIST	;update LEAVE list
 			RTS				;done
-			;Control structure misatch
-CF_LEAVE_1		THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatch"
 
 ;Word: LOOP
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1487,7 +1512,7 @@ CF_LEAVE_1		THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatc
 ;      	+-------------------+-------------------+	     
 ;       |              LOOP address             | +2	     
 ;      	+-------------------+-------------------+	     
-;       |               LEAVE list              | +4	     
+;       |          previous LEAVE list          | +4	     
 ;      	+-------------------+-------------------+	     
 IF_LOOP			IMMEDIATE
 CF_LOOP			COMPILE_ONLY
@@ -1498,15 +1523,16 @@ CF_LOOP			COMPILE_ONLY
 			;Calculate branch distance 
 			LDX	CFSP 			;CFSP -> X
 			LDD	2,X 			;LOOP address -> D
-			SUBD	CP			;LOOP address - CP -> D
-			SUBD	#7			;subtract INLINE code offset
-			CMPA	#$FF			;check if long branch is required
-			BNE	CF_LOOP_6		;comlile long branch code
-			;Reserve compile space for short branch code (rr in B) 
+			SUBD	CP			;LOOP address - CP -> D	
+			CPD	#(-128+7)		;check if long branch is required
+			;BLT	CF_LOOP_6		;compile long branch code
+			BRA	CF_LOOP_6		;force long branch code compilation
+			;Reserve compile space for short branch code (branch distance in B) 
 			LDX	CP  			;CP -> X
 			LEAX	9,X			;advance CP
 			STX	CP			;update CP
-			;Compile short branch code (rr in B, CP in X) 
+			;Compile short branch code (branch distance in D, CP in X) 
+			SUBB	#7			;rr -> B
 			;30            PULX
 			;08            INX
 			;34            PSHX
@@ -1520,18 +1546,26 @@ CF_LOOP_1		STAB		-3,X		;compile "rr"
 CF_LOOP_2		MOVW	#$1B84	-2,X		;compile "LEAS 4,SP"
 			;Resolve LEAVE list (CP in X) 
 			LEAX	-2,X 			;LEAVE target -> X
-			PSHX				;LEAVE target -> 0,SP
-			LDX	CFSP 			;CFSP -> X
+			PSHX				;LEAVE target -> 2,SP
+CF_LOOP_3		LDX	FUDICT_LEAVE_LIST	;LEAVE list -> X
 			BEQ	CF_LOOP_4		;empty LEAVE list
-CF_LOOP_3		LDD	0,X			;next list element -> D
-			LDX	CP			;CP -> X
-			MOVB	#$06, 1,X+		;compile "JMP"
-			MOVW	0,SP, 0,X		;compile "hhll"
-			TFR	D, X			;next list element -> D			
-			TBNE	X, CF_LOOP_3		;iterathe through LEAVE list
-CF_LOOP_4		PULD				;clean up RS
+			MOVW	2,X, FUDICT_LEAVE_LIST	;advance LEAVE list	
+			PSHX				;LEAVE source -> 0,SP
+			LDD	2,SP			;LEAVE target -> D
+			SUBD	2,SP+			;branch distance -> D
+			CPD	#(255+3)		;check for short AHEAD branch
+			;BHI	CF_LOOP_8		;long LEAVE branch
+			BRA	CF_LOOP_8		;force long LEAVE branch
+			;Short LEAVE branch (LEAVE source in X, LEAVE target in 0,SP, branch distance -> D)
+			SUBB	#3 			;rr -> B
+			LDAA	#$F8			;xb -> A
+			STD	1,X			;resolve IF address
+			CLR	3,X			;clear extra byte
+			JOB	CF_LOOP_3		;LEAVE list -> X
 			;Remove do-sys 
+CF_LOOP_4		PULD				;clean up RS
 			LDX	CFSP 			;CFSP -> X
+			MOVW	4,X, FUDICT_LEAVE_LIST	;restore previous LEAVE list
 			LDAA	0,X			;compile flags -> A
 			ANDA	#~FUDICT_CF_COF		;remove COF optimizations
 			STAA	6,X			;maintain remaining compile flags
@@ -1545,6 +1579,7 @@ CF_LOOP_6		LDX	CP   			;CP -> X
 			LEAX	11,X			;advance CP
 			STX	CP			;update CP
 			;Compile long branch code (qqrr in D, CP in X) 
+			SUBD	#9 			;qqrr -> D
 			;30             PULX
 			;08             INX
 			;34             PSHX
@@ -1557,6 +1592,11 @@ CF_LOOP_6		LDX	CP   			;CP -> X
 			MOVB	#$26,    -5,X 		;compile "LBNE"
 CF_LOOP_7		STD		 -4,X		;compile "qq rr"
 			JOB	CF_LOOP_2		;compile "LEAS 4,SP"
+			;Long LEAVE branch (LEAVE source in X, LEAVE target in 0,SP, branch distance -> D)
+CF_LOOP_8		SUBD	#4			;subtract instruction length
+			STD	2,X			;resolve IF address
+			JOB	CF_LOOP_3		;LEAVE list -> X
+
 	
 ;Word: +LOOP
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1578,7 +1618,7 @@ CF_LOOP_7		STD		 -4,X		;compile "qq rr"
 ;      	+-------------------+-------------------+	     
 ;       |              LOOP address             | +2	     
 ;      	+-------------------+-------------------+	     
-;       |               LEAVE list              | +4	     
+;       |          previous LEAVE list          | +4	     
 ;      	+-------------------+-------------------+	     
 IF_PLUS_LOOP		IMMEDIATE
 CF_PLUS_LOOP		COMPILE_ONLY
@@ -1589,40 +1629,43 @@ CF_PLUS_LOOP		COMPILE_ONLY
 			;Calculate branch distance 
 			LDX	CFSP 			;CFSP -> X
 			LDD	2,X 			;LOOP address -> D
-			SUBD	CP			;LOOP address - CP -> D
-			SUBD	#7			;subtract INLINE code offset
-			CMPA	#$FF			;check if long branch is required
-			BNE	CF_PLUS_LOOP_1		;comlile long branch code
-			;Reserve compile space for short branch code (rr in B) 
+			SUBD	CP			;LOOP address - CP -> D	
+			CPD	#(-128+8)		;check if long branch is required
+			;BLT	CF_PLUS_LOOP_1		;compile long branch code
+			BRA	CF_PLUS_LOOP_1		;force long branch code compilation
+			;Reserve compile space for short branch code (branch distance in B) 
 			LDX	CP  			;CP -> X
 			LEAX	10,X			;advance CP
 			STX	CP			;update CP
-			;Compile short branch code (rr in B, CP in X) 
+			;Compile short branch code (branch distance in B, CP in X) 
+			SUBB	#8			;rr -> B
 			;3A           PULD
 			;E3 71        ADDD    2,Y+
 			;3B           PSHD
 			;AC 82        CPD     2,SP
-			;26 rr        BNE     start of LOOP body
+			;2D rr        BLT     start of LOOP body
 			;1B 84        LEAS    4,SP
 			MOVW	#$3AE3, -10,X 		;compile "PULD ADDD"
 			MOVW	#$71EB	 -8,X		;compile "2,Y+ PSHD"
 			MOVW	#$AC82	 -6,X		;compile "CPD 2,SP"
-			MOVB	#$26	 -4,X		;compile "BNE"
+			MOVB	#$2D	 -4,X		;compile "BLT"
 			JOB	CF_LOOP_1		;compile "rr"
 			;Reserve compile space for long branch code (qqrr in D, CP in X) 
-CF_PLUS_LOOP_1		LEAX	12,X			;advance CP
+CF_PLUS_LOOP_1		LDX	CP  			;CP -> X
+			LEAX	12,X			;advance CP
 			STX	CP			;update CP
 			;Compile long branch code (qqrr in D, CP in X) 
+			SUBD	#10 			;qqrr -> D
 			;3A             PULD
 			;E3 71          ADDD    2,Y+
 			;3B             PSHD
 			;AC 82          CPD     2,SP
-			;18 26 qq rr    LBNE    start of loop body
+			;18 2D qq rr    LBNE    start of loop body
 			;1B 84          LEAS    4,SP
 			MOVW	#$3AE3, -12,X 		;compile "PULD ADDD"
 			MOVW	#$713B, -10,X 		;compile "2,Y+ PSHD"
 			MOVW	#$AC82	 -8,X		;compile "CPD 2,SP"
-			MOVW	#$1826	 -6,X		;compile "LBNE"
+			MOVW	#$182D	 -6,X		;compile "LBLT"
 			JOB	CF_LOOP_7		;compile "qq rr"
 	
 ;Word: UNLOOP
@@ -1631,21 +1674,8 @@ CF_PLUS_LOOP_1		LEAX	12,X			;advance CP
 ;Discard the loop-control parameters for the current nesting level. An UNLOOP is
 ;required for each nesting level before the definition may be EXITed. An
 ;ambiguous condition exists if the loop-control parameters are unavailable.
-;
-;do-sys:	
-;      	+-------------------+-------------------+	     
-;       |   compile flags   | FUDICT_CS_DO_SYS  | +0	     
-;      	+-------------------+-------------------+	     
-;       |              LOOP address             | +2	     
-;      	+-------------------+-------------------+	     
-;       |               LEAVE list              | +4	     
-;      	+-------------------+-------------------+	     
 IF_UNLOOP		IMMEDIATE
 CF_UNLOOP		COMPILE_ONLY
-			;Check compile info 
-			LDD 	[CFSP]			;compile info -> B
-			CMPB	#FUDICT_CS_DO_SYS	;check for matching "do-sys"
-			BNE	CF_UNLOOP_1		;control structure mismatch			
 			;Allocate 2 bytes of compile space 
 			LDX	CP			;CP -> X
 			LEAX	2,X			;alloate space
@@ -1653,29 +1683,14 @@ CF_UNLOOP		COMPILE_ONLY
 			;Compile inline code (CP in X) 
 			MOVW	#$1B84, -2,X		;compile "LEAS 4,SP"
 			RTS				;done
-			;Control structure misatch
-CF_UNLOOP_1		THROW	FEXCPT_TC_CTRLSTRUC	;exception -22 "control structure mismatch"
 
 ;Word: I
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Execution: ( -- n|u ) ( R:  loop-sys -- loop-sys )
 ;n|u is a copy of the current (innermost) loop index. An ambiguous condition
 ;exists if the loop control parameters are unavailable.
-;
-;do-sys:	
-;      	+-------------------+-------------------+	     
-;       |   compile flags   | FUDICT_CS_DO_SYS  | +0	     
-;      	+-------------------+-------------------+	     
-;       |              LOOP address             | +2	     
-;      	+-------------------+-------------------+	     
-;       |               LEAVE list              | +4	     
-;      	+-------------------+-------------------+	     
 IF_I			IMMEDIATE
 CF_I			COMPILE_ONLY
-			;Check compile info 
-			LDD	[CFSP]			;compile info -> B
-			CMPB	#FUDICT_CS_DO_SYS	;check for matching "do-sys"
-			BNE	CF_UNLOOP_1		;control structure mismatch			
 			;Allocate 4 bytes of compile space 
 			LDX	CP			;CP -> X
 			LEAX	4,X			;alloate space
@@ -1690,21 +1705,8 @@ CF_I			COMPILE_ONLY
 ;Execution: ( -- n|u ) ( R: loop-sys1 loop-sys2 -- loop-sys1 loop-sys2 )
 ;n|u is a copy of the next-outer loop index. An ambiguous condition exists if
 ;the loop control parameters of the next-outer loop, loop-sys1, are unavailable.
-;
-;do-sys:	
-;      	+-------------------+-------------------+	     
-;       |   compile flags   | FUDICT_CS_DO_SYS  | +0	     
-;      	+-------------------+-------------------+	     
-;       |              LOOP address             | +2	     
-;      	+-------------------+-------------------+	     
-;       |               LEAVE list              | +4	     
-;      	+-------------------+-------------------+	     
 IF_J			IMMEDIATE
 CF_J			COMPILE_ONLY
-			;Check compile info 
-			LDD	[CFSP]			;compile info -> B
-			CMPB	#FUDICT_CS_DO_SYS	;check for matching "do-sys"
-			BNE	CF_UNLOOP_1		;control structure mismatch			
 			;Allocate 4 bytes of compile space 
 			LDX	CP			;CP -> X
 			LEAX	4,X			;alloate space
@@ -1910,6 +1912,7 @@ CF_THEN_6		LDD	CP 			;CP -> D
 			LDAA	#$F8			;xb -> A
 			LDX	2,X			;AHEAD address -> X
 			STD	1,X			;resolve IF address
+			;CLR	3,X			;clear extra byte
 			JOB	CF_THEN_5		;CFSP -> X
 	
 ;;Word: REPEAT 
