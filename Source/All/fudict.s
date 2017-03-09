@@ -977,29 +977,35 @@ IF_SEMICOLON		IMMEDIATE
 CF_SEMICOLON		COMPILE_ONLY			;compile-only word
 			;Ignore open CREATE statements
 CF_SEMICOLON_1		LDX	CFSP 			;CFSP -> X
-			LDD	0,X 			;flags:CS code -> D
+			LDD	0,X 			;flags:CS code -> D			
 			CMPB	#FUDICT_CS_CREATE	;check for unfinished CREATE statement
-			BNE	CF_SEMICOLON_2		;no unfinished CREATE statement
-			STAA	4,X			;keep flags
-			LDD	#-4			;remove CREATE control structrure
-			MOVW	CF_SEMICOLON_1, 2,-SP	; from CFS
-			JOB	FUDICT_CFS_ALLOC	;
-			;Terminate compilation
-CF_SEMICOLON_2		JOBSR	CF_EXIT_1 		;compile EXIT
+			BEQ	CF_SEMICOLON_3		;unfinished CREATE statement
+CF_SEMICOLON_2		CMPB	#FUDICT_CS_COLON_SYS	;check for unfinished COLON definition
+			BNE	CF_SEMICOLON_4		;Control structure misatch
+			;Conclude colon definition (flags:colon-sys -> D)
+			JOBSR	CF_EXIT_2 		;compile EXIT
 			;Add word to UDICT 
 			LDX	CFSP 			;CFSP -> X
 			LDD	2,X			;NFA -> D
 			BEQ	CF_SEMICOLON_3		;:NONAME compilation
 			STD	FUDICT_LAST_NFA 	;update last NFA
 			;Remove colon-sys 
-CF_SEMICOLON_3		LDD	#-6			;deallocate 6 bytes
+			LDD	#-6			;deallocate 6 bytes
 			JOBSR	FUDICT_CFS_ALLOC	;
 			MOVW	#STATE_INTERPRET, STATE ;set interpretation state
 			;Align data spase
 			JOBSR	CF_ALIGN
 			;Secure CP
 			MOVW	CP, CP_SAVE
-			RTS				;done
+			RTS				;done	
+			;Conclude CREATE definition (CFSP in X, flags:colon-sys -> D)
+CF_SEMICOLON_3		STAA	4,X			;keep flags
+			LDD	#-4			;remove CREATE control structrure
+			JOBSR	FUDICT_CFS_ALLOC	;
+			LDD	[CFSP]			;flags:CS code -> D
+			JOB	CF_SEMICOLON_2		;check for unfinished COLON definition
+			;Control structure misatch
+CF_SEMICOLON_4		THROW	FEXCPT_TC_CTRLSTRUC	;exception -22 "control structure mismatch"
 
 ;Word: EXIT 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -1014,10 +1020,11 @@ CF_SEMICOLON_3		LDD	#-6			;deallocate 6 bytes
 ;      	+-------------------+-------------------+	     
 IF_EXIT			IMMEDIATE			
 CF_EXIT			COMPILE_ONLY			;compile-only word
-			;Check colon-sys 
-CF_EXIT_1		LDD	[CFSP] 			;flags:ID -> D (broken in SIMHC12)
-			CMPB	#FUDICT_CS_COLON_SYS	;check for : definition
-			BNE	CF_EXIT_5 		;control structure mismatch	
+;			;Check colon-sys 
+CF_EXIT_1		LDX	CFSP 			;CFSP -> X
+			CPX	#FPS_CFS_BOTTOM		;compare against bottom of stack
+			BHS	CF_EXIT_5		;empty or corrupted control-flow stack	
+			LDD	0,X 			;flags:ID -> D (broken in SIMHC12)
 			;Check for COF optimization (flags:colon-sys -> D)
 CF_EXIT_2		LDX	CP 			;CP -> X
 			ANDA	#FUDICT_CF_COF		;check COP flags
@@ -1037,8 +1044,8 @@ CF_EXIT_3		CMPA	#$15 			;check for "JSR" (relative)
 CF_EXIT_4		SEX	B, D			;B -> D
 			BCLR	D,X,#$10		;"JSR" -> "JMP"
 			RTS				;done
-			;Control structure misatch
-CF_EXIT_5		THROW	FEXCPT_TC_CTRLSTRUC 	;exception -22 "control structure mismatch"
+			;Control structure misatch (empty or corrupted control-flow stack)
+CF_EXIT_5		THROW	FEXCPT_TC_CTRLSTRUC	;exception -22 "control structure mismatch"
 			;Optimize BSR (CP in X, opcode offset in B, opcode in A)
 CF_EXIT_6		CMPA	#$07 			;check for "BSR"
 			BNE	CF_EXIT_5		;control structure mismatch
@@ -1525,8 +1532,8 @@ CF_LOOP			COMPILE_ONLY
 			LDD	2,X 			;LOOP address -> D
 			SUBD	CP			;LOOP address - CP -> D	
 			CPD	#(-128+7)		;check if long branch is required
-			;BLT	CF_LOOP_6		;compile long branch code
-			BRA	CF_LOOP_6		;force long branch code compilation
+			BLT	CF_LOOP_6		;compile long branch code
+			;BRA	CF_LOOP_6		;force long branch code compilation
 			;Reserve compile space for short branch code (branch distance in B) 
 			LDX	CP  			;CP -> X
 			LEAX	9,X			;advance CP
@@ -1554,8 +1561,8 @@ CF_LOOP_3		LDX	FUDICT_LEAVE_LIST	;LEAVE list -> X
 			LDD	2,SP			;LEAVE target -> D
 			SUBD	2,SP+			;branch distance -> D
 			CPD	#(255+3)		;check for short AHEAD branch
-			;BHI	CF_LOOP_8		;long LEAVE branch
-			BRA	CF_LOOP_8		;force long LEAVE branch
+			BHI	CF_LOOP_8		;long LEAVE branch
+			;BRA	CF_LOOP_8		;force long LEAVE branch
 			;Short LEAVE branch (LEAVE source in X, LEAVE target in 0,SP, branch distance -> D)
 			SUBB	#3 			;rr -> B
 			LDAA	#$F8			;xb -> A
@@ -1597,7 +1604,6 @@ CF_LOOP_8		SUBD	#4			;subtract instruction length
 			STD	2,X			;resolve IF address
 			JOB	CF_LOOP_3		;LEAVE list -> X
 
-	
 ;Word: +LOOP
 ;Interpretation: Interpretation semantics for this word are undefined.
 ;Compilation: ( C: do-sys -- )
@@ -1631,8 +1637,8 @@ CF_PLUS_LOOP		COMPILE_ONLY
 			LDD	2,X 			;LOOP address -> D
 			SUBD	CP			;LOOP address - CP -> D	
 			CPD	#(-128+8)		;check if long branch is required
-			;BLT	CF_PLUS_LOOP_1		;compile long branch code
-			BRA	CF_PLUS_LOOP_1		;force long branch code compilation
+			BLT	CF_PLUS_LOOP_1		;compile long branch code
+			;BRA	CF_PLUS_LOOP_1		;force long branch code compilation
 			;Reserve compile space for short branch code (branch distance in B) 
 			LDX	CP  			;CP -> X
 			LEAX	10,X			;advance CP
@@ -1646,7 +1652,7 @@ CF_PLUS_LOOP		COMPILE_ONLY
 			;2D rr        BLT     start of LOOP body
 			;1B 84        LEAS    4,SP
 			MOVW	#$3AE3, -10,X 		;compile "PULD ADDD"
-			MOVW	#$71EB	 -8,X		;compile "2,Y+ PSHD"
+			MOVW	#$713B	 -8,X		;compile "2,Y+ PSHD"
 			MOVW	#$AC82	 -6,X		;compile "CPD 2,SP"
 			MOVB	#$2D	 -4,X		;compile "BLT"
 			JOB	CF_LOOP_1		;compile "rr"

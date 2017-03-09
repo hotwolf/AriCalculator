@@ -130,6 +130,9 @@ FPS_UV_ALLOC_MASK	EQU	FPS_UV_ALLOC_SIZE-1;address mask
 	
 ;Control-flow stack allocation size
 FPS_CFS_ALLOC_SIZE	EQU	16 	;number of bytes to be allocated at once
+
+;Bottom of the control-flow stack 
+FPS_CFS_BOTTOM		EQU	UDICT_PS_END
 	
 ;###############################################################################
 ;# Variables                                                                   #
