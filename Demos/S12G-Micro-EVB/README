@@ -16,7 +16,7 @@ Available demos and tests:
 |                                                                     57600
 |                                  Baud rate detection  works best by typing the
 |                                  characters "~" or "@".
-|                                  This ASCII file contains all D-Bug12 commads to
+|                                  This ASCII file contains all D-Bug12 commands to
 |                                  run the demo in the on-chip RAM. No flashing
 |                                  required.
 |
