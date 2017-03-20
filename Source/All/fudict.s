@@ -471,34 +471,42 @@ FUDICT_DS_ALLOC		EQU	*
 			LDX	#UDICT_PS_END 		;fix DP
 FUDICT_DS_ALLOC_1	STX	DP 			;update DP
 			CPX	START_OF_CS		;check if START_OF_CS has been reached 
-			BLO	FUDICT_DS_ALLOC_6 	;no need to move DS
-			;Update CP, START_OF_CS, HLD and PAD (requested space in D)
+			BLO	FUDICT_DS_ALLOC_7 	;no need to move DS
+			;Check if return address is safe (requested space in D)
 			ADDD	#(FUDICT_DS_ALLOC_SIZE-1);align to allocation size
-			ANDB	#~(FUDICT_DS_ALLOC_SIZE-1);aligned requested space -> D
-			LDX	PAD			;current PAD -> X
-			BEQ	FUDICT_DS_ALLOC_2	;PAD not in use
+			ANDB	#~(FUDICT_DS_ALLOC_SIZE-1);shift distance -> D
+			LDX	0,SP 			;return address -> X
+			CPX	START_OF_CS		;check lower boundary
+			BLO	FUDICT_DS_ALLOC_2	;return address is safe
+			CPX	CP			;check upper boundary
+			BHS	FUDICT_DS_ALLOC_2	;return address is safe	
+			LEAX	D,X			;adjust return address
+			STX	0,SP			;update return address
+			;Update CP, START_OF_CS, HLD and PAD (shift distance in D)
+FUDICT_DS_ALLOC_2	LDX	PAD			;current PAD -> X
+			BEQ	FUDICT_DS_ALLOC_3	;PAD not in use
 			LEAX	D,X			;new PAD -> X
 			STX	PAD			;update PAD
-FUDICT_DS_ALLOC_2	LDX	HLD			;current HLD -> X
-			BEQ	FUDICT_DS_ALLOC_3	;HLD not in use
+FUDICT_DS_ALLOC_3	LDX	HLD			;current HLD -> X
+			BEQ	FUDICT_DS_ALLOC_4	;HLD not in use
 			LEAX	D,X			;new HLD -> X
 			STX	HLD			;update HLD
-FUDICT_DS_ALLOC_3	LDX	CP			;current CP -> X
+FUDICT_DS_ALLOC_4	LDX	CP			;current CP -> X
 			LEAX	D,X			;new CP -> X
 			STX	CP			;update CP
 			LDX	START_OF_CS		;current START_OF_CS -> X
 			LEAX	D,X			;new START_OF_CS -> X
 			STX	START_OF_CS		;update START_OF_CS
 			LDX	FUDICT_LAST_NFA		;current FUDICT_LAST_NFA -> X
-			BEQ	FUDICT_DS_ALLOC_4	;user dictionary is empty
+			BEQ	FUDICT_DS_ALLOC_5	;user dictionary is empty
 			LEAX	D,X			;new FUDICT_LAST_NFA -> X
 			STX	FUDICT_LAST_NFA		;update FUDICT_LAST_NFA
 			;Shift content of CS (shift distance in D) 
-FUDICT_DS_ALLOC_4	COMA				;1's complement
+FUDICT_DS_ALLOC_5	COMA				;1's complement
 			COMB				;
 			ADDD	#1			;negative shift distance -> D
 			LDX	CP			;new CP -> X
-FUDICT_DS_ALLOC_5	MOVW	D,X, 2,X-		;move cell
+FUDICT_DS_ALLOC_6	MOVW	D,X, 2,X-		;move cell
 			MOVW	D,X, 2,X-		;move cell (optional)
 			MOVW	D,X, 2,X-		;move cell (optional)
 			MOVW	D,X, 2,X-		;move cell (optional)
@@ -507,9 +515,9 @@ FUDICT_DS_ALLOC_5	MOVW	D,X, 2,X-		;move cell
 			MOVW	D,X, 2,X-		;move cell (optional)
 			MOVW	D,X, 2,X-		;move cell (optional)
 			CPX	START_OF_CS		;check for start of CS
-			BHI	FUDICT_DS_ALLOC_5	;more to shift
-FUDICT_DS_ALLOC_6	LDX	DP			;DP -> X
-			RTS				;done
+			BHI	FUDICT_DS_ALLOC_6	;more to shift
+			LDX	DP			;DP -> X
+FUDICT_DS_ALLOC_7	RTS				;done
 	
 ;#Dictionary operations
 ;======================
@@ -1223,7 +1231,7 @@ IF_DOES			IMMEDIATE
 CF_DOES			COMPILE_ONLY
 			//Compile execution semantics
 CF_DOES_1		CLR	FUDICT_LAST_COF		;mark code reachable
-			MOVW	#CF_DOES_RT, 2,Y- 	;execution semantics -> PSP+0
+			MOVW	#CF_DOES_RT, 2,-Y 	;execution semantics -> PSP+0
 			JOB	CF_COMPILE_COMMA_2	;compile execution semantics
 
 			//Execution semantics
