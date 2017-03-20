@@ -785,12 +785,12 @@ CF_COLON_5		LDX	FUDICT_LAST_NFA		;last NFA -> X
 			STX	CP			;reset CP
 			LDX	FUDICT_LAST_NFA		;last NFA -> X
 			LDD	0,X			;offset -> D
-			BEQ	CF_COLOM_7		;no prior NF
+			BEQ	CF_COLON_7		;no prior NF
 			LEAX	D,X			;previous NFA -> X
 			STX	FUDICT_LAST_NFA		;remove nast UDICT entry
 CF_COLON_6		LDX	CP			;CP -> X
 			JOB	CF_COLON_3		;set compile state
-CF_COLOM_7		STD	FUDICT_LAST_NFA		;remove nast UDICT entry
+CF_COLON_7		STD	FUDICT_LAST_NFA		;remove nast UDICT entry
 			JOB	CF_COLON_6		;set compile state
 
 ;Word: NAME, 
