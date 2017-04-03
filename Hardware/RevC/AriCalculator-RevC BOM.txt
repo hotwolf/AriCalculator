@@ -47,7 +47,7 @@ Display:
 Buttons and switches:
 
 1x      switch                  print                   SW1
-38x     button                  print (6mmx6mm)         KEY_A0..KEY_G5
+38x     button                  print (6mmx6mmx9mm)     KEY_A0..KEY_G5
 
 Connectors:
 
