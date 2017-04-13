@@ -89,11 +89,13 @@
 ;# Memory Layout                                                               #
 ;###############################################################################
 ;        
-;      	  UDICT_PS_START -> +--------------+--------------+	     
+;      	     DS_PS_START -> +--------------+--------------+	     
+;                           |          Data Space         |	     
+;                           |      Control-Flow Stack     |	     
 ;                           |       User Dictionary       |	     
 ;                           |             PAD             |	     
-;                           |       Parameter stack       |		  
-;           UDICT_PS_END -> +--------------+--------------+        
+;                           |       Parameter Stack       |	     
+;              DS_PS_END -> +--------------+--------------+        
 ;           RS_TIB_START -> +--------------+--------------+        
 ;                           |       Text Input Buffer     |
 ;                           |        Return Stack         |
@@ -151,6 +153,10 @@ FRS_VARS_START_LIN	EQU	@
 FTIB_VARS_START		EQU	*
 FTIB_VARS_START_LIN	EQU	@
 			ORG	FTIB_VARS_END, FTIB_VARS_END_LIN
+
+FDS_VARS_START		EQU	*
+FDS_VARS_START_LIN	EQU	@
+			ORG	FDS_VARS_END, FDS_VARS_END_LIN
 
 FPS_VARS_START		EQU	*
 FPS_VARS_START_LIN	EQU	@
@@ -241,6 +247,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FEXCPT_INIT
 	FRS_INIT
 	FTIB_INIT
+	FDS_INIT
 	FPS_INIT
 	FNVDICT_INIT
 	FUDICT_INIT
@@ -262,6 +269,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FEXCPT_ABORT
 	FRS_ABORT
 	FTIB_ABORT
+	FDS_ABORT
 	FPS_ABORT
 	FNVDICT_ABORT
 	FUDICT_ABORT
@@ -283,6 +291,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FEXCPT_QUIT
 	FRS_QUIT
 	FTIB_QUIT
+	FDS_QUIT
 	FPS_QUIT
 	FNVDICT_QUIT
 	FUDICT_QUIT
@@ -304,6 +313,7 @@ FORTH_VARS_END_LIN	EQU	@
 	FEXCPT_MON
 	FRS_MON
 	FTIB_MON
+	FDS_MON
 	FPS_MON
 	FNVDICT_MON
 	FUDICT_MON
@@ -343,6 +353,10 @@ FRS_CODE_START_LIN	EQU	@
 FTIB_CODE_START		EQU	*
 FTIB_CODE_START_LIN	EQU	@
 			ORG	FTIB_CODE_END, FTIB_CODE_END_LIN
+
+FDS_CODE_START		EQU	*
+FDS_CODE_START_LIN	EQU	@
+			ORG	FDS_CODE_END, FDS_CODE_END_LIN
 
 FPS_CODE_START		EQU	*
 FPS_CODE_START_LIN	EQU	@
@@ -426,6 +440,10 @@ FTIB_TABS_START		EQU	*
 FTIB_TABS_START_LIN	EQU	@
 			ORG	FTIB_TABS_END, FTIB_TABS_END_LIN
 
+FDS_TABS_START		EQU	*
+FDS_TABS_START_LIN	EQU	@
+			ORG	FDS_TABS_END, FDS_TABS_END_LIN
+
 FPS_TABS_START		EQU	*
 FPS_TABS_START_LIN	EQU	@
 			ORG	FPS_TABS_END, FPS_TABS_END_LIN
@@ -489,6 +507,7 @@ FORTH_TABS_END_LIN	EQU	@
 #include ./fexcpt.s					;exceptions
 #include ./frs.s					;return stack
 #include ./ftib.s					;text input buffer
+#include ./fds.s					;data space 
 #include ./fps.s					;parameter stack 
 #include ./fnvdict.s	 				;non-volatile dictionary
 #include ./fudict.s					;user dictionary

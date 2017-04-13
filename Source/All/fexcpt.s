@@ -179,7 +179,8 @@ FEXCPT_TC_COMERR		EQU	-57	;exception in sending or receiving a character
 	
 ;S12CForth specific error codes 
 FEXCPT_TC_LITOR			EQU	-256	;literal out of range
-
+FEXCPT_TC_DSALLOC		EQU	-257	;can't allocate data space
+	
 ;FEXCPT_TC_DICTPROT		EQU	-61	;destruction of dictionary structure
 ;FEXCPT_TC_NOMSG		EQU	-62	;empty message string
 ;FEXCPT_TC_DICTPROT		EQU	-63	;destruction of dictionary structure
@@ -563,7 +564,7 @@ FEXCPT_MSGTAB		EQU	*
 			FEXCPT_MSG	FEXCPT_TC_RSOF,		"Return stack overflow"
 			FEXCPT_MSG	FEXCPT_TC_RSUF,		"Return stack underflow"
 			;FEXCPT_MSG	FEXCPT_TC_DOOF,		"DO-loop nested too deeply"	
-			;FEXCPT_MSG	FEXCPT_TC_DICTOF,	"Dictionary overflow"
+			FEXCPT_MSG	FEXCPT_TC_DICTOF,	"Dictionary overflow"
 			;FEXCPT_MSG	FEXCPT_TC_INVALID,	"Invalid memory address"
 			FEXCPT_MSG	FEXCPT_TC_0DIV,		"Division by zero"
 			FEXCPT_MSG	FEXCPT_TC_RESOR,	"Result out of range"
@@ -582,6 +583,11 @@ FEXCPT_MSGTAB		EQU	*
 			;FEXCPT_MSG	FEXCPT_TC_NOMSG,	"Empty message string"
 			;FEXCPT_MSG	FEXCPT_TC_DICTPROT,	"Destruction of dictionary structure"
 			;FEXCPT_MSG	FEXCPT_TC_COMERR,	"Corrupted RX data"
+			;FEXCPT_MSG	FEXCPT_TC_LITOR		"Literal out of range"
+			FEXCPT_MSG	FEXCPT_TC_DSALLOC	"Data space not available"
+			
+
+	
 			DW		0 			;end of table
 
 FEXCPT_TABS_END		EQU	*

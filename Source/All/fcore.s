@@ -324,7 +324,7 @@ CF_PLUS_STORE_EOI		RTS
 ;pointer is aligned when , begins execution, it will remain aligned when,
 ;finishes execution. An ambiguous condition exists if the data-space pointer is
 ;not aligned prior to execution of ,.
-;==> FUDICT
+;==> FDS
 
 ;Word: - ( n1|u1 n2|u2 -- n3|u3 )
 ;Subtract n2|u2n from n1|u1, giving the difference n3|u3.
@@ -664,7 +664,7 @@ CF_ABS_1			RTS			;done
 
 ;ALIGN ( -- )
 ;If the data-space pointer is not aligned, reserve enough space to align it.
-;==> FUDICT
+;==> FDS
 	
 ;Word: ALIGNED ( addr -- a-addr )
 IF_ALIGNED			INLINE	CF_ALIGNED
@@ -685,7 +685,7 @@ CF_ALIGNED_EOI			RTS
 ;If the data-space pointer is character aligned and n is a multiple of the size
 ;of a character when ALLOT begins execution, it will remain character aligned
 ;when ALLOT finishes execution.
-;==> FUDICT
+;==> FDS
 	
 ;Word: AND ( x1 x2 -- x3 )
 ;x3 is the bit-by-bit logical and of x1 with x2.
@@ -733,7 +733,7 @@ CF_C_STORE_EOI			RTS
 ;will remain character aligned when C, finishes execution. An ambiguous
 ;condition exists if the data-space pointer is not character-aligned prior to
 ;execution of C,.
-;==> FUDICT
+;==> FDS
 
 ;Word: C@ ( c-addr -- char )
 ;Fetch the character stored at c-addr. When the cell size is greater than

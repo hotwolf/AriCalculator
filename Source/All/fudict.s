@@ -110,18 +110,34 @@
 ; Memory layout:
 ; ==============       
 ;      	                    +----------+----------+	     
-;         UDICT_PS_START -> |   User Variables    |	     
-;      	                    +----------+----------+	     
-;    	                    |    User Variables   | <- [DP]		  
-;    	                    |    Pre-Allocation   |		  
+;            DS_PS_START -> |          |          |	     
+;                           |   User Variables    |	     
+;                           |          |          |	     
+;                           |          v          |	     
+;                           | --- --- --- --- --- |
+;    	                    |                     | <- [DP]		  
+;    	                    |                     |		  
+;    	                    .                     .		  
+;    	                    .                     .		  
+;                           | --- --- --- --- --- |
+;                           |          ^          | <- [CFSP]	  
+;                           |          |          |	     
+;                           | Control-flow stack  |		  
+;                           |          |          |	     
 ;                           +----------+----------+        
-;                           |          |          | <-[START_OF_CS]
+;    	          [CVARS]-> |         CP          | 		  
+;    	                    |        CFSP         |		  
+;    	                    |         ...         |		  
+;                           +----------+----------+        
+;                           |          |          |
 ;                           |  User Dictionary    |	     
 ;                           |          |          |	     
 ;                           |          v          |	     
-;                       -+- | --- --- --- --- --- |
-;             UDICT_PADDING |                     | <- [CP]	     
-;                       -+- | --- --- --- --- --- |          
+;                           | --- --- --- --- --- |
+;                           |                     | <- [CP]	     
+;    	                    |                     |		  
+;    	                    |                     |		  
+;                           | --- --- --- --- --- |          
 ;                           |          ^          | <- [HLD]	     
 ;                           |         PAD         |	     
 ;                           | --- --- --- --- --- |          
@@ -135,13 +151,8 @@
 ;    	                    |          |          |		  
 ;                           +----------+----------+        
 ;    	                    |       Canary        |	 		  
-;                           +----------+----------+        
-;    	                    | CFS Pre-Allocation  | <- [END_OF_PS]		  
-;                           +----------+----------+        
-;                           |          ^          | <- [CFSP]	  
-;                           | Control-flow stack  |		  
-;                           +----------+----------+        
-;           UDICT_PS_END ->   
+;                           +----------+----------+        ;
+;              DS_PS_END ->   
 ;	
 ; Word format:
 ; ============       
@@ -333,11 +344,18 @@ FUDICT_MAX_INLINE	EQU	8 		;max. CF size for INLINE optimization
 ;Max. line width
 FUDICT_LINE_WIDTH	EQU	FOUTER_LINE_WIDTH
 
-;Data space allocation size
-FUDICT_DS_ALLOC_SIZE	EQU	16 		;number of bytes to be allocated at once
-
-;Control-flow stack 
-FUDICT_CFS_BOTTOM	EQU	FPS_CFS_BOTTOM
+;Min.space to start a compilation 
+FUDUCT_MIN_SPACE	EQU	20 		;20 bytes
+	
+;Compile variables
+FUDICT_CP		EQU	0		;compile pointer (FUDICT_CVARS must point to thiss address)
+FUDICT_CP_SAVE		EQU	2 		;compile pointer backup
+FUDICT_CFSP		EQU	4 		;control-flow stack pointer
+FUDICT_LEAVE_LIST	EQU	6 		;tracks the forward references during a DO...LOOP compilation 
+FUDICT_CFLGS		EQU	8  		;flags associated with the current definition
+FUDICT_LAST_NFA		EQU	10 		;pointer to the most recent NFA of the UDICT
+FUDICT_LAST_COF		EQU	11		;flags associated with the last compiled word
+FUDICT_CSPACE		EQU	12		;compile space offset
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -350,16 +368,8 @@ FUDICT_VARS_START_LIN	EQU	@
 #endif
 
 			ALIGN	1	
-DP			DS	2		;data pointer (next free space)
-START_OF_CS		DS	2		;start of compile space
-CP			DS	2 		;compile pointer (next free space) 
-CP_SAVE			DS	2 		;compile pointer to revert to in case of an error
-						
-FUDICT_LAST_NFA		DS	2 		;pointer to the most recent NFA of the UDICT
-FUDICT_LEAVE_LIST	DS	2 		;tracks the forward references during a DO...LOOP compilation 
-FUDICT_CFLGS		DS	1 		;flags associated with the current definition
-FUDICT_LAST_COF		DS	1		;flags associated with the last compiled word
-	
+FUDICT_CVARS		DS	2		;pointer to compile variables
+
 FUDICT_VARS_END		EQU	*
 FUDICT_VARS_END_LIN	EQU	@
 
@@ -369,16 +379,7 @@ FUDICT_VARS_END_LIN	EQU	@
 ;#Initialization (executed along with ABORT action)
 ;===============
 #macro	FUDICT_INIT, 0
-			LDD	#UDICT_PS_START
-			STD	DP
-			STD	START_OF_CS
-			STD	CP
-			STD	CP_SAVE
-			CLRA
-			CLRB
-			STD	FUDICT_LAST_NFA
-			STD	FUDICT_LEAVE_LIST
-			STD	FUDICT_CFLGS
+			MOVW	#$0000, FUDICT_CVARS 	;no compile vars at this point
 #emac
 
 ;#Abort action (to be executed in addition of QUIT action)
@@ -389,7 +390,10 @@ FUDICT_VARS_END_LIN	EQU	@
 ;#Quit action
 ;============
 #macro	FUDICT_QUIT, 0
-			MOVW	CP_SAVE, CP 		;restore cp
+			LDX	FUDICT_CVARS		     ;CVARS pointer -> X
+			BEQ	DONE			     ;no CVARS allocated
+			MOVW	FUDICT_CP_SAVE,X FUDICT_CP,X ;restore cp
+DONE			EQU	*	
 #emac
 
 ;#System integrity monitor
@@ -411,6 +415,17 @@ FUDICT_VARS_END_LIN	EQU	@
 			BNE	FUDICT_THROW_COMPNEST	;throw exception
 #emac
 
+;#Compile operations
+;======================
+;#Allocate the compile variables
+; args:   Y: PSP
+; result: X: CVARS pointer
+; SSTACK: 4 bytes
+;         D and Y are preserved
+#macro	FUDICT_ALLOC_CVARS, 0
+			SSTACK_JOBSR FUDICT_ALLOC_CVARS, 4
+#emac
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -446,78 +461,47 @@ FUDICT_UPPER		EQU	STRING_UPPER
 ;         Y and D are preserved
 FUDICT_TX_STRING	EQU	STRING_PRINT_BL
 
-;#Control-flow stack operations
-;==============================
-;#Allocate CFS space
-; args:   D: requested CFS space (in bytes, negative)
-; result: X: new CFSP
-; SSTACK: 2 bytes
-;         No registers are preserved
-FUDICT_CFS_ALLOC	EQU	FPS_CFS_ALLOC
-	
-;#Data space operations
+;#Compile operations
 ;======================
-;#Allocate data space
-; args:   D:  requested data space (in bytes)
-; result: X: new DP
-; SSTACK: 2 bytes
-;         No registers are preserved
-FUDICT_DS_ALLOC		EQU	*
-			;Adjust DP (requested data space in D)
-			LDX	DP 			;current DP -> X 
-			LEAX	D,X			;new DP -> X			
-			CPX	#UDICT_PS_START		;check for lower boundary
-			BHS	FUDICT_DS_ALLOC_1	;above lower boundary
-			LDX	#UDICT_PS_END 		;fix DP
-FUDICT_DS_ALLOC_1	STX	DP 			;update DP
-			CPX	START_OF_CS		;check if START_OF_CS has been reached 
-			BLO	FUDICT_DS_ALLOC_7 	;no need to move DS
-			;Check if return address is safe (requested space in D)
-			ADDD	#(FUDICT_DS_ALLOC_SIZE-1);align to allocation size
-			ANDB	#~(FUDICT_DS_ALLOC_SIZE-1);shift distance -> D
-			LDX	0,SP 			;return address -> X
-			CPX	START_OF_CS		;check lower boundary
-			BLO	FUDICT_DS_ALLOC_2	;return address is safe
-			CPX	CP			;check upper boundary
-			BHS	FUDICT_DS_ALLOC_2	;return address is safe	
-			LEAX	D,X			;adjust return address
-			STX	0,SP			;update return address
-			;Update CP, START_OF_CS, HLD and PAD (shift distance in D)
-FUDICT_DS_ALLOC_2	LDX	PAD			;current PAD -> X
-			BEQ	FUDICT_DS_ALLOC_3	;PAD not in use
-			LEAX	D,X			;new PAD -> X
-			STX	PAD			;update PAD
-FUDICT_DS_ALLOC_3	LDX	HLD			;current HLD -> X
-			BEQ	FUDICT_DS_ALLOC_4	;HLD not in use
-			LEAX	D,X			;new HLD -> X
-			STX	HLD			;update HLD
-FUDICT_DS_ALLOC_4	LDX	CP			;current CP -> X
-			LEAX	D,X			;new CP -> X
-			STX	CP			;update CP
-			LDX	START_OF_CS		;current START_OF_CS -> X
-			LEAX	D,X			;new START_OF_CS -> X
-			STX	START_OF_CS		;update START_OF_CS
-			LDX	FUDICT_LAST_NFA		;current FUDICT_LAST_NFA -> X
-			BEQ	FUDICT_DS_ALLOC_5	;user dictionary is empty
-			LEAX	D,X			;new FUDICT_LAST_NFA -> X
-			STX	FUDICT_LAST_NFA		;update FUDICT_LAST_NFA
-			;Shift content of CS (shift distance in D) 
-FUDICT_DS_ALLOC_5	COMA				;1's complement
-			COMB				;
-			ADDD	#1			;negative shift distance -> D
-			LDX	CP			;new CP -> X
-FUDICT_DS_ALLOC_6	MOVW	D,X, 2,X-		;move cell
-			MOVW	D,X, 2,X-		;move cell (optional)
-			MOVW	D,X, 2,X-		;move cell (optional)
-			MOVW	D,X, 2,X-		;move cell (optional)
-			MOVW	D,X, 2,X-		;move cell (optional)
-			MOVW	D,X, 2,X-		;move cell (optional)
-			MOVW	D,X, 2,X-		;move cell (optional)
-			MOVW	D,X, 2,X-		;move cell (optional)
-			CPX	START_OF_CS		;check for start of CS
-			BHI	FUDICT_DS_ALLOC_6	;more to shift
-			LDX	DP			;DP -> X
-FUDICT_DS_ALLOC_7	RTS				;done
+;#Allocate the compile variables
+; args:   Y: PSP
+; result: X: CVARS pointer
+; SSTACK: 4 bytes
+;         D and Y are preserved
+FUDICT_ALLOC_CVARS	EQU	*
+			;Save registers
+			PSHD				;save D			
+			;Check if CVARS have already been allocated 
+			LDX	FUDICT_CVARS 		;CVARS -> X
+			BNE	FUDICT_CVARS_ALLOC_1	;CVARS already allocated
+			;Check if enough memory is left to start a compilation
+			TFR	Y, D 			;PSP -> D
+			SUBD	DP			;free space 
+			CPD	#FUDUCT_MIN_SPACE	;check for required space
+			BLO	FUDICT_CVARS_ALLOC_	;not enough memory
+			;Set CVARS (free space in D)
+			LSRD				;devide remaiing spave by 4
+			LSRD				; 1/4 CFS, 3/4 compile space
+			ADDD	DP			;CVARS -> D
+			;Initialize compile variables (CVARS in D)
+			TFR	D, X			;CVARS -> X
+			STD	FUDICT_CFSP, X		;initialize CFSP	
+			ADDD	FUDICT_CSPACE		;compile space offset
+			STD	FUDICT_CP, X		;initialize CP	
+			STD	FUDICT_CP_SAVE, X	;initialize CP_SAVE	
+			CLRA				;0 -> D
+			CLRB				;
+			STD	  FUDICT_LAST_NFA, X	;initialize LAST_NFA	
+			STD	FUDICT_LEAVE_LIST, X	;initialize LEAVE_LIS
+			STD	     FUDICT_CFLGS, X	;initialize CFLGS	
+			;STD	  FUDICT_LAST_COF, X	;initialize LAST_COF
+			;Deallocate PAD
+			;TBD
+			;Restore registers
+FUDICT_CVARS_ALLOC_1	PULD				;restore D			
+			RTS
+			;Out of memory 
+FUDICT_CVARS_ALLOC_2	THROW	FEXCPT_TC_DICTOF 	;"Dictionary overflow"
 	
 ;#Dictionary operations
 ;======================
@@ -637,7 +621,9 @@ CF_LU_UDICT		EQU	*
 			LDD	0,Y			;check if u is zero
 			BEQ	CF_LU_UDICT_2 		;empty seaech string (search failed)
 			;Initialize interator structure ( c-addr u )
-			LDX	FUDICT_LAST_NFA 	;last NFA -> X
+			LDX	FUDICT_CVARS 		;CVARS -> X
+			BEQ	CF_LU_UDICT_2 		;no dictionary (search failed)
+			LDX	FUDICT_LAST_NFA,X	;last NFA -> X
 			BEQ	CF_LU_UDICT_2 		;empty dictionary (search failed)
 			;Check name ( c-addr u ) (NFA in X)
 CF_LU_UDICT_1		JOBSR	FUDICT_CHECK_NAME 	;check name
@@ -665,7 +651,9 @@ CF_WORDS_UDICT		EQU	*
 			; |    Iterator     | SP+2
 			; +--------+--------+
 			;Initialize interator structure 
-			LDX	FUDICT_LAST_NFA		;last NFA -> X
+			LDX	FUDICT_CVARS 		;CVARS -> X
+			BEQ	CF_WORDS_UDICT_3 	;no dictionary (search failed)
+			LDX	FUDICT_LAST_NFA,X	;last NFA -> X
 CF_WORDS_UDICT_1	BEQ	CF_WORDS_UDICT_3	;empty dictionary
 			PSHX 				;iterator -> 2,SP
 			MOVW	#FUDICT_LINE_WIDTH, 2,-SP;line counter -> 0,SP
@@ -720,7 +708,8 @@ CF_WORDS_UDICT_3	RTS				;done
 IF_COLON_NONAME		IMMEDIATE			
 CF_COLON_NONAME		INTERPRET_ONLY			;catch nested compilation
 			;Prepare anonymous compilation 
-			LDX	CP			;CP -> X
+			FUDICT_CVARS_ALLOC 		;CVARS -> X
+			LDX	FUDICT_CP		;CP -> X
 			INX				;skip over info field
 			PSHX				;xt _> 0,sp
 			JOB	CF_COLON_3		;compile IF
@@ -756,50 +745,55 @@ CF_COLON_1		MOVW	#" ", 2,-Y 		;set delimeter
 			LDD	0,Y			;check name
 			BEQ	CF_COLON_4		;missing name
 			;Check for recompilation of last name ( c-addr u )
-			LDX	FUDICT_LAST_NFA		;last NFA -> X
+			FUDICT_CVARS_ALLOC 		;CVARS -> X
+			LDX	FUDICT_LAST_NFA	,X	;last NFA -> X
 			PSHX				;last NFA -> 0,SP
 			JOBSR	FUDICT_CHECK_NAME 	;check name
 			BCS	CF_COLON_5		;match			
 			;Compile new NFA ( c-addr u ) (R: NFA )
-			LDX	CP 			;CP -> X
+			LDX	[FUDICT_CVARS] 		;CP -> X
 			LDD	0,SP 			;last NFA -> D
 			BEQ	CF_COLON_2		;first UDICT entry
 			SUBD	CP			;NFA offset -> D
 CF_COLON_2		STX	0,SP			;new NFA -> 0,SP
 			STD 	2,X+ 			;compile new NFA
-			STX	CP			;update CP
+			STX	[FUDICT_CVARS]		;update CP
 			;Compile name ( c-addr u ) (R: NFA ) 
 			JOBSR	CF_NAME_COMMA_1		;compile name
-CF_COLON_3		LDX	CP			;CP -> X
+CF_COLON_3		LDX	[FUDICT_CVARS]		;CP -> X
 			CLR	1,X+			;set default IF
-			STX	CP			;update CP
-			;Set STATE ( ) (R: NFA )
+			STX	[FUDICT_CVARS]		;update CP
+			;Set STATE ( ) (R: NFA ) (CP in X)
 			MOVW	#STATE_COMPILE, STATE 	;set compile state
 			;Push colon-sys onto the control stack ( ) (R: NFA ) (CP in X)
-			LDD	#3 			;five bytes for colon-sys frame
-			JOBSR	FUDICT_CFS_ALLOC	;new CFSP -> X
-			MOVB	#FUDICT_CS_COLON_SYS, 0,X;set CS code
-			MOVW	2,SP+, 1,X		;set NFA
-			;Initialize compile cariables
-			MOVW	#$0000, FUDICT_LEAVE_LIST;clear leave list
-			MOVW	#$0000, FUDICT_CFLGS	;clear flags
+			LDX	FUDICT_CVARS		;new CFSP -> X
+			MOVW	2,SP+, -2,X		;set NFA
+			MOVB	#FUDICT_CS_COLON_SYS, -1,X;set CS code
+			TFR	X, D			;CFSP -> D
+			LDX	FUDICT_CVARS		;CVARS -> X
+			STD	FUDICT_CFSP,X		;update CFSP
+			;Initialize compile cariables (CVARS in X)
+			MOVW	#$0000, FUDICT_LEAVE_LIST, X;clear leave list
+			MOVW	#$0000, FUDICT_CFLGS, X	;clear flags
 			RTS				;done
 			;Missing name 
 CF_COLON_4		THROW	FEXCPT_TC_NONAME	;throw "Missing name argument" exception
 			;Remove last UDICT entry 
-CF_COLON_5		LDX	FUDICT_LAST_NFA		;last NFA -> X
+CF_COLON_5		LDX	FUDICT_CVARS		;CVARS -> X
+			TFR	X, D			;CVARS -> D
+			LDX	FUDICT_LAST_NFA,X	;last NFA -> X
 			LEAX	2,X			;start of name -> X
 			BRCLR	1,X+,#FUDICT_TERM,*	;skip to last char
-			STX	CP			;reset CP
-			LDX	FUDICT_LAST_NFA		;last NFA -> X
+			EXG	X, D			;CP -> D, CVARS -> X
+			STD	FUDICT_CP,X		;reset CP
+			LDX	FUDICT_LAST_NFA,X	;last NFA -> X
 			LDD	0,X			;offset -> D
-			BEQ	CF_COLON_7		;no prior NF
+			BEQ	CF_COLON_6		;no prior NF
 			LEAX	D,X			;previous NFA -> X
-			STX	FUDICT_LAST_NFA		;remove nast UDICT entry
-CF_COLON_6		LDX	CP			;CP -> X
+			TFR	X, D			;previous NFA -> D
+CF_COLON_6		LDX	FUDICT_CVARS		;CVARS -> X
+			STD	FUDICT_LAST_NFA,X	;remove nast UDICT entry
 			JOB	CF_COLON_3		;set compile state
-CF_COLON_7		STD	FUDICT_LAST_NFA		;remove nast UDICT entry
-			JOB	CF_COLON_6		;set compile state
 
 ;Word: NAME, 
 ;Interpretation: Interpretation semantics for this word are undefined.
@@ -809,10 +803,11 @@ CF_COLON_7		STD	FUDICT_LAST_NFA		;remove nast UDICT entry
 IF_NAME_COMMA		IMMEDIATE
 CF_NAME_COMMA		COMPILE_ONLY
 			;Save current CP ( c-addr u )
-CF_NAME_COMMA_1		MOVW	CP, 2,-SP 		;CP -> RS
+CF_NAME_COMMA_1		FUDICT_CVARS_ALLOC 		;CVARS -> X
+			MOVW	FUDICT_CP,X 2,-SP 	;CP -> RS
 			JOBSR	CF_STRING_COMMA_1	;copy string
 			PULX				;old CP -> X
-			CPX	CP			;check fir empty string
+			CPX	CP			;check for empty string
 			BEQ	CF_NAME_COMMA_3		;empty string
 CF_NAME_COMMA_2		LDAB	0,X			;char -> B
 			JOBSR	FUDICT_UPPER		;msake upper case
@@ -822,7 +817,7 @@ CF_NAME_COMMA_2		LDAB	0,X			;char -> B
 			BLO	CF_NAME_COMMA_4		;invalid char
 			CMPB	#"~"			;check for lowest valid char
 			BHI	CF_NAME_COMMA_4		;invalid char	
-			CPX	CP			;check for end of string
+			CPX	[FUDICT_CVARS]		;check for end of string
 			BLO	CF_NAME_COMMA_2		;handle next char
 CF_NAME_COMMA_3		RTS				;done
 			;Invalid char
@@ -836,16 +831,19 @@ CF_NAME_COMMA_4		THROW	FEXCPT_TC_INVALNAME 	;"invalid name argument"
 IF_STRING_COMMA		IMMEDIATE
 CF_STRING_COMMA		COMPILE_ONLY
 			;Prepare MOVE ( c-addr u )
-CF_STRING_COMMA_1	LDD	0,Y 			;u  -> D
-			LDX	CP			;CP -> X
+CF_STRING_COMMA_1	FUDICT_CVARS_ALLOC 		;CVARS -> X
+			LDD	0,Y 			;u  -> D
+
+
+			LDX	FUDICT_CP,X		;CP -> X
 			STX	0,Y			;CP -> PS+2
 			STD	2,-Y			;u  -> PS+0
 			LEAX	D,X			;new CP -> X
-			STX	CP			;update CP
+			STX	[FUDICT_CVARS]		;update CP
 			;MOVE string ( addr1 addr2 u )
 			JOBSR	CF_MOVE 		;copy string
 			;Terminate string 
-			LDX	CP			;CP -> X
+			LDX	[FUDICT_CVARS]		;CP -> X
 			BSET	-1,X,#FUDICT_TERM	;terminate string
 			RTS				;done
 	
@@ -903,68 +901,71 @@ CF_MOVE_5		MOVB	D,X, 1,X-		;copy byte
 ;execution semantics of the current definition.
 IF_COMPILE_COMMA	IMMEDIATE
 CF_COMPILE_COMMA	COMPILE_ONLY
+			;Allocate compile vars
+CF_COMPILE_COMMA_1	FUDICT_CVARS_ALLOC 		;CVARS -> X
 			;Check for INLINE compilation
-CF_COMPILE_COMMA_1	LDX	0,Y 			;xt -> X
+			LDX	0,Y 			;xt -> X
 			LDAB	-1,X			;IF -> B
 			BEQ	CF_COMPILE_COMMA_2	;no INLINE compilation
 			COMB				;invert IF
 			BEQ	CF_COMPILE_COMMA_2	;no INLINE compilation
 			COMB				;restore IF
 			;STX	0,Y 			;addr1 -> PSP+4
-			LDX	CP			;CP -> X
+			LDX	[FUDICT_CVARS]		;CP -> X
 			STX	2,-Y 			;addr2 -> PSP+2
 			LEAX	B,X			;allocate compile space
-			STX 	CP			;update CP
+			STX 	[FUDICT_CVARS]		;update CP
 			CLRA				;IF -> D
 			STD	2,-Y			;u -> PSP+0
 			JOB	CF_MOVE			;copy inline code
 			;Check xt target
-CF_COMPILE_COMMA_2	LDD	2,Y+ 			;xt -> D
+CF_COMPILE_COMMA_2	LDX	FUDICT_CVARS		;CVARS -> X
+			LDD	2,Y+ 			;xt -> D
 			CPD	DP			;check lower range
 			BLO	CF_COMPILE_COMMA_3  	;compile absolute call
-			CPD	CP			;check upper range
+			CPD	FUDICT_CP,X		;check upper range
 			BHI	CF_COMPILE_COMMA_3  	;compile absolute call
-			;Check relative call distance (xt in D)
+			;Check relative call distance (xt in D, CVARS in X)
 			;BSET	FUDICT_CFLGS, #FUDICT_NOINL;no inline
 			MOVB	#FUDICT_NOINL, FUDICT_CFLGS;no inline
-			SUBD	CP 			;call distance -> D
+			SUBD	FUDICT_CP,X		;call distance -> D
 			CPD	#(2-128)		;check for short branch
 			BLT	CF_COMPILE_COMMA_4	;medium or long branch distance
-			;Compile short distance call (call distance in D)
+			;Compile short distance call (call distance in D, CVARS in X)
 			MOVB	#FUDICT_REL8, FUDICT_LAST_COF;last call is BSR
 			SUBB	#2			;rr -> B
-			LDX	CP			;CP -> X
+			LDX	FUDICT_CP,X		;CP -> X
 			LEAX	2,X			;allocate 2 bytes
-			STX 	CP			;update CP
+			STX 	[FUDICT_CVARS]		;update CP
 			LDAA	#$07			;"BSR" -> A
 			STD	-2,X			;compile "BSR rr"
 			RTS				;done
-			;Compile absolute  call (xt in D)
+			;Compile absolute  call (xt in D, CVARS in X)
 CF_COMPILE_COMMA_3	#FUDICT_ABS, FUDICT_LAST_COF	;last call is JSR
-			LDX	CP			;CP -> X
+			LDX	FUDICT_CP,X		;CP -> X
 			LEAX	3,X			;allocate 3 bytes
-			STX 	CP			;update CP
+			STX 	[FUDICT_CVARS]		;update CP
 			MOVB	#$16, -3,X		;compile "JSR"
 			STD	-2,X			;compile "hh ll"
 			RTS				;done
-			;Check relative call distance (CFSP in X, call distance in D)
+			;Check relative call distance (call distance in D)
 CF_COMPILE_COMMA_4	CPD	#(3-256)		;check for short branch
 			BLT	CF_COMPILE_COMMA_5	;long branch distance		
 			;Compile medium distance call (call distance in D)
 			MOVB	#FUDICT_REL9, FUDICT_LAST_COF;last call is JSR x,PC
 			SUBB	#3			;ff -> B
-			LDX	CP			;CP -> X
+			LDX	FUDICT_CP,X		;CP -> X
 			LEAX	3,X			;allocate 3 bytes
-			STX 	CP			;update CP
+			STX 	[FUDICT_CVARS]		;update CP
 			MOVW	#$15F9, -3,X		;compile "JSR xb" (IDX1)
 			STAB	-1,X			;compile "ff"
 			RTS				;done
-			;Compile long distance call (CFSP in X, call distance in D)
+			;Compile long distance call (call distance in D)
 CF_COMPILE_COMMA_5	MOVB	#FUDICT_REL16, FUDICT_LAST_COF;last call is JSR x,PC
 			SUBD	#4			;ee ff -> D
-			LDX	CP			;CP -> X
+			LDX	[FUDICT_CVARS]		;CP -> X
 			LEAX	4,X			;allocate 4 bytes
-			STX 	CP			;update CP
+			STX 	[FUDICT_CVARS]		;update CP
 			MOVW	#$15FA, -4,X		;compile "JSR xb" (IDX2)
 			STD	-2,X			;compile "ee ff"
 			RTS				;done
@@ -992,17 +993,29 @@ CF_COMPILE_COMMA_5	MOVB	#FUDICT_REL16, FUDICT_LAST_COF;last call is JSR x,PC
 ;      	+-------------------+-------------------+	     
 ;       |             current NFA               | +1	     
 ;      	+-------------------+-------------------+	     
+
+	;; <===================Hier weiter!
+
+
 IF_SEMICOLON		IMMEDIATE			
 CF_SEMICOLON		COMPILE_ONLY			;compile-only word
-			;Check control flow stack 
-CF_SEMICOLON_1		LDX	CFSP 			;CFSP -> X
-			CPX	#(FUDICT_CFS_BOTTOM-3)	;check CFS level
-			BNE	CF_SEMICOLON_5		;control structure mismatch (wrong CFS level)
+			;Allocate compile vars
+CF_SEMICOLON_1		FUDICT_CVARS_ALLOC 		;CVARS -> X
+			;Check control flow stack (CVARS in X)
+			TFR	X, D 			;bottom of CFS -> D	
+			SUBD	FUDICT_CFSP,X		;CFS size -> D
+			LDX	FUDICT_CFSP,X 		;CFSP -> X
+			CPD	#3			;make sure there are at least 3 bytes on the CFS
+			BLO	CF_SEMICOLON_5		;control structure mismatch (wrong CFS level)
 			LDAB	0,X 			;CS code -> B			
 			;Colon definition  (CFSP in X, CS code in B)
 			CMPB	#FUDICT_CS_COLON_SYS	;check for unfinished COLON definition
 			BNE	CF_SEMICOLON_2		;check for :NONAME
 			LDX	1,X			;NFA -> X
+
+
+
+
 			STX	FUDICT_LAST_NFA		;add word to dictionary
 			LEAX	2,X			;skip over list pointer
 			BRCLR	1,X+,#FUDICT_TERM,*	;skip to IF	
@@ -1119,32 +1132,6 @@ CF_CREATE		EQU	*
 			;Constant definition
 			JOB	CF_CONSTANT 		;define CONSTANT
 
-;Word: ALIGN ( -- )
-;If the data-space pointer is not aligned, reserve enough space to align it.
-IF_ALIGN		REGULAR	
-CF_ALIGN		EQU	*
-			;Align data space 
-			LDD	#1 			;1 -> D
-			BRSET	DP+1,#$01,CF_ALLOT_1	;allocate alignment byte
-			RTS				;no alignment required
-
-;Word: ALLOT ( n -- )
-;If n is greater than zero, reserve n address units of data space. If n is less
-;than zero, release |n| address units of data space. If n is zero, leave the
-;data-space pointer unchanged.
-;If the data-space pointer is aligned and n is a multiple of the size of a cell
-;when ALLOT begins execution, it will remain aligned when ALLOT finishes
-;execution.
-;If the data-space pointer is character aligned and n is a multiple of the size
-;of a character when ALLOT begins execution, it will remain character aligned
-;when ALLOT finishes execution.
-IF_ALLOT		REGULAR	
-CF_ALLOT		EQU	*
-			;Pull n 
-			LDD	2,Y+ 			;n -> D
-			;Allocate data space 
-CF_ALLOT_1		JOB	FUDICT_DS_ALLOC
-	
 ;Word: CONSTANT ( x "<spaces>name" -- )
 ;Skip leading space delimiters. Parse name delimited by a space. Create a
 ;definition for name with the execution semantics defined below.
@@ -1286,36 +1273,6 @@ CF_DOES_RT_6		MOVW	2,SP+, 2,-Y 		;return address -> PSP+0
 			JOBSR	CF_COMPILE_COMMA_2	;compile return address
 			JOB	CF_SEMICOLON_1		;terminate enhanced definition
 		
-;Word: , ( x -- )
-;Reserve one cell of data space and store x in the cell. If the data-space
-;pointer is aligned when , begins execution, it will remain aligned when,
-;finishes execution. An ambiguous condition exists if the data-space pointer is
-;not aligned prior to execution of ,.
-IF_COMMA		REGULAR	
-CF_COMMA		EQU	*
-			;Allocate one CELL of data space
-			LDD	#2 			;2 -> D
-			JOBSR	FUDICT_DS_ALLOC		;allocate data space
-			;Store x in allocated space  
-			LDX	DP 			;DP -> X
-			MOVW	2,Y+, -2,X		;copy x
-			RTS				;done
-	
-;C, ( char -- )
-;Reserve space for one character in the data space and store char in the space.
-;If the data-space pointer is character aligned when C, begins execution, it
-;will remain character aligned when C, finishes execution. An ambiguous
-;condition exists if the data-space pointer is not character-aligned prior to
-;execution of C,.
-IF_C_COMMA		REGULAR	
-CF_C_COMMA		EQU	*
-			;Allocate one char of data space (DP in X)
-			LDD	#1 			;1 -> D
-			JOBSR	FUDICT_DS_ALLOC		;allocate data space
-			;Store char in allocated space (DP in X)
-			STAB	-1,X			;char -> DS
-			RTS				;done
-
 ;Word: HERE ( -- addr )
 ;addr is the data-space pointer. (points to the next free data space)
 IF_HERE			REGULAR	

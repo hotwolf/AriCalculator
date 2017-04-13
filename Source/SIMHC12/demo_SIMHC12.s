@@ -73,22 +73,22 @@ SSTACK_TOP_LIN		EQU	@
 SSTACK_BOTTOM		EQU	MMAP_INTRAM_END
 
 ;Forth stacks, buffers and dictionary 
-;      	  UDICT_PS_START -> +--------------+--------------+	     
+;      	     DS_PS_START -> +--------------+--------------+	     
 ;                           |       User Dictionary       |	     
 ;                           |             PAD             |	     
 ;                           |       Parameter stack       |		  
-;           UDICT_PS_END -> +--------------+--------------+        
+;              DS_PS_END -> +--------------+--------------+        
 ;           RS_TIB_START -> +--------------+--------------+        
 ;                           |       Text Input Buffer     |
 ;                           |        Return Stack         |
 ;             RS_TIB_END -> +--------------+--------------+
 ;Dictionary, PAD, and parameter stack 
-UDICT_PS_START		EQU	SSTACK_TOP			;start of shared DICT/PAD/PS space
-UDICT_PS_SIZE		EQU	(((SSTACK_SIZE*2)/3)&$FFFE)	;2/3 of available RAM space
-UDICT_PS_END		EQU	SSTACK_TOP+UDICT_PS_SIZE	;end of shared DICT/PAD/PS space
+DS_PS_START		EQU	SSTACK_TOP			;start of shared DICT/PAD/PS space
+DS_PS_SIZE		EQU	(((SSTACK_SIZE*2)/3)&$FFFE)	;2/3 of available RAM space
+DS_PS_END		EQU	SSTACK_TOP+DS_PS_SIZE	;end of shared DICT/PAD/PS space
 
 ;TIB and return stack;
-RS_TIB_START		EQU	UDICT_PS_END			;start of shared TIB/RS space
+RS_TIB_START		EQU	DS_PS_END			;start of shared TIB/RS space
 RS_TIB_END		EQU	SSTACK_BOTTOM			;end of shared TIB/RS space
 			
 			ORG	MMAP_FLASH3F_START
