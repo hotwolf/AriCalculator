@@ -41,7 +41,10 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# CLOCK
+;#Core
+				CPU	S12
+
+;#CLOCK
 CLOCK_CPMU			EQU	1		;CPMU
 CLOCK_IRC			EQU	1		;use IRC
 CLOCK_OSC_FREQ			EQU	 1000000	; 1 MHz IRC frequency
@@ -49,33 +52,72 @@ CLOCK_BUS_FREQ			EQU	25000000	; 25 MHz bus frequency
 CLOCK_REF_FREQ			EQU	 1000000	; 1 MHz reference clock frequency
 CLOCK_VCOFRQ			EQU	$1		; 10 MHz VCO frequency
 CLOCK_REFFRQ			EQU	$0		;  1 MHz reference clock frequency
-				
-;# ISTACK			
-ISTACK_LEVELS			EQU	4 		;max. interrupt nesting levels
-				
-;# TIM				
+
+;#TIM				
+; IC0 - SCI baud rate detection
+; OC1 - SCI general purpose
+; OC2 - DELAY
+; OC3 - LED
+; OC4 - KEYS
 TIM_OCPD_CHECK_ON		EQU	1 		;enable OCPD checks (required for PWM outputs)
+
+TIM_TIOS_INIT			EQU	SCI_OC_TIOS_INIT|DELAY_TIOS_INIT|LED_TIOS_INIT|KEYS_TIOS_INIT
+TIM_TCTL34_INIT			EQU	SCI_IC_TCTL34_INIT
 				
-;# SCI				
-SCI_RXTX_ACTHI			EQU	1 		;RXD/TXD are inverted (active high)
-SCI_FC_RTSCTS			EQU	1 		;RTS/CTS flow control
-SCI_RTS_PORT			EQU	PTM 		;PTM
-SCI_RTS_PIN			EQU	PM0		;PM0
-SCI_CTS_PORT			EQU	PTM 		;PTM
-SCI_CTS_DDR			EQU	DDRM 		;DDRM
-SCI_CTS_PPS			EQU	PPSM 		;PPSM
-SCI_CTS_PIN			EQU	PM1		;PM1
-SCI_CTS_WEAK_DRIVE		EQU	1		;weak CTS drive
-SCI_DLY_OC			EQU	3		;delay timer OC3
-SCI_BD_ON			EQU	1 		;use baud rate detection
-SCI_BD_TIM			EQU	1 		;TIM
-SCI_BD_ICPE			EQU	0		;RX posedge capture IC0
-SCI_BD_ICNE			EQU	1		;RX negedge capture IC1	
-SCI_BD_OC			EQU	2		;BD delay timer OC2	
-SCI_BLOCKING_ON			EQU	1		;enable blocking subroutines
-				
-;# NUM				
-NUM_MAX_BASE_16			EQU	1 		;BASE<=16
+;#DELAY
+DELAY_TIM			EQU	TIM 		;TIM
+DELAY_OC			EQU	2		;OC2
+
+;#KEYS
+KEYS_TIM			EQU	TIM 		;TIM
+KEYS_OC				EQU	4		;OC2
+	
+;#LED
+; LED A: PE0 blinking     -> busy  (green)
+; LED B: PE1 blinking     -> error (red)
+; Timer usage 
+LED_TIM			EQU	TIM 			;TIM
+LED_OC			EQU	3 			;OC3
+; LED A							
+LED_A_BLINK_ON		EQU	1 			;no blink patterns
+LED_A_PORT		EQU	PORTE 			;port E
+LED_A_PIN		EQU	PE0 			;PE0
+; LED B							
+LED_B_BLINK_ON		EQU	1 			;no blink patterns
+LED_B_PORT		EQU	PORTE 			;port E
+LED_B_PIN		EQU	PE1 			;PE1
+							
+;#SCI							
+SCI_V5			EQU	1   			;V5
+SCI_BAUD_9600		EQU	1 			;fixed baud rate
+SCI_BAUD_DETECT_ON	EQU	1			;enable baud rate detection
+SCI_IC_TIM		EQU	TIM 			;ECT
+SCI_IC			EQU	0 			;IC0
+SCI_OC_TIM		EQU	TIM 			;ECT
+SCI_OC			EQU	1 			;OC1
+SCI_RTSCTS		EQU	1			;RTS/CTS flow control
+SCI_RTS_PORT		EQU	PTM 			;PTM
+SCI_RTS_PIN		EQU	PM0			;PM0
+SCI_CTS_PORT		EQU	PTM 			;PTM
+SCI_CTS_DDR		EQU	DDRM 			;DDRM
+SCI_CTS_PPS		EQU	PPSM 			;PPSM
+SCI_CTS_PIN		EQU	PM1			;PM1
+#ifndef	SCI_CTS_WEAK_DRIVE				
+#ifndef	SCI_CTS_STRONG_DRIVE				
+SCI_CTS_STRONG_DRIVE	EQU	1			;weak drive
+#endif
+#endif
+#macro SCI_BDSIG_START, 0
+#emac
+#macro SCI_BDSIG_STOP, 0
+			LED_CLR	B, LED_SEQ_L0NG_PULSE	;stop single gap on red LED
+#emac
+#macro SCI_ERRSIG_START, 0
+			LED_SET	B, LED_SEQ_FAST_BLINK	;start fast blink on red LED
+#emac
+#macro SCI_ERRSIG_STOP, 0
+			LED_CLR	B, LED_SEQ_FAST_BLINK	;stop fast blink on red LED
+#emac
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -86,17 +128,13 @@ NUM_MAX_BASE_16			EQU	1 		;BASE<=16
 				ORG 	BASE_VARS_START
 #endif				
 				
-MMAP_VARS_START			EQU	*	 
-MMAP_VARS_START_LIN		EQU	@
-				ORG	MMAP_VARS_END, MMAP_VARS_END_LIN
-				
-VECTAB_VARS_START		EQU	*
-VECTAB_VARS_START_LIN		EQU	@
-				ORG	VECTAB_VARS_END, VECTAB_VARS_END_LIN
-				
 GPIO_VARS_START			EQU	*
 GPIO_VARS_START_LIN		EQU	@
 				ORG	GPIO_VARS_END, GPIO_VARS_END_LIN
+
+MMAP_VARS_START			EQU	*	 
+MMAP_VARS_START_LIN		EQU	@
+				ORG	MMAP_VARS_END, MMAP_VARS_END_LIN
 				
 SSTACK_VARS_START		EQU	*
 SSTACK_VARS_START_LIN		EQU	@
@@ -138,7 +176,7 @@ LED_VARS_START			EQU	*
 LED_VARS_START_LIN		EQU	@
 				ORG	LED_VARS_END, LED_VARS_END_LIN
 				
-VMON_VARS_START	EQU		*
+VMON_VARS_START			EQU	*
 VMON_VARS_START_LIN		EQU	@
 				ORG	VMON_VARS_END, VMON_VARS_END_LIN
 				
@@ -146,6 +184,14 @@ NVM_VARS_START			EQU	*
 NVM_VARS_START_LIN		EQU	@
 				ORG	NVM_VARS_END, NVM_VARS_END_LIN
 				
+RANDOM_VARS_START		EQU	*
+RANDOM_VARS_START_LIN		EQU	@
+				ORG	RANDOM_VARS_END, RANDOM_VARS_END_LIN
+				
+DELAY_VARS_START		EQU	*
+DELAY_VARS_START_LIN		EQU	@
+				ORG	DELAY_VARS_END, DELAY_VARS_END_LIN
+
 DISP_VARS_START			EQU	*
 DISP_VARS_START_LIN		EQU	@
 				ORG	DISP_VARS_END, DISP_VARS_END_LIN
@@ -158,12 +204,48 @@ BACKLIGHT_VARS_START		EQU	*
 BACKLIGHT_VARS_START_LIN	EQU	@
 				ORG	BACKLIGHT_VARS_END, BACKLIGHT_VARS_END_LIN
 				
+VECTAB_VARS_START		EQU	*
+VECTAB_VARS_START_LIN		EQU	@
+				ORG	VECTAB_VARS_END, VECTAB_VARS_END_LIN
+
 BASE_VARS_END			EQU	*	
 BASE_VARS_END_LIN		EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Error message
+;-------------- 
+#ifnmac	ERROR_MESSAGE
+#macro	ERROR_MESSAGE, 0
+				;VMON_VUSB_BRLV	DONE 		;no terminal connected
+				RESET_BR_NOERR	DONE		;no error detected 
+				SCI_CHECK_BAUD_BL		;determine baud rate first
+				LDX	#ERROR_HEADER		;print error header
+				STRING_PRINT_BL
+				TFR	Y, X			;print error message
+				STRING_PRINT_BL
+				LDX	#ERROR_TRAILER		;print error TRAILER
+				STRING_PRINT_BL
+DONE				EQU	*
+#emac
+#endif
+
+;#Error message
+;-------------- 
+#ifnmac	SPLASH_SCREEN
+#macro	SPLASH_SCREEN, 0
+				;Show welcome or error screen on DISP
+				RESET_BR_ERR	SPLASH_SCREEN_ERROR    
+				BASE_DISP_WELCOME
+				JOB	DONE
+SPLASH_SCREEN_ERROR		BASE_DISP_ERROR  			
+SPLASH_SCREEN_DONE		EQU	*
+				;Wait for PLL lock
+DONE				EQU	*
+#emac
+#endif
+	
 ;#Initialization
 ;--------------- 
 #macro	BASE_INIT, 0
@@ -186,23 +268,13 @@ BASE_VARS_END_LIN		EQU	@
 				STRING_INIT
 				NUM_INIT
 				DISP_INIT
-				;Show welcome/error screen on DISP
-				RESET_BR_ERR	BASE_DISP_ERROR    
-				BASE_DISP_WELCOME
-				JOB	BASE_DISP_DONE
-BASE_DISP_ERROR			BASE_DISP_ERROR  			
-BASE_DISP_DONE			EQU	*
-				;Wait for PLL lock
-            			CLOCK_WAIT_FOR_PLL
-				;Wait for voltage monitor
+				SPLASH_SCREEN
+        			CLOCK_WAIT_FOR_PLL
 				VMON_WAIT_FOR_1ST_RESULTS
-				;Send welcome/error message through 
-				SCI_BR_DISABLED	BASE_SCI_DONE
-				RESET_BR_ERR	BASE_SCI_ERROR 
-				BASE_SCI_WELCOME
-				JOB	BASE_SCI_DONE	
-BASE_SCI_ERROR			BASE_SCI_ERROR				
-BASE_SCI_DONE			EQU	*
+				VMON_VUSB_BRLV	DONE
+				SCI_INIT
+				ERROR_MESSAGE
+DONE				EQU	*	
 #emac
 
 ;#Enable SCI error signaling
@@ -277,17 +349,13 @@ BASE_SCI_DONE			EQU	*
 				ORG 	BASE_CODE_START
 #endif				
 				
-MMAP_CODE_START			EQU	*	 
-MMAP_CODE_START_LIN		EQU	@
-				ORG	MMAP_CODE_END, MMAP_CODE_END_LIN
-				
-VECTAB_CODE_START		EQU	*
-VECTAB_CODE_START_LIN		EQU	@
-				ORG	VECTAB_CODE_END, VECTAB_CODE_END_LIN
-				
 GPIO_CODE_START			EQU	*
 GPIO_CODE_START_LIN		EQU	@
 				ORG	GPIO_CODE_END, GPIO_CODE_END_LIN
+
+MMAP_CODE_START			EQU	*	 
+MMAP_CODE_START_LIN		EQU	@
+				ORG	MMAP_CODE_END, MMAP_CODE_END_LIN
 				
 SSTACK_CODE_START		EQU	*
 SSTACK_CODE_START_LIN		EQU	@
@@ -329,7 +397,7 @@ LED_CODE_START			EQU	*
 LED_CODE_START_LIN		EQU	@
 				ORG	LED_CODE_END, LED_CODE_END_LIN
 				
-VMON_CODE_START	EQU		*
+VMON_CODE_START			EQU	*
 VMON_CODE_START_LIN		EQU	@
 				ORG	VMON_CODE_END, VMON_CODE_END_LIN
 				
@@ -337,6 +405,14 @@ NVM_CODE_START			EQU	*
 NVM_CODE_START_LIN		EQU	@
 				ORG	NVM_CODE_END, NVM_CODE_END_LIN
 				
+RANDOM_CODE_START		EQU	*
+RANDOM_CODE_START_LIN		EQU	@
+				ORG	RANDOM_CODE_END, RANDOM_CODE_END_LIN
+				
+DELAY_CODE_START		EQU	*
+DELAY_CODE_START_LIN		EQU	@
+				ORG	DELAY_CODE_END, DELAY_CODE_END_LIN
+	
 DISP_CODE_START			EQU	*
 DISP_CODE_START_LIN		EQU	@
 				ORG	DISP_CODE_END, DISP_CODE_END_LIN
@@ -349,6 +425,10 @@ BACKLIGHT_CODE_START		EQU	*
 BACKLIGHT_CODE_START_LIN	EQU	@
 				ORG	BACKLIGHT_CODE_END, BACKLIGHT_CODE_END_LIN
 				
+VECTAB_CODE_START		EQU	*
+VECTAB_CODE_START_LIN		EQU	@
+				ORG	VECTAB_CODE_END, VECTAB_CODE_END_LIN
+
 BASE_CODE_END			EQU	*	
 BASE_CODE_END_LIN		EQU	@
 
@@ -373,25 +453,23 @@ BASE_DISP_ERROR_SIZE		EQU	*-BASE_DISP_ERROR_SCR
 				
 ;#SCI messages			
 ;-------------			
-;Welcome message		
-BASE_SCI_WELCOME_MSG		FCC	"Hello, I'm  AriCalculator!"
+;#Error message format
+#ifndef	ERROR_HEADER
+ERROR_HEADER			FCS	"FATAL ERROR! "
+#endif
+#ifndef	ERROR_TRAILER
+ERROR_TRAILER			FCC	"!"
 				STRING_NL_TERM
-;Error message format		
-BASE_SCI_ERROR_HEADER		FCS	"FATAL ERROR! "
-BASE_SCI_ERROR_TRAILER		FCC	"!"
-				STRING_NL_TERM
+#endif
+	
+GPIO_TABS_START			EQU	*
+GPIO_TABS_START_LIN		EQU	@
+				ORG	GPIO_TABS_END, GPIO_TABS_END_LIN
+
 				
 MMAP_TABS_START			EQU	*	 
 MMAP_TABS_START_LIN		EQU	@
 				ORG	MMAP_TABS_END, MMAP_TABS_END_LIN
-				
-VECTAB_TABS_START		EQU	*
-VECTAB_TABS_START_LIN		EQU	@
-				ORG	VECTAB_TABS_END, VECTAB_TABS_END_LIN
-				
-GPIO_TABS_START			EQU	*
-GPIO_TABS_START_LIN		EQU	@
-				ORG	GPIO_TABS_END, GPIO_TABS_END_LIN
 				
 SSTACK_TABS_START		EQU	*
 SSTACK_TABS_START_LIN		EQU	@
@@ -441,6 +519,14 @@ NVM_TABS_START			EQU	*
 NVM_TABS_START_LIN		EQU	@
 				ORG	NVM_TABS_END, NVM_TABS_END_LIN
 				
+RANDOM_TABS_START		EQU	*
+RANDOM_TABS_START_LIN		EQU	@
+				ORG	RANDOM_TABS_END, RANDOM_TABS_END_LIN
+				
+DELAY_TABS_START		EQU	*
+DELAY_TABS_START_LIN		EQU	@
+				ORG	DELAY_TABS_END, DELAY_TABS_END_LIN
+	
 DISP_TABS_START			EQU	*
 DISP_TABS_START_LIN		EQU	@
 				ORG	DISP_TABS_END, DISP_TABS_END_LIN
@@ -453,36 +539,39 @@ BACKLIGHT_TABS_START		EQU	*
 BACKLIGHT_TABS_START_LIN	EQU	@
 				ORG	BACKLIGHT_TABS_END, BACKLIGHT_TABS_END_LIN
 	
+VECTAB_TABS_START		EQU	*
+VECTAB_TABS_START_LIN		EQU	@
+				ORG	VECTAB_TABS_END, VECTAB_TABS_END_LIN
+	
 BASE_TABS_END			EQU	*	
 BASE_TABS_END_LIN		EQU	@
 
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./sci_bdtab_AriCalculator.s							;Search tree for SCI baud rate detection
-#include ./disp_welcome.s								;Welcome screen
-#include ./disp_error.s									;Error screen
-#include ./regdef_AriCalculator.s							;S12G register map
-#include ./mmap_AriCalculator.s								;Memory map
-#include ./vectab_AriCalculator.s							;S12G vector table
-#include ./gpio_AriCalculator.s								;I/O setup
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sstack.s	;Subroutine stack
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/istack.s	;Interrupt stack
-;#include ../../../../S12CBase/Source/All/clock.s					;!!!!!!!!!!!!!!!latest CPMU setup
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clock.s		;CPMU setup
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/cop.s		;COP handler
-;#include ../../../../S12CBase/Source/All/tim.s						;!!!!!!!!!!!!!!!latest TIM setup
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/tim.s		;TIM driver
-;#include ../../../../S12CBase/Source/All/sci.s						;!!!!!!!!!!!!!!!latest SCI setup
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s		;SCI driver
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/string.s	;String printing routines
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/num.s	   	;Number printing routines
-;#include ../../../../S12CBase/Source/All/reset.s					;!!!!!!!!!!!!!!!latest RESET setup
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/reset.s		;Reset driver
-#include ./led_AriCalculator.s								;LED driver
-#include ./vmon_AriCalculator.s								;Voltage monitor
-#include ./nvm_AriCalculator.s								;NVM driver
-#include ./disp_AriCalculator.s								;Display driver
-#include ./keys_AriCalculator.s								;Keypad driver
-#include ./backlight_AriCalculator.s								;Backlight driver
+#include ./regdef_AriCalculator.s		;S12G register map
+#include ./gpio_AriCalculator.s			;I/O setup
+#include ./mmap_AriCalculator.s			;Memory map
+#include ../All/sstack.s			;Subroutine stack
+#include ../All/istack.s			;Interrupt stack
+#include ../All/clock.s				;CRG setup
+#include ../All/cop.s				;COP handler
+#include ../All/tim.s				;TIM driver
+#include ../All/led.s				;LED driver
+;#include ./vmon_AriCalculator.s		;Voltage monitor
+#include ../S12G-Micro-EVB/vmon_S12G-Micro-EVB.s;Voltage monitor
+#include ../All/random.s	   		;Pseudo-random number generator
+#include ../All/sci.s				;SCI driver
+#include ../All/string.s			;String printing routines	
+#include ../All/reset.s				;Reset driver
+#include ../All/num.s	   			;Number printing routines
+;#include ./nvm_AriCalculator.s			;NVM driver
+#include ../S12G-Micro-EVB/nvm_S12G-Micro-EVB.s	;NVM driver
+#include ../All/delay.s	  	 		;Delay driver
+#include ./disp_welcome.s			;Welcome screen
+#include ./disp_error.s				;Error screen
+#include ./disp_AriCalculator.s			;Display driver
+#include ./keys_AriCalculator.s			;Keypad driver
+#include ./backlight_AriCalculator.s		;Backlight driver
+#include ./vectab_AriCalculator.s		;S12G vector table
 #endif

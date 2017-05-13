@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - LED - Timer Driver                                               #
 ;###############################################################################
-;#    Copyright 2010-2016 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2017 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12 MCU family.    #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -153,10 +152,11 @@ LED_TIOS_INIT		EQU	0
 #endif
 	
 ;#Output compare register
-LED_OC_TC		EQU	TC0+(2*LED_OC)
+LED_OC_TC		EQU	LED_TIM+(TC0-TIOS)+(2*LED_OC)
 
 ;#Timer intervall
-LED_OC_CNT_RST		EQU	(TIM_FREQ/4)>>16 		;2sec/8
+;LED_OC_CNT_RST		EQU	(TIM_FREQ/4)>>17 		;1/4 sec
+LED_OC_CNT_RST		EQU	TIM_FREQ>>19 			;1/8 sec
 
 ;#Request masks
 LED_TIMED_REQS		EQU	$FE 				;mask for timed requests
@@ -204,10 +204,6 @@ LED_C_SEQ		DS	1 				;signal selector
 LED_D_REQ		DS	1 				;signal requests
 LED_D_SEQ		DS	1 				;signal selector
 #endif	
-#ifdef LED_LED4_ENABLE	
-LED_LED4_REQ		DS	1 				;signal requests
-LED_LED4_SEQ		DS	1 				;signal selector
-#endif	
 
 LED_VARS_END		EQU	*
 LED_VARS_END_LIN	EQU	@
@@ -232,7 +228,7 @@ LED_VARS_END_LIN	EQU	@
 #ifdef LED_C_BLINK_ON	
 			STD	LED_C_REQ			;turn off LED C
 #endif	
-#ifdef LED_D_ENABLE	
+#ifdef LED_D_BLINK_ON	
 			STD	LED_D_REQ			;turn off LED D
 #endif	
 #endif	
@@ -319,7 +315,7 @@ LED_LOAD_SEQ_4		STAB	LED_\1_SEQ			;sore new sequence
 ;         X, Y and D are preserved 
 #macro	LED_UPDATE, 1
 			BITB	LED_\1_SEQ 			;check sequence pattern
-			BEQ	LED_UPDATE_1			;turn on LED
+			BNE	LED_UPDATE_1			;turn on LED
 			LED_OFF	\1				;turn off LED
 			JOB	DONE				;done
 LED_UPDATE_1		LED_ON	\1				;turn on LED

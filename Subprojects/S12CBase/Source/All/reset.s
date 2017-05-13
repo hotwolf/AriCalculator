@@ -273,11 +273,10 @@ RESET_CM_ENTRY		MOVW	#RESET_MSG_COP, RESET_MSG_REQ 		;set default request (COP)
 			MOVW	#RESET_MSG_CLKFAIL, RESET_MSG_PTR 	;set clock failure message
 			JOB	START_OF_CODE
 ;COP and user reset
-RESET_COP_ENTRY		EQU	START_OF_CODE
-			MOVW	RESET_MSG_REQ, RESET_MSG_PTR 		;preserve error message
+RESET_COP_ENTRY		MOVW	RESET_MSG_REQ, RESET_MSG_PTR 		;preserve error message
 			MOVW	#RESET_MSG_COP, RESET_MSG_REQ 		;set default request (COP)
 			JOB	START_OF_CODE
-				
+
 ;#Reset trigger
 ;--------------
 ;#Perform a reset due to a fatal error
@@ -292,6 +291,13 @@ RESET_FATAL_X_1		BGND
 RESET_FATAL_X_1		COP_RESET
 #endif
 
+#ifndef VECTAB_DEBUG
+;#ISR
+;----
+RESET_ISR_FATAL		EQU	*
+			RESET_FATAL	#RESET_MSG_ISR	
+#endif
+	
 RESET_CODE_END		EQU	*	
 RESET_CODE_END_LIN	EQU	@	
 
@@ -312,6 +318,9 @@ RESET_MSG_POWFAIL	RESET_MSG	"Power loss"
 #endif
 #ifdef	RESET_IAR_CHECK_ON
 RESET_MSG_ILLADDR	RESET_MSG	"Code runaway"
+#endif
+#ifndef VECTAB_DEBUG
+RESET_MSG_ISR		RESET_MSG	"Unexpected interrupt"
 #endif
 RESET_MSG_UNKNOWN	RESET_MSG	"Unknown cause"
 	

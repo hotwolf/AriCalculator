@@ -25,6 +25,7 @@
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    REGDEF - Register Definitions                                            #
+;#    RESET  - Reset handler                                                   #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -300,7 +301,8 @@ MMAP_VARS_END_LIN	EQU	@
 #macro	MMAP_INIT, 0
 			;Setup 30K linear RAM space
 			CLR	DIRECT 			;lock DIRECT page register
-			BSET	MMCCTL1, #(RAMHM|ROMHM)	;MAP RAM 
+			BSET	MMCCTL1, #(RAMHM|ROMHM)	;map RAM 
+			MOVB	#$F9, RPAGE		;map RPAGE $F9 
 			;Setup MPU
 			;Descriptor 0: Register space                 	-> read and write
 			CLR	MPUSEL
@@ -351,9 +353,11 @@ MMAP_VARS_END_LIN	EQU	@
 MMAP_CODE_START_LIN	EQU	@			
 #endif	
 
+#ifndef VECTAB_DEBUG
 ;#Trigger a fatal error if a reset accurs
 MMAP_ISR_MPU		EQU	*
-			RESET_FATAL	MMAP_STR_MPU
+			RESET_FATAL	MMAP_MSG_MPU
+#endif
 	
 MMAP_CODE_END		EQU	*	
 MMAP_CODE_END_LIN	EQU	@	
@@ -368,8 +372,10 @@ MMAP_CODE_END_LIN	EQU	@
 MMAP_TABS_START_LIN	EQU	@			
 #endif	
 
-MMAP_STR_MPU		FCS	"MPU error"
-
+#ifndef VECTAB_DEBUG
+MMAP_MSG_MPU		RESET_MSG	"MPU error"
+#endif
+	
 MMAP_TABS_END		EQU	*	
 MMAP_TABS_END_LIN	EQU	@	
 #endif	

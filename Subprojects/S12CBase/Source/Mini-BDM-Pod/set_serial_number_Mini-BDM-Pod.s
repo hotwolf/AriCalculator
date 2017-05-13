@@ -1,5 +1,5 @@
 ;###############################################################################
-;# S12CBase - Demo (S12G-Micro-EVB)                                            #
+;# S12CBase - Set Serial Number (Mini-BDM-Pod)                                 #
 ;###############################################################################
 ;#    Copyright 2010-2017 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for NXP's S12 MCU family.    #
@@ -25,39 +25,36 @@
 ;#    2. Execute code at address "START_OF_CODE"                               #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    November 14, 2012                                                        #
+;#    January 30, 2017                                                         #
 ;#      - Initial release                                                      #
-;#    January 29, 2015                                                         #
-;#      - Updated during S12CBASE overhaul                                     #
-;#    September 27, 2016                                                       #
-;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Memory map:
-MMAP_S12G128		EQU	1 		;S12G128
+;#Serial Number:				 123456789ABCDE
+			;SERIAL_NUMBER		"Dirk's BDM Pod"
+			SERIAL_NUMBER		"29-Jan-2017"
+	
+;#Memory map:
+MMAP_S12XEP100		EQU	1 		;S12XEP100
 MMAP_RAM		EQU	1 		;use RAM memory map
 
-;# COP
+;#COP
 COP_DEBUG		EQU	1 		;disable COP
 
-;# Vector table
+;#Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
-	
-;# STRING
+
+;#STRING
 STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
 STRING_ENABLE_FILL_BL	EQU	1 		;enable STRING_FILL_BL
 STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
-	
-;#ISTACK
-ISTACK_NO_WAI		EQU	1 		;don't use WAI instruction
 
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_START
+			ORG	MMAP_RAM_F9_START, MMAP_RAM_F9_START_LIN
 ;Code
 START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*
@@ -91,45 +88,33 @@ SSTACK_TOP		EQU	*
 SSTACK_TOP_LIN		EQU	@
 SSTACK_BOTTOM		EQU	VECTAB_START
 SSTACK_BOTTOM_LIN	EQU	VECTAB_START_LIN
-
+	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
 
-HEADER_REPEAT		EQU	20
-	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
 			ORG 	DEMO_VARS_START, DEMO_VARS_START_LIN
 
-DEMO_VARS_END		EQU	*
-	
-LINE_COUNT		DS	1	
+;			ALIGN	16
+;DEMO_TRACE		DS	8*64
 
+DEMO_VARS_END		EQU	*
 DEMO_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Welcome message
-#macro	WELCOME_MESSAGE, 0
-			RESET_BR_ERR	DONE		;severe error detected 
-			LDX	#WELCOME_MESSAGE	;print welcome message
-			STRING_PRINT_BL
-DONE			EQU	*
-#emac
 
-;Break handler
-#macro	SCI_BREAK_ACTION, 0
-			LED_SET	A, LED_SEQ_HEART_BEAT
+#macro	SERIAL_NUMBER, 1
+			ORG	RO_CONTENT, RO_CONTENT_LIN
+			FILL	$FF, 16
+			ORG	RO_CONTENT, RO_CONTENT_LIN
+			FCZ	\1
 #emac
 	
-;Suspend handler
-#macro	SCI_SUSPEND_ACTION, 0
-			LED_CLR	A, LED_SEQ_HEART_BEAT
-#emac
-
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -137,95 +122,67 @@ DONE			EQU	*
 
 ;Initialization
 			BASE_INIT
-			MOVB	#1, LINE_COUNT
-
-			SCI_BR_BAUD_RESTORED	DEMO_SKIP_BD	
-			SCI_BAUD_DETECT_BL
-DEMO_SKIP_BD		WELCOME_MESSAGE
 	
+;;Setup trace buffer
+;			;Configure DBG module
+;			CLR	DBGC1
+;			;MOVB	#$40, DBGTCR  ;trace CPU in normal mode
+;			MOVB	#$4C, DBGTCR  ;trace CPU in pure PC mode
+;			MOVB	#$02, DBGC2   ;Comparators A/B outside range
+;			MOVB	#$02, DBGSCRX ;first match triggers final state
+;			;Comperator A
+;			MOVW	#(((BRK|TAG|COMPE)<<8)|(MMAP_RAM_START_LIN>>16)), DBGXCTL
+;			MOVW	#(MMAP_RAM_START_LIN&$FFFF),                      DBGXAM
+;			;Comperator A
+;			MOVB	#$01, DBGC1
+;			MOVW	#(((BRK|TAG|COMPE)<<8)|(MMAP_RAM_END_LIN>>16)), DBGXCTL
+;			MOVW	#(MMAP_RAM_END_LIN&$FFFF),                      DBGXAM
+;			;Arm DBG module
+;			MOVB	#ARM, DBGC1
+			
 ;Application code
-			;Print header
-DEMO_LOOP		DEC	LINE_COUNT
-			BNE	DEMO_GET_CHAR
-			MOVB	#HEADER_REPEAT, LINE_COUNT
-			LDX	#DEMO_HEADER
-			STRING_PRINT_BL
 
-			;Wait for input
-DEMO_GET_CHAR		SCI_RX_BL
-			;Ignore RX errors (char in B)
-			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
-			BNE	DEMO_GET_CHAR
+			;Program first phrase
+			CLR	FCCOBIX
+			MOVW	#$0700, FCCOB
+			INC	FCCOBIX
+			MOVW	#$0000, FCCOB
+			INC	FCCOBIX
+			MOVW	(RO_CONTENT+0), FCCOB
+			INC	FCCOBIX
+			MOVW	(RO_CONTENT+2), FCCOB
+			INC	FCCOBIX
+			MOVW	(RO_CONTENT+4), FCCOB
+			INC	FCCOBIX
+			MOVW	(RO_CONTENT+6), FCCOB
+			MOVB	#$80, FSTAT
+			BRCLR	FSTAT,#$80,*
 	
-			;Print ASCII character (char in B)
-			TFR	D, X
-			LDAA	#4
-			LDAB	#" "
-			STRING_FILL_BL
-			TFR	X, D
-			CLRA
-			STRING_PRINTABLE
-			SCI_TX_BL
+			;Program second phrase
+			CLR	FCCOBIX
+			MOVW	#$0700, FCCOB
+			INC	FCCOBIX
+			MOVW	#$0001, FCCOB
+			INC	FCCOBIX
+			MOVW	(RO_CONTENT+8), FCCOB
+			INC	FCCOBIX
+			MOVW	(RO_CONTENT+10), FCCOB
+			INC	FCCOBIX
+			MOVW	(RO_CONTENT+12), FCCOB
+			INC	FCCOBIX
+			MOVW	(RO_CONTENT+14), FCCOB
+			MOVB	#$80, FSTAT
+			BRCLR	FSTAT,#$80,*
 
-			;Print hexadecimal value (char in X)
-			LDY	#$0000
-			LDAB	#16
-			NUM_REVERSE
-			TFR	SP, Y
-			NEGA
-			ADDA	#5
-			LDAB	#" "
-			STRING_FILL_BL
-			LDAB	#16
-			NUM_REVPRINT_BL
-	
-			;Print decimal value (char in X)
-			LDY	#$0000
-			LDAB	#10
-			NUM_REVERSE
-			TFR	SP, Y
-			NEGA
-			ADDA	#5
-			LDAB	#" "
-			STRING_FILL_BL
-			LDAB	#10
-			NUM_REVPRINT_BL
-	
-			;Print octal value (char in X)
-			LDY	#$0000
-			LDAB	#8
-			NUM_REVERSE
-			TFR	SP, Y
-			NEGA
-			ADDA	#5
-			LDAB	#" "
-			STRING_FILL_BL
-			LDAB	#8
-			NUM_REVPRINT_BL
-	
-			;Print binary value (char in X)
-			LDAA	#2
-			LDAB	#" "
-			STRING_FILL_BL
-			LDY	#$0000
-			LDAB	#2
-			NUM_REVERSE
-			TFR	SP, Y
-			NEGA
-			ADDA	#8
-			LDAB	#"0"
-			STRING_fill_BL
-			LDAB	#2
-			NUM_REVPRINT_BL
-	
-			;Print new line
-			LDX	#STRING_STR_NL
-			STRING_PRINT_BL
-			JOB	DEMO_LOOP
+			BRA	*
 	
 DEMO_CODE_END		EQU	*	
 DEMO_CODE_END_LIN	EQU	@	
 
+;			;Overwrite SWI interrupt vector
+;			ORG	VEC_SWI
+;			DW	DEMO_DUMP_TRACE
+	
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
@@ -233,16 +190,13 @@ DEMO_CODE_END_LIN	EQU	@
 
 ;#Welcome message
 #ifndef	WELCOME_MESSAGE
-WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
+WELCOME_MESSAGE		FCC	"Program Once!"
 			STRING_NL_TERM
 #endif
-	
-DEMO_HEADER		STRING_NL_NONTERM
-			STRING_NL_NONTERM
-			FCC	"ASCII  Hex  Dec  Oct       Bin"
-			STRING_NL_NONTERM
-			FCC	"------------------------------"
-			STRING_NL_TERM
+
+RO_CONTENT		EQU	*
+RO_CONTENT_LIN		EQU	@
+			DS	16
 
 DEMO_TABS_END		EQU	*	
 DEMO_TABS_END_LIN	EQU	@	
@@ -250,5 +204,6 @@ DEMO_TABS_END_LIN	EQU	@
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./base_S12G-Micro-EVB.s		;S12CBase bundle
+#include ./base_Mini-BDM-Pod.s		;S12CBase bundle
 	
+
