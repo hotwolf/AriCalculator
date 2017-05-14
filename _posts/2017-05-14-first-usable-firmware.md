@@ -6,7 +6,7 @@ title:  First usable firmware
 handheld hardware. The AriCalculator has it's first real firmware:
 
 <div class="video">
-<iframe width="560" height="315" src="https://www.youtube.com/embed/wD2hE7AD8uM5" frameborder="0" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/wD2hE7AD8uM" frameborder="0" allowfullscreen></iframe>
 </div>
 
 After all these years of proof-of-concept firmwares, it is very nice to have a working calculator.
