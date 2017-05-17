@@ -41,6 +41,25 @@ FLASH_COMPILE		EQU	1 		;default target is NVM
 #endif	
 #endif
 
+;# Bootloader
+#ifndef BOOTLOADER_ON
+#ifndef BOOTLOADER_OFF
+BOOTLOADER_OFF		EQU	1 		;default is no bootloader supplort
+#endif	
+#endif	
+#ifndef BOOTLOADER_SIZE
+BOOTLOADER_SIZE		EQU	$1000 		;default is 4K
+#endif	
+
+;# Size of the shared space for return stack and text input buffer
+#ifndef TIB_RS_SIZE
+TIB_RS_SIZE		EQU	(((MMAP_RAM_END-DS_PS_START)/3)&-2)
+#endif	
+
+;###############################################################################
+;# Constants                                                                   #
+;###############################################################################
+	
 ;###############################################################################
 ;# Memory map                                                                  #
 ;###############################################################################
@@ -52,12 +71,12 @@ FLASH_COMPILE		EQU	1 		;default target is NVM
 ;             ($0400)    |   EEPROM (not used) |                        ($0400)    |       unused        |                      
 ;  MMAP_FLASH_C_START -> +----------+----------+                MMAP_RAM_START, -> +----------+----------+                      
 ;                        |   Part of PPAGE C   |                   VECTAB_START    |    Vector Table     |                                  
-;                        |      (unused)       |                     CODE_START -> +----------+----------+                      
-;      MMAP_RAM_START -> +----------+----------+                                   |                     |                      
-;                        |  Global Variables   |                                   |    Program Space    |                             
+;                        |      (unused)       |                     TABS_START -> +----------+----------+                      
+;      MMAP_RAM_START -> +----------+----------+                                   |       Tables        |                      
+;                        |  Global Variables   |                     CODE_START -> +----------+----------+                             
 ;         DS_PS_START -> +----------+----------+                                   |                     |                      
-;                        |    User Variables   |                     TABS_START -> +----------+----------+                      
-;                        |          |          |                                   |       Tables        |                      
+;                        |    User Variables   |                                   |    Program Space    |                      
+;                        |          |          |                                   |                     |                      
 ;                        |          v          |                     VARS_START -> +----------+----------+                      
 ;                        | --- --- --- --- --- | <- [DP]                           |  Global Variables   |                      
 ;                        |                     |                    DS_PS_START -> +----------+----------+                      
@@ -98,7 +117,7 @@ FLASH_COMPILE		EQU	1 		;default target is NVM
 ;  MMAP_FLASH_D_START -> +----------+----------+                                   |                     |                      
 ;             ($4000)    |                     |                                   | --- --- --- --- --- | <- [RSP=SP]                  
 ;                        |    Program Space    |                                   |          ^          |                      
-;                        |                     |                                   |          |          |                      
+;                        |      (PPAGE D)      |                                   |          |          |                      
 ; MMAP_FLASHWIN_START -> +----------+----------+                                   |    Return Stack     |                      
 ;             ($8000)    |    Non-Volatile     |                   MMAP_RAM_END -> +----------+----------+                      
 ;                        |  User Dictionary    |                        ($4000)                                                        
@@ -106,256 +125,225 @@ FLASH_COMPILE		EQU	1 		;default target is NVM
 ;                        |          v          |             
 ;                        | --- --- --- --- --- |
 ;                        |                     |                  
-;  MMAP_FLASH_D_START -> +----------+----------+
-;             ($C000)    |                     |             
-;                        |    Program Space    |                  
+;  MMAP_FLASH_F_START -> +----------+----------+
+;             ($C000)    |        Tables       |             
+;  	 CODE_F_START -> +----------+----------+                  
 ;                        |                     |             
-;          TABS_START -> +----------+----------+        
-;                        |        Tables       |                  
+;                        |    Program Space    |        
+;                        |      (PPAGE F)      |                  
 ;        VECTAB_START -> +----------+----------+        
 ;             ($DF00)    |    Vector Table     |                  
 ;    BOOTLOADER_START -> +----------+----------+        
 ;             ($E000)    |     Bootloader      |             
 ;                        +----------+----------+
 
-#ifndef	LRE_COMPILE
+#ifdef	LRE_COMPILE
+			;LRE_COMPILE
+			;===========
+			ORG	MMAP_RAM_START, MMAP_RAM_START_LIN
+
+VECTAB_START		EQU	*	
+VECTAB_START_LIN	EQU	@
+			ORG	VECCTAB_END, VECTAB_END_LIN
+
+TABS_START		EQU	*	
+TABS_START_LIN		EQU	@
+			ORG	TABS_END, TABS_END_LIN
+
+CODE_START		EQU	*	
+CODE_START_LIN		EQU	@
+			ORG	CODE_END, CODE_END_LIN
+
+VARS_START		EQU	*	
+VARS_START_LIN		EQU	@
+			ORG	VARS_END, VARS_END_LIN
+
+DS_PS_START		EQU	*			
+DS_PS_START_LIN		EQU	@
+DS_PS_END		EQU	MMAP_RAM_END-TIB-TIB_RS_SIZE
+DS_PS_END_LIN		EQU	MMAP_RAM_END_LIN-TIB-TIB_RS_SIZE
+TIB_RS_START		EQU	MMAP_RAM_END-TIB-TIB_RS_SIZE
+TIB_RS_START_LIN	EQU	MMAP_RAM_END_LIN-TIB-TIB_RS_SIZE
+TIB_RS_END		EQU	MMAP_RAM_END			
+TIB_RS_END_LIN		EQU	MMAP_RAM_END_LIN
+#else
 			;FLASH_COMPILE
 			;=============
 			ORG	MMAP_RAM_START, MMAP_RAM_START_LIN
 
 VARS_START		EQU	*	
 VARS_START_LIN		EQU	@
-			ORG	MMAP_RAM_END, MMAP_RAM_END_LIN
+			ORG	VARS_END, VARS_END_LIN
 
 DS_PS_START		EQU	*			
 DS_PS_START_LIN		EQU	@
-			ORG	DS_PS_END, DS_PS_END_LIN 
+			ORG	MMAP_RAM_END, MMAP_RAM_END_LIN
+DS_PS_END		EQU	*-TIB-TIB_RS_SIZE
+DS_PS_END_LIN		EQU	@-TIB-TIB_RS_SIZE
+TIB_RS_START		EQU	*-TIB-TIB_RS_SIZE
+TIB_RS_START_LIN	EQU	@-TIB-TIB_RS_SIZE
+TIB_RS_END		EQU	*			
+TIB_RS_END_LIN		EQU	@
 
-TIB_RS_START		EQU	*			
-TIB_RS_START_LIN	EQU	@
-			ORG	TIB_RS_END, TIB_RS_END_LIN 
-
-
+			ORG	MMAP_FLASH_D_START, MMAP_FLASH_D_START_LIN
 	
+CODE_D_START		EQU	*	
+CODE_D_START_LIN	EQU	@
+			;ORG	CODE_D_END, CODE_D_END_LIN
+
+			ORG	MMAP_FLASH_F_START, MMAP_FLASH_F_START_LIN
+
+TABS_START		EQU	*	
+TABS_START_LIN		EQU	@
+			ORG	TABS_END, TABS_END_LIN
 	
-	
-#else
+CODE_F_START		EQU	*	
+CODE_F_START_LIN	EQU	@
+			;ORG	CODE_F_END, CODE_F_END_LIN
 
-
-
-
+			ORG	FLASH_F_END, FLASH_F_END_LIN
+#ifdef	BOOTLOADER_ON
+			ORG	(*-BOOTLOADER_SIZE), (@-BOOTLOADER_SIZE)
+BOOTLOADER_START	EQU	*	
+BOOTLOADER_START_LIN	EQU	@
 #endif
 
-	
-;###############################################################################
-;# Module configuration                                                                            #
-;###############################################################################
-		
-;;# Clocks
-;CLOCK_CPMU		EQU	1		;CPMU
-;CLOCK_IRC		EQU	1		;use IRC
-;CLOCK_OSC_FREQ		EQU	 1000000	; 1 MHz IRC frequency
-;CLOCK_BUS_FREQ		EQU	25000000	; 25 MHz bus frequency
-;CLOCK_REF_FREQ		EQU	 1000000	; 1 MHz reference clock frequency
-;CLOCK_VCOFRQ		EQU	$1		; 10 MHz VCO frequency
-;CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
-;
-;;# Memory map:
-;MMAP_S12G128		EQU	1 		;S12G128
-;MMAP_RAM		EQU	1 		;use RAM memory map
-;
-;;# Interrupt stack
-;ISTACK_LEVELS		EQU	1	 	;interrupt nesting not guaranteed
-;ISTACK_DEBUG		EQU	1 		;don't enter wait mode
-;
-;;# Subroutine stack
-;SSTACK_DEPTH		EQU	27	 	;no interrupt nesting
-;SSTACK_DEBUG		EQU	1 		;debug behavior
-;
-;;# COP
-;COP_DEBUG		EQU	1 		;disable COP
-;
-;;# RESET
-;RESET_WELCOME		EQU	DEMO_WELCOME 	;welcome message
-;	
-;;# Vector table
-;VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
-;	
-;;# SCI
-;SCI_FC_RTSCTS		EQU	1 		;RTS/CTS flow control
-;SCI_RTS_PORT		EQU	PTM 		;PTM
-;SCI_RTS_PIN		EQU	PM0		;PM0
-;SCI_CTS_PORT		EQU	PTM 		;PTM
-;SCI_CTS_PIN		EQU	PM1		;PM1
-;SCI_HANDLE_BREAK	EQU	1		;react to BREAK symbol
-;SCI_HANDLE_SUSPEND	EQU	1		;react to SUSPEND symbol
-;SCI_BD_ON		EQU	1 		;use baud rate detection
-;SCI_BD_TIM		EQU	1 		;TIM
-;SCI_BD_ICPE		EQU	0		;IC0
-;SCI_BD_ICNE		EQU	1		;IC1			
-;SCI_BD_OC		EQU	2		;OC2			
-;SCI_BD_LOG_ON		EQU	1		;log captured BD pulses			
-;SCI_DLY_OC		EQU	3		;OC3
-;SCI_ERRSIG_ON		EQU	1 		;signal errors
-;SCI_BLOCKING_ON		EQU	1		;enable blocking subroutines
-	
-;###############################################################################
-;# Ressource a                                                          #
-;###############################################################################
-			ORG	MMAP_RAM_START
-;Code
-START_OF_CODE		EQU	*	
-DEMO_CODE_START		EQU	*
-DEMO_CODE_START_LIN	EQU	@
+VECTAB_START		EQU	*-VECTAB_SIZE	
+VECTAB_START_LIN	EQU	@-VECTAB_SIZE
+#endif
 
-BASE_CODE_START		EQU	DEMO_CODE_END
-BASE_CODE_START_LIN	EQU	DEMO_CODE_END_LIN
-
-;Variables
-DEMO_VARS_START		EQU	BASE_CODE_END
-DEMO_VARS_START_LIN	EQU	BASE_CODE_END_LIN
+;###############################################################################
+;# Timer channel allocation                                                    #
+;###############################################################################
+; IC0 - SCI (baud rate detection)	;SCI driver
+; OC1 - SCI (general purpose)		;SCI driver
+; OC2 - DELAY				;delay driver
+; OC3 - LED				;red/green LED driver 
+; OC4 - KEYS				;keypad driver
+; OC5 - BACKLIGHT 			;LCD backlight driver
+; OC6 - FMON				;Forth sanity monitor
+; OC7 - free
 	
-BASE_VARS_START		EQU	DEMO_VARS_END
-BASE_VARS_START_LIN	EQU	DEMO_VARS_END_LIN
+;###############################################################################
+;# Module configuration                                                        #
+;###############################################################################
+;# S12CBase
+;MMAP: 
+#ifdef LRE_COMPILE
+MMAP_UNSEC_OFF		EQU	1 	;don't set the security byte for LRE compiles
+#endif
+#ifdef BOOTLOADER
+MMAP_UNSEC_OFF		EQU	1 	;don't set the security byte if a bootloader is used
+#endif
 
-;Tables
-DEMO_TABS_START		EQU	BASE_VARS_END
-DEMO_TABS_START_LIN	EQU	BASE_VARS_END_LIN
+;TIM:
+TIM_TIOS_INIT		EQU	BASE_TIOS_INIT|FORTH_TIOS_INIT
+TIM_TCTL12_INIT		EQU	BASE_TCTL12_INIT
+TIM_TCTL34_INIT		EQU	BASE_TCTL34_INIT
+
+
 	
-BASE_TABS_START		EQU	DEMO_TABS_END
-BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
+;# S12CForth
+	
+;# AriCalculator
 
 ;###############################################################################
 ;# Includes                                                                    #
 ;###############################################################################
-#include ./base_S12G-Micro-EVB.s		;S12CBase bundle
+;# S12CBase
+#include ../../../../S12CBase/Source/AriCalculator/base_AriCalculator.s
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/base_AriCalculator.s
+	
+;# S12CForth
+	
+;# AriCalculator
 	
 ;###############################################################################
-;# Variables                                                                   #
+;# Initialization                                                              #
 ;###############################################################################
-			ORG 	DEMO_VARS_START, DEMO_VARS_START_LIN
-
-DEMO_VARS_END		EQU	*
-	
-DEMO_VARS_END_LIN	EQU	@
-
-;###############################################################################
-;# Macros                                                                      #
-;###############################################################################
-;Break handler
-#macro	SCI_BREAK_ACTION, 0
-			LED_BUSY_ON
-#emac
-	
-;Suspend handler
-#macro	SCI_SUSPEND_ACTION, 0
-			LED_BUSY_OFF
-#emac
-
-;###############################################################################
-;# Code                                                                        #
-;###############################################################################
-			ORG 	DEMO_CODE_START, DEMO_CODE_START_LIN
-
-;Initialization
+#macro	INIT, 0
+;# S12CBase
 			BASE_INIT
+;# S12CForth
 	
-;Application code
-DEMO_LOOP		SCI_RX_BL
-			;Ignore RX errors 
-			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
-			BNE	DEMO_LOOP
-			;TBNE	A, DEMO_LOOP
+;# AriCalculator
 
-			;Print ASCII character (char in B)
-			TFR	D, X
-			LDAA	#4
-			LDAB	#" "
-			STRING_FILL_BL
-			TFR	X, D
-			CLRA
-			STRING_PRINTABLE
-			SCI_TX_BL
-
-			;Print hexadecimal value (char in X)
-			LDY	#$0000
-			LDAB	#16
-			NUM_REVERSE
-			TFR	SP, Y
-			NEGA
-			ADDA	#5
-			LDAB	#" "
-			STRING_FILL_BL
-			LDAB	#16
-			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
+#emac
 	
-			;Print decimal value (char in X)
-			LDY	#$0000
-			LDAB	#10
-			NUM_REVERSE
-			TFR	SP, Y
-			NEGA
-			ADDA	#5
-			LDAB	#" "
-			STRING_FILL_BL
-			LDAB	#10
-			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
-	
-			;Print octal value (char in X)
-			LDY	#$0000
-			LDAB	#8
-			NUM_REVERSE
-			TFR	SP, Y
-			NEGA
-			ADDA	#5
-			LDAB	#" "
-			STRING_FILL_BL
-			LDAB	#8
-			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
-	
-			;Print binary value (char in X)
-			LDAA	#2
-			LDAB	#" "
-			STRING_FILL_BL
-			LDY	#$0000
-			LDAB	#2
-			NUM_REVERSE
-			TFR	SP, Y
-			NEGA
-			ADDA	#8
-			LDAB	#"0"
-			STRING_fill_BL
-			LDAB	#2
-			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
-	
-			;Print new line
-			LDX	#STRING_STR_NL
-			STRING_PRINT_BL
-			JOB	DEMO_LOOP
-	
-DEMO_CODE_END		EQU	*	
-DEMO_CODE_END_LIN	EQU	@	
-
 ;###############################################################################
-;# Tables                                                                      #
+;# Global variable space                                                       #
 ;###############################################################################
-			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
+			ORG	VARS_START, VARS_START_LIN
+;# S12CBase
+BASE_VARS_START		EQU	*
+BASE_VARS_START_LIN	EQU	@
+			ORG	BASE_VARS_END, BASE_VARS_END_LIN
+;# S12CForth
+	
+;# AriCalculator
 
-DEMO_WELCOME		FCC	"This is the S12CBase Demo for the S12G-Micro-EVB"
-			STRING_NL_NONTERM
-			STRING_NL_NONTERM
-			FCC	"ASCII  Hex  Dec  Oct       Bin"
-			STRING_NL_NONTERM
-			FCC	"------------------------------"
-			STRING_NL_TERM
+VARS_END		EQU	*
+VARS_END_LIN		EQU	@
+	
+;###############################################################################
+;# Code space                                                                  #
+;###############################################################################
+#ifdef	LRE_COMPILE
+			ORG	CODE_START, CODE_START_LIN
+#else
+			ORG	CODE_F_START, CODE_F_START_LIN
+#endif	
 
-DEMO_TABS_END		EQU	*	
-DEMO_TABS_END_LIN	EQU	@	
+;# S12CBase
+BASE_CODE_START		EQU	*
+BASE_CODE_START_LIN	EQU	@
+			ORG	BASE_CODE_END, BASE_CODE_END_LIN	
+;# S12CForth
+	
+;# AriCalculator
 
+;# Entry code point for application code
+START_OF_CODE					;start label
+			INIT			;initialization routines
+			BRA	*
+
+#ifndef	LRE_COMPILE
+			ALIGN	$7, $FF		;align to NVM phrase size
+CODE_F_END		EQU	*
+CODE_F_END_LIN		EQU	@
+			ORG	CODE_D_START, CODE_D_START_LIN
+#endif	
+
+;# S12CBase
+	
+;# S12CForth
+	
+;# AriCalculator
+
+
+			ALIGN	$7, $FF		;align to NVM phrase size
+#ifdef	LRE_COMPILE
+CODE_END		EQU	*
+CODE_END_LIN		EQU	@
+#else
+CODE_D_END		EQU	*
+CODE_D_END_LIN		EQU	@
+#endif	
+	
+;###############################################################################
+;# Table space                                                                 #
+;###############################################################################
+			ORG	TABS_START, TABS_START_LIN
+;# S12CBase
+BASE_TABS_START		EQU	*
+BASE_TABS_START_LIN	EQU	@
+			ORG	BASE_TABS_END, BASE_TABS_END_LIN
+;# S12CForth
+	
+;# AriCalculator
+
+TABS_END		EQU	*
+TABS_END_LIN		EQU	@
 
 
 
