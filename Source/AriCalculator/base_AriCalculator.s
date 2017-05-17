@@ -26,16 +26,8 @@
 ;# Version History:                                                            #
 ;#    January 7, 2015                                                          #
 ;#      - Initial release                                                      #
-;###############################################################################
-;# TIM channel allocation                                                      #
-;#      IC0:     SCI baud rate detection (capture posedges on RX pin)          #
-;#      IC1:     SCI baud rate detection (capture negedges on RX pin)          #
-;#      OC2:     SCI baud rate detection (timeout)                             #
-;#      OC3:     SCI (timeout)                                                 #
-;#      OC4:     KEYS (debounce delay)                                         #
-;#      OC5:     LCD backlight PWM                                             #
-;#      OC6:     LED (error signal)                                            #
-;#      OC7:     unasigned                                                     #
+;#    May 17, 2017                                                             #
+;#      - Clean up                                                             #
 ;###############################################################################
 
 ;###############################################################################
@@ -48,76 +40,93 @@
 CLOCK_CPMU			EQU	1		;CPMU
 CLOCK_IRC			EQU	1		;use IRC
 CLOCK_OSC_FREQ			EQU	 1000000	; 1 MHz IRC frequency
-CLOCK_BUS_FREQ			EQU	25000000	; 25 MHz bus frequency
+CLOCK_BUS_FREQ			EQU	25000000	;25 MHz bus frequency
 CLOCK_REF_FREQ			EQU	 1000000	; 1 MHz reference clock frequency
-CLOCK_VCOFRQ			EQU	$1		; 10 MHz VCO frequency
-CLOCK_REFFRQ			EQU	$0		;  1 MHz reference clock frequency
+CLOCK_VCOFRQ			EQU	$1		;10 MHz VCO frequency
+CLOCK_REFFRQ			EQU	$0		; 1 MHz reference clock frequency
 
 ;#TIM				
-; IC0 - SCI baud rate detection
-; OC1 - SCI general purpose
-; OC2 - DELAY
-; OC3 - LED
-; OC4 - KEYS
+; IC0 - SCI (baud rate detection)			;SCI driver
+; OC1 - SCI (general purpose)				;SCI driver
+; OC2 - DELAY						;delay driver
+; OC3 - LED						;red/green LED driver 
+; OC4 - KEYS						;keypad driver
+; OC5 - BACKLIGHT 					;LCD backlight driver
+; OC6 - free
+; OC7 - free
+BASE_TIOS_INIT			EQU	SCI_OC_TIOS_INIT|DELAY_TIOS_INIT|LED_TIOS_INIT|KEYS_TIOS_INIT|BACKLIGHT_TIOS_INIT
+BASE_TCTL12_INIT		EQU	BACKLIGHT_TCTL12_INIT	
+BASE_TCTL34_INIT		EQU	SCI_IC_TCTL34_INIT
+#ifndef	TIM_TIOS_INIT
+TIM_TIOS_INIT			EQU	BASE_TIOS_INIT	
+#endif
+#ifndef	TIM_TCTL12_INIT
+TIM_TCTL12_INIT			EQU	BASE_TCTL12_INIT	
+#endif
+#ifndef	TIM_TCTL34_INIT
+TIM_TCTL34_INIT			EQU	BASE_TCTL34_INIT	
+#endif
 TIM_OCPD_CHECK_ON		EQU	1 		;enable OCPD checks (required for PWM outputs)
 
-TIM_TIOS_INIT			EQU	SCI_OC_TIOS_INIT|DELAY_TIOS_INIT|LED_TIOS_INIT|KEYS_TIOS_INIT
-TIM_TCTL34_INIT			EQU	SCI_IC_TCTL34_INIT
-				
-;#DELAY
-DELAY_TIM			EQU	TIM 		;TIM
-DELAY_OC			EQU	2		;OC2
-
-;#KEYS
-KEYS_TIM			EQU	TIM 		;TIM
-KEYS_OC				EQU	4		;OC2
-	
-;#LED
-; LED A: PE0 blinking     -> busy  (green)
-; LED B: PE1 blinking     -> error (red)
-; Timer usage 
-LED_TIM			EQU	TIM 			;TIM
-LED_OC			EQU	3 			;OC3
-; LED A							
-LED_A_BLINK_ON		EQU	1 			;no blink patterns
-LED_A_PORT		EQU	PORTE 			;port E
-LED_A_PIN		EQU	PE0 			;PE0
-; LED B							
-LED_B_BLINK_ON		EQU	1 			;no blink patterns
-LED_B_PORT		EQU	PORTE 			;port E
-LED_B_PIN		EQU	PE1 			;PE1
-							
 ;#SCI							
-SCI_V5			EQU	1   			;V5
-SCI_BAUD_9600		EQU	1 			;fixed baud rate
-SCI_BAUD_DETECT_ON	EQU	1			;enable baud rate detection
-SCI_IC_TIM		EQU	TIM 			;ECT
-SCI_IC			EQU	0 			;IC0
-SCI_OC_TIM		EQU	TIM 			;ECT
-SCI_OC			EQU	1 			;OC1
-SCI_RTSCTS		EQU	1			;RTS/CTS flow control
-SCI_RTS_PORT		EQU	PTM 			;PTM
-SCI_RTS_PIN		EQU	PM0			;PM0
-SCI_CTS_PORT		EQU	PTM 			;PTM
-SCI_CTS_DDR		EQU	DDRM 			;DDRM
-SCI_CTS_PPS		EQU	PPSM 			;PPSM
-SCI_CTS_PIN		EQU	PM1			;PM1
+SCI_V5				EQU	1   		;V5
+SCI_BAUD_9600			EQU	1 		;fixed baud rate
+SCI_BAUD_DETECT_ON		EQU	1		;enable baud rate detection
+SCI_IC_TIM			EQU	TIM 		;ECT
+SCI_IC				EQU	0 		;IC0
+SCI_OC_TIM			EQU	TIM 		;ECT
+SCI_OC				EQU	1 		;OC1
+SCI_RTSCTS			EQU	1		;RTS/CTS flow control
+SCI_RTS_PORT			EQU	PTM 		;PTM
+SCI_RTS_PIN			EQU	PM0		;PM0
+SCI_CTS_PORT			EQU	PTM 		;PTM
+SCI_CTS_DDR			EQU	DDRM 		;DDRM
+SCI_CTS_PPS			EQU	PPSM 		;PPSM
+SCI_CTS_PIN			EQU	PM1		;PM1
 #ifndef	SCI_CTS_WEAK_DRIVE				
 #ifndef	SCI_CTS_STRONG_DRIVE				
-SCI_CTS_STRONG_DRIVE	EQU	1			;weak drive
+SCI_CTS_STRONG_DRIVE		EQU	1		;weak drive
 #endif
 #endif
 #macro SCI_BDSIG_START, 0
 #emac
 #macro SCI_BDSIG_STOP, 0
-			LED_CLR	B, LED_SEQ_L0NG_PULSE	;stop single gap on red LED
+				LED_CLR	B, LED_SEQ_L0NG_PULSE	;stop single gap on red LED
 #emac
 #macro SCI_ERRSIG_START, 0
-			LED_SET	B, LED_SEQ_FAST_BLINK	;start fast blink on red LED
+				LED_SET	B, LED_SEQ_FAST_BLINK	;start fast blink on red LED
 #emac
 #macro SCI_ERRSIG_STOP, 0
-			LED_CLR	B, LED_SEQ_FAST_BLINK	;stop fast blink on red LED
+				LED_CLR	B, LED_SEQ_FAST_BLINK	;stop fast blink on red LED
 #emac
+	
+;#DELAY
+DELAY_TIM			EQU	TIM 		;TIM
+DELAY_OC			EQU	2		;OC2
+
+;#LED
+; LED A: PE0 blinking     -> busy  (green)
+; LED B: PE1 blinking     -> error (red)
+; Timer usage 
+LED_TIM				EQU	TIM 		;TIM
+LED_OC				EQU	3 		;OC3
+; LED A							
+LED_A_BLINK_ON			EQU	1 		;no blink patterns
+LED_A_PORT			EQU	PORTE 		;port E
+LED_A_PIN			EQU	PE0 		;PE0
+; LED B							
+LED_B_BLINK_ON			EQU	1 		;no blink patterns
+LED_B_PORT			EQU	PORTE 		;port E
+LED_B_PIN			EQU	PE1 		;PE1
+
+;#KEYS
+KEYS_TIM			EQU	TIM 		;TIM
+KEYS_OC				EQU	4		;OC4
+	
+;#BACKLIGHT
+BACKLIGHT_TIM			EQU	TIM 		;TIM
+BACKLIGHT_OC			EQU	5		;OC5
+	
 
 ;###############################################################################
 ;# Variables                                                                   #

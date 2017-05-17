@@ -40,9 +40,11 @@
 ;#	- Updated during S12CBASE overhaul				       #
 ;#    October 27, 2015							       #
 ;#	- Cleanup							       #
+;#    May 16, 2017							       #
+;#	- Cleanup							       #
 ;###############################################################################
-;  Flash Memory Map:
-;  -----------------
+;  Memory Map:
+;  -----------
 ;		       S12G
 ;		 +-------------+ $0000
 ;		 |  Registers  |
@@ -69,24 +71,6 @@
 ;	       | |	       |
 ;	       + +-------------+ $10000
 ;
-;  RAM Memory Map:
-;  ---------------
-;		       S12G
-;		 +-------------+ $0000
-;		 |  Registers  |
-;		 +-------------+ $0400
-;		 |/////////////|
-;	  RAM->+ +-------------+ $4000-RAM_SIZE
-;	       | |  Variables  |
-;	       | +-------------+
-;	       | |    Code     |
-;	       | +-------------+
-;	       | |   Tables    |
-;	       | +-------------+
-;	       | |/////////////|
-;	       | +-------------+ $3F80
-;	       | |   Vectors   |
-;	       + +-------------+ $4000
 
 ;###############################################################################
 ;# Configuration							       #
@@ -96,28 +80,26 @@
 #ifndef MMAP_S12G64
 #ifndef MMAP_S12G128
 #ifndef MMAP_S12G240
-MMAP_S12G128		EQU	1	;default is S12G128
+MMAP_S12G240		EQU	1	;default is S12G240
 #endif
 #endif
 #endif
 #endif
 
-;RAM or flash
-#ifndef MMAP_RAM
-#ifndef MMAP_FLASH
-MMAP_FLASH		EQU	1	;default is flash
+;Security
+#ifndef MMAP_UNSEC_ON
+#ifndef MMAP_UNSEC_OFF
+MMAP_UNSEC_ON		EQU	1	;default is setting the security word
 #endif
 #endif
 
 ;###############################################################################
 ;# Security and Protection						       #
 ;###############################################################################
-#ifdef	MMAP_FLASH
+#ifdef	MMAP_UNSEC_ON
 			;Align to D-Bug12XZ programming granularity
-			ORG	$FF0C, $03FF0C	;unprotect
-			FILL	$FF, 4
-			;ORG	$FF08, $03FF08	;unprotect
-			;FILL	$FF, 8
+			ORG	$FF08, $03FF08	;unprotect
+			FILL	$FF, 8
 
 			;Unsecure
 			ORG	$FF0F, $03FF0F	;unsecure
@@ -191,18 +173,6 @@ MMAP_FLASH_F_START	EQU	$C000
 MMAP_FLASH_F_END	EQU	$10000
 MMAP_FLASH_F_START_LIN	EQU	$3_C000
 MMAP_FLASH_F_END_LIN	EQU	$4_0000
-#endif
-
-;# Vector table
-#ifndef VECTAB_START
-#ifdef	MMAP_RAM
-VECTAB_START		EQU	$3F80
-VECTAB_START_LIN	EQU	$03F80
-#endif
-#ifdef	MMAP_FLASH
-VECTAB_START		EQU	$FF80
-VECTAB_START_LIN	EQU	$3FF80
-#endif
 #endif
 
 ;###############################################################################
