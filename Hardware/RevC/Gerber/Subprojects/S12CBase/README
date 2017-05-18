@@ -1,0 +1,55 @@
+S12CBase
+======== 
+S12CBase is a general purpose application library for Freescale's S12(X) 
+microcontroller families, writen in assembly language. 
+This library has initially been written for the OpenBDC project 
+(https://github.com/hotwolf/OpenBDC) using a MC9S12C128 MCU. The following 
+hardware ports have been added since:
+
+	   - Mini-BDM-Pod      (https://github.com/hotwolf/Mini-BDM-Pod)
+	   - LFBDMPGMR         (S08/S12 programmer by Freescale)
+           - S12G-Micro-EVB    (https://github.com/hotwolf/S12G-Micro-EVB)
+	   - S12DP256-Mini-EVB (plain MC9HCS12DP256 evaluation board)
+           - AriCalculator     (https://github.com/hotwolf/AriCalculator)
+           - SIMCH12           (free HC12 simulator)
+
+Directories:
+============
+|
++-Demos				;demos and tests for all ports 
+| +-Mini-BDM-Pod     		;Mini-BDM-Pod and LFBDMPGMR	 
+| +-OpenBDC	     		;original OpenBDC BDM pod	 
+| +-S12DG256-Mini-EVB   	;MC9HCS12DP256 EVB
+| +-S12G-Micro-EVB   		;S12G-Micro-EVB and AriCalculator
+| +-SIMHC12	     		;free HC12 simulator          
+|				
++-Source			;source code for all ports
+| +-All                 	;shared source files for all ports
+| +-Mini-BDM-Pod        	;Mini-BDM-Pod and LFBDMPGMR	 
+| +-OpenBDC			;original OpenBDC BDM pod	 
+| +-S12DG256-Mini-EVB   	;MC9HCS12DP256 EVB
+| +-S12G-Micro-EVB		;S12G-Micro-EVB and AriCalculator
+| +-SIMHC12			;free HC12 simulator          
+|				
++-Subprojects           	;projects, that S12CBase depends on
+| +-HSW12               	;copy of the HSW12 assembler
+|
++-Tools				;tool chain
+  +-HSW12          		;link to the copy of the HSW12 assembler
+  +-Test Builder                ;script to build test cases runnung from RAM
+  +-SCI Search Tree Generator	;search tree generator for the SCI baud
+  |	       	    		;rate detection
+  +-Update Subprojects          ;updates all subprojects
+
+S12CBase is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+S12CBase is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with S12CBase. If not, see <http://www.gnu.org/licenses/>.

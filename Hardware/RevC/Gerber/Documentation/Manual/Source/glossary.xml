@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<glossary xml:id="glossary" 
+	  xmlns="http://docbook.org/ns/docbook"
+	  xmlns:xi="http://www.w3.org/2001/XInclude" 
+	  version="5.0">
+
+  <glossentry xml:id="glos_word">
+    <glossterm>Word</glossterm>
+    <glossdef>
+      <para>
+
+      </para>
+    </glossdef>
+  </glossentry>
+
+  <glossentry xml:id="glos_xt">
+    <glossterm>Execution Token</glossterm>
+    <acronym>xt</acronym>
+    <glossdef>
+      <para>
+
+      </para>
+    </glossdef>
+  </glossentry>
+
+  <glossentry xml:id="glos_ps">
+    <glossterm>Parameter Stack</glossterm>
+    <acronym>PS</acronym>
+    <glossdef>
+      <para>
+
+      </para>
+    </glossdef>
+  </glossentry>
+
+  <glossentry xml:id="glos_rs">
+    <glossterm>Return Stack</glossterm>
+    <acronym>RS</acronym>
+    <glossdef>
+      <para>
+
+      </para>
+    </glossdef>
+  </glossentry>
+
+  <glossentry xml:id="glos_pad">
+    <glossterm>Scratch Pad</glossterm>
+    <acronym>PAD</acronym>
+    <glossdef>
+      <para>
+
+      </para>
+    </glossdef>
+  </glossentry>
+
+  <glossentry xml:id="glos_tib">
+    <glossterm>Terminal Input Buffer</glossterm>
+    <acronym>TIB</acronym>
+    <glossdef>
+      <para>
+
+      </para>
+    </glossdef>
+  </glossentry>
+
+  <glossentry xml:id="glos_executiontion_state">
+    <glossterm>Executiontion State</glossterm>
+    <glossdef>
+      <para>
+
+      </para>
+    </glossdef>
+  </glossentry>
+
+  <glossentry xml:id="glos_interpretation_state">
+    <glossterm>Interpretation State</glossterm>
+    <glossdef>
+      <para>
+
+      </para>
+    </glossdef>
+  </glossentry>
+
+</glossary>
+

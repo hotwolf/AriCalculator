@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<chapter xml:id="words" 
+	 xmlns="http://docbook.org/ns/docbook"
+	 xmlns:xi="http://www.w3.org/2001/XInclude" 
+	 version="5.0">
+
+  <title>Words</title>
+  <info>
+    <keywordset>
+      <keyword>words</keyword>
+    </keywordset>
+  </info> 
+
+  <xi:include href="word_abort.xml"/>
+
+  <xi:include href="word_abort_quote.xml"/>
+
+  <xi:include href="word_abs.xml"/>
+
+  <xi:include href="word_base.xml"/>
+
+  <xi:include href="word_case.xml"/>
+
+  <xi:include href="word_catch.xml"/>
+
+  <xi:include href="word_constant.xml"/>
+
+  <xi:include href="word_create.xml"/>
+
+  <xi:include href="word_error_quote.xml"/>
+
+  <xi:include href="word_fatal_quote.xml"/>
+
+  <xi:include href="word_throw.xml"/>
+
+  <xi:include href="word_variable.xml"/>
+
+  <xi:include href="word_words.xml"/>
+
+</chapter>

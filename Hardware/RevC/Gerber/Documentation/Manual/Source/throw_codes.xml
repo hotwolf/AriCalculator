@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<chapter xml:id="throw_codes" 
+	 xmlns="http://docbook.org/ns/docbook"
+	 xmlns:xi="http://www.w3.org/2001/XInclude" 
+	 version="5.0">
+
+  <title>Throw Codes</title>
+  <info>
+    <keywordset>
+      <keyword>throw codes</keyword>
+    </keywordset>
+  </info> 
+
+  <para>
+    <xref linkend="throw_codes_table"/> lists all predefined throw codes.
+  </para> 
+
+  <table xml:id="throw_codes_table">
+    <title>Predefined Throw Codes</title>
+    <tgroup cols="5" colsep="0" rowsep="1">
+      <colspec colname="code" align="right"/>
+      <colspec colname="severity" align="left"/>
+      <colspec colname="message" align="left"/>
+      <colspec colname="cause" align="left"/>
+      <colspec colname="standard" align="left"/>
+      <thead valign="middle">
+	<row>
+	  <entry>Code</entry>
+	  <entry>Severity</entry>
+	  <entry>Message</entry>
+	  <entry>Typical Cause</entry>
+	  <entry>Standard</entry>
+	</row>
+      </thead>
+      <tbody valign="middle">
+	<row xml:id="exception_abort">
+	  <entry xml:id="exception_abort_code"><literal>-1</literal></entry>
+	  <entry xml:id="exception_abort_severity">Error!</entry>
+	  <entry xml:id="exception_abort_message"><wordasword>none</wordasword></entry>
+	  <entry>Execution of <link linkend="word_abort"><command>ABORT</command></link></entry>
+	  <entry morerows="5" rotate="1">ANSForth <citation>dpans94</citation></entry>
+	</row>
+	<row xml:id="exception_abort_quote">
+	  <entry xml:id="exception_abort_quote_code"><literal>-2</literal></entry>
+	  <entry xml:id="exception_abort_quote_severity">Error!</entry>
+	  <entry xml:id="exception_abort_quote_message"><wordasword>user defined</wordasword></entry>
+	  <entry>Execution of <link linkend="word_abort_quote"><command>ABORT&quot;</command></link></entry>
+	</row>
+	<row xml:id="exception_psof">
+	  <entry xml:id="exception_psof_code"><literal>-3</literal></entry>
+	  <entry xml:id="exception_psof_severity">Error!</entry>
+	  <entry xml:id="exception_psof_message">Parameter stack overflow</entry>
+	  <entry>Execution of the current word requires more stack space than available.</entry>
+	</row>
+	<row xml:id="exception_psuf">
+	  <entry xml:id="exception_psuf_code"><literal>-4</literal></entry>
+	  <entry xml:id="exception_psuf_severity">Error!</entry>
+	  <entry xml:id="exception_psuf_message">Parameter stack underflow</entry>
+	  <entry>Current words requires more stacked arguments than available</entry>
+	</row>
+	<row xml:id="exception_rsof">
+	  <entry xml:id="exception_rsof_code"><literal>-5</literal></entry>
+	  <entry xml:id="exception_rsof_severity">Error!</entry>
+	  <entry xml:id="exception_rsof_message">Return stack overflow</entry>
+	  <entry>Nesting level of executed words is too deep</entry>
+	</row>
+	<row xml:id="exception_rsuf">
+	  <entry xml:id="exception_rsuf_code"><literal>-6</literal></entry>
+	  <entry xml:id="exception_rsuf_severity">Error!</entry>
+	  <entry xml:id="exception_rsuf_message">Return stack underflow</entry>
+	  <entry>Uncareful return stack manipulations</entry>
+	</row>
+	<row>
+	  <entry><literal>-7</literal></entry>
+	  <entry namest="severity" nameend="cause" align="center">Unused</entry>
+	</row>
+	<row xml:id="exception_dictof">
+	  <entry xml:id="exception_dictof_code"><literal>-8</literal></entry>
+	  <entry xml:id="exception_dictof_severity">Error!</entry>
+	  <entry xml:id="exception_dictof_message">Dictionary overflow</entry>
+	  <entry>Current compilation requires more memory than available </entry>
+	</row>
+	<row>
+	  <entry><literal>-9</literal></entry>
+	  <entry namest="severity" nameend="cause" align="center">Unused</entry>
+	</row>
+	<row xml:id="exception_0div">
+	  <entry xml:id="exception_0div_code"><literal>-10</literal></entry>
+	  <entry xml:id="exception_0div_severity">Error!</entry>
+	  <entry xml:id="exception_0div_message">Division by zero</entry>
+	  <entry>The current arithmetic operation attempts to divide a number by zero</entry>
+	</row>
+	<row xml:id="exception_resor">
+	  <entry xml:id="exception_resor_code"><literal>-11</literal></entry>
+	  <entry xml:id="exception_resor_severity">Error!</entry>
+	  <entry xml:id="exception_resor_message">Result out of range</entry>
+	  <entry>The result of the current arithmetic operation exeeds the specified numeric range</entry>
+	</row>
+	<row>
+	  <entry><literal>-12</literal></entry>
+	  <entry namest="severity" nameend="cause" align="center">Unused</entry>
+	</row>
+	<row xml:id="exception_udefword">
+	  <entry xml:id="exception_udefword_code"><literal>-13</literal></entry>
+	  <entry xml:id="exception_udefword_severity">Error!</entry>
+	  <entry xml:id="exception_udefword_message">Undefined word</entry>
+	  <entry>The name that has been given as argument is not listed in the dictionary 
+	  (see <link linkend="word_words"><command>WORDS</command></link>)</entry>
+	</row>
+	<row>
+	  <entry><literal>-13</literal></entry>
+	  <entry namest="severity" nameend="cause" align="center">Unused</entry>
+	</row>
+	<row xml:id="exception_componly">
+	  <entry xml:id="exception_componly_code"><literal>-14</literal></entry>
+	  <entry xml:id="exception_componly_severity">Error!</entry>
+	  <entry xml:id="exception_componly_message">Compile-only word</entry>
+	  <entry>Attempt to execute a word without interpretation semantics in interpretation state</entry>
+	</row>
+	<row>
+	  <entry><literal>-15</literal></entry>
+	  <entry namest="severity" nameend="cause" align="center">Unused</entry>
+	</row>
+	<row xml:id="exception_noname">
+	  <entry xml:id="exception_noname_code"><literal>-16</literal></entry>
+	  <entry xml:id="exception_noname_severity">Error!</entry>
+	  <entry xml:id="exception_noname_message">Missing name argument</entry>
+	  <entry>Required name argument is missing</entry>
+	</row>
+	<row xml:id="exception_padof">
+	  <entry xml:id="exception_padof_code"><literal>-17</literal></entry>
+	  <entry xml:id="exception_padof_severity">Error!</entry>
+	  <entry xml:id="exception_padof_message">PAD overflow</entry>
+	  <entry>Pictured numeric output requires more memory than available</entry>
+	</row>
+	<row xml:id="exception_strof">
+	  <entry xml:id="exception_strof_code"><literal>-18</literal></entry>
+	  <entry xml:id="exception_strof_severity">Error!</entry>
+	  <entry xml:id="exception_strof_message">String too long</entry>
+	  <entry>The parsed string exceeds the allowd character count</entry>
+	</row>
+	<row>
+	  <entry><literal>-19 to -21</literal></entry>
+	  <entry namest="severity" nameend="cause" align="center">Unused</entry>
+	</row>
+	<row xml:id="exception_ctrlstruc">
+	  <entry xml:id="exception_ctrlstruc_code"><literal>-22</literal></entry>
+	  <entry xml:id="exception_ctrlstruc_severity">Error!</entry>
+	  <entry xml:id="exception_ctrlstruc_message">Control structure mismatch</entry>
+	  <entry>The control structures in the current compilation do not match</entry>
+	</row>
+	<row>
+	  <entry><literal>-23 to -28</literal></entry>
+	  <entry namest="severity" nameend="cause" align="center">Unused</entry>
+	</row>
+	<row xml:id="exception_compnest">
+	  <entry xml:id="exception_compnest_code"><literal>-29</literal></entry>
+	  <entry xml:id="exception_compnest_severity">Error!</entry>
+	  <entry xml:id="exception_compnest_message">Nested compilation</entry>
+	  <entry>Attemt to start a definition within another one</entry>
+	</row>
+	<row>
+	  <entry><literal>-30</literal></entry>
+	  <entry namest="severity" nameend="cause" align="center">Unused</entry>
+	</row>
+	<row xml:id="exception_noncreate">
+	  <entry xml:id="exception_noncreate_code"><literal>-31</literal></entry>
+	  <entry xml:id="exception_noncreate_severity">Error!</entry>
+	  <entry xml:id="exception_noncreate_message">Illegal operation on non-CREATEd definition</entry>
+	  <entry>Illegal operation on a word, that has not been defined through 
+	  <link linkend="word_variable"><command>VARIABLE</command></link>, 
+	  <link linkend="word_constant"><command>CONSTANT</command></link>, or
+	  <link linkend="word_create"><command>CREATE</command></link></entry>
+	</row>
+	<row>
+	  <entry><literal>-32 to -39</literal></entry>
+	  <entry namest="severity" nameend="cause" align="center">Unused</entry>
+	</row>
+	<row xml:id="exception_invalbase">
+	  <entry xml:id="exception_invalbase_code"><literal>-40</literal></entry>
+	  <entry xml:id="exception_invalbase_severity">Error!</entry>
+	  <entry xml:id="exception_invalbase_message">Invalid BASE</entry>
+	  <entry>Illegal radix value stored in <link linkend="word_base"><varname>BASE</varname></link> 
+	  (valid radix values 1&lt;<link linkend="word_base"><varname>BASE</varname></link>&gt;27)</entry>
+	</row>
+	<row>
+	  <entry><literal>-41 to -52</literal></entry>
+	  <entry namest="severity" nameend="cause" align="center">Unused</entry>
+	</row>
+	<row xml:id="exception_cesf">
+	  <entry xml:id="exception_cesf_code"><literal>-53</literal></entry>
+	  <entry xml:id="exception_cesf_severity">Error!</entry>
+	  <entry xml:id="exception_cesf_message">Corrupt exception stack frame</entry>
+	  <entry>Uncareful return stack manipulations. This exception is not catchable if the the 
+	  exception stack is truely corrupted. It is catchable if it was thrown manually be executing
+	  <link linkend="word_throw"><command>THROW</command></link>.</entry>
+	</row>
+	<row>
+	  <entry><literal>-55 to -58</literal></entry>
+	  <entry namest="severity" nameend="cause" align="center">Unused</entry>
+	</row>
+	<row xml:id="exception_nomsg">
+	  <entry xml:id="exception_nomsg_code"><literal>-59</literal></entry>
+	  <entry xml:id="exception_nomsg_severity">Error!</entry>
+	  <entry xml:id="exception_nomsg_message">Empty message string</entry>
+	  <entry>No error message was given when compiling 
+	  <link linkend="word_abort_quote"><command>ABORT&quot;</command></link>, 
+	  <link linkend="word_error_quote"><command>ERROR&quot;</command></link>, or
+	  <link linkend="word_abort_quote"><command>FATAL&quot;</command></link>.</entry>
+	  <entry morerows="2" rotate="1"><emphasis><xi:include href="project_name.txt" parse="text"/></emphasis></entry>
+	</row>
+	<row xml:id="exception_dictprot">
+	  <entry xml:id="exception_dictprot_code"><literal>-60</literal></entry>
+	  <entry xml:id="exception_dictprot_severity">Error!</entry>
+	  <entry xml:id="exception_dictprot_message">Destruction of dictionary structure</entry>
+	  <entry>An operation was detected that would break the dictionary structure</entry>
+	</row>
+      </tbody>
+    </tgroup>
+  </table>
+</chapter>
