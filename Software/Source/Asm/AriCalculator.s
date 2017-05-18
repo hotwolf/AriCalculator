@@ -391,8 +391,8 @@ TABS_END_LIN		EQU	@
 ;# Includes                                                                    #
 ;###############################################################################
 ;# S12CBase
-#include ../../../../S12CBase/Source/AriCalculator/base_AriCalculator.s
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/base_AriCalculator.s
+;#include ../../../../S12CBase/Source/AriCalculator/base_AriCalculator.s
+#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/base_AriCalculator.s
 	
 ;# S12CForth
 	
