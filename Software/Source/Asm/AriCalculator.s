@@ -17,7 +17,6 @@
 ;#    You should have received a copy of the GNU General Public License        #
 ;#    along with AriCalculator.  If not, see <http://www.gnu.org/licenses/>.   #
 ;###############################################################################
-;###############################################################################
 ;# Description:                                                                #
 ;#    This is the top level file if the AriCalculator firmware. This file      #
 ;#    supports compilation to flash memory and to RAM ("load ram and execute"  #
@@ -236,8 +235,18 @@ MMAP_UNSEC_OFF		EQU	1 	;don't set the security byte for LRE compiles
 MMAP_UNSEC_OFF		EQU	1 	;don't set the security byte if a bootloader is used
 #endif
 
+;SSTACK: 
+SSTACK_TOP		EQU	TIB_RS_START ;stack range
+SSTACK_BOTTOM		EQU	TIB_RS_END   ;stack range
+
+;ISTACK 
+#ifdef LRE_COMPILE
+ISTACK_NO_WAI		EQU	1 	;don't enter wait mode when debugging
+#endif
+	
 ;TIM:
 TIM_TIOS_INIT		EQU	BASE_TIOS_INIT|FORTH_TIOS_INIT
+TIM_TTOV_INIT		EQU	BASE_TTOV_INIT
 TIM_TCTL12_INIT		EQU	BASE_TCTL12_INIT
 TIM_TCTL34_INIT		EQU	BASE_TCTL34_INIT
 
