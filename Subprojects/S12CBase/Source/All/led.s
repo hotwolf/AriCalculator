@@ -59,7 +59,7 @@
 ;TIM configuration
 ;----------------- 
 ;TIM instance
-#ifndef	SCI_OC_TIM
+#ifndef	LED_OC_TIM
 LED_TIM			EQU	TIOS 		;default is the TIM instance associated with TIOS
 #endif
 ;Output compare channel

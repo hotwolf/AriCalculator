@@ -41,12 +41,18 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;Point all unused ISRs to separate BGND instructions
-;VECTAB_DEBUG		EQU	1 
+#ifndef	VECTAB_DEBUG_ON
+#ifndef	VECTAB_DEBUG_OFF
+VECTAB_DEBUG_OFF	EQU	1 		;default is off
+#endif
+#endif
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-
+;Size of the vector table
+VECTAB_SIZE		EQU	128
+	
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -65,12 +71,10 @@ VECTAB_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	VECTAB_INIT, 0
-#ifdef	MMAP_RAM
 			;Set vector base address
 			MOVB	#(VECTAB_START>>8), IVBR
-#endif
 #emac	
-
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -96,7 +100,7 @@ VECTAB_TABS_START_LIN	EQU	@
 
 ;#Interrupt service routines
 ;#--------------------------
-#ifdef VECTAB_DEBUG
+#ifdef VECTAB_DEBUG_ON
 ISR_SPURIOUS		BGND				;vector base + $80
 #ifdef KEYS_ISR_KWU					;vector base + $82
 ISR_PAD			EQU	KEYS_ISR_KWU
@@ -273,27 +277,27 @@ ISR_TIM_TC5		EQU	RESET_ISR_FATAL		;vector base + $E4
 #ifdef 	KEYS_ISR_TIM					;vector base + $E6
 ISR_TIM_TC4		EQU	KEYS_ISR_TIM		;vector base + $E6
 #else
-ISR_TIM_TC4		RESET_ISR_FATAL
+ISR_TIM_TC4		EQU	RESET_ISR_FATAL
 #endif
 #ifdef LED_ISR						;vector base + $E8
 ISR_TIM_TC3		EQU	LED_ISR
 #else
-ISR_TIM_TC3		RESET_ISR_FATAL
+ISR_TIM_TC3		EQU	RESET_ISR_FATAL
 #endif
 #ifdef DELAY_ISR					;vector base + $EA
 ISR_TIM_TC2		EQU	DELAY_ISR
 #else
-ISR_TIM_TC2		RESET_ISR_FATAL
+ISR_TIM_TC2		EQU	RESET_ISR_FATAL
 #endif
 #ifdef SCI_ISR_OC					;vector base + $EC
 ISR_TIM_TC1		EQU	SCI_ISR_OC
 #else
-ISR_TIM_TC1		RESET_ISR_FATAL
+ISR_TIM_TC1		EQU	RESET_ISR_FATAL
 #endif
 #ifdef SCI_ISR_IC					;vector base + $EE
 ISR_TIM_TC0		EQU	SCI_ISR_IC
 #else
-ISR_TIM_TC0		RESET_ISR_FATAL
+ISR_TIM_TC0		EQU	RESET_ISR_FATAL
 #endif
 ISR_RTI			EQU	RESET_ISR_FATAL		;vector base + $F0
 ISR_IRQ			EQU	RESET_ISR_FATAL		;vector base + $F2
@@ -312,7 +316,9 @@ VECTAB_TABS_END_LIN	EQU	@
 			ORG 	VECTAB_START, VECTAB_START_LIN
 #else
 			ORG 	VECTAB_START
+VECTAB_START_LIN	EQU	@				
 #endif	
+
 VEC_SPURIOUS		DW	ISR_SPURIOUS		;vector base + $80
 VEC_PAD			DW	ISR_PAD			;vector base + $82
 VEC_ADCCOMP		DW	ISR_ADCCOMP		;vector base + $84
@@ -377,4 +383,8 @@ VEC_TRAP		DW	ISR_TRAP		;vector base + $F8
 VEC_RESET_COP		DW	RESET_COP_ENTRY		;vector base + $FA
 VEC_RESET_CM		DW	RESET_CM_ENTRY		;vector base + $FC
 VEC_RESET_EXT		DW	RESET_EXT_ENTRY		;vector base + $FE
+
+VECTAB_END		EQU	*	
+VECTAB_END_LIN		EQU	@	
+
 #endif

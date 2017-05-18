@@ -36,17 +36,34 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
+;TIM configuration
+;----------------- 
+;TIM instance
+#ifndef	BACKLIGHT_TIM
+BACKLIGHT_TIM		EQU	TIM 		;default is the TIM
+#endif
+;Output compare channel
+#ifndef	BACKLIGHT_OC
+BACKLIGHT_OC		EQU	5 		;default is OC5
+#endif
 
+;Port configuration
+;------------------ 
+#ifndef	BACKLIGHT_PORT
+BACKLIGHT_PORT		EQU	PTT
+#endif
+#ifndef	BACKLIGHT_PIN
+BACKLIGHT_PIN		EQU	PT5
+#endif
+	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;#Ports
-BACKLIGHT_PORT		EQU	PTT
-BACKLIGHT_DDR		EQU	DDRT
-BACKLIGHT_PIN		EQU	PT5
-
-;#Timer channels
-BACKLIGHT_OC		EQU	5		;OC5
+;TIM configuration
+;----------------- 
+BACKLIGHT_TIOS_INIT	EQU	1<<BACKLIGHT_OC
+BACKLIGHT_TTOV_INIT	EQU	1<<BACKLIGHT_OC
+BACKLIGHT_TCTL12_INIT	EQU	2<<(2*BACKLIGHT_OC)
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -69,18 +86,12 @@ BACKLIGHT_VARS_END_LIN	EQU	@
 			;Initialize GPIO
 			;BCLR	BACKLIGHT_PORT, #BACKLIGHT_PIN
 			;BSET	BACKLIGHT_DDR,  #BACKLIGHT_PIN
-			;Initialize timer
-			BSET	TIOS,  #(1<<BACKLIGHT_OC) 	;configure OC
-			BSET	TTOV,  #(1<<BACKLIGHT_OC) 	;toggle on overflow
-			;BCLR	TCTL1, #(1<<(2*(BACKLIGHT_OC-4)))
-			BSET	TCTL1, #(1<<(2*(BACKLIGHT_OC-4))+1)
-			;BCLR	TIE,   #(1<<BACKLIGHT_OC) 	;disable interrupts
-			;MOVW	#$0000, (TC0+(2*BACKLIGHT_OC))	;set brightness
-			;BSET	OCPD,  #(1<<BACKLIGHT_OC) 	;disable port output
+			;Initialize TIM
+			MOVW	#$0000, (TC0+(2*BACKLIGHT_OC))	;clear brightness
 #emac
 	
 ;#Set backlight brightness
-; args:   D: brightness
+; args:   B: brightness
 ; result: none
 ; SSTACK: 4 bytes
 ;         X, Y, and D are preserved 
@@ -111,7 +122,15 @@ BACKLIGHT_SET			EQU	*
 				SUBD	#1 			;restore brightness value
 				STD	(TC0+(2*BACKLIGHT_OC))	;set brightness
 				BCLR	OCPD, #(1<<BACKLIGHT_OC);enable port output
-				MOVB	#(TEN|TSFRZ), TSCR1	;enable timer
+					;Initialize timer
+			BSET	TIOS,  #(1<<BACKLIGHT_OC) 	;configure OC
+			BSET	TTOV,  #(1<<BACKLIGHT_OC) 	;toggle on overflow
+			;BCLR	TCTL1, #(1<<(2*(BACKLIGHT_OC-4)))
+			BSET	TCTL1, #(1<<(2*(BACKLIGHT_OC-4))+1)
+			;BCLR	TIE,   #(1<<BACKLIGHT_OC) 	;disable interrupts
+			;MOVW	#$0000, (TC0+(2*BACKLIGHT_OC))	;set brightness
+			;BSET	OCPD,  #(1<<BACKLIGHT_OC) 	;disable port output
+		MOVB	#(TEN|TSFRZ), TSCR1	;enable timer
 				;Done (brightness in D) 
 BACKLIGHT_SET_1			SSTACK_PREPULL	2
 				RTS
@@ -136,12 +155,29 @@ BACKLIGHT_CODE_END_LIN	EQU	@
 ;# Tables                                                                      #
 ;###############################################################################
 #ifdef BACKLIGHT_TABS_START_LIN
-			ORG 	BACKLIGHT_TABS_START, BACKLIGHT_TABS_START_LIN
+				ORG 	BACKLIGHT_TABS_START, BACKLIGHT_TABS_START_LIN
 #else
-			ORG 	BACKLIGHT_TABS_START
+				ORG 	BACKLIGHT_TABS_START
 BACKLIGHT_TABS_START_LIN	EQU	@			
 #endif	
 
+BACKLIGHT_GAMMA_TAB		DW	$0000			;brightness level  0 (dark)
+				DW	$0000			;brightness level  1
+				DW	$0000			;brightness level  2
+				DW	$0000			;brightness level  3
+				DW	$0000			;brightness level  4
+				DW	$0000			;brightness level  5
+				DW	$0000			;brightness level  6
+				DW	$0000			;brightness level  7
+				DW	$0000			;brightness level  8
+				DW	$0000			;brightness level  9
+				DW	$0000			;brightness level 10
+				DW	$0000			;brightness level 11
+				DW	$0000			;brightness level 12
+				DW	$0000			;brightness level 13
+				DW	$0000			;brightness level 14
+				DW	$FFFF			;brightness level 15 (light)
+	
 BACKLIGHT_TABS_END		EQU	*	
 BACKLIGHT_TABS_END_LIN	EQU	@	
 #endif	
