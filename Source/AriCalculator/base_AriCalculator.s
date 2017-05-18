@@ -44,7 +44,7 @@ CLOCK_BUS_FREQ			EQU	25000000	;25 MHz bus frequency
 CLOCK_REF_FREQ			EQU	 1000000	; 1 MHz reference clock frequency
 CLOCK_VCOFRQ			EQU	$1		;10 MHz VCO frequency
 CLOCK_REFFRQ			EQU	$0		; 1 MHz reference clock frequency
-
+	
 ;#TIM				
 ; IC0 - SCI (baud rate detection)			;SCI driver
 ; OC1 - SCI (general purpose)				;SCI driver
@@ -55,10 +55,14 @@ CLOCK_REFFRQ			EQU	$0		; 1 MHz reference clock frequency
 ; OC6 - free
 ; OC7 - free
 BASE_TIOS_INIT			EQU	SCI_OC_TIOS_INIT|DELAY_TIOS_INIT|LED_TIOS_INIT|KEYS_TIOS_INIT|BACKLIGHT_TIOS_INIT
+BASE_TTOV_INIT			EQU	BACKLIGHT_TTOV_INIT	
 BASE_TCTL12_INIT		EQU	BACKLIGHT_TCTL12_INIT	
 BASE_TCTL34_INIT		EQU	SCI_IC_TCTL34_INIT
 #ifndef	TIM_TIOS_INIT
 TIM_TIOS_INIT			EQU	BASE_TIOS_INIT	
+#endif
+#ifndef	TIM_TTOV_INIT
+TIM_TTOV_INIT			EQU	BASE_TTOV_INIT	
 #endif
 #ifndef	TIM_TCTL12_INIT
 TIM_TCTL12_INIT			EQU	BASE_TCTL12_INIT	
@@ -68,6 +72,29 @@ TIM_TCTL34_INIT			EQU	BASE_TCTL34_INIT
 #endif
 TIM_OCPD_CHECK_ON		EQU	1 		;enable OCPD checks (required for PWM outputs)
 
+;#LED
+; LED A: PE0 blinking     -> busy  (green)
+; LED B: PE1 blinking     -> error (red)
+; Timer usage 
+LED_TIM				EQU	TIM 		;TIM
+LED_OC				EQU	3 		;OC3
+; LED A							
+LED_A_BLINK_ON			EQU	1 		;no blink patterns
+LED_A_PORT			EQU	PORTE 		;port E
+LED_A_PIN			EQU	PE0 		;PE0
+; LED B							
+LED_B_BLINK_ON			EQU	1 		;no blink patterns
+LED_B_PORT			EQU	PORTE 		;port E
+LED_B_PIN			EQU	PE1 		;PE1
+
+;#BACKLIGHT
+
+;#DELAY
+DELAY_TIM			EQU	TIM 		;TIM
+DELAY_OC			EQU	2		;OC2
+
+;#KEYS
+	
 ;#SCI							
 SCI_V5				EQU	1   		;V5
 SCI_BAUD_9600			EQU	1 		;fixed baud rate
@@ -100,32 +127,12 @@ SCI_CTS_STRONG_DRIVE		EQU	1		;weak drive
 				LED_CLR	B, LED_SEQ_FAST_BLINK	;stop fast blink on red LED
 #emac
 	
-;#DELAY
-DELAY_TIM			EQU	TIM 		;TIM
-DELAY_OC			EQU	2		;OC2
+;DISP							
 
-;#LED
-; LED A: PE0 blinking     -> busy  (green)
-; LED B: PE1 blinking     -> error (red)
-; Timer usage 
-LED_TIM				EQU	TIM 		;TIM
-LED_OC				EQU	3 		;OC3
-; LED A							
-LED_A_BLINK_ON			EQU	1 		;no blink patterns
-LED_A_PORT			EQU	PORTE 		;port E
-LED_A_PIN			EQU	PE0 		;PE0
-; LED B							
-LED_B_BLINK_ON			EQU	1 		;no blink patterns
-LED_B_PORT			EQU	PORTE 		;port E
-LED_B_PIN			EQU	PE1 		;PE1
+;VMON							
 
-;#KEYS
-KEYS_TIM			EQU	TIM 		;TIM
-KEYS_OC				EQU	4		;OC4
+
 	
-;#BACKLIGHT
-BACKLIGHT_TIM			EQU	TIM 		;TIM
-BACKLIGHT_OC			EQU	5		;OC5
 	
 
 ;###############################################################################
@@ -561,26 +568,41 @@ BASE_TABS_END_LIN		EQU	@
 #include ./regdef_AriCalculator.s		;S12G register map
 #include ./gpio_AriCalculator.s			;I/O setup
 #include ./mmap_AriCalculator.s			;Memory map
+#include ../All/clock.s				;CRG setup
 #include ../All/sstack.s			;Subroutine stack
 #include ../All/istack.s			;Interrupt stack
-#include ../All/clock.s				;CRG setup
 #include ../All/cop.s				;COP handler
 #include ../All/tim.s				;TIM driver
 #include ../All/led.s				;LED driver
-;#include ./vmon_AriCalculator.s		;Voltage monitor
-#include ../S12G-Micro-EVB/vmon_S12G-Micro-EVB.s;Voltage monitor
-#include ../All/random.s	   		;Pseudo-random number generator
+#include ./backlight_AriCalculator.s		;Backlight driver
+#include ../All/delay.s	  	 		;Delay driver
+#include ./keys_AriCalculator.s			;Keypad driver
 #include ../All/sci.s				;SCI driver
+#include ./disp_AriCalculator.s			;Display driver
+#include ./vmon_AriCalculator.s			;Voltage monitor
+
+
+
+
+
+
+
+
+
+
+
+	
+
+#include ./vectab_AriCalculator.s		;S12G vector table
+
+
+
+#include ../All/random.s	   		;Pseudo-random number generator
 #include ../All/string.s			;String printing routines	
 #include ../All/reset.s				;Reset driver
 #include ../All/num.s	   			;Number printing routines
 ;#include ./nvm_AriCalculator.s			;NVM driver
 #include ../S12G-Micro-EVB/nvm_S12G-Micro-EVB.s	;NVM driver
-#include ../All/delay.s	  	 		;Delay driver
 #include ./disp_welcome.s			;Welcome screen
 #include ./disp_error.s				;Error screen
-#include ./disp_AriCalculator.s			;Display driver
-#include ./keys_AriCalculator.s			;Keypad driver
-#include ./backlight_AriCalculator.s		;Backlight driver
-#include ./vectab_AriCalculator.s		;S12G vector table
 #endif
