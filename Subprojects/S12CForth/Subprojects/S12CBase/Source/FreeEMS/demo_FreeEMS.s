@@ -1,9 +1,8 @@
 ;###############################################################################
 ;# S12CBase - Demo (FreeEMS)                                                   #
 ;###############################################################################
-;#    Copyright 2010-2014 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12 MCU family.    #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -26,6 +25,8 @@
 ;#      - Initial release                                                      #
 ;#    January 30, 2015                                                         #
 ;#      - Updated during S12CBASE overhaul                                     #
+;#    September 27, 2016                                                       #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 
 ;###############################################################################
@@ -41,40 +42,50 @@ COP_DEBUG		EQU	1 		;disable COP
 ;# Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 		
-;# STRING
-STRING_FILL_ON		EQU	1 		;STRING_FILL_BL/STRING_FILL_NB enabled
+;#STRING
+STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
+STRING_ENABLE_FILL_BL	EQU	1 		;enable STRING_FILL_BL
+STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 	
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_START
+			ORG	MMAP_RAM_START, MMAP_RAM_START_LIN
 ;Code
 START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
-
-BASE_CODE_START		EQU	DEMO_CODE_END
-BASE_CODE_START_LIN	EQU	DEMO_CODE_END_LIN
+			ORG	DEMO_CODE_END, DEMO_CODE_END_LIN
+	
+BASE_CODE_START		EQU	*
+BASE_CODE_START_LIN	EQU	@
+			ORG	BASE_CODE_END, BASE_CODE_END_LIN
 
 ;Variables
-DEMO_VARS_START		EQU	BASE_CODE_END
-DEMO_VARS_START_LIN	EQU	BASE_CODE_END_LIN
+DEMO_VARS_START		EQU	*
+DEMO_VARS_START_LIN	EQU	@
+			ORG	DEMO_VARS_END, DEMO_VARS_END_LIN
 	
-BASE_VARS_START		EQU	DEMO_VARS_END
-BASE_VARS_START_LIN	EQU	DEMO_VARS_END_LIN
+BASE_VARS_START		EQU	*
+BASE_VARS_START_LIN	EQU	@
+			ORG	BASE_VARS_END, BASE_VARS_END_LIN
 
 ;Tables
-DEMO_TABS_START		EQU	BASE_VARS_END
-DEMO_TABS_START_LIN	EQU	BASE_VARS_END_LIN
-	
-BASE_TABS_START		EQU	DEMO_TABS_END
-BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
+DEMO_TABS_START		EQU	*
+DEMO_TABS_START_LIN	EQU	@
+			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
 
-;###############################################################################
-;# Includes                                                                    #
-;###############################################################################
-#include ./base_FreeEMS.s		;S12CBase bundle
-	
+BASE_TABS_START		EQU	*
+BASE_TABS_START_LIN	EQU	@
+			ORG	BASE_TABS_END, BASE_TABS_END_LIN
+
+;Stack 
+SSTACK_TOP		EQU	*
+SSTACK_TOP_LIN		EQU	@
+SSTACK_BOTTOM		EQU	VECTAB_START
+SSTACK_BOTTOM_LIN	EQU	VECTAB_START_LIN
+			ORG	MMAP_RAM_START
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -86,6 +97,23 @@ DEMO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Welcome message
+#macro	WELCOME_MESSAGE, 0
+			RESET_BR_ERR	DONE		;severe error detected 
+			LDX	#WELCOME_MESSAGE	;print welcome message
+			STRING_PRINT_BL
+DONE			EQU	*
+#emac
+
+;;Break handler
+;#macro	SCI_BREAK_ACTION, 0
+;			LED_SET	D, LED_SEQ_HEART_BEAT
+;#emac
+;	
+;;Suspend handler
+;#macro	SCI_SUSPEND_ACTION, 0
+;			LED_CLR	D, LED_SEQ_HEART_BEAT
+;#emac
 
 ;###############################################################################
 ;# Code                                                                        #
@@ -94,6 +122,7 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;Initialization
 			BASE_INIT
+			WELCOME_MESSAGE
 	
 ;;Setup trace buffer
 ;			;Configure DBG module
@@ -202,6 +231,12 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
+;#Welcome message
+#ifndef	WELCOME_MESSAGE
+WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
+			STRING_NL_TERM
+#endif
+	
 DEMO_HEADER		STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
@@ -211,3 +246,9 @@ DEMO_HEADER		STRING_NL_NONTERM
 
 DEMO_TABS_END		EQU	*	
 DEMO_TABS_END_LIN	EQU	@	
+
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+#include ./base_FreeEMS.s		;S12CBase bundle
+	

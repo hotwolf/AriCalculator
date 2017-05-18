@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - MMAP - Memory Map (SIMHC12)				       #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf				       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.								       #
+;#    Copyright 2010-2016 Dirk Heisswolf				       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#									       #
 ;#    S12CBase is free software: you can redistribute it and/or modify	       #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -37,19 +36,23 @@
 ;#	- Updated during S12CBASE overhaul				       #
 ;#    October 27, 2015							       #
 ;#	- Cleanup							       #
+;#    September 23, 2016                                                       #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 ;  Memory Map (64K RAM):
 ;  ---------------------
 ;	     +-------------+ $0000
 ;	     |	Registers  |
 ;	     +-------------+ $0200
-; pretend    |/////////////|
+;internal    |/////////////|
 ;     RAM->+ +-------------+ $0800
+;	   | |/////////////|
+;	   + +-------------+ $0C00
+;            |/////////////|
+;     RAM->+ +-------------+ $4000
 ;	   | |	Variables  |
 ;	   | +-------------+
-;	   | |/////////////|
-;	   + +-------------+ $4000
-; pretend    |/////////////|
+;	   | | Stack Space |
 ;   Flash->+ +-------------+ $8000
 ;	   | | Page Window |
 ;	   | +-------------+ $C000
@@ -71,7 +74,8 @@
 ;###############################################################################
 ;# Memory sizes
 MMAP_REG_SIZE		EQU	$0200		;512B
-MMAP_RAM_SIZE		EQU	$0800		; 2K
+MMAP_INTRAM_SIZE	EQU	$0400		;  1K
+MMAP_EXTRAM_SIZE	EQU	$4000		; 16K
 MMAP_FLASH_SIZE		EQU	$8000		; 32K
 
 ;# Memory Locations
@@ -80,10 +84,14 @@ MMAP_REG_START		EQU	$0000
 MMAP_REG_END		EQU	MMAP_REG_START+MMAP_REG_SIZE
 MMAP_INITRG_VAL		EQU	MMAP_REG_START>>8
 
-;RAM
-MMAP_RAM_START		EQU	$0800
-MMAP_RAM_END		EQU	MMAP_RAM_START+MMAP_RAM_SIZE
-MMAP_INITRM_VAL		EQU	(MMAP_RAM_START>>8)&$C0
+;Internal RAM
+MMAP_INTRAM_START	EQU	$0800
+MMAP_INTRAM_END		EQU	MMAP_INTRAM_START+MMAP_INTRAM_SIZE
+MMAP_INITRM_VAL		EQU	(MMAP_INTRAM_START>>8)&$C0
+
+;External RAM
+MMAP_EXTRAM_START	EQU	$4000
+MMAP_EXTRAM_END		EQU	$8000
 
 ;FLASH
 MMAP_FLASHWIN_START	EQU	$8000

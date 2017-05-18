@@ -207,18 +207,13 @@ if ($code->{problems}) {
     ######################
     $command_file_name = sprintf("%s.txt", $prog_name);
     if (open (FILEHANDLE, sprintf("+>%s", $command_file_name))) {
-	printf FILEHANDLE "reset\r\n";       # reset the target MCU
-	printf FILEHANDLE "nobr\r\n";        # remove all breakpoints
+	printf FILEHANDLE "reset         //reset target\r\n";                     #reset the target MCU
+	printf FILEHANDLE "nobr          //remove breakpoints\r\n";               #remove all breakpoints
 
-	if (defined $code->{comp_symbols}->{"MMAP_RAM_START_LIN"}) {
-	    $initial_rpage = $code->{comp_symbols}->{"MMAP_RAM_START_LIN"} >> 12;
-	    if ($initial_rpage < 0xfd) {
-		printf FILEHANDLE "mm 0013 0b\r\n";                  #configure large ram $0800-$8000
-		printf FILEHANDLE "mm 0016 %x\r\n", $initial_rpage;  #set RPAGE 
-	    }
-	}
+	printf FILEHANDLE "mm 0013 0b    //configure large ram (800-8000)\r\n";   #configure large ram $0800-$8000
+	printf FILEHANDLE "mm 0016 f9    //set default RPAGE\r\n";                #set RPAGE 
 
-	printf FILEHANDLE "load\r\n";      # load S-Record
+	printf FILEHANDLE "load          //load S-Rrecord\r\n";                   #load S-Record
 	$out_string = $code->print_pag_srec(uc($prog_name),
 					    $srec_format,
 					    $srec_data_length,
@@ -232,25 +227,33 @@ if ($code->{problems}) {
 
 	if (defined $code->{comp_symbols}->{"RESET_EXT_ENTRY"}) {
 	    $initial_pc = $code->{comp_symbols}->{"RESET_EXT_ENTRY"};
-	    printf FILEHANDLE "pc %4x\r\n", $initial_pc;      # set PC
-	    printf FILEHANDLE "g";                            # run program
+	    printf FILEHANDLE "pc %4x       //set initial PC\r\n", $initial_pc;   # set PC
+	    printf FILEHANDLE "trace en      //enable trace buffer\r\n";          #enable trace buffer 
+	    printf FILEHANDLE "trace cpu12x  //only trace CPU flow\r\n";          #only trace CPU flow 
+	    printf FILEHANDLE "g";                                                #run program
 	    #printf STDOUT "START_OF_CODE found\r\n";
 	} elsif (defined $code->{comp_symbols}->{"START_OF_CODE"}) {
 	    $initial_pc = $code->{comp_symbols}->{"START_OF_CODE"};
-	    printf FILEHANDLE "pc %4x\r\n", $initial_pc;      # set PC
-	    printf FILEHANDLE "g";                            # run program
+	    printf FILEHANDLE "pc %4x       //set initial PC\r\n", $initial_pc;   # set PC
+	    printf FILEHANDLE "trace en      //enable trace buffer\r\n";          #enable trace buffer 
+	    printf FILEHANDLE "trace cpu12x  //only trace CPU flow\r\n";          #only trace CPU flow 
+	    printf FILEHANDLE "g";                                                #run program
 	    #printf STDOUT "START_OF_CODE found\r\n";
 	} elsif (exists $code->{comp_symbols}->{"START_OF_TEST"}) {
 	    $initial_pc = $code->{comp_symbols}->{"START_OF_TEST"};
-	    printf FILEHANDLE "pc %4x\r\n", $initial_pc;      # set PC
-	    printf FILEHANDLE "g";                            # run program
+	    printf FILEHANDLE "pc %4x       //set initial PC\r\n", $initial_pc;   # set PC
+	    printf FILEHANDLE "trace en      //enable trace buffer\r\n";          #enable trace buffer 
+	    printf FILEHANDLE "trace cpu12x  //only trace CPU flow\r\n";          #only trace CPU flow 
+	    printf FILEHANDLE "g";                                                #run program
 	    #printf STDOUT "START_OF_TEST found\r\n";
 	} elsif ((exists $code->{pag_addrspace}->{0xFFFE}) &&
 		 (exists $code->{pag_addrspace}->{0xFFFF})) {
 	    $initial_pc = (($code->{pag_addrspace}->{0xFFFE}->[0]) << 8) + 
 		           ($code->{pag_addrspace}->{0xFFFF}->[0]);
-	    printf FILEHANDLE "pc %4x\r\n", $initial_pc;      # set PC
-	    printf FILEHANDLE "g";                            # run program
+	    printf FILEHANDLE "pc %4x       //set initial PC\r\n", $initial_pc;   # set PC
+	    printf FILEHANDLE "trace en      //enable trace buffer\r\n";          #enable trace buffer 
+	    printf FILEHANDLE "trace cpu12x  //only trace CPU flow\r\n";          #only trace CPU flow 
+	    printf FILEHANDLE "g";                                                #run program
 	    
 	} else {
 	    #printf STDERR "No start address found\r\n";

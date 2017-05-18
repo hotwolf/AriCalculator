@@ -1,9 +1,8 @@
 ;###############################################################################
 ;# S12CForth - Demo (Mini-BDM-Pod)                                             #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
-;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CForth framework for NXP's S12C MCU family.  #
 ;#                                                                             #
 ;#    S12CForth is free software: you can redistribute it and/or modify        #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -28,25 +27,16 @@
 ;# Version History:                                                            #
 ;#    May 27, 2013                                                             #
 ;#      - Initial release                                                      #
+;#    September 23, 2016                                                       #
+;#      - Updated during S12CBASE and S12CForth overhaul                       #
 ;###############################################################################
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# LRE or flash
-#ifndef DEMO_LRE
-#ifndef DEMO_FLASH
-DEMO_LRE		EQU	1 		;default is LRE
-#endif
-#endif
-
 ;# Memory map:
 MMAP_S12XEP100		EQU	1 		;S12XEP100
-#ifdef DEMO_LRE
 MMAP_RAM		EQU	1 		;use RAM memory map
-#else
-MMAP_FLASH		EQU	1 		;use FLASH memory map
-#endif
 
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
@@ -55,35 +45,63 @@ COP_DEBUG		EQU	1 		;disable COP
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
 
 ;# STRING
-;STRING_ENABLE_FILL_NB	EQU	1		;enable STRING_FILL_NB 
-;STRING_ENABLE_FILL_BL	EQU	1		;enable STRING_FILL_BL 
+STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
+STRING_ENABLE_FILL_BL	EQU	1 		;enable STRING_FILL_BL
+STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 	
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_START, MMAP_RAM_START_LIN
-#ifdef DEMO_LRE
+			ORG	MMAP_RAM_F9_START, MMAP_RAM_F9_START_LIN
 ;Code
+START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
 			ORG	DEMO_CODE_END, DEMO_CODE_END_LIN
 
-;Tables
-DEMO_TABS_START		EQU	*
-DEMO_TABS_START_LIN	EQU	@
-			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
-;Words
-			ALIGN	1
-DEMO_WORDS_START	EQU	*
-DEMO_WORDS_START_LIN	EQU	@
-			ORG	DEMO_WORDS_END, DEMO_WORDS_END_LIN
-#endif
+FORTH_CODE_START		EQU	*
+FORTH_CODE_START_LIN	EQU	@
+			ORG	FORTH_CODE_END, FORTH_CODE_END_LIN
+
+BASE_CODE_START		EQU	*
+BASE_CODE_START_LIN	EQU	@
+			ORG	BASE_CODE_END, BASE_CODE_END_LIN
 
 ;Variables
 DEMO_VARS_START		EQU	*
 DEMO_VARS_START_LIN	EQU	@
 			ORG	DEMO_VARS_END, DEMO_VARS_END_LIN
+	
+FORTH_VARS_START		EQU	*
+FORTH_VARS_START_LIN	EQU	@
+			ORG	FORTH_VARS_END, FORTH_VARS_END_LIN
 
+BASE_VARS_START		EQU	*
+BASE_VARS_START_LIN	EQU	@
+			ORG	BASE_VARS_END, BASE_VARS_END_LIN
+
+;Tables
+DEMO_TABS_START		EQU	*
+DEMO_TABS_START_LIN	EQU	@
+			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
+
+FORTH_TABS_START	EQU	*
+FORTH_TABS_START_LIN	EQU	@
+			ORG	FORTH_TABS_END, FORTH_TABS_END_LIN
+
+BASE_TABS_START		EQU	*
+BASE_TABS_START_LIN	EQU	@
+			ORG	BASE_TABS_END, BASE_TABS_END_LIN
+
+;Words 
+DEMO_WORDS_START	EQU	*
+DEMO_WORDS_START_LIN	EQU	@
+			ORG	DEMO_WORDS_END, DEMO_WORDS_END_LIN
+
+FORTH_WORDS_START	EQU	*
+FORTH_WORDS_START_LIN	EQU	@
+			ORG	FORTH_WORDS_END, FORTH_WORDS_END_LIN
+	
 ;Forth stacks, buffers and dictionary 
 ;      	  UDICT_PS_START -> +--------------+--------------+	     
 ;                           |       User Dictionary       |	     
@@ -96,33 +114,12 @@ DEMO_VARS_START_LIN	EQU	@
 ;             RS_TIB_END -> +--------------+--------------+
 ;Dictionary, PAD, and parameter stack 
 UDICT_PS_START		EQU	*			;start of shared DICT/PAD/PS space
-UDICT_PS_SIZE		EQU	((MMAP_RAM_END-*)*2)/3	;2/3 of available RAM space
+UDICT_PS_SIZE		EQU	((VECTAB_START-*)*2)/3	;2/3 of available RAM space
 UDICT_PS_END		EQU	(*+UDICT_PS_SIZE)&$FFFE	;end of shared DICT/PAD/PS space
 	
 ;TIB and return stack
 RS_TIB_START		EQU	UDICT_PS_END		;start of shared TIB/RS space
-RS_TIB_END		EQU	MMAP_RAM_END		;end of shared TIB/RS space
-	
-#ifndef DEMO_LRE
-			ORG	$C000, $3C000
-;Code
-DEMO_CODE_START		EQU	*
-DEMO_CODE_START_LIN	EQU	@
-			ORG	DEMO_CODE_END, DEMO_CODE_END_LIN
-
-;Tables
-DEMO_TABS_START		EQU	*
-DEMO_TABS_START_LIN	EQU	@
-			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
-
-;Words
-			ALIGN	1
-DEMO_WORDS_START	EQU	*
-DEMO_WORDS_START_LIN	EQU	@
-			ORG	DEMO_WORDS_END, DEMO_WORDS_END_LIN
-
-			ALIGN 	7, $FF ;align to D-Bug12XZ programming granularity
-#endif
+RS_TIB_END		EQU	VECTAB_START		;end of shared TIB/RS space
 				
 ;###############################################################################
 ;# Variables                                                                   #
@@ -132,14 +129,6 @@ DEMO_WORDS_START_LIN	EQU	@
 #else
 			ORG 	DEMO_VARS_START
 #endif	
-
-BASE_VARS_START		EQU	*
-BASE_VARS_START_LIN	EQU	@
-			ORG	BASE_VARS_END, BASE_VARS_END_LIN
-
-FORTH_VARS_START	EQU	*
-FORTH_VARS_START_LIN	EQU	@
-			ORG	FORTH_VARS_END, FORTH_VARS_END_LIN
 
 DEMO_VARS_END		EQU	*
 DEMO_VARS_END_LIN	EQU	@
@@ -158,7 +147,6 @@ DEMO_VARS_END_LIN	EQU	@
 #endif	
 
 ;Application code
-START_OF_CODE		EQU	*		;Start of code
 			;Initialization
 			BASE_INIT
 			FORTH_INIT
@@ -184,14 +172,6 @@ START_OF_CODE		EQU	*		;Start of code
 			;Enter QUIT shell
 			JOB	CF_QUIT_RT
 	
-BASE_CODE_START		EQU	*
-BASE_CODE_START_LIN	EQU	@
-			ORG	BASE_CODE_END, BASE_CODE_END_LIN
-
-FORTH_CODE_START		EQU	*
-FORTH_CODE_START_LIN	EQU	@
-			ORG	FORTH_CODE_END, FORTH_CODE_END_LIN
-
 DEMO_CODE_END		EQU	*
 DEMO_CODE_END_LIN	EQU	@
 
@@ -207,14 +187,6 @@ DEMO_CODE_END_LIN	EQU	@
 #else
 			ORG 	DEMO_TABS_START
 #endif	
-	
-BASE_TABS_START		EQU	*
-BASE_TABS_START_LIN	EQU	@
-			ORG	BASE_TABS_END, BASE_TABS_END_LIN
-
-FORTH_TABS_START		EQU	*
-FORTH_TABS_START_LIN	EQU	@
-			ORG	FORTH_TABS_END, FORTH_TABS_END_LIN
 
 DEMO_TABS_END		EQU	*
 DEMO_TABS_END_LIN	EQU	@
@@ -227,11 +199,6 @@ DEMO_TABS_END_LIN	EQU	@
 #else
 			ORG 	DEMO_WORDS_START
 #endif	
-
-FORTH_WORDS_START	EQU	*
-FORTH_WORDS_START_LIN	EQU	@
-			ORG	FORTH_WORDS_END, FORTH_WORDS_END_LIN
-
 DEMO_WORDS_END		EQU	*
 DEMO_WORDS_END_LIN	EQU	@
 

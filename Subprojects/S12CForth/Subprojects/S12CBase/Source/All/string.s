@@ -86,6 +86,7 @@
 ;# Constants                                                                   #
 ;###############################################################################
 ;#ASCII code 
+STRING_SYM_EOT		EQU	$04 	;EOT (ctrl-D)
 STRING_SYM_BEEP		EQU	$07 	;acoustic signal
 STRING_SYM_BACKSPACE	EQU	$08 	;backspace symbol
 STRING_SYM_TAB		EQU	$09 	;tab symbol
@@ -182,7 +183,7 @@ STRING_VARS_END_LIN	EQU	@
 #ifdef STRING_ENABLE_UPPER	
 ;#Convert a lower case character to upper case
 ; args:   B: ASCII character (w/ or w/out termination)
-; result: B: lower case ASCII character 
+; result: B: upper case ASCII character 
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
 #macro	STRING_UPPER, 0
@@ -193,7 +194,7 @@ STRING_VARS_END_LIN	EQU	@
 #ifdef STRING_ENABLE_LOWER	
 ;#Convert an upper case character to lower case (uncomment if needed)
 ; args:   B: ASCII character (w/ or w/out termination)
-; result: B: upper case ASCII character
+; result: B: lower case ASCII character
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
 #macro	STRING_LOWER, 0
@@ -257,13 +258,13 @@ LOOP			ADDD	#1
 ;        X and Y are preserved 
 #macro	STRING_RESIZE, 0
 			;Set new termination (sting pointer in X, char count in D) 
-			LEAX	-1,X 			;adjust string pointer
+			DEX	 			;adjust string pointer
 			BSET	D,X, #STRING_TERM	;terminate string
 			JOB	END_OF_LOOP		;next char
 			;Remove terminations within the string (sting pointer in X, string index in D)
 LOOP_START		BCLR	D,X, #STRING_TERM	;remove termination
 END_OF_LOOP		DBNE	D, LOOP_START		;next char
-			LEAX	1,X 			;adjust string pointer
+			INX	 			;adjust string pointer
 #emac
 	
 ;#Terminated line break
@@ -405,7 +406,7 @@ STRING_FILL_BL		EQU	*
 #ifdef	STRING_ENABLE_UPPER
 ;#Convert a lower case character to upper case
 ; args:   B: ASCII character (w/ or w/out termination)
-; result: B: lower case ASCII character 
+; result: B: upper case ASCII character 
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
 STRING_UPPER		EQU	*
@@ -426,7 +427,7 @@ STRING_UPPER_2		RTS
 #ifdef STRING_ENABLE_LOWER
 ;#Convert an upper case character to lower case (uncomment if needed)
 ; args:   B: ASCII character (w/ or w/out termination)
-; result: B: upper case ASCII character
+; result: B: lower case ASCII character
 ; SSTACK: 2 bytes
 ;         X, Y, and A are preserved 
 STRING_LOWER		EQU	*

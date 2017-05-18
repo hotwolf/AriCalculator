@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - ISTACK - Interrupt Stack Handler                                 #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -48,67 +47,139 @@
 ;#      - Added support for multiple interrupt nesting levels                  #
 ;#    July 27, 2012                                                            #
 ;#      - Added macro "ISTACK_CALL_ISR"                                        #
+;#    January 16, 2016                                                         #
+;#      - New generic implementation                                           #
+;#    August 16, 2016                                                          #
+;#      - replaced define "ISTACK_S12" by "#ifcpu"                             #
+;#    Septemember 28, 2016                                                     #
+;#      - S12CBASE overhaul                                                    #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    SSTACK - Subroutine stack handler                                        #
 ;#    RESET  - Reset handler                                                   #
 ;#                                                                             #
-;# Requirements to Software Using this Module:                                 #
-;#    - none                                                                   #
 ;###############################################################################
 ;###############################################################################
 ;# Stack Layout                                                                #
 ;###############################################################################
-; ISTACK_VARS_START,   +-------------------+
+;        SSTACK_TOP,   +-------------------+
 ;        ISTACK_TOP -> |                   |
-;                      | ISTACK_FRAME_SIZE |
+;                      |      ISTACK       |
 ;                      |                   |
 ;                      +-------------------+
-;        SSTACK_TOP -> |                   |
 ;                      |                   |
 ;                      |                   |
 ;                      |                   |
-;                      |    SSTACK_DEPTH   |
+;                      |                   |
+;                      |      SSTACK       |
 ;                      |                   |
 ;                      |                   |
 ;                      |                   |
-;     SSTACK_BOTTOM,   |                   |
-;     ISTACK_BOTTOM,   +-------------------+
-;   ISTACK_VARS_END ->
-;
+;                      |                   |
+;     SSTACK_BOTTOM,   +-------------------+
+;     ISTACK_BOTTOM ->
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Debug option for stack over/underflows
-;ISTACK_DEBUG		EQU	1 
-;ISTACK_NO_WAI		EQU	1 
-	
-;Disable stack range checks
-;ISTACK_NO_CHECK	EQU	1 
-
-;Interrupt nesting levels
-#ifndef	ISTACK_LEVELS
-ISTACK_LEVELS		EQU	1	 	;default is 1
+;Wait mode when idle
+;-------------------
+#ifndef	ISTACK_WAI
+#ifndef	ISTACK_NO_WAI
+ISTACK_WAI		EQU	1 		;default is no WAI
+#endif
 #endif
 
-;CPU
-#ifndef	ISTACK_S12
-#ifndef	ISTACK_S12X
-ISTACK_S12		EQU	1 		;default is S12
+;Range checks
+;------------
+;General stack range checkenable
+#ifndef	ISTACK_CHECK_ON
+#ifndef	ISTACK_CHECK_OFF
+ISTACK_CHECK_OFF	EQU	1 		;default is off
+#endif
+#endif
+	
+;Alternative range checks for dynamic boundaries
+;#mac ISTACK_BROF, 2
+;	...range checking code
+;#emac
+;#mac ISTACK_BRUF, 2
+;	...range checking code
+;#emac
+	
+;Debug code
+;----------
+#ifndef	ISTACK_DEBUG_ON
+#ifndef	ISTACK_DEBUG_OFF
+ISTACK_DEBUG_OFF	EQU	1 		;default is off
 #endif
 #endif
 	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-ISTACK_CCR		EQU	%0100_0000
-#ifdef	ISTACK_S12
-ISTACK_FRAME_SIZE	EQU	9
-#endif
+;Stack allocation
+;----------------
+ISTACK_TOP		EQU	SSTACK_TOP
+ISTACK_BOTTOM		EQU	SSTACK_BOTTOM
+ISTACK_SIZE		EQU	SSTACK_SIZE
 
-#ifdef	ISTACK_S12X
+#ifcpu	S12X
+;S12X stack layout:
+;        +----------------+
+;        |      CCRh      | SP+0
+;        +----------------+
+;        |      CCRl      | SP+1
+;        +----------------+
+;        |       B        | SP+2
+;        +----------------+
+;        |       A        | SP+3
+;        +----------------+
+;        |       Xh       | SP+4
+;        +----------------+
+;        |       Xl       | SP+5
+;        +----------------+
+;        |       Yh       | SP+6
+;        +----------------+
+;        |       Yl       | SP+7
+;        +----------------+
+;        |      RTNh      | SP+8
+;        +----------------+
+;        |      RTNl      | SP+9
+;        +----------------+ 	
 ISTACK_FRAME_SIZE	EQU	10
+ISTACK_FRAME_CCR	EQU	0	
+ISTACK_FRAME_D		EQU	2	
+ISTACK_FRAME_X		EQU	4	
+ISTACK_FRAME_Y		EQU	6	
+ISTACK_FRAME_RTN	EQU	8	
+#else	
+;S12 stack layout:
+;        +----------------+
+;        |      CCR       | SP+0
+;        +----------------+
+;        |       B        | SP+1
+;        +----------------+
+;        |       A        | SP+2
+;        +----------------+
+;        |       Xh       | SP+3
+;        +----------------+
+;        |       Xl       | SP+4
+;        +----------------+
+;        |       Yh       | SP+5
+;        +----------------+
+;        |       Yl       | SP+6
+;        +----------------+
+;        |      RTNh      | SP+7
+;        +----------------+
+;        |      RTNl      | SP+8
+;        +----------------+ 	
+ISTACK_FRAME_SIZE	EQU	9
+ISTACK_FRAME_CCR	EQU	0	
+ISTACK_FRAME_D		EQU	1	
+ISTACK_FRAME_X		EQU	3	
+ISTACK_FRAME_Y		EQU	5	
+ISTACK_FRAME_RTN	EQU	7	
 #endif
 
 ;###############################################################################
@@ -121,13 +192,6 @@ ISTACK_FRAME_SIZE	EQU	10
 ISTACK_VARS_START_LIN	EQU	@
 #endif	
 
-ISTACK_TOP		EQU	*
-			DS	ISTACK_FRAME_SIZE*ISTACK_LEVELS
-#ifdef	SSTACK_DEPTH
-			DS	SSTACK_DEPTH
-#endif	
-ISTACK_BOTTOM		EQU	*
-
 ISTACK_VARS_END		EQU	*
 ISTACK_VARS_END_LIN	EQU	@
 
@@ -135,6 +199,7 @@ ISTACK_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
+;#--------------
 #macro	ISTACK_INIT, 0
 			;Set stack pointer
 			LDS	#ISTACK_BOTTOM	
@@ -142,115 +207,135 @@ ISTACK_VARS_END_LIN	EQU	@
 			CLI
 #emac	
 
+;#Boundary checks
+;#---------------
+#ifnmac ISTACK_BROF
+;#Branch on stack overflow	
+; args:   1: required stack capacity (bytes)
+;         2: branch address
+; result: none
+; SSTACK: none
+;         X, Y, and D are preserved
+#macro	ISTACK_BROF, 2
+#ifdef ISTACK_TOP	
+			CPS	#ISTACK_TOP+\1 		;=> 2 cycles	 3 bytes
+			BLO	\2	      		;=> 3 cycles	 4 bytes
+					      		;  ---------	--------
+					      		;   5 cycles	 7 bytes
+#endif
+#emac
+
+#ifnmac ISTACK_BRUF
+;#Branch on stack underflow	
+; args:   1: required stack capacity (bytes)
+;         2: branch address
+; result: none
+; SSTACK: none
+;         X, Y, and D are preserved
+#macro	ISTACK_BRUF, 2
+			CPS	#ISTACK_BOTTOM+\1 	;=> 2 cycles	 3 bytes
+			BHI	\2	      		;=> 3 cycles	 4 bytes
+					      		;  ---------	--------
+					      		;   5 cycles	 7 bytes
+#emac
+
+#ifnmac	ISTACK_PREPUSH
+;#Check stack before push operation	
+; args:   1: required stack capacity (bytes)
+; result: none
+; SSTACK: none
+;         X, Y, and D are preserved
+#macro	ISTACK_PREPUSH, 1 //number of bytes to push
+			ISTACK_BROF	\1, OF
+#ifdef	ISTACK_DEBUG_ON
+			JOB	DONE
+OF			BGND
+DONE			EQU	*	
+#else
+OF			EQU	ISTACK_OF
+#endif
+#emac
+#endif
+
+#ifnmac	ISTACK_PREPULL
+;#Check stack before pull operation	
+; args:   1: expecteded stack content (bytes)
+; result: none
+; SSTACK: none
+;         X, Y, and D are preserved
+#macro	ISTACK_PREPULL, 1 //number of bytes to pull
+			ISTACK_BRUF	\1, UF
+#ifdef	ISTACK_DEBUG_ON
+			JOB	DONE
+UF			BGND
+DONE			EQU	*	
+#else
+UF			EQU	ISTACK_UF
+#endif
+#emac
+#endif
+
 ;#Wait until any interrupt has been serviced
-; args:   none 
-; ISTACK: none
-;         X, Y, and D are preserved 
+; args:   none
+; SSTACK: none
+;         X, Y, and D are preserved
 #macro	ISTACK_WAIT, 0
-#ifndef	ISTACK_NO_CHECK
-			;Verify SP before runnung ISRs
-			CPS	#ISTACK_TOP+ISTACK_FRAME_SIZE
-			BLO	OF ;ISTACK_OF
-			CPS	#ISTACK_BOTTOM
-			BHI	UF ;ISTACK_UF
+#ifdef	ISTACK_CHECK_ON
+			ISTACK_PREPUSH	ISTACK_FRAME_SIZE
 #endif
 			;Wait for the next interrupt
 			COP_SERVICE			;already taken care of by WAI
 			CLI		
-#ifndef	ISTACK_DEBUG
-#ifndef	ISTACK_NO_WAI
+#ifdef	ISTACK_WAI
 			WAI
 #endif
-#endif
-#ifndef	ISTACK_NO_CHECK
-#ifdef	ISTACK_DEBUG
-			JOB	DONE
-OF			BGND	
-UF			BGND
-#else
-OF			EQU	ISTACK_OF	
-UF			EQU	ISTACK_UF
-#endif
-#endif
-DONE			EQU	*
 #emac
 	
 ;#Return from interrupt
-; args:   none 
+; args:   none
 ; ISTACK: -9 (S12)/-10 (S12X)
 ;         X, Y, and D are pulled from the interrupt stack
 #macro	ISTACK_RTI, 0
-#ifndef	ISTACK_NO_CHECK
-			;Verify SP at the end of each ISR
-			CPS	#ISTACK_TOP
-			BLO	OF
-			CPS	#ISTACK_BOTTOM-ISTACK_FRAME_SIZE
-			BHI	UF
+#ifdef	ISTACK_CHECK_ON
+			ISTACK_PREPULL	ISTACK_FRAME_SIZE
 #endif
 			;End ISR
 			RTI
-#ifndef	ISTACK_NO_CHECK
-#ifdef	ISTACK_DEBUG
-OF			BGND	
-UF			BGND
-#else
-OF			JOB	ISTACK_OF	
-UF			JOB	ISTACK_UF
-#endif
-#endif
 #emac	
 
-;#Clear I-flag is there is still room on the stack
+;#Enable interrupts if there is space for one more stack frame
 ; args:   none
-; ISTACK: none
-;         X, Y and B are preserved
-#macro	ISTACK_CHECK_AND_CLI, 0 
-			CPS	#ISTACK_BOTTOM-ISTACK_FRAME_SIZE
-			BHI	DONE
-#ifdef ISTACK_S12X	
-			;LDAA	#$00
-			LDAA	#$01
-			TFR	A, CCRH
-#endif
+; SSTACK: none
+;         X, Y, and D are preserved
+#macro	ISTACK_CLI, 0
+			ISTACK_BROF ISTACK_FRAME_SIZE, DONE
 			CLI
 DONE			EQU	*
 #emac	
 
-;#Call ISR from application code
-; args:   none 
-; ISTACK:  -9 (S12)/-10 (S12X)
-;         X, Y, and D are pudhed onto the interrupt stack
-#macro	ISTACK_CALL_ISR, 1
-			SEI	
-#ifndef	ISTACK_NO_CHECK 
-			CPS	#ISTACK_TOP-ISTACK_FRAME_SIZE
-			BLO	OF
-			CPS	#ISTACK_BOTTOM
-			BHS	UF
-#ifdef	ISTACK_DEBUG
-			JOB	DONE
-UF			BGND
-OF			BGND
-DONE			EQU	*	
-#else
-UF			EQU	ISTACK_UF
-OF			EQU	ISTACK_OF
+;#Replace return address in stack frame
+; args:   1: new return address (any address mode)
+; ISTACK: none
+;         X, Y, and D are preserved
+#macro	ISTACK_REPLACE_RTN, 1
+			MOVW	\1, ISTACK_RTN,SP
+#emac	
+
+;#Insert return address into stack frame
+; args:   1: new return address (any address mode)
+; ISTACK: none
+;         X, Y, and D are preserved
+#macro	ISTACK_INSERT_RTN, 1
+#ifcpu	S12X
+			MOVW	ISTACK_FRAME_CCR,SP, 2,-SP
+#else			
+			MOVB	ISTACK_FRAME_CCR,SP, 2,-SP
 #endif
-#endif
-			MOVW	#DONE, 2,-SP
-			PSHY
-			PSHX
-			PSHD
-#ifdef	ISTACK_S12	
-			PSHC
-#endif
-#ifdef	ISTACK_S12X	
-			EXG	CCRW, D
-			PSHD
-			EXG	CCRW, D
-#endif
-			JOB	\1
-DONE			EQU	*
+			MOVW	(2+ISTACK_FRAME_D),SP, ISTACK_FRAME_D,SP
+			MOVW	(2+ISTACK_FRAME_X),SP, ISTACK_FRAME_X,SP
+			MOVW	(2+ISTACK_FRAME_Y),SP, ISTACK_FRAME_Y,SP
+			MOVW	\1,                    ISTACK_FRAME_RTN,SP
+	
 #emac	
 	
 ;###############################################################################
@@ -264,16 +349,16 @@ ISTACK_CODE_START_LIN	EQU	@
 #endif
 	
 ;#Handle stack overflows
-#ifndef	ISTACK_NO_CHECK
-#ifndef	ISTACK_DEBUG
+#ifdef	ISTACK_CHECK_ON
+#ifdef	ISTACK_DEBUG_OFF
 ISTACK_OF		EQU	*
 			RESET_FATAL	ISTACK_MSG_OF ;throw a fatal error
 #endif
 #endif
 
 ;#Handle stack underflows
-#ifndef	ISTACK_NO_CHECK
-#ifndef	ISTACK_DEBUG
+#ifdef	ISTACK_CHECK_ON
+#ifdef	ISTACK_DEBUG_OFF
 ISTACK_UF		EQU	*
 			RESET_FATAL	ISTACK_MSG_UF ;throw a fatal error
 #endif
@@ -293,10 +378,10 @@ ISTACK_TABS_START_LIN	EQU	@
 #endif	
 
 ;#Error Messages
-#ifndef	ISTACK_NO_CHECK 
-#ifndef	ISTACK_DEBUG
-ISTACK_MSG_OF		FCS	"Interrupt stack overflow"
-ISTACK_MSG_UF		FCS	"Interrupt stack underflow"
+#ifdef	ISTACK_CHECK_ON
+#ifdef	ISTACK_DEBUG_OFF
+ISTACK_MSG_OF		RESET_MSG	"Interrupt stack overflow"
+ISTACK_MSG_UF		RESET_MSG	"Interrupt stack underflow"
 #endif
 #endif
 	

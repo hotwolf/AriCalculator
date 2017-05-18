@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - SSTACK - Subroutine Stack Handler                                #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -49,52 +48,78 @@
 ;#      - Added option to disable stack range checks "SSTACK_NO_CHECK"         #
 ;#    November 14, 2012                                                        #
 ;#      - Removed PSH/PUL macros                                               #
+;#    January 16, 2016                                                         #
+;#      - New generic implementation                                           #
+;#    Septemember 28, 2016                                                     #
+;#      - S12CBASE overhaul                                                    #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    SSTACK - Subroutine stack handler                                        #
 ;#    RESET  - Reset handler                                                   #
+;#                                                                             #
 ;###############################################################################
 ;###############################################################################
 ;# Stack Layout                                                                #
 ;###############################################################################
-; ISTACK_VARS_START,   +-------------------+
+;        SSTACK_TOP,   +-------------------+
 ;        ISTACK_TOP -> |                   |
-;                      | ISTACK_FRAME_SIZE |
+;                      |      ISTACK       |
 ;                      |                   |
 ;                      +-------------------+
-;        SSTACK_TOP -> |                   |
 ;                      |                   |
 ;                      |                   |
 ;                      |                   |
-;                      |    SSTACK_DEPTH   |
+;                      |                   |
+;                      |      SSTACK       |
 ;                      |                   |
 ;                      |                   |
 ;                      |                   |
-;     SSTACK_BOTTOM,   |                   |
-;     ISTACK_BOTTOM,   +-------------------+
-;   ISTACK_VARS_END ->
-;
-;The SSTACK is checked once before every JOBSR and once before every RTS.
+;                      |                   |
+;     SSTACK_BOTTOM,   +-------------------+
+;     ISTACK_BOTTOM ->
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Debug option for stack over/underflows
-;SSTACK_DEBUG		EQU	1 
-	
-;Disable stack range checks
-;SSTACK_NO_CHECK	EQU	1 
+;Stack allocation
+;----------------
+;Bottom of the stack (mandatory)
+#ifndef	SSTACK_BOTTOM
+			ERROR	"SSTACK_BOTTOM is undefined"
+#endif
+;Top of the stack (optional for range checks)
+;SSTACK_TOP		EQU	...
 
-;Stack depth 
-#ifndef SSTACK_DEPTH
-SSTACK_DEPTH		EQU	27
+;Range checks
+;------------
+;General stack range check enable
+#ifndef	SSTACK_CHECK_ON
+#ifndef	SSTACK_CHECK_OFF
+SSTACK_CHECK_OFF	EQU	1 		;default is off
+#endif
 #endif
 	
+;Alternative range checks for dynamic boundaries
+;#mac SSTACK_BROF, 2
+;	...range checking code
+;#emac
+;#mac SSTACK_BRUF, 2
+;	...range checking code
+;#emac
+	
+;Debug code
+;----------
+#ifndef	SSTACK_DEBUG_ON
+#ifndef	SSTACK_DEBUG_OFF
+SSTACK_DEBUG_OFF	EQU	1 		;default is off
+#endif
+#endif
+
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-SSTACK_TOP		EQU	ISTACK_TOP+ISTACK_FRAME_SIZE
-SSTACK_BOTTOM		EQU	ISTACK_BOTTOM
+;Stack size 
+;----------
+SSTACK_SIZE		EQU	(SSTACK_BOTTOM-SSTACK_TOP)
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -109,65 +134,109 @@ SSTACK_VARS_END		EQU	*
 SSTACK_VARS_END_LIN	EQU	@
 
 ;###############################################################################
+;# Stack space                                                                 #
+;###############################################################################
+#ifdef SSTACK_TOP
+#ifdef SSTACK_TOP_LIN
+			ORG 	SSTACK_TOP, SSTACK_TOP_LIN
+#else
+			ORG 	SSTACK_TOP
+#endif	
+			;Declare RAM space (to be recognized by the assembler) 
+			DS	SSTACK_BOTTOM-SSTACK_TOP
+#endif	
+	
+;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization (initialization done by ISTACK module)
+;#-----------------------------------------------------
 #macro	SSTACK_INIT, 0
 #emac
 
-;#Check stack boundaries	
+;#Boundary checks
+;#---------------
+#ifnmac SSTACK_BROF
+;#Branch on stack overflow	
 ; args:   1: required stack capacity (bytes)
-;         2: expected stack content  (bytes)
-; result: none 
+;         2: branch address
+; result: none
 ; SSTACK: none
-;         X, Y, and D are preserved 
-#macro	SSTACK_CHECK_BOUNDARIES, 2
-#ifndef	SSTACK_NO_CHECK 
+;         X, Y, and D are preserved
+#macro	SSTACK_BROF, 2
+#ifdef SSTACK_TOP	
 			CPS	#SSTACK_TOP+\1 		;=> 2 cycles	 3 bytes
-			BLO	OF	      		;=> 3 cycles	 4 bytes
-			CPS	#SSTACK_BOTTOM-\2	;=> 2 cycles	 3 bytes
-			BHI	UF			;=> 3 cycles	 4 bytes
+			BLO	\2	      		;=> 3 cycles	 4 bytes
 					      		;  ---------	--------
-					      		;  10 cycles	14 bytes
-#ifdef	SSTACK_DEBUG
+					      		;   5 cycles	 7 bytes
+#endif
+#emac
+
+#ifnmac SSTACK_BRUF
+;#Branch on stack underflow	
+; args:   1: required stack capacity (bytes)
+;         2: branch address
+; result: none
+; SSTACK: none
+;         X, Y, and D are preserved
+#macro	SSTACK_BRUF, 2
+			CPS	#SSTACK_BOTTOM-\1 	;=> 2 cycles	 3 bytes
+			BHI	\2	      		;=> 3 cycles	 4 bytes
+					      		;  ---------	--------
+					      		;   5 cycles	 7 bytes
+#emac
+
+#ifnmac	SSTACK_PREPUSH
+;#Check stack before push operation	
+; args:   1: required stack capacity (bytes)
+; result: none
+; SSTACK: none
+;         X, Y, and D are preserved
+#macro	SSTACK_PREPUSH, 1 //number of bytes to push
+#ifdef	SSTACK_CHECK_ON
+			SSTACK_BROF	\1, OF
+#ifdef	SSTACK_DEBUG_ON
 			JOB	DONE
-UF			BGND
 OF			BGND
 DONE			EQU	*	
 #else
-UF			EQU	SSTACK_UF
 OF			EQU	SSTACK_OF
 #endif
 #endif
 #emac
-	
-;#Check stack before push operation	
-; args:   1: required stack capacity (bytes)
-; result: none 
-; SSTACK: none
-;         X, Y, and D are preserved
-#macro	SSTACK_PREPUSH, 1 //number of bytes to push
-			SSTACK_CHECK_BOUNDARIES	\1, 0
-#emac
+#endif
 
+#ifnmac	SSTACK_PREPULL
 ;#Check stack before pull operation	
 ; args:   1: expecteded stack content (bytes)
-; result: none 
+; result: none
 ; SSTACK: none
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SSTACK_PREPULL, 1 //number of bytes to pull
-			SSTACK_CHECK_BOUNDARIES	0, \1
+#ifdef	SSTACK_CHECK_ON
+			SSTACK_BRUF	\1, UF
+#ifdef	SSTACK_DEBUG_ON
+			JOB	DONE
+UF			BGND
+DONE			EQU	*	
+#else
+UF			EQU	SSTACK_UF
+#endif
+#endif
 #emac
-	
+#endif
+		
 ;#Check stack and call subroutine	
 ; args:   required stack capacity (bytes)
 ; result: 1: subroutine
-;         2: required stack space 
+;         2: required stack space
 ; SSTACK: arg 2
 ;         register content may be changed by the subroutine
 ; args:   1: Number of bytes to be allocated (args + local vars)
 #macro	SSTACK_JOBSR, 2
+#ifdef	SSTACK_CHECK_ON
 			SSTACK_PREPUSH	\2
+#endif
 			JOBSR	\1
 #emac
 	
@@ -175,9 +244,11 @@ OF			EQU	SSTACK_OF
 ; args:   1: Number of bytes
 ; result: none
 ; SSTACK: arg 1
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SSTACK_ALLOC, 1
+#ifdef	SSTACK_CHECK_ON
 			SSTACK_PREPUSH	\1
+#endif
 			LEAS	-\1,SP
 #emac
 
@@ -185,9 +256,11 @@ OF			EQU	SSTACK_OF
 ; args:   1: Number of bytes
 ; result: none
 ; SSTACK: 0 bytes
-;         X, Y, and D are preserved 
+;         X, Y, and D are preserved
 #macro	SSTACK_DEALLOC, 1
+#ifdef	SSTACK_CHECK_ON
 			SSTACK_PREPULL	\1
+#endif
 			LEAS	\1,SP
 #emac
 
@@ -201,21 +274,21 @@ OF			EQU	SSTACK_OF
 #endif
 
 ;#Handle stack overflows
-#ifndef	SSTACK_NO_CHECK
-#ifndef	SSTACK_DEBUG
+#ifdef	SSTACK_CHECK_ON
+#ifdef	SSTACK_DEBUG_OFF
 SSTACK_OF		EQU	*
 			RESET_FATAL	SSTACK_MSG_OF ;throw a fatal error
 #endif
 #endif
-
+	
 ;#Handle stack underflows
-#ifndef	SSTACK_NO_CHECK
-#ifndef	SSTACK_DEBUG
+#ifdef	SSTACK_CHECK_ON
+#ifdef	SSTACK_DEBUG_OFF
 SSTACK_UF		EQU	*
 			RESET_FATAL	SSTACK_MSG_UF ;throw a fatal error
 #endif
 #endif
-		
+
 SSTACK_CODE_END		EQU	*
 SSTACK_CODE_END_LIN	EQU	@
 	
@@ -229,13 +302,13 @@ SSTACK_CODE_END_LIN	EQU	@
 #endif	
 
 ;#Error Messages
-#ifndef	SSTACK_NO_CHECK 
-#ifndef	SSTACK_DEBUG
+#ifdef	SSTACK_CHECK_ON
+#ifdef	SSTACK_DEBUG_OFF
 SSTACK_MSG_OF		RESET_MSG	"Subroutine stack overflow"
 SSTACK_MSG_UF		RESET_MSG	"Subroutine stack underflow"
 #endif
 #endif
-
+	
 SSTACK_TABS_END		EQU	*
 SSTACK_TABS_END_LIN	EQU	@
 #endif

@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - Base Bundle (FreeEMS)                                            #
 ;###############################################################################
-;#    Copyright 2010-2014 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -30,46 +29,70 @@
 ;#      - Updated during S12CBASE overhaul                                     #
 ;#    Dcember 17, 2015                                                         #
 ;#      - Included pseudo-random number generator                              #
+;#    Septemember 27, 2016                                                     #
+;#      - S12CBASE overhaul                                                    #
 ;###############################################################################
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Clocks
+;#Core
+			CPU	S12X
+	
+;#Clocks
 CLOCK_CRG		EQU	1		;old CRG
-#ifndef CLOCK_OSC_FREQ	
 CLOCK_OSC_FREQ		EQU	16000000	;16 MHz
-#endif
-#ifndef CLOCK_BUS_FREQ
 CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
-#endif
-#ifndef CLOCK_REF_FREQ
 CLOCK_REF_FREQ		EQU	CLOCK_OSC_FREQ	;4,000 MHz
-#endif
-#ifndef CLOCK_VCOFRQ
 CLOCK_VCOFRQ		EQU	3		;VCO=100MHz
-#endif
-#ifndef CLOCK_REFFRQ
 CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
-#endif
 
-;# SCI
-#ifndef	SCI_FC_RTS_CTS
-#ifndef	SCI_FC_XON_XOFF
-#ifndef SCI_FC_NONE	
-SCI_FC_XON_XOFF		EQU	1 		;XON/XOFF flow control
-#endif
-#endif
-#endif
+;#TIM
+; IC0 - SCI baud rate detection
+; OC1 - SCI general purpose
+; OC2 - DELAY
+; OC3 - LED
+TIM_DIV_2		EQU	1 		;25 MHz
+TIM_ECT_TIOS_INIT	EQU	SCI_OC_TIOS_INIT|LED_TIOS_INIT|DELAY_TIOS_INIT
+TIM_ECT_TCTL34_INIT	EQU	SCI_IC_TCTL34_INIT
 
-#ifndef	SCI_BD_ON
-#ifndef	SCI_BD_OFF
-SCI_BD_OFF		EQU	1 		;no baud rate detection
-#endif
-#endif
+;#DELAY
+DELAY_TIM		EQU	ECT 		;ECT
+DELAY_OC		EQU	2		;OC2
 
-;# TIM
-TIM_DIV2_ON		EQU	1 		;run TIM at half bus frequency
+;#LED
+; LED A: PP2 non-blinking -> target disconnected
+; LED B: PP3 non-blinking -> target connected 
+; LED C: PP4 blinking     -> error
+; LED D: PP5 blinking     -> busy
+; Timer usage 
+LED_TIM			EQU	ECT 		;ECT
+LED_OC			EQU	3 		;OC3
+; LED A
+LED_A_BLINK_OFF		EQU	1 		;no blink patterns
+LED_A_PORT		EQU	PTP 		;port P
+LED_A_PIN		EQU	PP2 		;PP2
+; LED B
+LED_B_BLINK_OFF		EQU	1 		;no blink patterns
+LED_B_PORT		EQU	PTP 		;port P
+LED_B_PIN		EQU	PP3 		;PP3
+; LED C
+LED_C_BLINK_OFF		EQU	1 		;blink patterns
+LED_C_PORT		EQU	PTP 		;port P
+LED_C_PIN		EQU	PP4 		;PP4
+; LED D
+LED_D_BLINK_OFF		EQU	1 		;blink patterns
+LED_D_PORT		EQU	PTP 		;port P
+LED_D_PIN		EQU	PP4 		;PP4
+	
+;#SCI
+SCI_V5			EQU	1   		;V5
+SCI_BAUD_9600		EQU	1 		;automatic baud rate detection
+SCI_IC_TIM		EQU	ECT 		;ECT
+SCI_IC			EQU	0 		;IC0
+SCI_OC_TIM		EQU	ECT 		;ECT
+SCI_OC			EQU	1 		;OC1
+SCI_XONXOFF		EQU	1		;XON/XOFF flow control
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -108,6 +131,10 @@ TIM_VARS_START		EQU	*
 TIM_VARS_START_LIN	EQU	@
 			ORG	TIM_VARS_END, TIM_VARS_END_LIN
 
+LED_VARS_START		EQU	*
+LED_VARS_START_LIN	EQU	@
+			ORG	LED_VARS_END, LED_VARS_END_LIN
+
 SCI_VARS_START		EQU	*
 SCI_VARS_START_LIN	EQU	@
 			ORG	SCI_VARS_END, SCI_VARS_END_LIN
@@ -132,21 +159,16 @@ RANDOM_VARS_START	EQU	*
 RANDOM_VARS_START_LIN	EQU	@
 			ORG	RANDOM_VARS_END, RANDOM_VARS_END_LIN
 
+DELAY_VARS_START	EQU	*
+DELAY_VARS_START_LIN	EQU	@
+			ORG	DELAY_VARS_END, DELAY_VARS_END_LIN
+
 BASE_VARS_END		EQU	*	
 BASE_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Welcome message
-;------------_--- 
-#ifnmac	WELCOME_MESSAGE
-#macro	WELCOME_MESSAGE, 0
-			LDX	#WELCOME_MESSAGE	;print welcome message
-			STRING_PRINT_BL
-#emac
-#endif
-
 ;#Error message
 ;-------------- 
 #ifnmac	ERROR_MESSAGE
@@ -164,25 +186,23 @@ BASE_VARS_END_LIN	EQU	@
 ;--------------- 
 #macro	BASE_INIT, 0
 			GPIO_INIT
-			COP_INIT	
+			COP_INIT
 			CLOCK_INIT
 			RESET_INIT
 			MMAP_INIT
 			VECTAB_INIT
 			SSTACK_INIT
 			ISTACK_INIT
-			TIM_INIT
+			LED_INIT
+			TIM_INIT_ECT
 			STRING_INIT
 			NUM_INIT
-			SCI_INIT
+			;NVM_INIT
 			RANDOM_INIT
+			DELAY_INIT
 			CLOCK_WAIT_FOR_PLL
-			SCI_ENABLE
-			RESET_BR_ERR	ERROR	;severe error detected 
-			WELCOME_MESSAGE
-			JOB	DONE	
-ERROR			ERROR_MESSAGE					
-DONE			EQU	*
+			SCI_INIT
+			ERROR_MESSAGE					
 #emac
 
 ;###############################################################################
@@ -222,6 +242,10 @@ TIM_CODE_START		EQU	*
 TIM_CODE_START_LIN	EQU	@
 			ORG	TIM_CODE_END, TIM_CODE_END_LIN
 
+LED_CODE_START		EQU	*
+LED_CODE_START_LIN	EQU	@
+			ORG	LED_CODE_END, LED_CODE_END_LIN
+
 SCI_CODE_START		EQU	*
 SCI_CODE_START_LIN	EQU	@
 			ORG	SCI_CODE_END, SCI_CODE_END_LIN
@@ -246,6 +270,10 @@ RANDOM_CODE_START	EQU	*
 RANDOM_CODE_START_LIN	EQU	@
 			ORG	RANDOM_CODE_END, RANDOM_CODE_END_LIN
 
+DELAY_CODE_START	EQU	*
+DELAY_CODE_START_LIN	EQU	@
+			ORG	DELAY_CODE_END, DELAY_CODE_END_LIN
+
 BASE_CODE_END		EQU	*	
 BASE_CODE_END_LIN	EQU	@
 	
@@ -258,11 +286,6 @@ BASE_CODE_END_LIN	EQU	@
 			ORG 	BASE_TABS_START
 #endif	
 
-;#Welcome message
-#ifndef	WELCOME_MESSAGE
-WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
-			STRING_NL_TERM
-#endif
 ;#Error message format
 #ifndef	ERROR_HEADER
 ERROR_HEADER		FCS	"FATAL ERROR! "
@@ -300,6 +323,10 @@ TIM_TABS_START		EQU	*
 TIM_TABS_START_LIN	EQU	@
 			ORG	TIM_TABS_END, TIM_TABS_END_LIN
 
+LED_TABS_START		EQU	*
+LED_TABS_START_LIN	EQU	@
+			ORG	LED_TABS_END, LED_TABS_END_LIN
+
 SCI_TABS_START		EQU	*
 SCI_TABS_START_LIN	EQU	@
 			ORG	SCI_TABS_END, SCI_TABS_END_LIN
@@ -324,6 +351,10 @@ RANDOM_TABS_START	EQU	*
 RANDOM_TABS_START_LIN	EQU	@
 			ORG	RANDOM_TABS_END, RANDOM_TABS_END_LIN
 	
+DELAY_TABS_START	EQU	*
+DELAY_TABS_START_LIN	EQU	@
+			ORG	DELAY_TABS_END, DELAY_TABS_END_LIN
+	
 BASE_TABS_END		EQU	*	
 BASE_TABS_END_LIN	EQU	@
 	
@@ -337,11 +368,14 @@ BASE_TABS_END_LIN	EQU	@
 #include ../All/istack.s		;Interrupt stack
 #include ../All/clock.s			;CRG setup
 #include ../All/cop.s			;COP handler
+#include ../All/led.s			;LED driver
+#include ../All/random.s	   	;Pseudo-random number generator
 #include ../All/sci.s			;SCI driver
 #include ../All/tim.s			;TIM driver
 #include ../All/string.s		;String printing routines
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
+;#include ../Mini-BDM-Pod/nvm_Mini-BDM-Pod.s;NVM driver
 #include ./vectab_FreeEMS.s		;S12XDP512 vector table
-#include ../All/random.s	   	;Pseudo-random number generator
+#include ../All/delay.s	  	 	;Delay driver
 #endif	

@@ -158,12 +158,12 @@
 ;#    Port P:                                                                  #
 ;#     PP0 - unused                       (output       low      )             #
 ;#     PP1 - unused                       (output       low      )             #
-;#     PP2 - LED switch                   (output       high     )             #
-;#     PP3 - LED switch                   (output       high     )             #
-;#     PP4 - LED 4 green                  (output       high     )             #
-;#     PP5 - LED 3 green                  (output       high     )             #
-;#     PP6 - LED 2 green                  (output       high     )             #
-;#     PP7 - LED 1 red                    (output       high     )             #
+;#     PP2 - LED A "No target" red        (output       high     )             #
+;#     PP3 - LED B "Target ok" green      (output       high     )             #
+;#     PP4 - LED C "Error"     red        (output       high     )             #
+;#     PP5 - LED D "Busy"      green      (output       high     )             #
+;#     PP6 - LED E LFBDMPGMR   green      (output       high     )             #
+;#     PP7 - LED F LFBDMPGMR   green      (output       high     )             #
 ;#    Port R:                                                                  #
 ;#     PR0 - NC                           (input        pull-up  )             #
 ;#     PR1 - NC                           (input        pull-up  )             #

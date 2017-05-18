@@ -1,9 +1,8 @@
 ;###############################################################################
 ;# S12CForth - Demo (SIMHC12)                                                  #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
-;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CForth framework for NXP's S12C MCU family.  #
 ;#                                                                             #
 ;#    S12CForth is free software: you can redistribute it and/or modify        #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -28,81 +27,96 @@
 ;# Version History:                                                            #
 ;#    May 27, 2013                                                             #
 ;#      - Initial release                                                      #
+;#    September 28, 2016                                                       #
+;#      - Started subroutine threaded implementation                           #
 ;###############################################################################
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Memory map:
-;MMAP_RAM		EQU	1 		;use RAM memory map
-
 ;# COP
 COP_DEBUG		EQU	1 		;disable COP
-
-;# Vector table
-VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
-
-;# SSTACK
-SSTACK_DEBUG		EQU	1 
-SSTACK_NO_CHECK		EQU	1 
-SSTACK_DEPTH		EQU	40
-
-;# ISTACK
-ISTACK_DEBUG		EQU	1 
-ISTACK_NO_WAI		EQU	1 
-ISTACK_NO_CHECK		EQU	1 
+	
+;# VECTAB
+VECTAB_DEBUG		EQU	1 		;break on false interrupt
 	
 ;# STRING
-;STRING_ENABLE_FILL_NB	EQU	1		;enable STRING_FILL_NB 
-;STRING_ENABLE_FILL_BL	EQU	1		;enable STRING_FILL_BL
+STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
+STRING_ENABLE_FILL_BL	EQU	1 		;enable STRING_FILL_BL
+STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 
 ;# FOUTER	
 FOUTER_NL_CR		EQU	1 		;interpret CR as line break,
-						;ignore LF
-	
+						;ignore LF	
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_START
+;			ORG	MMAP_EXTRAM_START, UNMAPPED
+			ORG	MMAP_INTRAM_START, UNMAPPED
 ;Variables
 DEMO_VARS_START		EQU	*
 DEMO_VARS_START_LIN	EQU	@
-			ORG	DEMO_VARS_END, DEMO_VARS_END_LIN
+			ORG	DEMO_VARS_END, UNMAPPED
+
+BASE_VARS_START		EQU	*
+BASE_VARS_START_LIN	EQU	@
+			ORG	BASE_VARS_END, UNMAPPED
+
+FORTH_VARS_START	EQU	*
+FORTH_VARS_START_LIN	EQU	@
+			ORG	FORTH_VARS_END, UNMAPPED
+	
+;Stack 
+SSTACK_TOP		EQU	* 				;SSTACK, ISTACK, and RS are unified
+SSTACK_TOP_LIN		EQU	@
+;SSTACK_BOTTOM		EQU	MMAP_EXTRAM_END
+SSTACK_BOTTOM		EQU	MMAP_INTRAM_END
 
 ;Forth stacks, buffers and dictionary 
-;      	  UDICT_PS_START -> +--------------+--------------+	     
+;      	     DS_PS_START -> +--------------+--------------+	     
 ;                           |       User Dictionary       |	     
 ;                           |             PAD             |	     
 ;                           |       Parameter stack       |		  
-;           UDICT_PS_END -> +--------------+--------------+        
+;              DS_PS_END -> +--------------+--------------+        
 ;           RS_TIB_START -> +--------------+--------------+        
 ;                           |       Text Input Buffer     |
 ;                           |        Return Stack         |
 ;             RS_TIB_END -> +--------------+--------------+
 ;Dictionary, PAD, and parameter stack 
-UDICT_PS_START		EQU	*			;start of shared DICT/PAD/PS space
-UDICT_PS_SIZE		EQU	((MMAP_RAM_END-*)*2)/3	;2/3 of available RAM space
-UDICT_PS_END		EQU	(*+UDICT_PS_SIZE)&$FFFE	;end of shared DICT/PAD/PS space
+DS_PS_START		EQU	SSTACK_TOP			;start of shared DICT/PAD/PS space
+DS_PS_SIZE		EQU	(((SSTACK_SIZE*2)/3)&$FFFE)	;2/3 of available RAM space
+DS_PS_END		EQU	SSTACK_TOP+DS_PS_SIZE	;end of shared DICT/PAD/PS space
 
-;TIB and return stack
-RS_TIB_START		EQU	UDICT_PS_END		;start of shared TIB/RS space
-RS_TIB_END		EQU	MMAP_RAM_END		;end of shared TIB/RS space
-
-			ORG	MMAP_FLASH3F_START, MMAP_FLASH3F_START_LIN
+;TIB and return stack;
+RS_TIB_START		EQU	DS_PS_END			;start of shared TIB/RS space
+RS_TIB_END		EQU	SSTACK_BOTTOM			;end of shared TIB/RS space
+			
+			ORG	MMAP_FLASH3F_START
 ;Code
 DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
 			ORG	DEMO_CODE_END, DEMO_CODE_END_LIN
 
+BASE_CODE_START		EQU	*
+BASE_CODE_START_LIN	EQU	@
+			ORG	BASE_CODE_END, BASE_CODE_END_LIN
+
+FORTH_CODE_START		EQU	*
+FORTH_CODE_START_LIN	EQU	@
+			ORG	FORTH_CODE_END, FORTH_CODE_END_LIN
+
 ;Tables
 DEMO_TABS_START		EQU	*
 DEMO_TABS_START_LIN	EQU	@
 			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
-;Words
-			ALIGN	1
-DEMO_WORDS_START	EQU	*
-DEMO_WORDS_START_LIN	EQU	@
-			ORG	DEMO_WORDS_END, DEMO_WORDS_END_LIN
+
+BASE_TABS_START		EQU	*
+BASE_TABS_START_LIN	EQU	@
+			ORG	BASE_TABS_END, BASE_TABS_END_LIN
+
+FORTH_TABS_START		EQU	*
+FORTH_TABS_START_LIN	EQU	@
+			ORG	FORTH_TABS_END, FORTH_TABS_END_LIN
 				
 ;###############################################################################
 ;# Variables                                                                   #
@@ -113,14 +127,6 @@ DEMO_WORDS_START_LIN	EQU	@
 			ORG 	DEMO_VARS_START
 #endif	
 
-BASE_VARS_START		EQU	*
-BASE_VARS_START_LIN	EQU	@
-			ORG	BASE_VARS_END, BASE_VARS_END_LIN
-
-FORTH_VARS_START	EQU	*
-FORTH_VARS_START_LIN	EQU	@
-			ORG	FORTH_VARS_END, FORTH_VARS_END_LIN
-
 DEMO_VARS_END		EQU	*
 DEMO_VARS_END_LIN	EQU	@
 
@@ -128,6 +134,14 @@ DEMO_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 
+;#Welcome message
+#macro	WELCOME_MESSAGE, 0
+			RESET_BR_ERR	DONE		;severe error detected 
+			LDX	#WELCOME_MESSAGE	;print welcome message
+			STRING_PRINT_BL
+DONE			EQU	*
+#emac
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -137,31 +151,16 @@ DEMO_VARS_END_LIN	EQU	@
 			ORG 	DEMO_CODE_START
 #endif	
 
-;Application code
-START_OF_CODE		EQU	*		;Start of code
-			;Initialization
+START_OF_CODE		EQU	*
+;Initialization
 			BASE_INIT
 			FORTH_INIT
+			WELCOME_MESSAGE
 
-;			EXEC_CF	CF_WORDS_CDICT
-;			BGND
+;Application code
+			JOB	CF_ABORT_RT
+			BRA	*
 	
-;			LDX	#TEST_WORD
-;			FCDICT_FIND
-;			BGND
-;TEST_WORD		FCS	"words-udictx"
-	
-			;Enter QUIT shell
-			JOB	CF_QUIT_SHELL
-	
-BASE_CODE_START		EQU	*
-BASE_CODE_START_LIN	EQU	@
-			ORG	BASE_CODE_END, BASE_CODE_END_LIN
-
-FORTH_CODE_START		EQU	*
-FORTH_CODE_START_LIN	EQU	@
-			ORG	FORTH_CODE_END, FORTH_CODE_END_LIN
-
 DEMO_CODE_END		EQU	*
 DEMO_CODE_END_LIN	EQU	@
 	
@@ -173,33 +172,15 @@ DEMO_CODE_END_LIN	EQU	@
 #else
 			ORG 	DEMO_TABS_START
 #endif	
-	
-BASE_TABS_START		EQU	*
-BASE_TABS_START_LIN	EQU	@
-			ORG	BASE_TABS_END, BASE_TABS_END_LIN
 
-FORTH_TABS_START		EQU	*
-FORTH_TABS_START_LIN	EQU	@
-			ORG	FORTH_TABS_END, FORTH_TABS_END_LIN
+;#Welcome message
+#ifndef	WELCOME_MESSAGE
+WELCOME_MESSAGE		FCC	"Hello, this is S12CForth!"
+			STRING_NL_TERM
+#endif
 
 DEMO_TABS_END		EQU	*
 DEMO_TABS_END_LIN	EQU	@
-
-;###############################################################################
-;# Demo words                                                                  #
-;###############################################################################
-#ifdef DEMO_WORDS_START_LIN
-			ORG 	DEMO_WORDS_START, DEMO_WORDS_START_LIN
-#else
-			ORG 	DEMO_WORDS_START
-#endif	
-
-FORTH_WORDS_START	EQU	*
-FORTH_WORDS_START_LIN	EQU	@
-			ORG	FORTH_WORDS_END, FORTH_WORDS_END_LIN
-
-DEMO_WORDS_END		EQU	*
-DEMO_WORDS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Includes                                                                    #

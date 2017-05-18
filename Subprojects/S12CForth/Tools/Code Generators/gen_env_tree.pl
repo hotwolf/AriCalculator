@@ -1,10 +1,9 @@
 #!/usr/bin/env perl
 ###############################################################################
-# S12CForth - Dictionary Tree Generator                                       #
+# S12CForth - Envirnment Tree Generator                                       #
 ###############################################################################
-#    Copyright 2013 Dirk Heisswolf                                            #
-#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
-#    family.                                                                  #
+#    Copyright 2013-2016 Dirk Heisswolf                                       #
+#    This file is part of the S12CForth framework for NXP's S12C MCU family.  #
 #                                                                             #
 #    S12CForth is free software: you can redistribute it and/or modify        #
 #    it under the terms of the GNU General Public License as published by     #
@@ -24,10 +23,8 @@
 #    parser) for the S12CForth CORE NFAs.                                     #
 ###############################################################################
 # Version History:                                                            #
-#    8 January, 2013                                                          #
+#    November 13, 2016                                                        #
 #      - Initial release                                                      #
-#    8 October, 2013                                                          #
-#      - Fixed output format                                                  #
 ###############################################################################
 
 #################
@@ -61,12 +58,12 @@ $code              = {};
 $comp_symbols      = {};
 $pag_addrspace     = {};
 
-%dict_tree         = ();
+%env_tree         = ();
 $max_name_length   = 0;
 $tree_layout_width = 0;
 @zero_terms        = ();
 @first_entry       = ();
-$first_cfa         = undef;
+$first_cf         = undef;
 
 ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
 $year += 1900;
@@ -208,7 +205,7 @@ if ($code->{problems}) {
 
     #printf STDERR "Loaded...(%s)\n", $#{$code->{code}};
     #######################
-    # parse code for CFAs #
+    # parse code for CFs #
     #######################
     foreach $code_entry (@{$code->{code}}) {	
 	$code_comments = $code_entry->[2];
@@ -223,27 +220,20 @@ if ($code->{problems}) {
 	$code_sym_tabs = $code_entry->[12];
 	
 	#printf STDERR "Label: \"%s\"\n", $code_label;
-	#Word must begin with "CFA_" label
-	if ($code_label =~ /^CFA_/) {		
-	    #printf STDERR "CFA found: \"%s\"\n", $code_label;
+	#Word must begin with "ENV_" label
+	if ($code_label =~ /^ENV_/) {		
+	    #printf STDERR "IF found: \"%s\"\n", $code_label;
 	    
-	    #Word must contain the comment line: ;Word: <name> ... HIDDEN ... IMMEDIATE"
+	    #Word must contain the comment line: ;Environment: <name> ... HIDDEN"
 	    my $name_string  = "";
 	    my $name_found   = 0;
-	    my $is_immediate = 0;
 	    my $is_hidden    = 0;
 	    foreach my $code_comment (@{$code_comments}) {
 		#printf STDERR "Comment: \"%s\"\n", $code_comment;
-		if ($code_comment =~ /^;Word:\s+(\S+)/) {
+		if ($code_comment =~ /^;Environment:\s+(\S+)/) {
 		    $name_found   = 1;
 		    $name_string  =  uc($1);
-		    #$name_string =  $1;     //case sensitive naming
-		    if ($code_comment =~ /^;Word:\s+\S+\s+.*IMMEDIATE\s*$/) {
-			$is_immediate = 1;
-		    } else {
-			$is_immediate = 0;
-		    }
-		    if ($code_comment =~ /^;Word:\s+\S+\s+.*HIDDEN\s*$/) {
+		    if ($code_comment =~ /^;Environment:\s+\S+\s+.*HIDDEN\s*$/) {
 			$is_hidden = 1;
 		    } else {
 			$is_hidden = 0;
@@ -253,20 +243,22 @@ if ($code->{problems}) {
 	    }	    
 	    if ($name_found) {
 		#printf STDERR "      \"%s\"%s%s\n", $name_string,
-		#                                    $is_hidden    ? " HIDDEN" : "",
-		#                                    $is_immediate ? " IMMEDIATE" : "";
-		 if (! $is_hidden) {
-		     #Find longest name
-		     if (length($name_string) > $max_name_length) {
-			 $max_name_length = length($name_string);
-		     }
-		     
-		     #Split name into letters
-		     @name_array = split("", $name_string);
-		     
-		     #Add word to dictionary tree
-		     add_to_tree(\%dict_tree, \@name_array, $code_label, $is_immediate);
-		 }
+		#                                    $is_hidden    ? " HIDDEN" : "";
+		if (! $is_hidden) {
+		    #Find longest name
+		    if (length($name_string) > $max_name_length) {
+			$max_name_length = length($name_string);
+		    }
+		    
+		    #Split name into letters
+		    @name_array = split("", $name_string);
+		 
+		    #Change code label
+		    $code_label =~ s/^IF_/CF_/;
+   
+		    #Add word to environment tree
+		    add_to_tree(\%env_tree, \@name_array, $code_label);
+		}
 	    }
 	}
     }
@@ -274,29 +266,29 @@ if ($code->{problems}) {
     ###################################
     # condense tree (find substrings) #
     ###################################
-    condense_tree(\%dict_tree);
+    condense_tree(\%env_tree);
 
     ##########################################
     # find zero-length terminated substrings #
     ##########################################
-    #find_zero_term(\%dict_tree);
+    #find_zero_term(\%env_tree);
 
     #########################
     # write NFA search tree #
     #########################
-    $dict_tree_file_name = sprintf("%s/fcdict_tree.s", $output_path);
+    $env_tree_file_name = sprintf("%s/fenv_tree.s", $output_path);
 
-    if (open (FILEHANDLE, sprintf(">%s", $dict_tree_file_name))) {
+    if (open (FILEHANDLE, sprintf(">%s", $env_tree_file_name))) {
 
 	#Print header
 	#------------ 
-        printf FILEHANDLE "#ifndef FCDICT_TREE_COMPILED\n"; 
-        printf FILEHANDLE "#define FCDICT_TREE_COMPILED\n"; 
+        printf FILEHANDLE "#ifndef FENV_TREE_COMPILED\n"; 
+        printf FILEHANDLE "#define FENV_TREE_COMPILED\n"; 
         printf FILEHANDLE ";###############################################################################\n"; 
-        printf FILEHANDLE ";# S12CForth - Search Tree for the Core Dictionary                             #\n";
+        printf FILEHANDLE ";# S12CForth - Search Tree for the Core Environment                            #\n";
         printf FILEHANDLE ";###############################################################################\n";
-        printf FILEHANDLE ";#    Copyright 2009-2015 Dirk Heisswolf                                       #\n";
-        printf FILEHANDLE ";#    This file is part of the S12CForth framework for Freescale's S12(X) MCU  #\n";
+        printf FILEHANDLE ";#    Copyright 2009-%4d Dirk Heisswolf                                       #\n", $year;
+        printf FILEHANDLE ";#    This file is part of the S12CForth framework for NXP's S12(X) MCU        #\n";
         printf FILEHANDLE ";#    families.                                                                #\n";
         printf FILEHANDLE ";#                                                                             #\n";
         printf FILEHANDLE ";#    S12CForth is free software: you can redistribute it and/or modify        #\n";
@@ -313,22 +305,21 @@ if ($code->{problems}) {
         printf FILEHANDLE ";#    along with S12CForth.  If not, see <http://www.gnu.org/licenses/>.       #\n";
         printf FILEHANDLE ";###############################################################################\n";
         printf FILEHANDLE ";# Description:                                                                #\n";
-        printf FILEHANDLE ";#    This file contains a search tree for the NFAs of the S12CForth CORE      #\n";
-        printf FILEHANDLE ";#    words.                                                                   #\n";
+        printf FILEHANDLE ";#    This file contains a search tree for S12CForth environment queries.      #\n";
         printf FILEHANDLE ";#                                                                             #\n";
         printf FILEHANDLE ";###############################################################################\n";
         printf FILEHANDLE ";# Generated on %3s, %3s %.2d %4d                                               #\n", $days[$wday], $months[$mon], $mday, $year;
         printf FILEHANDLE ";###############################################################################\n";
 
 	#Print tree layout
-	$tree_layout_width = get_tree_layout_width(\%dict_tree);
+	$tree_layout_width = get_tree_layout_width(\%env_tree);
         printf FILEHANDLE "\n";
         printf FILEHANDLE ";###############################################################################\n";
-        printf FILEHANDLE ";# Dictionary Tree Structure                                                   #\n";
+        printf FILEHANDLE ";# Environment Tree Structure                                                   #\n";
         printf FILEHANDLE ";###############################################################################\n";
         printf FILEHANDLE ";\n";
         printf FILEHANDLE "; -> ";
-	print_tree_layout(\%dict_tree, ";    ");
+	print_tree_layout(\%env_tree, ";    ");
 
 	#Constants label
         printf FILEHANDLE "\n";
@@ -344,10 +335,14 @@ if ($code->{problems}) {
         printf FILEHANDLE "#endif\n";
  	printf FILEHANDLE "\n";
         printf FILEHANDLE ";Tree depth\n";
-        printf FILEHANDLE "FCDICT_TREE_DEPTH       EQU     %d\n", get_tree_depth(\%dict_tree);
+        printf FILEHANDLE "FENV_TREE_DEPTH       EQU     %d\n", get_tree_depth(\%env_tree);
  	printf FILEHANDLE "\n";
-        printf FILEHANDLE ";First CFA\n";
-        printf FILEHANDLE "FCDICT_FIRST_CFA        EQU     %s\n", $first_cfa;
+        printf FILEHANDLE ";First CF\n";
+        printf FILEHANDLE "FENV_FIRST_CF         EQU     %s\n", $first_cf;
+ 	printf FILEHANDLE "\n";
+        printf FILEHANDLE ";Character count of the first word\n";
+        printf FILEHANDLE "FENV_FIRST_CC         EQU     %d                               ;\"%s\"\n", length(get_first_word(\%env_tree)), 
+                                                                                                        get_first_word(\%env_tree);
  
 	#Macro label
         printf FILEHANDLE "\n";
@@ -357,33 +352,32 @@ if ($code->{problems}) {
         printf FILEHANDLE "\n";
 
 	#Print tree
-        printf FILEHANDLE ";Dictionary tree\n";
-        printf FILEHANDLE "#macro       FCDICT_TREE, 0\n";
+        printf FILEHANDLE ";Environment tree\n";
+        printf FILEHANDLE "#macro       FENV_TREE, 0\n";
         printf FILEHANDLE ";Local constants\n";
         #printf FILEHANDLE "STRING_TERMINATION      EQU     \$00\n";
         printf FILEHANDLE "EMPTY_STRING            EQU     \$00\n";
         printf FILEHANDLE "BRANCH                  EQU     \$00\n";
         printf FILEHANDLE "END_OF_BRANCH           EQU     \$00\n";
-        printf FILEHANDLE "IMMEDIATE               EQU     \$8000\n";
         #printf FILEHANDLE "\n";
 	my $mem_offset = 0;
-	print_tree(\%dict_tree, "", [], \$mem_offset);
+	print_tree(\%env_tree, "", [], \$mem_offset);
         printf FILEHANDLE "#emac\n";
+        printf FILEHANDLE "\n";
 
-	#Initialize tree pointer structure
-        printf FILEHANDLE ";#Set pointer structure to first CDICT entry\n";
-        printf FILEHANDLE "; args:   1: address of CDICT root\n";
-        printf FILEHANDLE ";         2: index register to address tree entry structure\n";
-        printf FILEHANDLE ";         3: offset of tree entry structure\n";
-        printf FILEHANDLE "; result: none\n";
-        printf FILEHANDLE "; SSTACK: none\n";
-        printf FILEHANDLE ";         All registers are preserved\n";
-        printf FILEHANDLE "#macro FCDICT_ITERATOR_INIT, 3\n";
- 	print_init_macro();
-        printf FILEHANDLE "#emac\n";
-
+	##Initialize tree pointer structure
+        #printf FILEHANDLE ";#Set pointer structure to first tree entry\n";
+        #printf FILEHANDLE "; args:   1: address of root\n";
+        #printf FILEHANDLE ";         2: index register to address tree entry structure\n";
+        #printf FILEHANDLE ";         3: offset of tree entry structure\n";
+        #printf FILEHANDLE "; result: none\n";
+        #printf FILEHANDLE "; SSTACK: none\n";
+        #printf FILEHANDLE ";         All registers are preserved\n";
+        #printf FILEHANDLE "#macro FENV_INIT_ITERATOR, 3\n";
+ 	#print_init_macro();
+        #printf FILEHANDLE "#emac\n";
+        #printf FILEHANDLE "\n";
         printf FILEHANDLE "#endif\n";
- 
 	close FILEHANDLE;
     } else {
 	printf STDERR "Can't open output file \"%s\"\r\n", $nfa_tree_file_name;
@@ -397,22 +391,21 @@ if ($code->{problems}) {
 sub add_to_tree {
     my $tree           = shift @_;
     my $name_array     = shift @_;
-    my $cfa_name       = shift @_;
-    my $is_immediate   = shift @_;
+    my $cf_name        = shift @_;
 
     my @tmp_array      = (@$name_array);
     my $tmp_char       = shift @tmp_array;
-    #printf STDERR "Add to tree: \"%s\"->\"%s\" \"%s\" %d\n", $tmp_char, join("", @tmp_array), $cfa_name, $#tmp_array;
+    #printf STDERR "Add to tree: \"%s\"->\"%s\" \"%s\" %d\n", $tmp_char, join("", @tmp_array), $cf_name, $#tmp_array;
 
     #Consider termination
     if ($#tmp_array >= 0) {
 	if (! exists $tree->{$tmp_char}) {
 	    $tree->{$tmp_char} = {};
 	}
-	add_to_tree($tree->{$tmp_char}, \@tmp_array, $cfa_name, $is_immediate);
+	add_to_tree($tree->{$tmp_char}, \@tmp_array, $cf_name);
     } else {
-	$tree->{$tmp_char}->{"\n"}->{cfa_name}     = $cfa_name;
-	$tree->{$tmp_char}->{"\n"}->{is_immediate} = $is_immediate;
+	#$tree->{$tmp_char}->{"\n"}->{cf_name}     = $cf_name;
+	$tree->{$tmp_char}->{"\n"}     = $cf_name;
     }
     1;
 }
@@ -424,7 +417,9 @@ sub condense_tree {
     my $tree           = shift @_;    
     my @strings = sort keys %$tree;
 
-    while (my $string = shift @strings) {
+    #while (my $string = shift @strings) {
+    while ($#strings >= 0) {
+	my $string = shift @strings;
 	if ($string ne "\n") {
 	    #No end of string
 	    my $child_tree    = $tree->{$string};
@@ -433,6 +428,9 @@ sub condense_tree {
 	    if ($#child_strings  == 0) {
 		my $child_string    = $child_strings[0];
 		my $combined_string = $string . $child_string;
+		#printf STDERR "string: \"%s\"\n", $string;
+		#printf STDERR "child_string: \"%s\"\n", $child_string;
+		#printf STDERR "combined_string: \"%s\"\n", $combined_string;
 		$tree->{$combined_string} = $child_tree->{$child_string};
 		delete $tree->{$string};
 		unshift @strings, $combined_string;
@@ -469,14 +467,13 @@ sub get_tree_depth{
     my $depth      = 0;
 
     foreach my $string (keys %$tree) {
-	if (($string ne "is_immediate") &&
-	    ($string ne "cfa_name")) {
+	#if ($string ne "cf_name") {
 	    my $subtree_depth = get_tree_depth($tree->{$string});
 	    #printf STDERR "string: \"%s\" %d %d\n", $string, $subtree_depth, $depth;
 	    if ($depth < ($subtree_depth+1)) {
 		$depth = ($subtree_depth+1);
 	    }
-	}	
+	#}	
     }
     return $depth;
 }
@@ -490,7 +487,9 @@ sub get_tree_layout_width {
     my @strings = sort keys %$tree;
     my $max_string_width = 4;
     my $max_child_width  = 0;
-    while (my $string = shift @strings) {
+    #while (my $string = shift @strings) {
+    while ($#strings >= 0) {
+	my $string = shift @strings;
 	chomp($string);
 	if ((length($string)+4) > $max_string_width) {
 	    $max_string_width = (length($string)+4);
@@ -527,7 +526,9 @@ sub print_tree_layout {
     #Print strings
     my $new_pre_string;
     my $is_first_line = 1;
-    while (my $string = shift @strings) {
+    #while (my $string = shift @strings) {
+    while ($#strings >= 0) {
+	my $string = shift @strings;
 	#Update pre-string
 	if ($#strings >= 0) {
 	    $new_pre_string  = $pre_string . sprintf(sprintf("%%-%ds", $max_string_length), "|");
@@ -552,9 +553,11 @@ sub print_tree_layout {
 	    foreach my $i (0..$arrow_length) {
 		printf FILEHANDLE "-";
 	    }
-	    printf FILEHANDLE "> %s %s\n", $tree->{$string}->{cfa_name}, $tree->{$string}->{is_immediate} ? "(immediate)" : "" ;
-	    if (! defined $first_cfa) {
-		$first_cfa = $tree->{$string}->{cfa_name};
+	    #printf FILEHANDLE "> %s\n", $tree->{$string}->{cf_name};
+	    printf FILEHANDLE "> %s\n", $tree->{$string};
+	    if (! defined $first_cf) {
+		#$first_cf = $tree->{$string}->{cf_name};
+		$first_cf = $tree->{$string};
 	    }
 	} else {
 	    #check if string is terminated
@@ -569,9 +572,11 @@ sub print_tree_layout {
 		foreach my $i (0..$arrow_length) {
 		    printf FILEHANDLE "-";
 		}
-		printf FILEHANDLE "> %s %s\n", $tree->{$string}->{cfa_name}, $tree->{$string}->{is_immediate} ? "(immediate)" : "" ;
-		if (! defined $first_cfa) {
-		    $first_cfa = $tree->{$string}->{cfa_name};
+		#printf FILEHANDLE "> %s\n", $tree->{$string}->{cf_name};
+		printf FILEHANDLE "> %s\n", $tree->{$string};
+		if (! defined $first_cf) {
+		    #$first_cf = $tree->{$string}->{cf_name};
+		    $first_cf = $tree->{$string};
 		}
 	    } else {
 		#string is not terminated
@@ -613,15 +618,15 @@ sub print_tree {
     my @strings           = sort keys %$tree;
     my @subtree_order     = ();
     my $subtree_reordered = 0;
-    my $root_label        = "FCDICT_TREE";
-    my $label_format      = "FCDICT_TREE_%s";
+    my $root_label        = "FENV_TREE";
+    my $label_format      = "FENV_TREE_%s";
     my $instr_form_nc     = "%-23s %-7s %s\n";
     my $instr_form        = "%-23s %-7s %-31s ;%s\n";
 
     #Print subtree comment
     my $comment_line   = "";
     if ($#{$position} >= 0) {
-	$comment_line .= sprintf("Subtree %-15s%-10s-> %s+%2X", join("->", @$position) . " =>", 
+	$comment_line .= sprintf("Subtree %-15s%-8s-> %s+%2X", join("->", @$position) . " =>", 
                                                                 sprintf("\"%s\"", $substring), 
 				                                $root_label, $$mem_offset_ref);
     } else  {
@@ -688,14 +693,18 @@ sub print_tree {
 	    #String is not terminated
 	    if ($nt_string !~ /\"/) {
 		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
-		$$mem_offset_ref += scalar(split("", $string));
+		#printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
+		$$mem_offset_ref += scalar(split("", $nt_string));
 	    } else {
 		printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
-		$$mem_offset_ref += scalar(split("", $string));
+		#printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
+		$$mem_offset_ref += scalar(split("", $nt_string));
 	    }
 	    printf FILEHANDLE $instr_form_nc, "", "DB", "BRANCH";
+	    #printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
 	    $$mem_offset_ref += 1;
 	    printf FILEHANDLE $instr_form, "", "DW", sprintf($label_format, join("_", @$position, $string_index)), sprintf("%s...", $combo_string);
+	    #printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
 	    $$mem_offset_ref += 2;
 	    
 	    #Optimize subtree order
@@ -714,31 +723,27 @@ sub print_tree {
 
 	} else {
 	    #String is not terminated
-	    my $cfa_entry;
-	    my $cfa_entry = sprintf("%s>>1", );
-	    my $cfa_entry = sprintf("%s>>1", );
-	    if ($tree->{$string}->{is_immediate}) {
-		#Immediate
-		$cfa_entry = sprintf("(%s>>1)|IMMEDIATE", $tree->{$string}->{cfa_name});
-	    } else {	
-		#Not immediate
-		$cfa_entry = sprintf("(%s>>1)", $tree->{$string}->{cfa_name});
-	    }       	    
+	    #my $cf_entry = sprintf("(%s>>1)", $tree->{$string}->{cf_name});
+	    my $cf_entry = sprintf("%s", $tree->{$string});
 	    if (length($nt_string) > 0) {
 		#Non-zero length
 		if ($nt_string !~ /\"/) {
 		    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\"%s\"", $nt_string);
-		    $$mem_offset_ref += scalar(split("", $string));
+		    #printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
+		    $$mem_offset_ref += scalar(split("", $nt_string));
 		} else {
 		    printf FILEHANDLE $instr_form_nc, $left_col, "FCS", sprintf("\'%s\'", $nt_string);
-		    $$mem_offset_ref += scalar(split("", $string));
+		    #printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
+		    $$mem_offset_ref += scalar(split("", $nt_string));
 		}
 		#printf FILEHANDLE $instr_form_nc, "", "DB", "STRING_TERMINATION";
 	    } else {
 		printf FILEHANDLE $instr_form_nc, $left_col, "DB", "EMPTY_STRING";
+		#printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
 		$$mem_offset_ref += 1;
 	    }
-	    printf FILEHANDLE $instr_form, "", "DW", $cfa_entry, sprintf("-> %s", $combo_string); 
+	    printf FILEHANDLE $instr_form, "", "DW", $cf_entry, sprintf("-> %s", $combo_string); 
+	    #printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
 	    $$mem_offset_ref += 2;
 	}
 	$left_col = "";
@@ -749,9 +754,11 @@ sub print_tree {
   	#printf FILEHANDLE $instr_form, "", ";DB", "END_OF_BRANCH", "merged";
 	#$$mem_offset_ref += 1;
  	printf FILEHANDLE $instr_form_nc, "", ";DB", "END_OF_BRANCH";
-	$$mem_offset_ref += 1;
+	#printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
+	#$$mem_offset_ref += 1;
     } else {
 	printf FILEHANDLE $instr_form_nc, "", "DB", "END_OF_BRANCH";
+	#printf FILEHANDLE "\n;%4X\n", $$mem_offset_ref;
         $$mem_offset_ref += 1;
     }
   	
@@ -773,18 +780,41 @@ sub print_tree {
 # Print init macro #
 ####################
 sub print_init_macro {
-    my $tree_depth   = get_tree_depth(\%dict_tree);
+    my $tree_depth   = get_tree_depth(\%env_tree);
     my @init_offsets = @first_entry;
     
-    foreach my $level (0...$tree_depth) {
+    #foreach my $level (0...$tree_depth) {
+    foreach my $level (0...$tree_depth-1) {
 	if ($#init_offsets >= 0) {
 	    my $entry = shift @init_offsets;
-	    printf FILEHANDLE "                        %-30s;%s\n", sprintf("MOVW #(\\1+\$%.2X), \(\\3+\$%.2X),\\2", $entry->{offset}, (2*$level)),
+	    printf FILEHANDLE "                        %-30s;%s\n", sprintf("MOVW #(\\1+\$%.2X), \(\\3+\$%.2X),\\2", $entry->{offset}, (2*($tree_depth-(1+$level)))),
     	                                                            sprintf("%-20s(\"%s\")", $entry->{label}, $entry->{substring});
 	} else {
-	    printf FILEHANDLE "                        %-30s;\n",   sprintf("MOVW #NULL,     \(\\3+\$%.2X),\\2", (2*$level)),
+	    printf FILEHANDLE "                        %-30s;%s\n", sprintf("MOVW #NULL,     \(\\3+\$%.2X),\\2", (2*($tree_depth-(1+$level)))),
+                                                                    "unused";
 	}
     }
+}
+
+####################################
+# Get char count of the first word #
+####################################
+sub get_first_word {
+    my $tree           = shift @_;
+    my $word = "";
+   
+    my @keys = sort keys %{$tree};
+   
+    if ($#keys >= 0) {
+	if ($keys[0] ne "\n") {	
+	    $word = $keys[0] . get_first_word($tree->{$keys[0]});
+	}
+    }
+    chomp($word);
+    
+    #printf STDERR "word: %d  |%s| \n", length($word), $word;
+    
+    return $word;
 }
 
 1;

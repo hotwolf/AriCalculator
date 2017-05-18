@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CForth- FPAD - Scratch pad                                               #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
-;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
-;#    family.                                                                  #
+;#    Copyright 2009-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CForth framework for NXP's S12C MCU          #
 ;#                                                                             #
 ;#    S12CForth is free software: you can redistribute it and/or modify        #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -24,26 +23,62 @@
 ;#    This module implements the volatile user dictionary, user variables, and #
 ;#    the PAD.                                                                 #
 ;#                                                                             #
+;#    S12CForth register assignments:                                          #
+;#      IP  (instruction pounter)     = PC (subroutine theaded)                #
+;#      RSP (return stack pointer)    = SP                                     #
+;#      PSP (parameter stack pointer) = Y                                      #
+;#  									       #
+;#    Interrupts must be disabled while Y is temporarily used for other        #
+;#    purposes.								       #
+;#  									       #
 ;#    The following registers are implemented:                                 #
-;#          STATE = 0 -> Interpretation state    	       		       #
-;#                 -1 -> Compilation state (UDICT)    		       	       #
-;#                 -2 -> Compilation state (NVDICT)    		       	       #
-;#             CP = Compile pointer                                            #
-;#                  Points to the next free space after the dictionary         #
-;#            PAD = Beginning of the PAD buffer 			       #
-;#                  Points to the next byte after the PAD		       #
 ;#            HLD = Pointer for pictured numeric output			       #
 ;#                  Points to the first character on the PAD                   #
 ;#                                                                             #
-;#    Compile strategy:                                                        #
-;#    The user dictionary is 16-bit aligned and is allocated below the NVDICT  #
-;#    variables. Both data and compile pointer are represented by the variable #
-;#    CP.                                                                      #
+;#    The following notation is used to describe the stack layout in the word  #
+;#    definitions:                                                             #
 ;#                                                                             #
+;#    Symbol          Data type                       Size on stack	       #
+;#    ------          ---------                       -------------	       #
+;#    flag            flag                            1 cell		       #
+;#    true            true flag                       1 cell		       #
+;#    false           false flag                      1 cell		       #
+;#    char            character                       1 cell		       #
+;#    n               signed number                   1 cell		       #
+;#    +n              non-negative number             1 cell		       #
+;#    u               unsigned number                 1 cell		       #
+;#    n|u 1           number                          1 cell		       #
+;#    x               unspecified cell                1 cell		       #
+;#    xt              execution token                 1 cell		       #
+;#    addr            address                         1 cell		       #
+;#    a-addr          aligned address                 1 cell		       #
+;#    c-addr          character-aligned address       1 cell		       #
+;#    d-addr          double address                  2 cells (non-standard)   #
+;#    d               double-cell signed number       2 cells		       #
+;#    +d              double-cell non-negative number 2 cells		       #
+;#    ud              double-cell unsigned number     2 cells		       #
+;#    d|ud 2          double-cell number              2 cells		       #
+;#    xd              unspecified cell pair           2 cells		       #
+;#    colon-sys       definition compilation          implementation dependent #
+;#    do-sys          do-loop structures              implementation dependent #
+;#    case-sys        CASE structures                 implementation dependent #
+;#    of-sys          OF structures                   implementation dependent #
+;#    orig            control-flow origins            implementation dependent #
+;#    dest            control-flow destinations       implementation dependent #
+;#    loop-sys        loop-control parameters         implementation dependent #
+;#    nest-sys        definition calls                implementation dependent #
+;#    i*x, j*x, k*x 3 any data type                   0 or more cells	       #
+;#  									       #
+;#    Counted strings are implemented as terminated strings. String            #
+;#    termination is done by setting bit 7 in the last character of the        #   
+;#    string. Pointers to empty strings have the value $0000.		       #
+;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 23, 2009                                                           #
 ;#      - Initial release                                                      #
+;#    October 16, 2016                                                         #
+;#      - Started subroutine threaded implementation                           #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    FEXCPT - Forth Exception Handler                                         #
@@ -84,60 +119,14 @@
 ;              PS_EMPTY, ->   
 ;          UDICT_PS_END
 ;	
-;                           Word format:
-;                           +-----------------------------+
-;                     NFA-> |  IMMEDIATE / Previous NFA   |	
-;                           +--------------+--------------+
-;                           |                             | 
-;                           |            Name             | 
-;                           |                             | 
-;                           |              +--------------+ 
-;                           |              |    Padding   | 
-;                           +--------------+--------------+
-;                     CFA-> |       Code Field Address    |	
-;                           +--------------+--------------+
-;                           |                             | 
-;                           |            Data             | 
-;                           |                             | 
-;                           +--------------+--------------+   
 	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Boundaries
-;UDICT_PS_START		EQU	0
-;UDICT_PS_END		EQU	0
-
-;Debug option for dictionary overflows
-;FPAD_DEBUG		EQU	1 
-	
-;Disable dictionary range checks
-;FPAD_NO_CHECK	EQU	1 
-
-;Safety distance between the user dictionary and the PAD
-#ifndef UDICT_PADDING
-UDICT_PADDING		EQU	4 	;default is 4 bytes
-#endif
-
-;PAD SIZE
-#ifndef PAD_SIZE
-PAD_SIZE		EQU	84 	;default is 84 bytes
-#endif
-#ifndef PAD_MINSIZE
-PAD_MINSIZE		EQU	4 	;default is 4 bytes
-#endif
-	
-;Safety distance between the PAD and the parameter stack
-#ifndef PS_PADDING
-PS_PADDING		EQU	16 	;default is 16 bytes
-#endif
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;NVC variable 
-NVC_VOLATILE		EQU	FALSE
-NVC_NON_VOLATILE	EQU	TRUE
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -149,12 +138,8 @@ NVC_NON_VOLATILE	EQU	TRUE
 FPAD_VARS_START_LIN	EQU	@
 #endif
 
-			ALIGN	1	
-CP			DS	2 	;compile pointer (next free space in the dictionary space) 
-CP_SAVED		DS	2 	;saved compile pointer
 HLD			DS	2	;pointer for pictured numeric output
 PAD                     DS	2	;end of the PAD buffer
-UDICT_LAST_NFA		DS	2 	;pointer to the most recent NFA of the UDICT
 
 FPAD_VARS_END		EQU	*
 FPAD_VARS_END_LIN	EQU	@
@@ -162,127 +147,54 @@ FPAD_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Initialization
+;#Initialization (executed along with ABORT action)
+;===============
 #macro	FPAD_INIT, 0
-#ifndef FNVDICT_INFO
-			;Initialize the compile data pointer
-			MOVW	#UDICT_PS_START, CP
-	
-	
-			MOVW	#0000, UDICT_LAST_NFA
-			LDD	#UDICT_PS_START
-			STD	CP
-			STD	CP_SAVED
-	
-			;Initialize PAD (DICT_START in D)
-			STD	PAD 		;Pad is allocated on demand
-			STD	HLD
-
+			MOVW	#$0000, HLD
+			MOVW	#$0000, PAD
 #emac
 
-;#Abort action (to be executed in addition of quit action)
+;#Abort action (to be executed in addition of QUIT action)
+;=============
 #macro	FPAD_ABORT, 0
 #emac
 	
 ;#Quit action
+;============
 #macro	FPAD_QUIT, 0
 #emac
-	
-;#Suspend action
-#macro	FPAD_SUSPEND, 0
+
+;#System integrity monitor
+;=========================
+#macro	FPAD_MON, 0
 #emac
 
-;#User dictionary (UDICT)
-;----------------------- 
-;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
-; args:   1: required space (bytes)
-; result: X: CP+new bytes
-; SSTACK: none
-; throws: FEXCPT_EC_DICTOF
-;        Y and D are preserved 
-#macro	UDICT_CHECK_OF, 1
-			LDX	CP 			;=> 3 cycles
-			LEAX	\1,X			;=> 2 cycles
-			CPX	PSP			;=> 3 cycles
-			BHI	FPAD_THROW_DICTOF	;=> 3 cycles/ 4 cycles
-			STX	PAD			;=> 3 cycles
-			STX	HLD			;=> 3 cycles
-							;  -------------------
-							;   17 cycles/12 cycles
-#emac			
-
-;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
-; args:   A: required space (bytes)
-; result: X: CP+new bytes
-; SSTACK: none
-; throws: FEXCPT_EC_DICTOF
-;        Y and D are preserved 
-#macro	UDICT_CHECK_OF_A, 0
-			LDX	CP 			;=> 3 cycles
-			LEAX	A,X			;=> 2 cycles
-			CPX	PSP			;=> 3 cycles
-			BHI	FPAD_THROW_DICTOF	;=> 3 cycles/ 4 cycles
-			STX	PAD			;=> 3 cycles
-			STX	HLD			;=> 3 cycles
-							;  --------------------
-							;   17 cycles/12 cycles
-#emac			
-	
-;#Check if there is room in the DICT space and deallocate the PAD (CP+bytes -> X)
-; args:   D: required space (bytes)
-; result: X: CP-new bytes
-; SSTACK: none
-; throws: FEXCPT_EC_DICTOF
-;        Y and D are preserved 
-#macro	DICT_CHECK_OF_D, 0
-			LDX	CP 			;=> 3 cycles
-			LEAX	D,X			;=> 2 cycles
-			CPX	PSP			;=> 3 cycles
-			BHI	FPAD_THROW_DICTOF	;=> 3 cycles/ 4 cycles
-			STX	PAD			;=> 3 cycles
-			STX	HLD			;=> 3 cycles
-							;  --------------------
-							;   17 cycles/12 cycles
-#emac			
-	
-;#Pictured numeric output buffer (PAD)
-;-------------------------------------
-;PAD_CHECK_OF: check if there is room for one more character on the PAD (HLD -> X)
-; args:   none
-; result: X: HLD
-; SSTACK: none
-; throws: FEXCPT_EC_PADOF
-;        Y and D are preserved 
-#macro	PAD_CHECK_OF, 0
-			LDX	HLD 			;=> 3 cycles
-			CPX	CP			;=> 3 cycles
-			BLS	FPAD_THROW_PADOF	;=> 3 cycles/ 4 cycles
-							;  -------------------
-							;   9 cycles/10 cycles
-#emac			
-	
-;PAD_ALLOC: allocate the PAD buffer (PAD_SIZE bytes if possible) (PAD -> D)
-; args:   none
-; result: D: PAD (= HLD)
-; SSTACK: 2 bytes
-; throws: FEXCPT_EC_PADOF
-;        X and Y are preserved 
-#macro	PAD_ALLOC, 0 
-			SSTACK_JOBSR	FPAD_PAD_ALLOC, 2
-			TBEQ	D, FPAD_THROW_PADOF 	;no space available at all
-#emac			
-
-;PAD_DEALLOC: deallocate the PAD buffer  (PAD -> D)
-; args:   none
-; result: D: CP (= HLD = PAD)
-; SSTACK: none
-;        X and Y are preserved 
-#macro	PAD_DEALLOC, 0 
-			LDD	CP
-			STD	PAD
-			STD	HLD
-#emac			
-	
+;;#Initialization
+;#macro	FPAD_INIT, 0
+;;#ifndef FNVDICT_INFO
+;;			;Initialize the compile data pointer
+;;			MOVW	#UDICT_PS_START, CP
+;;	
+;;	
+;;			MOVW	#0000, UDICT_LAST_NFA
+;;			LDD	#UDICT_PS_START
+;;			STD	CP
+;;			STD	CP_SAVED
+;;	
+;;			;Initialize PAD (DICT_START in D)
+;;			STD	PAD 		;Pad is allocated on demand
+;;			STD	HLD
+;;
+;#emac
+;
+;;#Abort action (to be executed in addition of quit action)
+;#macro	FPAD_ABORT, 0
+;#emac
+;	
+;;#Quit action
+;#macro	FPAD_QUIT, 0
+;#emac
+;	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -294,66 +206,142 @@ FPAD_CODE_START_LIN	EQU	@
 #endif
 
 
-;Search word in dictionary
-; args:   X: string pointer
-;         D: char count 
-; result: C-flag: set if word is in the dictionary	
-;         D: {IMMEDIATE, CFA>>1} if word has been found, unchanged otherwise 
-; SSTACK: 16  bytes
-;         X and Y are preserved 
-FPAD_SEARCH		EQU	*
+;#########
+;# Words #
+;#########
+
+;<# ( -- )
+;Initialize the pictured numeric output conversion process.
+;CF_LESS_NUMBER_SIGN	PAD_ALLOC
+;			NEXT
 
 
-	;;TBD 
+
+;#> ( xd -- c-addr u )
+;Drop xd. Make the pictured numeric output string available as a character
+;string. c-addr and u specify the resulting character string. A program may
+;replace characters within the string. 
+;CF_NUMBER_SIGN_GREATER		EQU	*	
+;				;Check PAD length (PSP in Y)
+;				LDD	PAD					;PAD-HLD -> u
+;				TFR	D, X
+;				SUBD	HLD
+;				STD	0,Y
+;				BEQ	CF_NUMBER_SIGN_GREATER_2 		;zero length string
+;				;Terminate string (PSP in Y, PAD in X)
+;				BSET	1,X, #$80 				;set termination bit in last characer
+;				;Return string pointer (PSP in Y, PAD in X)
+;				MOVW	HLD, 2,Y				;HLD -> c-addr
+;				;Done
+;CF_NUMBER_SIGN_GREATER_1	NEXT
+;				;Zero-length string (PSP in Y, PAD in X, 0 in D)
+;CF_NUMBER_SIGN_GREATER_2	STD	2,Y
+;				JOB	CF_NUMBER_SIGN_GREATER_1
+
+
+
+
+
+;Word: # ( ud1 -- ud2 )
+;Divide ud1 by the number in BASE giving the quotient ud2 and the remainder n.
+;(n is the least-significant digit of ud1.) Convert n to external form and add
+;the resulting character to the beginning of the pictured numeric output string.
+;An ambiguous condition exists if # executes outside of a <# #> delimited number
+;conversion.
+IF_NUMBER_SIGN			REGULAR
+CF_NUMBER_SIGN			EQU	*
+				;Get BASE 
+				JOBSR	FOUTER_GET_BASE			;BASE     -> B
+				SEX	B, X 				;BASE     -> X
+				LDD	0,Y 				;ud1(MSW) -> D
+				IDIV					;D/X=>X; remainder=D
+
+
 
 
 	
-;PAD_ALLOC: allocate the PAD buffer (PAD_SIZE bytes if possible) (PAD -> D)
-; args:   none
-; result: D: PAD (= HLD), $0000 if no space is available
-; SSTACK: 2
-;        X and Y are preserved 
-FPAD_PAD_ALLOC	EQU	*
-			;Calculate available space
-			LDD	PSP
-			SUBD	CP
-			;BLS	FPAD_PAD_ALLOC_4 	;no space available at all
-			;Check if requested space is available
-			CPD	#(PAD_SIZE+PS_PADDING)
-			BLO	FPAD_PAD_ALLOC_3	;reduce size
-			LDD	CP
-			ADDD	#PAD_SIZE
-			;Allocate PAD
-FPAD_PAD_ALLOC_1	STD	PAD
-			STD	HLD
-			;Done 
-FPAD_PAD_ALLOC_2	SSTACK_PREPULL	2
-			RTS
-			;Reduce PAD size 
-FPAD_PAD_ALLOC_3	CPD	#(PAD_MINSIZE+PS_PADDING)
-			BLO	FPAD_PAD_ALLOC_4		;not enough space available
-			LDD	PSP
-			SUBD	#PS_PADDING
-			JOB	FPAD_PAD_ALLOC_1 		;allocate PAD
-			;Not enough space available
-FPAD_PAD_ALLOC_4	LDD 	$0000 				;signal failure
-			JOB	FPAD_PAD_ALLOC_2		;done
+;CF_NUMBER_SIGN			EQU	*
+;				BASE_CHECK	CF_NUMBER_SIGN_INVALBASE;check BASE value (BASE -> D)
+;				;Perform division (PSP in Y, BASE in D)
+;				TFR	D,X				;prepare 1st division
+;				LDD	0,Y				; (ud1>>16)/BASE
+;				IDIV					;D/X=>X; remainder=D
+;				STX	0,Y				;return upper word of the result
+;				LDX	BASE				;prepare 2nd division
+;				LDY	2,Y
+;				EXG	D,Y
+;				EDIV					;Y:D / X -> Y; remainder -> D
+;				LDX	PSP				;PSP -> X
+;				STY	2,X
+;				;Lookup ASCII representation of the remainder (remainder -> D)
+;				TFR	D,X
+;				LDAB	FCORE_SYMTAB,X
+;				;Add ASCII character to the PAD buffer
+;				PAD_CHECK_OF	CF_NUMBER_SIGN_PADOF	;check for PAD overvlow (HLD -> X)
+;				STAB	1,-X
+;				STX	HLD
+;				NEXT
 
-;Code fields:
-;============
 
-;Exceptions:
-;===========
-;Standard exceptions
-#ifndef FPAD_NO_CHECK
-#ifdef FPAD_DEBUG
-FIDICT_THROW_DICTOF	BGND					;parameter stack overflow
-FIDICT_THROW_PADOF	BGND					;PAD overflow
-#else
-FPAD_THROW_DICTOF	THROW	FEXCPT_EC_DICTOF		;parameter stack overflow
-FPAD_THROW_PADOF	THROW	FEXCPT_EC_PADOF			;PAD overflow
-#endif
-#endif
+
+
+
+
+;#S ( ud1 -- ud2 )
+;Convert one digit of ud1 according to the rule for #. Continue conversion
+;until the quotient is zero. ud2 is zero. An ambiguous condition exists if #S
+;executes outside of a <# #> delimited number conversion.
+;CF_NUMBER_SIGN_S		PS_CHECK_UF	2					;check for underflow  (PSP -> Y)
+;				BASE_CHECK	CF_NUMBER_SIGN_S_INVALBASE		;check BASE value (BASE -> D)
+;				;Perform division (PSP in Y, BASE in D)
+;CF_NUMBER_SIGN_S_1		TFR	D,X						;prepare 1st division
+;				LDD	0,Y						; (ud1>>16)/BASE
+;				IDIV							;D/X=>X; remainder=D
+;				STX	0,Y						;return upper word of the result
+;				LDX	BASE						;prepare 2nd division
+;				LDY	2,Y
+;				EXG	D,Y
+;				EDIV							;Y:D/X=>Y; remainder=>D
+;				LDX	PSP						;PSP -> X
+;				STY	2,X
+;				;Lookup ASCII representation of the remainder (LSB of quotient in Y, remainder in D)
+;				TFR	D,X
+;				LDAB	FCORE_SYMTAB,X
+;				;Add ASCII character to the PAD buffer (LSB of quotient in Y)
+;				PAD_CHECK_OF	CF_NUMBER_SIGN_S_PADOF			;check for PAD overvlow (HLD -> X)
+;				STAB	1,-X
+;				STX	HLD
+;				;Check if quotient is zero
+;				LDD	BASE
+;				LDY	PSP
+;				LDX	2,Y
+;				BNE	CF_NUMBER_SIGN_S_1
+;				LDX	0,Y
+;				BNE	CF_NUMBER_SIGN_S_1
+;				;Quotient is zero
+;				NEXT
+;
+;CF_NUMBER_SIGN_S_PADOF		JOB	FCORE_THROW_PADOF
+;CF_NUMBER_SIGN_S_INVALBASE	JOB	FCORE_THROW_INVALBASE
+
+
+;HOLD ( char -- )
+;Add char to the beginning of the pictured numeric output string. An ambiguous
+;condition exists if HOLD executes outside of a <# #> delimited number
+;conversion.
+;CF_HOLD			PS_CHECK_UF	1, CF_HOLD_PSUF ;check for underflow	(PSP -> Y)
+;				PAD_CHECK_OF	CF_HOLD_PADOF	;check for PAD overvlow (HLD -> X)
+;				;Add ASCII character to the PAD buffer (PSP -> Y, HLD -> X)
+;				LDD	2,Y+
+;				STAB	1,-X
+;				STX	HLD
+;				STY	PSP
+;				NEXT
+
+
+
+	
+
 
 FPAD_CODE_END		EQU	*
 FPAD_CODE_END_LIN	EQU	@
@@ -368,25 +356,22 @@ FPAD_CODE_END_LIN	EQU	@
 FPAD_TABS_START_LIN	EQU	@
 #endif	
 
+;Environment: /HOLD ( -- n true)
+;Size of the pictured numeric output string buffer, in characters
+ENV_HOLD		DW	FENV_SINGLE
+			DW	32767
+
+;Environment: /PAD ( -- n true)
+;Size of the scratch area pointed to by PAD, in characters
+ENV_PAD			DW	FENV_SINGLE
+			DW	0000
+
+
+
+
+
+
+	
 FPAD_TABS_END		EQU	*
 FPAD_TABS_END_LIN	EQU	@
-
-;###############################################################################
-;# Words                                                                       #
-;###############################################################################
-#ifdef FPAD_WORDS_START_LIN
-			ORG 	FPAD_WORDS_START, FPAD_WORDS_START_LIN
-#else
-			ORG 	FPAD_WORDS_START
-FPAD_WORDS_START_LIN	EQU	@
-#endif	
-
-;#ANSForth Words:
-;================
-
-;#S12CForth Words:
-;=================
-	
-FPAD_WORDS_END	EQU	*
-FPAD_WORDS_END_LIN	EQU	@
 #endif
