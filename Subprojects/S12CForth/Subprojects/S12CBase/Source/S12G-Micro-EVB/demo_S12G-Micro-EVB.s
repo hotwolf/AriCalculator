@@ -1,9 +1,8 @@
 ;###############################################################################
-;# S12CBase - Demo (S12G-Micro-EVB)                                              #
+;# S12CBase - Demo (S12G-Micro-EVB)                                            #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2017 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12 MCU family.    #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -30,6 +29,8 @@
 ;#      - Initial release                                                      #
 ;#    January 29, 2015                                                         #
 ;#      - Updated during S12CBASE overhaul                                     #
+;#    September 27, 2016                                                       #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 
 ;###############################################################################
@@ -50,6 +51,9 @@ STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
 STRING_ENABLE_FILL_BL	EQU	1 		;enable STRING_FILL_BL
 STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 	
+;#ISTACK
+ISTACK_NO_WAI		EQU	1 		;don't use WAI instruction
+
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
@@ -58,28 +62,41 @@ STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*
 DEMO_CODE_START_LIN	EQU	@
-
-BASE_CODE_START		EQU	DEMO_CODE_END
-BASE_CODE_START_LIN	EQU	DEMO_CODE_END_LIN
+			ORG	DEMO_CODE_END, DEMO_CODE_END_LIN
+	
+BASE_CODE_START		EQU	*
+BASE_CODE_START_LIN	EQU	@
+			ORG	BASE_CODE_END, BASE_CODE_END_LIN
 
 ;Variables
-DEMO_VARS_START		EQU	BASE_CODE_END
-DEMO_VARS_START_LIN	EQU	BASE_CODE_END_LIN
+DEMO_VARS_START		EQU	*
+DEMO_VARS_START_LIN	EQU	@
+			ORG	DEMO_VARS_END, DEMO_VARS_END_LIN
 	
-BASE_VARS_START		EQU	DEMO_VARS_END
-BASE_VARS_START_LIN	EQU	DEMO_VARS_END_LIN
+BASE_VARS_START		EQU	*
+BASE_VARS_START_LIN	EQU	@
+			ORG	BASE_VARS_END, BASE_VARS_END_LIN
 
 ;Tables
-DEMO_TABS_START		EQU	BASE_VARS_END
-DEMO_TABS_START_LIN	EQU	BASE_VARS_END_LIN
-	
-BASE_TABS_START		EQU	DEMO_TABS_END
-BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
+DEMO_TABS_START		EQU	*
+DEMO_TABS_START_LIN	EQU	@
+			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
+
+BASE_TABS_START		EQU	*
+BASE_TABS_START_LIN	EQU	@
+			ORG	BASE_TABS_END, BASE_TABS_END_LIN
+
+;Stack 
+SSTACK_TOP		EQU	*
+SSTACK_TOP_LIN		EQU	@
+SSTACK_BOTTOM		EQU	VECTAB_START
+SSTACK_BOTTOM_LIN	EQU	VECTAB_START_LIN
 
 ;###############################################################################
-;# Includes                                                                    #
+;# Constants                                                                   #
 ;###############################################################################
-#include ./base_S12G-Micro-EVB.s		;S12CBase bundle
+
+HEADER_REPEAT		EQU	20
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -88,19 +105,29 @@ BASE_TABS_START_LIN	EQU	DEMO_TABS_END_LIN
 
 DEMO_VARS_END		EQU	*
 	
+LINE_COUNT		DS	1	
+
 DEMO_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
+;#Welcome message
+#macro	WELCOME_MESSAGE, 0
+			RESET_BR_ERR	DONE		;severe error detected 
+			LDX	#WELCOME_MESSAGE	;print welcome message
+			STRING_PRINT_BL
+DONE			EQU	*
+#emac
+
 ;Break handler
 #macro	SCI_BREAK_ACTION, 0
-			LED_BUSY_ON
+			LED_SET	A, LED_SEQ_HEART_BEAT
 #emac
 	
 ;Suspend handler
 #macro	SCI_SUSPEND_ACTION, 0
-			LED_BUSY_OFF
+			LED_CLR	A, LED_SEQ_HEART_BEAT
 #emac
 
 ;###############################################################################
@@ -110,19 +137,26 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;Initialization
 			BASE_INIT
+			MOVB	#1, LINE_COUNT
+
+			SCI_BR_BAUD_RESTORED	DEMO_SKIP_BD	
+			SCI_BAUD_DETECT_BL
+DEMO_SKIP_BD		WELCOME_MESSAGE
 	
 ;Application code
-			;Print header string
+			;Print header
+DEMO_LOOP		DEC	LINE_COUNT
+			BNE	DEMO_GET_CHAR
+			MOVB	#HEADER_REPEAT, LINE_COUNT
 			LDX	#DEMO_HEADER
 			STRING_PRINT_BL
 
-			;Loop
-DEMO_LOOP		SCI_RX_BL
-			;Ignore RX errors 
+			;Wait for input
+DEMO_GET_CHAR		SCI_RX_BL
+			;Ignore RX errors (char in B)
 			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
-			BNE	DEMO_LOOP
-			;TBNE	A, DEMO_LOOP
-
+			BNE	DEMO_GET_CHAR
+	
 			;Print ASCII character (char in B)
 			TFR	D, X
 			LDAA	#4
@@ -144,7 +178,6 @@ DEMO_LOOP		SCI_RX_BL
 			STRING_FILL_BL
 			LDAB	#16
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print decimal value (char in X)
 			LDY	#$0000
@@ -157,7 +190,6 @@ DEMO_LOOP		SCI_RX_BL
 			STRING_FILL_BL
 			LDAB	#10
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print octal value (char in X)
 			LDY	#$0000
@@ -170,7 +202,6 @@ DEMO_LOOP		SCI_RX_BL
 			STRING_FILL_BL
 			LDAB	#8
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print binary value (char in X)
 			LDAA	#2
@@ -183,10 +214,9 @@ DEMO_LOOP		SCI_RX_BL
 			NEGA
 			ADDA	#8
 			LDAB	#"0"
-			STRING_FILL_BL
+			STRING_fill_BL
 			LDAB	#2
 			NUM_REVPRINT_BL
-			NUM_CLEAN_REVERSE
 	
 			;Print new line
 			LDX	#STRING_STR_NL
@@ -201,6 +231,12 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
+;#Welcome message
+#ifndef	WELCOME_MESSAGE
+WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
+			STRING_NL_TERM
+#endif
+	
 DEMO_HEADER		STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
@@ -211,6 +247,8 @@ DEMO_HEADER		STRING_NL_NONTERM
 DEMO_TABS_END		EQU	*	
 DEMO_TABS_END_LIN	EQU	@	
 
-
-
-
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+#include ./base_S12G-Micro-EVB.s		;S12CBase bundle
+	

@@ -1,9 +1,10 @@
+#ifndef FPS_COMPILED
+#define FPS_COMPILED
 ;###############################################################################
-;# S12CForth- FPS - Parameter Stack of the Forth VM                            #
+;# S12CForth- FPS                                                              #
 ;###############################################################################
-;#    Copyright 2010 - 2013 Dirk Heisswolf                                     #
-;#    This file is part of the S12CForth framework for Freescale's S12C MCU    #
-;#    family.                                                                  #
+;#    Copyright 2009-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CForth framework for NXP's S12C MCU          #
 ;#                                                                             #
 ;#    S12CForth is free software: you can redistribute it and/or modify        #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -25,18 +26,49 @@
 ;#            PSP = Parameter Stack Pointer.				       #
 ;#	            Points to the top of the parameter stack                   #
 ;#                                                                             #
-;#    Program termination options:                                             #
-;#        ABORT:   Parameter stack is cleared                                  #
-;#        QUIT:    Parameter stack is untouched                                #
-;#        SUSPEND: Parameter stack is untouched                                #
+;#    The following notation is used to describe the stack layout in the word  #
+;#    definitions:                                                             #
 ;#                                                                             #
+;#    Symbol          Data type                       Size on stack	       #
+;#    ------          ---------                       -------------	       #
+;#    flag            flag                            1 cell		       #
+;#    true            true flag                       1 cell		       #
+;#    false           false flag                      1 cell		       #
+;#    char            character                       1 cell		       #
+;#    n               signed number                   1 cell		       #
+;#    +n              non-negative number             1 cell		       #
+;#    u               unsigned number                 1 cell		       #
+;#    n|u 1           number                          1 cell		       #
+;#    x               unspecified cell                1 cell		       #
+;#    xt              execution token                 1 cell		       #
+;#    addr            address                         1 cell		       #
+;#    a-addr          aligned address                 1 cell		       #
+;#    c-addr          character-aligned address       1 cell		       #
+;#    d-addr          double address                  2 cells (non-standard)   #
+;#    d               double-cell signed number       2 cells		       #
+;#    +d              double-cell non-negative number 2 cells		       #
+;#    ud              double-cell unsigned number     2 cells		       #
+;#    d|ud 2          double-cell number              2 cells		       #
+;#    xd              unspecified cell pair           2 cells		       #
+;#    colon-sys       definition compilation          implementation dependent #
+;#    do-sys          do-loop structures              implementation dependent #
+;#    case-sys        CASE structures                 implementation dependent #
+;#    of-sys          OF structures                   implementation dependent #
+;#    orig            control-flow origins            implementation dependent #
+;#    dest            control-flow destinations       implementation dependent #
+;#    loop-sys        loop-control parameters         implementation dependent #
+;#    nest-sys        definition calls                implementation dependent #
+;#    i*x, j*x, k*x 3 any data type                   0 or more cells	       #
+;#  									       #
 ;###############################################################################
 ;# Version History:                                                            #
 ;#    April 23, 2009                                                           #
 ;#      - Initial release                                                      #
+;#    October 4, 2016                                                          #
+;#      - Started subroutine threaded implementation                           #
 ;###############################################################################
 ;# Required Modules:                                                           #
-;#    FEXCPT - Forth Exception Handler                                         #
+;#    BASE    - S12CBase framework                                             #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -45,56 +77,68 @@
 ;###############################################################################
 ;# Memory Layout                                                               #
 ;###############################################################################
-;        
-;      	                    +--------------+--------------+	     
-;        UDICT_PS_START, -> |              |              | 	     
-;           UDICT_START     |       User Dictionary       |	     
-;                           |       User Variables        |	     
-;                           |              |              |	     
-;                           |              v              |	     
-;                       -+- | --- --- --- --- --- --- --- |
-;             UDICT_PADDING |                             | <- [CP]	     
-;                       -+- | --- --- --- --- --- --- --- |          
-;                           |              ^              | <- [HLD]	     
-;                           |             PAD             |	     
-;                           | --- --- --- --- --- --- --- |          
-;                           |                             | <- [PAD]          
-;                           .                             .          
-;                           .                             .          
-;                           | --- --- --- --- --- --- --- |          
-;                           |              ^              | <- [PSP]	  
-;                           |              |              |		  
-;                           |       Parameter stack       |		  
-;    	                    |              |              |		  
-;                           +--------------+--------------+        
-;              PS_EMPTY, ->   
-;          UDUCT_PS_END
+; Memory layout:
+; ==============       
+;      	                    +----------+----------+	     
+;         UDICT_PS_START -> |          |          |	     
+;                           |   User Variables    |	     
+;                           |          |          |	     
+;                           |          v          |	     
+;                           | --- --- --- --- --- |
+;    	                    |                     | <- [DP]		  
+;    	                    |                     |		  
+;    	                    .                     .		  
+;    	                    .                     .		  
+;                           | --- --- --- --- --- |
+;                           |          ^          | <- [CFSP]	  
+;                           |          |          |	     
+;                           | Control-flow stack  |		  
+;                           |          |          |	     
+;                           +----------+----------+        
+;    	          [CVARS]-> |         CP          | 		  
+;    	                    |        CFSP         |		  
+;    	                    |         ...         |		  
+;                           +----------+----------+        
+;                           |          |          |
+;                           |  User Dictionary    |	     
+;                           |          |          |	     
+;                           |          v          |	     
+;                           | --- --- --- --- --- |
+;                           |                     | <- [CP]	     
+;    	                    |                     |		  
+;    	                    |                     |		  
+;                           | --- --- --- --- --- |          
+;                           |          ^          | <- [HLD]	     
+;                           |         PAD         |	     
+;                           | --- --- --- --- --- |          
+;                           |                     | <- [PAD]          
+;                           .                     .          
+;                           .                     .          
+;                           | --- --- --- --- --- |          
+;                           |          ^          | <- [PSP=Y]	  
+;                           |          |          |		  
+;                           |   Parameter stack   |		  
+;    	                    |          |          |		  
+;                           +----------+----------+        
+;    	                    |       Canary        |	 		  
+;                           +----------+----------+        
+;           UDICT_PS_END ->   
 	
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;Debug option for stack over/underflows
-;FPS_DEBUG		EQU	1 
-	
-;Disable stack range checks
-;FPS_NO_CHECK	EQU	1 
-
-;Boundaries
-;UDICT_PS_START		EQU	0
-;UDICT_PS_END		EQU	0
 
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Bottom of parameter stack
-PS_EMPTY		EQU	UDICT_PS_END
-
-;Error codes
-#ifndef FPS_NO_CHECK	EQU	1 
-FPS_EC_OF		EQU	FEXCPT_EC_PSOF		;PS overflow   (-3)
-FPS_EC_UF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
-#endif
+;Parameter stack 
+END_OF_PS		EQU	UDICT_PS_END
 	
+;Canary 
+FPS_CANARY_MSW		EQU	"Bi"
+FPS_CANARY_LSW		EQU	"rd"
+FPS_CANARY_SIZE		EQU	*-FPS_CANARY_MSW
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -102,10 +146,9 @@ FPS_EC_UF		EQU	FEXCPT_EC_PSUF		;PS underflow  (-4)
 			ORG 	FPS_VARS_START, FPS_VARS_START_LIN
 #else
 			ORG 	FPS_VARS_START
+
 FPS_VARS_START_LIN	EQU	@
-#endif
-	
-PSP			DS	2 	;parameter stack pointer (top of stack)
+#endif	
 
 FPS_VARS_END		EQU	*
 FPS_VARS_END_LIN	EQU	@
@@ -113,313 +156,28 @@ FPS_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;#Initialization
+;#Initialization (executed along with ABORT action)
+;===============
 #macro	FPS_INIT, 0
-			;Initialize parameter stack
-			MOVW	#PS_EMPTY,	PSP	
 #emac
 	
-;#Abort action (to be executed in addition of quit action)
+;#Abort action (to be executed in addition of QUIT action)
+;=============
 #macro	FPS_ABORT, 0
-			;Reset parameter stack
-			MOVW	#PS_EMPTY,	PSP		
+			LDY	#UDICT_PS_END			;UDUCT_PS_END -> Y
+			MOVW	#FPS_CANARY_LSW, 2,-Y		;insert canary code
+			MOVW	#FPS_CANARY_MSW, 2,-Y		;
 #emac
 	
 ;#Quit action
+;============
 #macro	FPS_QUIT, 0
 #emac
 	
-;#Suspend action
-#macro	FPS_SUSPEND, 0
+;#System integrity monitor
+;=========================
+#macro	FPS_MON, 0
 #emac
-
-;#Parameter stack oerations:
-;#--------------------------	
-;PS_RESET: reset the parameter stack
-; args:   none
-; result: none
-; SSTACK: none
-;        X, Y and D are preserved 
-#macro	PS_RESET, 0
-			MOVW	#PS_EMPTY,	PSP	
-#emac
-
-;PS_CHECK_UF: check for a minimum number of stack entries (PSP -> Y)
-; args:   1: required stack content (cells)
-; result: Y: PSP
-; SSTACK: none
-; throws: FEXCPT_EC_PSUF
-;         X and D are preserved 
-#macro	PS_CHECK_UF, 1
-			LDY	PSP 			;=> 3 cycles
-#ifndef	FPS_NO_CHECK
-			CPY	#(PS_EMPTY-(2*\1))	;=> 2 cycles
-			BHI	FPS_THROW_PSUF		;=> 3 cycles/ 4 cycles
-							;  -------------------
-							;   8 cycles/ 9 cycles
-#endif
-#emac
-	
-;PS_CHECK_Y_UF: check for a minimum number of stack entries (PSP -> Y)
-; args:   1: required stack content (cells)
-;         Y: PSP
-; result: none
-; SSTACK: none
-; throws: FEXCPT_EC_PSUF
-;         Y, X and D are preserved 
-#macro	PS_CHECK_Y_UF, 1
-#ifndef	FPS_NO_CHECK
-			CPY	#(PS_EMPTY-(2*\1))	;=> 2 cycles
-			BHI	FPS_THROW_PSUF		;=> 3 cycles/ 4 cycles
-							;  -------------------
-							;   8 cycles/ 9 cycles
-#endif
-#emac
-	
-;PS_CHECK_OF: check if there is room for a number of stack entries (PSP-new cells -> Y)
-; args:   1: required stack space (cells)
-; result: Y: PSP-new cells
-; SSTACK: none
-; throws: FEXCPT_EC_PSOF
-;        X and D are preserved 
-#macro	PS_CHECK_OF, 1
-			LDY	PSP 			;=> 3 cycles
-			LEAY	-(2*\1),Y		;=> 2 cycles
-#ifndef	FPS_NO_CHECK
-			CPY	PAD			;=> 3 cycles
-			BLO	FPS_THROW_PSOF		;=> 3 cycle / 4 cycles
-							;  -------------------
-							;  11 cycles/ 12 cycles
-#endif
-#emac
-
-;PS_CHECK_OF_D: check if there is room for a number of stack entries (PSP-new cells -> Y)
-; args:   D: required stack space (cells)
-; result: Y: PSP-new cells
-; SSTACK: none
-; throws: FEXCPT_EC_PSOF
-;         X and D are preserved 
-#macro	PS_CHECK_OF_D, 0
-			LDY	PSP 			;=> 3 cycles
-			COMA				;=> 1 cycle
-			COMB				;=> 1 cycle
-			LEAY	D,Y			;=> 2 cycles
-			LEAY	D,Y			;=> 2 cycles
-			LEAY	2,Y			;=> 2 cycles
-			COMA				;=> 1 cycle
-			COMB				;=> 1 cycle
-#ifndef	FPS_NO_CHECK
-			CPY	PAD			;=> 3 cycles
-			BLO	FPS_THROW_PSOF		;=> 3 cycles/  4 cycles
-							;  --------------------
-							;  19 cycles/ 20 cycles
-#endif
-#emac
-
-;PS_CHECK_UFOF: check for over and underflow (PSP-new cells -> Y)
-; args:   1: required stack content (cells)
-;	  2: required stack space (cells)
-; result: Y: PSP-new cells
-; SSTACK: none
-; throws: FEXCPT_EC_PSOF,
-;         FEXCPT_EC_PSUF
-;         X and D are preserved 
-#macro	PS_CHECK_UFOF, 2  
-			LDY	PSP 			;=> 3 cycles
-#ifndef	FPS_NO_CHECK
-			CPY	#(PS_EMPTY-(2*\1))	;=> 2 cycles
-			BHI	FPS_THROW_PSUF		;=> 3 cycles/  4 cycles
-#endif
-			LEAY	-(2*\2),Y		;=> 2 cycles
-#ifndef	FPS_NO_CHECK
-			CPY	PAD			;=> 3 cycles
-			BLO	FPS_THROW_PSOF		;=> 3 cycles/  4 cycles
-#endif
-							;  --------------------
-							;  16 cycles/ 18 cycles
-#emac
-
-;PS_REQUIRE: check if there is room for a number of stack entries (PSP-new cells -> Y)
-; args:   1: required stack space (cells)
-;         2: branch address is requirement is not fulfilled
-; result: Y: PSP-new cells
-; SSTACK: none
-; throws: FEXCPT_EC_PSOF
-;        X and D are preserved 
-#macro	PS_REQUIRE, 2
-			LDY	PSP 			;=> 3 cycles
-			LEAY	-(2*\1),Y		;=> 2 cycles
-			CPY	PAD			;=> 3 cycles
-			BLO	\2			;=> 3 cycle / 4 cycles
-							;  -------------------
-							;  11 cycles/ 12 cycles
-#emac
-	
-;PS_PULL_X: Pull one entry from the parameter stack into index X (PSP -> Y)
-; args:   none
-; result: X: pulled PS content
-;	  Y: PSP
-; SSTACK: none
-; throws: FEXCPT_EC_PSUF
-;         D is preserved 
-#macro	PS_PULL_X, 0
-			PS_CHECK_UF	1		;check for underflow	=> 8 cycles
-			LDX		2,Y+		;PS -> Y		=> 3 cycles 
-			STY		PSP		;			=> 3 cycles
-							;                         ---------
-							;                         14 cycles
-#emac	
-	
-;PS_COPY_X: Copy one entry from the parameter stack into index X (PSP -> Y)
-; args:   none
-; result: D:      copied PS content
-;	  Y:      PSP
-;	  N-flag: set if cell is negative
-;	  Z-flag: set if cell is zero
-;	  V-flag: cleared
-; SSTACK: none
-; throws: FEXCPT_EC_PSUF
-;         X is preserved 
-#macro	PS_COPY_X, 0
-			PS_CHECK_UF	1		;check for underflow	=> 8 cycles
-			LDX		0,Y		;PS -> Y		=> 3 cycles 
-							;                         ---------
-							;                         11 cycles
-#emac	
-
-;PS_PULL_D: Pull one entry from the parameter stack into accu D (PSP -> Y)
-; args:   none
-; result: D: pulled PS content
-;	  Y: PSP
-; SSTACK: none
-; throws: FEXCPT_EC_PSUF
-;         X is preserved 
-#macro	PS_PULL_D, 0
-			PS_CHECK_UF	1		;check for underflow	=> 8 cycles
-			LDD		2,Y+		;PS -> Y		=> 3 cycles 
-			STY		PSP		;			=> 3 cycles
-							;                         ---------
-							;                         14 cycles
-#emac	
-	
-;PS_COPY_D: Copy one entry from the parameter stack into accu D (PSP -> Y)
-; args:   none
-; result: D:      copied PS content
-;	  Y:      PSP
-;	  N-flag: set if cell is negative
-;	  Z-flag: set if cell is zero
-;	  V-flag: cleared
-; SSTACK: none
-; throws: FEXCPT_EC_PSUF
-;         X is preserved 
-#macro	PS_COPY_D, 0
-			PS_CHECK_UF	1		;check for underflow	=> 8 cycles
-			LDD		0,Y		;PS -> Y		=> 3 cycles 
-							;                         ---------
-							;                         11 cycles
-#emac	
-
-;PS_PUSH: 
-; args:   1: value to push onto the PS
-; result: Y: PSP
-; SSTACK: none
-; throws: FEXCPT_EC_PSOF
-;         X and D are preserved 
-#macro	PS_PUSH, 1
-			PS_CHECK_OF	1		;check for overflow	=> 9 cycles
-			MOVW		\1, 0,Y		;PS -> Y		=> 4/5 cycles 
-			STY		PSP		;			=> 3   cycles
-							;                         ---------
-							;                         16/17 cycles
-#emac	
-	
-;PS_PUSH_X: Push one entry from index X onto the return stack (PSP -> Y)
-; args:   X: value to push onto the PS
-; result: Y: PSP
-; SSTACK: none
-; throws: FEXCPT_EC_PSOF
-;         X and D are preserved 
-#macro	PS_PUSH_X, 0
-			PS_CHECK_OF	1		;check for overflow	=> 9 cycles
-			STX		0,Y		;PS -> Y		=> 3 cycles 
-			STY		PSP		;			=> 3 cycles
-							;                         ---------
-							;                         15 cycles
-#emac	
-
-;PS_PUSH_D: Push one entry from accu D onto the return stack (PSP -> Y)
-; args:   D: value to push onto the PS
-; result: Y: PSP
-; SSTACK: none
-; throws: FEXCPT_EC_PSOF
-;         X and D are preserved 
-#macro	PS_PUSH_D, 0
-			PS_CHECK_OF	1		;check for overflow	=>11 cycles
-			STD		0,Y		;PS -> Y		=> 3 cycles 
-			STY		PSP		;			=> 3 cycles
-							;                         ---------
-							;                         17 cycles
-#emac	
-
-;PS_PUSH_DX: Push one entry from accu D onto the return stack (PSP -> Y)
-; args:   D:X: value to push onto the PS
-; result: Y:   PSP
-; SSTACK: none
-; throws: FEXCPT_EC_PSOF
-;         X and D are preserved 
-#macro	PS_PUSH_DX, 0
-			PS_CHECK_OF	2		;check for overflow	=>11 cycles
-			STD		0,Y		;PS -> Y		=> 3 cycles 
-			STX		2,Y		;   			=> 3 cycles 
-			STY		PSP		;			=> 3 cycles
-							;                         ---------
-							;                         20 cycles
-#emac	
-
-;PS_PUSH_D_NOCHK: Push one entry from accu D onto the return stack (PSP -> Y)
-; args:   D: value to push onto the PS
-; result: Y: PSP
-; SSTACK: none
-; throws: FEXCPT_EC_PSOF
-;         X and D are preserved 
-#macro	PS_PUSH_D_NOCHK, 0
-			LDY		PSP		;PS -> Y		=> 3 cycles
-			STD		2,-Y		;			=> 3 cycles 
-			STY		PSP		;			=> 3 cycles
-							;                         ---------
-							;                          9 cycles
-#emac	
-
-
-;PS_DUP: Duplicate last parameter stack entry (PSP -> Y)
-; args:   none
-; result: 1: number of cells to remove
-;	  Y: PSP
-; SSTACK: none
-; throws: FEXCPT_EC_PSUF
-;         X and D are preserved 
-#macro	PS_DUP, 0
-			PS_CHECK_OF	1		;check for overflow	=>11 cycles
-			MOVW		2,Y, 0,Y	;duplicate last entry	=> 3 cycles
-			STY		PSP		;			=> 3 cycles
-							;                         ---------
-							;                         19 cycles
-#emac	
-	
-;PS_DROP: Remove entries from the parameter stack (PSP -> Y)
-; args:   none
-; result: 1: number of cells to remove
-;	  Y: PSP
-; SSTACK: none
-; throws: FEXCPT_EC_PSUF
-;         X and D are preserved 
-#macro	PS_DROP, 1
-			PS_CHECK_UF	\1		;check for underflow	=> 8 cycles
-			LEAY		(2*\1),Y	;PS -> Y		=> 2 cycles 
-			STY		PSP		;			=> 3 cycles
-							;                         ---------
-							;                         14 cycles
-#emac	
 
 ;###############################################################################
 ;# Code                                                                        #
@@ -431,206 +189,224 @@ FPS_VARS_END_LIN	EQU	@
 FPS_CODE_START_LIN	EQU	@
 #endif
 
-;Code fields:
-;============
-;2CONSTANT run-time semantics ( -- d )
-;Push the contents of the first cell after the CFA onto the parameter stack
-;
-;S12CForth implementation details:
-;Throws:	FEXCPT_EC_PSOF
-CF_TWO_CONSTANT_RT	PS_CHECK_OF	2			;overflow check	=> 9 cycles
-			MOVW		4,X, 2,Y		;[CFA+6] -> PS	=> 5 cycles
-			JOB		CF_TWO_CONSTANT_RT_1
-CF_TWO_CONSTANT_RT_1	EQU		CF_CONSTANT_RT_1
+;#IO
+;===
+;#Prints a MSB terminated string
+; args:   X:      start of the string
+; result: X;      points to the byte after the string
+; SSTACK: 10 bytes
+;         Y and D are preserved
+FPS_TX_STRING		EQU	STRING_PRINT_BL
 
-;CONSTANT run-time semantics ( -- x )
-;Push the contents of the first cell after the CFA onto the parameter stack
-;
-;S12CForth implementation details:
-;Throws:	FEXCPT_EC_PSOF
-CF_CONSTANT_RT		PS_CHECK_OF	1			;overflow check	=> 9 cycles
-CF_CONSTANT_RT_1	MOVW		2,X, 0,Y		;[CFA+2] -> PS	=> 5 cycles
-CF_CONSTANT_RT_2	STY		PSP			;		=> 3 cycles
-			NEXT					;NEXT		=>15 cycles
-								; 		  ---------
-								;		  32 cycles
+;#Print cell value
+; args:   D: cell value
+; result: none
+; SSTACK: 26 bytes
+;         X, Y and D are preserved
+FPS_TX_CELL		EQU	FOUTER_TX_CELL
 
-;DUP ( x -- x x )
+;#Count the digits (incl. sign) of cell value
+; args:   D: cell value
+; result: D: digits (char count)
+; SSTACK: 26 bytes
+;         X, Y and D are preserved
+FPS_CELL_DIGITS		EQU	FOUTER_CELL_DIGITS
+	
+;#Print a list separator (SPACE or line break)
+; args:   D:      char count of next word
+;         0,SP:   line counter 
+; result: 0,SP;   updated line counter
+; SSTACK: 10 bytes
+;         Y is preserved
+FPS_LIST_SEP		EQU	FOUTER_LIST_SEP
+
+;#########
+;# Words #
+;#########
+
+;Word: ?DUP ( x -- 0 | x x )
+;Duplicate x if it is non-zero.
+IF_QUESTION_DUP		INLINE	CF_QUESTION_DUP	
+CF_QUESTION_DUP		EQU	*
+			LDD	0,Y
+			BEQ	CF_QUESTION_DUP_1
+			STD	2,-Y
+CF_QUESTION_DUP_1	RTS	
+CF_QUESTION_DUP_EOI	EQU	CF_QUESTION_DUP_1
+	
+;Word: DUP ( x -- x x )
 ;Duplicate x.
-;
-;S12CForth implementation details:
-;Throws:	FEXCPT_EC_PSOF
-;        	FEXCPT_EC_PSUF
-CF_DUP			PS_CHECK_UFOF	1, 1			;check for overflow	=>11 cycles
-			MOVW		2,Y, 0,Y		;duplicate last entry	=> 3 cycles
-			JOB		CF_DUP_1
-CF_DUP_1		EQU		CF_CONSTANT_RT_2
-
-;DROP ( x -- )
+IF_DUP			INLINE	CF_DUP	
+CF_DUP			EQU	*
+			MOVW	0,Y, 2,-Y 			;duplicate x 
+CF_DUP_EOI 		RTS					;done
+	
+;Word: DROP ( x -- )
 ;Remove x from the stack.
-;
-;S12CForth implementation details:
-;Doesn't throw any exception, resets the parameter stack on underflow 
-;Throws:	FEXCPT_EC_PSUF
-CF_DROP			PS_CHECK_UF	1			;check for underflow	=> 8 cycles
-			LEAY		2,Y			;PS -> Y		=> 2 cycles 
-			JOB		CF_DROP_1
-CF_DROP_1		EQU		CF_CONSTANT_RT_2
+IF_DROP			INLINE	CF_DROP
+CF_DROP			EQU	*
+			LEAY	2,Y				;remove x 
+CF_DROP_EOI		RTS					;done
 
-;OVER ( x1 x2 -- x1 x2 x1 )
+;Word: OVER ( x1 x2 -- x1 x2 x1 )
 ;Place a copy of x1 on top of the stack.
-;
-;S12CForth implementation details:
-;Throws:        FEXCPT_EC_PSUF
-;         	FEXCPT_EC_PSOF
-CF_OVER			PS_CHECK_UFOF	2, 1			;check for under and overflow (PSP-2 -> Y)
-			MOVW	4,Y, 0,Y
-			JOB		CF_OVER_1
-CF_OVER_1		EQU		CF_CONSTANT_RT_2
+IF_OVER			INLINE	CF_OVER
+CF_OVER			EQU	*
+			MOVW	2,Y, 2,-Y 			;duplicate x1 
+CF_OVER_EOI		RTS					;done
 
-;2DUP ( x1 x2 -- x1 x2 x1 x2 )
+;Word: 2DUP ( x1 x2 -- x1 x2 x1 x2 )
 ;Duplicate cell pair x1 x2.
-;
-;S12CForth implementation details:
-;Throws:        FEXCPT_EC_PSUF
-;         	FEXCPT_EC_PSOF
-CF_TWO_DUP		PS_CHECK_UFOF	2, 2			;check for under and overflow
-			MOVW		6,Y, 2,Y		;duplicate stack entry
-			MOVW		4,Y, 0,Y		;duplicate stack entry
-			JOB		CF_TWO_DUP_1
-CF_TWO_DUP_1		EQU		CF_CONSTANT_RT_2
+IF_TWO_DUP		INLINE	CF_TWO_DUP
+CF_TWO_DUP		EQU	*
+			MOVW	2,Y, 2,-Y 			;duplicate x1
+			MOVW	2,Y, 2,-Y 			;duplicate x2
+CF_TWO_DUP_EOI		RTS					;done
 
-;2DROP ( x1 x2 -- )
+;Word: 2DROP ( x1 x2 -- )
 ;Drop cell pair x1 x2 from the stack.
-;
-;S12CForth implementation details:
-;Throws:        FEXCPT_EC_PSUF
-CF_TWO_DROP		PS_CHECK_UF	2			;check for underflow	=> 8 cycles
-			LEAY		4,Y			;PS -> Y		=> 2 cycles 
-			JOB		CF_TWO_DROP_1
-CF_TWO_DROP_1		EQU		CF_CONSTANT_RT_2
+IF_TWO_DROP		INLINE	CF_TWO_DROP
+CF_TWO_DROP		EQU	*
+			LEAY	4,Y				;remove x1 and x2 
+CF_TWO_DROP_EOI		RTS					;done
 	
-;2OVER ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 )
+;Word: 2OVER ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 )
 ;Copy cell pair x1 x2 to the top of the stack.
-;
-;S12CForth implementation details:
-;Throws:	FEXCPT_EC_PSUF
-;         	FEXCPT_EC_PSOF
-CF_TWO_OVER		PS_CHECK_UFOF	4, 2			;check for under and overflow
-			MOVW		8,Y, 0,Y		;duplicate stack entry
-			MOVW		10,Y, 2,Y		;duplicate stack entry
-			JOB		CF_TWO_OVER_1
-CF_TWO_OVER_1		EQU		CF_CONSTANT_RT_2
+IF_TWO_OVER		INLINE	CF_TWO_OVER
+CF_TWO_OVER		EQU	*
+			MOVW	6,Y, 2,-Y 			;duplicate x1 
+			MOVW	6,Y, 2,-Y 			;duplicate x2 
+CF_TWO_OVER_EOI		RTS					;done
 
-;SWAP ( x1 x2 -- x2 x1 )
+;Word: SWAP ( x1 x2 -- x2 x1 )
 ;Exchange the top two stack items.
-;
-;S12CForth implementation details:
-;Throws:         FEXCPT_EC_PSUF
-CF_SWAP			PS_CHECK_UF	2			;check for underflow (PSP -> Y)
-			;Swap
-			LDD		2,Y
-			MOVW		0,Y, 2,Y
-CF_SWAP_1		STD		0,Y
-			;Done
-			NEXT
+IF_SWAP			INLINE	CF_SWAP
+CF_SWAP			EQU	*
+			LDD	0,Y
+			MOVW	2,Y, 0,Y
+			STD	2,Y
+CF_SWAP_EOI		RTS					;done
 
-;2SWAP ( x1 x2 x3 x4 -- x3 x4 x1 x2 )
+;Word: 2SWAP ( x1 x2 x3 x4 -- x3 x4 x1 x2 )
 ;Exchange the top two cell pairs.
-;
-;S12CForth implementation details:
-;Throws:         FEXCPT_EC_PSUF
-CF_TWO_SWAP		PS_CHECK_UF	4			;(PSP -> Y)
-			LDD		6,Y
-			MOVW		2,Y 6,Y
-			STD		2,Y
-			LDD		4,Y
-			MOVW		0,Y 4,Y
-			JOB		CF_TWO_SWAP_1
-CF_TWO_SWAP_1		EQU		CF_SWAP_1
+IF_TWO_SWAP		REGULAR
+CF_TWO_SWAP		EQU	*
+			LDD	0,Y 				;save x4
+			MOVW	4,Y, 0,Y			;move x2
+			STD	4,Y				;store x4
+			LDD	2,Y				;save x3
+			MOVW	6,Y, 2,Y			;move x1
+			STD	6,y				;store x3
+			RTS					;done
 	
-;ROT ( x1 x2 x3 -- x2 x3 x1 )
+;Word: ROT ( x1 x2 x3 -- x2 x3 x1 )
 ;Rotate the top three stack entries.
-;
-;S12CForth implementation details:
-;Throws:         FEXCPT_EC_PSUF
-CF_ROT			PS_CHECK_UF	2			;check for underflow
-			;Rotate
-			LDD		4,Y
-			MOVW		2,Y, 4,Y
-			MOVW		0,Y, 2,Y
-			JOB		CF_ROT_1
-CF_ROT_1		EQU		CF_SWAP_1
+IF_ROT			INLINE	CF_ROT
+CF_ROT			EQU	*
+			LDD	0,Y				;save x3
+			MOVW	4,Y, 0,Y			;move x1
+			MOVW	2,Y, 4,Y			;move x2
+			STD	2,Y				;store x3
+CF_ROT_EOI		RTS					;done
 
-;2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 )
+;Word: 2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 )
 ;Rotate the top three cell pairs on the stack bringing cell pair x1 x2 to the
 ;top of the stack.
-;
-;S12CForth implementation details:
-;Throws:         FEXCPT_EC_PSUF
-CF_TWO_ROT		PS_CHECK_UF 	6		;check for underflow (PSP -> Y)
-			;Swap PS entries (PSP in Y)
-			LDD	10,Y 			;save  x1
-			MOVW	 6,Y, 10,Y		;x3 -> x1
-			MOVW	 2,Y,  6,Y		;x5 -> x3
-			STD	 2,Y			;x1 -> x5
-			LDD	 8,Y 			;save  x2
-			MOVW	 4,Y,  8,Y		;x4 -> x2
-			MOVW	 0,Y,  4,Y		;x6 -> x4
-			JOB	CF_TWO_ROT_1
-CF_TWO_ROT_1		EQU	CF_SWAP_1
+IF_2ROT			REGULAR
+CF_2ROT			EQU	*
+			LDD	10,Y 				;save x1
+			MOVW	6,Y, 10,Y			;move x3
+			MOVW	2,Y, 6,Y			;move x5
+			STD	2,Y				;store x1
+			LDD	8,Y 				;save x2
+			MOVW	4,Y, 8,Y			;move x4
+			MOVW	0,Y, 4,Y			;move x6
+			STD	0,Y				;store x2
+			RTS					;done
 
-;.S ( -- ) Copy and display the values currently on the data stack.
-; args:   none
-; result: none
-; SSTACK: 18 bytes
-; PS:      4 cells
-; RS:      1 cell
-; throws: FEXCPT_EC_PSOF
-;CF_DOT_S		EQU	*
-;			;Print header
-;			PS_PUSH	#FPS_DOT_S_HEADER
-;			EXEC_CF	CF_STRING_DOT
-;			;Reserve and populate local stack space
-;			FPS_CHECK_OF	4 			;reserve 3 cells
-;			MOVW	PSP, 6,Y			;initialize index
-;			STY	PSP				;update PSP
-;			;Print first column (PSP in Y)
-;			MOVW	BASE, 4,Y			;save BASE
-;			LDD	#PS_EMPTY			;calculate line count
-;			SUBD	6,Y
-;			LSRD
-;			STD	2,Y
-;			LDD	#(PS_EMPTY+6)			;calculate number of PS entries
-;			SUBD	PSP
-;			LSRD
-;			TFR	D, X 				;determine digit count
-;			LDD	#10 				;set BASE to decimal
-;			STD	BASE
-;			LDY	#$0000
-;			NUM_REVERSE 				
-;			TAB					;print line number
-;			CLRA
-;			STD	[PSP]
-;			EXEC_CF	CF_DOT_R
-;			;Print separator
-;			PS_PUSH	#FPS_DOT_S_HEADER
-;			EXEC_CF	CF_STRING_DOT
-			
+
+;Word: NIP ( x1 x2 -- x2 )
+;Drop the first item below the top of stack.
+IF_NIP			INLINE	CF_NIP
+CF_NIP			EQU	*
+			MOVW	0,Y, 2,+Y
+CF_NIP_EOI		RTS					;done
 	
-;Exceptions:
-;===========
-;Standard exceptions
-#ifndef FPS_NO_CHECK
-#ifdef FPS_DEBUG
-FPS_THROW_PSOF		BGND					;parameter stack overflow
-FPS_THROW_PSUF		BGND					;parameter stack underflow
-#else
-FPS_THROW_PSOF		FEXCPT_THROW	FEXCPT_EC_PSOF		;parameter stack overflow
-FPS_THROW_PSUF		FEXCPT_THROW	FEXCPT_EC_PSUF		;parameter stack underflow
-#endif
-#endif
+;Word: TUCK ( x1 x2 -- x2 x1 x2 )
+;Copy the first (top) stack item below the second stack item.
+IF_TUCK			INLINE	CF_TUCK
+CF_TUCK			EQU	*
+			LDD	0,Y
+			MOVW	2,Y, 0,Y
+			STD	2,Y
+			STD	2,-Y
+CF_TUCK_EOI		RTS					;done
 	
+;Word: PICK ( xu ... x1 x0 u -- xu ... x1 x0 xu )
+;Remove u. Copy the xu to the top of the stack. An ambiguous condition exists if
+;there are less than u+2 items on the stack before PICK is executed.
+IF_PICK			INLINE	CF_PICK
+CF_PICK			EQU	*
+			LDD	2,Y+ 				;u   -> D
+			LSLD					;2*D -> D
+			MOVW	D,Y, 2,-Y			;pick xu
+CF_PICK_EOI		RTS					;done
+
+;Word: ROLL ( xu xu-1 ... x0 u -- xu-1 ... x0 xu )
+;Remove u. Rotate u+1 items on the top of the stack. An ambiguous condition
+;exists if there are less than u+2 items on the stack before ROLL is executed.
+IF_ROLL			REGULAR
+CF_ROLL			EQU	*
+			LDD	2,Y+ 				;u -> D
+			LEAX	D,Y				;X points
+			LEAX	D,X				; to xu
+			MOVW	D,Y, 2,-Y			;pick xu
+			DBEQ	D, CF_ROLL_2			;u == 0
+CF_ROLL_1		MOVW	-2,X, 2,X+			;replace xn by xn-1
+			DBNE	D, CF_ROLL_1			;loop
+CF_ROLL_2		MOVW	2,Y+, 0,Y			;replace x1 by x0
+			RTS					;done
+	
+;Word: .S ( -- ) Copy and display the values currently on the data stack.
+IF_DOT_S		REGULAR
+CF_DOT_S		EQU	*
+			;Start on new line 
+			JOBSR	CF_CR 				;line break
+			;RS layout:
+			; +--------+--------+
+			; |  Line counter   | SP+0
+			; +--------+--------+
+			; |    Iterator     | SP+2
+			; +--------+--------+
+			;Allocate iterator 
+			;MOVW	#(PS_EMPTY-2), 2,-SP 		;first PS entry -> iterator
+			LDX	END_OF_PS 			;END_OF_PS -> X
+			LEAX	-(FPS_CANARY_SIZE+2),X		;first PS entry -> X
+			PSHX					;first PS entry -> iterator
+			CPY	0,SP				;check for empty PS
+			BHI	CF_DOT_S_2			;PS is empty
+			LDD	[0,SP]				;first cell -> D
+			JOBSR	FPS_CELL_DIGITS			;char count  -> D
+			PSHD					;set up line counter
+			;Print loop 
+			LDX	2,SP	    			;iterator -> X
+CF_DOT_S_1		LDD	2,X- 				;cell -> D
+			STX	2,SP				;advance iterator
+			JOBSR	FPS_TX_CELL			;print cell
+			CPY	2,SP				;check for further PS entries
+			BHI	CF_DOT_S_3			;no further entries
+			LDD	0,X				;next cell -> D
+			JOBSR	FPS_CELL_DIGITS			;char count  -> D
+			JOBSR	FPS_LIST_SEP			;print separator
+			JOB	CF_DOT_S_1			;print next cell
+			;Print "empty" message
+CF_DOT_S_2		LEAS	2,SP				;free stack space
+			LDX	#FPS_STR_EMPTY			;string pointer -> X
+			JOB	FPS_TX_STRING			;print "empty" string
+			;Done		
+CF_DOT_S_3		LEAS	4,SP 				;free stack space
+			RTS					;done
+
 FPS_CODE_END		EQU	*
 FPS_CODE_END_LIN	EQU	@
 
@@ -644,110 +420,18 @@ FPS_CODE_END_LIN	EQU	@
 FPS_TABS_START_LIN	EQU	@
 #endif	
 
-;FPS_DOT_S_HEADER	STRING_NL_NONTERM
-;			FCC	"Parameter stack:"
-;			STRING_NL_TERM
-;FPS_DOT_S_SEPARATOR	FCS	": "
+;#PS empty message
+; ================
+FPS_STR_EMPTY		FCS	"empty"
 	
+;;#Environment
+;; ===========
+;;Environment: STACK-CELLS ( -- n true)
+;;Maximum size of the data stack, in cells
+;ENV_STACK_CELLS		DW	FENV_SINGLE
+;			DW	(UDICT_PS_END-UDICT_PS_START)/2
+;---->TBD
+;
 FPS_TABS_END		EQU	*
 FPS_TABS_END_LIN	EQU	@
-
-;###############################################################################
-;# Words                                                                       #
-;###############################################################################
-#ifdef FPS_WORDS_START_LIN
-			ORG 	FPS_WORDS_START, FPS_WORDS_START_LIN
-#else
-			ORG 	FPS_WORDS_START
-FPS_WORDS_START_LIN	EQU	@
 #endif	
-
-;#ANSForth Words:
-;================
-;Word: DUP ( x -- x x )
-;Duplicate x.
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack overflow"
-;"Return stack overflow"
-CFA_DUP			DW	CF_DUP
-
-;Word: DROP ( x -- )
-;Remove x from the stack.
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-CFA_DROP		DW	CF_DROP
-
-;Word: ROT ( x1 x2 x3 -- x2 x3 x1 )
-;Rotate the top three stack entries.
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-CFA_ROT			DW	CF_ROT
-
-;Word: OVER ( x1 x2 -- x1 x2 x1 )
-;Place a copy of x1 on top of the stack.
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-;"Parameter stack overflow"
-CFA_OVER		DW	CF_OVER
-
-;Word: SWAP ( x1 x2 -- x2 x1 )
-;Exchange the top two stack items.
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-CFA_SWAP		DW	CF_SWAP
-
-;Word: 2DUP ( x1 x2 -- x1 x2 x1 x2 )
-;Duplicate cell pair x1 x2.
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-;"Parameter stack overflow"
-CFA_TWO_DUP		DW	CF_TWO_DUP
-
-;Word: 2DROP ( x1 x2 -- )
-;Drop cell pair x1 x2 from the stack.
-;
-;S12CForth implementation details:
-; - Doesn't throw any exception, resets the parameter stack on underflow 
-CFA_TWO_DROP		DW	CF_TWO_DROP
-
-;Word: 2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 )
-;Rotate the top three cell pairs on the stack bringing cell pair x1 x2 to the
-;top of the stack.
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-CFA_TWO_ROT		DW	CF_TWO_ROT	
-
-;Word: 2OVER ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 )
-;Copy cell pair x1 x2 to the top of the stack.
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-;"Parameter stack overflow"
-CFA_TWO_OVER		DW	CF_TWO_OVER
-
-;Word: 2SWAP ( x1 x2 x3 x4 -- x3 x4 x1 x2 )
-;Exchange the top two cell pairs.
-;
-;S12CForth implementation details:
-;Throws:
-;"Parameter stack underflow"
-CFA_TWO_SWAP		DW	CF_TWO_SWAP
-	
-FPS_WORDS_END		EQU	*
-FPS_WORDS_END_LIN	EQU	@
-

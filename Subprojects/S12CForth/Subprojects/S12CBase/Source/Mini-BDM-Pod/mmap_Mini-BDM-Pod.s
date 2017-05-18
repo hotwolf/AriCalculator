@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - MMAP - Memory Map (Mini-BDM-Pod)                                 #
 ;###############################################################################
-;#    Copyright 2010-2012 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
-;#    families.                                                                #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -26,6 +25,7 @@
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    REGDEF - Register Definitions                                            #
+;#    RESET  - Reset handler                                                   #
 ;#                                                                             #
 ;# Requirements to Software Using this Module:                                 #
 ;#    - none                                                                   #
@@ -38,6 +38,8 @@
 ;#      - Updated memory mapping                                               #
 ;#    October 27, 2015							       #
 ;#	- Cleanup							       #
+;#    September 23, 2016                                                       #
+;#      - Updated during S12CBASE overhaul                                     #
 ;###############################################################################
 ;  Flash Memory Map:
 ;  -----------------  
@@ -47,7 +49,7 @@
 ;   	  RAM->+ +-------------+ $0800
 ;  	       | |  Variables  |
 ;  	       | +-------------+
-;              | |/////////////|	     
+;              | | Stack Space |	     
 ;  	Flash->+ +-------------+ $8000
 ;              | | Page Window |	     
 ;              + +-------------+ $C000
@@ -67,14 +69,16 @@
 ;                     S12XE                
 ;        	 +-------------+ $0000
 ;  		 |  Registers  |
-;  	  RAM->+ +-------------+ $0800
+;  	         +-------------+ $0800
+;                |/////////////|	     
+;  	  RAM->+ +-------------+ $1000
 ;  	       | |  Variables  |
 ;  	       | +-------------+
 ;  	       | |    Code     |
 ;  	       | +-------------+
 ;  	       | |   Tables    |
 ;  	       | +-------------+
-;              | |/////////////|	     
+;              | | Stack Space |	     
 ;  	       | +-------------+ $7F10
 ;  	       | |   Vectors   |
 ;  	       + +-------------+ $8000
@@ -146,9 +150,14 @@ MMAP_EERAM_FF_END_LIN	EQU	$14_0000
 MMAP_RAM_WIN_START	EQU	$1000
 MMAP_RAM_WIN_END	EQU	$2000
 
-MMAP_RAM_FA_START	EQU	$2C00
+MMAP_RAM_F9_START	EQU	$1000
+MMAP_RAM_F9_END		EQU	$2000
+MMAP_RAM_F9_START_LIN	EQU	$0F_9000
+MMAP_RAM_F9_END_LIN	EQU	$0F_A000
+
+MMAP_RAM_FA_START	EQU	$2000
 MMAP_RAM_FA_END		EQU	$3000
-MMAP_RAM_FA_START_LIN	EQU	$0F_AC00
+MMAP_RAM_FA_START_LIN	EQU	$0F_A000
 MMAP_RAM_FA_END_LIN	EQU	$0F_B000
 
 MMAP_RAM_FB_START	EQU	$3000
@@ -166,9 +175,9 @@ MMAP_RAM_FD_END		EQU	$6000
 MMAP_RAM_FD_START_LIN	EQU	$0F_D000
 MMAP_RAM_FD_END_LIN	EQU	$0F_E000
 
-MMAP_RAM_FE_START	EQU	$6C00
+MMAP_RAM_FE_START	EQU	$6000
 MMAP_RAM_FE_END		EQU	$7000
-MMAP_RAM_FE_START_LIN	EQU	$0F_EC00
+MMAP_RAM_FE_START_LIN	EQU	$0F_E000
 MMAP_RAM_FE_END_LIN	EQU	$0F_F000
 
 MMAP_RAM_FF_START	EQU	$7000
@@ -292,7 +301,8 @@ MMAP_VARS_END_LIN	EQU	@
 #macro	MMAP_INIT, 0
 			;Setup 30K linear RAM space
 			CLR	DIRECT 			;lock DIRECT page register
-			BSET	MMCCTL1, #(RAMHM|ROMHM)	;MAP RAM 
+			BSET	MMCCTL1, #(RAMHM|ROMHM)	;map RAM 
+			MOVB	#$F9, RPAGE		;map RPAGE $F9 
 			;Setup MPU
 			;Descriptor 0: Register space                 	-> read and write
 			CLR	MPUSEL
@@ -343,9 +353,11 @@ MMAP_VARS_END_LIN	EQU	@
 MMAP_CODE_START_LIN	EQU	@			
 #endif	
 
+#ifndef VECTAB_DEBUG
 ;#Trigger a fatal error if a reset accurs
 MMAP_ISR_MPU		EQU	*
-			RESET_FATAL	MMAP_STR_MPU
+			RESET_FATAL	MMAP_MSG_MPU
+#endif
 	
 MMAP_CODE_END		EQU	*	
 MMAP_CODE_END_LIN	EQU	@	
@@ -360,8 +372,10 @@ MMAP_CODE_END_LIN	EQU	@
 MMAP_TABS_START_LIN	EQU	@			
 #endif	
 
-MMAP_STR_MPU		FCS	"MPU error"
-
+#ifndef VECTAB_DEBUG
+MMAP_MSG_MPU		RESET_MSG	"MPU error"
+#endif
+	
 MMAP_TABS_END		EQU	*	
 MMAP_TABS_END_LIN	EQU	@	
 #endif	

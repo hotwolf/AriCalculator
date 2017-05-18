@@ -3,9 +3,9 @@
 ;###############################################################################
 ;# S12CBase - NVM - NVM Driver (S12G-Micro-EVB)                                #
 ;###############################################################################
-;#    Copyright 2010-2013 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
-;#    families.                                                                #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU           #
+;#    family.                                                                  #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -63,12 +63,12 @@ NVM_PROT_D_ON		EQU	1 				;protect page $F
 ;------------------------------------------------------
 #ifnmac NVM_HALT_COM
 #macro NVM_HALT_COM, 0
-			SCI_HALT_COM 		;halt SCI communication (SSTACK: 2 bytes)
+			SCI_PAUSE_BL 		;halt SCI communication (SSTACK: 2 bytes)
 #emac
 #endif	
 #ifnmac NVM_RESUME_COM
 #macro NVM_RESUME_COM, 0
-			SCI_RESUME_COM 		;resume SCI communication (SSTACK: 4)
+			SCI_RESUME 		;resume SCI communication (SSTACK: 4)
 #emac
 #endif	
 

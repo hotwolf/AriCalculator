@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - Base Bundle (SIMHC12)                                            #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU  family.  #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -30,37 +29,47 @@
 ;#      - Updated during S12CBASE overhaul                                     #
 ;#    Dcember 17, 2015                                                         #
 ;#      - Included pseudo-random number generator                              #
+;#    Septemember 21, 2016                                                     #
+;#      - S12CBASE overhaul                                                    #
 ;###############################################################################
 
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Clocks
+;#Core
+			CPU	S12
+	
+;#Clocks
 #ifndef	CLOCK_BUS_FREQ	
 CLOCK_BUS_FREQ		EQU	8000000		;8 MHz
 #endif
 
-;# COP
+;#COP
 COP_DEBUG		EQU	1 		;disable COP
 
-;# RESET
+;#RESET
 RESET_COP_OFF		EQU	1 		;no COP reset
+
+;#TIM
+; OC0 - SCI general purpose
+; OC1 - DELAY
+TIM_DIV_OFF		EQU	1 		;4 MHz
+BASE_TIOS_INIT		EQU	SCI_OC_TIOS_INIT|DELAY_TIOS_INIT
+BASE_TCTL34_INIT	EQU	0
+#ifndef	TIM_TIOS_INIT
+TIM_TIOS_INIT		EQU	BASE_TIOS_INIT
+#endif
 	
-#ifndef	SCI_FC_RTS_CTS
-#ifndef	SCI_FC_XON_XOFF
-#ifndef SCI_FC_NONE	
-SCI_FC_NONE		EQU	1 		;no flow control
-#endif
-#endif
-#endif
-#ifndef	SCI_BD_ON
-#ifndef	SCI_BD_OFF
-SCI_BD_OFF		EQU	1 		;no baud rate detection
-#endif
-#endif
-#ifndef	SCI_DLY_OC
-SCI_DLY_OC		EQU	3		;OC3
-#endif
+;#DELAY
+DELAY_TIM		EQU	TIM 		;TIM
+DELAY_OC		EQU	1		;OC1
+	
+;#SCI
+SCI_V2			EQU	1   		;old SCI
+SCI_BAUD_9600		EQU	1 		;fixed baud rate
+SCI_OC_TIM		EQU	TIM 		;TIM
+SCI_OC			EQU	0 		;OC0
+SCI_NOFC		EQU	1		;no flow control
 
 ;###############################################################################
 ;# Variables                                                                   #
@@ -119,31 +128,28 @@ RANDOM_VARS_START	EQU	*
 RANDOM_VARS_START_LIN	EQU	@
 			ORG	RANDOM_VARS_END, RANDOM_VARS_END_LIN
 
+DELAY_VARS_START	EQU	*
+DELAY_VARS_START_LIN	EQU	@
+			ORG	DELAY_VARS_END, DELAY_VARS_END_LIN
+
 BASE_VARS_END		EQU	*	
 BASE_VARS_END_LIN	EQU	@
 
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-#Welcome message
-;---------------- 
-#ifnmac	WELCOME_MESSAGE
-#macro	WELCOME_MESSAGE, 0
-			LDX	#WELCOME_MESSAGE	;print welcome message
-			STRING_PRINT_BL
-#emac
-#endif
-
 ;#Error message
-;-------------- 
+;;------------- 
 #ifnmac	ERROR_MESSAGE
 #macro	ERROR_MESSAGE, 0
+			RESET_BR_NOERR	DONE		;no error detected 
 			LDX	#ERROR_HEADER		;print error header
 			STRING_PRINT_BL
 			TFR	Y, X			;print error message
 			STRING_PRINT_BL
 			LDX	#ERROR_TRAILER		;print error TRAILER
 			STRING_PRINT_BL
+DONE			EQU	*
 #emac
 #endif
 
@@ -161,14 +167,10 @@ BASE_VARS_END_LIN	EQU	@
 			STRING_INIT
 			NUM_INIT
 			NVM_INIT
-			SCI_INIT
-			SCI_ENABLE
 			RANDOM_INIT
-			RESET_BR_ERR	ERROR	;severe error detected 
-			WELCOME_MESSAGE
-			JOB	DONE	
-ERROR			ERROR_MESSAGE					
-DONE			EQU	*
+			DELAY_INIT
+			SCI_INIT
+			ERROR_MESSAGE					
 #emac
 
 ;# COP replacement macros
@@ -236,6 +238,10 @@ RANDOM_CODE_START	EQU	*
 RANDOM_CODE_START_LIN	EQU	@
 			ORG	RANDOM_CODE_END, RANDOM_CODE_END_LIN
 
+DELAY_CODE_START	EQU	*
+DELAY_CODE_START_LIN	EQU	@
+			ORG	DELAY_CODE_END, DELAY_CODE_END_LIN
+
 BASE_CODE_END		EQU	*	
 BASE_CODE_END_LIN	EQU	@
 
@@ -248,11 +254,6 @@ BASE_CODE_END_LIN	EQU	@
 			ORG 	BASE_TABS_START
 #endif	
 
-#Welcome message
-#ifndef	WELCOME_MESSAGE
-WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
-			STRING_NL_TERM
-#endif
 ;#Error message format
 #ifndef	ERROR_HEADER
 ERROR_HEADER		FCS	"FATAL ERROR! "
@@ -310,6 +311,10 @@ RANDOM_TABS_START	EQU	*
 RANDOM_TABS_START_LIN	EQU	@
 			ORG	RANDOM_TABS_END, RANDOM_TABS_END_LIN
 	
+DELAY_TABS_START	EQU	*
+DELAY_TABS_START_LIN	EQU	@
+			ORG	DELAY_TABS_END, DELAY_TABS_END_LIN
+	
 BASE_TABS_END		EQU	*	
 BASE_TABS_END_LIN	EQU	@
 
@@ -322,13 +327,14 @@ BASE_TABS_END_LIN	EQU	@
 #include ../All/sstack.s		;Subroutine stack
 #include ../All/istack.s		;Interrupt stack
 #include ../All/tim.s			;TIM driver
+#include ../All/random.s	   	;Pseudo-random number generator
 #include ../All/sci.s			;SCI driver
 #include ../All/string.s		;String printing routines
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
 #include ./nvm_SIMHC12.s		;NVM driver
+#include ../All/delay.s	  	 	;Delay driver
 #include ./vectab_SIMHC12.s		;HC12A4 vector table
-#include ../All/random.s	   	;Pseudo-random number generator
 #endif	
 
 

@@ -35,22 +35,18 @@
 ;###############################################################################
 ;# Configuration                                                               #
 ;###############################################################################
-;# Memory map:
+;#Memory map:
 MMAP_S12XEP100		EQU	1 		;S12XEP100
-#ifndef	MMAP_FLASH
 MMAP_RAM		EQU	1 		;use RAM memory map
-#endif
 
-;# COP
+;#COP
 COP_DEBUG		EQU	1 		;disable COP
 
-;# ISTACK
+;#ISTACK
 ISTACK_DEBUG		EQU	1 		;don't call WAI
 
-;# Vector table
-#ifndef	MMAP_FLASH
+;#Vector table
 VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
-#endif
 		
 ;# STRING
 STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB
@@ -60,8 +56,7 @@ STRING_ENABLE_PRINTABLE	EQU	1 		;enable STRING_PRINTABLE
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-#ifdef	MMAP_RAM
-			ORG	MMAP_RAM_FA_START, MMAP_RAM_FA_START_LIN	
+			ORG	MMAP_RAM_F9_START, MMAP_RAM_F9_START_LIN
 ;Code
 START_OF_CODE		EQU	*	
 DEMO_CODE_START		EQU	*
@@ -84,49 +79,18 @@ BASE_VARS_START_LIN	EQU	@
 ;Tables
 DEMO_TABS_START		EQU	*
 DEMO_TABS_START_LIN	EQU	@
-			ORG	DEMO_TABS_END, DEMO_CODE_END_LIN
-	
-BASE_TABS_START		EQU	*
-BASE_TABS_START_LIN	EQU	@
-#endif
-#ifdef	MMAP_FLASH
-			ORG	MMAP_RAM_FA_START, MMAP_RAM_FA_START_LIN	
-;Variables
-DEMO_VARS_START		EQU	*
-DEMO_VARS_START_LIN	EQU	@
-			ORG	DEMO_VARS_END, DEMO_VARS_END_LIN
-	
-BASE_VARS_START		EQU	*
-BASE_VARS_START_LIN	EQU	@
+			ORG	DEMO_TABS_END, DEMO_TABS_END_LIN
 
-			ORG	MMAP_FLASH_FD_START, MMAP_FLASH_FD_START_LIN
-;Code
-START_OF_CODE		EQU	*	
-DEMO_CODE_START		EQU	*
-DEMO_CODE_START_LIN	EQU	@
-			ORG	DEMO_CODE_END, DEMO_CODE_END_LIN
-	
-BASE_CODE_START		EQU	*
-BASE_CODE_START_LIN	EQU	@
-			ORG	BASE_CODE_END, BASE_CODE_END_LIN
-;Tables
-DEMO_TABS_START		EQU	*
-DEMO_TABS_START_LIN	EQU	@
-			ORG	DEMO_TABS_END, DEMO_CODE_END_LIN
-	
 BASE_TABS_START		EQU	*
 BASE_TABS_START_LIN	EQU	@
-	
-			;Complete last flash phrase
-			ORG	BASE_TABS_END, BASE_TABS_END_LIN 
-;DEMO_FILL		EQU	8-(*&7)
-			FILL	$FF, 8-(*&7)	
-#endif
-;###############################################################################
-;# Includes                                                                    #
-;###############################################################################
-#include ./base_BEPM.s		;S12CBase bundle
-	
+			ORG	BASE_TABS_END, BASE_TABS_END_LIN
+
+;Stack 
+SSTACK_TOP		EQU	*
+SSTACK_TOP_LIN		EQU	@
+SSTACK_BOTTOM		EQU	VECTAB_START
+SSTACK_BOTTOM_LIN	EQU	VECTAB_START_LIN
+
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
@@ -142,7 +106,24 @@ DEMO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Macros                                                                      #
 ;###############################################################################
-;
+;#Welcome message
+#macro	WELCOME_MESSAGE, 0
+			RESET_BR_ERR	DONE		;severe error detected 
+			LDX	#WELCOME_MESSAGE	;print welcome message
+			STRING_PRINT_BL
+DONE			EQU	*
+#emac
+
+;Break handler
+#macro	SCI_BREAK_ACTION, 0
+			LED_SET	B, LED_SEQ_HEART_BEAT
+#emac
+	
+;Suspend handler
+#macro	SCI_SUSPEND_ACTION, 0
+			LED_CLR	B, LED_SEQ_HEART_BEAT
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -150,6 +131,7 @@ DEMO_VARS_END_LIN	EQU	@
 
 ;Initialization
 			BASE_INIT
+			WELCOME_MESSAGE
 	
 ;;Setup trace buffer
 ;			;Configure DBG module
@@ -267,6 +249,12 @@ DEMO_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
 
+;#Welcome message
+#ifndef	WELCOME_MESSAGE
+WELCOME_MESSAGE		FCC	"Hello, this is the S12CBase demo!"
+			STRING_NL_TERM
+#endif
+	
 DEMO_HEADER		STRING_NL_NONTERM
 			STRING_NL_NONTERM
 			FCC	"ASCII  Hex  Dec  Oct       Bin"
@@ -277,6 +265,7 @@ DEMO_HEADER		STRING_NL_NONTERM
 DEMO_TABS_END		EQU	*	
 DEMO_TABS_END_LIN	EQU	@	
 
-
-
-
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+#include ./base_BEPM.s		;S12CBase bundle

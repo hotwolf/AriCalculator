@@ -99,6 +99,37 @@ DONE			EQU	*
 #macro	RANDOM_NEXT, 0
 			SSTACK_JOBSR	RANDOM_NEXT, 2
 #emac
+
+
+;#Manual randomization routines
+; May be added to user input handlers
+
+;#Shift the LSB from a timer counter into the LSFR
+; args:   none
+; result: D: new pseudo-random value
+; SSTACK: 0 bytes
+;         X and Y are preserved
+#macro	RANDOM_SHIFT_C, 0
+			LDD	RANDOM_LSFR 				;LSFR -> D
+			ROLB						;shift in C-flag 
+			ROLA						;
+			TBNE	D, UPDATE_LSFR				;check for zero LSFR
+			INCB						;LSFR must not be zero
+UPDATE_LSFR		STD	RANDOM_LSFR 				;update LSFR
+#emac
+	
+;#Shift the LSB from a timer counter into the LSFR
+; args:   1: start address of timer register space
+; result: D: new pseudo-random value
+; SSTACK: 0 bytes
+;         X and Y are preserved
+#macro	RANDOM_SHIFT_TIM, 1
+			BRCLR	\1+TSCR1_OFFSET,#TEN,DONE 		;timer is not running
+			LDAB	\1+TCNT_OFFSET+1 			;random byte -> B
+			LSRB						;random bit -> C-flag
+			RANDOM_SHIFT_C 					;shift in C-flag
+DONE			EQU	* 					;done
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
