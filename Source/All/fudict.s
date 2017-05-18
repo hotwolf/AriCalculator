@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CForth - FUDICT - User Dictionary and User Variables                     #
 ;###############################################################################
-;#    Copyright 2009-2016 Dirk Heisswolf                                       #
+;#    Copyright 2009-2017 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CForth framework for NXP's S12C MCU          #
 ;#                                                                             #
 ;#    S12CForth is free software: you can redistribute it and/or modify        #
@@ -711,7 +711,7 @@ CF_COLON_NONAME		INTERPRET_ONLY			;catch nested compilation
 			FUDICT_CVARS_ALLOC 		;CVARS -> X
 			LDX	FUDICT_CP		;CP -> X
 			INX				;skip over info field
-			PSHX				;xt _> 0,sp
+			PSHX				;xt -> 0,sp
 			JOB	CF_COLON_3		;compile IF
 	
 ;Word: : ( C: "<spaces>name" -- colon-sys )
