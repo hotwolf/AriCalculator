@@ -39,7 +39,7 @@
 ;#Core
 			CPU	S12X
 	
-;#Clocks
+;#CLOCK
 CLOCK_CRG		EQU	1		;old CRG
 CLOCK_OSC_FREQ		EQU	10000000	;10 MHz
 CLOCK_BUS_FREQ		EQU	50000000	;50 MHz
@@ -53,7 +53,7 @@ CLOCK_REFFRQ		EQU	2		;Ref=10Mhz
 ; OC2 - DELAY
 ; OC3 - LED
 TIM_DIV_2		EQU	1 		;25 MHz
-BASE_ECT_TIOS_INIT	EQU	SCI_OC_TIOS_INIT|LED_TIOS_INIT|DELAY_TIOS_INIT
+BASE_ECT_TIOS_INIT	EQU	SCI_OC_TIOS_INIT|DELAY_TIOS_INIT|LED_TIOS_INIT
 BASE_ECT_TCTL34_INIT	EQU	SCI_IC_TCTL34_INIT
 #ifndef	TIM_ECT_TIOS_INIT
 TIM_ECT_TIOS_INIT	EQU	BASE_ECT_TIOS_INIT
@@ -89,27 +89,30 @@ LED_C_PIN		EQU	PP4 		;PP4
 ; LED D
 LED_D_BLINK_ON		EQU	1 		;blink patterns
 LED_D_PORT		EQU	PTP 		;port P
-LED_D_PIN		EQU	PP4 		;PP4
+LED_D_PIN		EQU	PP5 		;PP5
 	
 ;#SCI
 SCI_V5			EQU	1   		;V5
-SCI_BAUD_AUTO		EQU	1 		;automatic baud rate detection
+SCI_BAUD_9600		EQU	1 		;fixed baud rate
+SCI_BAUD_DETECT_ON	EQU	1		;enable baud rate detection
 SCI_IC_TIM		EQU	ECT 		;ECT
 SCI_IC			EQU	0 		;IC0
 SCI_OC_TIM		EQU	ECT 		;ECT
 SCI_OC			EQU	1 		;OC1
 SCI_XONXOFF		EQU	1		;XON/XOFF flow control
 #macro SCI_BDSIG_START, 0
-			LED_SET	C, LED_SEQ_SINGLE_GAP;start single gap on red LED
+			;LED_SET	C, LED_SEQ_SINGLE_GAP;start single gap on red LED
+			LED_SET	C, LED_SEQ_HEART_BEAT;start single gap on error LED
 #emac
 #macro SCI_BDSIG_STOP, 0
-			LED_CLR	C, LED_SEQ_SINGLE_GAP;stop single gap on red LED
+			;LED_CLR	C, LED_SEQ_SINGLE_GAP;stop single gap on red LED
+			LED_CLR	C, LED_SEQ_HEART_BEAT;stop single gap on error LED
 #emac
 #macro SCI_ERRSIG_START, 0
-			LED_SET	C, LED_SEQ_FAST_BLINK;start fast blink on red LED
+			LED_SET	C, LED_SEQ_FAST_BLINK;start fast blink on error LED
 #emac
 #macro SCI_ERRSIG_STOP, 0
-			LED_CLR	C, LED_SEQ_FAST_BLINK;stop fast blink on red LED
+			LED_CLR	C, LED_SEQ_FAST_BLINK;stop fast blink on error LED
 #emac
 
 ;#TVMON
@@ -212,6 +215,7 @@ BASE_VARS_END_LIN	EQU	@
 #ifnmac	ERROR_MESSAGE
 #macro	ERROR_MESSAGE, 0
 			RESET_BR_NOERR	DONE		;no error detected 
+			SCI_CHECK_BAUD_BL		;determine baud rate first
 			LDX	#ERROR_HEADER		;print error header
 			STRING_PRINT_BL
 			TFR	Y, X			;print error message
@@ -434,6 +438,6 @@ BASE_TABS_END_LIN	EQU	@
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
 #include ./nvm_Mini-BDM-Pod.s		;NVM driver
-#include ./vectab_Mini-BDM-Pod.s	;S12XEP100 vector table
 #include ../All/delay.s	  	 	;Delay driver
+#include ./vectab_Mini-BDM-Pod.s	;S12XEP100 vector table
 #endif

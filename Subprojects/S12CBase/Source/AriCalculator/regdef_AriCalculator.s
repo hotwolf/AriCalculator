@@ -1,11 +1,10 @@
-#ifndef	REGDEF
-#define REGDEF
+#ifndef	REGDEF_COMPILED
+#define REGDEF_COMPILED
 ;###############################################################################
-;# S12CBase - REGDEF - Register Definitions (AriCalculator)                    #
+;# S12CBase - REGDEF - Register Definitions (S12G-Micro-EVB)                   #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
-;#    families.                                                                #
+;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -30,7 +29,7 @@
 ;#    - none                                                                   #
 ;###############################################################################
 ;# Version History:                                                            #
-;#    January 7, 2015                                                          #
+;#    Apr 1, 2010                                                              #
 ;#      - Initial release                                                      #
 ;###############################################################################
 ;#############################
@@ -442,6 +441,7 @@ CR0             EQU     $01
 CPMUARMCOP      EQU     $003F
 ARMCOP          EQU     $003F
 
+TIM		EQU	$0040
 TIOS		EQU	$0040
 IOS7		EQU	$80
 IOS6		EQU	$40

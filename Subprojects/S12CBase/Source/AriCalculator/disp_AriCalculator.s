@@ -445,14 +445,14 @@ DISP_ISR_10		LDAA	#DISP_ESC_START
 			JOB	DISP_ISR_2
 			;Switch to command mode (new OUT in B) 
 DISP_ISR_11		BRCLR	DISP_A0_PORT, #DISP_A0_PIN, DISP_ISR_3		;already in command mode
-			TST	SISP_TXCNT					;check for ongoing transmission
+			TST	DISP_TXCNT					;check for ongoing transmission
 			BNE	DISP_ISR_6 					;transmission ongoing
 			;BCLR	DISP_A0_PORT, #DISP_A0_PIN 			;switch to command mode
 			MOVB	#DISP_RESET_PIN, DISP_A0_PORT  			; shortcut
 			JOB	DISP_ISR_3					;escape sequence processed
 			;Switch to data mode (new OUT in B) 
 DISP_ISR_12		BRSET	DISP_A0_PORT, #DISP_A0_PIN, DISP_ISR_3		;already in data mode
-			TST	SISP_TXCNT					;check for ongoing transmission
+			TST	DISP_TXCNT					;check for ongoing transmission
 			BNE	DISP_ISR_6 					;transmission ongoing
 			;BSET	DISP_A0_PORT, #DISP_A0_PIN 			;switch to data mode
 			MOVB	#(DISP_A0_PIN|DISP_RESET_PIN), DISP_A0_PORT  	; shortcut

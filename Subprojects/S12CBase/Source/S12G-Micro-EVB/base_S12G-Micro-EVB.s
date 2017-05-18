@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - Base Bundle (S12G-Micro-EVB)                                     #
 ;###############################################################################
-;#    Copyright 2010-2016 Dirk Heisswolf                                       #
+;#    Copyright 2010-2017 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
@@ -39,7 +39,7 @@
 ;#Core
 			CPU	S12
 
-;#Clocks
+;#CLOCK
 CLOCK_CPMU		EQU	1		;CPMU
 CLOCK_IRC		EQU	1		;use IRC
 CLOCK_OSC_FREQ		EQU	 1000000	; 1 MHz IRC frequency
@@ -53,8 +53,7 @@ CLOCK_REFFRQ		EQU	$0		;  1 MHz reference clock frequency
 ; OC1 - SCI general purpose
 ; OC2 - DELAY
 ; OC3 - LED
-TIM_DIV_2		EQU	1 		;25 MHz
-TIM_TIOS_INIT		EQU	SCI_OC_TIOS_INIT|LED_TIOS_INIT|DELAY_TIOS_INIT
+TIM_TIOS_INIT		EQU	SCI_OC_TIOS_INIT|DELAY_TIOS_INIT|LED_TIOS_INIT
 TIM_TCTL34_INIT		EQU	SCI_IC_TCTL34_INIT
 
 ;#DELAY
@@ -78,7 +77,8 @@ LED_B_PIN		EQU	PE1 		;PE1
 
 ;#SCI
 SCI_V5			EQU	1   		;V5
-SCI_BAUD_AUTO		EQU	1 		;automatic baud rate detection
+SCI_BAUD_9600		EQU	1 		;fixed baud rate
+SCI_BAUD_DETECT_ON	EQU	1		;enable baud rate detection
 SCI_IC_TIM		EQU	TIM 		;ECT
 SCI_IC			EQU	0 		;IC0
 SCI_OC_TIM		EQU	TIM 		;ECT
@@ -173,10 +173,6 @@ NVM_VARS_START		EQU	*
 NVM_VARS_START_LIN	EQU	@
 			ORG	NVM_VARS_END, NVM_VARS_END_LIN
 	
-VECTAB_VARS_START	EQU	*
-VECTAB_VARS_START_LIN	EQU	@
-			ORG	VECTAB_VARS_END, VECTAB_VARS_END_LIN
-
 RANDOM_VARS_START	EQU	*
 RANDOM_VARS_START_LIN	EQU	@
 			ORG	RANDOM_VARS_END, RANDOM_VARS_END_LIN
@@ -184,6 +180,10 @@ RANDOM_VARS_START_LIN	EQU	@
 DELAY_VARS_START	EQU	*
 DELAY_VARS_START_LIN	EQU	@
 			ORG	DELAY_VARS_END, DELAY_VARS_END_LIN
+
+VECTAB_VARS_START	EQU	*
+VECTAB_VARS_START_LIN	EQU	@
+			ORG	VECTAB_VARS_END, VECTAB_VARS_END_LIN
 
 BASE_VARS_END		EQU	*	
 BASE_VARS_END_LIN	EQU	@
@@ -195,12 +195,16 @@ BASE_VARS_END_LIN	EQU	@
 ;-------------- 
 #ifnmac	ERROR_MESSAGE
 #macro	ERROR_MESSAGE, 0
+			;VMON_VUSB_BRLV	DONE 		;no terminal connected
+			RESET_BR_NOERR	DONE		;no error detected 
+			SCI_CHECK_BAUD_BL		;determine baud rate first
 			LDX	#ERROR_HEADER		;print error header
 			STRING_PRINT_BL
 			TFR	Y, X			;print error message
 			STRING_PRINT_BL
 			LDX	#ERROR_TRAILER		;print error TRAILER
 			STRING_PRINT_BL
+DONE			EQU	*
 #emac
 #endif
 
@@ -223,8 +227,11 @@ BASE_VARS_END_LIN	EQU	@
 			LED_INIT
 			RANDOM_INIT
 			CLOCK_WAIT_FOR_PLL
+			VMON_WAIT_FOR_1ST_RESULTS
+			VMON_VUSB_BRLV	DONE
 			SCI_INIT
-			ERROR_MESSAGE					
+			ERROR_MESSAGE
+DONE			EQU	*	
 #emac
 
 ;#Enable SCI whenever USB is connected, disable otherwise
@@ -305,10 +312,6 @@ NVM_CODE_START		EQU	*
 NVM_CODE_START_LIN	EQU	@
 			ORG	NVM_CODE_END, NVM_CODE_END_LIN
 	
-VECTAB_CODE_START	EQU	*
-VECTAB_CODE_START_LIN	EQU	@
-			ORG	VECTAB_CODE_END, VECTAB_CODE_END_LIN
-
 RANDOM_CODE_START	EQU	*
 RANDOM_CODE_START_LIN	EQU	@
 			ORG	RANDOM_CODE_END, RANDOM_CODE_END_LIN
@@ -317,6 +320,10 @@ DELAY_CODE_START	EQU	*
 DELAY_CODE_START_LIN	EQU	@
 			ORG	DELAY_CODE_END, DELAY_CODE_END_LIN
 	
+VECTAB_CODE_START	EQU	*
+VECTAB_CODE_START_LIN	EQU	@
+			ORG	VECTAB_CODE_END, VECTAB_CODE_END_LIN
+
 BASE_CODE_END		EQU	*	
 BASE_CODE_END_LIN	EQU	@
 
@@ -394,10 +401,6 @@ NVM_TABS_START		EQU	*
 NVM_TABS_START_LIN	EQU	@
 			ORG	NVM_TABS_END, NVM_TABS_END_LIN
 	
-VECTAB_TABS_START	EQU	*
-VECTAB_TABS_START_LIN	EQU	@
-			ORG	VECTAB_TABS_END, VECTAB_TABS_END_LIN
-	
 RANDOM_TABS_START	EQU	*
 RANDOM_TABS_START_LIN	EQU	@
 			ORG	RANDOM_TABS_END, RANDOM_TABS_END_LIN
@@ -405,6 +408,10 @@ RANDOM_TABS_START_LIN	EQU	@
 DELAY_TABS_START	EQU	*
 DELAY_TABS_START_LIN	EQU	@
 			ORG	DELAY_TABS_END, DELAY_TABS_END_LIN
+	
+VECTAB_TABS_START	EQU	*
+VECTAB_TABS_START_LIN	EQU	@
+			ORG	VECTAB_TABS_END, VECTAB_TABS_END_LIN
 	
 BASE_TABS_END		EQU	*	
 BASE_TABS_END_LIN	EQU	@
@@ -421,14 +428,13 @@ BASE_TABS_END_LIN	EQU	@
 #include ../All/cop.s			;COP handler
 #include ../All/tim.s			;TIM driver
 #include ../All/led.s			;LED driver
-#include ./sci_bdtab_S12G-Micro-EVB.s	;Search tree for SCI baud rate detection
+#include ./vmon_S12G-Micro-EVB.s	;Voltage monitor
 #include ../All/random.s	   	;Pseudo-random number generator
 #include ../All/sci.s			;SCI driver
-#include ./vmon_S12G-Micro-EVB.s	;Voltage monitor
 #include ../All/string.s		;String printing routines	
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
 #include ./nvm_S12G-Micro-EVB.s		;NVM driver
-#include ./vectab_S12G-Micro-EVB.s	;S12G vector table
 #include ../All/delay.s	  	 	;Delay driver
+#include ./vectab_S12G-Micro-EVB.s	;S12G vector table
 #endif

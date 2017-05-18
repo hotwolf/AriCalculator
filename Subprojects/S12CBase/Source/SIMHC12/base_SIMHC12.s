@@ -333,8 +333,8 @@ BASE_TABS_END_LIN	EQU	@
 #include ../All/reset.s			;Reset driver
 #include ../All/num.s	   		;Number printing routines
 #include ./nvm_SIMHC12.s		;NVM driver
-#include ./vectab_SIMHC12.s		;HC12A4 vector table
 #include ../All/delay.s	  	 	;Delay driver
+#include ./vectab_SIMHC12.s		;HC12A4 vector table
 #endif	
 
 

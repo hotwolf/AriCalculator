@@ -1701,6 +1701,7 @@ EPS2         	EQU    	$04
 EPS1         	EQU    	$02
 EPS0         	EQU    	$01
 	     	       	
+FCCOB      	EQU    	$010A
 FCCOBHI      	EQU    	$010A
 CCOB15     	EQU    	$80
 CCOB14     	EQU    	$40
