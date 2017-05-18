@@ -143,7 +143,7 @@ TIB_RS_SIZE		EQU	(((MMAP_RAM_END-DS_PS_START)/3)&-2)
 
 VECTAB_START		EQU	*	
 VECTAB_START_LIN	EQU	@
-			ORG	VECCTAB_END, VECTAB_END_LIN
+			ORG	VECTAB_END, VECTAB_END_LIN
 
 TABS_START		EQU	*	
 TABS_START_LIN		EQU	@
@@ -159,12 +159,15 @@ VARS_START_LIN		EQU	@
 
 DS_PS_START		EQU	*			
 DS_PS_START_LIN		EQU	@
-DS_PS_END		EQU	MMAP_RAM_END-TIB-TIB_RS_SIZE
-DS_PS_END_LIN		EQU	MMAP_RAM_END_LIN-TIB-TIB_RS_SIZE
-TIB_RS_START		EQU	MMAP_RAM_END-TIB-TIB_RS_SIZE
-TIB_RS_START_LIN	EQU	MMAP_RAM_END_LIN-TIB-TIB_RS_SIZE
-TIB_RS_END		EQU	MMAP_RAM_END			
-TIB_RS_END_LIN		EQU	MMAP_RAM_END_LIN
+			DS	MMAP_RAM_END-(*+TIB_RS_SIZE)
+DS_PS_END		EQU	*
+DS_PS_END_LIN		EQU	@
+
+TIB_RS_START		EQU	*
+TIB_RS_START_LIN	EQU	@
+			DS	MMAP_RAM_END-*
+TIB_RS_END		EQU	*			
+TIB_RS_END_LIN		EQU	@
 #else
 			;FLASH_COMPILE
 			;=============
@@ -173,14 +176,16 @@ TIB_RS_END_LIN		EQU	MMAP_RAM_END_LIN
 VARS_START		EQU	*	
 VARS_START_LIN		EQU	@
 			ORG	VARS_END, VARS_END_LIN
-
+	
 DS_PS_START		EQU	*			
 DS_PS_START_LIN		EQU	@
-			ORG	MMAP_RAM_END, MMAP_RAM_END_LIN
-DS_PS_END		EQU	*-TIB-TIB_RS_SIZE
-DS_PS_END_LIN		EQU	@-TIB-TIB_RS_SIZE
-TIB_RS_START		EQU	*-TIB-TIB_RS_SIZE
-TIB_RS_START_LIN	EQU	@-TIB-TIB_RS_SIZE
+			DS	MMAP_RAM_END-(*+TIB_RS_SIZE)
+DS_PS_END		EQU	*
+DS_PS_END_LIN		EQU	@
+
+TIB_RS_START		EQU	*
+TIB_RS_START_LIN	EQU	@
+			DS	MMAP_RAM_END-*
 TIB_RS_END		EQU	*			
 TIB_RS_END_LIN		EQU	@
 
@@ -200,7 +205,7 @@ CODE_F_START		EQU	*
 CODE_F_START_LIN	EQU	@
 			;ORG	CODE_F_END, CODE_F_END_LIN
 
-			ORG	FLASH_F_END, FLASH_F_END_LIN
+			ORG	MMAP_FLASH_F_END, MMAP_FLASH_F_END_LIN
 #ifdef	BOOTLOADER_ON
 			ORG	(*-BOOTLOADER_SIZE), (@-BOOTLOADER_SIZE)
 BOOTLOADER_START	EQU	*	
@@ -227,7 +232,15 @@ VECTAB_START_LIN	EQU	@-VECTAB_SIZE
 ;# Module configuration                                                        #
 ;###############################################################################
 ;# S12CBase
-;MMAP: 
+;#CLOCK
+
+;#COP
+
+;#RESET
+
+;#GPIO
+
+;#MMAP: 
 #ifdef LRE_COMPILE
 MMAP_UNSEC_OFF		EQU	1 	;don't set the security byte for LRE compiles
 #endif
@@ -235,33 +248,53 @@ MMAP_UNSEC_OFF		EQU	1 	;don't set the security byte for LRE compiles
 MMAP_UNSEC_OFF		EQU	1 	;don't set the security byte if a bootloader is used
 #endif
 
-;SSTACK: 
+;#COP
+
+;#RESET
+
+;#GPIO
+
+;#MMAP
+
+;#VECTAB
+	
+;#SSTACK: 
 SSTACK_TOP		EQU	TIB_RS_START ;stack range
 SSTACK_BOTTOM		EQU	TIB_RS_END   ;stack range
 
-;ISTACK 
+;#ISTACK 
 #ifdef LRE_COMPILE
 ISTACK_NO_WAI		EQU	1 	;don't enter wait mode when debugging
 #endif
+
+;#NVM
 	
-;TIM:
-TIM_TIOS_INIT		EQU	BASE_TIOS_INIT|FORTH_TIOS_INIT
+;#TIM:
+;TIM_TIOS_INIT		EQU	BASE_TIOS_INIT|FORTH_TIOS_INIT
+TIM_TIOS_INIT		EQU	BASE_TIOS_INIT
 TIM_TTOV_INIT		EQU	BASE_TTOV_INIT
 TIM_TCTL12_INIT		EQU	BASE_TCTL12_INIT
 TIM_TCTL34_INIT		EQU	BASE_TCTL34_INIT
 
+;#LED
 
-	
-;# S12CForth
-	
-;# AriCalculator
+;#BACKLIGHT
 
-;###############################################################################
-;# Includes                                                                    #
-;###############################################################################
-;# S12CBase
-#include ../../../../S12CBase/Source/AriCalculator/base_AriCalculator.s
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/base_AriCalculator.s
+;#KEYS
+
+;#DELAY
+
+;#SCI							
+
+;#DISP							
+
+;#VMON							
+
+;#RANDOM							
+
+;#STRING							
+
+;#NUM							
 	
 ;# S12CForth
 	
@@ -354,5 +387,15 @@ BASE_TABS_START_LIN	EQU	@
 TABS_END		EQU	*
 TABS_END_LIN		EQU	@
 
+;###############################################################################
+;# Includes                                                                    #
+;###############################################################################
+;# S12CBase
+#include ../../../../S12CBase/Source/AriCalculator/base_AriCalculator.s
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/base_AriCalculator.s
+	
+;# S12CForth
+	
+;# AriCalculator
 
 
