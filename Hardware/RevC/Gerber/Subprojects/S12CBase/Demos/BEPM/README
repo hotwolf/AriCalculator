@@ -1,0 +1,19 @@
+This directory contains demos and tests running on the BEPM engine controller.
+
+Available demos and tests:
++-demo_Mini-BDM-Pod.dbug12.txt   This is the BEPM port of the S12CBase demo.
+|                                It reads SCI input and prints the read value in
+|                                ASCII, hexadecimal, decimal, octal, and binary 
+|                                representation. The SCI runs at 9600 baud with
+|                                XON/XOFF flow control.
+|                                This ASCII file contains all D-Bug12 commads to
+|                                run the demo in the on-chip RAM. No flashing
+|                                required.
+|
++-demo_Mini-BDM-Pod.dbug12.lst   The assembler listing of the LRE demo code.
+|
++-demo_Mini-BDM-Pod.flash.s28    This is a flashable S-record of the demo code.
+|
++-demo_Mini-BDM-Pod.flash.lst    The assembler listing of the flashable demo
+                                 code.
+

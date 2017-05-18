@@ -1,0 +1,20 @@
+S12CForth - Tools
+================
+This is the tool chain for the S12CForth framework.
+
+HSW12
+-----
+Assembler and IDE 
+
+Update Subprojects
+------------------
+A shell script to keep all subprojects up to date.
+
+Test Builder
+------------
+A set of Perl scripts to compile the source code and wrap the resulting S-Record
+into command files which can be executed by a D-Bug12(X) debugger.
+
+Dictionary Tree Generator
+-------------------------
+A Perl script to generate a dictionary search tree for S12CForth.

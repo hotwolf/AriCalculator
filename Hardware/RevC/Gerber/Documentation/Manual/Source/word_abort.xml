@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section xml:id="word_abort" 
+	 xmlns="http://docbook.org/ns/docbook"
+	 xmlns:xi="http://www.w3.org/2001/XInclude" version="5.0">
+  <title><command>ABORT</command></title>
+  <info>
+    <keywordset>
+      <keyword>abort</keyword>
+      <keyword>exception</keyword>
+    </keywordset>
+  </info>
+ 
+  <para>
+    TBD
+  </para>
+
+</section>

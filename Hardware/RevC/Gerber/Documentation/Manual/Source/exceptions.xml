@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<chapter xml:id="exceptions" 
+	 xmlns="http://docbook.org/ns/docbook"
+	 xmlns:xi="http://www.w3.org/2001/XInclude" 
+	 version="5.0">
+
+  <title>Exceptions</title>
+  <info>
+    <keywordset>
+      <keyword>abort</keyword>
+      <keyword>error</keyword>
+      <keyword>fatal</keyword>
+      <keyword>severity</keyword>
+      <keyword>exception</keyword>
+      <keyword>throw code</keyword>
+    </keywordset>
+  </info> 
+  <para>
+    <emphasis><xi:include href="project_name.txt" parse="text"/></emphasis> supports exceptions to handle 
+    unexpected events. Exceptions can be thrown by the pre-defined words if they face a situation where they
+    can't perform their task property (e.g. due to insufficient arguments):
+  </para> 
+  <screen>
+> .s                              <co xml:id="exceptions_co1.1"/>
+Parameter stack is empty! ok
+> abs                             <co xml:id="exceptions_co1.2"/>
+Error! Parameter stack underflow! <co xml:id="exceptions_co1.3"/>
+>
+  </screen>
+  <calloutlist>
+    <callout arearefs="exceptions_co1.1">
+      <para>This shows the content of the parameter stack.</para>
+    </callout>
+    <callout arearefs="exceptions_co1.2">
+      <para>The word <link linkend="word_abs"><command>ABS</command></link> one argument on the parameter stack,
+      but the parameter stack is empty.</para>
+    </callout>
+    <callout arearefs="exceptions_co1.3">
+      <para>The resulting error message.</para>
+    </callout>
+  </calloutlist>
+
+  <para>
+    Exceptions can be also thrown by an application by executing 
+    <link linkend="word_throw"><command>THROW</command></link>. The type of exception is selected by a throw code
+    (see <xref linkend="exceptions_throw_codes"/>) that is handed to <link linkend="word_throw">
+    <command>THROW</command></link> as an argument:
+  </para>
+  <screen>
+> -4 throw                        <co xml:id="exceptions_co2.1"/>
+Error! Parameter stack underflow! <co xml:id="exceptions_co2.2"/>
+>
+  </screen>
+  <calloutlist>
+    <callout arearefs="exceptions_co2.1">
+      <para><literal>-4</literal> is the throw code for a parameter stack underflow.</para>
+    </callout>
+    <callout arearefs="exceptions_co2.2">
+      <para>Manually throwing this exception results in the same error.</para>
+    </callout>
+  </calloutlist>
+
+  <para>
+    By default any thrown exception will terminate the application word and will cause the systems to 
+    enter the interpretation state after displaying an error message. However it is possible to catch exceptions 
+    from within the application an implement custom exception handlers. This can be done with the help of 
+    <link linkend="word_catch"><command>CATCH</command></link>. <link linkend="word_catch"><command>CATCH</command></link>
+    executes an execution token and return a throw code (or zero if no exception occurred):
+  </para>
+  <screen>
+> .s                              <co xml:id="exceptions_co3.1"/>
+Parameter stack is empty! ok
+> ' abs catch ok                  <co xml:id="exceptions_co3.2"/>
+> .s                              <co xml:id="exceptions_co3.3"/>
+Parameter stack:                  <co xml:id="exceptions_co3.4"/>
+1:    -4 ok
+>
+  </screen>
+  <calloutlist>
+    <callout arearefs="exceptions_co3.1">
+      <para>Verify that the parameter stack is empty.</para>
+    </callout>
+    <callout arearefs="exceptions_co3.2">
+      <para>Execute <link linkend="word_abs"><command>ABS</command></link> through
+      <link linkend="word_catch"><command>CATCH</command></link>. No error message is printed.</para>
+    </callout>
+    <callout arearefs="exceptions_co3.3">
+      <para>Check the parameter again.</para>
+    </callout>
+    <callout arearefs="exceptions_co3.4">
+      <para>The throw code for parameter stack underflows (<literal>-4</literal>) has been returned
+      onto the parameter stack.</para>
+    </callout>
+  </calloutlist>
+
+  <para>
+    An typical exception handler is implemented as follows. It checks the returned throw code, handles the expected 
+    exceptions and re-throws the unexpected ones:
+  </para>
+  <screen>
+> : catch-abort-and-psuf                                 <co xml:id="exceptions_co4.1"/>
++ catch                                                  <co xml:id="exceptions_co4.2"/>
++ case                                                   <co xml:id="exceptions_co4.3"/>
++ -1 of cr ." Caught an abort!" endof                    <co xml:id="exceptions_co4.4"/>
++ -4 of cr ." Caught a parameter stack underflow!" endof <co xml:id="exceptions_co4.5"/>
++ throw                                                  <co xml:id="exceptions_co4.6"/>
++ endcase ; ok
+> ' abort catch-abort-and-psuf                           <co xml:id="exceptions_co4.7"/>
+Caught an abort! ok
+> ' abs catch-abort-and-psuf                             <co xml:id="exceptions_co4.8"/>
+Caught a parameter stack underflow! ok
+> 1 0 /                                                  <co xml:id="exceptions_co4.9"/>
+Error! Division by zero!
+>
+  </screen>
+  <calloutlist>
+    <callout arearefs="exceptions_co4.1">
+      <para>This is a colon definition for an exception handler that catches 
+      <link linkend="word_abort"><command>ABORT</command></link>s and parameter stack underflows.</para>
+    </callout>
+    <callout arearefs="exceptions_co4.2">
+      <para>Execute an execution token trough this exception handler.</para>
+    </callout>
+    <callout arearefs="exceptions_co4.3">
+      <para>Exception handlers are typically coded with a 
+      <link linkend="word_case"><command>CASE</command></link> statement.</para>
+    </callout>
+    <callout arearefs="exceptions_co4.4">
+      <para>This is the handler code for <link linkend="word_abort"><command>ABORT</command></link>s 
+      (throw code: <literal>-1</literal>).</para>
+    </callout>
+    <callout arearefs="exceptions_co4.5">
+      <para>This is the handler code for parameter stack underflows (throw code: <literal>-4</literal>).</para>
+    </callout>
+    <callout arearefs="exceptions_co4.6">
+      <para>All other (unexpected) throw codes are re-thrown.</para>
+    </callout>
+    <callout arearefs="exceptions_co4.7">
+      <para>The exception handler catches an <link linkend="word_abort"><command>ABORT</command></link>.</para>
+    </callout>
+    <callout arearefs="exceptions_co4.8">
+      <para>The exception handler catches a parameter stack overflow.</para>
+    </callout>
+    <callout arearefs="exceptions_co4.9">
+      <para>All other exception produce an error message.</para>
+    </callout>
+  </calloutlist>
+
+  <section xml:id="exceptions_severity">
+    <title>Severity Levels</title>
+    <para>
+      <emphasis><xi:include href="project_name.txt" parse="text"/></emphasis> exceptions can be thrown with two 
+      severity levels: <quote>Error!</quote> and <quote>Fatal!</quote>
+    </para>
+    <section xml:id="exceptions_severity_error">
+      <title>Error!</title>
+      <para>
+	Uncaught <quote>Error!</quote> exceptions reset the parameter and the return stack. Then they print the 
+	associated error message (<quote>Error! ...!</quote>) and force the system into interpretation state. 
+      </para>
+    </section>
+    <section xml:id="exceptions_severity_fatal">
+      <title>Fatal!</title>
+      <para>
+	Uncaught <quote>Fatal!</quote> exceptions perform a hardware reset of the MCU. The entire system will be reinitialized 
+	(incl. drivers, buffer, stacks) and the user dictionary will be cleared. Once the system is operational again it will
+	print the associated error message (<quote>Fatal! ...!</quote>).
+	A Fatal error should only be thrown if a severe problem has been detected, that can't be resolved by the application.
+      </para>
+    </section>
+  </section>
+
+  <section xml:id="exceptions_throw_codes">
+    <title>Throw Codes</title>
+    <para>
+      There are two kinds of throw codes: Predefined ones and user-defined throw codes.
+    </para>
+    <section xml:id="exceptions_predefined_throw_codes">
+      <title>Predefined Throw Codes</title>
+      <para>
+	<emphasis><xi:include href="project_name.txt" parse="text"/></emphasis> defines a set of codes for 
+	exceptions thrown by its predefined built-in set of words. The majority of these throw codes have been 
+	adopted from the ANSForth standard <citation>dpans94</citation>. For a complete list of all predefined 
+	throw codes see <xref linkend="throw_codes_table"/>
+      </para>
+    </section>
+    <section xml:id="exceptions_user_throw_codes">
+      <title>User-Defined Throw Codes</title>
+      <para>
+	In addition to the predefined errors, <emphasis><xi:include href="project_name.txt" parse="text"/></emphasis> 
+	supports the definition of custom errors. These custom errors are defined by the words 
+	<link linkend="word_error_quote"><command>ERROR&quot;</command></link> (for severity level <quote>Error!</quote>) and
+	<link linkend="word_fatal_quote"><command>FATAL&quot;</command></link> (for severity level <quote>Fatal!</quote>):
+      </para>
+      <screen>
+> error&quot; This is just a test&quot; ok <co xml:id="exceptions_user_throw_codes_co1"/>
+> . 309B ok                                <co xml:id="exceptions_user_throw_codes_co2"/>
+> 309B throw                               <co xml:id="exceptions_user_throw_codes_co3"/>
+Error! This is just a test!
+> : throw-fatal                            <co xml:id="exceptions_user_throw_codes_co4"/>
++ fatal&quot; This is another test&quot;
++ throw ; ok
+> throw-fatal                              <co xml:id="exceptions_user_throw_codes_co5"/>
+Fatal Error! Another test!
+>
+      </screen>
+      <calloutlist>
+	<callout arearefs="exceptions_user_throw_codes_co1">
+	  <para>This defines new exception.</para>
+	</callout>
+	<callout arearefs="exceptions_user_throw_codes_co2">
+	  <para>The throw code of the new exception is returned onto the parameter stack.</para>
+	</callout>
+	<callout arearefs="exceptions_user_throw_codes_co3">
+	  <para><link linkend="word_throw"><command>THROW&quot;</command></link>ing this code invokes the 
+	  default error handler, printing the associated error message.</para>
+	</callout>
+	<callout arearefs="exceptions_user_throw_codes_co4">
+	  <para>New exception can also be defined within word definitions.</para>
+	</callout>
+	<callout arearefs="exceptions_user_throw_codes_co4">
+	  <para>This will perform a system reset and print the error message after reinitialization.</para>
+	</callout>
+      </calloutlist>
+    </section>
+  </section>
+</chapter>

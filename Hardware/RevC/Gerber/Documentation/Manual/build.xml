@@ -1,0 +1,269 @@
+<?xml version="1.0"?>
+<project name="S12CForth Manual" default="docbook2html">
+
+  <description>
+    Build file for the S12CForth User Manual
+  </description>
+
+  <!-- ##############
+       # Properties #
+       ############## -->
+  <property name="source"           value="./Source"/>
+  <property name="source.top"       value="${source}/book.xml"/>
+  <property name="source.catalog"   value="${source}/catalog.xml"/>
+  <property name="source.images"    value="${source}/images"/>
+  <property name="source.fo.config" value="${source}/fop.xml"/>
+				    
+  <property name="tmp"              value="./Tmp"/>
+  <property name="tmp.fo"           value="${tmp}/book.fo"/>
+  <property name="tmp.html"         value="${tmp}"/>
+  <property name="tmp.images"       value="${tmp}/images"/>
+  			    
+  <property name="output"           value="."/>
+  <property name="output.pdf"       value="${output}/Manual.pdf"/>
+  <property name="output.html"      value="${output}/Manual.html"/>
+  				    
+  <property name="docbook"          value="../../Tools/DocBook"/>
+  <property name="tools"            value="${docbook}/Tools"/>
+  <property name="tools.jing"       value="${tools}/jing-20091111"/>
+  <property name="tools.xalan"      value="${tools}/xalan-j_2_7_1"/>
+  <property name="tools.xerces"     value="${tools}/xerces-2_10_0"/>
+  <property name="tools.saxon"      value="${tools}/saxon6-5-5"/>
+  <property name="tools.fop"        value="${tools}/fop-1.0"/>
+  <property name="schema"           value="${docbook}/Schemas/docbook-5.0"/>
+  <property name="schema.rng"       value="${schema}/rng/docbook.rng"/>
+  <property name="schema.rnc"       value="${schema}/rng/docbook.rnc"/>
+  <property name="xsl"              value="${docbook}/Xsl/docbook-xsl-ns-1.75.2"/>
+  <property name="xsl.watermark"    value="${xsl}/images/draft.png"/>
+  <property name="xsl.callouts"     value="${xsl}/images/callouts"/>
+  <property name="xsl.html"         value="${xsl}/html/docbook.xsl"/>
+  <property name="xsl.fo"           value="${xsl}/fo/docbook.xsl"/>
+  <property name="tools.xerces"     value="${tools}/xerces-2_10_0"/>
+ 				    
+  <available file="${schema}"       type="dir" property="schema.exists"/>
+  <available file="${xsl}"          type="dir" property="xsl.exists"/>
+
+  <!-- #####################
+       # General classpath #
+       ##################### -->
+  <path id="classpath">
+    <fileset dir="${tools}">
+      <include name="**/*.jar"/>
+    </fileset>
+    <pathelement path="${java.class.path}"/>
+    <!-- <pathelement path="${source}"/> -->
+  </path>
+  <property name="classpath.print" refid="classpath"/>
+  
+  <!-- ######################
+       # Classpath for Jing #
+       ###################### -->
+  <path id="classpath.jing">
+    <fileset dir="${tools.jing}">
+      <include name="*.jar"/>
+    </fileset>
+    <fileset dir="${tools.xerces}">
+      <include name="*.jar"/>
+    </fileset>
+    <!-- <pathelement path="${source}"/> -->
+  </path>
+  <property name="classpath.jing.print" refid="classpath.jing"/>
+
+  <!-- #######################
+       # Classpath for Saxon #
+       ####################### -->
+  <path id="classpath.saxon">
+    <fileset dir="${tools.saxon}">
+      <include name="*.jar"/>
+    </fileset>
+    <fileset dir="${tools.xerces}">
+      <include name="*.jar"/>
+    </fileset>
+    <pathelement path="${source}"/>
+  </path>
+  <property name="classpath.saxon.print" refid="classpath.saxon"/>
+
+  <!-- #####################
+       # Classpath for FOP #
+       ##################### -->
+  <path id="classpath.fop">
+    <fileset dir="${tools.fop}">
+      <include name="*.jar"/>
+    </fileset>
+    <fileset dir="${tools.xalan}">
+      <include name="*.jar"/>
+    </fileset>
+    <fileset dir="${tools.xerces}">
+      <include name="*.jar"/>
+    </fileset>
+    <!-- <pathelement path="${source}"/> -->
+  </path>
+  <property name="classpath.fop.print" refid="classpath.fop"/>
+  
+  <!-- #############################
+       # Prepare the build process #
+       ############################# -->
+  <target name="prepare" 
+	  description="Prepare the build process.">
+    <echo message="*** Preparing the build process ***"/>
+
+    <mkdir dir="${tmp}"/>        <!-- make a directory for temporary files -->
+    <mkdir dir="${tmp.images}"/> <!-- make a directory for images -->
+
+    <echo message="--> Done!"/>
+
+  </target>
+
+  <!-- ####################################
+       # Clean-up after the build process #
+       #################################### -->
+  <target name="cleanup" 
+	  description="Clean-up after  the build process.">
+    <echo message="*** Cleaning up ***"/>
+    
+    <delete> <!-- remove temporary files -->
+      <fileset dir="${tmp}"/>
+    </delete>
+
+    <echo message="--> Done!"/>
+
+  </target>
+
+  <!-- ############################
+       # Validate Document Source #
+       ############################ -->
+  <target name="validate" 
+	  description="Validate the DocBook source files.">
+
+    <echo message="*** Validating document source ***"/>
+
+    <!-- <echo message="Classpath = ${classpath.jing.print}"/> -->
+    <java classname="com.thaiopensource.relaxng.util.Driver"
+	  fork="true"
+	  failonerror="true">
+      <sysproperty key="org.apache.xerces.xni.parser.XMLParserConfiguration" 
+		   value="org.apache.xerces.parsers.XIncludeParserConfiguration"/>
+      <classpath refid="classpath.jing"/>
+      <arg value="-c"/>            <!-- use a RELAX NG compact schema -->
+      <!-- <arg value="-i"/> -->   <!-- ignore cross-references -->
+      <arg value="${schema.rnc}"/>
+      <arg value="${source.top}"/>
+    </java>
+ 
+    <echo message="--> Document is valid!"/>
+
+  </target>
+
+  <!-- ###################
+       # DocBook to HTML #
+       ################### -->
+  <target name="docbook2html" 
+	  description="Convert DocBook source files to HTML."
+	  depends="validate, prepare">
+
+    <echo message="*** Converting DocBook files to HTML ***"/>
+    <echo message="Classpath = ${classpath.saxon.print}"/>
+
+    <!-- <echo message="Classpath = ${classpath.saxon.print}"/> -->
+    <java classname="com.icl.saxon.StyleSheet"
+	  fork="true"
+	  failonerror="true">
+      <sysproperty key="javax.xml.parsers.DocumentBuilderFactory" 
+		   value="org.apache.xerces.jaxp.DocumentBuilderFactoryImpl"/>
+      <sysproperty key="javax.xml.parsers.SAXParserFactory" 
+		   value="org.apache.xerces.jaxp.SAXParserFactoryImpl"/>
+      <sysproperty key="org.apache.xerces.xni.parser.XMLParserConfiguration" 
+		   value="org.apache.xerces.parsers.XIncludeParserConfiguration"/>
+      <classpath refid="classpath.saxon"/>
+
+      <arg value="-x"/>                                     <!-- catalog resolver -->
+      <arg value="org.apache.xml.resolver.tools.ResolvingXMLReader"/>
+      <arg value="-y"/>
+      <arg value="org.apache.xml.resolver.tools.ResolvingXMLReader"/>
+      <arg value="-r"/>
+      <arg value="org.apache.xml.resolver.tools.CatalogResolver"/>
+      <arg value="-t"/>                                     <!-- display version and timing information -->
+      <arg value="-o"/>                                     <!-- output file -->
+      <arg value="${output.html}"/>	                            
+      <arg value="${source.top}"/>                          <!-- source document -->
+      <arg value="${xsl.html}"/>                            <!-- stylesheet -->
+      <arg value="callout.graphics.path=${xsl.callouts}/"/> <!-- XSL parameters -->
+      <arg value="draft.watermark.image=${xsl.watermark}"/>
+    </java>
+
+    <echo message="--> Done!"/>
+
+  </target>
+
+  <!-- #################
+       # DocBook to FO #
+       ################# -->
+  <target name="docbook2fo" 
+	  description="Convert DocBook source files to FO."
+	  depends="validate, prepare">
+
+    <echo message="*** Converting DocBook files to FO ***"/>
+    <delete file="${tmp.fo}"/>
+    <echo message="Classpath = ${classpath.saxon.print}"/>
+
+    <!-- <echo message="Classpath = ${classpath.saxon.print}"/> -->
+    <java classname="com.icl.saxon.StyleSheet"
+	  fork="true"
+	  failonerror="true">
+      <sysproperty key="javax.xml.parsers.DocumentBuilderFactory" 
+		   value="org.apache.xerces.jaxp.DocumentBuilderFactoryImpl"/>
+      <sysproperty key="javax.xml.parsers.SAXParserFactory" 
+		   value="org.apache.xerces.jaxp.SAXParserFactoryImpl"/>
+      <sysproperty key="org.apache.xerces.xni.parser.XMLParserConfiguration" 
+		   value="org.apache.xerces.parsers.XIncludeParserConfiguration"/>
+      <classpath refid="classpath.saxon"/>
+
+      <arg value="-x"/>                                     <!-- catalog resolver -->
+      <arg value="org.apache.xml.resolver.tools.ResolvingXMLReader"/>
+      <arg value="-y"/>
+      <arg value="org.apache.xml.resolver.tools.ResolvingXMLReader"/>
+      <arg value="-r"/>
+      <arg value="org.apache.xml.resolver.tools.CatalogResolver"/>
+      <arg value="-t"/>                                     <!-- display version and timing information -->
+      <arg value="-o"/>                                     <!-- output file -->
+      <arg value="${tmp.fo}"/>	                            
+      <arg value="${source.top}"/>                          <!-- source document -->
+      <arg value="${xsl.fo}"/>                              <!-- stylesheet -->
+      <arg value="callout.graphics.path=${xsl.callouts}/"/> <!-- XSL parameters -->
+      <arg value="draft.watermark.image=${xsl.watermark}"/>
+    </java>
+
+    <echo message="--> Done!"/>
+
+  </target>
+
+  <!-- #############
+       # FO to PDF #
+       ############# -->
+  <target name="fo2pdf" 
+	  description="Convert FO file to PDF."
+	  depends="docbook2fo">
+
+    <echo message="*** Converting FO file to PDF ***"/>
+
+    <echo message="Classpath = ${classpath.fop.print}"/>
+    <java classname="org.apache.fop.cli.Main"
+	  fork="true"
+	  failonerror="true">
+      <sysproperty key="xml.catalog.files" 
+		   value="${source.catalog}"/>
+      <classpath refid="classpath.fop"/>
+      <!-- <arg value="-c"/>   -->              <!-- config file -->
+      <!-- <arg value="${source.fo.config}"/> --> 
+      <arg value="-fo"/>               <!-- input file -->
+      <arg value="${tmp.fo}"/>
+      <arg value="-pdf"/>              <!-- output file -->
+      <arg value="${output.pdf}"/>
+ 
+    </java>
+ 
+    <echo message="--> Done!"/>
+
+  </target>
+
+</project>

@@ -1,0 +1,22 @@
+S12CBase - Tools
+================
+This is the tool chain for the S12CBase framework.
+
+HSW12
+-----
+Assembler and IDE 
+
+Update Subprojects
+------------------
+A shell script to keep all subprojects up to date.
+
+Test Builder
+------------
+A set of Perl scripts to compile the source code and wrap the resulting S-Record
+into command files which can be executed by a D-Bug12(X) debugger.
+
+SCI Search Tree Generator
+-------------------------
+A Perl script to generate target specific search trees for the SCI module's BAUD
+rate detection.
+
