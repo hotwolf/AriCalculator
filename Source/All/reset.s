@@ -235,7 +235,7 @@ RESET_INIT_5		EQU	*
 ; args: 1: message pointer	
 ;          System is reset and initialized
 #macro	RESET_FATAL, 1
-			LDX	#\1
+			LDX	\1
 			JOB	RESET_FATAL_X
 #emac
 
@@ -319,7 +319,7 @@ RESET_MSG_POWFAIL	RESET_MSG	"Power loss"
 #ifdef	RESET_IAR_CHECK_ON
 RESET_MSG_ILLADDR	RESET_MSG	"Code runaway"
 #endif
-#ifndef VECTAB_DEBUG
+#ifndef VECTAB_DEBUG_ON
 RESET_MSG_ISR		RESET_MSG	"Unexpected interrupt"
 #endif
 RESET_MSG_UNKNOWN	RESET_MSG	"Unknown cause"
