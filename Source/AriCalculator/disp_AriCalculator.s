@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# AriCalculator - DISP - LCD Driver (ST7565R) (AriCalculator RevC)            #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2017 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -289,6 +288,7 @@ DISP_VARS_END_LIN	EQU	@
 			ORG 	DISP_CODE_START, DISP_CODE_START_LIN
 #else
 			ORG 	DISP_CODE_START
+DISP_CODE_START_LIN	EQU	@	
 #endif
 	
 ;# Essential functions
@@ -557,6 +557,7 @@ DISP_CODE_END_LIN	EQU	@
 			ORG 	DISP_TABS_START, DISP_TABS_START_LIN
 #else
 			ORG 	DISP_TABS_START
+DISP_TABS_START_LIN	EQU	@	
 #endif	
 
 ;#Setup stream
