@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# AriCalculator - DISP - LCD Driver (ST7565R) (AriCalculator RevC)            #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
-;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
-;#    family.                                                                  #
+;#    Copyright 2010-2017 Dirk Heisswolf                                       #
+;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -25,16 +24,8 @@
 ;#    driver assumes, that the ST7565R is connected via the 4-wire SPI         #
 ;#    interface. The default pin mapping matches AriCalculator hardware RevC   #
 ;#                                                                             #
-;#    This modules  provides three functions to the main program:              #
-;#    DISP_CHECK_BUF - This function checks if the command buffer is able      #
-;#                        to accept more data.                                 #
-;#    DISP_TX_NB -     This function send one command to the display           #
-;#                        without blocking the program flow.                   #
-;#    DISP_TX_BL -     This function send one command to the display and       #
-;#                        blocks the program flow until it has been            #
-;#                        successful.                                          #
+;#    By convention, the display must be switched to data mode when idle.      #
 ;#                                                                             #
-;#    For convinience, all of these functions may also be called as macro.     #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    REGDEF - Register Definitions                                            #
@@ -160,7 +151,7 @@ DISP_VARS_END_LIN	EQU	@
 			MOVB	#DISP_SPIBR_CONFIG, SPIBR
 			;Setup display	
 			LDX	#DISP_SEQ_INIT_START
-			LDY	#(DISP_SEQ_INIT_END-DISP_SEQ_INIT_START)
+			LDD	#DISP_SEQ_INIT_END
 			DISP_STREAM_BL
 #emac
 
@@ -171,9 +162,9 @@ DISP_VARS_END_LIN	EQU	@
 ; result: B: Space left on the buffer in bytes
 ; SSTACK: 3 bytes
 ;         X, Y and B are preserved 
-#macro	DISP_BUF_FREE, 0
-			SSTACK_JOBSR	DISP_BUF_FREE, 3
-#emac	
+;#macro	DISP_BUF_FREE, 0
+;			SSTACK_JOBSR	DISP_BUF_FREE, 3
+;#emac	
 	
 ;#Transmit commands and data (non-blocking)
 ; args:   B: buffer entry
@@ -193,6 +184,70 @@ DISP_VARS_END_LIN	EQU	@
 			SSTACK_JOBSR	DISP_TX_BL, 7
 #emac
 
+;#Transmit a sequence of commands and data (non-blocking)
+; args:   X: pointer to the start of the sequence
+;         D: number of bytes to transmit
+; result: X: pointer to the start of the remaining sequence
+;         D: number of remaining bytes to transmit
+;         C: 1 = successful, 0=buffer full
+; SSTACK: 9 bytes
+;         Y is preserved 
+#macro	DISP_STREAM_NB, 0
+			SSTACK_JOBSR	DISP_STREAM_NB, 9
+#emac
+
+;#Transmit a sequence of commands and data (non-blocking)
+; args:   X: pointer to the start of the sequence
+;         Y: number of bytes to transmit
+; result: X: points to the byte after the sequence
+;         Y: $0000
+; SSTACK: 11 bytes
+;         D is preserved 
+#macro	DISP_STREAM_BL, 0
+			SSTACK_JOBSR	DISP_STREAM_NB, 11
+#emac
+
+;# Short cuts
+;------------
+;#Switch to command mode (blocking)
+; args:   none
+; result: none
+; SSTACK: 8 bytes
+;         X, Y and D are preserved 
+#macro	DISP_CMD_MODE_BL, 0
+			SSTACK_JOBSR	DISP_CMD_MODE_BL, 8		
+#emac
+
+;#Switch to command mode (blocking)
+; args:   none
+; result: none
+; SSTACK: 8 bytes
+;         X, Y and D are preserved 
+#macro	DISP_DATA_MODE_BL, 0
+			SSTACK_JOBSR	DISP_CMD_MODE_BL, 8		
+#emac
+
+;#Set input position (blocking)
+; args:   A: page   (0 - 7)
+;  	  B: column (0 - 127) 
+; result: none
+; SSTACK: 8 bytes
+;         X, Y and D are preserved 
+#macro	DISP_SET_POS_BL, 0
+			SSTACK_JOBSR	DISP_SET_POS_BL, 8		
+#emac
+
+;#Set column (blocking)
+; args:    B: column (0 - 127) 
+; result: none
+; SSTACK: 8 bytes
+;         X, Y and D are preserved 
+#macro	DISP_SET_COL_BL, 0	
+			SSTACK_JOBSR	DISP_SET_CUL_BL, 8		
+#emac
+
+;# Convenience macros
+;--------------------
 ;#Transmit immediate commands and data (blocking)
 ; args:   1: buffer entry
 ; result: B: buffer entry
@@ -204,58 +259,15 @@ DISP_VARS_END_LIN	EQU	@
 #emac
 
 ;#Transmit a sequence of commands and data (non-blocking)
-; args:   X: pointer to the start of the sequence
-;         Y: number of bytes to transmit
-; result: X: pointer to the start of the remaining sequence
-;         Y: number of remaining bytes to transmit
-;         C: 1 = successful, 0=buffer full
-; SSTACK: 8 bytes
-;         D is preserved 
-#macro	DISP_STREAM_NB, 0
-			SSTACK_JOBSR	DISP_STREAM_NB, 9
-#emac
-
-;#Transmit a sequence of commands and data (non-blocking)
-; args:   X: pointer to the start of the sequence
-;         Y: number of bytes to transmit
-; result: X: points to the byte after the sequence
-;         Y: $0000
-; SSTACK: 10 bytes
-;         D is preserved 
-#macro	DISP_STREAM_BL, 0
-			SSTACK_JOBSR	DISP_STREAM_NB, 11
-#emac
-
-;# Convenience macros
-;--------------------
-;#Transmit a sequence of commands and data (non-blocking)
 ; args:   1: pointer to the start of the sequence
 ;         2: pointer past the end of the sequence
 ; result: none
-; SSTACK: 10 bytes
-;         D is preserved 
+; SSTACK: 11 bytes
+;         Y is preserved 
 #macro	DISP_STREAM_FROM_TO_BL, 2
 			LDX	#\1
-			LDY	#(\2-\1)
+			LDD	#\2
 			DISP_STREAM_BL
-#emac
-
-;#Switch to command input (blocking)
-; args:   none
-; result: none
-; SSTACK: 10 bytes
-;         D is preserved 
-#macro	DISP_CMD_INPUT_BL, 0
-			DISP_STREAM_FROM_TO_BL	DISP_SEQ_CMD_START, DISP_SEQ_CMD_END
-#emac
-
-;#Switch to data input (blocking)
-; args:   none
-; result: none
-; SSTACK: 10 bytes
-;         D is preserved 
-#macro	DISP_DATA_INPUT_BL, 0
-			DISP_STREAM_FROM_TO_BL	DISP_SEQ_DATA_START, DISP_SEQ_DATA_END
 #emac
 	
 ;# Macros for internal use
@@ -276,6 +288,7 @@ DISP_VARS_END_LIN	EQU	@
 			ORG 	DISP_CODE_START, DISP_CODE_START_LIN
 #else
 			ORG 	DISP_CODE_START
+DISP_CODE_START_LIN	EQU	@	
 #endif
 	
 ;# Essential functions
@@ -285,20 +298,20 @@ DISP_VARS_END_LIN	EQU	@
 ; result: A: Space left on the buffer in bytes
 ; SSTACK: 3 bytes
 ;         X, Y and B are preserved 
-DISP_BUF_FREE		EQU	*
-			;Save registers
-			PSHB							;push accu B onto the SSTACK
-			;Check if the buffer is full
-			LDD	DISP_BUF_IN 					;IN->A; OUT->B
-			SBA
-			ANDA	#(DISP_BUF_SIZE-1) 				;buffer usage->A
-			NEGA
-			ADDA	#(DISP_BUF_SIZE-1)
-			;Restore registers
-			SSTACK_PREPULL	3
-			PULB							;pull accu B from the SSTACK
-			;Done
-			RTS
+;DISP_BUF_FREE		EQU	*
+;			;Save registers
+;			PSHB							;push accu B onto the SSTACK
+;			;Check if the buffer is full
+;			LDD	DISP_BUF_IN 					;IN->A; OUT->B
+;			SBA
+;			ANDA	#(DISP_BUF_SIZE-1) 				;buffer usage->A
+;			NEGA
+;			ADDA	#(DISP_BUF_SIZE-1)
+;			;Restore registers
+;			SSTACK_PREPULL	3
+;			PULB							;pull accu B from the SSTACK
+;			;Done
+;			RTS
 	
 ;#Transmit commands and data (non-blocking)
 ; args:   B: buffer entry
@@ -342,24 +355,24 @@ DISP_TX_BL		EQU	*
 
 ;#Transmit a sequence of commands and data (non-blocking)
 ; args:   X: pointer to the start of the sequence
-;         Y: number of bytes to transmit
+;         D: pointer to the end of the sequence
 ; result: X: pointer to the start of the remaining sequence
-;         Y: number of remaining bytes to transmit
 ;         C: 1 = successful, 0=buffer full
-; SSTACK: 8 bytes
-;         D is preserved 
+; SSTACK: 9 bytes
+;         Y and D are preserved 
 DISP_STREAM_NB		EQU	*
-			;Save registers (start pointer in X, byte count in Y)
-			PSHB							;push accu B onto the SSTACK
-			;Transmit next byte (start pointer in X, byte count in Y)
+			;Save registers (start pointer in X, end pointer in D)
+			PSHD							;push accu D onto the SSTACK
+			;Transmit next byte (start pointer in X, end pointer in D)
 DISP_STREAM_NB_1	LDAB	1,X+ 						;get data
 			DISP_TX_NB 						;transmit data (SSTACK: 5 bytes)
 			BCC	DISP_STREAM_NB_3				;TX buffer is full
-			DBNE	Y, DISP_STREAM_NB_1 				;transmit next byte
+			CPX	0,SP 						;check if stream is complete
+			BLO	DISP_STREAM_NB_1 				;transmit next byte
 			;Successful transmission (new start pointer in X, $0000 in Y)
 			SSTACK_PREPULL	3
 			SEC							;signal success
-DISP_STREAM_NB_2	PULB							;pull accu B from the SSTACK
+DISP_STREAM_NB_2	PULD							;pull accu B from the SSTACK
 			;Done
 			RTS
 			;TX buffer is full (new start pointer+1 in X, new byte count in Y)
@@ -371,16 +384,92 @@ DISP_STREAM_NB_3	DEX	 						;restore pointer
 
 ;#Transmit a sequence of commands and data (non-blocking)
 ; args:   X: pointer to the start of the sequence
-;         Y: number of bytes to transmit
+;         D: pointer to the end of the sequence
 ; result: X: points to the byte after the sequence
-;         Y: $0000
-; SSTACK: 10 bytes
-;         D is preserved 
+; SSTACK: 11 bytes
+;         Y and D are preserved 
 DISP_STREAM_BL		EQU	*
 			DISP_MAKE_BL	DISP_STREAM_NB, 8	
+
+;# Short cuts
+;------------
+;#Switch to command mode(blocking)
+; args:   none
+; result: none
+; SSTACK: 8 bytes
+;         X, Y and D are preserved 
+DISP_CMD_MODE_BL	EQU	*
+			;Save registers
+			PSHB							;push accu B onto the SSTACK
+			;Transmit escape sequence
+			DISP_TX_IMM_BL	DISP_ESC_START 				;send ecape character
+			DISP_TX_IMM_BL	DISP_ESC_CMD 				;switch to command mode
+			;Restore registers
+			PSHB							;pull accu B from the SSTACK
+			RTS
+
+;#Switch to data mode (blocking)
+; args:   none
+; result: none
+; SSTACK: 8 bytes
+;         X, Y and D are preserved 
+DISP_DATA_MODE_BL	EQU	*
+			;Save registers
+			PSHB							;push accu B onto the SSTACK
+			;Transmit escape sequence
+			DISP_TX_IMM_BL	DISP_ESC_START 				;send ecape character
+			DISP_TX_IMM_BL	DISP_ESC_DATA 				;switch to data mode
+			;Restore registers
+			PSHB							;pull accu B from the SSTACK
+			RTS
+
+;#Set input position (blocking)
+; args:   A: page   (0 - 7)
+;  	  B: column (0 - 127) 
+; result: none
+; SSTACK: 8 bytes
+;         X, Y and D are preserved 
+DISP_SET_POS_BL		EQU	*
+			;Save registers (page in A, column in B)
+			PSHB							;push accu B onto the SSTACK
+			;Transmit escape sequence (page in A)
+			DISP_TX_IMM_BL	DISP_ESC_START 				;send ecape character
+			DISP_TX_IMM_BL	DISP_ESC_DATA 				;switch to data mode
+			;Set page (page in A)
+			TAB							;page -> B
+			ANDB	#$07 						;mask page number
+			ORAB	#$B0 						;add opcode
+			DISP_TX_BL		  				;sent command
+			JOB	DISP_SET_COL_BL_1 				;set column
+
+;#Set column (blocking)
+; args:    B: column (0 - 127) 
+; result: none
+; SSTACK: 8 bytes
+;         X, Y and D are preserved 
+DISP_SET_COL_BL		EQU	*
+			;Save registers
+			PSHB							;push accu B onto the SSTACK
+			;Transmit escape sequence
+			DISP_TX_IMM_BL	DISP_ESC_START 				;send ecape character
+			DISP_TX_IMM_BL	DISP_ESC_DATA 				;switch to data mode
+			;Set column
+DISP_SET_COL_BL_1	LDAB	0,SP 						;column -> B
+			SEC							;add opcode
+			RORB							;and shift to lower nibble
+			LSRB							;
+			LSRB							;
+			LSRB							;
+			DISP_TX_BL		  				;sent command
+			LDAB	0,SP 						;column -> B
+			ANDB	#$0F 						;mask column number
+			DISP_TX_BL		  				;sent command
+			;Restore registers
+			PSHB							;pull accu B from the SSTACK
+			RTS
 	
 ;#SPI ISR for transmitting data to the ST7565R display controller
-;--------------------------
+;----------------------------------------------------------------
 DISP_ISR		EQU	*
 			;Check SPIF flag
 			LDAA	SPISR 						;read the status register
@@ -468,35 +557,42 @@ DISP_CODE_END_LIN	EQU	@
 			ORG 	DISP_TABS_START, DISP_TABS_START_LIN
 #else
 			ORG 	DISP_TABS_START
+DISP_TABS_START_LIN	EQU	@	
 #endif	
 
 ;#Setup stream
-DISP_SEQ_INIT_START	DB	$40 				;start display at line 0
+DISP_SEQ_INIT_START	EQU	*
+;#Switch to command input
+DISP_SEQ_CMD_START	EQU	*
+			DB	DISP_ESC_START 			;escape sequence
+			DB	DISP_ESC_CMD			;switch to command mode
+DISP_SEQ_CMD_END	EQU	*
+;#Initialize the display
+			DB	$40 				;start display at line 0
 			;DB	$A0				;flip display
-			;DB	$C8				;Normal COM0~COM63
+			;DB	$C8				;reverse COM63~COM0
 			DB	$A1				;flip display
-			DB	$C0				;Reverse COM63~COM0
+			DB	$C0				;normal COM0~COM63
 			DB	$A2				;set bias 1/9 (Duty 1/65) ;
 			DB	$2F 				;enabable booster, regulator and follower
 			DB	$F8				;set booster to 4x
-			DB	$00
+			DB	$00				;
 			DB	$27				;set ref value to 6.5
 			DB	$81				;set alpha value to 47
 			DB	$10                             ;V0=alpha*(1-(ref/162)*2.1V =[4V..13.5V]
 			DB	$AC				;no static indicator
-			DB	$00
+			DB	$00				;
 			DB	$AF 				;enable display
+			;DB	$B0				;select page 0
+			;DB	$10				;select column 0
+			;DB	$00				;
+;#Switch to data input
+DISP_SEQ_DATA_START	EQU	*
+			DB	DISP_ESC_START 			;escape sequence
+			DB	DISP_ESC_DATA			;switch to data mode
+DISP_SEQ_DATA_END	EQU	*
 DISP_SEQ_INIT_END	EQU	*
 
-;#Switch to command input
-DISP_SEQ_CMD_START	DB	DISP_ESC_START
-			DB	DISP_ESC_CMD
-DISP_SEQ_CMD_END	EQU	*
-	
-;#Switch to data input
-DISP_SEQ_DATA_START	DB	DISP_ESC_START
-			DB	DISP_ESC_DATA
-DISP_SEQ_DATA_END	EQU	*
 
 ;;#Clear screen
 ;DISP_SEQ_CLEAR_START	DB  $B0 $10 $00                     	;set page 0
