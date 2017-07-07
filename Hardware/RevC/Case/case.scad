@@ -4,7 +4,7 @@
 // Parameters
 //============
 wCalc    = printHoles(30);    //width of the calculator
-hCalc    = printHoles(58);    //heighth of the calculator
+hCalc    = printHoles(58);    //heigth of the calculator
 dCalc    = 18;                //depth of the calculator
 rCalc    = printHoles(2);     //radius of the calculator
 gapCalc  = 1;                 //extra room for the calculator
@@ -13,7 +13,7 @@ dRim     = 2;                 //depth of the RIM
 slope    = 1.6;               //slope of top, bottom, and right side
 dScrew   = 2.4;               //depth of a screw head
 rScrew   = 5;                 //radius of the screw head
-dKey     = 1.8;                 //depth of a key
+dKey     = 1.8;               //depth of a key
 rKey     = 4;                 //radius of the screw head
 hHinge   = 10;                //height of each hinge element
 gapHinge = 0.4;               //gap between hinge parts
@@ -22,8 +22,8 @@ hLatch   = printHoles(8);     //height of ther patch
 dLatch   = 4;                 //depth of the latch
 gapLatch = 0.2;               //gap between latch parts
 dEngrave = 0.2;               //engrave depth
-text     = "AriCalculator";   //logo
-segments = 48;
+dElastic = 3;                 //width of the elastic band
+segments = 48; //48;
 
 // Functions
 //===========
@@ -35,13 +35,13 @@ function printHoles(x=1) = x * 2.54;
 //=========
 //Calculator footprint
 //calcFootprint();
-module calcFootprint(s=1) {
+module calcFootprint(s=1, h=1) {
     scale([s,s,1]) {
         hull() {
-            translate([printHoles(-13),printHoles( 27),0]) cylinder(r=rCalc, h=dEngrave, $fn=segments);
-            translate([printHoles( 13),printHoles( 27),0]) cylinder(r=rCalc, h=dEngrave, $fn=segments);
-            translate([printHoles( 13),printHoles(-27),0]) cylinder(r=rCalc, h=dEngrave, $fn=segments);
-            translate([printHoles(-13),printHoles(-27),0]) cylinder(r=rCalc, h=dEngrave, $fn=segments);
+            translate([printHoles(-13),printHoles( 27),0]) cylinder(r=rCalc, h=h, $fn=segments);
+            translate([printHoles( 13),printHoles( 27),0]) cylinder(r=rCalc, h=h, $fn=segments);
+            translate([printHoles( 13),printHoles(-27),0]) cylinder(r=rCalc, h=h, $fn=segments);
+            translate([printHoles(-13),printHoles(-27),0]) cylinder(r=rCalc, h=h, $fn=segments);
         }
     }
 }
@@ -51,53 +51,45 @@ module calcFootprint(s=1) {
 module engravings(x=0,y=0,z=0) {
     translate([(x+printHoles(15)),y,z]) {
         difference() {  
-            calcFootprint(s=0.95);
-            calcFootprint(s=0.94);
+            calcFootprint(s=0.95, h=dEngrave);
+            calcFootprint(s=0.94, h=dEngrave);
         }
         difference() {  
-            calcFootprint(s=0.85);
-            calcFootprint(s=0.84);
+            calcFootprint(s=0.85, h=dEngrave);
+            calcFootprint(s=0.84, h=dEngrave);
         }
         difference() {  
-            calcFootprint(s=0.75);
-            calcFootprint(s=0.74);
+            calcFootprint(s=0.75, h=dEngrave);
+            calcFootprint(s=0.74, h=dEngrave);
         }
         difference() {  
-            calcFootprint(s=0.65);
-            calcFootprint(s=0.64);
+            calcFootprint(s=0.65, h=dEngrave);
+            calcFootprint(s=0.64, h=dEngrave);
         }
         difference() {  
-            calcFootprint(s=0.55);
-            calcFootprint(s=0.54);
+            calcFootprint(s=0.55, h=dEngrave);
+            calcFootprint(s=0.54, h=dEngrave);
         }
         difference() {  
-            calcFootprint(s=0.45);
-            calcFootprint(s=0.44);
+            calcFootprint(s=0.45, h=dEngrave);
+            calcFootprint(s=0.44, h=dEngrave);
         }
         difference() {  
-            calcFootprint(s=0.35);
-            calcFootprint(s=0.34);
+            calcFootprint(s=0.35, h=dEngrave);
+            calcFootprint(s=0.34, h=dEngrave);
         }
         difference() {  
-            calcFootprint(s=0.25);
-            calcFootprint(s=0.24);
+            calcFootprint(s=0.25, h=dEngrave);
+            calcFootprint(s=0.24, h=dEngrave);
         }
         difference() {  
-            calcFootprint(s=0.15);
-            calcFootprint(s=0.14);
+            calcFootprint(s=0.15, h=dEngrave);
+            calcFootprint(s=0.14, h=dEngrave);
         }
         difference() {  
-            calcFootprint(s=0.05);
-            calcFootprint(s=0.04);
+            calcFootprint(s=0.05, h=dEngrave);
+            calcFootprint(s=0.04, h=dEngrave);
         }
-    }
-}
-
-//Logo
-//logo();
-module logo(x=0,y=0,z=0) {
-    translate([(x+printHoles(15)),y,z]) {
-        linear_extrude(height=dEngrave) rotate([0,0,70]) mirror([1,0,0]) text(text, halign="center", valign="center");
     }
 }
 
@@ -177,23 +169,13 @@ module hinge_female_negative(x=0,y=0,z=0,flip=false) {
     }
 }
 
-//Latch
-//latch();
-module latch(x=0,y=0,z=20,inv=false) {
-    gap=inv?gapLatch:0;
-    translate([x,y,z]) rotate([90,inv?180:0,0]) {
-        translate([0,dLatch,-((hLatch+gap)/2)]) cylinder(r=(rLatch+gap), h=(hLatch+gap), $fn=segments);
-        translate([0,0,-((hLatch+gap)/2)]) cube(size=[(inv?(2*(rLatch+gap)):(rLatch+gap)),dLatch,(hLatch+gap)]);
-    }
-}
-
 //Calculator corners
 //calcCorners();
 module calcCorners(x=0,y=0,z=0) {
     translate([x,y,z]) {
         //Left corner
         linear_extrude(height=((dCalc/2)+gapCalc-dRim), scale=(slope))
-            translate([rCalc,0,0]) circle(r=(rCalc+gapCalc), $fn=segments);
+        translate([rCalc,0,0]) circle(r=(rCalc+gapCalc), $fn=segments);
         translate([(rCalc*(slope)),0,((dCalc/2)+gapCalc-dRim)]) cylinder(h=dRim, r=((rCalc+gapCalc)*slope), $fn=segments);
 
         //Right corner
@@ -215,26 +197,53 @@ module calcExcavation(x=0,y=0,z=0) {
     }
 }    
 
+////Elastic mount
+//elasticMountPositive();
+//module elasticMountPositive();= {
+//    
+//    
+//    
+//}
+//
 //Shell
-//shell();
-module shell(x=0,y=0,z=0, frontSide=false) {
+//shell(backSide=true);
+module shell(x=0,y=0,z=0, backSide=false) {
     translate([x,y,z]) {
         difference() {
             union() {
                 minkowski() {
-                    calcExcavation();
+                    union() {
+                      calcExcavation();
+                      if(backSide) {
+                        translate([0.9*wCalc,0,dElastic]) rotate([90,0,0]) cylinder(d=(2*dElastic), h=hCalc+(3.5*dRim), center= true, $fn=segments);
+                      }
+                    }                       
                     sphere(r=wRim, $fn=segments);
-                }
+                }               
             }
             union() {
                 translate([-(0.25*wCalc),-hCalc,((dCalc/2)+gapCalc)]) cube(size=[(2*wCalc),(2*hCalc),(2*wRim)]);
                 calcExcavation();
                 screwMolds(z=-dScrew+0.001);
-                if(frontSide) keyMolds(z=-dKey+0.001);
                 engravings(z=-wRim);
-                //logo(z=-wRim);               
+                if(!backSide) {
+                    keyMolds(z=-dKey+0.001);
+                }
+                if(backSide) {
+                    translate([0.9*wCalc,0,dElastic]) rotate([90,0,0]) union() {
+                        cylinder(d=dElastic, h=(2*hCalc), center= true, $fn=segments);
+                        cylinder(d=(2*dElastic), h=hCalc+(5.5*dRim), center= true, $fn=segments);
+                    }
+                    
+                }
             }
-        }        
+        }
+ 
+        //translate([0.9*wCalc,0,dRim]) rotate([90,0,0]) cylinder(d=(dElastic), h=hCalc+(2*dRim), center= true, $fn=segments);
+
+                
+      
+ 
     }
 }
 
@@ -247,9 +256,7 @@ module case(x=0,y=0,z=0) {
             translate([-(wRim+(4.5*gapHinge)),0,0]) {
                 difference() {
                     rotate([0,0,180]) 
-                        shell(frontSide=true);
-                    //Latch
-                    latch(x=-(wCalc+(((dCalc/2)-dRim)/slope)+3.1),z=((dCalc/2)+gapCalc+0.001),inv=true);
+                        shell(backSide=false);
                 }
             }
             //Negative hinges
@@ -271,9 +278,7 @@ module case(x=0,y=0,z=0) {
         //Back side
         difference() {   
             translate([(wRim+(4.5*gapHinge)),0,0]) {
-                shell(frontSide=false);
-                //Latch
-                latch(x=(wCalc+(((dCalc/2)-dRim)/slope)+3.1), z=((dCalc/2)+gapCalc));
+                shell(backSide=true);
             }
             //Negative hinges
             union() {
