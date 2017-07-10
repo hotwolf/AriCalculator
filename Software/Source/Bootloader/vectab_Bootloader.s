@@ -71,7 +71,7 @@ VECTAB_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	VECTAB_INIT, 0
 			;Set vector base address
-			MOVB	#(VECTAB_START>>8), IVBR
+			MOVB	#(LRE_VECTAB_START>>8), IVBR
 #emac	
 	
 ;###############################################################################
