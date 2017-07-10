@@ -479,15 +479,26 @@ LRE_TABS_END_LIN		EQU	@
 ;# Includes                                                                    #
 ;###############################################################################
 ;# S12CBase
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/regdef_AriCalculator.s ;Register definitions
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/memmap_AriCalculator.s ;Memory map
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/gpio_AriCalculator.s   ;I/O setup
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/disp_AriCalculator.s   ;Display driver
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/tim.s				 ;TIM driver
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sstack.s		  	 ;Subroutine stack
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/istack.s	  		 ;Interrupt stack
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s				 ;SCI driver
-#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/led.s				 ;LED driver
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/regdef_AriCalculator.s ;Register definitions
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/memmap_AriCalculator.s ;Memory map
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/gpio_AriCalculator.s   ;I/O setup
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/disp_AriCalculator.s   ;Display driver
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/tim.s				  ;TIM driver
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sstack.s		  	  ;Subroutine stack
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/istack.s	  		  ;Interrupt stack
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s				  ;SCI driver
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/led.s				  ;LED driver
+
+#include ../../../../S12CBase/Source/AriCalculator/regdef_AriCalculator.s 				 ;Register definitions
+#include ../../../../S12CBase/Source/AriCalculator/memmap_AriCalculator.s 				 ;Memory map
+#include ../../../../S12CBase/Source/AriCalculator/gpio_AriCalculator.s   				 ;I/O setup
+#include ../../../../S12CBase/Source/AriCalculator/disp_AriCalculator.s   				 ;Display driver
+#include ../../../../S12CBase/Source/All/tim.s				 				 ;TIM driver
+#include ../../../../S12CBase/Source/All/sstack.s		  	 				 ;Subroutine stack
+#include ../../../../S12CBase/Source/All/istack.s	  		 				 ;Interrupt stack
+#include ../../../../S12CBase/Source/All/sci.s				 				 ;SCI driver
+#include ../../../../S12CBase/Source/All/led.s				 				 ;LED driver
+
 #include ./vectab_Bootloader.s	                                                                         ;S12G vector table
 #include ./reset_Bootloader.s                                                                            ;Reset driver
 #include ./lre_Bootloader.s	                                                                         ;LRE code

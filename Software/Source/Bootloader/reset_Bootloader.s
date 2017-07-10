@@ -58,6 +58,66 @@ RESET_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	RESET_INIT, 0
+
+			;Check for POR
+			LDAA	CPMUFLG					;CPMU flags -> A
+			CMPA	#PORF 					;check for POR
+			BEQ	CHECK_KEYPADS	 			;check keypad
+
+			;Start firmware
+START_FIRMWARE		MOVB	#$FF, PTP				;unselect keypad columns	
+			MOWB	#(($FF00-BOOTLOADER_SIZE)>>8), IVBR 	;set vector base
+			JMP	[$FFFC-BOOTLOADER_SIZE]			;jump to firmware
+	
+			;Check key pad
+			;          P  P  P  P  P  P
+			;          P  P  P  P  P  P
+			;          0  1  2  3  4  5
+			;          |  |  |  |  |  |
+			; PAD6 ---29-28-27-26-25-24 |G
+			;          |  |  |  |  |  | |
+			; PAD5 ---23-22-21-20-1F-1E |F
+			;          |  |  |  |  |  | |
+			; PAD4 ---1D-1C-1B-1A-19-18 |E
+			;             |  |  |  |  | |
+			; PAD3 ------16-15-14-13-12 |D
+			;             |  |  |  |  | |
+			; PAD2 ------10--F--E--D--C |C
+			;             |  |  |  |  | |
+			; PAD1 -------A--9--8--7--6 |B
+			;             |  |  |  |  | |
+			; PAD0 -------4--3--2--1--0 |A
+			;          ________________
+			;          5  4  3  2  1  0
+CHECK_KEYPADS		MOVB	#$FD, PTP 				;check row 4
+			LDAA	PORTA 					;row pattern -> A 
+			CMPA	#$FD 					;check for ENTER key
+			BNE	START_FIRMWARE				;start regular firmware
+
+			MOVB	#$EF, PTP 				;check row 1
+			LDAA	PORTA 					;row pattern -> A 
+			CMPA	#$FE 					;check for DEL key
+			BNE	START_FIRMWARE	 			;start regular firmware
+
+			MOVB	#$DF, PTP 				;check row 0
+			LDAA	PORTA 					;row pattern -> A 
+			COMA						;check for no key
+			BNE	START_FIRMWARE	 			;start regular firmware
+
+			MOVB	#$F7, PTP 				;check row 2
+			LDAA	PORTA 					;row pattern -> A 
+			COMA						;check for no key
+			BNE	START_FIRMWARE	 			;start regular firmware
+
+			MOVB	#$FB, PTP 				;check row 3
+			LDAA	PORTA 					;row pattern -> A 
+			COMA						;check for no key
+			BNE	START_FIRMWARE	 			;start regular firmware
+
+			MOVB	#$FE, PTP 				;check row 5
+			LDAA	PORTA 					;row pattern -> A 
+			COMA						;check for no key
+			BNE	START_FIRMWARE	 			;start regular firmware
 #emac
 
 ;###############################################################################
@@ -70,7 +130,24 @@ RESET_VARS_END_LIN	EQU	@
 RESET_CODE_START_LIN	EQU	@	
 #endif
 	
+;# Entry point for COP reset
+;#========================== 
+RESET_COP_ENTRY		EQU	*
+			//Run firmware's COP reset handler
+			MOWB	#(($FF00-BOOTLOADER_SIZE)>>8), IVBR 
+			JMP	[$FFFA-BOOTLOADER_SIZE]
 	
+;# Entry point for CM reset
+;#========================= 
+RESET_CM_ENTRY		EQU	*
+			//Run firmware's COP reset handler
+			MOWB	#(($FF00-BOOTLOADER_SIZE)>>8), IVBR 
+			JMP	[$FFFC-BOOTLOADER_SIZE]
+
+;# Entry point for common resets
+;#============================== 
+RESET_EXT_ENTRY		EQU	START_OF_CODE
+
 RESET_CODE_END		EQU	*	
 RESET_CODE_END_LIN	EQU	@	
 	
