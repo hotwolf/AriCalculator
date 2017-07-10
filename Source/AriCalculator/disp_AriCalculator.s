@@ -1,5 +1,5 @@
-#ifndef DISP
-#define	DISP	
+#ifndef DISP_COMPILED
+#define	DISP_COMPILED	
 ;###############################################################################
 ;# AriCalculator - DISP - LCD Driver (ST7565R) (AriCalculator RevC)            #
 ;###############################################################################

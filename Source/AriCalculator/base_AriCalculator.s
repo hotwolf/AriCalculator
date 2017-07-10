@@ -94,11 +94,11 @@ TIM_OCPD_CHECK_ON		EQU	1 		;enable OCPD checks (required for PWM outputs)
 LED_TIM				EQU	TIM 		;TIM
 LED_OC				EQU	3 		;OC3
 ; LED A							
-LED_A_BLINK_ON			EQU	1 		;no blink patterns
+LED_A_BLINK_ON			EQU	1 		;enable blink patterns
 LED_A_PORT			EQU	PORTE 		;port E
 LED_A_PIN			EQU	PE0 		;PE0
 ; LED B							
-LED_B_BLINK_ON			EQU	1 		;no blink patterns
+LED_B_BLINK_ON			EQU	1 		;enable blink patterns
 LED_B_PORT			EQU	PORTE 		;port E
 LED_B_PIN			EQU	PE1 		;PE1
 
@@ -127,7 +127,7 @@ SCI_CTS_PPS			EQU	PPSM 		;PPSM
 SCI_CTS_PIN			EQU	PM1		;PM1
 #ifndef	SCI_CTS_WEAK_DRIVE				
 #ifndef	SCI_CTS_STRONG_DRIVE				
-SCI_CTS_STRONG_DRIVE		EQU	1		;weak drive
+SCI_CTS_WEAK_DRIVE		EQU	1		;weak drive
 #endif
 #endif
 #macro SCI_BDSIG_START, 0
