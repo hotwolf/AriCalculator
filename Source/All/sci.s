@@ -1179,7 +1179,7 @@ SCI_TX_READY_BL		EQU	*
 ;         X, Y and B are preserved
 SCI_TX_DONE_NB		EQU	*		
 			;Save registers
-			PSHA						;sace A
+			PSHA						;save A
 			CLC						;default result: failure
 			PSHC						;save CCR (incl. default result)
 			;Check if TX queue is empty
