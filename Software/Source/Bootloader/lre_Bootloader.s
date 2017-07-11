@@ -56,6 +56,20 @@ LRE_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	LRE_INIT, 0
+
+			LDX	#(LRE_CODE_START_LIN & $FFFF)
+			LDY 	#LRE_CODE_START
+
+LOOP			MOVW	2,X+, 2,Y+	
+			MOVW	2,X+, 2,Y+	
+			MOVW	2,X+, 2,Y+	
+			MOVW	2,X+, 2,Y+	
+			MOVW	2,X+, 2,Y+	
+			MOVW	2,X+, 2,Y+	
+			MOVW	2,X+, 2,Y+	
+			MOVW	2,X+, 2,Y+	
+	
+			TBNE	X, LOOP
 #emac
 
 ;###############################################################################
