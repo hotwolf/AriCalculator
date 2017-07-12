@@ -52,13 +52,13 @@ SREC_AUTO_LOC1		EQU	* 		;1st auto-place location
 			ALIGN	1
 
 SREC_TYPE		DS	1 		;S-record type 
-SREC_COUNT		DS	1		;S-record count
+SREC_BYTE_COUNT		DS	1		;S-record count
 	
 SREC_ADDR		EQU	*		;address field
 SREC_DATA		DS 	254		;address and data fields
 SREC_MAX_BYTE_COUNT	EQU	1+*-SREC_ADDR	;max. byte count
 
-SREC_COUNT		DS	3 		;S-Record count
+SREC_COUNTER		DS	4 		;S-Record count
 	
 SREC_VARS_END		EQU	*
 SREC_VARS_END_LIN	EQU	@
@@ -70,6 +70,15 @@ SREC_VARS_END_LIN	EQU	@
 #macro	SREC_INIT, 0
 #emac
 
+;#Parse S-record string - blocking
+; args:   none
+; result: C-flag: set on success	
+; SSTACK: 32 bytes
+;         X, Y and D are preserved
+#macro	SREC_PARSE, 0
+			SSTACK_JOBSR	SREC_PARSE, 32
+#emac
+	
 ;#Receive receive one complete S-record - blocking
 ; args:   none
 ; result: C-flag: set on success	
@@ -109,8 +118,6 @@ SREC_VARS_END_LIN	EQU	@
 SREC_CODE_START_LIN	EQU	@	
 #endif
 
-
-
 ;#Parse S-record string - blocking
 ; args:   none
 ; result: C-flag: set on success	
@@ -124,41 +131,78 @@ SREC_PARSE		EQU	*
 			SEC						;default result: success
 			PSHC						;save CCR (incl. default result)	
 			;Reset S-record count 
-			MOVW	#$0000, SREC_COUNT 			;clear S-record counter
-			MOVW	#$0000, SREC_COUNT+2 			;
+			MOVW	#$0000, SREC_COUNTER 			;clear S-record counter
+			MOVW	#$0000, SREC_COUNTER+2 			;
 			;Receive S-record 
-SREC_PARSE_1		SREC_RX		  				;load s-recoed (SSTACK: 23 bytes)
-			BCC	SREC_PARSE_	 			;format error (fail)
-			LDD	#$0001 					;increment S-record counter
-			ADDD	SREC_COUNT+1 				;
-			STD	SREC_COUNT+1 				;
-			LDAB	SREC_COUNT 				;
-			ADCB						;
-			STAB	SREC_COUNT   				;
-			;Turn on green BUSY LED 
-			LED_ON	A 					;light up green LED
+SREC_PARSE_1		SREC_RX		  				;load S-record (SSTACK: 23 bytes)
+			BCC	SREC_PARSE_3	 			;format error (fail)
+			LDD	SREC_COUNTER+2				;S-record counter (lo) -> D
+			ADDD	#1 					;increment S-record counter (lo), carry -> C-flag
+			STD	SREC_COUNTER+2 				;update S-record counter -> X, carry in C-flag			
+			LDD	SREC_COUNTER				;S-record counter (hi) -> D
+			ADCB	#0 					;add carry to S-record counter (hi)
+			ADCA	#0 					;
+			SBCA	#0	   				;saturate high byte
+			LDD	SREC_COUNTER				;update S-record counter (hi)
 			;Check  S-record type
 			LDAB	SREC_TYPE 				;type -> B
 			CMPB	#9 					;check type range
-			BHI	SREC_PARSE_	 			;illegal type (fail)
+			BHI	SREC_PARSE_3	 			;illegal type (fail)
 			LSLB						;adjust to word offset
-			JMP [B,PC] 					;
+			LDAA	SREC_BYTE_COUNT 			;byte count -> A
+			LDY	#SREC_ADDR   				;data pointer -> Y
+			JMP 	[B,PC] 					;
 			DW	SREC_PARSE_1				;S0: ignore
-			DW	SREC_PARSE_				;S1: program to flash
-			DW	SREC_PARSE_				;S2: program to flash
-			DW	SREC_PARSE_				;S3: program to flash
-			DW	SREC_PARSE_				;S4: error
-			DW	SREC_PARSE_				;S5: check 16-bit srec count
-			DW	SREC_PARSE_				;S6: check 24-bit srec count
-			DW	SREC_PARSE_				;S7: done
-			DW	SREC_PARSE_				;S8: done
-			DW	SREC_PARSE_				;S9: done
-			
-
-
-
-	;; ==============> Hier weiter!!!
-
+			DW	SREC_PARSE_4				;S1: program S-record to flash (16-bit address space)
+			DW	SREC_PARSE_6				;S2: program S-record to flash (24-bit address space)
+			DW	SREC_PARSE_7				;S3: program S-record to flash (32-bit address space)
+			DW	SREC_PARSE_3				;S4: error
+			DW	SREC_PARSE_8				;S5: check 16-bit srec count
+			DW	SREC_PARSE_10				;S6: check 24-bit srec count
+			DW	SREC_PARSE_2				;S7: done
+			DW	SREC_PARSE_2				;S8: done
+			DW	SREC_PARSE_2				;S9: done			
+			;Return result
+SREC_PARSE_2		BSET	0,SP, #$01				;signal success
+SREC_PARSE_3		SSTACK_PREPULL	9 				;check SSTACK
+			PULC						;restore CCR (incl. result)
+			PULX						;restore X
+			PULY						;restore Y
+			PULD						;restore D
+			;Done
+			RTS			
+			;S1-record: Program S-record to flash -> 16-bit addresses (byte count in A, data pointer in Y)
+SREC_PARSE_4		SUBA	#3	    				;string length  -> A
+			LDAB	#$03 					;address[23:16] -> B
+SREC_PARSE_5		LDX	2,Y+ 					;address[15:0] -> -> X
+			NVM_PROG_STRING	    				;program NVM (SSTACK: ?? bytes)
+			JOB	REC_PARSE_1 				;load next S-record
+			;S2-record: Program S-record to flash -> 24-bit addresses (byte count in A, data pointer in Y)
+			SUBA	#4	    				;string length  -> A
+SREC_PARSE_6		LDAB	1,Y+ 					;address[23:16] -> B
+			JOB	SREC_PARSE_5				;address[15:0] -> -> X
+			;S3-record: Program S-record to flash -> 24-bit addresses (byte count in A, data pointer in Y)
+SREC_PARSE_7		SUBA	#5	    				;string length  -> A
+			TST	1,Y+	     				;check address[31:24]
+			BEQ	SREC_PARSE_6				;address[23:16] -> B
+			JOB	REC_PARSE_3 				;address out of range (fail)
+			;S5-record: Check 16-bit count (byte count in A, data pointer in Y)
+SREC_PARSE_8		CMPA	 #3					;check S-record length
+			BNE	REC_PARSE_3 				;wrong format (fail)
+			LDX	SREC_COUNTER				;check counter[31:16]
+SREC_PARSE_9		BNE	REC_PARSE_3 				;counter overflow (fail)
+			LDX	2,Y+ 					;counter[15:0] -> X
+			CPX	SREC_COUNTER+2 				;check counter
+			BNE	REC_PARSE_3 				;counter mismatch (fail)
+			JOB	REC_PARSE_1 				;load next S-record
+			;S6-record: Check 24-bit count (byte count in A, data pointer in Y)
+SREC_PARSE_10		CMPA	#4					;check S-record length
+			BNE	REC_PARSE_3 				;wrong format (fail)
+			TST	SREC_COUNTER				;check counter[31:24]
+			BNE	REC_PARSE_3 				;counter overflow (fail)
+			LDAB	1,Y+ 					;counter[23:16] -> B
+			CMPB	SREC_COUNTER+1 				;check counter[23:16]
+			JOB	SREC_PARSE_9 				;check for mismatch
 	
 ;#Receive receive one complete S-record - blocking
 ; args:   none
