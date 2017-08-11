@@ -3,8 +3,8 @@
 # AriCalculator - Image Converter                                             #
 ###############################################################################
 #    Copyright 2012 - 2014 Dirk Heisswolf                                     #
-#    This file is part of the AriCalculator framework for Freescale's S12(X)  #
-#    MCU families.                                                            #
+#    This file is part of the AriCalculator framework for NXP's S12(X) MCU    #
+#    families.                                                                #
 #                                                                             #
 #    AriCalculator is free software: you can redistribute it and/or modify    #
 #    it under the terms of the GNU General Public License as published by     #
@@ -205,8 +205,8 @@ if ($color_depth == 1) {
 }
 printf $out_handle ";###############################################################################\n";
 printf $out_handle ";#    Copyright 2012 - %4d Dirk Heisswolf                                     #\n", $year;
-printf $out_handle ";#    This file is part of the AriCalculator framework for Freescale's S12(X)  #\n";
-printf $out_handle ";#    MCU families.                                                            #\n";
+printf $out_handle ";#    This file is part of the AriCalculator framework for NXP's S12(X) MCU    #\n";
+printf $out_handle ";#    families.                                                                #\n";
 printf $out_handle ";#                                                                             #\n";
 printf $out_handle ";#    AriCalculator is free software: you can redistribute it and/or modify    #\n";
 printf $out_handle ";#    it under the terms of the GNU General Public License as published by     #\n";
