@@ -21,8 +21,11 @@ rLatch   = 1;                 //radius of thre latch
 hLatch   = printHoles(8);     //height of ther patch
 dLatch   = 4;                 //depth of the latch
 gapLatch = 0.2;               //gap between latch parts
-dEngrave = 0.2;               //engrave depth
+dEngrave = 0.4;               //engrave depth
 dElastic = 3;                 //width of the elastic band
+logoText = "AriCalculator";            //Logo
+logoFont = "Jolana:style=Italic";
+logoSize = 12;
 segments = 48; //48;
 
 // Functions
@@ -46,51 +49,59 @@ module calcFootprint(s=1, h=1) {
     }
 }
 
+//Logo
+//logo();
+module logo(x=0,y=0,z=0) {
+    translate([(x+printHoles(15)),y-printHoles(10),z-dEngrave]) {
+         linear_extrude(height=2*dEngrave) rotate([0,0-20,180]) mirror([1,0,0]) text(logoText, font=logoFont, size=logoSize, halign="center", valign="center");
+    }
+}
+
 //Engravings
 //engravings();
-module engravings(x=0,y=0,z=0) {
-    translate([(x+printHoles(15)),y,z]) {
-        difference() {  
-            calcFootprint(s=0.95, h=dEngrave);
-            calcFootprint(s=0.94, h=dEngrave);
-        }
-        difference() {  
-            calcFootprint(s=0.85, h=dEngrave);
-            calcFootprint(s=0.84, h=dEngrave);
-        }
-        difference() {  
-            calcFootprint(s=0.75, h=dEngrave);
-            calcFootprint(s=0.74, h=dEngrave);
-        }
-        difference() {  
-            calcFootprint(s=0.65, h=dEngrave);
-            calcFootprint(s=0.64, h=dEngrave);
-        }
-        difference() {  
-            calcFootprint(s=0.55, h=dEngrave);
-            calcFootprint(s=0.54, h=dEngrave);
-        }
-        difference() {  
-            calcFootprint(s=0.45, h=dEngrave);
-            calcFootprint(s=0.44, h=dEngrave);
-        }
-        difference() {  
-            calcFootprint(s=0.35, h=dEngrave);
-            calcFootprint(s=0.34, h=dEngrave);
-        }
-        difference() {  
-            calcFootprint(s=0.25, h=dEngrave);
-            calcFootprint(s=0.24, h=dEngrave);
-        }
-        difference() {  
-            calcFootprint(s=0.15, h=dEngrave);
-            calcFootprint(s=0.14, h=dEngrave);
-        }
-        difference() {  
-            calcFootprint(s=0.05, h=dEngrave);
-            calcFootprint(s=0.04, h=dEngrave);
-        }
-    }
+module engravings(x=0,y=-20,z=0) {
+//    translate([(x+printHoles(15)),y,z]) {    
+//        difference() {  
+//            calcFootprint(s=0.95, h=dEngrave);
+//            calcFootprint(s=0.94, h=dEngrave);
+//        }
+//        difference() {  
+//            calcFootprint(s=0.85, h=dEngrave);
+//            calcFootprint(s=0.84, h=dEngrave);
+//        }
+//        difference() {  
+//            calcFootprint(s=0.75, h=dEngrave);
+//            calcFootprint(s=0.74, h=dEngrave);
+//        }
+//        difference() {  
+//            calcFootprint(s=0.65, h=dEngrave);
+//            calcFootprint(s=0.64, h=dEngrave);
+//        }
+//        difference() {  
+//            calcFootprint(s=0.55, h=dEngrave);
+//            calcFootprint(s=0.54, h=dEngrave);
+//        }
+//        difference() {  
+//            calcFootprint(s=0.45, h=dEngrave);
+//            calcFootprint(s=0.44, h=dEngrave);
+//        }
+//        difference() {  
+//            calcFootprint(s=0.35, h=dEngrave);
+//            calcFootprint(s=0.34, h=dEngrave);
+//        }
+//        difference() {  
+//            calcFootprint(s=0.25, h=dEngrave);
+//            calcFootprint(s=0.24, h=dEngrave);
+//        }
+//        difference() {  
+//            calcFootprint(s=0.15, h=dEngrave);
+//            calcFootprint(s=0.14, h=dEngrave);
+//        }
+//        difference() {  
+//            calcFootprint(s=0.05, h=dEngrave);
+//            calcFootprint(s=0.04, h=dEngrave);
+//        }
+//    }
 }
 
 //Screw molds
@@ -206,7 +217,7 @@ module calcExcavation(x=0,y=0,z=0) {
 //}
 //
 //Shell
-//shell(backSide=true);
+//shell(backSide=false);
 module shell(x=0,y=0,z=0, backSide=false) {
     translate([x,y,z]) {
         difference() {
@@ -228,22 +239,17 @@ module shell(x=0,y=0,z=0, backSide=false) {
                 engravings(z=-wRim);
                 if(!backSide) {
                     keyMolds(z=-dKey+0.001);
+                    logo(z=-wRim);
                 }
                 if(backSide) {
                     translate([0.9*wCalc,0,dElastic]) rotate([90,0,0]) union() {
                         cylinder(d=dElastic, h=(2*hCalc), center= true, $fn=segments);
                         cylinder(d=(2*dElastic), h=hCalc+(5.5*dRim), center= true, $fn=segments);
                     }
-                    
                 }
             }
         }
- 
         //translate([0.9*wCalc,0,dRim]) rotate([90,0,0]) cylinder(d=(dElastic), h=hCalc+(2*dRim), center= true, $fn=segments);
-
-                
-      
- 
     }
 }
 
@@ -267,7 +273,7 @@ module case(x=0,y=0,z=0) {
                     hinge_male_negative(y=printHoles(i),z=((dCalc/2)+gapCalc),flip=false);
                 }
                 hinge_male_negative(y=printHoles(-26),z=((dCalc/2)+gapCalc),flip=true);
-            }
+             }
         }
         //Positive hinges
         for(i=[-24:4:24]) {      
