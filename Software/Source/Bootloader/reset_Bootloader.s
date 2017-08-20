@@ -66,7 +66,7 @@ RESET_VARS_END_LIN	EQU	@
 
 			;Start firmware
 START_FIRMWARE		MOVB	#$FF, PTP				;unselect keypad columns	
-			MOWB	#(($FF00-BOOTLOADER_SIZE)>>8), IVBR 	;set vector base
+			MOVB	#(($FF00-BOOTLOADER_SIZE)>>8), IVBR 	;set vector base
 			JMP	[$FFFC-BOOTLOADER_SIZE]			;jump to firmware
 	
 			;Check key pad
@@ -134,14 +134,14 @@ RESET_CODE_START_LIN	EQU	@
 ;#========================== 
 RESET_COP_ENTRY		EQU	*
 			//Run firmware's COP reset handler
-			MOWB	#(($FF00-BOOTLOADER_SIZE)>>8), IVBR 
+			MOVB	#(($FF00-BOOTLOADER_SIZE)>>8), IVBR 
 			JMP	[$FFFA-BOOTLOADER_SIZE]
 	
 ;# Entry point for CM reset
 ;#========================= 
 RESET_CM_ENTRY		EQU	*
 			//Run firmware's COP reset handler
-			MOWB	#(($FF00-BOOTLOADER_SIZE)>>8), IVBR 
+			MOVB	#(($FF00-BOOTLOADER_SIZE)>>8), IVBR 
 			JMP	[$FFFC-BOOTLOADER_SIZE]
 
 ;# Entry point for common resets

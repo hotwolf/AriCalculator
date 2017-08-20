@@ -1,8 +1,7 @@
 #ifndef	VECTAB
 #define	VECTAB
-#define	VECTAB
 ;###############################################################################
-;# AriCalculator - Bootloader - Vector Table                                    #
+;# AriCalculator - Bootloader - Vector Table                                   #
 ;###############################################################################
 ;#    Copyright 2010-2017 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for NXP's S12 MCU family.    #
@@ -22,7 +21,7 @@
 ;###############################################################################
 ;# Description:                                                                #
 ;#    This module defines the static vector table of the AriCalculator         #
-;#    bootloader.                                                               #
+;#    bootloader.                                                              #
 ;###############################################################################
 ;# Required Modules:                                                           #
 ;#    RESET   - Reset handler                                                  #
