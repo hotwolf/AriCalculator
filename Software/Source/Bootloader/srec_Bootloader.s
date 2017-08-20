@@ -151,7 +151,7 @@ SREC_PARSE_1		SREC_RX		  				;load S-record (SSTACK: 23 bytes)
 			LSLB						;adjust to word offset
 			LDAA	SREC_BYTE_COUNT 			;byte count -> A
 			LDY	#SREC_ADDR   				;data pointer -> Y
-			JMP 	[B,PC] 					;
+;TBD			JMP 	[B,PC]	    
 			DW	SREC_PARSE_1				;S0: ignore
 			DW	SREC_PARSE_4				;S1: program S-record to flash (16-bit address space)
 			DW	SREC_PARSE_6				;S2: program S-record to flash (24-bit address space)
@@ -175,7 +175,7 @@ SREC_PARSE_3		SSTACK_PREPULL	9 				;check SSTACK
 SREC_PARSE_4		SUBA	#3	    				;string length  -> A
 			LDAB	#$03 					;address[23:16] -> B
 SREC_PARSE_5		LDX	2,Y+ 					;address[15:0] -> -> X
-			NVM_PROG_STRING	    				;program NVM (SSTACK: ?? bytes)
+;TBD			NVM_PROG_STRING	    				;program NVM (SSTACK: ?? bytes)
 			JOB	REC_PARSE_1 				;load next S-record
 			;S2-record: Program S-record to flash -> 24-bit addresses (byte count in A, data pointer in Y)
 			SUBA	#4	    				;string length  -> A
