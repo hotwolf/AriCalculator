@@ -56,22 +56,36 @@ LRE_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	LRE_INIT, 0
+			;Copy tables and code
+			LRE_COPY	RAM_TABS_START_LIN, RAM_TABS_START, (RAM_CODE_END-RAM_TABS_START)
+			;Copy vector table
+			LRE_COPY	VECTAB_START_LIN, VECTAB_START, VECTAB_SIZE
+			;Set vector base address
+			MOVB	#(VECTAB_START>>8), IVBR
+#emac
 
-			LDX	#(LRE_CODE_START_LIN & $FFFF)
-			LDY 	#LRE_CODE_START
-
+;Copy loop
+; args:   1: source address
+;         2: destination address
+;         3: min. number of bytes to copy
+; result: none
+; SSTACK: none
+;         no registers are preserved
+#macro	LRE_COPY, 3
+			;Setup
+			LDX	#(\1&$FFFF)	;source address
+			LDY	#(\2&$FFFF)	;destination address
+			LDD	#((\3>>3)+(((\3>>2)&1)|((\3>>1)&1)|(\3&1)))
+			;Loop 
 LOOP			MOVW	2,X+, 2,Y+	
 			MOVW	2,X+, 2,Y+	
 			MOVW	2,X+, 2,Y+	
 			MOVW	2,X+, 2,Y+	
-			MOVW	2,X+, 2,Y+	
-			MOVW	2,X+, 2,Y+	
-			MOVW	2,X+, 2,Y+	
-			MOVW	2,X+, 2,Y+	
-	
-			TBNE	X, LOOP
+			DBNE	D, LOOP
 #emac
 
+	
+	
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################

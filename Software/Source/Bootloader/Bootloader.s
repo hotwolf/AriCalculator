@@ -136,7 +136,7 @@ DISP_SEQ_INIT_END	EQU	DISP_SEQ_INIT_END ;end of initialization stream
 ;        MMAP_REG_END -> +----------+----------+          MMAP_REG_END -> +----------+----------+
 ;             ($0400)    :       unused        :               ($0400)    :       unused        :
 ;      MMAP_RAM_START,-> +----------+----------+        MMAP_RAM_START,-> +----------+----------+
-;    RAM_VECTAB_START    |    Vector Table     |      RAM_VECTAB_START    |    Vector Table     |
+;        VECTAB_START    |    Vector Table     |          VECTAB_START    |    Vector Table     |
 ;      RAM_TABS_START -> +----------+----------+        RAM_TABS_START -> +----------+----------+
 ;                        |       Tables        |                          |       Tables        |
 ;      RAM_CODE_START -> +----------+----------+        RAM_CODE_START -> +----------+----------+
@@ -164,8 +164,8 @@ DISP_SEQ_INIT_END	EQU	DISP_SEQ_INIT_END ;end of initialization stream
 ;                        |                     |                          |        Tables       | |  R
 ;                        |                     |                          +----------+----------+ |  _
 ;                        |                     |                          :                    :  |  S
-;  	                 |                     |  RAM_VECTAB_START_LIN,-> +----------+----------+ |  I
-;                        |                     |         VECTAB_START     |    Vector Table     | v  Z
+;  	                 |                     |      VECTAB_START_LIN -> +----------+----------+ |  I
+;                        |                     |                          |    Vector Table     | v  Z
 ;        MMAP_RAM_END -> +----------+----------+          MMAP_RAM_END -> +----------+----------+--- E 
 ;                        :       unused        :                    
 ;  RAM_TABS_START_LIN -> +----------+----------+--- B
@@ -180,33 +180,30 @@ DISP_SEQ_INIT_END	EQU	DISP_SEQ_INIT_END ;end of initialization stream
 ;                        |        Tables       | |  R
 ;                        +----------+----------+ |  _
 ;                        :                     : |  S
-;RAM_VECTAB_START_LIN,-> +----------+----------+ |  I
-;       VECTAB_START     |    Vector Table     | v  Z
+;    VECTAB_START_LIN -> +----------+----------+ |  I
+;                        |    Vector Table     | v  Z
 ;                        +----------+----------+--- E
 
-			;RAM vector table
-RAM_VECTAB_START	EQU	MMAP_RAM_START 				;LRE destination
-RAM_VECTAB_START_LIN	EQU	VECTAB_START_LIN   			;LRE source
-			ORG	RAM_VECTAB_START, RAM_VECTAB_START_LIN
-			DS	VECTAB_SIZE
-RAM_VECTAB_END		EQU	*					;LRE destination
-RAM_VECTAB_END_LIN	EQU	@					;LRE source
+			;Vector table
+VECTAB_START		EQU	MMAP_RAM_START 				;LRE destination
+#ifdef FLASH_COMPILE		
+VECTAB_START_LIN	EQU	MMAP_FLASH_F_END_LIN-VECTAB_SIZE   	;LRE source
+#else
+VECTAB_START_LIN	EQU	MMAP_RAM_END-VECTAB_SIZE   		;LRE source
+#endif
 
 			;RAM tables
-RAM_TABS_START		EQU	RAM_VECTAB_END 				;LRE destination
+RAM_TABS_START		EQU	VECTAB_END 				;LRE destination
 #ifdef FLASH_COMPILE		
 RAM_TABS_START_LIN	EQU	MMAP_FLASH_F_END_LIN-BOOTLOADER_SIZE 	;LRE source
 #else
 RAM_TABS_START_LIN	EQU	MMAP_RAM_END-BOOTLOADER_SIZE 		;LRE source
 #endif
-			ORG	RAM_TABS_START, RAM_TABS_START_LIN
-			DS	RAM_TABS_END-RAM_TABS_START
 
 			;RAM code
 			ORG	RAM_TABS_END, RAM_TABS_END_LIN
 RAM_CODE_START		EQU	*					;LRE destination
 RAM_CODE_START_LIN	EQU	@					;LRE source
-			DS	RAM_CODE_END-RAM_CODE_START
 
 			;Variables 
 			ORG	RAM_CODE_END, RAM_CODE_END
@@ -231,15 +228,6 @@ CODE_START_LIN		EQU	RAM_CODE_END_LIN
 			ORG	CODE_END, CODE_END_LIN
 TABS_START		EQU	*	
 TABS_START_LIN		EQU	@
-
-			;Vector table
-#ifdef FLASH_COMPILE		
-VECTAB_START		EQU	MMAP_FLASH_F_END-VECTAB_SIZE
-VECTAB_START_LIN	EQU	MMAP_FLASH_F_END_LIN-VECTAB_SIZE
-#else
-VECTAB_START		EQU	MMAP_RAM_END-VECTAB_SIZE
-VECTAB_START_LIN	EQU	MMAP_RAM_END-VECTAB_SIZE
-#endif
 		
 ;###############################################################################
 ;# Initialization                                                              #
@@ -248,19 +236,19 @@ VECTAB_START_LIN	EQU	MMAP_RAM_END-VECTAB_SIZE
 			MMAP_INIT 		;configure memory map
 			GPIO_INIT		;configure I/Os
 			RESET_INIT		;start bootloder or application
+			CLOCK_INIT		;configure clocks
 			VECTAB_INIT		;configure cector table
 			SSTACK_INIT		;configure subroutine stack
 			ISTACK_INIT		;configure interrupt stack
-			CLOCK_INIT		;configure clocks
 			TIM_INIT		;configure timers			
 			LED_INIT		;configure LEDs
+			NVM_INIT		;configure NVM
+			SREC_INIT		;initialize S-record parser
 			LRE_INIT		;copy LRE code
 			CLOCK_WAIT_FOR_PLL	;wait for PLL to lock
 			SCI_INIT		;configure SCI
-			NVM_INIT		;configure NVM
 			IMG_INIT		;configure display content
 			DISP_INIT		;configure display
-			SREC_INIT		;initialize S-record parser
 #emac
 	
 ;###############################################################################
@@ -398,7 +386,7 @@ CODE_END		EQU	*
 CODE_END_LIN		EQU	@
 
 ;###############################################################################
-;# LRE code space                                                              #
+;# RAM code space                                                              #
 ;###############################################################################
 			ORG	RAM_CODE_START, RAM_CODE_START_LIN
 
@@ -479,7 +467,7 @@ TABS_END_LIN		EQU	@
 
 
 ;###############################################################################
-;# LRE table space                                                             #
+;# RAM table space                                                             #
 ;###############################################################################
 			ORG	RAM_TABS_START, RAM_TABS_START_LIN
 
