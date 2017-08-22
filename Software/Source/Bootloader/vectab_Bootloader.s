@@ -67,7 +67,7 @@ VECTAB_VARS_END_LIN	EQU	@
 ;#Initialization
 #macro	VECTAB_INIT, 0
 			;Set vector base address
-			MOVB	#(RAM_VECTAB_START>>8), IVBR
+			MOVB	#(VECTAB_START>>8), IVBR
 #emac	
 	
 ;###############################################################################
@@ -129,11 +129,7 @@ ISR_FLASH  		EQU	NVM_ISR_CC
 #else
 ISR_FLASH		BGND
 #endif
-#ifdef NVM_ISR_ECCERR					;vector base + $BA
-ISR_FLASHFLT  		EQU	NVM_ISR_ECCERR
-#else
-ISR_FLASHFLT  		BGND
-#endif
+ISR_FLASHFLT  		BGND				;vector base + $BA
 ISR_SPI2		BGND				;vector base + $BC
 ISR_SPI1		BGND				;vector base + $BE
 ISR_RESC0		BGND				;vector base + $C0
@@ -215,11 +211,7 @@ ISR_FLASH  		EQU	NVM_ISR_CC
 #else
 ISR_FLASH  		EQU	BOOTLOADER_ISR_ERROR
 #endif
-#ifdef NVM_ISR_ECCERR					;vector base + $BA
-ISR_FLASHFLT  		EQU	NVM_ISR_ECCERR
-#else
-ISR_FLASHFLT  		EQU	BOOTLOADER_ISR_ERROR
-#endif
+ISR_FLASHFLT  		EQU	BOOTLOADER_ISR_ERROR	;vector base + $BA
 ISR_SPI2		EQU	BOOTLOADER_ISR_ERROR	;vector base + $BC
 ISR_SPI1		EQU	BOOTLOADER_ISR_ERROR	;vector base + $BE
 ISR_RESC0		EQU	BOOTLOADER_ISR_ERROR	;vector base + $C0

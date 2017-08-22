@@ -57,8 +57,8 @@ RESET_VARS_END_LIN	EQU	@
 ;# Macros                                                                      #
 ;###############################################################################
 ;#Initialization
-#macro	RESET_INIT, 0
-
+#macro	RESET_INIT, 0	
+#ifdef	FLASH_COMPILE
 			;Check for POR
 			LDAA	CPMUFLG					;CPMU flags -> A
 			CMPA	#PORF 					;check for POR
@@ -118,6 +118,7 @@ CHECK_KEYPADS		MOVB	#$FD, PTP 				;check row 4
 			LDAA	PORTA 					;row pattern -> A 
 			COMA						;check for no key
 			BNE	START_FIRMWARE	 			;start regular firmware
+#endif
 #emac
 
 ;###############################################################################

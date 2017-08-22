@@ -56,6 +56,8 @@ NVM_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;#Initialization
 #macro	NVM_INIT, 0
+			MOVB	#(FDIVLCK|NVM_FDIV_VAL), FCLKDIV;set clock divider
+			MOVB	#DFDIE,FERCNFG			;detect ECC double faults
 #emac
 
 ;###############################################################################
