@@ -176,7 +176,7 @@ SREC_PARSE_4		SUBA	#3	    				;string length  -> A
 			LDAB	#$03 					;address[23:16] -> B
 SREC_PARSE_5		LDX	2,Y+ 					;address[15:0] -> -> X
 ;TBD			NVM_PROG_STRING	    				;program NVM (SSTACK: ?? bytes)
-			JOB	REC_PARSE_1 				;load next S-record
+			JOB	SREC_PARSE_1 				;load next S-record
 			;S2-record: Program S-record to flash -> 24-bit addresses (byte count in A, data pointer in Y)
 			SUBA	#4	    				;string length  -> A
 SREC_PARSE_6		LDAB	1,Y+ 					;address[23:16] -> B
@@ -185,21 +185,21 @@ SREC_PARSE_6		LDAB	1,Y+ 					;address[23:16] -> B
 SREC_PARSE_7		SUBA	#5	    				;string length  -> A
 			TST	1,Y+	     				;check address[31:24]
 			BEQ	SREC_PARSE_6				;address[23:16] -> B
-			JOB	REC_PARSE_3 				;address out of range (fail)
+			JOB	SREC_PARSE_3 				;address out of range (fail)
 			;S5-record: Check 16-bit count (byte count in A, data pointer in Y)
 SREC_PARSE_8		CMPA	 #3					;check S-record length
-			BNE	REC_PARSE_3 				;wrong format (fail)
+			BNE	SREC_PARSE_3 				;wrong format (fail)
 			LDX	SREC_COUNTER				;check counter[31:16]
-SREC_PARSE_9		BNE	REC_PARSE_3 				;counter overflow (fail)
+SREC_PARSE_9		BNE	SREC_PARSE_3 				;counter overflow (fail)
 			LDX	2,Y+ 					;counter[15:0] -> X
 			CPX	SREC_COUNTER+2 				;check counter
-			BNE	REC_PARSE_3 				;counter mismatch (fail)
-			JOB	REC_PARSE_1 				;load next S-record
+			BNE	SREC_PARSE_3 				;counter mismatch (fail)
+			JOB	SREC_PARSE_1 				;load next S-record
 			;S6-record: Check 24-bit count (byte count in A, data pointer in Y)
 SREC_PARSE_10		CMPA	#4					;check S-record length
-			BNE	REC_PARSE_3 				;wrong format (fail)
+			BNE	SREC_PARSE_3 				;wrong format (fail)
 			TST	SREC_COUNTER				;check counter[31:24]
-			BNE	REC_PARSE_3 				;counter overflow (fail)
+			BNE	SREC_PARSE_3 				;counter overflow (fail)
 			LDAB	1,Y+ 					;counter[23:16] -> B
 			CMPB	SREC_COUNTER+1 				;check counter[23:16]
 			JOB	SREC_PARSE_9 				;check for mismatch
@@ -256,7 +256,7 @@ SREC_RX_3		SREC_RX_BYTE	 				;data  -> B (SSTACK: 14 bytes)
 			;Verify checksum (checksum in A)
 SREC_RX_4		SREC_RX_BYTE	 				;expected checksum  -> B (SSTACK: 14 bytes)
 			BCC	SREC_RX_5	 			;format error (fail)
-			CMPB	#SREC_DATA_SIZE				;check srec size
+			CMPB	#SREC_BYTE_COUNT 	;TBD		;check srec size
 			COMA						;invert checksum
 			CBA						;compare checksum
 			BNE	SREC_RX_5	 			;checksum error (fail)
@@ -297,7 +297,7 @@ SREC_RX_BYTE		EQU	*
 			TAB						;byte -> B
 			;Return result (digit in B)
 			BSET	0,SP, #$01				;signal success
-SREC_RX_BYTE1		SSTACK_PREPULL	4 				;check SSTACK
+SREC_RX_BYTE_1		SSTACK_PREPULL	4 				;check SSTACK
 			PULC						;restore CCR (incl. result)
 			PULA						;restore A
 			;Done

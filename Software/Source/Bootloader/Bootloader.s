@@ -76,12 +76,9 @@ MMAP_UNSEC_OFF		EQU	1 	;don't set the security byte for LRE compiles
 #endif
 
 ;#SSTACK:
-#ifdef RAM_COMPILE
-SSTACK_TOP		EQU	VECTAB_END
-#else
-SSTACK_TOP		EQU	VARS_END
-#endif
-SSTACK_BOTTOM		EQU	MMAP_RAM_END
+SSTACK_TOP		EQU	STACKS_START
+SSTACK_TOP_LIN		EQU	STACKS_START
+SSTACK_BOTTOM		EQU	STACKS_END
 
 ;#ISTACK 
 #ifdef RAM_COMPILE
@@ -132,94 +129,103 @@ DISP_SEQ_INIT_END	EQU	DISP_SEQ_INIT_END ;end of initialization stream
 ;###############################################################################
 ;# Memory map                                                                  #
 ;###############################################################################
-;                        FLASH_COMPILE:                                     LRE_COMPILE:
+;                        FLASH_COMPILE:                                     RAM_COMPILE:
 ;                        ==============                                     ============
 ;      MMAP_REG_START -> +----------+----------+        MMAP_REG_START -> +----------+----------+
 ;             ($0000)    |   Register Space    |               ($0000)    |   Register Space    |
 ;        MMAP_REG_END -> +----------+----------+          MMAP_REG_END -> +----------+----------+
 ;             ($0400)    :       unused        :               ($0400)    :       unused        :
-;     MMAP_RAM_START, -> +----------+----------+       MMAP_RAM_START, -> +----------+----------+
-;     LRE_CODE_START     |                     |       LRE_CODE_START     |                     |
+;      MMAP_RAM_START,-> +----------+----------+        MMAP_RAM_START,-> +----------+----------+
+;    RAM_VECTAB_START    |    Vector Table     |      RAM_VECTAB_START    |    Vector Table     |
+;      RAM_TABS_START -> +----------+----------+        RAM_TABS_START -> +----------+----------+
+;                        |       Tables        |                          |       Tables        |
+;      RAM_CODE_START -> +----------+----------+        RAM_CODE_START -> +----------+----------+
+;                        |                     |                          |                     |
 ;                        |    Program Space    |                          |    Program Space    |
 ;                        |                     |                          |                     |
-;      LRE_TABS_START -> +----------+----------+        LRE_TABS_START -> +----------+----------+
-;                        |       Tables        |                          |       Tables        |
-;    LRE_VECTAB_START -> +----------+----------+      LRE_VECTAB_START -> +----------+----------+
-;                        |    Vector Table     |                          |    Vector Table     |
 ;          VARS_START -> +----------+----------+            VARS_START -> +----------+----------+
 ;                        |                     |                          |                     |
 ;                        |  Global Variables   |                          |  Global Variables   |
 ;                        |                     |                          |                     |
-;                        +----------+----------+            CODE_START -> +----------+----------+
+;          SSTACK_TOP -> +----------+----------+            SSTACK_TOP -> +----------+----------+
 ;                        |                     |                          |                     |
 ;                        |                     |                          |       SSTACK        |
 ;                        |                     |                          |       ISTACK        |
 ;                        |                     |                          |                     |
-;                        |                     |            CODE_START -> +----------+----------+--- B
-;                        |                     |                          |    Program Space    | ^  O
-;                        |        SSTACK       |            TABS_START -> +----------+----------+ |  O
-;                        |        ISTACK       |                          |        Tables       | |  T
-;                        |                     |    LRE_CODE_START_LIN -> +----------+----------+ |  L
-;                        |                     |                          |                     | |  O
-;                        |                     |                          |    Program Space    | |  A
-;                        |                     |                          |      (Source)       | |  D
-;                        |                     |    LRE_TABS_START_LIN -> +----------+----------+ |  E
-;                        |                     |                          |   Tables (source)   | |  R
+;                        |                     |    RAM_TABS_START_LIN -> +----------+----------+--- B
+;                        |                     |                          |   Tables (source)   | ^  O
+;                        |                     |    RAM_CODE_START_LIN -> +----------+----------+ |  O
+;                        |                     |                          |                     | |  T
+;                        |        SSTACK       |                          |    Program Space    | |  L
+;                        |        ISTACK       |                          |      (Source)       | |  O
+;                        |                     |            CODE_START -> +----------+----------+ |  A
+;                        |                     |                          |    Program Space    | |  D
+;                        |                     |            TABS_START -> +----------+----------+ |  E
+;                        |                     |                          |        Tables       | |  R
 ;                        |                     |                          +----------+----------+ |  _
 ;                        |                     |                          :                    :  |  S
-;  	                 |                     |  LRE_VECTAB_START_LIN,-> +----------+----------+ |  I
+;  	                 |                     |  RAM_VECTAB_START_LIN,-> +----------+----------+ |  I
 ;                        |                     |         VECTAB_START     |    Vector Table     | v  Z
 ;        MMAP_RAM_END -> +----------+----------+          MMAP_RAM_END -> +----------+----------+--- E 
 ;                        :       unused        :                    
-;          CODE_START -> +----------+----------+--- B 
-;                        |    Program Space    | ^  O      
-;          TABS_START -> +----------+----------+ |  O       
-;                        |        Tables       | |  T            
-;  LRE_CODE_START_LIN -> +----------+----------+ |  L                 
-;                        |                     | |  O       
-;                        |    Program Space    | |  A       
-;                        |      (Source)       | |  D                 
-;  LRE_TABS_START_LIN -> +----------+----------+ |  E                 
-;                        |   Tables (source)   | |  R            
-;                        +----------+----------+ |  _       
+;  RAM_TABS_START_LIN -> +----------+----------+--- B
+;                        |   Tables (source)   | ^  O
+;  RAM_CODE_START_LIN -> +----------+----------+ |  O
+;                        |                     | |  T
+;                        |    Program Space    | |  L
+;                        |      (Source)       | |  O
+;          CODE_START -> +----------+----------+ |  A
+;                        |    Program Space    | |  D
+;          TABS_START -> +----------+----------+ |  E
+;                        |        Tables       | |  R
+;                        +----------+----------+ |  _
 ;                        :                     : |  S
-;LRE_VECTAB_START_LIN,-> +----------+----------+ |  I       
-;       VECTAB_START     |    Vector Table     | v  Z                 
-;                        +----------+----------+--- E         
+;RAM_VECTAB_START_LIN,-> +----------+----------+ |  I
+;       VECTAB_START     |    Vector Table     | v  Z
+;                        +----------+----------+--- E
 
-			;LRE code
-			ORG	MMAP_RAM_START, TABS_END_LIN
-			ALIGN	1, $FF	
-LRE_CODE_START		EQU	*
-LRE_CODE_START_LIN	EQU	@
-	
-			;LRE tables
-			ORG	LRE_CODE_END,  LRE_CODE_END_LIN
-LRE_TABS_START		EQU	*
-LRE_TABS_START_LIN	EQU	@
+			;RAM vector table
+RAM_VECTAB_START	EQU	MMAP_RAM_START 				;LRE destination
+RAM_VECTAB_START_LIN	EQU	VECTAB_START_LIN   			;LRE source
+			ORG	RAM_VECTAB_START, RAM_VECTAB_START_LIN
+			DS	VECTAB_SIZE
+RAM_VECTAB_END		EQU	*					;LRE destination
+RAM_VECTAB_END_LIN	EQU	@					;LRE source
 
-			;LRE vector table
-			ORG	LRE_TABS_END,  VECTAB_START_LIN
-			ALIGN	$FF, $FF	
-LRE_VECTAB_START	EQU	*
-LRE_VECTAB_START_LIN	EQU	@
-LRE_VECTAB_END		EQU	*+VECTAB_SIZE
-LRE_VECTAB_END_LIN	EQU	@+VECTAB_SIZE
+			;RAM tables
+RAM_TABS_START		EQU	RAM_VECTAB_END 				;LRE destination
+#ifdef FLASH_COMPILE		
+RAM_TABS_START_LIN	EQU	MMAP_FLASH_F_END_LIN-BOOTLOADER_SIZE 	;LRE source
+#else
+RAM_TABS_START_LIN	EQU	MMAP_RAM_END-BOOTLOADER_SIZE 		;LRE source
+#endif
+			ORG	RAM_TABS_START, RAM_TABS_START_LIN
+			DS	RAM_TABS_END-RAM_TABS_START
+
+			;RAM code
+			ORG	RAM_TABS_END, RAM_TABS_END_LIN
+RAM_CODE_START		EQU	*					;LRE destination
+RAM_CODE_START_LIN	EQU	@					;LRE source
+			DS	RAM_CODE_END-RAM_CODE_START
 
 			;Variables 
-			ORG	LRE_VECTAB_END,  LRE_VECTAB_END_LIN
-			ALIGN	1, $FF	
+			ORG	RAM_CODE_END, RAM_CODE_END
 VARS_START		EQU	*
-VARS_START_LIN		EQU	*
+VARS_START_LIN		EQU	@
+
+			;Stacks
+			ORG	VARS_END, VARS_END
+STACKS_START		EQU	*
+#ifdef FLASH_COMPILE		
+STACKS_END		EQU	MMAP_RAM_END
+#else
+STACKS_END		EQU	RAM_TABS_START_LIN
+#endif	
+			DS	STACKS_END-STACKS_START
 
 			;Code
-#ifdef FLASH_COMPILE		
-			ORG	(MMAP_FLASH_F_END-BOOTLOADER_SIZE), (MMAP_FLASH_F_END_LIN-BOOTLOADER_SIZE)
-#else
-			ORG	(MMAP_RAM_END-BOOTLOADER_SIZE), (MMAP_RAM_END-BOOTLOADER_SIZE)
-#endif
-CODE_START		EQU	*
-CODE_START_LIN		EQU	@
+CODE_START		EQU	RAM_CODE_END_LIN&$FFFF
+CODE_START_LIN		EQU	RAM_CODE_END_LIN
 
 			;Tables
 			ORG	CODE_END, CODE_END_LIN
@@ -228,12 +234,12 @@ TABS_START_LIN		EQU	@
 
 			;Vector table
 #ifdef FLASH_COMPILE		
-			ORG	(MMAP_FLASH_F_END-VECTAB_SIZE), (MMAP_FLASH_F_END_LIN-VECTAB_SIZE)
+VECTAB_START		EQU	MMAP_FLASH_F_END-VECTAB_SIZE
+VECTAB_START_LIN	EQU	MMAP_FLASH_F_END_LIN-VECTAB_SIZE
 #else
-			ORG	(MMAP_RAM_END-VECTAB_SIZE), (MMAP_RAM_END-VECTAB_SIZE)
+VECTAB_START		EQU	MMAP_RAM_END-VECTAB_SIZE
+VECTAB_START_LIN	EQU	MMAP_RAM_END-VECTAB_SIZE
 #endif
-VECTAB_START		EQU	*
-VECTAB_START_LIN	EQU	@
 		
 ;###############################################################################
 ;# Initialization                                                              #
@@ -334,20 +340,22 @@ START_OF_CODE		EQU	*
 
 			;Initialization
 			INIT				;initialize bootloader
-			JOB	START_OF_LRE_CODE	;run LRE code
+			JOB	START_OF_RAM_CODE	;run LRE code
 
 			;Bootloading successful 
 BOOTLOADER_DONE		EQU	*
-			LED_OFF	LED_A 			;not busy anymore
-			LED_ON	LED_B 			;no error
+			LED_OFF	A 			;not busy anymore
+			LED_ON	B 			;no error
 			DISP_STREAM_FROM_TO_BL	IMG_SEQ_DONE_START, IMG_SEQ_DONE_END
 			BRA	*
 	
 			;Bootloading failed
+BOOTLOADER_ISR_ERROR	EQU	*
+			CLI
 BOOTLOADER_ERROR	EQU	*
-			LED_OFF	LED_A 			;not busy anymore
-			LED_ON	LED_B 			;flag error
-			DISP_STREAM_FROM_TO_BL	IMG_SEQ_ERROR_START, IMG_ERROR_DONE_END
+			LED_OFF	A 			;not busy anymore
+			LED_ON	B 			;flag error
+			DISP_STREAM_FROM_TO_BL	IMG_SEQ_ERROR_START, IMG_SEQ_ERROR_END
 			BRA	*
 	
 MMAP_CODE_START		EQU	*	 
@@ -392,9 +400,9 @@ CODE_END_LIN		EQU	@
 ;###############################################################################
 ;# LRE code space                                                              #
 ;###############################################################################
-			ORG	LRE_CODE_START, LRE_CODE_START_LIN
+			ORG	RAM_CODE_START, RAM_CODE_START_LIN
 
-START_OF_LRE_CODE	EQU	*
+START_OF_RAM_CODE	EQU	*
 			;JOB	SREC_PARSE
 			BRA	*
 	
@@ -422,8 +430,8 @@ SREC_CODE_START		EQU	*
 SREC_CODE_START_LIN	EQU	@
 			ORG	SREC_CODE_END, SREC_CODE_END_LIN
 
-LRE_CODE_END		EQU	*
-LRE_CODE_END_LIN	EQU	@
+RAM_CODE_END		EQU	*
+RAM_CODE_END_LIN	EQU	@
 	
 ;###############################################################################
 ;# Table space                                                                 #
@@ -473,7 +481,7 @@ TABS_END_LIN		EQU	@
 ;###############################################################################
 ;# LRE table space                                                             #
 ;###############################################################################
-			ORG	LRE_TABS_START, LRE_TABS_START_LIN
+			ORG	RAM_TABS_START, RAM_TABS_START_LIN
 
 VECTAB_TABS_START	EQU	*
 VECTAB_TABS_START_LIN	EQU	@
@@ -499,8 +507,8 @@ SREC_TABS_START		EQU	*
 SREC_TABS_START_LIN	EQU	@
 			ORG	SREC_TABS_END, SREC_TABS_END_LIN
 
-LRE_TABS_END		EQU	*
-LRE_TABS_END_LIN	EQU	@
+RAM_TABS_END		EQU	*
+RAM_TABS_END_LIN	EQU	@
 	
 ;###############################################################################
 ;# Includes                                                                    #
@@ -510,6 +518,7 @@ LRE_TABS_END_LIN	EQU	@
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/memmap_AriCalculator.s ;Memory map
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/gpio_AriCalculator.s   ;I/O setup
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/disp_AriCalculator.s   ;Display driver
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clocks.s				  ;TIM driver
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/tim.s				  ;TIM driver
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sstack.s		  	  ;Subroutine stack
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/istack.s	  		  ;Interrupt stack
@@ -521,7 +530,6 @@ LRE_TABS_END_LIN	EQU	@
 #include ../../../../S12CBase/Source/AriCalculator/gpio_AriCalculator.s   				 ;I/O setup
 #include ../../../../S12CBase/Source/AriCalculator/disp_AriCalculator.s   				 ;Display driver
 #include ../../../../S12CBase/Source/All/clock.s				 			 ;Clock driver
-#include ../../../../S12CBase/Source/All/cop.s				 			 	 ;COP driver
 #include ../../../../S12CBase/Source/All/tim.s				 				 ;TIM driver
 #include ../../../../S12CBase/Source/All/sstack.s		  	 				 ;Subroutine stack
 #include ../../../../S12CBase/Source/All/istack.s	  		 				 ;Interrupt stack
