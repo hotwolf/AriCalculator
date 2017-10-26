@@ -46,7 +46,7 @@ VECTAB_DEBUG_OFF	EQU	1 		;default is off
 ;# Constants                                                                   #
 ;###############################################################################
 ;Size of the vector table
-VECTAB_SIZE		EQU	128
+VECTAB_SIZE		EQU	256
 	
 ;###############################################################################
 ;# Variables                                                                   #
