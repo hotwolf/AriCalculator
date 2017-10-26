@@ -50,7 +50,7 @@ BOOTLOADER_SIZE		EQU	$1000 		;default is 4K
 ;# Timer channel allocation                                                    #
 ;###############################################################################
 ; OC0 - SCI                     	;SCI driver
-; OC1 - LED				;LED driver
+; OC1 - free
 ; OC2 - free
 ; OC3 - free 
 ; OC4 - free
@@ -101,11 +101,11 @@ SCI_CTS_PIN		EQU	PM1		;PM1
 SCI_CTS_STRONG_DRIVE	EQU	1		;strong drive
 
 ;#LED							
-; LED A: PE0 blinking     -> busy  (green)
-; LED B: PE1 blinking     -> error (red)
+; LED A: PE0 -> busy  (green)
+; LED B: PE1 -> error (red)
 ; Timer usage 
-LED_TIM			EQU	TIM 		;TIM
-LED_OC			EQU	1 		;OC1
+;LED_TIM		EQU	TIM 		;TIM
+;LED_OC			EQU	1 		;OC1
 ; LED A						
 LED_A_BLINK_OFF		EQU	1 		;no blink patterns
 LED_A_PORT		EQU	PORTE 		;port E
@@ -140,7 +140,7 @@ DISP_SEQ_INIT_END	EQU	DISP_SEQ_INIT_END ;end of initialization stream
 ;      RAM_TABS_START -> +----------+----------+        RAM_TABS_START -> +----------+----------+
 ;                        |       Tables        |                          |       Tables        |
 ;      RAM_CODE_START -> +----------+----------+        RAM_CODE_START -> +----------+----------+
-;                        |                     |                          |                     |
+;                        |         LRE         |                          |         LRE         |
 ;                        |    Program Space    |                          |    Program Space    |
 ;                        |                     |                          |                     |
 ;          VARS_START -> +----------+----------+            VARS_START -> +----------+----------+
@@ -155,7 +155,7 @@ DISP_SEQ_INIT_END	EQU	DISP_SEQ_INIT_END ;end of initialization stream
 ;                        |                     |    RAM_TABS_START_LIN -> +----------+----------+--- B
 ;                        |                     |                          |   Tables (source)   | ^  O
 ;                        |                     |    RAM_CODE_START_LIN -> +----------+----------+ |  O
-;                        |                     |                          |                     | |  T
+;                        |                     |                          |         LRE         | |  T
 ;                        |        SSTACK       |                          |    Program Space    | |  L
 ;                        |        ISTACK       |                          |      (Source)       | |  O
 ;                        |                     |            CODE_START -> +----------+----------+ |  A
@@ -171,7 +171,7 @@ DISP_SEQ_INIT_END	EQU	DISP_SEQ_INIT_END ;end of initialization stream
 ;  RAM_TABS_START_LIN -> +----------+----------+--- B
 ;                        |   Tables (source)   | ^  O
 ;  RAM_CODE_START_LIN -> +----------+----------+ |  O
-;                        |                     | |  T
+;                        |         LRE         | |  T
 ;                        |    Program Space    | |  L
 ;                        |      (Source)       | |  O
 ;          CODE_START -> +----------+----------+ |  A
@@ -337,15 +337,6 @@ BOOTLOADER_DONE		EQU	*
 			DISP_STREAM_FROM_TO_BL	IMG_SEQ_DONE_START, IMG_SEQ_DONE_END
 			BRA	*
 	
-			;Bootloading failed
-BOOTLOADER_ISR_ERROR	EQU	*
-			CLI
-BOOTLOADER_ERROR	EQU	*
-			LED_OFF	A 			;not busy anymore
-			LED_ON	B 			;flag error
-			DISP_STREAM_FROM_TO_BL	IMG_SEQ_ERROR_START, IMG_SEQ_ERROR_END
-			BRA	*
-	
 MMAP_CODE_START		EQU	*	 
 MMAP_CODE_START_LIN	EQU	@
 			ORG	MMAP_CODE_END, MMAP_CODE_END_LIN
@@ -391,7 +382,27 @@ CODE_END_LIN		EQU	@
 			ORG	RAM_CODE_START, RAM_CODE_START_LIN
 
 START_OF_RAM_CODE	EQU	*
+			;Wait for transmission 
+			SCI_RX_READY_BL
+			;Indicate ongoing firmware transmission
+			DISP_STREAM_FROM_TO_BL	IMG_SEQ_BUSY_START, IMG_SEQ_BUSY_END
+			LED_ON	A 			;busy signal
+			;Parse incoming S-record
 			;JOB	SREC_PARSE
+			BRA	*
+			;Indicate successful firmware update
+			DISP_STREAM_FROM_TO_BL	IMG_SEQ_DONE_START, IMG_SEQ_DONE_END
+			LED_OFF	A 			;not busy anymore
+			BRA	*
+	
+			;Bootloading failed
+BOOTLOADER_ISR_ERROR	EQU	*
+			CLI
+BOOTLOADER_ERROR	EQU	*
+			LED_OFF	A 			;not busy anymore
+			LED_ON	B 			;flag error
+			NVM_WAIT_IDLE			;wait for FTMRG to become idle
+			DISP_STREAM_FROM_TO_BL	IMG_SEQ_ERROR_START, IMG_SEQ_ERROR_END
 			BRA	*
 	
 VECTAB_CODE_START	EQU	*
