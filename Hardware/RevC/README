@@ -11,7 +11,17 @@ will be done on RevC.
 Directories:
 ============
 |
++-Case   	        - Design files of the 3D printed case
+|
 +-Enclosure	        - Design files of the enclosure (for laser cutting)
+|
++-PCB		        - Design files of the calculators PCB
+|
++-Kepad		        - Design files of a plain key pad for debug purposes
+
+
+
+
 |
 +-KiCad			- KiCad project file, schematic, layout, and libraries
 |
@@ -32,6 +42,6 @@ Files:
 This work is licensed under a Creative Commons Attribution-ShareAlike 3.0
 Unported License (http://creativecommons.org/licenses/by-sa/3.0/).
 
-AriCalculator RevC uses Kicad library components by Walter Lain which are licensed
-under a Creative Commons Attribution-ShareAlike 3.0 License 
+AriCalculator RevC and the Keypad use Kicad library components by Walter Lain
+which are licensedunder a Creative Commons Attribution-ShareAlike 3.0 License 
 (http://creativecommons.org/licenses/by-sa/3.0/).
