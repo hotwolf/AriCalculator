@@ -1,4 +1,4 @@
-(module Double_Pad (layer F.Cu) (tedit 5A0307F6)
+(module Double_Pad (layer F.Cu) (tedit 5A039FC7)
   (fp_text reference REF** (at 2.54 0 90) (layer F.SilkS) hide
     (effects (font (size 1 1) (thickness 0.15)))
   )
@@ -14,7 +14,6 @@
   (fp_arc (start 0 1.27) (end 1.12 1.27) (angle 180) (layer F.SilkS) (width 0.2))
   (fp_arc (start 0 -1.27) (end -1.12 -1.27) (angle 180) (layer F.SilkS) (width 0.2))
   (fp_line (start 0 1.27) (end 0 -1.27) (layer F.Cu) (width 1))
-  (pad 1 thru_hole circle (at 0 -1.27 90) (size 2 2) (drill 1) (layers *.Cu *.Mask))
-  (pad 1 thru_hole circle (at 0 1.27 90) (size 2 2) (drill 1) (layers *.Cu *.Mask))
-  (pad 1 thru_hole circle (at 0 -1.27 90) (size 2 2) (drill 1) (layers *.Cu *.Mask))
+  (pad 1 thru_hole circle (at 0 -1.27 90) (size 1.8 1.8) (drill 1) (layers *.Cu *.Mask))
+  (pad 1 thru_hole circle (at 0 1.27 90) (size 1.8 1.8) (drill 1) (layers *.Cu *.Mask))
 )
