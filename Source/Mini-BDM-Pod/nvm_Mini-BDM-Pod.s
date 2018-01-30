@@ -62,12 +62,12 @@ NVM_PROT_FD_ON		EQU	1 				;protect page $F
 ;------------------------------------------------------
 #ifnmac NVM_HALT_COM
 #macro NVM_HALT_COM, 0
-			SCI_PAUSE_BL 		;halt SCI communication (SSTACK: 2 bytes)
+;			SCI_PAUSE_BL 		;halt SCI communication (SSTACK: 2 bytes)
 #emac
 #endif	
 #ifnmac NVM_RESUME_COM
 #macro NVM_RESUME_COM, 0
-			SCI_RESUME 		;resume SCI communication (SSTACK: 4)
+;			SCI_RESUME 		;resume SCI communication (SSTACK: 4)
 #emac
 #endif	
 

@@ -1203,6 +1203,9 @@ FE              EQU     $02
 PF              EQU     $01
 
 SCI2SR2         EQU     $00BD
+AMAP		EQU	$08
+TXPOL		EQU	$10
+RXPOL		EQU	$08	
 BRK13           EQU     $04
 TXDIR           EQU     $02
 RAF             EQU     $01
@@ -1280,6 +1283,9 @@ SCI3SR1         EQU     $00C4
 ;PF             EQU     $01
 
 SCI3SR2         EQU     $00C5
+;AMAP		EQU	$08
+;TXPOL		EQU	$10
+;RXPOL		EQU	$08	
 ;BRK13          EQU     $04
 ;TXDIR          EQU     $02
 ;RAF            EQU     $01
@@ -1363,6 +1369,9 @@ SCI0SR1         EQU     $00CC
 
 SCISR2          EQU     $00CD
 SCI0SR2         EQU     $00CD
+;AMAP		EQU	$08
+;TXPOL		EQU	$10
+;RXPOL		EQU	$08	
 ;BRK13          EQU     $04
 ;TXDIR          EQU     $02
 ;RAF            EQU     $01
@@ -1442,6 +1451,9 @@ SCI1SR1         EQU     $00D4
 ;PF             EQU     $01
 
 SCI1SR2         EQU     $00D5
+;AMAP		EQU	$08
+;TXPOL		EQU	$10
+;RXPOL		EQU	$08	
 ;BRK13          EQU     $04
 ;TXDIR          EQU     $02
 ;RAF            EQU     $01
@@ -1928,6 +1940,9 @@ SCI4SR1         EQU     $0134
 ;PF             EQU     $01
 
 SCI4SR2         EQU     $0135
+;AMAP		EQU	$08
+;TXPOL		EQU	$10
+;RXPOL		EQU	$08	
 ;BRK13          EQU     $04
 ;TXDIR          EQU     $02
 ;RAF            EQU     $01
@@ -2005,6 +2020,9 @@ SCI5SR1         EQU     $013C
 ;PF             EQU     $01
 
 SCI5SR2         EQU     $013D
+;AMAP		EQU	$08
+;TXPOL		EQU	$10
+;RXPOL		EQU	$08	
 ;BRK13          EQU     $04
 ;TXDIR          EQU     $02
 ;RAF            EQU     $01
@@ -3971,6 +3989,9 @@ SCI6SR1         EQU     $0334
 ;PF             EQU     $01
 
 SCI6SR2         EQU     $0335
+;AMAP		EQU	$08
+;TXPOL		EQU	$10
+;RXPOL		EQU	$08	
 ;BRK13          EQU     $04
 ;TXDIR          EQU     $02
 ;RAF            EQU     $01
@@ -4048,6 +4069,9 @@ SCI7SR1         EQU     $033C
 ;PF             EQU     $01
 
 SCI7SR2         EQU     $0335D
+;AMAP		EQU	$08
+;TXPOL		EQU	$10
+;RXPOL		EQU	$08	
 ;BRK13          EQU     $04
 ;TXDIR          EQU     $02
 ;RAF            EQU     $01
