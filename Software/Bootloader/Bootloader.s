@@ -99,7 +99,15 @@ SCI_CTS_DDR		EQU	DDRM 		;DDRM
 SCI_CTS_PPS		EQU	PPSM 		;PPSM
 SCI_CTS_PIN		EQU	PM1		;PM1
 SCI_CTS_STRONG_DRIVE	EQU	1		;strong drive
+SCI_RXTX_ACTHI		EQU	1		;RXD/TXD are active hi
 
+;#STRING							
+STRING_ENABLE_ERASE_NB	EQU	1		;enable STRING_ERASE_NB 
+STRING_ENABLE_ERASE_BL	EQU	1		;enable STRING_ERASE_BL 
+
+;#NUM							
+;NUM_MAX_BASE_16	EQU	1 		;default is 16
+	
 ;#LED							
 ; LED A: PE0 -> busy  (green)
 ; LED B: PE1 -> error (red)
@@ -244,10 +252,13 @@ TABS_START_LIN		EQU	@
 			TIM_INIT		;configure timers			
 			LED_INIT		;configure LEDs
 			NVM_INIT		;configure NVM
+			SCI_INIT		;configure SCI
+			STRING_INIT		;configure STRING
+			NUM_INIT		;configure NUM
 			SREC_INIT		;initialize S-record parser
 			LRE_INIT		;copy LRE code
 			CLOCK_WAIT_FOR_PLL	;wait for PLL to lock
-			SCI_INIT		;configure SCI
+			SCI_ACTIVATE		;activate SCI
 			IMG_INIT		;configure display content
 			DISP_INIT		;configure display
 #emac
@@ -297,6 +308,14 @@ SCI_VARS_START		EQU	*
 SCI_VARS_START_LIN	EQU	@
 			ORG	SCI_VARS_END, SCI_VARS_END_LIN
 			
+STRING_VARS_START	EQU	*
+STRING_VARS_START_LIN	EQU	@
+			ORG	STRING_VARS_END, STRING_VARS_END_LIN
+			
+NUM_VARS_START		EQU	*
+NUM_VARS_START_LIN	EQU	@
+			ORG	NUM_VARS_END, NUM_VARS_END_LIN
+			
 DISP_VARS_START		EQU	*
 DISP_VARS_START_LIN	EQU	@
 			ORG	DISP_VARS_END, DISP_VARS_END_LIN
@@ -317,6 +336,8 @@ IMG_VARS_START		EQU	*
 IMG_VARS_START_LIN	EQU	@
 			ORG	IMG_VARS_END, IMG_VARS_END_LIN
 
+BOOTLOADER_COUNT	DS	1
+	
 VARS_END		EQU	*
 VARS_END_LIN		EQU	@
 	
@@ -329,13 +350,61 @@ START_OF_CODE		EQU	*
 
 			;Initialization
 			INIT				;initialize bootloader
-			JOB	START_OF_RAM_CODE	;run LRE code
 
-			;Bootloading successful 
-BOOTLOADER_DONE		EQU	*
+			;Indicate readyness  
+BOOTLOADER_SHOW_READY	EQU	*
+			;Set LEDs 
+			;LED_OFF A 			;busy anymore
+			;LED_OFF B 			;no error
+			;Print message  
+			LDX	#BOOTLOADER_MSG_READY 	;message pointer -> X
+			STRING_PRINT_BL			;print message
+			;Update display 
+			;DISP_STREAM_FROM_TO_BL	IMG_SEQ_READY_START, IMG_SEQ_READY_END
+
+			;Wait for transmission 
+			SCI_RX_READY_BL
+
+			;Indicate ongoing firmware transmission
+BOOTLOADER_SHOW_BUSY	EQU	*
+			;Set LEDs 
+			;LED_OFF A 			;busy anymore
+			;LED_OFF B 			;no error
+			;Print message  
+			LDX	#BOOTLOADER_MSG_READY 	;message pointer -> X
+			STRING_ERASE_BL			;erase ready message
+			LDX	#BOOTLOADER_MSG_READY 	;message pointer -> X
+			STRING_ERASE_BL			;erase ready message
+			LDX	#BOOTLOADER_MSG_BUSY 	;message pointer -> X
+			STRING_PRINT_BL			;print busy message
+			;Update display 
+			DISP_STREAM_FROM_TO_BL	IMG_SEQ_BUSY_START, IMG_SEQ_BUSY_END
+
+			;Execute from RAM
+			JMP	START_OF_RAM_CODE	;run LRE code
+	
+			;Indicate successful firmware update  
+BOOTLOADER_SHOW_DONE	EQU	*
+			;Set LEDs 
 			LED_OFF	A 			;not busy anymore
-			LED_ON	B 			;no error
+			;LED_OFF B 			;no error
+			;Print message  
+			LDX	#BOOTLOADER_MSG_DONE 	;message pointer -> X
+			STRING_PRINT_BL			;print message
+			;Update display 
 			DISP_STREAM_FROM_TO_BL	IMG_SEQ_DONE_START, IMG_SEQ_DONE_END
+			BRA	*
+
+			;Indicate failed firmware update 
+BOOTLOADER_SHOW_ERROR	EQU	*
+			;Set LEDs 
+			LED_OFF	A 				;not busy anymore
+			LED_ON	B 				;flag error
+			;Print message  
+			LDX	#BOOTLOADER_MSG_ERROR 		;message pointer -> X
+			STRING_PRINT_BL			;print message
+			;Update display 
+			DISP_STREAM_FROM_TO_BL	IMG_SEQ_ERROR_START, IMG_SEQ_ERROR_END
 			BRA	*
 	
 MMAP_CODE_START		EQU	*	 
@@ -383,29 +452,43 @@ CODE_END_LIN		EQU	@
 			ORG	RAM_CODE_START, RAM_CODE_START_LIN
 
 START_OF_RAM_CODE	EQU	*
-			;Wait for transmission 
-			SCI_RX_READY_BL
-			;Indicate ongoing firmware transmission
-			DISP_STREAM_FROM_TO_BL	IMG_SEQ_BUSY_START, IMG_SEQ_BUSY_END
-			LED_ON	A 			;busy signal
+
 			;Parse incoming S-record
 			;JOB	SREC_PARSE
-			BRA	*
-			;Indicate successful firmware update
-			DISP_STREAM_FROM_TO_BL	IMG_SEQ_DONE_START, IMG_SEQ_DONE_END
-			LED_OFF	A 			;not busy anymore
-			BRA	*
+			;BRA	*
+	
+			;Demo loop
+			LDY	#$0000		     		;clear count	
+DEMO_LOOP		SCI_RX_BL 				;receive char
+			CMPB	#"e"				;simulate error
+			BEQ	BOOTLOADER_ERROR		;handle errors
+			CMPB	#"d"				;simulate error
+			BEQ	BOOTLOADER_SHOW_DONE		;indicate completion
+			;Update progress indicator
+			LEAY	1,Y 				;increment count
+			LDX	#BOOTLOADER_MSG_BUSY_V		;erase old status
+			STRING_ERASE_BL				;
+			TFR	Y, X				;count -> X
+			LDAA	#4				;number width -> A
+			LDAB	#10				;base -> B
+			NUM_PRINT_UW_BL				;print number
+			LDX	#BOOTLOADER_MSG_BUSY_V		;print unit
+			STRING_ERASE_BL				;
+			JOB	DEMO_LOOP			;loop
+
+			;Parse incoming S-record
+			;JOB	SREC_PARSE
+			;BRA	*
 	
 			;Bootloading failed
 BOOTLOADER_ISR_ERROR	EQU	*
 			CLI
 BOOTLOADER_ERROR	EQU	*
-			LED_OFF	A 			;not busy anymore
-			LED_ON	B 			;flag error
-			NVM_WAIT_IDLE			;wait for FTMRG to become idle
-			DISP_STREAM_FROM_TO_BL	IMG_SEQ_ERROR_START, IMG_SEQ_ERROR_END
-			BRA	*
-	
+			;Wait for NVM 
+			NVM_WAIT_IDLE				;wait for FTMRG to become idle
+			JMP	BOOTLOADER_SHOW_ERROR
+
+
 VECTAB_CODE_START	EQU	*
 VECTAB_CODE_START_LIN	EQU	@
 			ORG	VECTAB_CODE_END, VECTAB_CODE_END_LIN
@@ -421,6 +504,14 @@ ISTACK_CODE_START_LIN	EQU	@
 SCI_CODE_START		EQU	*
 SCI_CODE_START_LIN	EQU	@
 			ORG	SCI_CODE_END, SCI_CODE_END_LIN
+			
+STRING_CODE_START	EQU	*
+STRING_CODE_START_LIN	EQU	@
+			ORG	STRING_CODE_END, STRING_CODE_END_LIN
+			
+NUM_CODE_START		EQU	*
+NUM_CODE_START_LIN	EQU	@
+			ORG	NUM_CODE_END, NUM_CODE_END_LIN
 			
 NVM_CODE_START		EQU	*
 NVM_CODE_START_LIN	EQU	@
@@ -438,6 +529,13 @@ RAM_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG	TABS_START, TABS_START_LIN
 
+BOOTLOADER_MSG_READY	FCS	"Ready to receive S-Record!"
+	
+BOOTLOADER_MSG_DONE	STRING_NL_NONTERM
+			FCS	"Done!
+BOOTLOADER_MSG_ERROR	STRING_NL_NONTERM
+			FCS	"Error!"	
+	
 MMAP_TABS_START		EQU	*	 
 MMAP_TABS_START_LIN	EQU	@
 			ORG	MMAP_TABS_END, MMAP_TABS_END_LIN
@@ -483,6 +581,10 @@ TABS_END_LIN		EQU	@
 ;###############################################################################
 			ORG	RAM_TABS_START, RAM_TABS_START_LIN
 
+BOOTLOADER_MSG_BUSY	FCC	"Receiving... "
+BOOTLOADER_MSG_BUSY_V	FCC	"   0"
+BOOTLOADER_MSG_BUSY_U	FCS	" chars"
+	
 VECTAB_TABS_START	EQU	*
 VECTAB_TABS_START_LIN	EQU	@
 			ORG	VECTAB_TABS_END, VECTAB_TABS_END_LIN
@@ -498,6 +600,14 @@ ISTACK_TABS_START_LIN	EQU	@
 SCI_TABS_START		EQU	*
 SCI_TABS_START_LIN	EQU	@
 			ORG	SCI_TABS_END, SCI_TABS_END_LIN
+			
+STRING_TABS_START	EQU	*
+STRING_TABS_START_LIN	EQU	@
+			ORG	STRING_TABS_END, STRING_TABS_END_LIN
+			
+NUM_TABS_START		EQU	*
+NUM_TABS_START_LIN	EQU	@
+			ORG	NUM_TABS_END, NUM_TABS_END_LIN
 			
 NVM_TABS_START		EQU	*
 NVM_TABS_START_LIN	EQU	@
@@ -518,27 +628,31 @@ RAM_TABS_END_LIN	EQU	@
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/memmap_AriCalculator.s ;Memory map
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/gpio_AriCalculator.s   ;I/O setup
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/disp_AriCalculator.s   ;Display driver
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clocks.s				  ;TIM driver
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clocks.s			  ;TIM driver
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/tim.s				  ;TIM driver
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sstack.s		  	  ;Subroutine stack
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/istack.s	  		  ;Interrupt stack
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s				  ;SCI driver
 ;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/led.s				  ;LED driver
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/string.s			  ;String printing routines
+;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/num.s			  	  ;Number printing routines
 
-#include ../../../../S12CBase/Source/AriCalculator/regdef_AriCalculator.s 				 ;Register definitions
-#include ../../../../S12CBase/Source/AriCalculator/mmap_AriCalculator.s 				 ;Memory map
-#include ../../../../S12CBase/Source/AriCalculator/gpio_AriCalculator.s   				 ;I/O setup
-#include ../../../../S12CBase/Source/AriCalculator/disp_AriCalculator.s   				 ;Display driver
-#include ../../../../S12CBase/Source/All/clock.s				 			 ;Clock driver
-#include ../../../../S12CBase/Source/All/tim.s				 				 ;TIM driver
-#include ../../../../S12CBase/Source/All/sstack.s		  	 				 ;Subroutine stack
-#include ../../../../S12CBase/Source/All/istack.s	  		 				 ;Interrupt stack
-#include ../../../../S12CBase/Source/All/sci.s				 				 ;SCI driver
-#include ../../../../S12CBase/Source/All/led.s				 				 ;LED driver
-
-#include ./vectab_Bootloader.s	                                                                         ;S12G vector table
-#include ./reset_Bootloader.s                                                                            ;Reset driver
-#include ./lre_Bootloader.s	                                                                         ;LRE code
-#include ./nvm_Bootloader.s	                                                                         ;NVM driver
-#include ./srec_Bootloader.s                                                                             ;S-Record handler
-#include ./img_Bootloader.s                                                                              ;Bitmaps to display
+#include ../../../S12CBase/Source/AriCalculator/regdef_AriCalculator.s 				          ;Register definitions
+#include ../../../S12CBase/Source/AriCalculator/mmap_AriCalculator.s 				          ;Memory map
+#include ../../../S12CBase/Source/AriCalculator/gpio_AriCalculator.s   				          ;I/O setup
+#include ../../../S12CBase/Source/AriCalculator/disp_AriCalculator.s   				          ;Display driver
+#include ../../../S12CBase/Source/All/clock.s				 			          ;Clock driver
+#include ../../../S12CBase/Source/All/tim.s				 				  ;TIM driver
+#include ../../../S12CBase/Source/All/sstack.s		  	 				          ;Subroutine stack
+#include ../../../S12CBase/Source/All/istack.s	  		 				          ;Interrupt stack
+#include ../../../S12CBase/Source/All/sci.s				 				  ;SCI driver
+#include ../../../S12CBase/Source/All/led.s				 				  ;LED driver
+#include ../../../S12CBase/Source/All/string.s								  ;String printing routines
+#include ../../../S12CBase/Source/All/num.s			  	  				  ;Number printing routines
+													  
+#include ./vectab_Bootloader.s	                                                                          ;S12G vector table
+#include ./reset_Bootloader.s                                                                             ;Reset driver
+#include ./lre_Bootloader.s	                                                                          ;LRE code
+#include ./nvm_Bootloader.s	                                                                          ;NVM driver
+#include ./srec_Bootloader.s                                                                              ;S-Record handler
+#include ./img_Bootloader.s                                                                               ;Bitmaps to display
