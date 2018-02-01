@@ -100,7 +100,8 @@ SCI_CTS_PPS		EQU	PPSM 		;PPSM
 SCI_CTS_PIN		EQU	PM1		;PM1
 SCI_CTS_STRONG_DRIVE	EQU	1		;strong drive
 SCI_RXTX_ACTHI		EQU	1		;RXD/TXD are active hi
-
+SCI_TXBUF_SIZE		EQU	4		;easier to debug
+	
 ;#STRING							
 STRING_ENABLE_ERASE_NB	EQU	1		;enable STRING_ERASE_NB 
 STRING_ENABLE_ERASE_BL	EQU	1		;enable STRING_ERASE_BL 
@@ -222,11 +223,7 @@ VARS_START_LIN		EQU	@
 			;Stacks
 			ORG	VARS_END, VARS_END
 STACKS_START		EQU	*
-#ifdef FLASH_COMPILE		
-STACKS_END		EQU	MMAP_RAM_END
-#else
-STACKS_END		EQU	RAM_TABS_START_LIN
-#endif	
+STACKS_END		EQU	VECTAB_START
 			DS	STACKS_END-STACKS_START
 
 			;Code
@@ -472,8 +469,8 @@ DEMO_LOOP		SCI_RX_BL 				;receive char
 			LDAA	#4				;number width -> A
 			LDAB	#10				;base -> B
 			NUM_PRINT_UW_BL				;print number
-			LDX	#BOOTLOADER_MSG_BUSY_V		;print unit
-			STRING_ERASE_BL				;
+			LDX	#BOOTLOADER_MSG_BUSY_U		;print unit
+			STRING_PRINT_BL				;
 			JOB	DEMO_LOOP			;loop
 
 			;Parse incoming S-record
