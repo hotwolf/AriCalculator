@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# S12CBase - NUM - Number printing routines                                   #
 ;###############################################################################
-;#    Copyright 2010- Dirk Heisswolf                                           #
+;#    Copyright 2010 - 2018 Dirk Heisswolf                                     #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -41,6 +41,12 @@
 ;#      - Initial release                                                      #
 ;#    November 21, 2012                                                        #
 ;#      - Total rewrite (now called NUM)                                       #
+;#    January 31, 2018                                                         #
+;#      - Added functions                                                      #
+;#          NUM_PRINT_SD_BL (print signed double word - blocking)              #
+;#          NUM_PRINT_UD_BL (print unsigned doublevword - blocking)            #
+;#          NUM_PRINT_SW_BL (print signed word - blocking)                     #
+;#          NUM_PRINT_UW_BL (print unsigned doubleword - blocking)             #
 ;###############################################################################
 	
 ;###############################################################################
@@ -54,7 +60,7 @@
 NUM_MAX_BASE_16		EQU	1 				;default is 16
 #endif
 #endif
-	
+
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
@@ -82,6 +88,46 @@ NUM_VARS_END_LIN	EQU	@
 #macro	NUM_INIT, 0
 #emac	
 
+;#Print signed word - blocking
+; args:   X: signed double value
+; 	  B: base   (2<=base<=16)
+;         A: alignment (number of digits)
+; SSTACK: 28 bytes
+;         X, Y and B are preserved
+#macro	NUM_PRINT_SW_BL	, 0
+			SSTACK_JOBSR	NUM_PRINT_SW_BL, 28
+#emac
+
+;#Print unsigned word - blocking
+; args:   X: unsigned double value
+; 	  B: base   (2<=base<=16)
+;         A: alignment (number of digits)
+; SSTACK: 28 bytes
+;         X, Y and B are preserved
+#macro	NUM_PRINT_UW_BL	, 0
+			SSTACK_JOBSR	NUM_PRINT_UW_BL, 28
+#emac
+
+;#Print signed double word - blocking
+; args:   Y:X: signed double value
+; 	  B:   base   (2<=base<=16)
+;         A:   alignment (number of digits)
+; SSTACK: 24 bytes
+;         X, Y and B are preserved
+#macro	NUM_PRINT_SD_BL	, 0
+			SSTACK_JOBSR	NUM_PRINT_SD_BL, 24
+#emac
+
+;#Print unsigned double word - blocking
+; args:   Y:X: unsigned double value
+; 	  B:   base   (2<=base<=16)
+;         A:   alignment (number of digits)
+; SSTACK: 24 bytes
+;         X, Y and B are preserved
+#macro	NUM_PRINT_UD_BL	, 0
+			SSTACK_JOBSR	NUM_PRINT_UD_BL, 24
+#emac
+
 ;#Negate double word
 ; args:   Y:X: signed double value
 ; result: Y:X: negated double value
@@ -100,7 +146,7 @@ NUM_VARS_END_LIN	EQU	@
 			ADCA	#0   						;
 			EXG	Y, D 						;Y <-> D
 #emac
-
+	
 ;#Reverse unsigned double word
 ; args:   Y:X: unsigned double value
 ; 	  B:   base   (2<=base<=16)
@@ -118,7 +164,8 @@ NUM_VARS_END_LIN	EQU	@
 #emac
 
 ;#Clean-up stack space for reverse unsigned double word
-; args:   SP+0: MSB   
+; args:	  1:    additinal stack stace to check	
+;	  SP+0: MSB   
 ;         SP+1:  |    
 ;         SP+2:  |reverse  
 ;         SP+3:  |number  
@@ -127,8 +174,8 @@ NUM_VARS_END_LIN	EQU	@
 ; result: none
 ; SSTACK: 0 bytes  (+6 arg bytes)
 ;         X, Y and D are preserved
-#macro	NUM_CLEAN_REVERSE, 0
-			SSTACK_PREPULL	6
+#macro	NUM_CLEAN_REVERSE, 1
+			SSTACK_PREPULL	6+\1
 			LEAS	6,SP
 #emac
 
@@ -168,6 +215,15 @@ NUM_VARS_END_LIN	EQU	@
 			SSTACK_JOBSR	NUM_REVPRINT_BL, 10
 #emac
 	
+;#Turn a non-blocking subroutine into a blocking subroutine	
+; args:   1: non-blocking function
+;         2: subroutine stack usage of non-blocking function (min. 4)
+; SSTACK: stack usage of non-blocking function + 2
+;         rgister output of the non-blocking function is preserved 
+#macro	NUM_MAKE_BL, 2
+			SCI_MAKE_BL \1, \2
+#emac
+
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
@@ -176,6 +232,127 @@ NUM_VARS_END_LIN	EQU	@
 #else
 			ORG 	NUM_CODE_START
 #endif
+
+;#Print signed word - blocking
+; args:   X: signed double value
+; 	  B: base   (2<=base<=16)
+;         A: alignment (number of digits)
+; SSTACK: 28 bytes
+;         X, Y and B are preserved
+NUM_PRINT_SW_BL		EQU	*
+			;Save registers (number in X, base in B, alignment in A)
+			PSHY				;save Y
+			;Check sign (number in X, base in B, alignment in A) 
+			TST	0,SP 			;check sign
+			BPL	NUM_PRINT_UW_BL_1	;print unsigned
+			;Extend number (number in X, base in B, alignment in A)
+			LDY	#$FFFF 			;upper word is -1
+			;Print number (number in Y:X, base in B, alignment in A)
+			NUM_PRINT_SD_BL 		;(SSTACK: 24 bytes)
+			;Restore registers
+			JOB	NUM_PRINT_UW_BL_2
+
+;#Print unsigned word - blocking
+; args:   X: unsigned double value
+; 	  B: base   (2<=base<=16)
+;         A: alignment (number of digits)
+; SSTACK: 28 bytes
+;         X, Y and B are preserved
+NUM_PRINT_UW_BL		EQU	*
+			;Save registers (number in X, base in B, alignment in A)
+			PSHY				;save Y
+			;Extend number (number in X, base in B, alignment in A)
+NUM_PRINT_UW_BL_1	LDY	#$0000 			;upper word is zero
+			;Print number (number in Y:X, base in B, alignment in A)
+			NUM_PRINT_UD_BL 		;(SSTACK: 24 bytes)
+			;Restore registers
+NUM_PRINT_UW_BL_2	SSTACK_PREPULL	4 		;check SSTACK
+			PULY				;restore Y
+			;Done
+			RTS
+
+;#Print signed double word - blocking
+; args:   Y:X: signed double value
+; 	  B:   base   (2<=base<=16)
+;         A:   alignment (number of digits)
+; SSTACK: 24 bytes
+;         X, Y and B are preserved
+NUM_PRINT_SD_BL		EQU	*
+			;Save registers (number in Y:X, base in B, alignment in A)
+			PSHY				;save Y (SP+4)
+			PSHX				;save X (SP+2)
+			PSHD				;save D (SP+0)
+			;Check sign (number in Y:X, base in B, alignment in A) 
+			TST	4,SP 			;check sign
+			BPL	NUM_PRINT_UD_BL_1	;print unsigned
+			;Negate number (number in Y:X, base in B, alignment in A)
+			NUM_NEGATE 			;negate
+			;Build the reverse number (number in Y:X, base in B, alignment in A)
+			NUM_REVERSE 			;(SSTACK: 18 bytes)
+			;SP+0:  MSB   
+			;SP+1:   |    
+			;SP+2:   |reverse  
+			;SP+3:   |number  
+			;SP+4:   |    
+			;SP+5:  LSB   
+			;SP+6:  A (alignment)  
+			;SP+7:  B (base)  
+			;SP+8:  X (lower word)  
+			;SP+10: Y (upper word)  
+			INCA				;add sign to digit count
+			;Print alignment (base in B, digit count in A)
+			SUBA	6,SP		 	;negative margin -> A
+			BHS	NUM_PRINT_UD_BL_2 	;no margin required
+			NEGA				;positive margin -> A
+			LDAB	#" "			;fill char -> B
+NUM_PRINT_SD_BL_1	SCI_TX_BL			;print fill char
+			DBNE	A, NUM_PRINT_UD_BL_1	;loop
+			;Print sign
+NUM_PRINT_SD_BL_2	LDAB	#"-"			;fill char -> B
+			SCI_TX_BL			;print sign
+			JOB	NUM_PRINT_UD_BL_3	;print reverse number
+	
+;#Print unsigned double word - blocking
+; args:   Y:X: unsigned double value
+; 	  B:   base   (2<=base<=16)
+;         A:   alignment (number of digits)
+; SSTACK: 24 bytes
+;         X, Y and B are preserved
+NUM_PRINT_UD_BL		EQU	*
+			;Save registers (number in Y:X, base in B, alignment in A)
+			PSHY				;save Y (SP+4)
+			PSHX				;save X (SP+2)
+			PSHD				;save D (SP+0)
+			;Build the reverse number (number in Y:X, base in B, alignment in A)
+NUM_PRINT_UD_BL_1	NUM_REVERSE 			;(SSTACK: 18 bytes)
+			;SP+0:  MSB   
+			;SP+1:   |    
+			;SP+2:   |reverse  
+			;SP+3:   |number  
+			;SP+4:   |    
+			;SP+5:  LSB   
+			;SP+6:  A (alignment)  
+			;SP+7:  B (base)  
+			;SP+8:  X (lower word)  
+			;SP+10: Y (upper word)  
+			;Print alignment (base in B, digit count in A)
+			SUBA	6,SP		 	;negative margin -> A
+			BHS	NUM_PRINT_UD_BL_3 	;no margin required
+			NEGA				;positive margin -> A
+			LDAB	#" "			;fill char -> B
+NUM_PRINT_UD_BL_2	SCI_TX_BL			;print fill char
+			DBNE	A, NUM_PRINT_UD_BL_2	;loop
+			LDAB	7,SP			;BASE -> B
+			;Print reverse number (base in B)
+NUM_PRINT_UD_BL_3	NUM_REVPRINT_BL 		;(SSTACK: 10 bytes  (+6 arg bytes))
+			;Clean up reverse number
+			NUM_CLEAN_REVERSE	6
+			;Restore registers
+			PULD				;restore D
+			PULX				;restore X
+			PULY				;restore Y
+			;Done
+			RTS
 	
 ;#Reverse unsigned double word
 ; args:   Y:X: unsigned double value
@@ -407,32 +584,18 @@ NUM_REVPRINT_NB_4	SSTACK_PREPULL	14
 ;         SP+3:  |number  
 ;         SP+4:  |    
 ;         SP+5: LSB   
+; result: SP+0: MSB   
+;         SP+1:  |
+;         SP+2:  |zero
+;         SP+3:  |
+;         SP+4:  |     
+;         SP+5: LSB   
+;         C-flag: set if successful
 ; result: none
 ; SSTACK: 10 bytes  (+6 arg bytes)
 ;         X, Y and D are preserved 
 NUM_REVPRINT_BL		EQU	*
-			;Shift blocking return address ungerneath reverse number  
-			MOVW	0,SP, 2,-SP 		;duplicate return address
-			MOVW	4,SP, 2,SP 		;shift RHW
-			MOVW	6,SP, 4,SP 		;shift RMW
-			MOVW	8,SP, 6,SP 		;shift RLW
-			MOVW	2,SP+, 6,SP 		;tug return address underneath
-			;Disable interrupts
-NUM_REVPRINT_BL_1	SEI				;start of atomic sequence
-			;Call non-blocking function
-			JOBSR	NUM_REVPRINT_NB 	;(SSTACK: 8 bytes +6 arg bytes)
-			BCS	NUM_REVPRINT_BL_2 	;printing successful
-			;Wait for next interrupt
-			ISTACK_WAIT 			;wait for any interrupt
-			;Try again
-			SSTACK_PREPUSH	8 		;check stack
-			JOB	NUM_REVPRINT_BL_1	;try again
-			;Function successful
-NUM_REVPRINT_BL_2	CLI				;end of atomic sequence
-			;Done
-			SSTACK_PREPULL	8		;check stack
-			LEAS	6,SP 			;clean up stack
-			RTS
+			STRING_MAKE_BL	STRING_PRINT_NB, 8
 	
 NUM_CODE_END		EQU	*
 NUM_CODE_END_LIN	EQU	@

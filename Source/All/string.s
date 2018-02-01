@@ -1,9 +1,9 @@
 #ifndef STRING_COMPILED
 #define STRING_COMPILED
 ;###############################################################################
-;# S12CBase - STRING - String Printing routines                                #
+;# S12CBase - STRING - String Printing Routines                                #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf                                       #
+;#    Copyright 2010-201 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for Freescale's S12C MCU     #
 ;#    family.                                                                  #
 ;#                                                                             #
@@ -68,6 +68,8 @@
 ;#      - Added macro STRING_IS_PRINTABLE                                      #
 ;#    February 18, 2015                                                        #
 ;#      - Changed configuration options                                        #
+;#    January 31, 2018                                                         #
+;#      - Added functions STRING_ERASE_NB and STRING_ERASE_BL                  #
 ;###############################################################################
 	
 ;###############################################################################
@@ -77,6 +79,8 @@
 ;------------------ 
 ;STRING_ENABLE_FILL_NB		EQU	1	;enable STRING_FILL_NB 
 ;STRING_ENABLE_FILL_BL		EQU	1	;enable STRING_FILL_BL 
+;STRING_ENABLE_ERASE_NB		EQU	1	;enable STRING_ERASE_NB 
+;STRING_ENABLE_ERASE_BL		EQU	1	;enable STRING_ERASE_BL 
 ;STRING_ENABLE_UPPER		EQU	1	;enable STRING_UPPER 
 ;STRING_ENABLE_LOWER		EQU	1	;enable STRING_LOWER 
 ;STRING_ENABLE_PRINTABLE	EQU	1	;enable STRING_PRINTABLE
@@ -151,7 +155,30 @@ STRING_VARS_END_LIN	EQU	@
 #macro	STRING_PRINT_BL, 0
 			SSTACK_JOBSR	STRING_PRINT_BL, 10
 #emac	
-	
+
+#ifdef	STRING_ENABLE_ERASE_NB	
+;#Erase a string using BACKSPACE - non-blocking
+; args:   X:      start of the string
+; result: X:      remaining string (points to the byte after the string, if successful)
+;         C-flag: set if successful	
+; SSTACK: 8 bytes
+;         Y and D are preserved
+#macro	STRING_ERASE_NB, 0
+			SSTACK_JOBSR	STRING_ERASE_NB, 8
+#emac	
+#endif
+
+#ifdef	STRING_ENABLE_ERASE_NB
+#ifdef	STRING_ENABLE_ERASE_BL
+;#Erase a string using BACKSPACE - blocking
+; args:   X:      start of the string
+; result: X;      points to the byte after the string
+; SSTACK: 10 bytes
+;         Y and D are preserved
+#macro	STRING_ERASE_BL, 0
+			SSTACK_JOBSR	STRING_ERASE_BL, 10
+#emac	
+
 #ifdef STRING_ENABLE_FILL_NB	
 ;#Print a number of filler characters - non-blocking
 ; args:   A: number of characters to be printed
@@ -307,7 +334,6 @@ END_OF_LOOP		DBNE	D, LOOP_START		;next char
 #macro	STRING_MAKE_BL, 2
 			SCI_MAKE_BL \1, \2
 #emac
-
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -359,8 +385,52 @@ STRING_PRINT_NB_3	ANDB	#$7F 			;remove termination bit
 ; SSTACK: 10 bytes
 ;         Y and D are preserved
 STRING_PRINT_BL		EQU	*
-			SCI_MAKE_BL	STRING_PRINT_NB, 10
+			STRING_MAKE_BL	STRING_PRINT_NB, 8
 
+#ifdef	STRING_ENABLE_ERASE_NB	
+;#Erase a string using BACKSPACE - non-blocking
+; args:   X:      start of the string
+; result: X:      remaining string (points to the byte after the string, if successful)
+;         C-flag: set if successful	
+; SSTACK: 8 bytes
+;         Y and D are preserved
+STRING_ERASE_NB		EQU	*
+			;Save registers (string pointer in X)
+			PSHB				;save B	
+			;Print BACKSPACE for each character in the string (string pointer in X)
+			LDAB	#STRING_SYM_BACKSPACE
+STRING_ERASE_NB_1	JOBSR	SCI_TX_NB		;print character non blocking (SSTACK: 5 bytes)
+			BCC	STRING_ERASE_NB_2	;unsuccessful
+			TST	1,X+ 			;
+			BPL	STRING_ERASE_NB_1	;last character
+			;Restore registers (next string pointer in X)
+			SSTACK_PREPULL	3
+			PULB
+			;Signal success (next string pointer in X)
+			SEC
+			;Done
+			RTS
+			;Restore registers (string pointer in X)
+STRING_ERASE_NB_2	SSTACK_PREPULL	3
+			PULB
+			;Signal failure (string pointer in X)
+			CLC
+			;Done
+			RTS
+#endif
+
+#ifdef	STRING_ENABLE_ERASE_NB
+#ifdef	STRING_ENABLE_ERASE_BL
+;#Erase a string using BACKSPACE - blocking
+; args:   X:      start of the string
+; result: X;      points to the byte after the string
+; SSTACK: 10 bytes
+;         Y and D are preserved
+STRING_ERASE_BL		EQU	*
+			STRING_MAKE_BL	STRING_ERASE_NB, 8
+#endif
+#endif
+	
 #ifdef	STRING_ENABLE_FILL_NB	
 ;#Print a number of filler characters - non-blocking (uncomment if needed)
 ; args:   A: number of characters to be printed
@@ -399,7 +469,7 @@ STRING_FILL_NB_3	SSTACK_PREPULL	2
 ; SSTACK: 9 bytes
 ;         X, Y and B are preserved
 STRING_FILL_BL		EQU	*
-			SCI_MAKE_BL	STRING_FILL_NB, 7	
+			STRING_MAKE_BL	STRING_FILL_NB, 7	
 #endif
 #endif
 
@@ -462,7 +532,7 @@ STRING_PRINTABLE_2	RTS
 #endif 
 	
 #ifdef STRING_ENABLE_SKIP_WS
-;#Skip whitespace (uncomment if needed)
+;#Skip whitespace
 ; args:   X: start of the string
 ; result: X: trimmed string
 ; SSTACK: 3 bytes
