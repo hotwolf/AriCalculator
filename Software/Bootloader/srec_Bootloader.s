@@ -77,19 +77,13 @@ SREC_ADDR_WIDTH		EQU	18 		;default is 10 bit
 			ORG 	SREC_VARS_START
 SREC_VARS_START_LIN	EQU	@			
 #endif	
-
-SREC_AUTO_LOC1		EQU	* 		;1st auto-place location
 			ALIGN	1
-
-SREC_TYPE		DS	1 		;S-record type 
-SREC_BYTE_COUNT		DS	1		;S-record count
-	
-SREC_ADDR		EQU	*		;address field
-SREC_DATA		DS 	254		;address and data fields
-SREC_MAX_BYTE_COUNT	EQU	1+*-SREC_ADDR	;max. byte count
-
-SREC_COUNTER		DS	4 		;S-Record count
-	
+SREC_ADDR		DS	4		;address field
+SREC_RCNT		DS	3		;record count
+SREC_TYPE		DS	1 		;type 
+SREC_BCNT		DS	1		;byte count
+SREC_CSUM		DS	1		;checksum
+		
 SREC_VARS_END		EQU	*
 SREC_VARS_END_LIN	EQU	@
 	
@@ -100,14 +94,22 @@ SREC_VARS_END_LIN	EQU	@
 #macro	SREC_INIT, 0
 #emac
 
+
+
+
+
+
+
+
+
 ;#Receive receive one data nibble - blocking
 ; args:   none
 ; result: B:      hexadecimal digit
 ;         C-flag: set on success	
 ; SSTACK: 11 bytes
 ;         A, X and Y are preserved
-#macro	SREC_RX_NIBBLE, 0
-			SSTACK_JOBSR	SREC_RX_NIBBLE, 11
+#macro	SREC_NIBBLE, 0
+			SSTACK_JOBSR	SREC_NIBBLE, 11
 #emac
 	
 ;#Receive receive one data byte - blocking
@@ -116,8 +118,8 @@ SREC_VARS_END_LIN	EQU	@
 ;         C-flag: set on success	
 ; SSTACK: 15 bytes
 ;         A, X and Y are preserved
-#macro	SREC_RX_BYTE, 0
-			SSTACK_JOBSR	SREC_RX_BYTE, 15
+#macro	SREC_HBYTE, 0
+			SSTACK_JOBSR	SREC_HBYTE, 15
 #emac
 
 ;#Receive receive one data word - blocking
@@ -225,169 +227,232 @@ SREC_VARS_END_LIN	EQU	@
 SREC_CODE_START_LIN	EQU	@	
 #endif
 
+;#Parse S-record header
+; args:   X:Y: old S-Record count   
+; result: X:Y: new S-Record count	
+; result: C-flag: set on success	
+; SSTACK: ?? bytes
+;         X, Y and D are preserved
+SREC_PARSE_HEADER	EQU	*
+;			;Save registers
+;			PSHD						;save D
+;			CLC						;signal failure by default
+;			PSHC						;save CCR			
+;			;Wait for the beginning of the next S-Record
+;			JOBSR	SREC_WAIT_FOR_S 			;(SSTACK: 12 bytes)
+;			BCS	SREC_PARSE_HEADER_7 			;error
+;			;Read type 
+;			JOBSR	SREC_NIBBLE				;type -> B (SSTACK: 11 bytes)
+;			BCS	SREC_PARSE_HEADER_7 			;error
+;			STAB	SREC_TYPE 				;store type	
+;			;Read byte count 
+;			JOBSR	SREC_HBYTE				;count -> B (SSTACK: 15 bytes)
+;			BCS	SREC_PARSE_HEADER_7 			;error
+;			STAB	SREC_COUNT 				;store byte count	
+;			STAB	SREC_CSUM 				;store check sum	
+;			;Jump to address parser
+;			LDAB	SREC_TYPE
+;			JMP	B,PC 					;
+;			DW	SREC_PARSE_HEADER_4			;S0 (16-bit)
+;			DW	SREC_PARSE_HEADER_4			;S1 (16-bit)
+;			DW	SREC_PARSE_HEADER_2			;S2 (24-bit)
+;			DW	SREC_PARSE_HEADER_1			;S3 (32-bit)
+;			DW	SREC_PARSE_HEADER_7			;error
+;			DW	SREC_PARSE_HEADER_4			;S5 (16-bit)
+;			DW	SREC_PARSE_HEADER_2			;S6 (24-bit)
+;			DW	SREC_PARSE_HEADER_1			;S7 (32-bit)
+;			DW	SREC_PARSE_HEADER_2			;S8 (24-bit)
+;			DW	SREC_PARSE_HEADER_4			;S9 (16-bit)
+;			DW	SREC_PARSE_HEADER_7			;error
+;			DW	SREC_PARSE_HEADER_7			;error
+;			DW	SREC_PARSE_HEADER_7			;error
+;			DW	SREC_PARSE_HEADER_7			;error
+;			DW	SREC_PARSE_HEADER_7			;error
+;			DW	SREC_PARSE_HEADER_7			;error
+;			DW	SREC_PARSE_HEADER_7			;error
+;			;Read 32-bit address
+;SREC_PARSE_HEADER_1	JOBSR	SREC_BBYTE				;count -> B (SSTACK: ?? bytes)
+;			BCS	SREC_PARSE_HEADER_7 			;error
+;			STAB	SREC_ADDR 				;store address byte
+;			JOB	SREC_PARSE_HEADER_3 			;read remaining 24-bit address
+;			;Read 24-bit address
+;SREC_PARSE_HEADER_2     CLR	SREC_ADDR 				;clear first address byte
+;SREC_PARSE_HEADER_3	JOBSR	SREC_BBYTE				;count -> B (SSTACK: ?? bytes)
+;			BCS	SREC_PARSE_HEADER_7 			;error
+;			STAB	SREC_ADDR+1 				;store address byte
+;			JOB	SREC_PARSE_HEADER_5 			;read remaining 16-bit address
+;			;Read 16-bit address
+;SREC_PARSE_HEADER_4	MOVW	#$003F, SREC_ADDR 			;add address offset
+;SREC_PARSE_HEADER_5	JOBSR	SREC_BBYTE				;count -> B (SSTACK: ?? bytes)
+;			BCS	SREC_PARSE_HEADER_7 			;error
+;			STAB	SREC_ADDR+2 				;store address byte
+;			JOBSR	SREC_BBYTE				;count -> B (SSTACK: ?? bytes)
+;			BCS	SREC_PARSE_HEADER_7 			;error
+;			STAB	SREC_ADDR+3 				;store address byte
+;			;Parsing sucessful 
+;SREC_PARSE_HEADER_6	BSET	0,SP, #$01				;signal success
+;SREC_PARSE_HEADER_7	SSTACK_PREPULL	x	 			;check SSTACK
+;			PULC						;restore CCR (incl. result)
+;			PULD						;restore D
+;			;Done
+;			RTS			
+	
+;#Wait for an "S" character
+; args:   none
+; result: none
+;         C-flag: set on success	
+; SSTACK: 12 bytes
+;         All registers are preserved
+SREC_WAIT_FOR_S		EQU	*
+;			;Save registers
+;			PSHD						;save D
+;			CLC						;signal failure by default
+;			PSHC						;save CCR			
+;			;RX loop
+;SREC_WAIT_FOR_S_1	SCI_RX_BL 					;flags -> A, data -> B (SSTACK: 7 bytes)
+;			BITA	#(SWOR|OR|NF|FE|PF) 			;check for communication error	
+;			BNE	SREC_WAIT_FOR_S_3			;communication error (fail)			
+;			CMPB	#"S" 					;check for upper case "S"
+;			BEQ	SREC_WAIT_FOR_S_2 			;upper case "S" found
+;			CMPB	#"b" 					;check for lower case "s"
+;			BNE	SREC_WAIT_FOR_S_1 			;check next character			
+;			;"S" character found
+;SREC_WAIT_FOR_S_3	BSET	0,SP, #$01				;signal success
+;SREC_WAIT_FOR_S_3	SSTACK_PREPULL	5	 			;check SSTACK
+;			PULC						;restore CCR (incl. result)
+;			PULD						;restore D
+;			;Done
+;			RTS			
+
+
+;#Receive a body data byte
+; args:   none
+; result: B:      data byte
+;         C-flag: set on success	
+; SSTACK: 19 bytes
+;         A, X and Y are preserved
+SREC_BBYTE		EQU	*
+;			;Save registers
+;			PSHA						;save A
+;			CLC						;signal failure by default
+;			PSHC						;save CCR			
+;			;Receive one data cyte 
+;			JOBSR SREC_HBYTE 				;receive  (SSTACK: 15 bytes)
+;			BCC	SREC_HBYTE_1 				;fail
+;			TBA						;nibble -> A
+;			;Receive second nibble (first nibble in A)
+;			SREC_NIBBLE 					;receive second nibble (SSTACK: 11 bytes)
+;			BCC	SREC_HBYTE_1 				;fail
+;			;Combine nibbles (first nibble in A, second nibble in B)
+;			LSLA						;shift first nibble
+;			LSLA						;
+;			LSLA						;
+;			LSLA						;
+;			ABA						;byte -> A
+;			TAB						;byte -> B
+;			;Return result (digit in B)
+;			BSET	0,SP, #$01				;signal success
+;SREC_HBYTE_1		SSTACK_PREPULL	4 				;check SSTACK
+;			PULC						;restore CCR (incl. result)
+;			PULA						;restore A
+;			;Done
+;			RTS			
+;
+;#Receive a header data byte
+; args:   none
+; result: B:      data byte
+;         C-flag: set on success	
+; SSTACK: 15 bytes
+;         A, X and Y are preserved
+SREC_HBYTE		EQU	*
+;			;Save registers
+;			PSHA						;save A
+;			CLC						;signal failure by default
+;			PSHC						;save CCR			
+;			;Receive first nibble 
+;			JOBSR	SREC_NIBBLE 				;receive first nibble (SSTACK: 11 bytes)
+;			BCC	SREC_HBYTE_1 				;fail
+;			TBA						;nibble -> A
+;			;Receive second nibble (first nibble in A)
+;			JOBSR	SREC_NIBBLE 				;receive second nibble (SSTACK: 11 bytes)
+;			BCC	SREC_HBYTE_1 				;fail
+;			;Combine nibbles (first nibble in A, second nibble in B)
+;			LSLA						;shift first nibble
+;			LSLA						;
+;			LSLA						;
+;			LSLA						;
+;			ABA						;byte -> A
+;			TAB						;byte -> B
+;			;Return result (digit in B)
+;			BSET	0,SP, #$01				;signal success
+;SREC_HBYTE_1		SSTACK_PREPULL	4 				;check SSTACK
+;			PULC						;restore CCR (incl. result)
+;			PULA						;restore A
+;			;Done
+;			RTS			
+	
 ;#Receive one data nibble - blocking
 ; args:   none
 ; result: B:      hexadecimal digit
 ;         C-flag: set on success	
 ; SSTACK: 11 bytes
 ;         A, X and Y are preserved
-SREC_RX_NIBBLE		EQU	*
-			;Save registers
-			PSHA						;save A
-			CLC						;signal failure by default
-			PSHC						;save CCR			
-			;Receive one byte
-			SCI_RX_BL 					;flags -> A, data -> B (SSTACK: 7 bytes)
-			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF) 		;check for communication error
-			BNE	SREC_RX_NIBBLE_2 			;communication error (fail)			
-			;Check for decimal digit (data in B)
-			TBA						;data -> A
-			ANDA	#$F0 					;mask data
-			EORA	#$30	       				;check for decimal digit
-			BNE	SREC_RX_NIBBLE_3 			;check for upper case digit
-			ANDB	#$0F 					;mask digit
-			CMPB	#9					;check range
-			BHI	SREC_RX_NIBBLE_2			;out of range (fail)		
-			;Return result (digit in B)
-SREC_RX_NIBBLE_1	BSET	0,SP, #$01				;signal success
-SREC_RX_NIBBLE_2	SSTACK_PREPULL	4 				;check SSTACK
-			PULC						;restore CCR (incl. result)
-			PULA						;restore A
-			;Done
-			RTS			
-			;Check for upper case digit (data in B)
-SREC_RX_NIBBLE_3	TBA						;data -> A
-			ANDA	#$F8 					;mask data
-			EORA	#$40	       				;check for upper case digit
-			BNE	SREC_RX_NIBBLE_5 			;check for lower case digit
-SREC_RX_NIBBLE_4	ANDB	#$07 					;mask digit
-			BEQ	SREC_RX_NIBBLE_2			;out of range (fail)
-			CMPB	#6					;check range
-			BHI	SREC_RX_NIBBLE_2			;out of range (fail)
-			ADDB	#9 					;add offset
-			JOB	SREC_RX_NIBBLE_1			;return result (success)
-			;Check for lower case digit (data in B)
-SREC_RX_NIBBLE_5	TBA						;data -> A
-			ANDA	#$F8 					;mask data
-			EORA	#$60	       				;check for lower case digit
-			BEQ	SREC_RX_NIBBLE_4			;mask digit
-			JOB	SREC_RX_NIBBLE_2 			;invalid character (fail)
+SREC_NIBBLE		EQU	*
+;			;Save registers
+;			PSHA						;save A
+;			CLC						;signal failure by default
+;			PSHC						;save CCR			
+;			;Receive one byte
+;			SCI_RX_BL 					;flags -> A, data -> B (SSTACK: 7 bytes)
+;			ANDA	#(SWOR|OR|NF|FE|PF) 			;check for communication error
+;			BNE	SREC_NIBBLE_2 			;communication error (fail)			
+;			;Check for decimal digit (data in B)
+;			TBA						;data -> A
+;			ANDA	#$F0 					;mask data
+;			EORA	#$30	       				;check for decimal digit
+;			BNE	SREC_NIBBLE_3 			;check for upper case digit
+;			ANDB	#$0F 					;mask digit
+;			CMPB	#9					;check range
+;			BHI	SREC_NIBBLE_2			;out of range (fail)		
+;			;Return result (digit in B)
+;SREC_NIBBLE_1	BSET	0,SP, #$01				;signal success
+;SREC_NIBBLE_2	SSTACK_PREPULL	4 				;check SSTACK
+;			PULC						;restore CCR (incl. result)
+;			PULA						;restore A
+;			;Done
+;			RTS			
+;			;Check for upper case digit (data in B)
+;SREC_NIBBLE_3	TBA						;data -> A
+;			ANDA	#$F8 					;mask data
+;			EORA	#$40	       				;check for upper case digit
+;			BNE	SREC_NIBBLE_5 			;check for lower case digit
+;SREC_NIBBLE_4	ANDB	#$07 					;mask digit
+;			BEQ	SREC_NIBBLE_2			;out of range (fail)
+;			CMPB	#6					;check range
+;			BHI	SREC_NIBBLE_2			;out of range (fail)
+;			ADDB	#9 					;add offset
+;			JOB	SREC_NIBBLE_1			;return result (success)
+;			;Check for lower case digit (data in B)
+;SREC_NIBBLE_5	TBA						;data -> A
+;			ANDA	#$F8 					;mask data
+;			EORA	#$60	       				;check for lower case digit
+;			BEQ	SREC_NIBBLE_4			;mask digit
+;			JOB	SREC_NIBBLE_2 			;invalid character (fail)
 	
-;#Receive one data byte - blocking
-; args:   none
-; result: B:      data byte
-;         C-flag: set on success	
-; SSTACK: 15 bytes
-;         A, X and Y are preserved
-SREC_RX_BYTE		EQU	*
-			;Save registers
-			PSHA						;save A
-			CLC						;signal failure by default
-			PSHC						;save CCR			
-			;Receive first nibble 
-			SREC_RX_NIBBLE 					;receive first nibble (SSTACK: 11 bytes)
-			BCC	SREC_RX_BYTE_1 				;fail
-			TBA						;nibble -> A
-			;Receive second nibble (first nibble in A)
-			SREC_RX_NIBBLE 					;receive second nibble (SSTACK: 11 bytes)
-			BCC	SREC_RX_BYTE_1 				;fail
-			;Combine nibbles (first nibble in A, second nibble in B)
-			LSLA						;shift first nibble
-			LSLA						;
-			LSLA						;
-			LSLA						;
-			ABA						;byte -> A
-			TAB						;byte -> B
-			;Return result (digit in B)
-			BSET	0,SP, #$01				;signal success
-SREC_RX_BYTE_1		SSTACK_PREPULL	4 				;check SSTACK
-			PULC						;restore CCR (incl. result)
-			PULA						;restore A
-			;Done
-			RTS			
-	
-;#Receive one data word - blocking
-; args:   none
-; result: D:      data word
-;         C-flag: set on success	
-; SSTACK: 18 bytes
-;         X and Y are preserved
-SREC_RX_WORD		EQU	*
-			;Save registers
-			CLC						;signal failure by default
-			PSHC						;save CCR			
-			;Receive first byte 
-			SREC_RX_BYTE 					;receive first byte (SSTACK: 15 bytes)
-			BCC	SREC_RX_WORD_1 				;fail
-			TBA						;byte -> A
-			;Receive second byte (first byte in A)
-			SREC_RX_NIBBLE 					;receive second byte (SSTACK: 15 bytes)
-			BCC	SREC_RX_WORD_1 				;fail
-			;Return result (word in D)
-			BSET	0,SP, #$01				;signal success
-SREC_RX_WORD_1		SSTACK_PREPULL	3 				;check SSTACK
-			PULC						;restore CCR (incl. result)
-			;Done
-			RTS			
-	
-;#Receive the S-record type - blocking
-; args:   none
-; result: B:      type (0..7)
-;         C-flag: set on success	
-; SSTACK: 11 bytes
-;         A, X and Y are preserved
-SREC_RX_TYPE		EQU	*
-			;Save registers
-			PSHA						;save A
-			CLC						;signal failure by default
-			PSHC						;save CCR			
-			;Receive first byte
-			SCI_RX_BL 					;flags -> A, data -> B (SSTACK: 7 bytes)
-			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF) 		;check for communication error
-			BNE	SREC_RX_TYPE_1 				;communication error (fail)			
-			;Expect "S" (data in B)
-			ORAB	#$20 					;make lower case
-			CMPB	#"s" 					;check for "s"
-			BNE	SREC_RX_TYPE_1 				;wrong S-record format (fail)			
-			;Receive second byte
-			SCI_RX_BL 					;flags -> A, data -> B (SSTACK: 7 bytes)
-			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF) 		;check for communication error
-			BNE	SREC_RX_TYPE_1	 			;communication error (fail)			
-			;Expect digit 0..9 (data in B)
-			EORB	#$30 					;remove ASCII offset
-			CMPB	#10 					;check for valid type
-			BHS	SREC_RX_TYPE_1				;invalid type (fail)		
-			;Return result (type in B)
-			BSET	0,SP, #$01				;signal success
-SREC_RX_TYPE_1		SSTACK_PREPULL	4 				;check SSTACK
-			PULC						;restore CCR (incl. result)
-			PULA						;restore A
-			;Done
-			RTS			
 
-;#Receive the S-record type - blocking
-; args:   none
-; result: X:      size
-;         C-flag: set on success	
-; SSTACK: 20 bytes
-;         D and Y are preserved
-SREC_RX_SIZE		EQU	*
-			;Save registers
-			PSHD						;save D
-			CLC						;signal failure by default
-			PSHC						;save CCR			
-			;Receive data count 
-			SREC_RX_BYTE 					;receive first byte (SSTACK: 15 bytes)
-			BCC	SREC_SIZE_1 				;communication error (fail)
-			CLRA						;size -> D
-			TFR	D, X					;size -> X
-			;Return result
-			BSET	0,SP, #$01				;signal success
-SREC_SIZE_1		SSTACK_PREPULL	5 				;check SSTACK
-			PULC						;restore CCR (incl. result)
-			PULD						;restore D
-			;Done
-			RTS			
+
+
+
+	
+
+
+
+
+
+
+
+
+
 	
 ;#Receive and verify the checksum - blocking
 ; args:   A: accumulated sum of data bytes
@@ -400,7 +465,7 @@ SREC_RX_CSUM		EQU	*
 			CLC						;signal failure by default
 			PSHC						;save CCR			
 	 		;Receive checksum byte (accumulated sum in A)
-			SREC_RX_BYTE 					;receive byte (SSTACK: 15 bytes)
+			SREC_HBYTE 					;receive byte (SSTACK: 15 bytes)
 			BCC	SREC_RX_CSUM_1 				;communication error (fail)
 			;Validate checksum (accumulated sum in A, CSUM in B)
 			ABA						;accumulated sum + CSUM -> A
@@ -420,31 +485,31 @@ SREC_RX_CSUM_1		SSTACK_PREPULL	54 				;check SSTACK
 ; SSTACK: 27 bytes
 ;         D, X and Y are preserved
 SREC_IGNORE		EQU	*
-			;Save registers
-			PSHD						;save D
-			PSHX						;save X
-			CLC						;signal failure by default
-			PSHC						;save CCR			
-			;Receive data count 
-			SREC_RX_SIZE 					;receive size field (SSTACK: 20 bytes)
-			BCC	SREC_IGNORE_3 				;communication error (fail)
-			TBEQ	X, SREC_IGNORE_3 			;zero Srecord size (fail)
-			;Receive data count (0 in A, size in X)
-SREC_IGNORE_1		DBEQ	X, SREC_IGNORE_2			;receive and validate checksum
-			SREC_RX_BYTE 					;receive first byte (SSTACK: 15 bytes)
-			ABA						;accumulate ckecksum
-			JOB	SREC_IGNORE_1	
-			;Receive and validate checksum (accumulated checksun in A)
-SREC_IGNORE_2		SREC_RX_CSUM					;receive and validate checksum (SSTACK: 19 bytes)
-			BCC	SREC_IGNORE_3 				;communication error (fail)
-			;Return result
-			BSET	0,SP, #$01				;signal success
-SREC_IGNORE_3		SSTACK_PREPULL	7 				;check SSTACK
-			PULC						;restore CCR (incl. result)
-			PULX						;restore X
-			PULD						;restore D
-			;Done
-			RTS			
+;			;Save registers
+;			PSHD						;save D
+;			PSHX						;save X
+;			CLC						;signal failure by default
+;			PSHC						;save CCR			
+;			;Receive data count 
+;			SREC_RX_SIZE 					;receive size field (SSTACK: 20 bytes)
+;			BCC	SREC_IGNORE_3 				;communication error (fail)
+;			TBEQ	X, SREC_IGNORE_3 			;zero Srecord size (fail)
+;			;Receive data count (0 in A, size in X)
+;SREC_IGNORE_1		DBEQ	X, SREC_IGNORE_2			;receive and validate checksum
+;			SREC_HBYTE 					;receive first byte (SSTACK: 15 bytes)
+;			ABA						;accumulate ckecksum
+;			JOB	SREC_IGNORE_1	
+;			;Receive and validate checksum (accumulated checksun in A)
+;SREC_IGNORE_2		SREC_RX_CSUM					;receive and validate checksum (SSTACK: 19 bytes)
+;			BCC	SREC_IGNORE_3 				;communication error (fail)
+;			;Return result
+;			BSET	0,SP, #$01				;signal success
+;SREC_IGNORE_3		SSTACK_PREPULL	7 				;check SSTACK
+;			PULC						;restore CCR (incl. result)
+;			PULX						;restore X
+;			PULD						;restore D
+;			;Done
+;			RTS			
 
 ;#Parse S-record string - blocking
 ; args:   none
@@ -543,7 +608,7 @@ SREC_PARSE		EQU	*
 ;			BLO	SREC_PARSE_fail  			;S-record too short (fail)
 ;			;Receive the high byte of the address field (size in X)
 ;			LEAX	-3,X 					;sbtract address field
-;			SREC_RX_BYTE 					;receive first byte (SSTACK: 15 bytes)
+;			SREC_HBYTE 					;receive first byte (SSTACK: 15 bytes)
 ;			BCC	SREC_PARSE_fail  			;fail
 ;			;Common S-record handler (size in X, high address in B)
 ;			;Determine condensed address (size in X, high address in B)
@@ -619,7 +684,7 @@ SREC_PARSE		EQU	*
 ;	
 ;			;Handle S5-record
 ;			;Receive and check data length 
-;SREC_PARSE_s5		SREC_RX_BYTE 					;receive data count (SSTACK: 15 bytes)
+;SREC_PARSE_s5		SREC_HBYTE 					;receive data count (SSTACK: 15 bytes)
 ;			BCC	SREC_PARSE_fail  			;parse error (fail)
 ;			CMPA	#3 					;expect length of three
 ;			BNE	SREC_PARSE_fail  			;wrong length (fail)
@@ -743,7 +808,7 @@ SREC_PARSE		EQU	*
 ;			PSHC						;save CCR (incl. default result)	
 ;			;Skip line breaks and whitespace 
 ;SREC_RX_1		SCI_RX_BL 					;flags -> A, data -> B (SSTACK: 7 bytes)
-;			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF) 		;check for communication error
+;			ANDA	#(SCI_STAT_SWOR|OR|NF|FE|PF) 		;check for communication error
 ;			BNE	SREC_RX_5	 			;communication error (fail)			
 ;			CMPB	#$20 					;check for space
 ;			BEQ	SREC_RX_1 				;get next char
@@ -760,11 +825,11 @@ SREC_PARSE		EQU	*
 ;			BNE	SREC_RX_5	 			;format error (fail)			
 ;			LDX	#SREC_TYPE 				;srec pointer -> X
 ;			;Get type
-;SREC_RX_2		SREC_RX_NIBBLE	 				;digit -> B (SSTACK: 11 bytes)
+;SREC_RX_2		SREC_NIBBLE	 				;digit -> B (SSTACK: 11 bytes)
 ;			BCC	SREC_RX_5	 			;format error (fail)
 ;			STAB	1,X+ 					;store srec type
 ;			;Get byte count 			
-;			SREC_RX_BYTE	 				;byte count  -> B (SSTACK: 14 bytes)
+;			SREC_HBYTE	 				;byte count  -> B (SSTACK: 14 bytes)
 ;			BCC	SREC_RX_5	 			;format error (fail)
 ;			;CMPB	#SREC_MAX_BYTE_COUNT			;check srec size
 ;			;BHI	SREC_RX_5	 			;too big (fail)
@@ -773,13 +838,13 @@ SREC_PARSE		EQU	*
 ;			TFR	B, Y 					;byte count -> Y
 ;			DBEQ	Y, SREC_RX_4 				;empty srecord
 ;			;Get address and data fields 
-;SREC_RX_3		SREC_RX_BYTE	 				;data  -> B (SSTACK: 14 bytes)
+;SREC_RX_3		SREC_HBYTE	 				;data  -> B (SSTACK: 14 bytes)
 ;			BCC	SREC_RX_5	 			;format error (fail)
 ;			STAB	1,X+ 					;store data
 ;			ABA						;adjust checksum
 ;			DBNE	Y, SREC_RX_3 				;loop
 ;			;Verify checksum (checksum in A)
-;SREC_RX_4		SREC_RX_BYTE	 				;expected checksum  -> B (SSTACK: 14 bytes)
+;SREC_RX_4		SREC_HBYTE	 				;expected checksum  -> B (SSTACK: 14 bytes)
 ;			BCC	SREC_RX_5	 			;format error (fail)
 ;			CMPB	#SREC_BYTE_COUNT 	;TBD		;check srec size
 ;			COMA						;invert checksum
@@ -801,47 +866,47 @@ SREC_PARSE		EQU	*
 ;;         C-flag: set on success	
 ;; SSTACK: 11 bytes
 ;;         A, X and Y are preserved
-;SREC_RX_NIBBLE		EQU	*
+;SREC_NIBBLE		EQU	*
 ;			;Save registers
 ;			PSHA						;save A
 ;			CLC						;signal failure by default
 ;			PSHC						;save CCR			
 ;			;Receive one byte
 ;			SCI_RX_BL 					;flags -> A, data -> B (SSTACK: 7 bytes)
-;			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF) 		;check for communication error
-;			BNE	SREC_RX_NIBBLE_2 			;communication error (fail)			
+;			ANDA	#(SCI_STAT_SWOR|OR|NF|FE|PF) 		;check for communication error
+;			BNE	SREC_NIBBLE_2 			;communication error (fail)			
 ;			;Check for decimal digit (data in B)
 ;			TBA						;data -> A
 ;			ANDA	#$F0 					;mask data
 ;			EORA	#$30	       				;check for decimal digit
-;			BNE	SREC_RX_NIBBLE_3 			;check for upper case digit
+;			BNE	SREC_NIBBLE_3 			;check for upper case digit
 ;			ANDB	#$0F 					;mask digit
 ;			CMPB	#9					;check range
-;			BHI	SREC_RX_NIBBLE_2			;out of range (fail)		
+;			BHI	SREC_NIBBLE_2			;out of range (fail)		
 ;			;Return result (digit in B)
-;SREC_RX_NIBBLE_1	BSET	0,SP, #$01				;signal success
-;SREC_RX_NIBBLE_2	SSTACK_PREPULL	4 				;check SSTACK
+;SREC_NIBBLE_1	BSET	0,SP, #$01				;signal success
+;SREC_NIBBLE_2	SSTACK_PREPULL	4 				;check SSTACK
 ;			PULC						;restore CCR (incl. result)
 ;			PULA						;restore A
 ;			;Done
 ;			RTS			
 ;			;Check for upper case digit (data in B)
-;SREC_RX_NIBBLE_3	TBA						;data -> A
+;SREC_NIBBLE_3	TBA						;data -> A
 ;			ANDA	#$F8 					;mask data
 ;			EORA	#$40	       				;check for upper case digit
-;			BNE	SREC_RX_NIBBLE_5 			;check for lower case digit
-;SREC_RX_NIBBLE_4	ANDB	#$07 					;mask digit
-;			BEQ	SREC_RX_NIBBLE_2			;out of range (fail)
+;			BNE	SREC_NIBBLE_5 			;check for lower case digit
+;SREC_NIBBLE_4	ANDB	#$07 					;mask digit
+;			BEQ	SREC_NIBBLE_2			;out of range (fail)
 ;			CMPB	#6					;check range
-;			BHI	SREC_RX_NIBBLE_2			;out of range (fail)
+;			BHI	SREC_NIBBLE_2			;out of range (fail)
 ;			ADDB	#9 					;add offset
-;			JOB	SREC_RX_NIBBLE_1			;return result (success)
+;			JOB	SREC_NIBBLE_1			;return result (success)
 ;			;Check for lower case digit (data in B)
-;SREC_RX_NIBBLE_5	TBA						;data -> A
+;SREC_NIBBLE_5	TBA						;data -> A
 ;			ANDA	#$F8 					;mask data
 ;			EORA	#$60	       				;check for lower case digit
-;			BEQ	SREC_RX_NIBBLE_4			;mask digit
-;			JOB	SREC_RX_NIBBLE_2 			;invalid character (fail)
+;			BEQ	SREC_NIBBLE_4			;mask digit
+;			JOB	SREC_NIBBLE_2 			;invalid character (fail)
 	
 SREC_CODE_END		EQU	*	
 SREC_CODE_END_LIN	EQU	@	
