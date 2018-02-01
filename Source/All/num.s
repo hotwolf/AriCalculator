@@ -345,8 +345,6 @@ NUM_PRINT_UD_BL_2	SCI_TX_BL			;print fill char
 			LDAB	7,SP			;BASE -> B
 			;Print reverse number (base in B)
 NUM_PRINT_UD_BL_3	NUM_REVPRINT_BL 		;(SSTACK: 10 bytes  (+6 arg bytes))
-			;Clean up reverse number
-			NUM_CLEAN_REVERSE	6
 			;Restore registers
 			PULD				;restore D
 			PULX				;restore X
@@ -584,18 +582,32 @@ NUM_REVPRINT_NB_4	SSTACK_PREPULL	14
 ;         SP+3:  |number  
 ;         SP+4:  |    
 ;         SP+5: LSB   
-; result: SP+0: MSB   
-;         SP+1:  |
-;         SP+2:  |zero
-;         SP+3:  |
-;         SP+4:  |     
-;         SP+5: LSB   
-;         C-flag: set if successful
 ; result: none
 ; SSTACK: 10 bytes  (+6 arg bytes)
 ;         X, Y and D are preserved 
 NUM_REVPRINT_BL		EQU	*
-			STRING_MAKE_BL	STRING_PRINT_NB, 8
+			;Shift blocking return address ungerneath reverse number  
+			MOVW	0,SP, 2,-SP 		;duplicate return address
+			MOVW	4,SP, 2,SP 		;shift RHW
+			MOVW	6,SP, 4,SP 		;shift RMW
+			MOVW	8,SP, 6,SP 		;shift RLW
+			MOVW	2,SP+, 6,SP 		;tug return address underneath
+			;Disable interrupts
+NUM_REVPRINT_BL_1	SEI				;start of atomic sequence
+			;Call non-blocking function
+			JOBSR	NUM_REVPRINT_NB 	;(SSTACK: 8 bytes +6 arg bytes)
+			BCS	NUM_REVPRINT_BL_2 	;printing successful
+			;Wait for next interrupt
+			ISTACK_WAIT 			;wait for any interrupt
+			;Try again
+			SSTACK_PREPUSH	8 		;check stack
+			JOB	NUM_REVPRINT_BL_1	;try again
+			;Function successful
+NUM_REVPRINT_BL_2	CLI				;end of atomic sequence
+			;Done
+			SSTACK_PREPULL	8		;check stack
+			LEAS	6,SP 			;clean up stack
+			RTS
 	
 NUM_CODE_END		EQU	*
 NUM_CODE_END_LIN	EQU	@

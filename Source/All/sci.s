@@ -509,12 +509,12 @@ SCI_C0_DEL		EQU	$7F 		;DELETE
 SCI_C1_MASK		EQU	$10 		;mask for C1 character range
 	
 ;#Buffer masks		
-SCI_RXBUF_MASK		EQU	SCI_TXBUF_SIZE-1;mask for rolling over the RX buffer
+SCI_RXBUF_MASK		EQU	SCI_RXBUF_SIZE-1;mask for rolling over the RX buffer
 SCI_TXBUF_MASK		EQU	SCI_TXBUF_SIZE-1;mask for rolling over the TX buffer
 
 ;#Flow control thresholds
-SCI_RX_FULL_LEVEL	EQU	 8*2		;RX buffer threshold to block transmissions
-SCI_RX_EMPTY_LEVEL	EQU	 2*2		;RX buffer threshold to unblock transmissions
+SCI_RX_FULL_LEVEL	EQU	SCI_RXBUF_SIZE-10;RX buffer threshold to block transmissions
+SCI_RX_EMPTY_LEVEL	EQU	2*2		;RX buffer threshold to unblock transmissions
 
 ;#Action flags
 #ifndef	SCI_NOFC	
@@ -582,8 +582,7 @@ SCI_IRQBUG_TC		EQU	SCI_IRQBUG_TIM+TC0_OFFSET+(2*SCI_IRQBUG_OC);OC counter regist
 SCI_IRQBUG_TCNT		EQU	SCI_IRQBUG_TIM+TCNT_OFFSET		;OC counter register
 
 ;#OC delays
-SCI_BD_DLY		EQU	$04		;idle time before ending the baud rate detection
-SCI_XONXOFF_DLY		EQU	$FF		;XON/XOFF reminder intervall
+SCI_XONXOFF_DLY		EQU	10*(TIM_FREQ/65536)			;XON/XOFF reminder intervall (~10sec)
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -611,6 +610,11 @@ SCI_BD_LAST_TC		EQU	SCI_RXBUF+0 	;timer counter (share RX buffer)
 SCI_BD_PULSE		EQU	SCI_RXBUF+2 	;shortest pulse (share RX buffer)
 #endif
 
+#ifdef SCI_XONXOFF
+;#OC event down counter
+SCI_OC_CNT		DS	2		;down counter for XON/XOFF reminders
+#endif 
+
 #ifdef	SCI_BAUD_DETECT_ON
 ;#Baud rate -> checksum (~(SCI_SAVED_BDIV[15:8]+SCI_SAVED_BDIV[7:0])
 SCI_SAVED_BDIV		DS	2		;value of the SCIBD register
@@ -622,11 +626,6 @@ SCI_EXCPT		DS	1		; flags
 	
 ;#Status flags
 SCI_STAT		DS	1		;status flags
-
-#ifdef SCI_XONXOFF
-;#OC event down counter
-SCI_OC_CNT		DS	1		;down counter for OC events
-#endif 
 
 SCI_VARS_END		EQU	*
 SCI_VARS_END_LIN	EQU	@
@@ -652,7 +651,7 @@ SCI_VARS_END_LIN	EQU	@
 			CLR	SCI_EXCPT				;clear all exception requests
 			CLR	SCI_STAT				;clear all flags
 #ifdef SCI_XONXOFF
-			CLR	SCI_OC_CNT 				;reset OC delay
+			MOVW	#SCI_XONXOFF_DLY, SCI_OC_CNT 		;reset OC delay
 #endif 
 #ifdef	SCI_BAUD_DETECT_ON						
 #ifdef	CLOCK_FLGS							
@@ -1268,7 +1267,7 @@ SCI_RX_NB		EQU	*
 			;Check if there is data in the RX queue
 			LDD	SCI_RXBUF_IN 				;A:B=in:out
 			SBA		   				;A=in-out
-			BEQ	SCI_RX_NB_2 				;RX buffer is empty (failure)
+			BEQ	SCI_RX_NB_5 				;RX buffer is empty (failure)
 			;Signal success
 			BSET	0,SP, #$01				;set C-flag
 			;Pull entry from the RX queue (in-out in A, out in B)
@@ -1280,7 +1279,7 @@ SCI_RX_NB		EQU	*
 #ifndef	SCI_NOFC
 			;Check if more RX buffer is running empty (in-out in A, flags:data in X)
 			ANDA	#SCI_RXBUF_MASK				;adjust RX data count
-			CMPA	#(SCI_RX_EMPTY_LEVEL+1) 		;check flow control threshold
+			CMPA	#SCI_RX_EMPTY_LEVEL	 		;check flow control threshold
 			BNE	SCI_RX_NB_2 				;don't apply flow control
 			BSET	SCI_EXCPT,#SCI_EXCPT_RXFC	 	;request flow control handletr
 			BSET	SCICR2, #TXIE				;enable TX interrupt
@@ -1306,7 +1305,7 @@ SCI_RX_NB_3		EQU	*
 #endif
 #endif
 			;Restore registers (flags:data in D)
-			SSTACK_PREPULL	5 				;check SSTACK
+SCI_RX_NB_5		SSTACK_PREPULL	5 				;check SSTACK
 			PULC						;restore CCR (incl. result)
 			PULX						;restore X
 			;Done
@@ -1505,12 +1504,13 @@ SCI_ISR_OC_FC		EQU	*
 			;# - send XON/XOFF reminder             #
 			;########################################
 			;Handle long delay
-			DEC	SCI_OC_CNT 				;decrement counter
-			BNE	SCI_ISR_OC_FC_1				;reminder not yet required
+			LDD	SCI_OC_CNT 				;delay counter -> D
+			DBNE	D, SCI_ISR_OC_FC_1 			;decrement delay counter			
+			MOVW	#SCI_XONXOFF_DLY, SCI_OC_CNT 		;reset delay counter
 			;Request XON/XOFF reminder 
 			BSET	SCI_EXCPT,#SCI_EXCPT_RXFC 		;request RXFC handletr
 			BSET	SCICR2, #TXIE				;enable TX interrupt
-SCI_ISR_OC_FC_1		EQU	*					;done	
+SCI_ISR_OC_FC_1		STD	SCI_OC_CNT 				;update delay counter	
 #endif
 			;Done 
 			ISTACK_RTI					;done	
@@ -1564,11 +1564,11 @@ SCI_ISR_EXCPT		EQU	*
 SCI_ISR_EXCPT_1		CMPA	#SCI_RX_FULL_LEVEL 			;check flow control threshold
 			BLO	SCI_ISR_EXCPT_2 			;don't apply flow control
 			;Block incoming data 
-#ifndef	SCI_XONXOFF
+#ifdef	SCI_XONXOFF
 			MOVB	#SCI_C0_XOFF, SCIDRL 			;transmit XOFF	
 #endif
 #ifdef	SCI_RTSCTS
-			SCI_ASSERT_CTS 					;set CTS
+			SCI_DEASSERT_CTS 				;clear CTS
 #endif	
 SCI_ISR_EXCPT_2		;Clear RXFC request
 			BCLR	SCI_EXCPT,#SCI_EXCPT_RXFC 		;clear RXFC request
