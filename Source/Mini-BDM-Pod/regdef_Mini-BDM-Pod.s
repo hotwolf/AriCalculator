@@ -4737,13 +4737,13 @@ TIM_TFLG2       EQU     $03DF
 ;TOF            EQU     $80
 
 TIM_TC0         EQU     $03E0
-TIM_TC1         EQU     $0052
-TIM_TC2         EQU     $0054
-TIM_TC3         EQU     $0056
-TIM_TC4         EQU     $0058
-TIM_TC5         EQU     $005A
-TIM_TC6         EQU     $005C
-TIM_TC7         EQU     $005E
+TIM_TC1         EQU     $03E2
+TIM_TC2         EQU     $03E4
+TIM_TC3         EQU     $03E6
+TIM_TC4         EQU     $03E8
+TIM_TC5         EQU     $03EA
+TIM_TC6         EQU     $03EC
+TIM_TC7         EQU     $03EE
 
 TIM_PACTL       EQU     $03F0
 ;PAEN           EQU     $40
