@@ -178,6 +178,8 @@ STRING_VARS_END_LIN	EQU	@
 #macro	STRING_ERASE_BL, 0
 			SSTACK_JOBSR	STRING_ERASE_BL, 10
 #emac	
+#endif
+#endif
 
 #ifdef STRING_ENABLE_FILL_NB	
 ;#Print a number of filler characters - non-blocking

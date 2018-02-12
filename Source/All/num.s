@@ -302,7 +302,7 @@ NUM_PRINT_UW_BL_2	SSTACK_PREPULL	4 		;check SSTACK
 ;         A: alignment width (<0:right aligned, >0:left aligned, =0:no alignment)
 ; SSTACK: 28 bytes
 ;         X, Y and B are preserved
-NUM_PRINT_UW_BL		EQU	*
+NUM_PRINT_ZUW_BL	EQU	*
 			;Save registers (number in X, base in B, alignment in A)
 			PSHY				;save Y
 			;Extend number (number in X, base in B, alignment in A)
