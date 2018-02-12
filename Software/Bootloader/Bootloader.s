@@ -103,9 +103,10 @@ SCI_RXTX_ACTHI		EQU	1		;RXD/TXD are active hi
 SCI_TXBUF_SIZE		EQU	4		;easier to debug
 	
 ;#STRING							
-STRING_ENABLE_ERASE_NB	EQU	1		;enable STRING_ERASE_NB 
-STRING_ENABLE_ERASE_BL	EQU	1		;enable STRING_ERASE_BL 
-
+;STRING_ENABLE_ERASE_NB	EQU	1		;enable STRING_ERASE_NB 
+;STRING_ENABLE_ERASE_BL	EQU	1		;enable STRING_ERASE_BL 
+STRING_ENABLE_PRINTABLE	EQU	1		;enable STRING_PRINTABLE
+	
 ;#NUM							
 ;NUM_MAX_BASE_16	EQU	1 		;default is 16
 	
@@ -346,16 +347,15 @@ VARS_END_LIN		EQU	@
 START_OF_CODE		EQU	*
 
 			;Initialization
-			INIT				;initialize bootloader
-
+			INIT					;initialize bootloader
 			;Indicate readyness  
 BOOTLOADER_SHOW_READY	EQU	*
 			;Set LEDs 
-			;LED_OFF A 			;busy anymore
-			;LED_OFF B 			;no error
-			;Print message  
-			LDX	#BOOTLOADER_MSG_READY 	;message pointer -> X
-			STRING_PRINT_BL			;print message
+			;LED_OFF A 				;busy anymore
+			;LED_OFF B 				;no error
+			;Print ready message  
+			LDX	#BOOTLOADER_MSG_READY 		;message pointer -> X
+			STRING_PRINT_BL				;print message
 			;Update display 
 			;DISP_STREAM_FROM_TO_BL	IMG_SEQ_READY_START, IMG_SEQ_READY_END
 
@@ -365,44 +365,45 @@ BOOTLOADER_SHOW_READY	EQU	*
 			;Indicate ongoing firmware transmission
 BOOTLOADER_SHOW_BUSY	EQU	*
 			;Set LEDs 
-			;LED_OFF A 			;busy anymore
-			;LED_OFF B 			;no error
-			;Print message  
-			LDX	#BOOTLOADER_MSG_READY 	;message pointer -> X
-			STRING_ERASE_BL			;erase ready message
-			LDX	#BOOTLOADER_MSG_READY 	;message pointer -> X
-			STRING_ERASE_BL			;erase ready message
-			LDX	#BOOTLOADER_MSG_BUSY 	;message pointer -> X
-			STRING_PRINT_BL			;print busy message
+			;LED_OFF A 				;busy anymore
+			;LED_OFF B 				;no error
 			;Update display 
 			DISP_STREAM_FROM_TO_BL	IMG_SEQ_BUSY_START, IMG_SEQ_BUSY_END
 
 			;Execute from RAM
-			JMP	START_OF_RAM_CODE	;run LRE code
-	
+			JMP	START_OF_RAM_CODE		;run LRE code
+
+			;Check for errors (error code in A)
+BOOTLOADER_DONE		LDY	#(BOOTLOADER_ERR_TAB-2)		;initialize table pointer
+BOOTLOADER_DONE_1	LEAY	2,Y				;advance table pointer
+			LSLA					;check next errr bit
+			BCS	BOOTLOADER_DONE_3 		;cause found
+			BNE	BOOTLOADER_DONE_1		;check next bit
+
 			;Indicate successful firmware update  
-BOOTLOADER_SHOW_DONE	EQU	*
 			;Set LEDs 
-			LED_OFF	A 			;not busy anymore
-			;LED_OFF B 			;no error
+			LED_OFF	A 				;not busy anymore
+			;LED_OFF B 				;no error
 			;Print message  
-			LDX	#BOOTLOADER_MSG_DONE 	;message pointer -> X
-			STRING_PRINT_BL			;print message
+			LDX	#BOOTLOADER_MSG_DONE 		;message pointer -> X
+			STRING_PRINT_BL				;print message
 			;Update display 
 			DISP_STREAM_FROM_TO_BL	IMG_SEQ_DONE_START, IMG_SEQ_DONE_END
-			BRA	*
+			;Read loop
+BOOTLOADER_DONE_2	SCI_RX_BL 				;ignore incoming data
+			JOB	BOOTLOADER_DONE_2	
 
-			;Indicate failed firmware update 
-BOOTLOADER_SHOW_ERROR	EQU	*
+			;Indicate failed firmware update (error message in Y)
+BOOTLOADER_DONE_3	LDX	#BOOTLOADER_MSG_ERROR 		;message pointer -> X
+			STRING_PRINT_BL				;print message
+			LDX	0,Y	 			;message pointer -> X	
+			STRING_PRINT_BL				;print message
 			;Set LEDs 
 			LED_OFF	A 				;not busy anymore
 			LED_ON	B 				;flag error
-			;Print message  
-			LDX	#BOOTLOADER_MSG_ERROR 		;message pointer -> X
-			STRING_PRINT_BL			;print message
 			;Update display 
 			DISP_STREAM_FROM_TO_BL	IMG_SEQ_ERROR_START, IMG_SEQ_ERROR_END
-			BRA	*
+			JOB	BOOTLOADER_DONE_2	
 	
 MMAP_CODE_START		EQU	*	 
 MMAP_CODE_START_LIN	EQU	@
@@ -449,43 +450,19 @@ CODE_END_LIN		EQU	@
 			ORG	RAM_CODE_START, RAM_CODE_START_LIN
 
 START_OF_RAM_CODE	EQU	*
-
-			;Parse incoming S-record
-			;JOB	SREC_PARSE
-			;BRA	*
 	
-			;Demo loop
-			LDY	#$0000		     		;clear count	
-DEMO_LOOP		SCI_RX_BL 				;receive char
-			CMPB	#"e"				;simulate error
-			BEQ	BOOTLOADER_ERROR		;handle errors
-			CMPB	#"d"				;simulate error
-			BEQ	BOOTLOADER_SHOW_DONE		;indicate completion
-			;Update progress indicator
-			LEAY	1,Y 				;increment count
-			LDX	#BOOTLOADER_MSG_BUSY_V		;erase old status
-			STRING_ERASE_BL				;
-			TFR	Y, X				;count -> X
-			LDAA	#4				;number width -> A
-			LDAB	#10				;base -> B
-			NUM_PRINT_UW_BL				;print number
-			LDX	#BOOTLOADER_MSG_BUSY_U		;print unit
-			STRING_PRINT_BL				;
-			JOB	DEMO_LOOP			;loop
+			;Parse incoming S-records
+			SREC_PARSE_SREC
 
-			;Parse incoming S-record
-			;JOB	SREC_PARSE
-			;BRA	*
-	
-			;Bootloading failed
-BOOTLOADER_ISR_ERROR	EQU	*
-			CLI
-BOOTLOADER_ERROR	EQU	*
-			;Wait for NVM 
+			;Wait for NVM (error code in A)
 			NVM_WAIT_IDLE				;wait for FTMRG to become idle
-			JMP	BOOTLOADER_SHOW_ERROR
-
-
+			JOB	BOOTLOADER_DONE			;show result
+			
+BOOTLOADER_ISR_ERROR	EQU	*
+			SEI	      				;allow interrupts
+			NVM_WAIT_IDLE				;wait for FTMRG to become idle
+			JOB	BOOTLOADER_DONE			;show result
+	
 VECTAB_CODE_START	EQU	*
 VECTAB_CODE_START_LIN	EQU	@
 			ORG	VECTAB_CODE_END, VECTAB_CODE_END_LIN
@@ -526,12 +503,27 @@ RAM_CODE_END_LIN	EQU	@
 ;###############################################################################
 			ORG	TABS_START, TABS_START_LIN
 
+BOOTLOADER_ERR_TAB	DW	BOOTLOADER_MSG_RX
+			DW	BOOTLOADER_MSG_FORMAT
+			DW	BOOTLOADER_MSG_CHECKSUM
+			DW	BOOTLOADER_MSG_COUNT
+			DW	BOOTLOADER_MSG_UNKNOWN
+			DW	BOOTLOADER_MSG_UNKNOWN
+			DW	BOOTLOADER_MSG_UNKNOWN
+			DW	BOOTLOADER_MSG_UNKNOWN
+						
+BOOTLOADER_MSG_RX	FCS	"Broken data transfer!"
+BOOTLOADER_MSG_FORMAT	FCS	"Wrong S-record format!"
+BOOTLOADER_MSG_CHECKSUM	FCS	"Incorrect checksum!"
+BOOTLOADER_MSG_COUNT	FCS	"Wrong S-record count!"
+BOOTLOADER_MSG_UNKNOWN	FCS	"Unknown cause!"
+
 BOOTLOADER_MSG_READY	FCS	"Ready to receive S-Record!"
 	
 BOOTLOADER_MSG_DONE	STRING_NL_NONTERM
-			FCS	"Done!
+			FCS	"Done!"
 BOOTLOADER_MSG_ERROR	STRING_NL_NONTERM
-			FCS	"Error!"	
+			FCS	"Error! "	
 	
 MMAP_TABS_START		EQU	*	 
 MMAP_TABS_START_LIN	EQU	@
@@ -572,16 +564,11 @@ IMG_TABS_START_LIN	EQU	@
 TABS_END		EQU	*
 TABS_END_LIN		EQU	@
 
-
 ;###############################################################################
 ;# RAM table space                                                             #
 ;###############################################################################
 			ORG	RAM_TABS_START, RAM_TABS_START_LIN
 
-BOOTLOADER_MSG_BUSY	FCC	"Receiving... "
-BOOTLOADER_MSG_BUSY_V	FCC	"   0"
-BOOTLOADER_MSG_BUSY_U	FCS	" chars"
-	
 VECTAB_TABS_START	EQU	*
 VECTAB_TABS_START_LIN	EQU	@
 			ORG	VECTAB_TABS_END, VECTAB_TABS_END_LIN
