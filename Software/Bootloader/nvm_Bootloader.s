@@ -41,8 +41,8 @@ NVM_FDIV_VAL		EQU	(CLOCK_BUS_FREQ/1000000)-1 ;FTMRG clock divider
 
 ;Program buffer
 ;-------------- 
-#ifndef NVM_QUEUE_DEPTH
-NVM_QUEUE_DEPTH		EQU	128			;default is 128 entries
+#ifndef NVM_BUF_DEPTH
+NVM_BUF_DEPTH		EQU	32			;default is 32 entries (maximum)
 #endif	
 
 ;Firmware range
@@ -61,7 +61,7 @@ NVM_FIRMWARE_END_LIN	EQU	MMAP_FLASH_F_END_LIN
 ;Sector size
 NVM_SECTOR_SIZE		EQU	512			;sector size  [bytes]
 NVM_PHRASE_SIZE		EQU	8			;phrase size  [bytes]
-NVM_ADDR_SIZE		EQU	2			;address size [bytes]
+NVM_ADDR_SIZE		EQU	4			;address size [bytes]
 
 ;Size of a buffer entry
 NVM_QUEUE_ENTRY_SIZE	EQU	NVM_PHRASE_SIZE+2 	;buffer entry size [bytes]
@@ -70,12 +70,15 @@ NVM_QUEUE_ENTRY_SIZE	EQU	NVM_PHRASE_SIZE+2 	;buffer entry size [bytes]
 NVM_FIRMWARE_SIZE	EQU	NVM_FIRMWARE_END_LIN-NVM_FIRMWARE_START_LIN
 			
 ;Offset of the sector status field (sector address corresponding to NVM_TAGS
-NVM_TAGS_OFFS	EQU	NVM_FIRMWARE_START_LIN/(8*NVM_SECTOR_SIZE)
+NVM_TAGS_OFFS		EQU	NVM_FIRMWARE_START_LIN/(8*NVM_SECTOR_SIZE)
 
 ;NVM commands 
 NVM_CMD_PROG		EQU	$06			;program P-flash command
 NVM_CMD_ERASE		EQU	$0A			;erase P-flash sector command
 NVM_CMD_VERIFY		EQU	$03			;erase verify P-flash section command
+
+;NVM commands 
+NVM_FILL_PATTERN	EQU	$FF 			;fill gaps with $FF
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -87,19 +90,16 @@ NVM_CMD_VERIFY		EQU	$03			;erase verify P-flash section command
 NVM_VARS_START_LIN	EQU	@			
 #endif	
 			ALIGN 	1
-	
-NVM_TAGS		DS	NVM_FIRMWARE_SIZE/(8*NVM_SECTOR_SIZE)
-NVM_TAGS_END		EQU	*
 
-NVM_ADDR_QUEUE		DS	NVM_QUEUE_DEPTH*NVM_ADDR_SIZE
-NVM_ADDR_QUEUE_END	EQU	*
+NVM_DATA_BUF		DS	NVM_BUF_DEPTH*NVM_PHRASE_SIZE
+NVM_DATA_BUF_END	EQU	*
 
-NVM_DATA_QUEUE		DS	NVM_QUEUE_DEPTH*NVM_PHRASE_SIZE
-NVM_DATA_QUEUE_END	EQU	*
+NVM_ADDR_BUF		DS	NVM_BUF_DEPTH*NVM_ADDR_SIZE
+NVM_ADDR_BUF_END	EQU	*
 
-NVM_QUEUE_IN		DS	1		;points to the next free space
-NVM_QUEUE_OUT		DS	1		;points to the oldest entry
-	
+NVM_BUF_IN		DS	1			;points to the next free space
+NVM_BUF_OUT		DS	1			;points to the oldest entry
+
 NVM_VARS_END		EQU	*
 NVM_VARS_END_LIN	EQU	@
 		
@@ -123,6 +123,83 @@ LOOP			STD	2,X+
 			STD	NVM_QUEUE_IN	
 #emac
 
+;#Set the start address of the following input stream (non-blocking)
+; args:   X:Y: address
+; result: none
+; SSTACK: 28 bytes
+;         All registers are preserved
+#macro	NVM_SET_ADDR_NB, 0
+			SSTACK_JOBSR	NVM_SET_ADDR_NB, 28
+#emac
+
+;#Set the start address of the following input stream (blocking)
+; args:   X:Y: address
+; result: none
+; SSTACK: 30 bytes
+;         All registers are preserved
+#macro	NVM_SET_ADDR_BL, 0
+			SSTACK_JOBSR	NVM_SET_ADDR_BL, 30
+#emac
+ 
+;#Submit current phrase for programming (non-blocking)
+; args:   none
+; result: C-flag: set if successful
+; SSTACK: 19 bytes
+;         All registers are preserved
+#macro	NVM_FLUSH_NB, 0
+			SSTACK_JOBSR	NVM_FLUSH_NB, 19
+#emac
+
+;#Submit current phrase for programming (blocking)
+; args:   none
+; result: none
+; SSTACK: 21 bytes
+;         All registers are preserved
+#macro	NVM_FLUSH_BL, 0
+			SSTACK_JOBSR	NVM_FLUSH_BL, 21
+#emac
+
+;#Submit current phrase for programming (non-blocking)
+; args:   A:      fill size (bytes)
+; result: C-flag: set if successful
+; SSTACK: 15 bytes
+;         All registers are preserved
+#macro	NVM_FILL_NB, 0
+			SSTACK_JOBSR	NVM_FILL_NB, 15
+#emac
+
+;#Submit current phrase for programming (blocking)
+; args:   none
+; result: none
+; SSTACK: 17 bytes
+;         All registers are preserved
+#macro	NVM_FILL_BL, 0
+			SSTACK_JOBSR	NVM_FILL_BL, 17
+#emac
+
+;#Program one byte (non-blocking)
+; args:   B: data
+; result: none
+; SSTACK: 9  bytes
+;         All registers are preserved
+#macro	NVM_PGM_BYTE_NB, 0
+			SSTACK_JOBSR	NVM_PGM_BYTE_NB, 9
+#emac
+
+;#Program one byte (blocking)
+; args:   B: data
+; result: none
+; SSTACK: 11 bytes
+;         All registers are preserved
+#macro	NVM_PGM_BYTE_BL, 0
+			SSTACK_JOBSR	NVM_PGM_BYTE_BL, 11
+#emac
+
+
+
+
+
+	
 ;#Program P-flash phrase (non-blocking)
 ; args:   Y:      phrase address (byte address/8)
 ;         X:      data pointer
@@ -173,9 +250,209 @@ LOOP			STD	2,X+
 NVM_CODE_START_LIN	EQU	@	
 #endif
 
+;#Frontend functions:
+;==================== 
+
+;#Set the start address of the following input stream (non-blocking)
+; args:   X:Y: address
+; result: none
+; SSTACK: 28 bytes
+;         All registers are preserved
+NVM_SET_ADDR_NB 	EQU	*
+			;Save registers (data in B)
+			PSHY						;save X	(SP+5)		
+			PSHX						;save Y	(SP+3)		
+			PSHD						;save D	(SP+1)
+			CLC						;signal fail by default
+			PSHC						;save C (SP+0)
+			;Get address pointer (upper address word in X)
+			LDAA	NVM_BUF_IN 				;IN -> A
+			LDY	#NVM_ADDR_BUF 				;address buffer -> Y
+			ANDB	#~(NVM_PHRASE_SIZE-1) 			;address pointer -> Y
+			LSRB						;
+			LEAY	B,Y 					;
+			;Check if address in in the same phrase (upper address word in X, address pointer -> Y)
+			CPX	0,Y 					;compare upper address word
+			BNE	NVM_SET_ADDR_NB_1 			;flush phrase
+			LDD	5,SP	 				;lower address word -> D
+			ANDB	#~(NVM_PHRASE_SIZE-1) 			;align address
+			CPD	2,Y 					;compare lower address word
+			BEQ	NVM_SET_ADDR_NB_4 			;new address is within current phrase
+			;Flush previous phrase (upper address word in X)
+NVM_SET_ADDR_NB_1	NVM_FLUSH_NB 					;(SSTACK: 19 bytes)
+			BCC	NVM_SET_ADDR_NB_3 			;fail
+			;Set new phrase address (upper address word in X)  
+			LDAA	NVM_BUF_IN 				;IN -> A
+			LDY	#NVM_ADDR_BUF 				;address buffer -> Y
+			ANDB	#~(NVM_PHRASE_SIZE-1) ;redundand	;address pointer -> Y
+			LSRB						;
+			LEAY	B,Y 					;
+			STX	0,Y 					;set upper address word
+			LDD	3,SP 					;lower address word -> D
+			ANDB	#~(NVM_PHRASE_SIZE-1) 			;align lower address word
+			STD	2,Y 					;set lower address word
+			;Align data buffer 
+			LDAA	3,SP 					;lowest address byte -> A
+			ANDA	#(NVM_PHRASE_SIZE-1) 			;phrase offset -> A
+NVM_SET_ADDR_NB_2	NVM_FILL_NB 					;(SSTACK: 15 bytes)
+			BCC	NVM_SET_ADDR_NB_3 			;fail
+			;Signal success
+			BSET	0,SP, #$01				;set C-flag
+			;Done
+NVM_SET_ADDR_NB_3	SSTACK_PREPULL	9 				;check SSTACK
+			RTI  						;done
+			;New address is within the current phrase
+NVM_SET_ADDR_NB_4	LDAA	4,SP 					;lowest address byte -> A
+			ANDA	#(NVM_PHRASE_SIZE-1) 			;phrase offset -> A
+			LDAB	NVM_BUF_IN 				;IN -> B
+			ANDB	#(NVM_PHRASE_SIZE-1) 			;phrase offset -> B
+			SBA			  			;fill gap -> A
+			BPL	NVM_SET_ADDR_NB_2 			;fill gap
+			JOB	NVM_SET_ADDR_NB_1 			;flush phrase
+
+;#Set the start address of the following input stream (blocking)
+; args:   X:Y: address
+; result: none
+; SSTACK: 30 bytes
+;         All registers are preserved
+NVM_SET_ADDR_BL 	EQU	*
+			NVM_MAKE_BL	NVM_SET_ADDR_NB, 28
+	
+;#Submit current phrase for programming (non-blocking)
+; args:   none
+; result: C-flag: set if successful
+; SSTACK: 19 bytes
+;         All registers are preserved
+NVM_FLUSH_NB		EQU	*
+			;Save registers 
+			PSHA						;save A			
+			SEC						;signal success by default
+			PSHC						;save CCR
+			;Calculate number of fill bytes 
+			LDAA	NVM_BUF_IN 				;IN -> A
+			NEGA						;empty space in phrase -> A
+			ANDA	#(NVM_PHRASE_SIZE-1) 			;
+			;Program fill bytes (fill size in A) 
+			NVM_FILL_NB 					;fill memory (SSTACK: 15 byte)
+			BCS	NVM_FLUSH_NB_1 				;signal success
+			;Signal failure
+			BCLR	0,SP, #$01				;clear C-flag
+			;Restore registers
+NVM_FLUSH_NB_1		SSTACK_PREPULL	4 				;check SSTACK		
+			PULC						;restore CCR (incl. result)
+			PULB						;restore B
+			;Done
+			RTS
+		
+;#Submit current phrase for programming (blocking)
+; args:   none
+; result: none
+; SSTACK: 21 bytes
+;         All registers are preserved
+NVM_FLUSH_BL		EQU	*
+			NVM_MAKE_BL	NVM_FLUSH_NB, 19
+
+;#Submit current phrase for programming (non-blocking)
+; args:   A:      fill size (bytes)
+; result: C-flag: set if successful
+; SSTACK: 15 bytes
+;         All registers are preserved
+NVM_FILL_NB		EQU	*
+			;Save registers (fill size in A)
+			PSHD						;save D			
+			CLC						;signal fail by default
+			PSHC						;save CCR
+			;Check for zero size (fill size in A)
+			TBEQ	A, NVM_FILL_NB_2			;success
+			;Fill loop (fill size in A)
+			LDAB	#NVM_FILL_PATTERN 			;fill pattern -> B
+NVM_FILL_NB_1		NVM_PGM_BYTE_NB 				;program one byte (SSTACK: 9  bytes)
+			BCC	NVM_FAIL_NB_3 				;fail
+			DBNE	A, NVM_FILL_NB_1 			;loop
+			;Signal success
+NVM_FILL_NB_2		BSET	0,SP, #$01				;set C-flag
+			;Restore registers
+NVM_FILL_NB_3		SSTACK_PREPULL	5 				;check SSTACK		
+			PULC						;restore CCR (incl. result)
+			PULD						;restore D
+			;Done
+			RTS
+
+;#Submit current phrase for programming (blocking)
+; args:   none
+; result: none
+; SSTACK: 17 bytes
+;         All registers are preserved
+NVM_FILL_BL		EQU	*
+			NVM_MAKE_BL	NVM_FLUSH_NB, 15
+	
+;#Program one byte (non-blocking)
+; args:   B: data
+; result: none
+; SSTACK: 9  bytes
+;         All registers are preserved
+NVM_PGM_BYTE_NB		EQU	*
+			;Save registers (data in B)
+			PSHY						;save X	(SP+5)		
+			PSHX						;save Y	(SP+3)		
+			PSHD						;save D	(SP+1)
+			CLC						;signal fail by default
+			PSHC						;save C (SP+0)
+			;Store data byte (data in B)
+			LDY	NVM_DATA_BUF 				;data buffer -> Y
+			LDAA	NVM_BUF_IN 				;IN -> A
+			STAB	A,Y 					;store data
+			TAB		    				;IN -> B
+			INCA						;advance IN
+			ANDA	#((NVM_BUF_DEPTH*NVM_PHRASE_SIZE)-1) 	;wrap IN
+			CMPA	NVM_BUF_OUT 				;check if buffer is full
+			BEQ	NVM_PGM_BYTE_NB_2 			;buffer is full
+			STAA	NVM_BUF_IN 				;update IN
+			;Check if phrase is complete (new IN in A, old IN in B)
+			BITA	#(NVM_PHRASE_SIZE-1) 			;check if phrase is complete
+			BNE	NVM_PGM_BYTE_NB_1 			;phrase is still incomplete
+			;Submit complete phrase to NVM (new IN in A, old IN in B)
+			BSET	FCNFG, #CCIE 				;enable interrupt
+			;Start new phrase  (new IN in A, old IN in B)
+			LDX	NVM_ADDR_BUF 				;address buffer -> X
+			TFR	X, Y 					;address buffer -> Y
+			LSRA						;new address buffer offset -> A
+			LEAY	A,Y 					;new address location -> Y
+			ANDB	#~(NVM_PHRASE_SIZE-1) 			;old address buffer offset -> B
+			LSRB						;
+			LEAX	B,X 					;old address location -> X	
+			LDD	2,X 					;old address -> D
+			ADDD	#NVM_PHRASE_SIZE 			;advance address
+			STD	2,Y 					;store new address
+			CLRB						;0 -> B 
+			ADCB	1,X					;propagate carry	
+			CLRA						;0 -> A
+			ADCA	0,X					;propagate carry	
+			STD	0,Y 					;store new address
+			;Signal success
+NVM_PGM_BYTE_NB_1	BSET	0,SP, #$01				;set C-flag
+			;Done
+NVM_PGM_BYTE_NB_2	SSTACK_PREPULL	9 				;check SSTACK
+			RTI
+
+;#Program one byte (blocking)
+; args:   B: data
+; result: none
+; SSTACK: 11 bytes
+;         All registers are preserved
+NVM_PGM_BYTE_BL		EQU	*
+
+			NVM_MAKE_BL	NVM_PGM_BYTE_NB, 9
+
+
+;#Backend functions:
+;=================== 
+
+
+	
 ;#Program P-flash phrase (non-blocking)
 ; args:   Y:      phrase address (byte address/8)
-;         X: d    ata pointer
+;         X:      data pointer
 ; result: C-flag: set if successful
 ; SSTACK: 11 bytes
 ;         All registers are preserved
