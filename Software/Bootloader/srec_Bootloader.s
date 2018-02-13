@@ -249,11 +249,11 @@ SREC_PARSE_SREC_8	LDY	SREC_ADDR 				;upper address word -> Y
 			;CPY	#(SREC_MAX_ADDR>>16) 			;check address range
 			;BHS	SREC_PARSE_SREC_2 			;address range exeeded
 			LDX	SREC_ADDR+2 				;lower address word -> X
-			;NVM_SET_ADDR 					;set new NVM address
+			NVM_SET_ADDR_BL 					;set new NVM address
 SREC_PARSE_SREC_9	SREC_PARSE_DATA					;data byte -> B (SSTACK: 14 bytes)
 			TBNE	A, SREC_PARSE_SREC_4 			;error (fail)
 			BCC	SREC_PARSE_SREC_10 			;end of S-record reached
-			;NVM_PGM_BYTE					;queue data byte for programming
+			NVM_PGM_BYTE_BL					;queue data byte for programming
 			JOB	SREC_PARSE_SREC_9 			;get next byte
 SREC_PARSE_SREC_10	LDD 	SREC_COUNT+2 				;S-Record count (lower word) -> D
 			ADDD	#1 					;increment S-Record count (lower word)
