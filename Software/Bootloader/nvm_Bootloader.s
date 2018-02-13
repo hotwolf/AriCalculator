@@ -42,7 +42,7 @@ NVM_FDIV_VAL		EQU	(CLOCK_BUS_FREQ/1000000)-1 ;FTMRG clock divider
 ;Program buffer
 ;-------------- 
 #ifndef NVM_BUF_DEPTH
-NVM_BUF_DEPTH		EQU	32			;default is 32 entries (maximum)
+NVM_BUF_DEPTH		EQU	8			;max. 32 entries
 #endif	
 
 ;Firmware range
@@ -51,34 +51,40 @@ NVM_BUF_DEPTH		EQU	32			;default is 32 entries (maximum)
 NVM_FIRMWARE_START_LIN	EQU	MMAP_FLASH_F_END_LIN-MMAP_FLASH_SIZE
 #endif	
 #ifndef NVM_FIRMWARE_END_LIN
-NVM_FIRMWARE_END_LIN	EQU	MMAP_FLASH_F_END_LIN
-;NVM_FIRMWARE_END_LIN	EQU	MMAP_FLASH_F_END_LIN-BOOTLOADER_SIZE
+NVM_FIRMWARE_END_LIN	EQU	MMAP_FLASH_F_END_LIN-BOOTLOADER_SIZE
 #endif	
+	
+;Error handler
+;-------------
+#ifnmac	NVM_ERROR_HANDLER
+#macro NVM_ERROR_HANDLER, 0
+			;Signal error (error code in A) 
+			JOB	BOOTLOADER_DONE 	;end bootloader
+#emac
+#endif
 	
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
-;Sector size
+;#Sector size
 NVM_SECTOR_SIZE		EQU	512			;sector size  [bytes]
 NVM_PHRASE_SIZE		EQU	8			;phrase size  [bytes]
 NVM_ADDR_SIZE		EQU	4			;address size [bytes]
 
-;Size of a buffer entry
-NVM_QUEUE_ENTRY_SIZE	EQU	NVM_PHRASE_SIZE+2 	;buffer entry size [bytes]
-	
-;Firmware size
+;#Firmware size
 NVM_FIRMWARE_SIZE	EQU	NVM_FIRMWARE_END_LIN-NVM_FIRMWARE_START_LIN
 			
-;Offset of the sector status field (sector address corresponding to NVM_TAGS
-NVM_TAGS_OFFS		EQU	NVM_FIRMWARE_START_LIN/(8*NVM_SECTOR_SIZE)
-
-;NVM commands 
+;#NVM commands 
 NVM_CMD_PROG		EQU	$06			;program P-flash command
 NVM_CMD_ERASE		EQU	$0A			;erase P-flash sector command
 NVM_CMD_VERIFY		EQU	$03			;erase verify P-flash section command
 
-;NVM commands 
+;#NVM fill pattern 
 NVM_FILL_PATTERN	EQU	$FF 			;fill gaps with $FF
+
+;#Error codes
+NVM_ERR_ADDR		EQU	$08 			;address error
+NVM_ERR_HW		EQU	$04 			;HW error
 	
 ;###############################################################################
 ;# Variables                                                                   #
@@ -91,6 +97,9 @@ NVM_VARS_START_LIN	EQU	@
 #endif	
 			ALIGN 	1
 
+NVM_TAGS		DS	NVM_FIRMWARE_SIZE/(8*NVM_SECTOR_SIZE)
+NVM_TAGS_END		EQU	*
+	
 NVM_DATA_BUF		DS	NVM_BUF_DEPTH*NVM_PHRASE_SIZE
 NVM_DATA_BUF_END	EQU	*
 
@@ -99,7 +108,7 @@ NVM_ADDR_BUF_END	EQU	*
 
 NVM_BUF_IN		DS	1			;points to the next free space
 NVM_BUF_OUT		DS	1			;points to the oldest entry
-
+	
 NVM_VARS_END		EQU	*
 NVM_VARS_END_LIN	EQU	@
 		
@@ -120,7 +129,7 @@ LOOP			STD	2,X+
 			STD	2,X+
 			DBNE	Y, LOOP
 			;Initialize the program buffer (0 in D) 
-			STD	NVM_QUEUE_IN	
+			STD	NVM_BUF_IN	
 #emac
 
 ;#Set the start address of the following input stream (non-blocking)
@@ -179,7 +188,7 @@ LOOP			STD	2,X+
 
 ;#Program one byte (non-blocking)
 ; args:   B: data
-; result: none
+; result: C-flag: set if successful
 ; SSTACK: 9  bytes
 ;         All registers are preserved
 #macro	NVM_PGM_BYTE_NB, 0
@@ -194,32 +203,7 @@ LOOP			STD	2,X+
 #macro	NVM_PGM_BYTE_BL, 0
 			SSTACK_JOBSR	NVM_PGM_BYTE_BL, 11
 #emac
-
-
-
-
-
 	
-;#Program P-flash phrase (non-blocking)
-; args:   Y:      phrase address (byte address/8)
-;         X:      data pointer
-; result: C-flag: set if successful
-; SSTACK: 11 bytes
-;         All registers are preserved
-#macro	NVM_PGM_PHRASE_NB, 0
-			SSTACK_JOBSR	NVM_PGM_PHRASE_NB, 11
-#emac
-
-;#Program P-flash phrase (blocking)
-; args:   Y: phrase address (byte address/8)
-;         X: data pointer
-; result: none
-; SSTACK: 13 bytes
-;         All registers are preserved
-#macro	NVM_PGM_PHRASE_BL, 0
-			SSTACK_JOBSR	NVM_PGM_PHRASE_BL 11
-#emac
-
 ;#Wait until the FTMRG wrapper is idle
 ; args:   none
 ; result: none
@@ -227,6 +211,16 @@ LOOP			STD	2,X+
 ;         All registers are preserved
 #macro	NVM_WAIT_IDLE, 0
 			BRCLR	FSTAT,#CCIF,*
+#emac
+
+;#Stop NVM activity
+; args:   none
+; result: none
+; SSTACK:  0 bytes
+;         All registers are preserved
+#macro	NVM_STOP, 0
+			BCLR	FSTAT,#CCIF
+			MOVB	NVM_BUF_OUT, NVM_BUF_IN
 #emac
 
 ;#Helper functions
@@ -367,7 +361,7 @@ NVM_FILL_NB		EQU	*
 			;Fill loop (fill size in A)
 			LDAB	#NVM_FILL_PATTERN 			;fill pattern -> B
 NVM_FILL_NB_1		NVM_PGM_BYTE_NB 				;program one byte (SSTACK: 9  bytes)
-			BCC	NVM_FAIL_NB_3 				;fail
+			BCC	NVM_FILL_NB_3 				;fail
 			DBNE	A, NVM_FILL_NB_1 			;loop
 			;Signal success
 NVM_FILL_NB_2		BSET	0,SP, #$01				;set C-flag
@@ -388,7 +382,7 @@ NVM_FILL_BL		EQU	*
 	
 ;#Program one byte (non-blocking)
 ; args:   B: data
-; result: none
+; result: C-flag: set if successful
 ; SSTACK: 9  bytes
 ;         All registers are preserved
 NVM_PGM_BYTE_NB		EQU	*
@@ -445,171 +439,98 @@ NVM_PGM_BYTE_BL		EQU	*
 			NVM_MAKE_BL	NVM_PGM_BYTE_NB, 9
 
 
-;#Backend functions:
-;=================== 
-
-
-	
-;#Program P-flash phrase (non-blocking)
-; args:   Y:      phrase address (byte address/8)
-;         X:      data pointer
-; result: C-flag: set if successful
-; SSTACK: 11 bytes
-;         All registers are preserved
-NVM_PGM_PHRASE_NB	EQU	*
-			;Save registers
-			PSHY						;save Y   (SP+5)
-			PSHX						;save X   (SP+3)
-			PSHD						;save D   (SP+1)
-			CLC						;signal failure by default
-			PSHC						;save CCR (SP+0)		
-			;Check if queue is full (phrase address in Y)
-			LDAA	NVM_QUEUE_IN 				;IN -> A
-			TAB						;IN -> B
-			INCB 						;increment IN (B)
-			ANDB	#(NVM_QUEUE_DEPTH-1) 			;wrap IN (B)
-			CMPB	NVM_QUEUE_OUT	   			;check if queue is full
-			BEQ	NVM_PGM_PHRASE_NB_1 			;queue is full	
-			;Copy address to queue (old IN in A, new IN in B, phrase address in Y) 
-			LDX	#NVM_ADDR_QUEUE 			;address queue -> X
-			LEAX	A,X 					;add offset (1 byte)
-			STY	A,X 					;store address		
-			;Copy address to queue (old IN in A, new IN in B) 
-			LDY	3,SP 					;data pointer -> Y 
-			LDX	#NVM_DATA_QUEUE 			;address queue -> X
-			LEAX	A,X					;add offset (1 byte)
-			LEAX	A,X					;add offset (2 bytes)
-			LEAX	A,X					;add offset (3 bytes)
-			LEAX	A,X					;add offset (4 bytes)
-			LEAX	A,X					;add offset (5 bytes)
-			LEAX	A,X					;add offset (6 bytes)
-			LEAX	A,X					;add offset (7 bytes)					;add offset
-			LEAX	A,X					;add offset (8 bytes)					;add offset
-			MOVW	2,X+, 2,Y+ 				;copy data
-			MOVW	2,X+, 2,Y+ 				;copy data
-			MOVW	2,X+, 2,Y+ 				;copy data
-			MOVW	2,X+, 2,Y+ 				;copy data			
-			;Update IN (new IN in B) 
-			STAB	NVM_QUEUE_IN 				;update IN
-			;Signal success 
-			BSET	0,SP, #$01				;signal success
-			;Enable CC interrupt 
-NVM_PGM_PHRASE_NB_1	MOVB	#CCIE, FCNFG 				;enable interruptr
-			;Return result
-			SSTACK_PREPULL	9 				;check SSTACK
-			;PULC						;restore CCR (incl. result)
-			;PULD						;restore D
-			;PULX						;restore X
-			;PULY						;restore Y
-			;RTS						;done
-			RTI						;shortcut
-
-;#Program P-flash phrase (blocking)
-; args:   Y: phrase address (byte address/8)
-;         X: data pointer
-; result: none
-; SSTACK: 13 bytes
-;         All registers are preserved
-NVM_PGM_PHRASE_BL	EQU	*
-			NVM_MAKE_BL	NVM_PGM_PHRASE_NB, 11
-
-
 ;ISRs
 ;----
-;+-----+-----+-----+--------------------------------- 
-;| Tag |FCMD |FSTAT|       Action
-;+-----+-----+-----+--------------------------------- 
-;|  -  |  06 | 
-;+-----+-----+-------------------------------------- 
-	
-;Programming interrupt 
-NVM_ISR			EQU	*
-			;Turn of BUSY LED 
 
-	
-			;Check for errors 
-;			BRCLR	FSTAT,#(ACCERR|FPVIOL|MGSTAT),NVM_ISR_ ;no errrs
-
-			BGND	;TBD
-
-
-;			;Check if the queue is empty 
-;NVM_ISR_		LDD	NVM_QUEUE_IN 				;IN -> A, OUT -> B
-;			CBA						;check for empty queue 
-;			BEQ						;queue is empty
-;			;Check if sector has already been reased (OUT in B)
-;			LDX	#NVM_ADDR_QUEUE				;address queue -> X
-;			LEAX	B,X 					;
-;			LDX	B,X	
-	
-
-	
-;			;Check for the result of the previous operation
-;			CLR	FCCOBIX 			;reset FCCOBIX index
-;			LDAB	FCCOB				;last FCMD -> B
-;			BEQ	NVM_ISR_1			;no prior NVM operation
-;			LDAA	FSTAT				;FSTAT -> A
-;			BITA	#(ACCERR|FPVIOL|MGSTAT1|MGSTAT0);check for errors
-;			BNE	NVM_ISR_			;error found
-;			CMPA	#NVM_CMD_ERASE			;check for erase operation
-;			BEQ	NVM_ISR_			;check result of erase operation
-;			CMPA	#NVM_CMD_VERIFY			;check for erase verify operation
-;			BEQ	NVM_ISR_			;check result of erase verify operation			
-;			;Check for queed jobs
-;NVM_ISR_1		LDD	NVM_QUEUE_IN 			;IN-> A, OUT -> B
-;			CBA					;check if queue is empty
-;			BEQ	NVM_ISR_			;nothing to do
-;			;Get phrase address (OUT in B) 
-;			LDX	#(NVM_QUEUE+NVM_PHRASE_SIZE) 	;first address field -> X 
-;			LDX	B,X				;phrase address -> X
-;			TFR	X, D				;phrase address -> D
-;			LSLD					;shift phrase address
-;
-;
-;
-;
-;
-;			ADCB	#0				;MSB -> LSB
-;			LSLD					;shift phrase address				
-;			ADCB	#0				;MSB -> LSB
-;			LSLD					;shift phrase address
-;			ADCB	#0				;MSB -> LSB
-;			MOVB	#$01, FCCOBIX			;point to CCOB address[15:0]
-;			STD	FCCOB				;store address[15:0] in FCCOB
-;			BCLR	FCCOB+1, #$07			;clear address[2:0]
-;			
-
-
-
-
-	
-;#Check and set sector status
-; args:   Y: address[19:4]
-; result: C-flag: previous state of the status bit
-; SSTACK:  bytes
-;         All registers are preserved
-NVM_SET_CHK_STAT	EQU	*
-			;Save registers (address[19:4] in Y)
-			PSHX 					;save X
-			PSHY 					;save Y
-			;Check address range (address[19:4] in Y)
-
-
-			;Determine status field address (address[19:4] in Y)
-			LEAY	-(NVM_FIRMWARE_START_LIN>>3),Y 	;zero aligned address[19:4]
-			TFR	Y, D 				;byte offset -> A, bit position -> B
-			LDY	#NVM_TAGS			;status field offset -> Y
-			LDY	A,Y				;status field address -> Y
-			;Determine status field bit position (status field address[19:4] in Y, bit position in B)
-			CLRA					;clear bit mask
-			ANDB	#$E0				;align pit poition to sector size
-			SEC					;set initial shift value
-NVM_SET_CHK_STAT_1	ROLA					;shift mask
-			SUBB	#$20				;secrement counter
-			BNE	NVM_SET_CHK_STAT_1		;iterate
-			;Check and set status flag (status field address[19:4] in Y, bit mask in A)
-			
-	
+;#Command complete interrupt
+;---------------------------
+NVM_ISR			EQU	*			
+			;Clear busy signal 
+			LED_OFF A 					;not busy anymore			
+			;Check for errors of previous operation 
+			LDAB	FSTAT 					;FSTAT -> B
+			ANDB	#(ACCERR|FPVIOL|MGSTAT1|MGSTAT0)	;mask error flags
+			BNE	NVM_ISR_7 				;error detected
+			;Check if data is available for programming 
+			LDD	NVM_BUF_IN 				;IN:OUT -> A:B
+			ANDA	#~(NVM_PHRASE_SIZE-1) 			;align in to phrase boundary
+			CBA						;compare pointers
+			BEQ	NVM_ISR_10 				;buffer is empty
+			;Get phrase address (OUT in B)
+			LDY	NVM_ADDR_BUF 				;address buffer -> Y
+			LSRB						;buffer offset -> B
+			LEAY	B,Y 					;address pointer -> Y
+			;Check phrase address (address pointer in Y) 
+			LDX	0,Y 					;upper address word -> X
+			BEQ	NVM_ISR_1 				;address < 64K
+			CPX	#(NVM_FIRMWARE_START_LIN>>16) 		;check lower boundary
+			BHS	NVM_ISR_2 				;address is within range
+NVM_ISR_1		LDX	2,Y 					;lower address word -> X
+			CPX	#NVM_FIRMWARE_END_LIN	 		;check upper boundary
+			BHS	NVM_ISR_8 				;address out of range
+			;Set phrase address (address pointer in Y) 
+NVM_ISR_2		CLR	FCCOBIX	 				;reset CCOB index
+			MOVB	#NVM_CMD_PROG, FCCOBHI 			;set command byte (program P-flash)
+			MOVB	1,Y, FCCOBLO 				;set upper address byte
+			INC	FCCOBIX 				;advance CCOB index
+			MOVW	2,Y, FCCOBIX 				;set lower address word
+			;Determine tag address (address pointer in Y)
+			LDD	1,Y 					;address/256 -> D
+			LSRD						;sector address -> D
+			TFR	D, X					;sector address -> X
+			LSRD						;sector address/8 -> D
+			LSRD						;
+			LSRD						;
+			EXG	D, X					;sector address/8 -> X, sector address -> D
+			LEAX	(NVM_TAGS-(NVM_FIRMWARE_START_LIN<<12)),X;tag address -> X
+			;Determine tag bit (tag address in X, sector address/8 in D)
+			LDAA	#1		     			;bit 0 -> A
+			ANDB	#(NVM_PHRASE_SIZE-1) 			;bit offset -> B
+			BEQ	NVM_ISR_4 				;bit offset = 0
+NVM_ISR_3 		LSLA						;shift bit index
+			DBNE	B, NVM_ISR_3 				;tag bit -> A
+			;Check tag (tag address in X, tag bit in A)
+NVM_ISR_4 		TAB						;tag bit -> B
+			ANDB	0,X 					;tag status -> B
+			BEQ	NVM_ISR_11 				;erase sector
+			;Set data field
+			LDX	#NVM_DATA_BUF 				;data buffer -> X
+			LDAA	NVM_BUF_OUT 				;OUT -> A
+			LEAX	A,X 					;phrase address -> X
+			INC	FCCOBIX 				;advance CCOB index
+			MOVW	0,X, FCCOBIX 				;set first data word
+			INC	FCCOBIX 				;advance CCOB index
+			MOVW	2,X, FCCOBIX 				;set first data word
+			INC	FCCOBIX 				;advance CCOB index
+			MOVW	4,X, FCCOBIX 				;set first data word
+			INC	FCCOBIX 				;advance CCOB index
+			MOVW	6,X, FCCOBIX 				;set first data word
+			ADDA	#NVM_PHRASE_SIZE     			;advance OUT
+			ANDA	#(NVM_PHRASE_SIZE-1) 			;wrap OUT
+			STAA	NVM_BUF_OUT 				;update out
+			;Launch NVM command
+NVM_ISR_5		LED_ON A 					;show activity			
+			;MOVB	#CCIF, FSTAT 				;launch command
+			;Done
+NVM_ISR_6		ISTACK_RTI 					;done
+			;Error found
+NVM_ISR_7		LDAA	#NVM_ERR_HW 				;HW error -> A
+			BITB	#(MGSTAT1|MGSTAT0)			;check for HW error
+			BNE	NVM_ISR_9				;HW error
+NVM_ISR_8		LDAA	#NVM_ERR_ADDR 				;address error -> A
+NVM_ISR_9		LEAS	9,SP 					;free stack space
+			CLI						;enable interrupts
+			NVM_ERROR_HANDLER				;handle errors
+			;Buffer is empty
+NVM_ISR_10		BCLR	FCNFG, #CCIE 				;disable interrupt
+			JOB	NVM_ISR_6 				;done
+			;Erase sector (tag address in X, tag bit in A)
+NVM_ISR_11		ORAA	0,X 					;set tag
+			STAA	0,X 					;
+			CLR	FCCOBIX	 				;reset CCOB index
+			MOVB	#NVM_CMD_ERASE, FCCOBHI 		;set command byte (program P-flash)
+			INC	FCCOBIX 				;advance CCOB index
+			JOB	NVM_ISR_5 				;launch command
 	
 NVM_CODE_END		EQU	*	
 NVM_CODE_END_LIN	EQU	@	

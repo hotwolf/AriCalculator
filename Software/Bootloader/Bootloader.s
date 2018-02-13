@@ -135,6 +135,8 @@ DISP_SEQ_INIT_END	EQU	DISP_SEQ_INIT_END ;end of initialization stream
 ;###############################################################################
 ;# Constants                                                                   #
 ;###############################################################################
+;#Error codes
+BOOTLOADER_ERR_UNKNOWN	EQU	$01 		;unknown error
 	
 ;###############################################################################
 ;# Memory map                                                                  #
@@ -351,7 +353,7 @@ START_OF_CODE		EQU	*
 			;Indicate readyness  
 BOOTLOADER_SHOW_READY	EQU	*
 			;Set LEDs 
-			;LED_OFF A 				;busy anymore
+			;LED_OFF A 				;not busy anymore
 			;LED_OFF B 				;no error
 			;Print ready message  
 			LDX	#BOOTLOADER_MSG_READY 		;message pointer -> X
@@ -365,7 +367,7 @@ BOOTLOADER_SHOW_READY	EQU	*
 			;Indicate ongoing firmware transmission
 BOOTLOADER_SHOW_BUSY	EQU	*
 			;Set LEDs 
-			;LED_OFF A 				;busy anymore
+			;LED_OFF A 				;not busy anymore
 			;LED_OFF B 				;no error
 			;Update display 
 			DISP_STREAM_FROM_TO_BL	IMG_SEQ_BUSY_START, IMG_SEQ_BUSY_END
@@ -394,7 +396,8 @@ BOOTLOADER_DONE_2	SCI_RX_BL 				;ignore incoming data
 			JOB	BOOTLOADER_DONE_2	
 
 			;Indicate failed firmware update (error message in Y)
-BOOTLOADER_DONE_3	LDX	#BOOTLOADER_MSG_ERROR 		;message pointer -> X
+BOOTLOADER_DONE_3	NVM_STOP		      		;stop the NVM
+			LDX	#BOOTLOADER_MSG_ERROR 		;message pointer -> X
 			STRING_PRINT_BL				;print message
 			LDX	0,Y	 			;message pointer -> X	
 			STRING_PRINT_BL				;print message
@@ -404,6 +407,12 @@ BOOTLOADER_DONE_3	LDX	#BOOTLOADER_MSG_ERROR 		;message pointer -> X
 			;Update display 
 			DISP_STREAM_FROM_TO_BL	IMG_SEQ_ERROR_START, IMG_SEQ_ERROR_END
 			JOB	BOOTLOADER_DONE_2	
+
+			;Unexpected interrupt request  
+BOOTLOADER_ISR_ERROR	LDAA	#BOOTLOADER_ERR_UNKNOWN 		;unknown error -> A
+			LEAS	9,SP 					;free stack space
+			CLI						;enable interrupts
+			JOB	BOOTLOADER_DONE				;handle errors
 	
 MMAP_CODE_START		EQU	*	 
 MMAP_CODE_START_LIN	EQU	@
@@ -457,12 +466,7 @@ START_OF_RAM_CODE	EQU	*
 			;Wait for NVM (error code in A)
 			NVM_WAIT_IDLE				;wait for FTMRG to become idle
 			JOB	BOOTLOADER_DONE			;show result
-			
-BOOTLOADER_ISR_ERROR	EQU	*
-			SEI	      				;allow interrupts
-			NVM_WAIT_IDLE				;wait for FTMRG to become idle
-			JOB	BOOTLOADER_DONE			;show result
-	
+				
 VECTAB_CODE_START	EQU	*
 VECTAB_CODE_START_LIN	EQU	@
 			ORG	VECTAB_CODE_END, VECTAB_CODE_END_LIN
@@ -507,8 +511,8 @@ BOOTLOADER_ERR_TAB	DW	BOOTLOADER_MSG_RX
 			DW	BOOTLOADER_MSG_FORMAT
 			DW	BOOTLOADER_MSG_CHECKSUM
 			DW	BOOTLOADER_MSG_COUNT
-			DW	BOOTLOADER_MSG_UNKNOWN
-			DW	BOOTLOADER_MSG_UNKNOWN
+			DW	BOOTLOADER_MSG_ADDR
+			DW	BOOTLOADER_MSG_HW
 			DW	BOOTLOADER_MSG_UNKNOWN
 			DW	BOOTLOADER_MSG_UNKNOWN
 						
@@ -516,6 +520,8 @@ BOOTLOADER_MSG_RX	FCS	"Broken data transfer!"
 BOOTLOADER_MSG_FORMAT	FCS	"Wrong S-record format!"
 BOOTLOADER_MSG_CHECKSUM	FCS	"Incorrect checksum!"
 BOOTLOADER_MSG_COUNT	FCS	"Wrong S-record count!"
+BOOTLOADER_MSG_ADDR	FCS	"Wrong address!"
+BOOTLOADER_MSG_HW	FCS	"Hardware failur!"
 BOOTLOADER_MSG_UNKNOWN	FCS	"Unknown cause!"
 
 BOOTLOADER_MSG_READY	FCS	"Ready to receive S-Record!"
