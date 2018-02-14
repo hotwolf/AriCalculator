@@ -284,7 +284,9 @@ UF			EQU	ISTACK_UF
 			ISTACK_PREPUSH	ISTACK_FRAME_SIZE
 #endif
 			;Wait for the next interrupt
+#ifmac COP_SERVICE
 			COP_SERVICE			;already taken care of by WAI
+#endif
 			CLI		
 #ifdef	ISTACK_WAI
 			WAI

@@ -176,7 +176,7 @@ DEMO_LOOP		DEC	LINE_COUNT
 			;Wait for input
 DEMO_GET_CHAR		SCI_RX_BL
 			;Ignore RX errors (char in B)
-			ANDA	#(SCI_FLG_SWOR|OR|NF|FE|PF)
+			ANDA	#(SWOR|OR|NF|FE|PF)
 			BNE	DEMO_GET_CHAR
 	
 			;Print ASCII character (char in B)
