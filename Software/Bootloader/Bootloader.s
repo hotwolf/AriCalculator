@@ -70,11 +70,14 @@ CLOCK_REF_FREQ		EQU	 1000000	; 1 MHz reference clock frequency
 CLOCK_VCOFRQ		EQU	$1		;10 MHz VCO frequency
 CLOCK_REFFRQ		EQU	$0		; 1 MHz reference clock frequency
 
-;#MMAP: 
+;#MMAP
 #ifdef RAM_COMPILE
-MMAP_UNSEC_OFF		EQU	1 	;don't set the security byte for LRE compiles
+MMAP_UNSEC_OFF		EQU	1 		;don't set the security byte for LRE compiles
 #endif
-
+	
+;#VECTAB 
+VECTAB_DEBUG_ON		EQU	1 		;debug IRQs
+	
 ;#SSTACK:
 SSTACK_TOP		EQU	STACKS_START
 SSTACK_TOP_LIN		EQU	STACKS_START
@@ -82,7 +85,7 @@ SSTACK_BOTTOM		EQU	STACKS_END
 
 ;#ISTACK 
 #ifdef RAM_COMPILE
-ISTACK_NO_WAI		EQU	1 	;don't enter wait mode when debugging
+ISTACK_NO_WAI		EQU	1 		;don't enter wait mode when debugging
 #endif
 	
 ;#SCI							
@@ -614,35 +617,35 @@ RAM_TABS_END_LIN	EQU	@
 ;# Includes                                                                    #
 ;###############################################################################
 ;# S12CBase
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/regdef_AriCalculator.s ;Register definitions
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/memmap_AriCalculator.s ;Memory map
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/gpio_AriCalculator.s   ;I/O setup
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/disp_AriCalculator.s   ;Display driver
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clocks.s			  ;TIM driver
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/tim.s				  ;TIM driver
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sstack.s		  	  ;Subroutine stack
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/istack.s	  		  ;Interrupt stack
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s				  ;SCI driver
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/led.s				  ;LED driver
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/string.s			  ;String printing routines
-;#include ../../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/num.s			  	  ;Number printing routines
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/regdef_AriCalculator.s	;Register definitions
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/mmap_AriCalculator.s	;Memory map
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/gpio_AriCalculator.s	;I/O setup
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/disp_AriCalculator.s	;Display driver
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clock.s			  	;TIM driver
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/tim.s				;TIM driver
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sstack.s		  	  	;Subroutine stack
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/istack.s	  		  	;Interrupt stack
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s  				;SCI driver
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/led.s				;LED driver
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/string.s			  	;String printing routines
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/num.s				;Number printing routines
 
-#include ../../../S12CBase/Source/AriCalculator/regdef_AriCalculator.s 				          ;Register definitions
-#include ../../../S12CBase/Source/AriCalculator/mmap_AriCalculator.s 				          ;Memory map
-#include ../../../S12CBase/Source/AriCalculator/gpio_AriCalculator.s   				          ;I/O setup
-#include ../../../S12CBase/Source/AriCalculator/disp_AriCalculator.s   				          ;Display driver
-#include ../../../S12CBase/Source/All/clock.s				 			          ;Clock driver
-#include ../../../S12CBase/Source/All/tim.s				 				  ;TIM driver
-#include ../../../S12CBase/Source/All/sstack.s		  	 				          ;Subroutine stack
-#include ../../../S12CBase/Source/All/istack.s	  		 				          ;Interrupt stack
-#include ../../../S12CBase/Source/All/sci.s				 				  ;SCI driver
-#include ../../../S12CBase/Source/All/led.s				 				  ;LED driver
-#include ../../../S12CBase/Source/All/string.s								  ;String printing routines
-#include ../../../S12CBase/Source/All/num.s			  	  				  ;Number printing routines
-													  
-#include ./vectab_Bootloader.s	                                                                          ;S12G vector table
-#include ./reset_Bootloader.s                                                                             ;Reset driver
-#include ./lre_Bootloader.s	                                                                          ;LRE code
-#include ./nvm_Bootloader.s	                                                                          ;NVM driver
-#include ./srec_Bootloader.s                                                                              ;S-Record handler
-#include ./img_Bootloader.s                                                                               ;Bitmaps to display
+;#include ../../../S12CBase/Source/AriCalculator/regdef_AriCalculator.s 				;Register definitions
+;#include ../../../S12CBase/Source/AriCalculator/mmap_AriCalculator.s 				        ;Memory map
+;#include ../../../S12CBase/Source/AriCalculator/gpio_AriCalculator.s   				;I/O setup
+;#include ../../../S12CBase/Source/AriCalculator/disp_AriCalculator.s   				;Display driver
+;#include ../../../S12CBase/Source/All/clock.s				 			        ;Clock driver
+;#include ../../../S12CBase/Source/All/tim.s				 				;TIM driver
+;#include ../../../S12CBase/Source/All/sstack.s		  	 				        ;Subroutine stack
+;#include ../../../S12CBase/Source/All/istack.s	  		 				        ;Interrupt stack
+;#include ../../../S12CBase/Source/All/sci.s				 				;SCI driver
+;#include ../../../S12CBase/Source/All/led.s				 				;LED driver
+;#include ../../../S12CBase/Source/All/string.s								;String printing routines
+;#include ../../../S12CBase/Source/All/num.s			  	  				;Number printing routines
+													
+#include ./reset_Bootloader.s                                                                           ;Reset driver
+#include ./lre_Bootloader.s	                                                                        ;LRE code
+#include ./nvm_Bootloader.s	                                                                        ;NVM driver
+#include ./srec_Bootloader.s                                                                            ;S-Record handler
+#include ./img_Bootloader.s                                                                             ;Bitmaps to display
+#include ./vectab_Bootloader.s	                                                                        ;S12G vector table

@@ -80,7 +80,8 @@ NVM_CMD_ERASE		EQU	$0A			;erase P-flash sector command
 NVM_CMD_VERIFY		EQU	$03			;erase verify P-flash section command
 
 ;#NVM fill pattern 
-NVM_FILL_PATTERN	EQU	$FF 			;fill gaps with $FF
+;NVM_FILL_PATTERN	EQU	$FF 			;fill gaps with $FF
+NVM_FILL_PATTERN	EQU	$00 			;fill gaps with $FF
 
 ;#Error codes
 NVM_ERR_ADDR		EQU	$08 			;address error
@@ -233,6 +234,106 @@ LOOP			STD	2,X+
 #macro	NVM_MAKE_BL, 2
 			SCI_MAKE_BL \1 \2
 #emac
+
+;#Debug output:
+;#-------------
+
+;#Display S-record address	
+; args:   X:Y: address
+; SSTACK: 28 bytes
+;         rgister output of the non-blocking function is preserved
+#macro	NVM_SHOW_ADDR, 0
+			;Save Registers (address in X:Y)
+			PSHD						;save D
+			;Print header (address in X:Y)
+			TFR	X, D	       				;save X
+			LDX	#HEADER_STRING 				;string pointer -> X
+			STRING_PRINT_BL 				;print string
+			TFR	D, X 					;restore X
+			;Print address (address in X:Y)
+			LDD	#$0610 					;set alignment and base
+			NUM_PRINT_ZUD_BL 				;print address
+			;Print line break (address in X:Y)
+			TFR	X, D	       				;save X
+			LDX	#NL_STRING 				;string pointer -> X
+			STRING_PRINT_BL 				;print string
+			TFR	D, X 					;restore X
+			JOB	DONE	  				;done
+			;Strings 		
+HEADER_STRING		STRING_NL_NONTERM 				;header
+			FCS	"New S-record: "
+NL_STRING		STRING_NL_TERM	
+DONE			PULD						;restore D
+#emac
+
+;#Display data byte	
+; args:   B: data
+; SSTACK: 34 bytes
+;         rgister output of the non-blocking function is preserved
+#macro	NVM_SHOW_BYTE, 0
+			;Save Registers (data in B)
+			PSHX						;save X
+			PSHD						;save D
+			;Print address (data in B)
+			CLRA
+			TFR	D, X
+			LDD	#$0210 					;set alignment and base
+			NUM_PRINT_ZUW_BL 				;print address
+			;Restore Registers 
+DONE			PULD						;restore D
+			PULX						;restore X
+#emac
+	
+;#Display CCOB content for debug purposes	
+; args:   none
+; SSTACK: 35 bytes
+;         rgister output of the non-blocking function is preserved
+#macro	NVM_SHOW_CCOB, 0
+			;Save Registers 
+			PSHX						;save X
+			PSHD						;save D
+			MOVB	FCCOBIX, 1,-SP 				;save CC
+			;Print header
+			LDX	#HEADER_STRING 				;string pointer -> X
+			STRING_PRINT_BL 				;print string
+			LDAA	FCCOBIX 				;CCOBIX -> A
+			TFR	A, X 					;CCOBIX -> X				
+			LDD	#$0210 					;set alignment and base
+			NUM_PRINT_ZUW_BL				;print CCOBIX
+			;Print CCOB
+			CLR	FCCOBIX 				;reset CCOBIX
+LOOP			LDAA	FCCOBIX 				;CCOBIX -> A
+			CMPA	#6 					;check if iterations are complete
+			BHS	DONE 					;done
+			LDX	#CCOB_1_STRING 				;1st CCOBIX string -> X
+			STRING_PRINT_BL 				;print string
+			LDAA	FCCOBIX 				;CCOBIX -> A
+			CMPA	#6 					;check if iterations are complete
+			BHS	DONE 					;done
+			TFR	A, X 					;CCOBIX -> X
+			LDD	#$0210 					;set alignment and base
+			NUM_PRINT_ZUW_BL				;print CCOBIX
+			LDX	#CCOB_2_STRING 				;1st CCOBIX string -> X
+			STRING_PRINT_BL 				;print string
+			LDX	FCCOBHI 				;CCOB -> X
+			LDD	#$0410 					;set alignment and base
+			NUM_PRINT_ZUW_BL				;print CCOB
+			INC	FCCOBIX 				;advance CCOBIX
+			JOB	LOOP 					;loop
+			;Strings 
+HEADER_STRING		STRING_NL_NONTERM 				;header
+			STRING_NL_NONTERM
+			FCC	"New NVM Command: "
+			STRING_NL_NONTERM
+			FCS	"CCOBIX: "
+CCOB_1_STRING		STRING_NL_NONTERM 				;1st CCOB string
+			FCS	"CCOB"
+CCOB_2_STRING		FCS	": "					;2nd CCOB string
+			;Restore Registers 
+DONE			MOVB	1,SP+, FCCOBIX 				;restore CCOBIX
+			PULD						;restore D
+			PULX						;restore X
+#emac
 	
 ;###############################################################################
 ;# Code                                                                        #
@@ -253,9 +354,9 @@ NVM_CODE_START_LIN	EQU	@
 ; SSTACK: 28 bytes
 ;         All registers are preserved
 NVM_SET_ADDR_NB 	EQU	*
-			;Save registers (data in B)
-			PSHY						;save X	(SP+5)		
-			PSHX						;save Y	(SP+3)		
+			;Save registers (address in X:Y)
+			PSHY						;save Y	(SP+5)		
+			PSHX						;save X	(SP+3)		
 			PSHD						;save D	(SP+1)
 			CLC						;signal fail by default
 			PSHC						;save C (SP+0)
@@ -282,11 +383,11 @@ NVM_SET_ADDR_NB_1	NVM_FLUSH_NB 					;(SSTACK: 19 bytes)
 			LSRB						;
 			LEAY	B,Y 					;
 			STX	0,Y 					;set upper address word
-			LDD	3,SP 					;lower address word -> D
+			LDD	5,SP 					;lower address word -> D
 			ANDB	#~(NVM_PHRASE_SIZE-1) 			;align lower address word
 			STD	2,Y 					;set lower address word
 			;Align data buffer 
-			LDAA	3,SP 					;lowest address byte -> A
+			LDAA	6,SP 					;lowest address byte -> A
 			ANDA	#(NVM_PHRASE_SIZE-1) 			;phrase offset -> A
 NVM_SET_ADDR_NB_2	NVM_FILL_NB 					;(SSTACK: 15 bytes)
 			BCC	NVM_SET_ADDR_NB_3 			;fail
@@ -296,7 +397,7 @@ NVM_SET_ADDR_NB_2	NVM_FILL_NB 					;(SSTACK: 15 bytes)
 NVM_SET_ADDR_NB_3	SSTACK_PREPULL	9 				;check SSTACK
 			RTI  						;done
 			;New address is within the current phrase
-NVM_SET_ADDR_NB_4	LDAA	4,SP 					;lowest address byte -> A
+NVM_SET_ADDR_NB_4	LDAA	6,SP 					;lowest address byte -> A
 			ANDA	#(NVM_PHRASE_SIZE-1) 			;phrase offset -> A
 			LDAB	NVM_BUF_IN 				;IN -> B
 			ANDB	#(NVM_PHRASE_SIZE-1) 			;phrase offset -> B
@@ -310,6 +411,7 @@ NVM_SET_ADDR_NB_4	LDAA	4,SP 					;lowest address byte -> A
 ; SSTACK: 30 bytes
 ;         All registers are preserved
 NVM_SET_ADDR_BL 	EQU	*
+			;NVM_SHOW_ADDR 					;debug output
 			NVM_MAKE_BL	NVM_SET_ADDR_NB, 28
 	
 ;#Submit current phrase for programming (non-blocking)
@@ -387,8 +489,8 @@ NVM_FILL_BL		EQU	*
 ;         All registers are preserved
 NVM_PGM_BYTE_NB		EQU	*
 			;Save registers (data in B)
-			PSHY						;save X	(SP+5)		
-			PSHX						;save Y	(SP+3)		
+			PSHY						;save Y	(SP+5)		
+			PSHX						;save X	(SP+3)		
 			PSHD						;save D	(SP+1)
 			CLC						;signal fail by default
 			PSHC						;save C (SP+0)
@@ -435,7 +537,7 @@ NVM_PGM_BYTE_NB_2	SSTACK_PREPULL	9 				;check SSTACK
 ; SSTACK: 11 bytes
 ;         All registers are preserved
 NVM_PGM_BYTE_BL		EQU	*
-
+			;NVM_SHOW_BYTE 					;debug output
 			NVM_MAKE_BL	NVM_PGM_BYTE_NB, 9
 
 
@@ -444,32 +546,32 @@ NVM_PGM_BYTE_BL		EQU	*
 
 ;#Command complete interrupt
 ;---------------------------
-NVM_ISR			EQU	*			
+NVM_ISR_CC		EQU	*			
 			;Clear busy signal 
 			LED_OFF A 					;not busy anymore			
 			;Check for errors of previous operation 
 			LDAB	FSTAT 					;FSTAT -> B
 			ANDB	#(ACCERR|FPVIOL|MGSTAT1|MGSTAT0)	;mask error flags
-			BNE	NVM_ISR_7 				;error detected
+			BNE	NVM_ISR_CC_7 				;error detected
 			;Check if data is available for programming 
 			LDD	NVM_BUF_IN 				;IN:OUT -> A:B
 			ANDA	#~(NVM_PHRASE_SIZE-1) 			;align in to phrase boundary
 			CBA						;compare pointers
-			BEQ	NVM_ISR_10 				;buffer is empty
+			BEQ	NVM_ISR_CC_10 				;buffer is empty
 			;Get phrase address (OUT in B)
-			LDY	NVM_ADDR_BUF 				;address buffer -> Y
+			LDY	#NVM_ADDR_BUF 				;address buffer -> Y
 			LSRB						;buffer offset -> B
 			LEAY	B,Y 					;address pointer -> Y
 			;Check phrase address (address pointer in Y) 
 			LDX	0,Y 					;upper address word -> X
-			BEQ	NVM_ISR_1 				;address < 64K
+			BEQ	NVM_ISR_CC_1 				;address < 64K
 			CPX	#(NVM_FIRMWARE_START_LIN>>16) 		;check lower boundary
-			BHS	NVM_ISR_2 				;address is within range
-NVM_ISR_1		LDX	2,Y 					;lower address word -> X
+			BHS	NVM_ISR_CC_2 				;address is within range
+NVM_ISR_CC_1		LDX	2,Y 					;lower address word -> X
 			CPX	#NVM_FIRMWARE_END_LIN	 		;check upper boundary
-			BHS	NVM_ISR_8 				;address out of range
+			BHS	NVM_ISR_CC_8 				;address out of range
 			;Set phrase address (address pointer in Y) 
-NVM_ISR_2		CLR	FCCOBIX	 				;reset CCOB index
+NVM_ISR_CC_2		CLR	FCCOBIX	 				;reset CCOB index
 			MOVB	#NVM_CMD_PROG, FCCOBHI 			;set command byte (program P-flash)
 			MOVB	1,Y, FCCOBLO 				;set upper address byte
 			INC	FCCOBIX 				;advance CCOB index
@@ -486,51 +588,58 @@ NVM_ISR_2		CLR	FCCOBIX	 				;reset CCOB index
 			;Determine tag bit (tag address in X, sector address/8 in D)
 			LDAA	#1		     			;bit 0 -> A
 			ANDB	#(NVM_PHRASE_SIZE-1) 			;bit offset -> B
-			BEQ	NVM_ISR_4 				;bit offset = 0
-NVM_ISR_3 		LSLA						;shift bit index
-			DBNE	B, NVM_ISR_3 				;tag bit -> A
+			BEQ	NVM_ISR_CC_4 				;bit offset = 0
+NVM_ISR_CC_3 		LSLA						;shift bit index
+			DBNE	B, NVM_ISR_CC_3 			;tag bit -> A
 			;Check tag (tag address in X, tag bit in A)
-NVM_ISR_4 		TAB						;tag bit -> B
+NVM_ISR_CC_4 		TAB						;tag bit -> B
 			ANDB	0,X 					;tag status -> B
-			BEQ	NVM_ISR_11 				;erase sector
+			BEQ	NVM_ISR_CC_11 				;erase sector
 			;Set data field
 			LDX	#NVM_DATA_BUF 				;data buffer -> X
 			LDAA	NVM_BUF_OUT 				;OUT -> A
 			LEAX	A,X 					;phrase address -> X
 			INC	FCCOBIX 				;advance CCOB index
-			MOVW	0,X, FCCOBIX 				;set first data word
+			MOVW	0,X, FCCOBHI 				;set first data word
 			INC	FCCOBIX 				;advance CCOB index
-			MOVW	2,X, FCCOBIX 				;set first data word
+			MOVW	2,X, FCCOBHI 				;set first data word
 			INC	FCCOBIX 				;advance CCOB index
-			MOVW	4,X, FCCOBIX 				;set first data word
+			MOVW	4,X, FCCOBHI 				;set first data word
 			INC	FCCOBIX 				;advance CCOB index
-			MOVW	6,X, FCCOBIX 				;set first data word
+			MOVW	6,X, FCCOBHI 				;set first data word
 			ADDA	#NVM_PHRASE_SIZE     			;advance OUT
-			ANDA	#(NVM_PHRASE_SIZE-1) 			;wrap OUT
+			ANDA	#((NVM_BUF_DEPTH*NVM_PHRASE_SIZE)-1) 	;wrap OUT
 			STAA	NVM_BUF_OUT 				;update out
 			;Launch NVM command
-NVM_ISR_5		LED_ON A 					;show activity			
+NVM_ISR_CC_5		LED_ON A 					;show activity			
 			;MOVB	#CCIF, FSTAT 				;launch command
 			;Done
-NVM_ISR_6		ISTACK_RTI 					;done
+
+			BCLR	FCNFG, #CCIE
+			CLI
+			NVM_SHOW_CCOB
+			SEI
+			BSET	FCNFG, #CCIE
+
+NVM_ISR_CC_6		ISTACK_RTI 					;done
 			;Error found
-NVM_ISR_7		LDAA	#NVM_ERR_HW 				;HW error -> A
+NVM_ISR_CC_7		LDAA	#NVM_ERR_HW 				;HW error -> A
 			BITB	#(MGSTAT1|MGSTAT0)			;check for HW error
-			BNE	NVM_ISR_9				;HW error
-NVM_ISR_8		LDAA	#NVM_ERR_ADDR 				;address error -> A
-NVM_ISR_9		LEAS	9,SP 					;free stack space
+			BNE	NVM_ISR_CC_9				;HW error
+NVM_ISR_CC_8		LDAA	#NVM_ERR_ADDR 				;address error -> A
+NVM_ISR_CC_9		LEAS	9,SP 					;free stack space
 			CLI						;enable interrupts
 			NVM_ERROR_HANDLER				;handle errors
 			;Buffer is empty
-NVM_ISR_10		BCLR	FCNFG, #CCIE 				;disable interrupt
-			JOB	NVM_ISR_6 				;done
+NVM_ISR_CC_10		BCLR	FCNFG, #CCIE 				;disable interrupt
+			JOB	NVM_ISR_CC_6 				;done
 			;Erase sector (tag address in X, tag bit in A)
-NVM_ISR_11		ORAA	0,X 					;set tag
+NVM_ISR_CC_11		ORAA	0,X 					;set tag
 			STAA	0,X 					;
 			CLR	FCCOBIX	 				;reset CCOB index
 			MOVB	#NVM_CMD_ERASE, FCCOBHI 		;set command byte (program P-flash)
 			INC	FCCOBIX 				;advance CCOB index
-			JOB	NVM_ISR_5 				;launch command
+			JOB	NVM_ISR_CC_5 				;launch command
 	
 NVM_CODE_END		EQU	*	
 NVM_CODE_END_LIN	EQU	@	
