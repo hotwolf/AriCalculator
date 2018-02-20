@@ -108,6 +108,8 @@ SCI_TXBUF_SIZE		EQU	4		;easier to debug
 ;#STRING							
 ;STRING_ENABLE_ERASE_NB	EQU	1		;enable STRING_ERASE_NB 
 ;STRING_ENABLE_ERASE_BL	EQU	1		;enable STRING_ERASE_BL 
+;STRING_ENABLE_FILL_NB	EQU	1		;enable STRING_FILL_NB 
+;STRING_ENABLE_FILL_BL	EQU	1		;enable STRING_FILL_BL 
 STRING_ENABLE_PRINTABLE	EQU	1		;enable STRING_PRINTABLE
 	
 ;#NUM							
@@ -141,6 +143,17 @@ DISP_SEQ_INIT_END	EQU	DISP_SEQ_INIT_END ;end of initialization stream
 ;#Error codes
 BOOTLOADER_ERR_UNKNOWN	EQU	$01 		;unknown error
 	
+;###############################################################################
+;# Security and memory protection                                              #
+;###############################################################################
+#ifdef FLASH_COMPILE
+			ORG	$FF0C, $3_FF0C
+			DB	$CF 		;FPROT:  protect $3_F000-$3_FFFF 
+			DB	$FF		;EEPROT: unprotect
+			DB	$FF 		;FOPT:   don't enable the COP
+			DB	$FE		;FSEC:   unsecure 
+#endif
+
 ;###############################################################################
 ;# Memory map                                                                  #
 ;###############################################################################
@@ -257,7 +270,7 @@ TABS_START_LIN		EQU	@
 			NVM_INIT		;configure NVM
 			SCI_INIT		;configure SCI
 			STRING_INIT		;configure STRING
-			NUM_INIT		;configure NUM
+			;NUM_INIT		;configure NUM
 			SREC_INIT		;initialize S-record parser
 			LRE_INIT		;copy LRE code
 			CLOCK_WAIT_FOR_PLL	;wait for PLL to lock
@@ -315,9 +328,9 @@ STRING_VARS_START	EQU	*
 STRING_VARS_START_LIN	EQU	@
 			ORG	STRING_VARS_END, STRING_VARS_END_LIN
 			
-NUM_VARS_START		EQU	*
-NUM_VARS_START_LIN	EQU	@
-			ORG	NUM_VARS_END, NUM_VARS_END_LIN
+;NUM_VARS_START		EQU	*
+;NUM_VARS_START_LIN	EQU	@
+;			ORG	NUM_VARS_END, NUM_VARS_END_LIN
 			
 DISP_VARS_START		EQU	*
 DISP_VARS_START_LIN	EQU	@
@@ -490,9 +503,9 @@ STRING_CODE_START	EQU	*
 STRING_CODE_START_LIN	EQU	@
 			ORG	STRING_CODE_END, STRING_CODE_END_LIN
 			
-NUM_CODE_START		EQU	*
-NUM_CODE_START_LIN	EQU	@
-			ORG	NUM_CODE_END, NUM_CODE_END_LIN
+;NUM_CODE_START		EQU	*
+;NUM_CODE_START_LIN	EQU	@
+;			ORG	NUM_CODE_END, NUM_CODE_END_LIN
 			
 NVM_CODE_START		EQU	*
 NVM_CODE_START_LIN	EQU	@
@@ -527,7 +540,7 @@ BOOTLOADER_MSG_ADDR	FCS	"Wrong address!"
 BOOTLOADER_MSG_HW	FCS	"Hardware failur!"
 BOOTLOADER_MSG_UNKNOWN	FCS	"Unknown cause!"
 
-BOOTLOADER_MSG_READY	FCS	"Ready to receive S-Record!"
+BOOTLOADER_MSG_READY	FCS	"Ready to receive S-record!"
 	
 BOOTLOADER_MSG_DONE	STRING_NL_NONTERM
 			FCS	"Done!"
@@ -598,9 +611,9 @@ STRING_TABS_START	EQU	*
 STRING_TABS_START_LIN	EQU	@
 			ORG	STRING_TABS_END, STRING_TABS_END_LIN
 			
-NUM_TABS_START		EQU	*
-NUM_TABS_START_LIN	EQU	@
-			ORG	NUM_TABS_END, NUM_TABS_END_LIN
+;NUM_TABS_START		EQU	*
+;NUM_TABS_START_LIN	EQU	@
+;			ORG	NUM_TABS_END, NUM_TABS_END_LIN
 			
 NVM_TABS_START		EQU	*
 NVM_TABS_START_LIN	EQU	@
@@ -618,7 +631,7 @@ RAM_TABS_END_LIN	EQU	@
 ;###############################################################################
 ;# S12CBase
 #include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/regdef_AriCalculator.s	;Register definitions
-#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/mmap_AriCalculator.s	;Memory map
+;#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/mmap_AriCalculator.s	;Memory map
 #include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/gpio_AriCalculator.s	;I/O setup
 #include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/disp_AriCalculator.s	;Display driver
 #include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clock.s			  	;TIM driver
@@ -628,10 +641,10 @@ RAM_TABS_END_LIN	EQU	@
 #include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/sci.s  				;SCI driver
 #include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/led.s				;LED driver
 #include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/string.s			  	;String printing routines
-#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/num.s				;Number printing routines
+;#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/num.s				;Number printing routines
 
 ;#include ../../../S12CBase/Source/AriCalculator/regdef_AriCalculator.s 				;Register definitions
-;#include ../../../S12CBase/Source/AriCalculator/mmap_AriCalculator.s 				        ;Memory map
+#include ../../../S12CBase/Source/AriCalculator/mmap_AriCalculator.s 				        ;Memory map
 ;#include ../../../S12CBase/Source/AriCalculator/gpio_AriCalculator.s   				;I/O setup
 ;#include ../../../S12CBase/Source/AriCalculator/disp_AriCalculator.s   				;Display driver
 ;#include ../../../S12CBase/Source/All/clock.s				 			        ;Clock driver

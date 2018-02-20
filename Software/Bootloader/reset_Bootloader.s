@@ -3,7 +3,7 @@
 ;###############################################################################
 ;# AriCalculator - Bootloader - Reset Handler                                  #
 ;###############################################################################
-;#    Copyright 2010-2017 Dirk Heisswolf                                       #
+;#    Copyright 2010-2018 Dirk Heisswolf                                       #
 ;#    This file is part of the S12CBase framework for NXP's S12C MCU family.   #
 ;#                                                                             #
 ;#    S12CBase is free software: you can redistribute it and/or modify         #
@@ -62,13 +62,15 @@ RESET_VARS_END_LIN	EQU	@
 			;Check for POR
 			LDAA	CPMUFLG					;CPMU flags -> A
 			CMPA	#PORF 					;check for POR
-			BEQ	CHECK_KEYPADS	 			;check keypad
+			BEQ	CHECK_KEYPAD	 			;check keypad
 
 			;Start firmware
 START_FIRMWARE		MOVB	#$FF, PTP				;unselect keypad columns	
 			MOVB	#(($FF00-BOOTLOADER_SIZE)>>8), IVBR 	;set vector base
 			JMP	[$FFFC-BOOTLOADER_SIZE]			;jump to firmware
-	
+#else	
+START_FIRMWARE		EQU	START_OF_CODE 				;loop until key combination is pushed
+#endif	
 			;Check key pad
 			;          P  P  P  P  P  P
 			;          P  P  P  P  P  P
@@ -89,36 +91,38 @@ START_FIRMWARE		MOVB	#$FF, PTP				;unselect keypad columns
 			; PAD0 -------4--3--2--1--0 |A
 			;          ________________
 			;          5  4  3  2  1  0
-CHECK_KEYPADS		MOVB	#$FD, PTP 				;check row 4
-			LDAA	PORTA 					;row pattern -> A 
-			CMPA	#$FD 					;check for ENTER key
+CHECK_KEYPAD		MOVB	#$FD, PTP 				;check row 4
+			NOP		       				;wait
+			LDAA	PT1AD 					;row pattern -> A 
+			MOVB	#$EF, PTP 				;check row 1
+			CMPA	#$FB 					;check for ENTER key
 			BNE	START_FIRMWARE				;start regular firmware
 
-			MOVB	#$EF, PTP 				;check row 1
-			LDAA	PORTA 					;row pattern -> A 
+			LDAA	PT1AD 					;row pattern -> A 
+			MOVB	#$DF, PTP 				;check row 0
 			CMPA	#$FE 					;check for DEL key
 			BNE	START_FIRMWARE	 			;start regular firmware
 
-			MOVB	#$DF, PTP 				;check row 0
-			LDAA	PORTA 					;row pattern -> A 
-			COMA						;check for no key
-			BNE	START_FIRMWARE	 			;start regular firmware
-
+			LDAA	PT1AD 					;row pattern -> A 
 			MOVB	#$F7, PTP 				;check row 2
-			LDAA	PORTA 					;row pattern -> A 
 			COMA						;check for no key
 			BNE	START_FIRMWARE	 			;start regular firmware
 
+			LDAA	PT1AD 					;row pattern -> A 
 			MOVB	#$FB, PTP 				;check row 3
-			LDAA	PORTA 					;row pattern -> A 
 			COMA						;check for no key
 			BNE	START_FIRMWARE	 			;start regular firmware
 
+			LDAA	PT1AD 					;row pattern -> A 
 			MOVB	#$FE, PTP 				;check row 5
-			LDAA	PORTA 					;row pattern -> A 
 			COMA						;check for no key
 			BNE	START_FIRMWARE	 			;start regular firmware
-#endif
+
+			LDAA	PT1AD 					;row pattern -> A 
+			MOVB	#$FF, PTP				;unselect keypad columns	
+			COMA						;check for no key
+			BNE	START_FIRMWARE	 			;start regular firmware
+
 #emac
 
 ;###############################################################################
