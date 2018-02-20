@@ -33,19 +33,14 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;# LRE or flash
-#ifndef DEMO_LRE
-#ifndef DEMO_FLASH
-DEMO_LRE		EQU	1 		;default is LRE
+#ifndef FLASH_COMPILE
+#ifndef RAM_COMPILE
+FLASH_COMPILE		EQU	1 		;default target is NVM
+#endif	
 #endif
-#endif
-
+	
 ;# Memory map:
 MMAP_S12G240		EQU	1 		;S12G240
-#ifdef DEMO_LRE
-MMAP_RAM		EQU	1 		;use RAM memory map
-#else
-MMAP_FLASH		EQU	1 		;use FLASH memory map
-#endif
 
 ;#COP
 COP_DEBUG		EQU	1 		;disable COP
@@ -64,76 +59,137 @@ ISTACK_NO_WAI		EQU	1 		;don't use WAI instruction
 ;###############################################################################
 ;# Resource mapping                                                            #
 ;###############################################################################
-			ORG	MMAP_RAM_START, MMAP_RAM_START 
-#ifdef DEMO_LRE
-;Code
-DEMO_CODE_START		EQU	*
-DEMO_CODE_START_LIN	EQU	@
-			ORG	DEMO_CODE_END, 	DEMO_CODE_END_LIN
+;                        FLASH_COMPILE:                                          RAM_COMPILE:	       	      
+;                        ==============                                          ============	       	      
+;      MMAP_REG_START -> +----------+----------+ $0000       MMAP_REG_START -> +----------+----------+ $0000      
+;             	         |   Register Space    |                    ($0000)    |   Register Space    |      	    
+;        MMAP_REG_END -> +----------+----------+ $0400         MMAP_REG_END -> +----------+----------+ $0400	    
+;                        :       unused        :                    ($0400)    :       unused        :      	    
+;      MMAP_RAM_START,-> +----------+----------+             MMAP_RAM_START,-> +----------+----------+      	    
+;          VARS_START    |                     |                 TABS_START    |       Tables        |      	    
+;                        |  Global Variables   |                 CODE_START -> +----------+----------+      	    
+;                        |                     |                               |                     |      	    
+;          SSTACK_TOP -> +----------+----------+                               |    Program Space    |      	    
+;                        |                     |                               |                     |      	    
+;                        |                     |                 VARS_START -> +----------+----------+      	    
+;                        |                     |                               |                     |      	    
+;                        |                     |                               |  Global Variables   |      	    
+;                        |                     |                               |                     |      	    
+;                        |       SSTACK        |                 SSTACK_TOP -> +----------+----------+      	    
+;                        |       ISTACK        |                               |                     |      	    
+;                        |                     |                               |       SSTACK        |      	    
+;                        |                     |                               |       ISTACK        |      	    
+;                        |                     |                               |                     |      	    
+;                        |                     |               VECTAB_START -> +----------+----------+ $3F80	    
+;                        |                     |                               |    Vector Table     |      	    
+;        MMAP_RAM_END,-> +----------+----------+ $4000         MMAP_RAM_END -> +----------+----------+ $4000
+;  MMAP_FLASH_D_START	 |	               |
+;	                 |	               |
+;	                 |        Flash        |
+;	                 |        Page D       |
+;	                 |	               |
+;	                 |	               |
+; MMAP_FLASHWIN_START -> +----------+----------+ $8000
+;	                 |	               |
+;	                 |	               |
+;	                 |        Page         |
+;	                 |       Window        |
+;	                 |	               |
+;	                 |	               |
+;  MMAP_FLASH_F_START,-> +---------------------+ $C000
+;	   TABS_START    |       Tables        |
+;	   CODE_START -> +---------------------+
+;	                 |	               |
+;	                 |    Program Space    |
+;	                 |	               |
+;	                 +---------------------+
+;	                 :	               :
+;	 VECTAB_START -> +---------------------+ $EF80
+;	                 |    Vector Table     |
+;	                 +---------------------+ $F000
+;	                 |     Bootloader      |
+;	                 +---------------------+ $10000
+;
+#ifdef RAM_COMPILE
+			ORG	MMAP_RAM_START, MMAP_RAM_START_LIN 
 
 ;Tables
-DEMO_TABS_START		EQU	*
-DEMO_TABS_START_LIN	EQU	@
-			ORG	DEMO_TABS_END, 	DEMO_TABS_END_LIN
+TABS_START		EQU	*
+TABS_START_LIN		EQU	@
+			ORG	TABS_END, TABS_END_LIN
+
+;Code
+CODE_START		EQU	*
+CODE_START_LIN		EQU	@
+			ORG	CODE_END, CODE_END_LIN
 
 ;Variables
-DEMO_VARS_START		EQU	*
-DEMO_VARS_START_LIN	EQU	@
-			ORG	DEMO_VARS_END, 	DEMO_VARS_END_LIN
+VARS_START		EQU	*
+VARS_START_LIN		EQU	@
+			ORG	VARS_END, VARS_END_LIN
 
 ;Stack 
 SSTACK_TOP		EQU	*
 SSTACK_TOP_LIN		EQU	@
 SSTACK_BOTTOM		EQU	VECTAB_START
 SSTACK_BOTTOM_LIN	EQU	VECTAB_START_LIN
-#endif
-	
-#ifndef DEMO_LRE
+
+;Vector table 
+VECTAB_START		EQU	MMAP_RAM_END-VECTAB_SIZE
+VECTAB_START_LIN	EQU	MMAP_RAM_END_LIN-VECTAB_SIZE
+#else
+			ORG	MMAP_RAM_START, MMAP_RAM_START_LIN 
+
 ;Variables
-DEMO_VARS_START		EQU	*
-DEMO_VARS_START_LIN	EQU	@
-			ORG	DEMO_VARS_END, 	DEMO_VARS_END_LIN
+VARS_START		EQU	*
+VARS_START_LIN		EQU	@
+			ORG	VARS_END, VARS_END_LIN
+
+;Stack 
+SSTACK_TOP		EQU	*
+SSTACK_TOP_LIN		EQU	@
+SSTACK_BOTTOM		EQU	MMAP_RAM_END
+SSTACK_BOTTOM_LIN	EQU	MMAP_RAM_END_LIN
 
 			ORG	MMAP_FLASH_F_START, MMAP_FLASH_F_START_LIN
-;Code
-DEMO_CODE_START		EQU	*
-DEMO_CODE_START_LIN	EQU	@
-			ORG	DEMO_CODE_END, 	DEMO_CODE_END_LIN
-
+			
 ;Tables
-DEMO_TABS_START		EQU	*
-DEMO_TABS_START_LIN	EQU	@
-			ORG	DEMO_TABS_END, 	DEMO_TABS_END_LIN
+TABS_START		EQU	*
+TABS_START_LIN		EQU	@
+			ORG	TABS_END, TABS_END_LIN
 
-;Stack 
-SSTACK_TOP		EQU	*
-SSTACK_TOP_LIN		EQU	@
-SSTACK_BOTTOM		EQU	VECTAB_START
-SSTACK_BOTTOM_LIN	EQU	VECTAB_START_LIN
+;Code
+CODE_START		EQU	*
+CODE_START_LIN		EQU	@
+			ORG	CODE_END, CODE_END_LIN
 
-			ALIGN 	7, $FF ;align to D-Bug12XZ programming granularity
+;Vector table 
+VECTAB_START		EQU	BOOTLOADER_START-VECTAB_SIZE
+VECTAB_START_LIN	EQU	BOOTLOADER_START_LIN-VECTAB_SIZE
 #endif
 
 ;###############################################################################
 ;# Variables                                                                   #
 ;###############################################################################
-#ifdef DEMO_VARS_START_LIN
-			ORG 	DEMO_VARS_START, DEMO_VARS_START_LIN
-#else
-			ORG 	DEMO_VARS_START
-#endif	
+			ORG 	VARS_START, DEMO_VARS_START_LIN
 
+DEMO_VARS_START		EQU	*
+DEMO_VARS_START_LIN	EQU	@
+		
 DEMO_KEY_CODE		DS	1 	;pushed key stroke
 DEMO_PAGE   		DS	1	;current display page
 DEMO_COL    		DS	1	;current key pad ccolumn
 DEMO_CUR_KEY 		DS	1	;current key code
+
+DEMO_VARS_END		EQU	*
+DEMO_VARS_END_LIN	EQU	@
 	
 BASE_VARS_START		EQU	*
 BASE_VARS_START_LIN	EQU	@
 			ORG	BASE_VARS_END, 	BASE_VARS_END_LIN
 
-DEMO_VARS_END		EQU	*
-DEMO_VARS_END_LIN	EQU	@
+VARS_END		EQU	*
+VARS_END_LIN		EQU	@
 	
 ;###############################################################################
 ;# Macros                                                                      #
@@ -167,12 +223,11 @@ DEMO_VARS_END_LIN	EQU	@
 ;###############################################################################
 ;# Code                                                                        #
 ;###############################################################################
-#ifdef DEMO_CODE_START_LIN
-			ORG 	DEMO_CODE_START, DEMO_CODE_START_LIN
-#else
-			ORG 	DEMO_CODE_START
-#endif	
+			ORG 	CODE_START, CODE_START_LIN
 
+DEMO_CODE_START		EQU	*
+DEMO_CODE_START_LIN	EQU	@
+	
 ;Application code
 START_OF_CODE		EQU	*				;Start of code
 			;Initialization
@@ -201,7 +256,7 @@ DEMO_KEY_STROKE_LOOP	EQU	*
 			STRING_FILL_BL
 			LDAB	#16 				;set base	
 			NUM_REVPRINT_BL				;print value
-			NUM_CLEAN_REVERSE
+			NUM_CLEAN_REVERSE, 0
 
 			;Adjust backlight 
 			LDX	#DEMO_BACKLIGHT_HEADER 		;print header
@@ -224,7 +279,7 @@ DEMO_KEY_STROKE_LOOP_1	;BACKLIGHT_SET				;adust backlight
 			STRING_FILL_BL
 			LDAB	#16 				;set base	
 			NUM_REVPRINT_BL				;print value
-			NUM_CLEAN_REVERSE
+			NUM_CLEAN_REVERSE, 0
 				
 			;Display keystroke
 			;Clear page 7
@@ -295,7 +350,7 @@ DEMO_SWITCH_PAGE_BL	EQU	*
 			;Save registers
 			PSHB							;push accu B onto the SSTACK			
 			;Switch to command input
-			DISP_CMD_INPUT_BL					;(SSTACK: 10 bytes)
+			DISP_STREAM_FROM_TO_BL	DEMO_CMD_INPUT_START, DEMO_CMD_INPUT_END 
 			;Set page address
 			ORAB	#$B0
 			DISP_TX_BL	 					;(SSTACK: 7 bytes)
@@ -303,7 +358,7 @@ DEMO_SWITCH_PAGE_BL	EQU	*
 			DISP_TX_IMM_BL	$10 					;(SSTACK: 7 bytes)
 			DISP_TX_IMM_BL	$00	 				;(SSTACK: 7 bytes)		
 			;Switch to data input
-			DISP_DATA_INPUT_BL					;(SSTACK: 10 bytes)
+			DISP_STREAM_FROM_TO_BL	DEMO_DATA_INPUT_START, DEMO_DATA_INPUT_END 
 			;Restore registers
 			SSTACK_PREPULL	3
 			PULB							;pull accu B from the SSTACK
@@ -354,40 +409,51 @@ DEMO_WHITE_BOX		DISP_STREAM_FROM_TO_BL	DEMO_WHITE_BOX_START, DEMO_WHITE_BOX_END
 ;         D is preserved 
 DEMO_BLACK_BOX		DISP_STREAM_FROM_TO_BL	DEMO_BLACK_BOX_START, DEMO_BLACK_BOX_END
 			RTS
+
+DEMO_CODE_END		EQU	*
+DEMO_CODE_END_LIN	EQU	@
 	
 BASE_CODE_START		EQU	*
 BASE_CODE_START_LIN	EQU	@
 			ORG	BASE_CODE_END, 	BASE_CODE_END_LIN
 
-DEMO_CODE_END		EQU	*
-DEMO_CODE_END_LIN	EQU	@
+CODE_END		EQU	*
+CODE_END_LIN		EQU	@
 
 ;###############################################################################
 ;# Tables                                                                      #
 ;###############################################################################
-#ifdef DEMO_TABS_START_LIN
-			ORG 	DEMO_TABS_START, DEMO_TABS_START_LIN
-#else
-			ORG 	DEMO_TABS_START
-#endif	
+			ORG 	TABS_START, TABS_START_LIN
+
+DEMO_TABS_START		EQU	*
+DEMO_TABS_START_LIN	EQU	@
 
 DEMO_WHITE_BOX_START	DB	$7E DISP_ESC_START $04 $42 $7E
 DEMO_WHITE_BOX_END	EQU	*
 
 DEMO_BLACK_BOX_START	DB	DISP_ESC_START $06 $7E
 DEMO_BLACK_BOX_END	EQU	*
+
+DEMO_CMD_INPUT_START	DISP_SEQ_CMD
+DEMO_CMD_INPUT_END	EQU	*
+
+DEMO_DATA_INPUT_START	DISP_SEQ_DATA
+DEMO_DATA_INPUT_END	EQU	*
 	
 DEMO_KEY_HEADER		STRING_NL_NONTERM
 			FCS	"Key code: "
 	
 DEMO_BACKLIGHT_HEADER	FCS	" -> Backlight: "
 	
+DEMO_TABS_END		EQU	*
+DEMO_TABS_END_LIN	EQU	@
+
 BASE_TABS_START		EQU	*
 BASE_TABS_START_LIN	EQU	@
 			ORG	BASE_TABS_END, 	BASE_TABS_END_LIN
 
-DEMO_TABS_END		EQU	*
-DEMO_TABS_END_LIN	EQU	@
+TABS_END		EQU	*
+TABS_END_LIN		EQU	@
 
 ;###############################################################################
 ;# Includes                                                                    #
