@@ -108,6 +108,14 @@ KEYS_OC			EQU	4 		;default is OC4
 #ifndef	KEYS_DEBOUNCE_DELAY
 KEYS_DEBOUNCE_DELAY	EQU	5		;default is 5*2.6214ms			
 #endif
+
+;Debounce delay (TIM cycles)
+#ifndef	KEYS_DEBOUNCE_DELAY
+KEYS_DEBOUNCE_DELAY	EQU	5		;default is 5*2.6214ms			
+#endif
+
+
+
 	
 ;Buffer
 ;------
