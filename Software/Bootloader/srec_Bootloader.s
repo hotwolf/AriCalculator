@@ -294,6 +294,7 @@ SREC_PARSE_SREC_13	LDAA	#SREC_ERR_COUNT 			;return count error
 SREC_PARSE_SREC_14	SREC_PARSE_DATA					;data byte -> B (SSTACK: 14 bytes)
 			TBNE	A, SREC_PARSE_srec_4 			;error (fail)
 			BCS	SREC_PARSE_SREC_2 			;format error (fail)
+			NVM_FLUSH_BL 					;program remaining data
 			CLRA						;signal no errors
 			JOB	SREC_PARSE_SREC_4 			;done
 
