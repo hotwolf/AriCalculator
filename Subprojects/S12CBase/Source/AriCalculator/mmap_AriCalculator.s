@@ -3,9 +3,8 @@
 ;###############################################################################
 ;# S12CBase - MMAP - Memory Map (S12G-Micro-EVB)			       #
 ;###############################################################################
-;#    Copyright 2010-2015 Dirk Heisswolf				       #
-;#    This file is part of the S12CBase framework for Freescale's S12(X) MCU   #
-;#    families.								       #
+;#    Copyright 2010-2018 Dirk Heisswolf				       #
+;#    This file is part of the S12CBase framework for NXP's S12 MCU family.    #
 ;#									       #
 ;#    S12CBase is free software: you can redistribute it and/or modify	       #
 ;#    it under the terms of the GNU General Public License as published by     #
@@ -65,10 +64,11 @@
 ;	       | |   Window    |
 ;	       | |	       |
 ;	       | +-------------+ $C000
-;	       | |	       |
-;	       | |    Code     |
 ;	       | |   Page F    |
-;	       | |	       |
+;	       | +-------------+ $EF80
+;	       | |Vector Table |
+;	       | +-------------+ $F000
+;	       | | Bootloader  |
 ;	       + +-------------+ $10000
 ;
 
@@ -84,26 +84,6 @@ MMAP_S12G240		EQU	1	;default is S12G240
 #endif
 #endif
 #endif
-#endif
-
-;Security
-#ifndef MMAP_UNSEC_ON
-#ifndef MMAP_UNSEC_OFF
-MMAP_UNSEC_ON		EQU	1	;default is setting the security word
-#endif
-#endif
-
-;###############################################################################
-;# Security and Protection						       #
-;###############################################################################
-#ifdef	MMAP_UNSEC_ON
-			;Align to D-Bug12XZ programming granularity
-			ORG	$FF08, $03FF08	;unprotect
-			FILL	$FF, 8
-
-			;Unsecure
-			ORG	$FF0F, $03FF0F	;unsecure
-			DB	$FE
 #endif
 
 ;###############################################################################
@@ -165,10 +145,14 @@ MMAP_FLASH_D_START_LIN	EQU	$3_4000
 MMAP_FLASH_D_END_LIN	EQU	$3_8000
 
 MMAP_FLASH_F_START	EQU	$C000
-MMAP_FLASH_F_END	EQU	$10000
+MMAP_FLASH_F_END	EQU	BOOTLOADER_START
 MMAP_FLASH_F_START_LIN	EQU	$3_C000
-MMAP_FLASH_F_END_LIN	EQU	$4_0000
+MMAP_FLASH_F_END_LIN	EQU	BOOTLOADER_START_LIN
 
+;# Bootloader
+BOOTLOADER_START	EQU	$F000
+BOOTLOADER_START_LIN	EQU	$3_F000
+	
 ;###############################################################################
 ;# Variables								       #
 ;###############################################################################
