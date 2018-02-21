@@ -628,7 +628,7 @@ RAM_TABS_END_LIN	EQU	@
 ;###############################################################################
 ;# S12CBase
 #include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/regdef_AriCalculator.s	;Register definitions
-;#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/mmap_AriCalculator.s	;Memory map
+#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/mmap_AriCalculator.s	;Memory map
 #include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/gpio_AriCalculator.s	;I/O setup
 #include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/AriCalculator/disp_AriCalculator.s	;Display driver
 #include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/clock.s			  	;TIM driver
@@ -641,7 +641,7 @@ RAM_TABS_END_LIN	EQU	@
 ;#include ../../Subprojects/S12CForth/Subprojects/S12CBase/Source/All/num.s				;Number printing routines
 
 ;#include ../../../S12CBase/Source/AriCalculator/regdef_AriCalculator.s 				;Register definitions
-#include ../../../S12CBase/Source/AriCalculator/mmap_AriCalculator.s 				        ;Memory map
+;#include ../../../S12CBase/Source/AriCalculator/mmap_AriCalculator.s 				        ;Memory map
 ;#include ../../../S12CBase/Source/AriCalculator/gpio_AriCalculator.s   				;I/O setup
 ;#include ../../../S12CBase/Source/AriCalculator/disp_AriCalculator.s   				;Display driver
 ;#include ../../../S12CBase/Source/All/clock.s				 			        ;Clock driver
