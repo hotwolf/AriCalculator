@@ -60,17 +60,23 @@ RESET_VARS_END_LIN	EQU	@
 #macro	RESET_INIT, 0	
 #ifdef	FLASH_COMPILE
 			;Check for POR
-			LDAA	CPMUFLG					;CPMU flags -> A
-			CMPA	#PORF 					;check for POR
-			BEQ	CHECK_KEYPAD	 			;check keypad
-
+			BRSET	CPMUFLG, #PORF, CHECK_KEYPAD		;check for POR
+	
 			;Start firmware
-START_FIRMWARE		MOVB	#$FF, PTP				;unselect keypad columns	
+START_FIRMWARE		CLR	ATDDIENL 				;restore reset state
+			CLR	PER1AD 					;restore reset state
+			CLR	DDRP 					;restore reset state
+			CLR	PTP				    	;restore reset state
 			MOVB	#(($FF00-BOOTLOADER_SIZE)>>8), IVBR 	;set vector base
-			JMP	[$FFFC-BOOTLOADER_SIZE]			;jump to firmware
+			JMP	[$FFFE-BOOTLOADER_SIZE]			;jump to firmware
 #else	
 START_FIRMWARE		EQU	START_OF_CODE 				;loop until key combination is pushed
 #endif	
+			;Setup keypad 
+CHECK_KEYPAD		MOVB	#$FF, ATDDIENL 				;enable PAD's input buffers
+			MOVB	#$FF, PER1AD				;enable PAD's pull-ups
+			MOVB	#$3F,   DDRP 				;drive keyboard columns low
+			
 			;Check key pad
 			;          P  P  P  P  P  P
 			;          P  P  P  P  P  P
@@ -91,7 +97,7 @@ START_FIRMWARE		EQU	START_OF_CODE 				;loop until key combination is pushed
 			; PAD0 -------4--3--2--1--0 |A
 			;          ________________
 			;          5  4  3  2  1  0
-CHECK_KEYPAD		MOVB	#$FD, PTP 				;check row 4
+			MOVB	#$FD, PTP 				;check row 4
 			NOP		       				;wait
 			LDAA	PT1AD 					;row pattern -> A 
 			MOVB	#$EF, PTP 				;check row 1
@@ -122,7 +128,6 @@ CHECK_KEYPAD		MOVB	#$FD, PTP 				;check row 4
 			MOVB	#$FF, PTP				;unselect keypad columns	
 			COMA						;check for no key
 			BNE	START_FIRMWARE	 			;start regular firmware
-
 #emac
 
 ;###############################################################################

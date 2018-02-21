@@ -255,7 +255,9 @@ SREC_PARSE_SREC_9	SREC_PARSE_DATA					;data byte -> B (SSTACK: 14 bytes)
 			BCC	SREC_PARSE_SREC_10 			;end of S-record reached
 			NVM_PGM_BYTE_BL					;queue data byte for programming
 			JOB	SREC_PARSE_SREC_9 			;get next byte
-SREC_PARSE_SREC_10	LDD 	SREC_COUNT+2 				;S-Record count (lower word) -> D
+SREC_PARSE_SREC_10	LDAB	#"*" 					;progress char -> B
+			SCI_TX_BL 					;print progress char
+			LDD 	SREC_COUNT+2 				;S-Record count (lower word) -> D
 			ADDD	#1 					;increment S-Record count (lower word)
 			STD	SREC_COUNT+2 				;update	S-Record count (lower word)
 			LDD	SREC_COUNT				;S-Record count (upper word) -> D
@@ -267,9 +269,7 @@ SREC_PARSE_SREC_10	LDD 	SREC_COUNT+2 				;S-Record count (lower word) -> D
 			BNE	SREC_PARSE_SREC_11 			;
 			LDX	#STRING_STR_NL 				;line break -> X
 			STRING_PRINT_BL					;print line break
-SREC_PARSE_SREC_11	LDAB	#"*" 					;progress char -> B
-			SCI_TX_BL 					;print progress char
-			;LDY	SREC_ADDR				;debug: address -> Y:X
+SREC_PARSE_SREC_11	;LDY	SREC_ADDR				;debug: address -> Y:X
 			;LDX	SREC_ADDR+2				;debug: 
 			;LDD	#$0610					;debug: alignment:base -> D
 			;NUM_PRINT_ZUD_BL				;debug: print address
@@ -350,7 +350,7 @@ SREC_PARSE_HEADER	EQU	*
 			SREC_SKIP_TYPE 					;type -> B, error code -> A (SSTACK: 12 bytes)	
 			TBNE	A, SREC_PARSE_HEADER_9 			;communication error (fail)
 			TFR	B, X  					;type -> X
-			;Get byte count 
+			;Get byte count (type in X)
 			SREC_RX_BYTE 					;count -> B, error code in A (SSTACK: 12 bytes)
 			TBNE	A, SREC_PARSE_HEADER_8 			;error (fail)
 			STAB	SREC_CHECKSUM 				;set initial checksum
@@ -385,17 +385,16 @@ SREC_PARSE_HEADER_2	LEAX	-4,X 					;subtract address width
 			;24bit address (byte count in X)
 SREC_PARSE_HEADER_3	LEAX	-3,X 					;subtract address width
 			TFR	X, B 					;byte count -> B
-			STAB	SREC_BYTECOUNT 				;store byte count	
+			STAB	SREC_BYTECOUNT 				;store byte count				
 SREC_PARSE_HEADER_4	SREC_RX_BYTE 					;address byte -> B, error code in A (SSTACK: 12 bytes)
 			TBNE	A, SREC_PARSE_HEADER_8 			;error (fail)
 			TBA						;address byte -> A
 			ADDA	SREC_CHECKSUM				;new checksum -> A
 			STAA	SREC_CHECKSUM				;update checksum
-			STAB	SREC_ADDR 				;store address byte
 			STAB	SREC_ADDR+1 				;store address byte
 			JOB	SREC_PARSE_HEADER_7 			;get remaining address bytes
 			;16bit address (byte count in X)
-SREC_PARSE_HEADER_5	MOVW	#$003F, SREC_ADDR 			;default offset
+SREC_PARSE_HEADER_5	MOVB	#$3F, SREC_ADDR+1 			;default offset
 SREC_PARSE_HEADER_6	LEAX	-2,X 					;subtract address width
 			TFR	X, B 					;byte count -> B
 			STAB	SREC_BYTECOUNT 				;store byte count	

@@ -42,7 +42,7 @@ NVM_FDIV_VAL		EQU	(CLOCK_BUS_FREQ/1000000)-1 ;FTMRG clock divider
 ;Program buffer
 ;-------------- 
 #ifndef NVM_BUF_DEPTH
-NVM_BUF_DEPTH		EQU	8			;max. 32 entries
+NVM_BUF_DEPTH		EQU	16			;max. 32 entries
 #endif	
 
 ;Firmware range
@@ -244,7 +244,7 @@ LOOP			STD	2,X+
 			JOB	DONE	  				;done
 			;Strings 		
 HEADER_STRING		STRING_NL_NONTERM 				;header
-			FCS	"New S-record: "
+			FCS	"Address: "
 NL_STRING		STRING_NL_TERM	
 DONE			PULD						;restore D
 #emac
@@ -594,7 +594,7 @@ NVM_ISR_CC_2		CLR	FCCOBIX	 				;reset CCOB index
 			LSRD						;
 			LSRD						;
 			EXG	D, X					;sector address/8 -> X, sector address -> D
-			LEAX	(NVM_TAGS-(NVM_FIRMWARE_START_LIN<<12)),X;tag address -> X
+			LEAX	(NVM_TAGS-(NVM_FIRMWARE_START_LIN>>12)),X;tag address -> X
 			;Determine tag bit (tag address in X, sector address/8 in D)
 			LDAA	#1		     			;bit 0 -> A
 			ANDB	#(NVM_PHRASE_SIZE-1) 			;bit offset -> B
