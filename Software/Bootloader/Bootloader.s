@@ -1,7 +1,7 @@
 ;###############################################################################
 ;# AriCalculator - Bootloader                                                  #
 ;###############################################################################
-;#    Copyright 2010-2017 Dirk Heisswolf                                       #
+;#    Copyright 2010-2018 Dirk Heisswolf                                       #
 ;#    This file is part of the AriCalculator firmware.                         #
 ;#                                                                             #
 ;#    AriCalculator is free software: you can redistribute it and/or modify    #
@@ -69,14 +69,9 @@ CLOCK_BUS_FREQ		EQU	25000000	;25 MHz bus frequency
 CLOCK_REF_FREQ		EQU	 1000000	; 1 MHz reference clock frequency
 CLOCK_VCOFRQ		EQU	$1		;10 MHz VCO frequency
 CLOCK_REFFRQ		EQU	$0		; 1 MHz reference clock frequency
-
-;#MMAP
-#ifdef RAM_COMPILE
-MMAP_UNSEC_OFF		EQU	1 		;don't set the security byte for LRE compiles
-#endif
 	
 ;#VECTAB 
-VECTAB_DEBUG_ON		EQU	1 		;debug IRQs
+VECTAB_DEBUG_OFF	EQU	1 		;debug IRQs
 	
 ;#SSTACK:
 SSTACK_TOP		EQU	STACKS_START
@@ -103,7 +98,9 @@ SCI_CTS_PPS		EQU	PPSM 		;PPSM
 SCI_CTS_PIN		EQU	PM1		;PM1
 SCI_CTS_STRONG_DRIVE	EQU	1		;strong drive
 SCI_RXTX_ACTHI		EQU	1		;RXD/TXD are active hi
-SCI_TXBUF_SIZE		EQU	4		;easier to debug
+SCI_RXBUF_SIZE		EQU	32*2		;easier to debug
+SCI_TXBUF_SIZE		EQU	8		;easier to debug
+;SCI_TXBUF_SIZE		EQU	4		;easier to debug
 	
 ;#STRING							
 ;STRING_ENABLE_ERASE_NB	EQU	1		;enable STRING_ERASE_NB 
@@ -258,9 +255,9 @@ TABS_START_LIN		EQU	@
 ;# Initialization                                                              #
 ;###############################################################################
 #macro	INIT, 0
+			RESET_INIT		;start bootloder or application
 			MMAP_INIT 		;configure memory map
 			GPIO_INIT		;configure I/Os
-			RESET_INIT		;start bootloder or application
 			CLOCK_INIT		;configure clocks
 			VECTAB_INIT		;configure cector table
 			SSTACK_INIT		;configure subroutine stack
@@ -540,8 +537,8 @@ BOOTLOADER_MSG_ADDR	FCS	"Wrong address!"
 BOOTLOADER_MSG_HW	FCS	"Hardware failur!"
 BOOTLOADER_MSG_UNKNOWN	FCS	"Unknown cause!"
 
-BOOTLOADER_MSG_READY	FCS	"Ready to receive S-record!"
-	
+BOOTLOADER_MSG_READY	STRING_NL_NONTERM
+			FCS	"Ready to receive S-record!"	
 BOOTLOADER_MSG_DONE	STRING_NL_NONTERM
 			FCS	"Done!"
 BOOTLOADER_MSG_ERROR	STRING_NL_NONTERM
