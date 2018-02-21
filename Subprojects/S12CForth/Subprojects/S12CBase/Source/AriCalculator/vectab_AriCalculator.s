@@ -41,7 +41,11 @@
 ;# Configuration                                                               #
 ;###############################################################################
 ;Point all unused ISRs to separate BGND instructions
-;VECTAB_DEBUG		EQU	1 		;default is off
+#ifndef	VECTAB_DEBUG_ON
+#ifndef	VECTAB_DEBUG_OFF
+VECTAB_DEBUG_OFF	EQU	1 		;default is off
+#endif
+#endif
 
 ;###############################################################################
 ;# Constants                                                                   #
@@ -96,7 +100,7 @@ VECTAB_TABS_START_LIN	EQU	@
 
 ;#Interrupt service routines
 ;#--------------------------
-#ifdef VECTAB_DEBUG
+#ifdef VECTAB_DEBUG_ON
 ISR_SPURIOUS		BGND				;vector base + $80
 #ifdef KEYS_ISR_KWU					;vector base + $82
 ISR_PAD			EQU	KEYS_ISR_KWU

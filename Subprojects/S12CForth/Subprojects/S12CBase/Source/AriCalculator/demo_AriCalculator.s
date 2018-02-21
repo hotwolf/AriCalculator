@@ -46,7 +46,7 @@ MMAP_S12G240		EQU	1 		;S12G240
 COP_DEBUG		EQU	1 		;disable COP
 
 ;# Vector table
-VECTAB_DEBUG		EQU	1 		;multiple dummy ISRs
+VECTAB_DEBUG_ON		EQU	1 		;multiple dummy ISRs
 
 ;# STRING
 STRING_ENABLE_FILL_NB	EQU	1 		;enable STRING_FILL_NB

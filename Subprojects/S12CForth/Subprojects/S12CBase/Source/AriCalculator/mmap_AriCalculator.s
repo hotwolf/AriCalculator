@@ -75,7 +75,7 @@
 ;###############################################################################
 ;# Configuration							       #
 ;###############################################################################
-;MCU (S12G32, S12G64, S12G128, or S12G240)
+;# MCU (S12G32, S12G64, S12G128, or S12G240)
 #ifndef MMAP_S12G32
 #ifndef MMAP_S12G64
 #ifndef MMAP_S12G128
@@ -86,6 +86,11 @@ MMAP_S12G240		EQU	1	;default is S12G240
 #endif
 #endif
 
+;# Size of the bootloader code
+#ifndef BOOTLOADER_SIZE
+BOOTLOADER_SIZE		EQU	$1000 		;default is 4K
+#endif	
+	
 ;###############################################################################
 ;# Constants								       #
 ;###############################################################################
@@ -145,13 +150,13 @@ MMAP_FLASH_D_START_LIN	EQU	$3_4000
 MMAP_FLASH_D_END_LIN	EQU	$3_8000
 
 MMAP_FLASH_F_START	EQU	$C000
-MMAP_FLASH_F_END	EQU	BOOTLOADER_START
+MMAP_FLASH_F_END	EQU	$1_0000
 MMAP_FLASH_F_START_LIN	EQU	$3_C000
-MMAP_FLASH_F_END_LIN	EQU	BOOTLOADER_START_LIN
+MMAP_FLASH_F_END_LIN	EQU	$4_0000
 
 ;# Bootloader
-BOOTLOADER_START	EQU	$F000
-BOOTLOADER_START_LIN	EQU	$3_F000
+BOOTLOADER_START	EQU	MMAP_FLASH_F_END-BOOTLOADER_SIZE
+BOOTLOADER_START_LIN	EQU	MMAP_FLASH_F_END_LIN-BOOTLOADER_SIZE
 	
 ;###############################################################################
 ;# Variables								       #
