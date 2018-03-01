@@ -133,7 +133,18 @@ $src_handle->close();                           #close file handle
 }
 #printf STDOUT "Color depth: %d\n", $color_depth;
 
-######################
+#for $y (0..64) {
+#    for $x (0..127) {
+#	$px = $src_buffer[$x+(128*$y)];
+#	if ($px == 0) {print STDOUT "#";}
+#	if ($px == 1) {print STDOUT "*";}
+#	if ($px == 2) {print STDOUT ".";}
+#	if ($px >  2) {print STDOUT " ";}
+#    }
+#    print STDOUT "\n"
+#}
+
+#####################
 # convert image file #
 ######################
 #split source buffer into gray shades
@@ -235,6 +246,27 @@ printf $out_handle ";# Generated on %3s, %3s %.2d %4d                           
 printf $out_handle ";###############################################################################\n";
 printf $out_handle "\n";
 
+#Print image 
+print $out_handle ";+--------------------------------------------------------------------------------------------------------------------------------+\n";
+for my $row (0..63) {
+    print $out_handle ";|";
+    for my $column (0..127) {
+	my $pixel = int(($src_buffer[$column+(128*$row)] * 8)/$color_depth);
+	#print $out_handle $pixel;	
+	if ($pixel == 0) {print $out_handle "#";}
+	if ($pixel == 1) {print $out_handle "@";}
+	if ($pixel == 2) {print $out_handle "%";}
+	if ($pixel == 3) {print $out_handle "+";}
+	if ($pixel == 4) {print $out_handle "*";}
+	if ($pixel == 5) {print $out_handle "-";}
+	if ($pixel == 6) {print $out_handle ":";}
+	if ($pixel == 7) {print $out_handle ".";}
+	if ($pixel >  7) {print $out_handle " ";}
+    }
+    print $out_handle "|\n"
+}
+print $out_handle ";+--------------------------------------------------------------------------------------------------------------------------------+\n\n";
+
 #write data table 
 @out_buffer = @paged_buffer;
 
@@ -244,7 +276,6 @@ printf $out_handle "\n";
 foreach $color (0..$color_depth-1) {
     printf $out_handle ";#Frame %d:\n", $color;
     printf $out_handle ";#----------------------------------------------------------------------\n";
-
     foreach $page (0..7) {
 	printf $out_handle ";#Page %d:\n", $page;
 	foreach $column_group (0..15) {
