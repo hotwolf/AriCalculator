@@ -7,7 +7,6 @@ url:         //hotwolf.github.io/AriCalculator
 
 source:      .
 destination: ./_site
-plugins:     ./_plugins
 
 future:      true
 lsi:         false
